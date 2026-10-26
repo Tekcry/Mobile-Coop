@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from '../scripts/laptop-queue/lib.mjs';
+// @ts-expect-error plain .mjs process script without types
+import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
 const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
+// @ts-expect-error plain .mjs module without types
+import { overCapAffected } from '../scripts/laptop-queue/lib.mjs';
+// @ts-expect-error plain .mjs module without types
+import { laptopRerunFor, DRAFT_NO_RERUN } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -50,6 +56,105 @@ describe('pick', () => {
     const b = req(20, 'full', 'b');
     expect(pick({ trains: [], requests: [b, a] }, NOW, slots(true, false))).toEqual({ kind: 'request', request: a, slot: '4192' });
     expect(pick({ trains: [], requests: [b, a] }, NOW, slots(true, true))).toBeNull();
+  });
+});
+
+describe('pick: front, green smallest first', () => {
+  const pr = (min: number, tag: string, extra: Record<string, unknown> = {}) => ({ ...req(min, 'pr', tag, tag), pr: 1, sha: tag, ...extra });
+  const order = (green: string[], wall: Record<string, number> = {}, extra: Record<string, unknown> = {}) => ({
+    green: new Set(green), wallS: wall, frontBranches: ['mixamo'], maxWaitMs: 30 * 60_000, ...extra,
+  });
+  const run = (requests: unknown[], o: unknown, extra: Record<string, unknown> = {}) =>
+    pick({ trains: [], requests, order: o, ...extra }, NOW, slots(false, false))?.request;
+
+  it('a green 12 s request beats an older plain request', () => {
+    const plain = pr(20, 'plain');
+    const green = pr(5, 'green');
+    expect(run([plain, green], order([green.id], { [green.id]: 12 }))).toBe(green);
+  });
+  it('two green: the smaller wall first, unknown wall last, ties by id', () => {
+    const a = pr(10, 'a');
+    const b = pr(9, 'b');
+    const c = pr(8, 'c');
+    expect(run([a, b, c], order([a.id, b.id, c.id], { [a.id]: 206, [b.id]: 12 }))).toBe(b);
+    expect(run([a, c], order([a.id, c.id], { [a.id]: 206 }))).toBe(a);
+    expect(run([c, b], order([b.id, c.id], {}))).toBe(b);
+  });
+  it('a mixamo-branch request (not green) beats a green one; an early-id re-file beats green', () => {
+    const green = pr(5, 'green');
+    const mix = pr(1, 'mix', { branch: 'feature/Mixamo-x' });
+    expect(run([green, mix], order([green.id], { [green.id]: 12 }))).toBe(mix);
+    const early = { id: '000006-old-d7a3b887', kind: 'pr', requester: 'old', pr: 2, sha: 'old' };
+    expect(run([green, early], order([green.id], { [green.id]: 12 }))).toBe(early);
+    expect(isFront({ id: idAt(1, 'x'), branch: 'feature/mixamo-x' }, ['mixamo'])).toBe(true);
+    expect(isFront({ id: idAt(1, 'x'), branch: 'feature/mixamo-x' }, [])).toBe(false);
+    expect(isFront({ id: idAt(1, 'x'), branch: 'feature/other' }, ['mixamo'])).toBe(false);
+  });
+  it('front tier goes oldest first', () => {
+    const m1 = pr(10, 'm1', { branch: 'mixamo-a' });
+    const m2 = pr(20, 'm2', { branch: 'mixamo-b' });
+    expect(run([m1, m2], order([]))).toBe(m2);
+  });
+  it('trains, train reruns and an aged alone request still go first', () => {
+    const green = pr(5, 'green');
+    const o = order([green.id], { [green.id]: 12 });
+    expect(pick({ trains: [train], requests: [green], order: o }, NOW, slots(false, false))).toEqual({ kind: 'train', train });
+    const rerun = { ...req(3, 'pr', 'rr', 'rr'), trainRerun: true };
+    expect(pick({ trains: [], requests: [green, rerun], order: o }, NOW, slots(false, false))?.request).toBe(rerun);
+    const alone = req(50, 'alone');
+    expect(pick({ trains: [], requests: [green, alone], order: o }, NOW, slots(false, false))).toEqual({ kind: 'alone', request: alone });
+    expect(pick({ trains: [], requests: [green, alone], order: o }, NOW, slots(true, false))).toBeNull();
+  });
+  it('max wait: a plain request 31 min old runs in arrival order this pick, under 30 min the green goes first', () => {
+    const old = pr(31, 'old');
+    const green = pr(5, 'green');
+    expect(run([old, green], order([green.id], { [green.id]: 12 }))).toBe(old);
+    const young = pr(29, 'young');
+    expect(run([young, green], order([green.id], { [green.id]: 12 }))).toBe(green);
+    expect(run([old, green], order([green.id], { [green.id]: 12 }, { maxWaitMs: 0 }))).toBe(green);
+  });
+  it('max wait: a green 206 s request 31 min old beats a newer green 12 s one; a front request beats both', () => {
+    const big = pr(31, 'big');
+    const small = pr(5, 'small');
+    const o = order([big.id, small.id], { [big.id]: 206, [small.id]: 12 });
+    expect(run([big, small], o)).toBe(big);
+    const mix = pr(2, 'mix', { branch: 'mixamo-z' });
+    expect(run([big, small, mix], o)).toBe(mix);
+  });
+  it('max wait counts the oldest non-front request even when it is not green', () => {
+    const plain = pr(40, 'plain');
+    const g1 = pr(10, 'g1');
+    const g2 = pr(5, 'g2');
+    expect(run([plain, g1, g2], order([g1.id, g2.id], { [g1.id]: 200, [g2.id]: 12 }))).toBe(plain);
+  });
+  it('no order, or an empty one, matches the arrival rule', () => {
+    const a = pr(30, 'a');
+    const b = pr(20, 'b');
+    const c = { ...req(10, 'full', 'c', 'c') };
+    for (const requests of [[a, b], [c, b], [b]]) {
+      expect(pick({ trains: [], requests, order: undefined }, NOW, slots(false, false))).toEqual(pick({ trains: [], requests }, NOW, slots(false, false)));
+      expect(run(requests, { green: new Set(), wallS: {}, frontBranches: [], maxWaitMs: 0 })).toBe(pick({ trains: [], requests }, NOW, slots(false, false))?.request);
+    }
+    const fresh = req(20, 'alone');
+    expect(pick({ trains: [], requests: [fresh], order: order([]) }, NOW, slots(false, false))?.kind).toBe('alone');
+    expect(pick({ trains: [], requests: [fresh, b], order: order([]) }, NOW, slots(true, true))).toBeNull();
+  });
+  it('spare-only picks ignore the order', () => {
+    const s = spareReq(5, 'pr');
+    expect(pick({ trains: [], requests: [s], order: order([s.id], {}, { frontBranches: ['x'] }) }, NOW, slots(false, false))?.request).toBe(s);
+  });
+  it('greenIds: green head at the request sha only; stale sha, reruns, spare and non-pr are not', () => {
+    const board = new Map([[1, { head: 'a', conflicting: false, green: true }], [2, { head: 'b', conflicting: false, green: false }], [3, { head: 'new', conflicting: false, green: true }]]);
+    const ok = { ...req(1, 'pr', 'ok'), pr: 1, sha: 'a' };
+    const notGreen = { ...req(2, 'pr', 'ng'), pr: 2, sha: 'b' };
+    const stale = { ...req(3, 'pr', 'st'), pr: 3, sha: 'old' };
+    const rerun = { ...req(4, 'pr', 'rr'), pr: 1, sha: 'a', trainRerun: true };
+    const lrerun = { ...req(5, 'pr', 'lr'), pr: 1, sha: 'a', laptopRerun: true };
+    const spare = { ...spareReq(6, 'pr'), pr: 1, sha: 'a' };
+    const full = { ...req(7, 'full', 'fu'), pr: 1, sha: 'a' };
+    const got = greenIds([ok, notGreen, stale, rerun, lrerun, spare, full], board);
+    expect([...got]).toEqual([ok.id]);
+    expect(greenIds([ok], new Map()).size).toBe(0);
   });
 });
 
@@ -867,6 +972,50 @@ describe('fitsBeforeTrain', () => {
   });
 });
 
+describe('lastTrainEndFrom: this worker bump', () => {
+  it('a just-posted verdict raises the end, never lowers it', () => {
+    const now = new Date(NOW).toISOString();
+    expect(lastTrainEndFrom([{ laptop: 'success', laptopAt: now }], NOW - 60_000)).toBe(NOW);
+    expect(lastTrainEndFrom([{ laptop: 'success', laptopAt: now }], NOW + 60_000)).toBe(NOW + 60_000);
+    expect(lastTrainEndFrom([{ laptop: 'success', laptopAt: now }], NaN)).toBe(NOW);
+  });
+});
+
+describe('train hold across the next train (laptop-queue-6 rule, BRIEF item 5)', () => {
+  const MIN = 60_000;
+  const lim = { buildMaxMs: 20 * MIN, gapMs: 6.5 * MIN, readyLagMs: 3 * MIN, mergeLagMs: 2 * MIN, lateMs: 5 * MIN };
+  const times = { quick: 12, long: 206 };
+  const prepS = 120;
+  const fits = (suites: string[], now: number, etaMs: number) => fitsBeforeTrain({ kind: 'pr', suites }, { now, etaMs, times, prepS });
+  it('train N releasing, N+1 building, N+1 pending, N+1 releasing, nothing left', () => {
+    const t0 = NOW; // train N's laptop success, a candidate green since long before
+    const green = [t0 - 30 * MIN];
+    // hold with ETA = success + merge lag + gap; the short run fits before it, the 206 s run does not
+    const a = nextTrain({ releasing: { n: '110', laptopAtMs: t0 }, green, now: t0 + 5.25 * MIN }, lim);
+    expect(a?.etaMs).toBe(t0 + 8.5 * MIN);
+    expect(fits(['quick'], t0 + 5.25 * MIN, a!.etaMs)).toBe(true);
+    expect(fits(['long'], t0 + 5.25 * MIN, a!.etaMs)).toBe(false);
+    // train N+1 building: ETA = now, nothing fits, an alone request is held too
+    const now2 = t0 + 9 * MIN;
+    const b = nextTrain({ building: { n: '111', ageMs: MIN }, lastMerge: { n: '110', atMs: t0 + 2 * MIN }, green, now: now2 }, lim);
+    expect(b?.etaMs).toBe(now2);
+    expect(fits(['quick'], now2, b!.etaMs)).toBe(false);
+    expect(holdKeeps({ id: 'x', kind: 'alone' }, { next: b, fits: false })).toBe(false);
+    // N+1 head pending: trains first, a pr request waits
+    const trainHead = { sha: 'b'.repeat(40), n: '111' };
+    const q = { trains: [trainHead], requests: [req(5, 'pr')] };
+    expect(pick(q, now2, slots(false, false))).toEqual({ kind: 'train', train: trainHead });
+    // N+1 laptop success with another green candidate: a new hold with N+1's ETA
+    const t1 = t0 + 20 * MIN;
+    const g2 = [t1 - 2 * MIN];
+    const c = nextTrain({ releasing: { n: '111', laptopAtMs: t1 }, green: g2, now: t1 + MIN }, lim);
+    expect(c?.etaMs).toBe(t1 + 8.5 * MIN);
+    expect(c?.why).toMatch(/^train 111 releasing/);
+    // no candidates left: no hold
+    expect(nextTrain({ releasing: { n: '111', laptopAtMs: t1 }, green: [], running: 0, now: t1 + MIN }, lim)).toBeNull();
+  });
+});
+
 describe('train-ready heads', () => {
   const prs = [
     { head: 'a', check: { status: 'COMPLETED', conclusion: 'SUCCESS' } },
@@ -1018,6 +1167,99 @@ describe('cutShort', () => {
   });
 });
 
+describe('aged alone after the coming train', () => {
+  const MIN = 60_000;
+  const aged = req(ALONE_AGE_MIN + 10, 'alone', 'gc');
+  const young = req(5, 'alone', 'young');
+  const spare = spareReq(90, 'alone');
+  const iso = (ms: number) => new Date(ms).toISOString();
+  it('aloneDue stamps an aged alone only when a hold dropped it, and keeps the stamp', () => {
+    const requests = [aged, young, spare, req(50, 'pr')];
+    expect(aloneDue({}, { requests, now: NOW, held: new Set() })).toEqual({});
+    const held = new Set([aged.id, young.id, spare.id]);
+    const due = aloneDue({}, { requests, now: NOW, held });
+    expect(due).toEqual({ [aged.id]: NOW }); // a young alone and spare work are never stamped
+    expect(aloneDue(due, { requests, now: NOW + 5 * MIN, held })).toEqual({ [aged.id]: NOW }); // the first time stays
+    expect(aloneDue(due, { requests, now: NOW + 5 * MIN, held: new Set() })).toEqual({ [aged.id]: NOW });
+    expect(aloneDue(due, { requests: [young], now: NOW + 5 * MIN, held })).toEqual({}); // done or withdrawn: dropped
+  });
+  it('aloneDue stamps a preempted (front) alone however young', () => {
+    expect(aloneDue({}, { requests: [young], front: new Set([young.id]), now: NOW, held: new Set([young.id]) })).toEqual({ [young.id]: NOW });
+  });
+  it('lastTrainEndFrom takes the newest success / failure time and never goes back', () => {
+    const heads = [
+      { n: '50', laptop: 'success', laptopAt: iso(NOW - 20 * MIN) },
+      { n: '51', laptop: 'failure', laptopAt: iso(NOW - 5 * MIN) },
+      { n: '52', laptop: 'pending', laptopAt: iso(NOW) },
+      { n: '53', laptop: 'error', laptopAt: iso(NOW) },
+      { n: '54', laptop: '', laptopAt: '' },
+    ];
+    expect(lastTrainEndFrom(heads, NaN)).toBe(NOW - 5 * MIN);
+    expect(lastTrainEndFrom(heads, NOW - 30 * MIN)).toBe(NOW - 5 * MIN);
+    expect(lastTrainEndFrom(heads, NOW - MIN)).toBe(NOW - MIN); // a merged train's later end survives
+    expect(lastTrainEndFrom([], NOW - MIN)).toBe(NOW - MIN);
+    expect(lastTrainEndFrom([], undefined)).toBeNaN();
+  });
+  it('aloneGapOpen is false before a train ends after the mark, true after', () => {
+    const due = { [aged.id]: NOW };
+    expect(aloneGapOpen(due, aged.id, NaN)).toBe(false);
+    expect(aloneGapOpen(due, aged.id, NOW - MIN)).toBe(false);
+    expect(aloneGapOpen(due, aged.id, NOW)).toBe(false);
+    expect(aloneGapOpen(due, aged.id, NOW + MIN)).toBe(true);
+    expect(aloneGapOpen(due, young.id, NOW + MIN)).toBe(false);
+    expect(aloneGapOpen(null, aged.id, NOW + MIN)).toBe(false);
+  });
+  it('pick: the due alone takes both slots ahead of a green pr request; a pending train still goes first', () => {
+    const pr = req(50, 'pr', 'green');
+    const order = { green: new Set([pr.id]), wallS: { [pr.id]: 60 }, frontBranches: [], maxWaitMs: 0 };
+    const q = { trains: [], requests: [pr, aged], order };
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'alone', request: aged });
+    expect(pick(q, NOW, slots(true, false))).toBeNull(); // the slots drain for it
+    expect(pick({ ...q, trains: [train] }, NOW, slots(false, false))).toEqual({ kind: 'train', train });
+    const preempted = { trains: [], requests: [pr, young], front: new Set([young.id]), order };
+    expect(pick(preempted, NOW, slots(false, false))).toEqual({ kind: 'alone', request: young });
+  });
+  it('cutShort: a pending train does not cut a due alone 3 min in, a non-due one it does', () => {
+    const run = { trains: [train], started: true, startedAt: NOW - 3 * MIN, now: NOW };
+    expect(cutShort({ kind: 'alone' }, { ...run, due: true })).toBe('');
+    expect(cutShort({ kind: 'alone' }, run)).toBe('train');
+    expect(cutShort({ kind: 'alone' }, { ...run, due: true, withdrawn: true })).toBe('withdrawn');
+    expect(cutShort({ kind: 'pr' }, { ...run, due: true })).toBe('train'); // only the young-alone cut is waived
+  });
+  it('timeline: held at t0, train ends at t1, a re-armed hold still lets the alone through', () => {
+    const pr = req(2, 'pr', 'late'); // does not fit before the train
+    const t0 = NOW;
+    const next1 = { why: '1 train-ready PR(s)', etaMs: t0 + 10 * MIN };
+    // pass at t0: the train-soon hold drops the aged alone -> stamped
+    let lastEnd = lastTrainEndFrom([{ n: '49', laptop: 'success', laptopAt: iso(t0 - 60 * MIN) }], NaN);
+    const kept0 = [aged, pr].filter((r) => holdKeeps(r, { next: next1, due: {}, lastTrainEnd: lastEnd, fits: false }));
+    expect(kept0).toEqual([]);
+    let due = aloneDue({}, { requests: [aged, pr], now: t0, held: new Set([aged.id]) });
+    expect(due).toEqual({ [aged.id]: t0 });
+    // train 50 runs and ends at t1 (here, the desktop or a carry: any final laptop-e2e on its head)
+    const t1 = t0 + 25 * MIN;
+    const midway = [{ n: '50', laptop: 'pending', laptopAt: iso(t0 + 2 * MIN) }];
+    lastEnd = lastTrainEndFrom(midway, lastEnd);
+    expect(holdKeeps(aged, { next: next1, due, lastTrainEnd: lastEnd })).toBe(false); // still waiting on the train
+    lastEnd = lastTrainEndFrom([{ n: '50', laptop: 'success', laptopAt: iso(t1) }], lastEnd);
+    expect(lastEnd).toBe(t1);
+    // t2: a new train-ready PR re-arms the hold; the alone passes, PR work does not; the stamp stays
+    const t2 = t1 + 2 * MIN;
+    const next2 = { why: '2 train-ready PR(s)', etaMs: t2 + 15 * MIN };
+    const kept2 = [aged, pr].filter((r) => holdKeeps(r, { next: next2, due, lastTrainEnd: lastEnd, fits: false }));
+    expect(kept2).toEqual([aged]);
+    due = aloneDue(due, { requests: [aged, pr], now: t2, held: new Set() });
+    expect(due).toEqual({ [aged.id]: t0 });
+    expect(pick({ trains: [], requests: kept2 }, t2, slots(false, false))).toEqual({ kind: 'alone', request: aged });
+    // LQ_ALONE_GAP=0: the service passes due null and the hold keeps it back as before
+    expect(holdKeeps(aged, { next: next2, due: null, lastTrainEnd: lastEnd })).toBe(false);
+    // no hold, a train rerun and a fitting run always pass
+    expect(holdKeeps(pr, { next: null })).toBe(true);
+    expect(holdKeeps({ ...pr, trainRerun: true }, { next: next2 })).toBe(true);
+    expect(holdKeeps(pr, { next: next2, fits: true })).toBe(true);
+  });
+});
+
 describe('runProgress / aloneSoon', () => {
   it('progress is elapsed over the heaviest bin of the suites at that many jobs', () => {
     const times = { a: 100, b: 100, c: 50 };
@@ -1097,6 +1339,43 @@ describe('train reruns', () => {
     expect(superseded([plain, rr], () => true).size).toBe(0);
     expect(duplicates([plain, rr], [], NOW, 3600_000).size).toBe(0);
   });
+  // laptop-queue-7 A10: a train rerun shards across both slots when the laptop is free
+  it('shards across both slots when both are idle, it is the only open rerun and the service marked it', () => {
+    const rr = rerun(1);
+    const q = { trains: [], requests: [req(30, 'pr', 'p'), rr], shardRerun: new Set([rr.id]) };
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: rr, slot: '4189', ports: ['4189', '4192'] });
+  });
+  it('one slot busy: starts on the free slot at once, no waiting for the second', () => {
+    const rr = rerun(1);
+    const q = { trains: [], requests: [rr], shardRerun: new Set([rr.id]) };
+    expect(pick(q, NOW, slots(true, false))).toEqual({ kind: 'request', request: rr, slot: '4192' });
+    expect(pick(q, NOW, slots(false, true))).toEqual({ kind: 'request', request: rr, slot: '4189' });
+  });
+  it('two open reruns: one slot each, no shard', () => {
+    const a = rerun(20, 'a');
+    const b = rerun(5, 'b');
+    const q = { trains: [], requests: [a, b], shardRerun: new Set([a.id, b.id]) };
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: a, slot: '4189' });
+    expect(pick({ ...q, requests: [b] }, NOW, slots(true, false))).toEqual({ kind: 'request', request: b, slot: '4192' });
+  });
+  it('a pending train goes first; an early rerun under it runs on one slot, never sharded', () => {
+    const rr = rerun(1);
+    expect(pick({ trains: [train], requests: [rr], shardRerun: new Set([rr.id]) }, NOW, slots(false, false))).toEqual({ kind: 'train', train });
+    const early = { ...rerun(2, 'e'), set: 'train30-rerun' };
+    expect(pick({ trains: [train], requests: [early], shardRerun: new Set([early.id]) }, NOW, slots(false, false))).toEqual({ kind: 'request', request: early, slot: '4189' });
+  });
+  it('shardRerun absent or without the id: today\'s one-slot pick', () => {
+    const rr = rerun(1);
+    expect(pick({ trains: [], requests: [rr] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: rr, slot: '4189' });
+    expect(pick({ trains: [], requests: [rr], shardRerun: new Set() }, NOW, slots(false, false))).toEqual({ kind: 'request', request: rr, slot: '4189' });
+  });
+  it('suiteParts expands a suite into its times parts and keeps parts and unknown names', () => {
+    const times = { 'e2e-desktop:1': 60, 'e2e-desktop:2': 50, 'e2e-coop': 40 };
+    expect(suiteParts(['e2e-desktop', 'e2e-coop', 'e2e-new'], times)).toEqual(['e2e-desktop:1', 'e2e-desktop:2', 'e2e-coop', 'e2e-new']);
+    expect(suiteParts(['e2e-desktop:2'], times)).toEqual(['e2e-desktop:2']);
+    expect(suiteParts(['e2e-coop'], {})).toEqual(['e2e-coop']);
+    expect(suiteParts(['e2e-coop'], times).length).toBe(1); // one part: the service never marks it for a shard
+  });
 });
 
 describe('pruneDone', () => {
@@ -1140,16 +1419,41 @@ describe('affected e2e on every PR head', () => {
     const calls: string[][] = [];
     const run = (files: string) => (args: string[]) => { calls.push(args); return args[0] === 'merge-base' ? 'b'.repeat(40) : files; };
     const got = affectedSuites(run('docs/x.md\nsrc/game/sectors/a.ts\n'), SHA('1'));
-    expect(calls).toEqual([['merge-base', 'origin/master', SHA('1')], ['diff', '--name-only', '--no-renames', 'b'.repeat(40), SHA('1')]]);
+    expect(calls).toEqual([['merge-base', 'origin/master', SHA('1')], ['diff', '--name-only', '--no-renames', 'b'.repeat(40), SHA('1')], ['show', `${SHA('1')}:src/net/protocol.ts`]]);
     expect(got.files).toEqual(['docs/x.md', 'src/game/sectors/a.ts']);
-    expect(got.suites).toContain('smoke');
-    expect(got.suites).toContain('e2e-sectorops');
+    expect(got.suites).toEqual(['e2e-gadgets', 'e2e-park', 'e2e-sectorops']);
     expect(affectedSuites(run('docs/a.md\ntests/b.test.ts'), SHA('1')).suites).toEqual([]);
     expect(affectedSuites(run(''), SHA('1')).suites).toEqual([]);
     expect(affectedSuites(() => { throw new Error('no'); }, SHA('1'))).toBeNull();
     expect(affectedSuites(() => '', SHA('1'))).toBeNull();
     const wide = affectedSuites(run('src/game/sectors/a.ts'), SHA('1'), { wide: true });
     expect(wide.suites).toEqual(selectSuites(['src/game/sectors/a.ts'], WIDE_COVERS));
+  });
+  it('affectedSuites: the wire rule reads protocol.ts at the sha (skipped when the read fails); max 0 is the uncapped gated list', () => {
+    const run = (files: string, proto: string | null) => (args: string[]) => {
+      if (args[0] === 'merge-base') return 'b'.repeat(40);
+      if (args[0] === 'show') { if (proto === null) throw new Error('no protocol.ts'); return proto; }
+      return files;
+    };
+    const proto = "import type { MoveState } from '../player/moveState';\n";
+    expect(affectedSuites(run('src/player/moveState.ts', proto), SHA('1')).suites).toEqual(['e2e-coop', 'e2e-ctcourse', 'e2e-netmove']);
+    expect(affectedSuites(run('src/player/moveState.ts', null), SHA('1')).suites).toEqual(['e2e-clip', 'e2e-move', 'e2e-stealth']);
+    const all = affectedSuites(run('src/game/sectors/a.ts\nsrc/world/lightBake.ts', ''), SHA('1'), { max: 0 }).suites;
+    expect(all).toEqual(['e2e-desktop', 'e2e-gadgets', 'e2e-lightbake', 'e2e-park', 'e2e-sectorops', 'e2e-tactics', 'e2e-takedown', 'smoke']);
+  });
+  it('overCapAffected: only open automatic affected requests over the cap are re-filed', () => {
+    const four = ['e2e-anim', 'e2e-clip', 'e2e-move', 'e2e-stealth'];
+    const auto = (o: Record<string, unknown> = {}) => ({ id: `a${Object.keys(o).length}`, sha: SHA('1'), kind: 'pr', requester: AFFECTED_REQUESTER, set: 'affected', suites: four, ...o });
+    const over = (rs: unknown[], max = 3) => (overCapAffected(rs, max) as { id: string }[]);
+    expect(over([auto()])).toHaveLength(1);
+    // a lead's hand-filed request (set affected, own requester) is never narrowed
+    expect(over([auto({ requester: 'Night Shift | Lead x' })])).toEqual([]);
+    for (const o of [{ pin: true }, { trainRerun: true }, { laptopRerun: true }, { kind: 'alone' }]) expect(over([auto(o)]), JSON.stringify(o)).toEqual([]);
+    expect(over([auto({ suites: ['e2e-anim', 'e2e-clip', 'e2e-move'] })])).toEqual([]);
+    // two parts of one suite count once
+    expect(over([auto({ suites: ['e2e-anim', 'e2e-clip', 'e2e-sectorops:1', 'e2e-sectorops:6'] })])).toEqual([]);
+    expect(over([auto()], 0)).toEqual([]);
+    expect(over([auto()], 5)).toEqual([]);
   });
   it('affectedNeeds: skips trains, drafts, the skip label, heads with a status, open requests and enqueued shas', () => {
     const prs = [
@@ -1180,6 +1484,49 @@ describe('affected e2e on every PR head', () => {
     expect(affectedNeeds([pr(5, pending)], [{ requester: 'lead', sha: SHA('5') }]).map((x: { stuck?: boolean }) => x.stuck)).toEqual([true]);
     for (const state of ['SUCCESS', 'FAILURE', 'ERROR']) expect(affectedNeeds([pr(5, { statusCheckRollup: [{ context: AFFECTED_CTX, state }] })])).toEqual([]);
   });
+  it('affectedNeeds: a CONFLICTING head comes back marked, MERGEABLE / UNKNOWN / missing stay plain', () => {
+    const got = affectedNeeds([pr(1, { mergeable: 'CONFLICTING' }), pr(2, { mergeable: 'MERGEABLE' }), pr(3, { mergeable: 'UNKNOWN' }), pr(4)]);
+    expect(got.map((x: { conflicting?: boolean }) => x.conflicting)).toEqual([true, undefined, undefined, undefined]);
+    // a final affected-e2e status (the error posted for the conflict) skips it, so the error is posted once per head
+    expect(affectedNeeds([pr(1, { mergeable: 'CONFLICTING', statusCheckRollup: [{ context: AFFECTED_CTX, state: 'ERROR' }] })])).toEqual([]);
+  });
+  it('prBoard: mergeable values, check + checker green, a failed / pending checker or missing rollup is not green', () => {
+    const ok = [{ name: 'check', conclusion: 'SUCCESS' }, { context: 'checker', state: 'SUCCESS' }];
+    const b = prBoard([
+      pr(1, { mergeable: 'CONFLICTING', statusCheckRollup: ok }),
+      pr(2, { mergeable: 'MERGEABLE', statusCheckRollup: ok }),
+      pr(3, { mergeable: 'UNKNOWN' }),
+      pr(4, { statusCheckRollup: [ok[0], { context: 'checker', state: 'FAILURE' }] }),
+      pr(5, { statusCheckRollup: [ok[0], { context: 'checker', state: 'PENDING' }] }),
+      pr(6, { statusCheckRollup: [{ name: 'check', conclusion: 'FAILURE' }, ok[1]] }),
+      pr(7, { statusCheckRollup: undefined }),
+      { headRefOid: SHA('9') },
+    ]);
+    expect(b.get(1)).toEqual({ head: SHA('1'), conflicting: true, green: true });
+    expect(b.get(2)).toEqual({ head: SHA('2'), conflicting: false, green: true });
+    expect(b.get(3)).toEqual({ head: SHA('3'), conflicting: false, green: false });
+    for (const n of [4, 5, 6, 7]) expect(b.get(n).green).toBe(false);
+    expect(b.size).toBe(7);
+    expect(prBoard(undefined).size).toBe(0);
+  });
+  it('conflictRetire: an affected request on the current conflicting head only (A1, A2); an empty board retires nothing', () => {
+    const a = (tag: string, n: number, sha: string, o: Record<string, unknown> = {}) => ({ id: idAt(10, tag), requester: AFFECTED_REQUESTER, kind: 'pr', set: 'affected', pr: n, sha, suites: ['smoke'], ...o });
+    const board = prBoard([pr(1, { mergeable: 'CONFLICTING' }), pr(2, { mergeable: 'UNKNOWN' }), pr(3, { mergeable: 'CONFLICTING' }), pr(4, { mergeable: 'CONFLICTING' })]);
+    const cur = a('c', 1, SHA('1'));
+    const filed = a('f', 4, SHA('4'), { requester: 'lead' });
+    expect(conflictRetire([cur, a('o', 1, SHA('8')), a('u', 2, SHA('2')), a('n', 3, SHA('3'), { set: 'coop', requester: 'lead' }), a('x', 7, SHA('7')), a('p', undefined as unknown as number, SHA('1')), filed], board)).toEqual([cur.id, filed.id]);
+    expect(conflictRetire([cur], new Map())).toEqual([]);
+    expect(conflictRetire(undefined, board)).toEqual([]);
+  });
+  it('conflictStatuses: both contexts for an auto or filed affected request, the PR number in the text', () => {
+    const r = { id: 'x', requester: AFFECTED_REQUESTER, kind: 'pr', set: 'affected', pr: 12, sha: SHA('a'), suites: ['smoke'] };
+    const description = 'not run: PR #12 conflicts with master (a new head runs again)';
+    const both = [{ sha: SHA('a'), state: 'error', context: 'laptop-e2e/affected', description }, { sha: SHA('a'), state: 'error', context: AFFECTED_CTX, description }];
+    expect(conflictStatuses(r)).toEqual(both);
+    expect(conflictStatuses({ ...r, requester: 'lead' })).toEqual(both);
+    expect(conflictStatuses({ ...r, requester: 'lead', set: 'coop' })).toEqual([{ sha: SHA('a'), state: 'error', context: 'laptop-e2e/coop', description }]);
+    expect(conflictStatuses(undefined)).toEqual([]);
+  });
   it('affectedRequest: the request.mjs --affected shape, valid for requestProblem', () => {
     const r = affectedRequest({ now: NOW, pr: 12, sha: SHA('a'), branch: 'feature/x', suites: ['smoke', 'e2e-coop'], suffix: 'beef' });
     expect(r).toEqual({ id: `20261023T200000-affected-e2e-aaaaaaaa-beef`, sha: SHA('a'), branch: 'feature/x', pr: 12, kind: 'pr', requester: AFFECTED_REQUESTER, suites: ['smoke', 'e2e-coop'], set: 'affected', note: 'auto affected-e2e, PR #12' });
@@ -1204,6 +1551,41 @@ describe('affected e2e on every PR head', () => {
     const y1 = a(30, 'y1', 'feature/y');
     expect(pick({ trains: [], requests: [y1, lead, x1] }, NOW, slots(false, false))?.request).toBe(x1);
     expect(pick({ trains: [], requests: [y1, lead] }, NOW, slots(false, false))?.request).toBe(lead);
+  });
+});
+
+describe('drafts never ride a train (F34, #487 rode train 122 as a draft)', () => {
+  const row = (n: number, isDraft?: boolean) => ({ number: n, headRefOid: 'a'.repeat(40), mergeable: 'MERGEABLE', statusCheckRollup: [], ...(isDraft === undefined ? {} : { isDraft }) });
+  const desk = { id: '20261026T150000-lead-aaaaaaaa', sha: 'a'.repeat(40), kind: 'pr', requester: 'lead', suites: ['e2e-menus'], set: '', pr: 487 };
+
+  it('a desktop failure on a draft PR files no laptop rerun', () => {
+    const board = prBoard([row(487, true), row(9, false), row(8)]);
+    expect(board.get(487).draft).toBe(true);
+    expect(board.get(9).draft).toBeUndefined();
+    expect(laptopRerunFor(desk, board)).toEqual({ rerun: false, why: DRAFT_NO_RERUN });
+    expect(DRAFT_NO_RERUN).toBe('draft PR, no laptop rerun');
+    // not a draft, not on the board, no PR, or an empty board (a GitHub error): the rerun goes to the laptop as before
+    for (const r of [{ ...desk, pr: 9 }, { ...desk, pr: 8 }, { ...desk, pr: 5 }, { ...desk, pr: null }]) expect(laptopRerunFor(r, board).rerun).toBe(true);
+    expect(laptopRerunFor(desk, new Map()).rerun).toBe(true);
+    // the failure's description keeps the suffix whole, with room for the desktop's "desktop: " prefix
+    const suites = Array.from({ length: 30 }, (_, i) => ({ s: `e2e-long-suite-name-${i}`, ok: false, flaky: false, report: false }));
+    const long = describeRun({ suites, wall: 1, flakes: [], note: DRAFT_NO_RERUN });
+    expect(long.endsWith('...; draft PR, no laptop rerun')).toBe(true);
+    expect(`desktop: ${long}`.length).toBeLessThanOrEqual(140);
+    expect(describeRun({ suites: [{ s: 'e2e-menus', ok: false, flaky: false, report: false }], wall: 60, flakes: [], note: DRAFT_NO_RERUN }))
+      .toBe('0/1 pass, 60 s; FAIL: e2e-menus; draft PR, no laptop rerun');
+  });
+
+  it('the service: the PR board reads isDraft, the desktop block asks laptopRerunFor before it files a rerun', async () => {
+    const fs = await import('node:fs');
+    const src = fs.readFileSync('scripts/laptop-queue/service.mjs', 'utf8').replace(/\r\n/g, '\n');
+    const pb = src.slice(src.indexOf('function prBoardNow('), src.indexOf('function prBoardNow(') + 400);
+    expect(pb).toMatch(/'--json', '[^']*\bisDraft\b[^']*'/);
+    const blk = src.slice(src.indexOf('// desktop: failed suites go to the laptop'), src.indexOf('const ok = finish(job, verdictCtx'));
+    expect(blk).toContain('laptopRerunFor(r, board)');
+    expect(blk).toContain('result.note = lr.why');
+    expect(blk.indexOf('laptopRerunFor(')).toBeLessThan(blk.indexOf('laptopRerunRequest('));
+    expect(blk).toMatch(/if \(lr\?\.rerun\) \{\n\s+const rr = laptopRerunRequest\(/);
   });
 });
 
@@ -1384,5 +1766,98 @@ describe('affected-e2e never stuck pending (Orchestrator audit 2026-10-25)', () 
     const two = vanishedRequests(tracked, new Set([b.id]), one.misses);
     expect(two.gone).toEqual([a]);
     expect(two.misses.size).toBe(0);
+  });
+});
+
+describe('train head moves (trains 111 / 112)', () => {
+  const sh = (c: string) => c.repeat(40);
+  const H = sh('a'), D2 = sh('b'), D1 = sh('c'), V = sh('d');
+  const vSub = (n: number) => `4.106.0: version at merge, train ${n} (G183)`;
+  // `git log --first-parent --format=%H%x09%s` lines, newest first
+  const lines = [`${H}\ttrain 112: doc fix`, `${D2}\ttrain 112: fix 2`, `${D1}\tMerge origin/feature/a into train/112`, `${V}\t${vSub(112)}`, `${sh('e')}\tolder`];
+  // the service's live(P): claimed here, or an open claim under LQ_CLAIM_MAX_H (a done claim never counts)
+  const T = Date.parse('2026-10-26T10:00:00Z');
+  const MAX = 3 * 3600_000;
+  const liveOf = (claims: Record<string, string>, claimed = new Set<string>()) => (p: string) => {
+    if (claimed.has(p)) return true;
+    const c = parseClaim(claims[p] ?? '');
+    return !!c && !c.done && claimBlocks(c, 'laptop', T, MAX);
+  };
+  const docs = ['docs/x.md', 'changes/f.md', 'CHANGELOG.md', 'src/a/README.md'];
+  const delta = (byFrom: Record<string, string[]>) => (from: string) => byFrom[from] ?? docs;
+
+  it('versionAt finds V under a fix commit, not past depth, not another train\'s version; isVersionHead', () => {
+    expect(versionAt(lines, 112)).toEqual({ versionSha: V, index: 3 });
+    expect(versionAt(lines, '112', 20)).toEqual({ versionSha: V, index: 3 });
+    expect(versionAt([`${V}\t${vSub(112)}`], 112)).toEqual({ versionSha: V, index: 0 });
+    expect(versionAt(lines, 112, 3)).toBeNull();
+    expect(versionAt(lines, 111)).toBeNull();
+    expect(versionAt([`${H}\tfix`, `${V}\t${vSub(111)}`, `${sh('e')}\t${vSub(112)}`], 112)).toBeNull();
+    expect(versionAt([], 112)).toBeNull();
+    expect(isVersionHead(vSub(112), 112)).toBe(true);
+    expect(isVersionHead(`${vSub(112)}\n`, '112')).toBe(true);
+    expect(isVersionHead(vSub(112), 11)).toBe(false);
+    expect(isVersionHead('4.106.0: version at merge (G183)', 112)).toBe(false);
+    expect(isVersionHead('train 112: doc fix', 112)).toBe(false);
+  });
+
+  it('carryFiles: the G325 docs-only set minus non-.md files under docs/', () => {
+    expect(carryFiles(docs)).toBe(true);
+    expect(carryFiles(['src/x.ts', 'docs/a.md'])).toBe(false);
+    expect(carryFiles(['package.json'])).toBe(false);
+    expect(carryFiles(['docs/kestrel/kestrel.blocks.json'])).toBe(false);
+    expect(docsOnlyFiles(['docs/kestrel/kestrel.blocks.json'])).toBe(true); // the G325 set alone would carry it
+    expect(carryFiles([])).toBe(false);
+    expect(carryFiles(null)).toBe(false);
+    expect(docsOnlyFiles([])).toBe(false);
+    expect(watchdogDocsOnly).toBe(docsOnlyFiles);
+  });
+
+  it('carryFrom: the newest final verdict decides; a newer failure is never skipped', () => {
+    const chain = (...st: string[]) => st.map((s, i) => ({ sha: [D2, D1, V][i], laptop: s }));
+    // V pass, docs-only delta -> carried from V
+    expect(carryFrom(chain('', '', 'success'), delta({}))).toEqual({ from: V });
+    // code (or docs JSON) in the delta -> null (H runs as a train)
+    for (const f of ['src/x.ts', 'package.json', 'docs/kestrel/kestrel.blocks.json']) expect(carryFrom(chain('', '', 'success'), delta({ [V]: [...docs, f] }))).toBeNull();
+    // the newest success wins over an older one
+    expect(carryFrom(chain('', 'success', 'success'), delta({}))).toEqual({ from: D1 });
+    // V pass, D1 fail, H = D2 -> null; an error after a success too
+    expect(carryFrom([{ sha: D1, laptop: 'failure' }, { sha: V, laptop: 'success' }], delta({}))).toBeNull();
+    expect(carryFrom(chain('error', '', 'success'), delta({}))).toBeNull();
+    // failure or no status on every chain commit -> null
+    expect(carryFrom(chain('', '', 'failure'), delta({}))).toBeNull();
+    expect(carryFrom(chain('', '', ''), delta({}))).toBeNull();
+    expect(carryFrom([], delta({}))).toBeNull();
+    // a git error on the delta -> null
+    expect(carryFrom(chain('', '', 'success'), () => null)).toBeNull();
+  });
+
+  it('carryFrom waits only on a live docs-only run; a dead pending run counts as no verdict', () => {
+    const pend = [{ sha: D2, laptop: 'pending' }, { sha: D1, laptop: '' }, { sha: V, laptop: 'failure' }];
+    const open = JSON.stringify({ worker: 'desktop', at: '2026-10-26T09:30:00.000Z' });
+    const done = JSON.stringify({ worker: 'desktop', at: '2026-10-26T09:30:00.000Z', done: true });
+    const old = JSON.stringify({ worker: 'desktop', at: '2026-10-26T06:00:00.000Z' });
+    // live: claimed here, or the other worker's open claim
+    expect(carryFrom(pend, delta({}), liveOf({}, new Set([D2])))).toEqual({ wait: D2 });
+    expect(carryFrom(pend, delta({}), liveOf({ [D2]: open }))).toEqual({ wait: D2 });
+    // no claim, a done claim (lost final post), an open claim over LQ_CLAIM_MAX_H, this worker's own open claim (a
+    // restart) -> not live: H runs (V failed)
+    expect(carryFrom(pend, delta({}), liveOf({}))).toBeNull();
+    expect(carryFrom(pend, delta({}), liveOf({ [D2]: done }))).toBeNull();
+    expect(carryFrom(pend, delta({}), liveOf({ [D2]: old }))).toBeNull();
+    expect(carryFrom(pend, delta({}), liveOf({ [D2]: JSON.stringify({ worker: 'laptop', at: '2026-10-26T09:30:00.000Z' }) }))).toBeNull();
+    // ... or carries from an older success over a docs-only delta
+    const older = [{ sha: D2, laptop: 'pending' }, { sha: D1, laptop: 'success' }, { sha: V, laptop: 'success' }];
+    expect(carryFrom(older, delta({}), liveOf({}))).toEqual({ from: D1 });
+    expect(carryFrom(older, delta({}), liveOf({ [D2]: done }))).toEqual({ from: D1 });
+    // a live pending ancestor with a code delta -> null (H runs)
+    expect(carryFrom(pend, delta({ [D2]: ['src/x.ts'] }), liveOf({ [D2]: open }))).toBeNull();
+    // no injected live: never waits
+    expect(carryFrom(pend, delta({}))).toBeNull();
+  });
+
+  it('carryDesc fits a status description', () => {
+    expect(carryDesc('546a2286' + 'f'.repeat(32))).toBe('carried from 546a2286, docs-only delta');
+    expect(carryDesc(sh('9')).length).toBeLessThan(140);
   });
 });

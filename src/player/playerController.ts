@@ -199,6 +199,35 @@ export class PlayerController {
   landVZ = 0;
   private height: number = MOVEMENT.standHeight;
   private support: CharacterSurfaceInfo | null = null;
+  /** (player-hygiene S1) The step's support, filled by `checkSupportToRef` (Babylon's `checkSupport` is a fresh one of
+   *  these filled the same way: every field is reset). `support` stays null until the first free step. */
+  private readonly supportInfo: CharacterSurfaceInfo = {
+    isSurfaceDynamic: false,
+    supportedState: CharacterSupportedState.UNSUPPORTED,
+    averageSurfaceNormal: new Vector3(),
+    averageSurfaceVelocity: new Vector3(),
+    averageAngularSurfaceVelocity: new Vector3(),
+  };
+  /** (player-hygiene S1) The step's velocity out (`calculateMovementToRef` / the air arc), the facing it is given, the
+   *  slope projection's cross product, the stick force and gravity over the step. */
+  private readonly move = new Vector3();
+  private readonly fwd = new Vector3();
+  private readonly crossTmp = new Vector3();
+  private readonly stick = new Vector3();
+  private readonly grav = new Vector3();
+  /** (player-hygiene S1) The capsule centre's offset over the feet (`syncFeet`), a kinematic step's capsule centre and
+   *  its offset, and a zero velocity (never written). */
+  private readonly halfUp = new Vector3();
+  private readonly kinPos = new Vector3();
+  private readonly kinUp = new Vector3();
+  private readonly zero = new Vector3();
+  /** (player-hygiene S1) `hasHeadroom`'s ray: the head, the ray's end, their offsets, the result and the filter. */
+  private readonly headTop = new Vector3();
+  private readonly headEnd = new Vector3();
+  private readonly headUp = new Vector3();
+  private readonly headReach = new Vector3();
+  private readonly headRay = new PhysicsRaycastResult();
+  private readonly headQuery = { membership: G.PLAYER, collideWith: G.STATIC };
   private readonly settleRay = new PhysicsRaycastResult();
   private readonly settleFrom = new Vector3();
   private readonly settleTo = new Vector3();
@@ -248,7 +277,7 @@ export class PlayerController {
   }
 
   private syncFeet(): void {
-    this.cc.getPosition().subtractToRef(new Vector3(0, this.height / 2, 0), this.pos);
+    this.cc.getPosition().subtractToRef(this.halfUp.set(0, this.height / 2, 0), this.pos);
   }
 
   get eyeHeight(): number {
@@ -457,12 +486,14 @@ export class PlayerController {
   }
 
   private hasHeadroom(): boolean {
-    const top = this.pos.add(new Vector3(0, this.height, 0));
-    const res = this.scene.getPhysicsEngine()?.raycast(top, top.add(new Vector3(0, MOVEMENT.standHeight - this.height + 0.05, 0)), {
-      membership: G.PLAYER,
-      collideWith: G.STATIC,
-    });
-    return !res?.hasHit;
+    // no physics engine: no hit, so headroom (as before)
+    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
+    if (!eng) return true;
+    const top = this.pos.addToRef(this.headUp.set(0, this.height, 0), this.headTop);
+    const end = top.addToRef(this.headReach.set(0, MOVEMENT.standHeight - this.height + 0.05, 0), this.headEnd);
+    // (Havok's raycast resets the result first: the same as a fresh one)
+    eng.raycastToRef(top, end, this.headRay, this.headQuery);
+    return !this.headRay.hasHit;
   }
 
   fixedUpdate(dt: number, input: PlayerInput, camYaw: number): void {
@@ -482,8 +513,8 @@ export class PlayerController {
       this.stopHold = false;
       this.stopEaseT = -1;
       this.crouchPend = false;
-      this.cc.setPosition(ov.kinematic.add(new Vector3(0, this.height / 2 + 0.02, 0)));
-      this.cc.setVelocity(Vector3.Zero());
+      this.cc.setPosition(ov.kinematic.addToRef(this.kinUp.set(0, this.height / 2 + 0.02, 0), this.kinPos));
+      this.cc.setVelocity(this.zero);
       this.staleSupport = true;
       this.syncFeet();
       if (ov.yaw !== undefined) this.yaw = turnTowards(this.yaw, ov.yaw, (ov.turnRate ?? T.turnMoving * 1.5) * dt);
@@ -625,7 +656,8 @@ export class PlayerController {
     if (this.grounded && mag > 0.1) this.stepAssist(dt);
 
     // Havok character controller step
-    const support = (this.support = this.cc.checkSupport(dt, DOWN));
+    this.cc.checkSupportToRef(dt, DOWN, this.supportInfo);
+    const support = (this.support = this.supportInfo);
     // (S-e2e-fix) the first free step after a kinematic move or a teleport: the support is the old contacts' unless a floor
     // is under the body now (`staleSupport`)
     if (this.staleSupport && support.supportedState === CharacterSupportedState.SUPPORTED && !this.floorNear()) support.supportedState = CharacterSupportedState.UNSUPPORTED;
@@ -635,19 +667,22 @@ export class PlayerController {
     const grounded = support.supportedState === CharacterSupportedState.SUPPORTED && !(this.takeoffT > 0 && cur.y > 0.2);
     let out: Vector3;
     if (grounded) {
-      out = this.cc.calculateMovement(dt, this.forwardVec(), support.averageSurfaceNormal, cur, support.averageSurfaceVelocity, desired, UP);
+      // (the wrapper started from a zero vector, and the ToRef form leaves it unwritten when forward x up is ~0)
+      out = this.move.setAll(0);
+      this.cc.calculateMovementToRef(dt, this.forwardVec(), support.averageSurfaceNormal, cur, support.averageSurfaceVelocity, desired, UP, out);
       out.subtractInPlace(support.averageSurfaceVelocity);
       if (out.dot(UP) > 1e-3) {
         // project onto slope so walking up does not launch the player
         const len = out.length();
         out.normalizeFromLength(len);
         const horiz = len / support.averageSurfaceNormal.dot(UP);
-        const c = support.averageSurfaceNormal.cross(out);
-        out = c.cross(UP).scaleInPlace(horiz);
+        Vector3.CrossToRef(support.averageSurfaceNormal, out, this.crossTmp);
+        Vector3.CrossToRef(this.crossTmp, UP, out);
+        out.scaleInPlace(horiz);
       }
       out.addInPlace(support.averageSurfaceVelocity);
       // Small stick force keeps the capsule in contact (no hovering within contact tolerance).
-      out.subtractInPlace(support.averageSurfaceNormal.scale(PlayerController.stickForce));
+      out.subtractInPlace(support.averageSurfaceNormal.scaleToRef(PlayerController.stickForce, this.stick));
       // a capsule held up within the support range (after a fall, off a curb) comes down onto the floor
       const gap = this.settleGap();
       if (gap > 0) {
@@ -673,7 +708,8 @@ export class PlayerController {
     } else {
       // dropping off a ledge: committed arc, minimal control
       const k = Math.min(1, T.airControl * dt * 10);
-      out = new Vector3(cur.x + (tx - cur.x) * k, cur.y, cur.z + (tz - cur.z) * k).addInPlace(GRAVITY.scale(dt));
+      GRAVITY.scaleToRef(dt, this.grav);
+      out = this.move.set(cur.x + (tx - cur.x) * k, cur.y, cur.z + (tz - cur.z) * k).addInPlace(this.grav);
       this.vel.reset(out.x, out.z);
       this.fallSpeed = Math.max(this.fallSpeed, -out.y);
       if (this.grounded) this.airTop = this.pos.y;
@@ -761,7 +797,8 @@ export class PlayerController {
   /**
    * Havok's built-in step-up needs the per-step sweep to clear the capsule radius, which
    * walking speed never does. Probe ahead with rays and lift onto steps <= maxStep.
-   * Allocation-free (preallocated vectors and ray result; was a per-step allocator on a hot path).
+   * Allocation-free (preallocated vectors and ray result; was a per-step allocator on a hot path). (player-hygiene S1)
+   * `reset(a, b)`, not `reset()`: Babylon's no-argument reset builds two zero vectors (its default parameters).
    */
   private stepAssist(dt: number): void {
     this.stepCd = Math.max(0, this.stepCd - dt);
@@ -784,7 +821,7 @@ export class PlayerController {
       const reach = T.radius + PlayerController.STEP_REACH_ADD[n]!;
       a.set(px + dir.x * reach, py + T.maxStep + 0.05, pz + dir.z * reach);
       b.set(a.x, a.y - (T.maxStep + 0.1), a.z);
-      r.reset();
+      r.reset(a, b);
       eng.raycastToRef(a, b, r, q);
       if (!r.hasHit) continue;
       const h = r.hitPointWorld.y - py;
@@ -793,11 +830,11 @@ export class PlayerController {
       // space above the step must be free for the whole body
       a.set(px, py + h + 0.15, pz);
       b.set(px + dir.x * (reach + 0.1), a.y, pz + dir.z * (reach + 0.1));
-      r.reset();
+      r.reset(a, b);
       eng.raycastToRef(a, b, r, q);
       if (r.hasHit) continue;
       b.set(a.x, a.y + this.height, a.z);
-      r.reset();
+      r.reset(a, b);
       eng.raycastToRef(a, b, r, q);
       if (r.hasHit) continue;
       const cp = this.cc.getPosition();
@@ -811,8 +848,9 @@ export class PlayerController {
     }
   }
 
+  /** The facing (a member: player-hygiene S1). */
   private forwardVec(): Vector3 {
-    return new Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+    return this.fwd.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
   }
 
   /** Interpolate between the last two fixed steps for smooth rendering. */

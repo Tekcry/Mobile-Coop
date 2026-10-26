@@ -34,6 +34,7 @@ import { flags } from '../../core/flags';
 import { LOD_0, LOD_2, LOD_HERO, LOD_NAMES, sameOrigin, validateModel, type OperatorManifest } from './manifest';
 import { OperatorPoser, poserSetup, RIG_JOINTS, RIG_T3, TRS, type PoserSetup } from './pose';
 import { pageLeaving } from './offline';
+import { kept, textureBytes } from '../../core/keptParts';
 
 /** The CharacterRig fields the figure reads (CharacterRig satisfies this structurally; no import of its internals). */
 export interface RigLike {
@@ -175,6 +176,20 @@ export function loadModel(url: string): Promise<GlbModel> {
   return p;
 }
 
+/** (map-ready S9) The file is parsed or being read already (`loadModel` then fetches nothing). */
+export function hasModel(url: string): boolean {
+  return MODELS.has(url);
+}
+
+/** (map-ready S9) A kit / props / campus art GLB through the parsed-file cache (flag on), counted as a kept file of
+ *  `scene` (reused: it was parsed or being read already). */
+export async function loadKeptModel(scene: object, url: string): Promise<GlbModel> {
+  const reused = hasModel(url);
+  const model = await loadModel(url);
+  kept.useFile(scene, url, reused);
+  return model;
+}
+
 /** Drops the parsed files (frees their buffers; the GPU copies stay with their scene). */
 export function forgetModels(): void {
   MODELS.clear();
@@ -184,6 +199,9 @@ export function forgetModels(): void {
 export function forgetModel(url: string): void {
   MODELS.delete(url);
 }
+
+// (map-ready S9) the kept parts forget a kit / props / art file unused in the last two hand-overs
+kept.forgetFile = forgetModel;
 
 /**
  * (11e, D33: Michael "Yes use hero for menu") The hero LOD for the main menu and registered close-up cameras (photo
@@ -222,11 +240,37 @@ interface MorphData {
 
 const GLOW_DEFAULT: readonly [number, number, number] = [0.3, 0.85, 0.16];
 
-/** KTX2 (KHR_texture_basisu) through the bundled transcoder, or PNG / WebP; flips KTX2 in the texture matrix (A79). */
-export function texture(scene: Scene, im: GlbImage | undefined, srgb: boolean): Texture | null {
+/** (map-ready S9) One stable key per parsed image: the parsed file is cached per URL (`MODELS`), so its images are the
+ *  same objects in every scene. */
+const IMAGE_KEYS = new WeakMap<GlbImage, string>();
+let imageKeys = 0;
+
+function imageKey(im: GlbImage): string {
+  let k = IMAGE_KEYS.get(im);
+  if (!k) IMAGE_KEYS.set(im, (k = `glb-img:${++imageKeys}`));
+  return k;
+}
+
+/** The image's pixel size from its header (PNG IHDR, KTX2 pixelWidth / pixelHeight); null: another format. */
+function imageSize(im: GlbImage): [number, number] | null {
+  const d = im.data;
+  const dv = new DataView(d.buffer, d.byteOffset, d.byteLength);
+  if (im.mime === 'image/png' && d.byteLength >= 24) return [dv.getUint32(16), dv.getUint32(20)];
+  if (im.mime === 'image/ktx2' && d.byteLength >= 28) return [dv.getUint32(20, true), dv.getUint32(24, true)];
+  return null;
+}
+
+/**
+ * KTX2 (KHR_texture_basisu) through the bundled transcoder, or PNG / WebP; flips KTX2 in the texture matrix (A79).
+ * (map-ready S9) With the kept parts on (`mapReady`) and `keep` (every caller but the hero LOD): the texture is made
+ * under the image's stable key with its bytes as the buffer (no blob URL), so Babylon's engine texture cache gives the
+ * next scene the same internal texture (`kept.handOver` holds it across the release); else a fresh blob URL as before.
+ */
+export function texture(scene: Scene, im: GlbImage | undefined, srgb: boolean, keep = true): Texture | null {
   if (!im) return null;
   const isKtx2 = im.mime === 'image/ktx2';
   if (isKtx2) ktx2Setup(scene.getEngine() as Parameters<typeof ktx2Setup>[0]);
+  if (kept.enabled && keep) return keptTexture(scene, im, srgb, isKtx2);
   const url = URL.createObjectURL(new Blob([im.data as BlobPart], { type: im.mime }));
   let settled = false;
   const settle = (): void => {
@@ -243,17 +287,47 @@ export function texture(scene: Scene, im: GlbImage | undefined, srgb: boolean): 
 }
 
 /**
+ * (map-ready S9) The kept-parts texture: URL `data:<key>` (Babylon 9.29 `_createTextureBase`: a `data:` URL that is not
+ * base64 reads the image from the buffer; the KTX2 loader takes the buffer through `forcedExtension` '.ktx2'), key per
+ * image and colour space (`gammaSpace` lives on the shared internal texture). `Texture` asks `_getFromCache(url)` first
+ * (url, mipmaps, sampling, invertY, sRGB buffer): a hit adds no cache entry, so `reused` is the cache length unchanged.
+ */
+function keptTexture(scene: Scene, im: GlbImage, srgb: boolean, isKtx2: boolean): Texture {
+  const key = `${imageKey(im)}:${srgb ? 's' : 'l'}`;
+  const engine = scene.getEngine();
+  const before = engine.getLoadedTexturesCache().length;
+  let settled = false;
+  const settle = (): void => {
+    settled = true;
+  };
+  const t = new Texture(`data:${key}`, scene, false, !isKtx2, Texture.TRILINEAR_SAMPLINGMODE, settle, settle, im.data, false, undefined, im.mime, undefined, undefined, isKtx2 ? '.ktx2' : undefined);
+  if (isKtx2) t.onDisposeObservable.addOnce(() => { if (!settled) ktx2Abandoned(); });
+  if (isKtx2) { t.vScale = -1; t.vOffset = 1; }
+  t.gammaSpace = srgb;
+  const it = t.getInternalTexture();
+  if (it) {
+    const reused = engine.getLoadedTexturesCache().length === before;
+    const size = imageSize(im);
+    const w = size ? size[0] : it.width;
+    const h = size ? size[1] : it.height;
+    kept.useTexture(scene, key, it, reused, textureBytes(w, h, isKtx2));
+  }
+  return t;
+}
+
+/**
  * One file material as the operator PBR (Operator Lab settings, step 10-11): albedo / ORM / normal maps, environment and
  * direct intensities, two-sided. (guard-models G5) Shared with the guard figure's library; no glow handling here.
+ * `keep` false: its textures are never kept parts (the hero LOD, map-ready S9).
  */
-export function operatorMaterial(scene: Scene, m: GlbMaterial, label: string): PBRMaterial {
+export function operatorMaterial(scene: Scene, m: GlbMaterial, label: string, keep = true): PBRMaterial {
   const p = new PBRMaterial(`${label}-${m.name}`, scene);
   p.albedoColor = new Color3(...m.base);
   p.metallic = m.metallic > 0.5 ? 0.9 : 0;
   p.roughness = m.roughness;
-  const albedo = texture(scene, m.baseTex, true);
+  const albedo = texture(scene, m.baseTex, true, keep);
   if (albedo) p.albedoTexture = albedo;
-  const orm = texture(scene, m.ormTex, false);
+  const orm = texture(scene, m.ormTex, false, keep);
   if (orm) {
     p.metallicTexture = orm;
     p.useAmbientOcclusionFromMetallicTextureRed = true;
@@ -262,7 +336,7 @@ export function operatorMaterial(scene: Scene, m: GlbMaterial, label: string): P
     p.metallic = m.metallic;
     p.roughness = m.roughness;
   }
-  const nrm = texture(scene, m.normalTex, false);
+  const nrm = texture(scene, m.normalTex, false, keep);
   if (nrm) {
     p.bumpTexture = nrm;
     p.invertNormalMapX = true;
@@ -286,7 +360,8 @@ export function buildLodAsset(scene: Scene, model: GlbModel, lod: number, label:
   let glow = -1;
   let glowBase = new Color3(...GLOW_DEFAULT);
   const materials = model.materials.map((m, i) => {
-    const p = operatorMaterial(scene, m, label);
+    // (map-ready S9, A18) the 55 MB hero's textures are never kept
+    const p = operatorMaterial(scene, m, label, lod !== LOD_HERO);
     if (m.name.endsWith('-glow')) {
       glow = i;
       if (m.emissive[0] + m.emissive[1] + m.emissive[2] > 0) glowBase = new Color3(...m.emissive);
