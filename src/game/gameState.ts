@@ -315,6 +315,8 @@ export interface SceneView {
   readonly holdsInput: boolean;
   readonly ownsPause: boolean;
   frame(dt: number): void;
+  /** (walk ~09:42) A tap of the pause or View button while the view owns pause (read in the fixed step, where the edge lives). */
+  tap?(): void;
 }
 
 /** Hook for progression (Phase 6): turns session stats into rewards shown on the results screen. */
@@ -2031,7 +2033,10 @@ export class GameState implements AppState {
     const realIn = this.app.input.state;
     // (piano-escape S2) a scene view held: the pause button is its skip (hold), its own button its press
     const sv = this.sceneView;
-    if (realIn.pressed('pause') && !sv?.ownsPause) {
+    // (walk ~09:42) owns-pause read once: a tap that skips moves the intro past it, and must not then open the pause menu
+    const svPause = !!sv?.ownsPause;
+    if (svPause && (realIn.pressed('pause') || realIn.pressed('objective'))) sv?.tap?.();
+    if (realIn.pressed('pause') && !svPause) {
       this.gadgets.closeWheel(false);
       this.pause();
       return;
