@@ -9,7 +9,7 @@ import { ITEM_SCOPE_OFF } from '../itemScope';
 import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
 import { flags } from '../../core/flags';
-import { PianoScene, isPianoScene } from '../pianoScene';
+import { PianoScene, SCENE_SPAWN_MIN, isPianoScene, pianoWorld, type PianoModeSeam } from '../pianoScene';
 import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
@@ -128,7 +128,8 @@ import {
   type SecurityDesk,
 } from '../sectorDesks';
 
-/** Squads never pop in this close to a player (Hunter's rule). */
+/** Squads never pop in this close to a player (Hunter's rule). (piano-escape S2) One exception: a scene map's EMP
+ *  spawn (`sceneSpawn`, `SCENE_SPAWN_MIN`). */
 const SPAWN_MIN_DIST = 7;
 /** Everyone down (M7, no lives): the section restarts at its checkpoint after this beat (s). */
 const RESTART_DELAY = 2.5;
@@ -207,6 +208,8 @@ export class SectorMode implements GameMode {
   private endT = -1;
   /** (piano-escape) The scene's logic when the map is the piano scene (`MapDef.scene`); null on every other map. */
   private scene: PianoScene | null = null;
+  /** (piano-escape S2) The fill running now is the scene's EMP spawn (the start-spawn exception to the 7 m rule). */
+  private sceneNear = false;
   private restartT = -1;
   private reinforceK = 0;
   private readonly connIn: ConnectorInput = { allInside: false, doorwayClear: true };
@@ -380,7 +383,7 @@ export class SectorMode implements GameMode {
     }
     // (piano-escape seam 1) the scene's empty kit, before the section's checkpoint records the loadout
     if (isPianoScene(g.world.map)) {
-      this.scene = new PianoScene(g);
+      this.scene = new PianoScene(g, undefined, pianoWorld(g, this.pianoSeam()));
       this.scene.start();
     }
     g.letterbox(2.8);
@@ -931,10 +934,44 @@ export class SectorMode implements GameMode {
     }
   }
 
+  /**
+   * (piano-escape S2) The scene's seams into the mode: its EMP spawn, the live section's slots, the start state, the
+   * operators' spots. Built once at the scene's start.
+   */
+  private pianoSeam(): PianoModeSeam {
+    const g = this.g;
+    return {
+      spawn: () => this.sceneSpawn(),
+      spawned: (k) => this.slotEnemy[k]?.alive === true,
+      retakeStart: () => this.startState.take(g.world.level.lights, g.world.doors),
+      sectionGuards: () => this.run.current?.guards.length ?? 0,
+      spots: () => {
+        const b = this.run.checkpoint2;
+        return b ? [this.run.checkpoint, b] : [this.run.checkpoint];
+      },
+      view: () => null,
+    };
+  }
+
+  /**
+   * (piano-escape S2) A scene map's EMP spawn (and its restart's): the pending guards spawn now, the opening four on their
+   * stop spots 4-6 m from the players: the scene's start-spawn exception to the 7 m rule (`SCENE_SPAWN_MIN`). Only
+   * here; every other spawn keeps the rule.
+   */
+  private sceneSpawn(): void {
+    if (!this.scene) return;
+    this.sceneNear = true;
+    this.fill();
+    this.sceneNear = false;
+  }
+
   /** Spawn pending guards under the live cap, out of every player's face. */
   private fill(): void {
     const em = this.g.enemyMgr;
     if (!em) return;
+    // (piano-escape S2) a scene holds its guards until the EMP (the intro) and through a restart's wait
+    if (this.scene?.holdsSpawn) return;
+    const minD = this.sceneNear ? SCENE_SPAWN_MIN : SPAWN_MIN_DIST;
     const refs = this.g.playerRefsInto(this.refs);
     for (let i = 0; i < this.pending.length; ) {
       const p = this.pending[i]!;
@@ -943,7 +980,7 @@ export class SectorMode implements GameMode {
         const r = refs[k]!;
         d = Math.min(d, hyp2(r.feet.x - p.slot.x, r.feet.z - p.slot.z));
       }
-      if (d < SPAWN_MIN_DIST && !p.alerted) {
+      if (d < minD && !p.alerted) {
         i++;
         continue;
       }
@@ -1271,6 +1308,8 @@ export class SectorMode implements GameMode {
     }
     // (E9-crate, A105) every crate usable again by everyone
     g.crates?.resetAll();
+    // (piano-escape S2) a scene never replays its intro: after the EMP its spawn waits for the respawn, then runs again
+    this.scene?.restarted();
     this.loadSection(this.run.index);
     // a camera shot out in the section comes back: the restart is a clean retry (step 3)
     this.ct?.repair(this.run.index);
@@ -1352,6 +1391,8 @@ export class SectorMode implements GameMode {
       if (this.restartT < 0) this.restartSection();
       return;
     }
+    // (piano-escape S2) the scene's step: the EMP prompt and press, the cut, a restart's spawn, the search, the reveals
+    if (this.scene) this.scene.step(dt, this.run.phase === 'objective');
     this.fillT -= dt;
     if (this.fillT <= 0) {
       this.fillT = 0.5;
@@ -1368,7 +1409,8 @@ export class SectorMode implements GameMode {
     const s = this.run.current;
     if (!s) return;
     this.overhearStep(dt, this.run.index, s);
-    if (this.run.phase === 'objective' && s.objective.kind === 'clear') this.clearStep(s);
+    // (piano-escape S2) a scene's objective counts from the cut to play (no guard is up before the EMP)
+    if (this.run.phase === 'objective' && s.objective.kind === 'clear' && (!this.scene || this.scene.inPlay)) this.clearStep(s);
     // (piano-escape seam 2) a player on the porch with a guard still up
     if (this.scene && this.run.phase === 'objective') this.scene.porchStep(s, g.playerRefsInto(this.refs));
     if (this.run.phase === 'objective' && this.run.downloading) {
