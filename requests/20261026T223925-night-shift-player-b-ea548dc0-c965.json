@@ -1,0 +1,14 @@
+{
+  "id": "20261026T223925-night-shift-player-b-ea548dc0-c965",
+  "sha": "ea548dc0a1a278ac18f56bab9f541884184170d5",
+  "branch": "feature/gm-warm",
+  "pr": 687,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-desktop:4"
+  ],
+  "set": "f59",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T223111-night-shift-player-b-ea548dc0-f154, rerun on the laptop"
+}
