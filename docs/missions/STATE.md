@@ -22,7 +22,7 @@ C:/NightShift/Mobile-Coop-f28-course-bunker, stacked on #553 (feature/ctcourse-f
    tallow-prg2-b 20261026T040907 (coop netmove ctcourse levels anchors lightbake). Both green -> merge into the engine,
    cut C3 (prc-split-refresh.md row C3). Pawn-throw overhang: D1 LEAD NOTE. E8 polish: tallow-e8-check.md.
 4. D1 merged as is; its TGC split ERRs (parity, reach) go to G5: caged stair for the gallery ladder + leg b re-cut (scratch/campaign/tallow-g5-plan.md, held brief cq/campaign-tallow-g5.md, base e50cfe7fa). Opus plan check running (tallow-g5-plan-check.md). Re-file the G2 laptop sets on e50cfe7fa after the freeze.
-   Done -> one Sonnet checker -> merge into tallow-fixes-2. S3 (cq/) after G2 in the engine and the engine in
+   S3 (cq/) after G2 in the engine and the engine in
    tallow-shutters; S4 after S3 (E8 done).
 5. PR S tallow-shutters b2df51d9a (S-a; status posted). Laptop tallow-prs-a 20261026T024857. Green -> engine after G2.
 6. PR C split: C1 #521 9419b8f29, C2 #522 29892a271 (both PASS + status). Laptop co-op gate prc-c1 20261026T025035 /
