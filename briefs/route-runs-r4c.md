@@ -219,3 +219,9 @@ Append at the end of this file: what changed, tests with counts, every name on t
 (and which you used), the seam requests SR1-SR5 as diff sketches with file:line, the A1 / A2 link indices of the
 fixture, the pending PC runs above. Then `status: done feature/route-runs-r4c <sha>`, or `status: blocked <reason>`
 for a question the brief cannot settle. Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+
+## Lead note (2026-10-26 ~12:45)
+SR1-SR5 are built in their own slice (`briefs/route-runs-seams.md`, on the #520 branch). Do not edit `route-run.mjs` or
+`driver.mjs` here; code against the hooks as the SR text names them (`course.onRestart`, `checkCourseExpect`, the
+interrupt event). Your calls (drill hold once per door, the 3 m + 6 m/s check, `spotHold = 1e9`, the S9 fixture, one
+laptop step for A1 + A2) are accepted.
