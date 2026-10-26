@@ -108,10 +108,11 @@ PRs (each two independent Opus checkers): **PR 1** = G1 + G2 + G3 (~1.0k, no cal
 
 ## 1. The cue rule (fixed; BRIEF A1-A6)
 `SHADOW_NOTICE = { enabled: true, contrast: 0.40, moving: 0.3, near: 1, range: 10, half: PERCEPTION.focusHalf, meter: 0.35,
-slack: 0.2 }`. On each think (~4 Hz) a guard who is not alerted, passive or a dog, at unaware / cooldown / suspicious
-with no incident task, takes every live player whose sight rate this think is <= `leak` 0.2 and whose
-`cues.slotOf(id)` >= 0; a point qualifies when contrast >= 0.40, its footprint speed >= 0.3 m/s, horizontal distance
-1-10 m and |angle| <= 27.5 deg. The nearest one gets one ray from his eye. Clear: meter = max(meter, 0.35), stimulus =
+slack: 0.2 }`. On each think (~4 Hz) a guard who is not alerted, passive, a dog or lured, at unaware / cooldown /
+suspicious with no incident task, who sees nobody this think (every player's sight rate <= `leak` 0.2) and whose calm
+moment does not rest on sight (`sawMoment` false; G3 fix round), takes every live player whose `cues.slotOf(id)` >= 0;
+a point qualifies when contrast >= 0.40, its footprint speed >= 0.3 m/s, horizontal distance 1-10 m and |angle| <=
+27.5 deg. The nearest one gets one ray from his eye. Clear: meter = max(meter, 0.35), stimulus =
 the point, `turnT = ALERT.hearLook` 2.4 s. Against the tiers: suspicious 0.3 (looks, white arc) yes; investigate 0.6 and
 detection 1 never from the cue. Why it never escalates: `turning` blocks the linger rule (`alertState.ts:170`) while
 cues repeat; after the last, 0.35 drains below `lingerMeter` 0.15 within 2.22 s even at the half rate (0.09/s), before
@@ -120,6 +121,11 @@ The drain starts at once only when the target was not seen (rate > `leak`) in th
 meter first holds: at rate 0 he still calms (1.2 + 1.11 = 2.31 s < 2.4 s), but sub-leak glimpses after the hold (half
 drain, up to 1.2 + 2.22 = 3.42 s) can outlast the look and he may investigate; that hold comes from a real glimpse
 (RISE_SIGHT), not the shadow, so the escalation is sight's (plan check 1 item 4; `tests/shadowNotice.test.ts`).
+Sight first (G3 fix round, check A FIX 1): a guard suspicious from a real glimpse gets no cue while that moment lasts,
+so his linger rule fires exactly as with cues off. The other way round is allowed: a cue's suspicion raises his
+`aware.sensitivity`, so a sub-leak glimpse of another player can turn into a real one and he may then investigate,
+by sight (RISE_SIGHT). In `tests/shadowNoticePerceive.test.ts` (33 glimpse cases) he never investigates less with
+cues on, and 3 cases (1.5-3 s at light 0.3) investigate only with cues on, each by sight.
 
 ## 2. Hot path (per think, per guard)
 Nothing allocates: module typed-array scratch, `hyp2`, `Math.atan2`, `wrapAngle`; `slotOf` is a string scan; the ray

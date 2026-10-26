@@ -51,12 +51,19 @@ grows suspicious and looks at it: a small rise, never a sighting, never a walk o
   below hearing's `turnMax` 0.45 and `investigate` 0.6), stimulus at the point, `turnT = ALERT.hearLook` 2.4 s. No
   `heard`, incident, board report, bark, `lastKnown`, `sawOnce` or target change. Undo: `SHADOW_NOTICE.enabled` false.
   No bark (G3, plan check 1 item 2): the unaware / cooldown -> suspicious rise the cue alone causes is hushed
-  (`Enemy.cueRise`, read in `onLevel`): the white arc only. A rise with sight or a sound behind it barks as today.
+  (`Enemy.cueRise`, set only when his meter was below `PERCEPTION.suspicious` before the cue, read in `onLevel`): the
+  white arc only. A rise with sight behind it, a heard noise (`hear`), or a look-turn sound (`hearTurn`) that already
+  lifted him past suspicious earlier the same step barks as today (G3 fix round, check A polish 1 / 6).
 - A6 Who: a guard not alerted, not passive, not a dog, at unaware / cooldown / suspicious with no incident task, who
-  sees nobody this think (every player's sight rate <= `PERCEPTION.leak`: sight keeps his look; G3); only for a live
-  player whose sight rate this think is <= `PERCEPTION.leak` (he does not see him). A guard on a mission order
-  (guard-ai-mission-hooks `orderSlot >= 0`, not on master at G3) is excluded too: the line goes into the gate list when
-  that branch and this one meet (plan check 1 item 3). Undo: the gate list in `Enemy.shadowLook` (one function).
+  sees nobody this think (every player's sight rate <= `PERCEPTION.leak`: sight keeps his look; G3), and whose calm
+  moment does not rest on sight (`Enemy.sawMoment` false; G3 fix round, check A FIX 1): a guard suspicious from a real
+  glimpse keeps his own look and its linger rule (suspicious 3.2 s, then he investigates), so a shadow never re-stamps
+  his look and holds that investigation back. A shadow may add suspicion, never remove it; `sawMoment` clears when he
+  calms or his meter drains to 0, and the cue comes back then. A lured posted guard (`lure.active`) is excluded for the
+  mission-order reason: he would go suspicious and keep walking his lure (G3 fix round, check A polish 5). A guard on
+  a mission order (guard-ai-mission-hooks `orderSlot >= 0`, not on master at G3) is excluded too: the line goes into
+  the gate list when that branch and this one meet (plan check 1 item 3). Undo: the gate list in `Enemy.shadowLook`
+  (one function).
 - A7 Owner keys: guards and dogs `occKey(kind, Enemy.num)`, bodies `occKey(OCC_KIND.body, Body.num)` (a new numeric id),
   not list indexes, so a list change between the fill and a sample never makes a body shadow itself. Undo: internal.
 - A8 A carried body adds no capsule of its own: its carrier lives in src/game (`StealthSystems.carry`) and src/net
