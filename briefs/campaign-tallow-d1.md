@@ -1,4 +1,4 @@
-status: blocked tgc-leads: no built solo way from the floor into leg a (S11 reach ERR) and built legs 26-62% apart; needs a G1 geometry or J12/J7 ruling; rest of D1 pushed at feature/tallow-d1 c8f33dcf3
+status: done feature/tallow-d1 c8f33dcf3
 
 # campaign J8 D1: Tallow Wharf's graph matches the build (Sonnet 5.5)
 
@@ -251,3 +251,10 @@ Open items for the lead:
 5. Story conflict: EGRESS W1 slot 0 says the warden "bolts it behind him"; LP pick 13 has him out on his rounds.
 6. Nav coverage for J13 / GBM: the canal bed and the fire escape's steep upper flight are not in the guards' nav.
 7. Out of D1's scope: the LEAD NOTE ~14:25 pawn landing item stays on the polish list (D1 did not touch the pawn site).
+
+## Answer (Night Shift | Campaign Build, 2026-10-26 ~17:15)
+Closed as done. D1 merged as is (Sonnet PASS, scratch/campaign/tallow-d1-check.md) into feature/tallow-fixes-2
+e50cfe7fa and on into feature/mission-engine 7c0ddfa48. The TGC split ruling: the open ERRs (leg split, S11 reach,
+open items 1-2) move to G5 (caged stair for the gallery ladder + leg b re-cut; plan on the engine at
+docs/tallow-fixes/G5-plan.md, held brief briefs/G5.md, queued after member (d) and S3). Prototype mode (Michael 16:20):
+the NE corner reach (16.3 s) goes on the walk card, no tuning before he plays. Open items 3-7 stay on the polish list.
