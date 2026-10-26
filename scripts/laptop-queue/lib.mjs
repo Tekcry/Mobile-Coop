@@ -1,7 +1,7 @@
 // Laptop queue (docs/laptop-queue/PLAN.md): the pure logic, no fs, no child_process, no network. service.mjs (the loop)
 // and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it. e2e-affected.mjs is pure too (the
 // suite selection affectedSuites shares with request.mjs --affected).
-import { selectSuites, affectedGateSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
+import { affectedPick } from '../e2e-affected.mjs';
 // parseLock is pure (heavy-lock.mjs's own fs use stays in its functions, none run on import)
 import { parseLock } from '../heavy-lock.mjs';
 
@@ -968,12 +968,14 @@ export function queueRequester(r) {
 
 /**
  * The suites a committed change must pass, shared by request.mjs --affected and the service's affected pass: the files
- * from the merge-base of `base` and sha to sha (`git diff --name-only --no-renames`), through e2e-affected selectSuites
- * (DIRECT_COVERS; wide: WIDE_COVERS). run(args) runs git and returns its stdout (injected: this file stays pure); it must
- * throw on failure (a failed diff read as "no files" would pass the head). Returns { base: merge-base, files, suites },
- * or null when there is no merge-base or git failed; suites [] = no browser suite reached (docs / unit only).
+ * from the merge-base of `base` and sha to sha (`git diff --name-only --no-renames`), through e2e-affected affectedPick
+ * (DIRECT_COVERS, wide: WIDE_COVERS; the wire rule from sha's src/net/protocol.ts, skipped when it cannot be read; the
+ * gate; the cap: max unset = AFFECTED_MAX, but wide unset = no cap; 0 = no cap). run(args) runs git and returns its
+ * stdout (injected: this file stays pure); it must throw on failure (a failed diff read as "no files" would pass the
+ * head). Returns { base: merge-base, files, suites }, or null when there is no merge-base or git failed; suites [] = no
+ * browser suite reached (docs / unit only).
  */
-export function affectedSuites(run, sha, { base = 'origin/master', wide = false } = {}) {
+export function affectedSuites(run, sha, { base = 'origin/master', wide = false, max } = {}) {
   let mb;
   let out;
   try {
@@ -982,7 +984,9 @@ export function affectedSuites(run, sha, { base = 'origin/master', wide = false 
     out = String(run(['diff', '--name-only', '--no-renames', mb, sha]) ?? '');
   } catch { return null; }
   const files = out.split(/\r?\n/).map((f) => f.trim()).filter(Boolean);
-  return { base: mb, files, suites: affectedGateSuites(selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS)) };
+  let protocolTs = '';
+  try { protocolTs = String(run(['show', `${sha}:src/net/protocol.ts`]) ?? ''); } catch { /* no protocol.ts: no wire rule */ }
+  return { base: mb, files, suites: affectedPick(files, { wide, max, protocolTs }) };
 }
 
 /**

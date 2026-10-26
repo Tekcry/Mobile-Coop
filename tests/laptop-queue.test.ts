@@ -1140,16 +1140,27 @@ describe('affected e2e on every PR head', () => {
     const calls: string[][] = [];
     const run = (files: string) => (args: string[]) => { calls.push(args); return args[0] === 'merge-base' ? 'b'.repeat(40) : files; };
     const got = affectedSuites(run('docs/x.md\nsrc/game/sectors/a.ts\n'), SHA('1'));
-    expect(calls).toEqual([['merge-base', 'origin/master', SHA('1')], ['diff', '--name-only', '--no-renames', 'b'.repeat(40), SHA('1')]]);
+    expect(calls).toEqual([['merge-base', 'origin/master', SHA('1')], ['diff', '--name-only', '--no-renames', 'b'.repeat(40), SHA('1')], ['show', `${SHA('1')}:src/net/protocol.ts`]]);
     expect(got.files).toEqual(['docs/x.md', 'src/game/sectors/a.ts']);
-    expect(got.suites).toContain('smoke');
-    expect(got.suites).toContain('e2e-sectorops');
+    expect(got.suites).toEqual(['e2e-gadgets', 'e2e-park', 'e2e-sectorops']);
     expect(affectedSuites(run('docs/a.md\ntests/b.test.ts'), SHA('1')).suites).toEqual([]);
     expect(affectedSuites(run(''), SHA('1')).suites).toEqual([]);
     expect(affectedSuites(() => { throw new Error('no'); }, SHA('1'))).toBeNull();
     expect(affectedSuites(() => '', SHA('1'))).toBeNull();
     const wide = affectedSuites(run('src/game/sectors/a.ts'), SHA('1'), { wide: true });
     expect(wide.suites).toEqual(selectSuites(['src/game/sectors/a.ts'], WIDE_COVERS));
+  });
+  it('affectedSuites: the wire rule reads protocol.ts at the sha (skipped when the read fails); max 0 is the uncapped gated list', () => {
+    const run = (files: string, proto: string | null) => (args: string[]) => {
+      if (args[0] === 'merge-base') return 'b'.repeat(40);
+      if (args[0] === 'show') { if (proto === null) throw new Error('no protocol.ts'); return proto; }
+      return files;
+    };
+    const proto = "import type { MoveState } from '../player/moveState';\n";
+    expect(affectedSuites(run('src/player/moveState.ts', proto), SHA('1')).suites).toEqual(['e2e-coop', 'e2e-ctcourse', 'e2e-netmove']);
+    expect(affectedSuites(run('src/player/moveState.ts', null), SHA('1')).suites).toEqual(['e2e-clip', 'e2e-move', 'e2e-stealth']);
+    const all = affectedSuites(run('src/game/sectors/a.ts\nsrc/world/lightBake.ts', ''), SHA('1'), { max: 0 }).suites;
+    expect(all).toEqual(['e2e-desktop', 'e2e-gadgets', 'e2e-lightbake', 'e2e-park', 'e2e-sectorops', 'e2e-tactics', 'e2e-takedown', 'smoke']);
   });
   it('affectedNeeds: skips trains, drafts, the skip label, heads with a status, open requests and enqueued shas', () => {
     const prs = [
