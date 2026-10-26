@@ -627,11 +627,25 @@ describe('route-run R5 selftest fixture', () => {
   const graph = json('campusOps-S1.graph.json');
   const points = json('campusOps-S1.points.json');
 
-  it('is the campus S1 copy plus one fixture-only ladder (link 22) where the map has none', () => {
+  // (F29) the step links' walk points, moved off R1's edge points to where the robot stands (each with its `note`)
+  const MOVED: Record<number, number[]> = { 0: [20.8, 0, -76], 2: [13.2, 0, -76], 12: [-38, 0, -41.2], 19: [-21, 4.4, -35.45], 20: [-11, 4.4, -33.6] };
+  const unmoved = (l: Obj, i: number) => {
+    if (!(i in MOVED)) return l;
+    const c = { ...l };
+    delete c.at;
+    delete c.note;
+    return c;
+  };
+
+  it('is the campus S1 copy plus one fixture-only ladder (link 22) where the map has none, its step points moved (F29)', () => {
     expect(fx.meta.map).toBe('campusOps');
     expect(fx.spaces).toEqual(graph.spaces);
     expect(fx.links.slice(0, 22)).toEqual(graph.links);
-    expect(fx.points.links.slice(0, 22)).toEqual(points.links);
+    expect(fx.points.links.slice(0, 22).map(unmoved)).toEqual(points.links.map(unmoved));
+    for (const [i, at] of Object.entries(MOVED)) {
+      expect(fx.points.links[Number(i)].at).toEqual(at);
+      expect(fx.points.links[Number(i)].note).toMatch(/^F29: /);
+    }
     expect(fx.points.spaces).toEqual(points.spaces);
     expect(fx.points.geom).toBe(points.geom);
     expect(fx.links[22]).toMatchObject({ from: 's1-lawn', to: 's1-plantroof', kind: 'ladder', level_change: 4.4 });
@@ -667,7 +681,7 @@ describe('route-run R5 selftest fixture', () => {
   it('its expect block reads in R4a selftest checker: the briefed outcomes pass, a stubbed ladder fails', () => {
     const logs = fx.expect.runs.map((r: Obj) => ({
       id: r.id, links: Object.entries(r.outcomes).map(([index, outcome]) => ({ index: Number(index), outcome })),
-      deadStops: r.id === 'missing-ladder' ? [{ class: 'step-timeout', link: 22, t: 40, since: 40, step_t: 19.5, limit_s: 19.4 }] : [], guards: { spawned: 8, alive: 8 },
+      deadStops: r.id === 'missing-ladder' ? [{ class: 'step-timeout', link: 22, t: 40, since: 40, step_t: 19.5, limit_s: 19.4 }] : r.id === 'window-open' ? [{ class: 'step-timeout', link: 0, t: 12.7, since: 12.7, step_t: 8.1, limit_s: 8 }] : [], guards: { spawned: 8, alive: 8 },
     }));
     expect(checkSelftest(fx.expect, logs)).toEqual([]);
     // the missing ladder's stop must come at its limit (the step's own time against its limit), not early
@@ -678,7 +692,9 @@ describe('route-run R5 selftest fixture', () => {
     const want = Object.fromEntries(fx.expect.runs.map((r: Obj) => [r.id, r.outcomes]));
     expect(want['ladder-canopy-drop']).toEqual({ 12: 'walked', 14: 'walked', 19: 'walked' });
     expect(want['ladder-pavilion-drop']).toEqual({ 12: 'walked', 15: 'walked', 20: 'walked' });
-    expect(want['window-open']).toEqual({ 0: 'walked' });
+    // (F29) the PC desk under the open window's landing: the vault is never offered (an F-row for Sector Ops)
+    expect(want['window-open']).toEqual({ 0: 'step-timeout' });
+    expect(fx.expect.runs.find((r: Obj) => r.id === 'window-open').note).toContain('F-row for Sector Ops (campus S1 vault window blocked by the PC desk)');
     expect(want['window-glazed']).toEqual({ 2: 'walked' });
     expect(want['missing-ladder']).toEqual({ 4: 'walked', 22: 'step-timeout', 7: 'walked' });
     expect(want['boost-stubs']).toMatchObject({ 17: 'stub', 18: 'stub' });

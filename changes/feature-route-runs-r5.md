@@ -12,3 +12,8 @@ kind: patch
   selftest fixture `tests/fixtures/route-run/selftest-steps.graph.json`.
 - (F29) A link step's dead stop names the step's phase (before the move, mounting, climbing, at the edge, through and
   so on), so a stall says where it stopped.
+- (F29) The steps selftest's walk points: the ladder's in the delivery yard in front of its foot (not the locked dock
+  door), the canopy drop's beside the hatch (not over it), the pavilion drop's and both windows' off their space edges.
+  The open rear window of the gatehouse is now expected to time out: the PC desk under its landing stops the game
+  offering the vault (a map item for Sector Ops). A new unit test keeps every selftest walk point inside its starting
+  space, off its edges, doors and openings, on a walkable floor.
