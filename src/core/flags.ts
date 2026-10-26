@@ -85,6 +85,16 @@ export interface Flags {
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
+  /** (guard-rules S6, A10, A11) Pairs that walk together check on each other at once; posted pairs talk and check.
+   *  `?guardpairs=1`. DEFAULT OFF until walk item 5 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/
+   *  default on (preview-flags). */
+  guardPairs: boolean;
+  /** (guard-rules S7, A9) Lookout posts: never sent, never leave, radio a sighting. `?lookouts=1`. DEFAULT OFF until
+   *  walk item 6 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/ default on (preview-flags). */
+  lookouts: boolean;
+  /** (guard-rules S8, A12) Alarm stage dogs leave the heel for the last known position. `?dogrelease=1`. DEFAULT OFF
+   *  until walk item 7 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/ default on (preview-flags). */
+  dogRelease: boolean;
   /** (J14 Marlow re-plan, owner Marlow Build, switch-on 2026-10-29) `?marlowreplan=1`: a host's room opens on the re-planned
    *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged.
    *  On /preview/ default on (preview-flags). */
@@ -205,6 +215,10 @@ export const flags: Flags = {
   animOff: Number(params.get('animoff')) | 0,
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
+  // (guard-rules F0) dark until their walk items are accepted (PLAN "Flags"): `=1` turns each on, /preview/ too
+  guardPairs: darkFlag(params.get('guardpairs'), PREVIEW_ON),
+  lookouts: darkFlag(params.get('lookouts'), PREVIEW_ON),
+  dogRelease: darkFlag(params.get('dogrelease'), PREVIEW_ON),
   marlowReplan: darkFlag(params.get('marlowreplan'), PREVIEW_ON),
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),

@@ -1,5 +1,178 @@
 # Changelog
 
+## 4.115.0 - Train 130: Character shadows count in the light (co-op client partners, dark); Guard barks and pairs; Laptop queue: suite parts per head, SLOW warnings; Auto-drop finds train members past 100 commits (F44); +18 more (2026-10-26, PR #592; #586, #582, #579, #574, #572, #562, #561, #558, #557, #550, #532, #516, #514)
+
+### Character shadows count in the light (co-op client partners, dark)
+- Light: with `?charlight=1` a co-op client's meter and round shadows now count its partners' shadows.
+
+### Guard barks and pairs
+- A guard who comes to investigate now says what drove it: a noise gives a line about hearing something, a glimpse
+  a line about seeing something, and a light or body check a neutral line. A guard who saw you no longer says
+  "I heard something."
+- (dark, `?guardpairs=1`) Guards who patrol together notice within about 3 seconds when their partner goes missing,
+  and two posted guards close together chat every 40 seconds and check on each other the same way.
+
+### Laptop queue: suite parts per head, SLOW warnings
+- Laptop queue: a suite split into parts is now sharded by the parts the tested commit's own runner lists, not by
+  old timing records, so no part is skipped or invented; a passing suite near its time limit (a SLOW line) now shows
+  on the run's status and in the flake budget summary.
+
+### Auto-drop finds train members past 100 commits (F44)
+- Auto-train reads a train's members from `git log --first-parent --merges origin/master..<head>` instead of gh's
+  PR commit list, which stops at the oldest 100 commits: a big train (127, 168 commits) lost its merge subjects there,
+  so auto-drop found no member to drop and the master-moved rebuild had nobody to rebuild. gh's list stays as the
+  fallback when git cannot read the log.
+
+### Map load: shader compile log and parallel compile
+- Load timing: each map load now logs every shader it compiles (what kind, how long, how many at once), shown in the
+  feedback note and read by the measure script, which can now run cold loads only and compare compile orders.
+- Behind the map-ready loading screen (off by default): the shader compile groups (your body and weapons, the level,
+  the guards, the rest) now start together in priority order instead of one after another, so the browser can compile
+  them at the same time. `?compileorder=serial` keeps the old order for comparison.
+
+### Marlow Yard re-plan: no trap at the Gate (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 A26). At the Gate (A1), a player who drops into the yard before
+  the human ladder is done is no longer stuck there: once they have stood in the yard for 5 seconds with nobody on or
+  climbing the wall, both of you go back to the start of that step (the striped mark, and the wall top for the one who
+  was up), with a short radio line saying why. A partner still on the wall top can hang down for a ladder, so the clock
+  waits while anyone is up there.
+- The built yard is unchanged.
+
+### Marlow Yard re-plan: the Gate and the Data Hall (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A1A7). The Gate (A1) is now two steps that cannot fail:
+  one player boosts the other onto the yard wall top at the striped mark, then the one on top hangs down and the partner
+  climbs (the human ladder). The wicket gate stays shut until both have been on the wall top; after that it is only the way
+  back. The seated gate checker is still there, passive.
+- The Data Hall (A7): the entry lobby's east wall is a full-height glass screen with the hall door kept, so you can watch
+  the rack hall from the lobby while the technicians cannot see you there. A second technician works the north side of
+  the hall: from the cage's north-east corner he looks through the cage at the pod and terminal two, then goes back to
+  the pod's panel. The hall player can see him through the cage and call the pod player's moves, as the pod player
+  watches the first technician: each partner covers the other. Seen in the data hall: both go back to the entry lobby and
+  try the split and the synced hack again; a missed hack still just resets the terminals.
+- The built yard is unchanged.
+
+### Marlow Yard re-plan: the Carriage Shed (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A2): the Carriage Shed is one forced route with three stations.
+  The cleaning staging, its stair and the two spotters are gone; one shunter watches the neck, facing east down it.
+  Station 3: the stores bay is shut off by a wall, and its roller door only lifts while one player holds it; the other
+  goes under. Once both are through, the roller door stays up for the rest of the set. Station 4: the neck's two isolators run one 15 s window per crossing, and the lights coming back with a
+  player in the neck sends both back to the cabin and the lane. Station 5: an open wheel-drop pit, 1.6 m deep, wall to
+  wall in front of the L2 door; a hoarded maintenance walkway stands in for the plank until the team move is built.
+- The cabin's back door is locked for good, the isolator cabinet by the pit moves to the near side, a wall lamp now
+  lights the coat corner on the cabin switch, and a strip on the shed switch lights the stores bay. The built yard is unchanged.
+
+### Marlow Yard re-plan: A3 the Office Range (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A3): A3 the Office Range teaches the vent unlock and the jam
+  relay with no guard. The corridor's west end is closed by the landlord's locked fire door; one player opens the riser
+  cupboard's grille in the west lobby, crawls the sealed services crawl and comes out by a grille in the corridor's west
+  end, out of the camera's reach, then opens the fire door's push bar for the partner. Then the two jam the corridor
+  camera for each other to the east lobby. The offices are locked for good and the cleaner is gone.
+- Seen by the camera now retries that step from its start marks (LANTERN says where) instead of the built send-back to
+  the lobby; the vent unlock stays done when the jam relay retries.
+- The built yard plays as before.
+
+### Marlow Yard re-plan: A4 the Goods Shed (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A4): A4 the Goods Shed teaches the lift grille, the camera
+  loop and the synced takedown on one floor route. Players slip the duty officer, one hangs on the counterweighted lift
+  grille at the staff passage mouth while the other ducks under (the grille's own motor button stands in until the move
+  is playable), then loop the three floor cameras at the console and cross the cross aisle and the main aisle to the
+  dock inside the 60 s loop, and take both loaders at once from behind the pallet stacks. Pallet-rack end frames close
+  the west back aisle, aisle 2, the east lane and the mezzanine stairs; the dispatch office is locked for good. The back
+  aisle and the dispatch office are lit; the loader who walked a kettle loop now stays at the desk.
+- The loop running out before both are at the dock, or a loader taken alone, retries that station from its start marks
+  (LANTERN says where) instead of a set restart; the grille stays open through a retry.
+- The built yard plays as before.
+
+### Marlow Yard re-plan: A5 the Substation (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A5): A5 the Substation is re-planned for the new moves. A 6 m
+  perimeter wall stands inside L4's far door with a 1.4 m gap between it and the holding room's face; a wicket in the wall
+  and a fixed access ladder on its inside face are the way over until the chimney move lands. The cable trench moves
+  west and is 3.5 m wide, with step irons on its east face and a hoarded footbridge across it (the trench plates are laid
+  from the west side). The drums, the apron bulkheads and the apron switch moved to fit.
+- Station 13 (the throw) gets a second guard, a static watcher at the release kiosk who sees the floodlit strip: the
+  jam is now needed. A flood that comes back before the release, or a broken beam, retries the throw from its start
+  marks (LANTERN says why). The switchroom's back door is locked for good, the north trench path is fenced at both ends
+  and the beam power panel moved inside the switchroom, so the beams are beaten only by the throw.
+- The built yard plays as before.
+
+### Marlow Yard re-plan: the Pump House (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A6). The Pump House is three steps: get both of you onto the
+  motor gallery (a leg-up, then the rescue line), lower one of you through the gland plate on the bridge to the drive
+  panel, then one of you drops through a new opening in the bridge into the drive pit while the other catches. The staff
+  stair is gone: the gallery and the bridge are reached only by the team moves. The loading edge takes one leg-up: once one
+  of you is on the gallery it closes, so the second climbs the rescue line; seen on that step, it opens again.
+- The drive cage now stands over a pit 1.6 m deep. Inside it, steps lead up to a landing at the cage door and the exit
+  release on the cabinet's back opens the door from there. The way on to holding room six is a covered outfall culvert from
+  the pit, up a ramp under a low housing to the room's door: the pump floor no longer reaches that door.
+- The gauge board is on the culvert housing and the attendant's round passes it on the north side. Until the drop catch
+  move is playable, a fixed ladder from the bridge down into the pit stands in for it and unlocks when the drop step starts.
+- Every light works: the sump bay's high-bay and the two west gallery lamps are live, on a new switch on the sump bay's
+  south wall by the holding room five door.
+- Seen by the attendant: both players go back to that step's start marks. Earlier steps stay done.
+- While the ladder stands in for the drop catch, the drop step's objective and its retry line tell you both to go down
+  the cage ladder through the bridge opening into the drive pit.
+- Nobody gets stuck on the pump floor: once the loading edge has closed, if one of you is down there with nobody on the
+  gallery or the bridge (or climbing to them) for 5 seconds, the step starts again from its marks with a radio line.
+- The built yard is unchanged.
+
+### Marlow Yard re-plan: A8 the Strongroom (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A8): A8 the Strongroom keeps its side routes and its three
+  guards and now retries in place. A guard holding combat on you for 2 seconds sends both of you back to the start of that
+  step (LANTERN says where); a short sighting that breaks off plays out as on a mission. Four steps: the gallery run under
+  the jammed camera (back to the vestibule), the console loop (back to the office door and the board), the lighting board's
+  25 seconds of dark (the lights coming back before someone is through the grille retries it) and the throw and paired
+  hack inside the console's 60 second loop (the loop ending retries it; a loop that already ended when the step starts
+  retries at once).
+- The public stair is a real banking hall's 2.4 m wide, the security office's west wall is a glazed screen onto the
+  gallery (it still stops guards' and cameras' sight), the vestibule and the west bays behind the counters have lights on
+  their own switches, and a new column carries the west bays' switch.
+- The built yard plays as before.
+
+### Marlow Yard re-plan: step numbers and the retry rule on the objective list (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 R2; owner Night Shift | Marlow Build, switch-on 2026-10-29): the
+  objective list's header names the live step, "A2 - objectives - step 4 of 18" (the Strongroom's four steps read 18a to
+  18d), and a line under it says what sends you back in this set: "Seen: you go back to the start of this step.", with
+  "or out of time" where a step has a timed window, and "Caught" in the Strongroom. The Gate has no such line: nothing
+  there can send you back. Host and client both see it.
+- The Gate and the Office Range stay unrated (no guard who can see); a step retry keeps the set's rating going, so
+  only a full set restart starts it again. The built yard's objective list is unchanged.
+
+### Mixamo batch 2 in the Anim Studio: the pistol, rifle, shooter and action-adventure packs (108 clips)
+- The Anim Studio lists 108 more Mixamo captures ("Motion capture (Mixamo): rifle walk forward" ...): the Pistol/Handgun
+  Locomotion, Pro Rifle, Shooter and Action Adventure packs plus five cover and look-around clips. Each plays on Wren and
+  follows its tuner rows.
+- The new captures load when the Anim Studio opens (one download), so the game itself starts no slower.
+- Matches do not use them yet (the drawn-weapon and wall sets come in later steps); with the default source (CMU)
+  nothing changes.
+
+### Takedown search and body pick-up make no per-step garbage
+- No behaviour change: the takedown offer scan reuses one plan and one offer and the shorter sight check, and a started
+  takedown keeps its own copy of the plan; the pick-up of a knocked-out body no longer builds a closure every step.
+
+### Selection wheel ring updated in place
+- No behaviour change: the open selection wheel updates its slots (ammo, gadget counts) in place instead of rebuilding
+  the ring every step (rebuilt only when its shape changes); a stale "time slows" comment corrected (G181).
+
+### Palm strike recovery
+- The palm strike recovers in about 1.4 s after the hit (was 0.6 s): the hit lands as fast as before, then the arm
+  follows through and settles back into the stance before you are free to move on.
+
+### The comms headset replaces the three-lens goggle
+- The operator's default headgear is the comms headset, now free; the three-lens goggle is gone from the look menu,
+  and a saved look that wore it shows the headset.
+
+### Look videos for the walk cards
+- A developer tool records 1-2 minute videos of scripted scenes (walks, takedowns, camera views) without opening a
+  window, for Michael's walk cards. Nothing in the game changes.
+
+### Preview campus prebake
+- The preview build ships the campus lamps for its own layout, so Saltmarsh Park loads without baking on the PC.
+
+### Preview plays the Mixamo animations
+- The preview build now starts with the Mixamo animation set, as every other new feature there. Once you pick an
+  animation set yourself (Options > Gameplay > Animation source, or the Anim Studio's switch) your pick is kept. The
+  live game is unchanged (CMU until you pick). (F45)
+
 ## 4.114.1 - Train 126: Training course and bunker test fixes; Marlow Yard test fixes (2026-10-26, PR #577; #567)
 
 ### Marlow Yard test fixes

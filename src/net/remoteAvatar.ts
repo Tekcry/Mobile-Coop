@@ -248,6 +248,11 @@ export class RemoteAvatar {
     return (this.flags & PF.dead) !== 0;
   }
 
+  /** (char-shadow-meter S2c) A state has been shown: `pos` is real. */
+  get shown(): boolean {
+    return this.placed;
+  }
+
   /** A model for a carried weapon (created once, kept for the session). */
   private model(id: WeaponId): WeaponModel {
     let m = this.models.get(id);

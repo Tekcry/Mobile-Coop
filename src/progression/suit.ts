@@ -92,7 +92,7 @@ export function suitLook(base: AvatarLook, s: SuitLoadout): AvatarLook {
   if (op && v === 3) look.legs = 'armored';
   if (v === 3) look.colors.accent = '#2a2f36';
   if (tier('pouches', s.pouches) >= 1 && look.backpack === 'none') look.backpack = 'radio';
-  if (tier('goggles', s.goggles) >= 1 && look.helmet !== 'trilens') look.helmet = 'headset';
+  if (tier('goggles', s.goggles) >= 1) look.helmet = 'headset';
   const b = tier('boots', s.boots);
   if (b >= 2) look.colors.boots = b === 3 ? '#0d0f12' : '#1e2227';
   return look;

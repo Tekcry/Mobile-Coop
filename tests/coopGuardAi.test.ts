@@ -88,6 +88,20 @@ describe('guard-ai S9: the bark event', () => {
     expect(BARK_EVENTS.length).toBeLessThan(BARK_CAM);
   });
 
+  it('(guard-rules S4, A8) the wire order is frozen: the first 37 are unchanged, heard, spotCall and saw appended', () => {
+    const before: readonly BarkEvent[] = [
+      'suspicious', 'investigate', 'contact', 'lost', 'search', 'body', 'radioCheck', 'radioOk', 'missed', 'dog', 'blind', 'grenade',
+      'alarm', 'clear', 'callIn', 'drone', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'joining', 'koFound', 'koReport',
+      'deadReport', 'command', 'moving', 'covering', 'flanking', 'deflect', 'breaker', 'shots', 'shotsReport', 'missingReport',
+      'tripped', 'console', 'consoleCheck',
+    ];
+    expect(before.length).toBe(37);
+    expect(BARK_EVENTS.slice(0, 37)).toEqual(before);
+    expect(barkIndex('heard')).toBe(37);
+    expect(barkIndex('spotCall')).toBe(38);
+    expect(barkIndex('saw')).toBe(39);
+  });
+
   it('barkLine rebuilds exactly the line BarkVoice picked, for every event, line and unit', () => {
     for (const ev of BARK_EVENTS) {
       const v = new BarkVoice(5);

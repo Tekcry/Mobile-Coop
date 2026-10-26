@@ -7,7 +7,8 @@ import { migrate } from '../src/save/migrations';
 import { emptyStats } from '../src/game/modes/gameMode';
 import { WEAPONS, WEAPON_IDS, modelExtents, validateWeaponDefs } from '../src/weapons/weaponDefs';
 import { computeStats } from '../src/weapons/weaponStats';
-import { defaultLook } from '../src/cosmetics/avatarLook';
+import { defaultLook, HELMETS, sanitizeLook, type AvatarLook } from '../src/cosmetics/avatarLook';
+import { PART_OPTIONS } from '../src/cosmetics/catalog';
 
 describe('arsenal', () => {
   it('the CT kit validates: one rifle and one pistol (G76)', () => {
@@ -63,9 +64,17 @@ describe('suit', () => {
     const look = suitLook({ ...defaultLook(), torso: 'vest', helmet: 'combat' }, { ...owned, vest: 2, goggles: 1 });
     expect(look.torso).toBe('armor');
     expect(look.helmet).toBe('headset');
-    // the operator keeps the suit and the tri-lens; heavy armour plates the legs
+    // the operator keeps the suit; goggles show the comms headset; heavy armour plates the legs
     const opLook = suitLook(defaultLook(), { ...owned, vest: 3, goggles: 1 });
-    expect(opLook).toMatchObject({ torso: 'operator', helmet: 'trilens', legs: 'armored' });
+    expect(opLook).toMatchObject({ torso: 'operator', helmet: 'headset', legs: 'armored' });
+  });
+
+  it('(J19 S4, R17) no three-lens goggle: the default is the comms headset, a stored trilens reads as it', () => {
+    expect(defaultLook().helmet).toBe('headset');
+    expect(HELMETS as readonly string[]).not.toContain('trilens');
+    expect(sanitizeLook({ ...defaultLook(), helmet: 'trilens' as AvatarLook['helmet'] }).helmet).toBe('headset');
+    expect(PART_OPTIONS.helmet.some((o) => o.value === 'trilens')).toBe(false);
+    expect(PART_OPTIONS.helmet.find((o) => o.value === 'headset')!.req).toBeUndefined();
   });
 });
 
