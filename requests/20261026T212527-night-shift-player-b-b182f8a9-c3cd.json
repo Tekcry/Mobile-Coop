@@ -1,0 +1,14 @@
+{
+  "id": "20261026T212527-night-shift-player-b-b182f8a9-c3cd",
+  "sha": "b182f8a986e52c8f83ce0c638b08ff31fd4f3a74",
+  "branch": "feature/gm-watchdog",
+  "pr": 676,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-guard-carry"
+  ],
+  "set": "wd-guard",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T212027-night-shift-player-b-b182f8a9-c807, rerun on the laptop"
+}
