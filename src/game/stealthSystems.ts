@@ -17,6 +17,7 @@ import { DOOR, type DoorState } from '../world/doors';
 import { G, MASK } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
 import { isShutterDevice, SHUTTER_NOTICE, shutterNoticedBy, shutterNoticePoint } from './kit/shutter';
+import { isPlankDevice, PLANK, plankLookPoint, plankNoticedBy, plankNoticePoint } from './kit/plankBridge';
 
 /** Noise radius (m): a bulb shot out (a body put down: `bodyCarry.ts` DROP_NOISE). */
 const SHOT_LIGHT_NOISE = 5;
@@ -85,6 +86,9 @@ export class StealthSystems implements LocalCarry {
   private noticeT = 0;
   /** (J9 S2) The held-shutter notice's own clock (s; counted down every fixed step while the level has kit devices). */
   private shutterNoticeT = 0;
+  /** (coop-kit K5b) The laid-plank notice's own clock (s) and where the noticing guard goes to look. */
+  private plankNoticeT = 0;
+  private readonly plankLook = { x: 0, z: 0 };
   private noticeA = new Vector3();
   /** (polish2) The mount-reach probe's ends (`lampReachProbe`). */
   private readonly reachA = new Vector3();
@@ -538,6 +542,7 @@ export class StealthSystems implements LocalCarry {
     this.guardOpened.clear();
     this.noticeT = 0;
     this.shutterNoticeT = 0;
+    this.plankNoticeT = 0;
     // (E4, A50) running isolator windows are dropped; the lamps come back from the section's start state, then
     // `syncSwitches` has the boards read them
     this.boards?.cancel();
@@ -690,6 +695,38 @@ export class StealthSystems implements LocalCarry {
     }
   }
 
+  /**
+   * (coop-kit K5b; G403 "Guards notice it", G41) A laid plank is a way left open, noticed as a held-open shutter is
+   * (`noticeOpenShutters`): a calm, alive guard within range, on the same storey, facing the laid board
+   * (`plankNoticedBy`) with a clear line to its middle hears it at the board's end on his side (`plankLookPoint`) and
+   * comes to look, once per lay (`noticed` = `opens`). Its own clock. Host / solo only (a co-op client builds no
+   * `StealthSystems`). Index loops over preallocated state: nothing allocates per tick.
+   */
+  private noticeLaidPlanks(dt: number): void {
+    const list = this.g.team.devices.list;
+    if (list.length === 0) return;
+    this.plankNoticeT -= dt;
+    if (this.plankNoticeT > 0) return;
+    this.plankNoticeT = DOOR_NOTICE_EVERY;
+    const enemies = this.em.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const d = list[i]!;
+      if (!isPlankDevice(d) || !d.laid || d.opens === d.noticed) continue;
+      plankNoticePoint(d, this.noticeB);
+      for (let j = 0; j < enemies.length; j++) {
+        const e = enemies[j]!;
+        if (!e.alive || e.alerted) continue;
+        if (!plankNoticedBy(d, e.pos.x, e.pos.y, e.pos.z, e.yaw)) continue;
+        this.noticeA.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
+        if (!this.g.ballistics.clear(this.noticeA, this.noticeB, MASK.SIGHT)) continue;
+        const p = plankLookPoint(d, e.pos.x, e.pos.z, this.plankLook);
+        e.hear(p.x, p.z, PLANK.noticeRange + 2);
+        d.noticed = d.opens;
+        break;
+      }
+    }
+  }
+
   /** Someone (the player, a co-op partner or an enemy) stands within `r` of (x, z). */
   private occupied(x: number, z: number, r: number): boolean {
     const p = this.g.player.position;
@@ -710,6 +747,7 @@ export class StealthSystems implements LocalCarry {
     }
     if (this.playerOpened.size) this.noticeOpenDoors(1 / 60);
     this.noticeOpenShutters(1 / 60);
+    this.noticeLaidPlanks(1 / 60);
     // (A3, G97) running into a door does nothing special: bashing is the door menu's (CT)
     // (A3, G41) a door a guard opened is shut behind him on a calm patrol, once he is clear of it
     if (this.guardOpened.size && !this.em.anyAlerted) {
