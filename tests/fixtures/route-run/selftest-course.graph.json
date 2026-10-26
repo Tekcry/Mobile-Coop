@@ -1,0 +1,1625 @@
+{
+  "selftest": "route-run R4c course selftest (docs/route-runs/PLAN.md R4c): master's Marlow Yard sets A1 and A2 (J12 S9's graph) and their points. Run with --players 2 (expect.players). a1-gate crosses A1 (the wall by two stubs) and clears holding room one's far door through its airlock (onLockedDoor), ending in a2-west so the page is in bay 2; the A2 runs raise the shunter in the neck through the page (course.raise, ctx.selftest: SR2) once (one seen set restart, rejoined) and twice (the second pushed past with the spotted rule off). Each run's course block is checked by course.mjs checkCourseExpect (SR5). node scripts/route-run.mjs <url> --selftest tests/fixtures/route-run/selftest-course.graph.json checks it (with SR1-SR5 in).",
+  "meta": {
+    "map": "ctcourse",
+    "name": "Marlow Yard (sets A1 and A2)",
+    "mode": "training",
+    "players": [
+      2
+    ],
+    "sections": [
+      "A1",
+      "A2"
+    ],
+    "measured": {
+      "tool": "level-measure 1",
+      "date": "2026-10-25",
+      "geom": "v83j27-1jwh0b5",
+      "splits": {}
+    },
+    "note": "Fixture (route-runs R4c): the A1 Gate and A2 Carriage Shed spaces and links (0-20) of J12 S9's as-built yard graph, origin/feature/validator-port-s9 docs/marlow-final/graph/ctcourse.json at b6464dd95 (meta.measured from it, splits dropped: A1 / A2 have none). No taught_by: two sections of a fixture, not the whole course (the planner's full training run is not what this checks).",
+    "points_note": "Points by hand: each space's first area box, centre its middle at the storey's floor; each link's declared at (atFrom 'declared') except links 3 and 6. a1-walltop has no nav cells (S9 measured: 'no area / floor cells on a1-walltop'), so a harness placement cannot leave a robot on the wall top (driver place snaps to the nearest walkable cell) and a walk to a point 4.4 m up never arrives (progress STOREY_Y_TOL_M 1.5). So the leg-up (3) is held at its mark on the apron floor (A1_MARK (10.8, 6), the link's note; atFrom 'mark'): its stub leaves both robots on the apron floor. The drop (6) has its point at the apron foot of the wall below its declared point (atFrom 'stub', a stand-in). Since R5 drops are walked, and this one cannot start on the wall top (no nav cell there): DropStep walks to the stand-in and pushes into the locked wicket, so a1-gate expects a step-timeout dead stop on link 6 at its limit; the recovery then places both robots past it in the yard (12.6, 0, 11), and 8 and 9 are walked from there. R9's real leg-up and a wall-top placement (a driver change) are what would let it walk.",
+    "drills_note": "Master's yard lists no drills (every CourseDef bay's drills is empty: src/world/maps/ctcourse.ts:103 takes p.bay.drills, which no set pushes), so the airlocks cycle as soon as both robots are on the pad: course.drills passes with no drill stubs and the A13 hold never runs here (the drill-gate path is unit tested in tests/routeRunCourse.test.ts). L1-near and L2-near are not course locks on master (an airlock's near door locks only once it cycles); L1-far is, until L1 cycles (courseState.ts:637-643)."
+  },
+  "spaces": [
+    {
+      "id": "a1-lounge",
+      "section": "A1",
+      "type": "safe_room",
+      "room_class": "custom",
+      "function": "Arrival lounge (the clients' armoury): where both players start; locker banks, kit cabinet, benches",
+      "storey": 0,
+      "size": [
+        5.5,
+        5.5,
+        3.2
+      ],
+      "area": [
+        [
+          0.25,
+          8.15,
+          5.85,
+          13.85
+        ]
+      ],
+      "tension": 1,
+      "tags": [
+        "start",
+        "entry"
+      ],
+      "note": "LOUNGE_BOX [0, 8, 6, 14] (src/world/maps/ctcourseSets/types.ts:181); the shell's west wall face x 0.25 and the 0.3 m flats on z 8 / 14 / x 6 (src/world/maps/ctcourseSets/a1Gate.ts:155-161): clear 5.6 x 5.7, written 5.5 x 5.5; ceiling block from y 3.2 (src/world/maps/ctcourseSets/a1Gate.ts:163). Spawns (2, 10) and (2, 12) (src/world/maps/ctcourseSets/types.ts:182-185). Locker banks 0.5 m deep on both flats (src/world/maps/ctcourseSets/facility.ts:540-543) leave a 4.5 m aisle. custom: no sheet class for a 6 m lounge.",
+      "measured": {
+        "shadow_pct": 0,
+        "sees_pct": null,
+        "vantage_at": null,
+        "los_break_s": null,
+        "cells": 76,
+        "geom": "v83j27-1jwh0b5"
+      }
+    },
+    {
+      "id": "a1-apron",
+      "section": "A1",
+      "type": "exterior",
+      "room_class": "custom",
+      "function": "Lorry apron between the lounge and the 4.4 m boundary wall: the striped leg-up mark, the chained gate, the gate checker's cabin",
+      "storey": 0,
+      "size": [
+        5.5,
+        17.5,
+        10
+      ],
+      "area": [
+        [
+          6.15,
+          2.25,
+          11.7,
+          19.75
+        ]
+      ],
+      "tension": 1,
+      "tags": [],
+      "note": "x 6.15 (lounge flat face) to 11.7 (wall near face, A1_WALL src/world/maps/ctcourseSets/a1Gate.ts:54), z 2.25-19.75 (shell faces): 5.55 x 17.5. h 10 = hall roof (HALL_H src/world/maps/ctcourseSets/types.ts:110). Holds the checker's cabin x 7-10, z 15-18 (src/world/maps/ctcourseSets/a1Gate.ts:66). exterior: an open-air apron in the fiction (indoors under the 10 m hall roof); custom: 5.5 m is under the yard class's 14 m. No encounter: the only guard is the passive checker (sees and hears nothing, src/world/maps/ctcourseSets/a1Gate.ts:218; BayDef rated false, ctcourse.ts:107).",
+      "measured": {
+        "shadow_pct": 0.23,
+        "sees_pct": null,
+        "vantage_at": null,
+        "los_break_s": null,
+        "cells": 305,
+        "geom": "v83j27-1jwh0b5"
+      }
+    },
+    {
+      "id": "a1-cabin",
+      "section": "A1",
+      "type": "utility",
+      "room_class": "custom",
+      "function": "Gate checker's cabin: the seated passive checker (grab, interrogate) and the yard and cabin light switches",
+      "storey": 0,
+      "size": [
+        2.5,
+        2.5,
+        2.5
+      ],
+      "area": [
+        [
+          7.1,
+          15.1,
+          9.9,
+          17.9
+        ]
+      ],
+      "tension": 1,
+      "tags": [],
+      "note": "CABIN x 7-10, z 15-18, 0.2 m walls to 2.5 (src/world/maps/ctcourseSets/a1Gate.ts:66): clear 2.8 x 2.8 x 2.5. One door (south wall x 8.0-9.2, src/world/maps/ctcourseSets/a1Gate.ts:68, src/world/maps/ctcourseSets/a1Gate.ts:193); the east window is glass (src/world/maps/ctcourseSets/a1Gate.ts:188), not passable. Guard: a1-checker, passive grunt at (9.0, 16.5) with info lines (src/world/maps/ctcourseSets/a1Gate.ts:218); not an encounter (passive). Switches a1-sw-yard / a1-sw-cabin inside (src/world/maps/ctcourseSets/a1Gate.ts:210-211).",
+      "measured": {
+        "shadow_pct": 0,
+        "sees_pct": null,
+        "vantage_at": null,
+        "los_break_s": null,
+        "cells": 10,
+        "geom": "v83j27-1jwh0b5"
+      }
+    },
+    {
+      "id": "a1-walltop",
+      "section": "A1",
+      "type": "connector",
+      "room_class": "custom",
+      "function": "Top of the 4.4 m brick boundary wall: the boosted player stands or hangs here (leg-up, ledge relay) before dropping into the yard",
+      "storey": 4.4,
+      "size": [
+        0.5,
+        17.5,
+        5.6
+      ],
+      "area": [
+        [
+          11.7,
+          2.25,
+          12.3,
+          19.75
+        ]
+      ],
+      "tension": 2,
+      "tags": [],
+      "note": "boostWall a1-wall: x 12, 0.6 m thick, span 18 (z 2-20), top 4.4 (src/world/maps/ctcourseSets/a1Gate.ts:54, src/world/maps/ctcourseSets/a1Gate.ts:139); \"the wall top is walkable: thick over LEDGE.climbDepth\" and both faces carry the co-op lip (src/world/maps/ctcourseGreybox.ts:244-248, 283-292). h 5.6 = 10 - 4.4. A route surface: custom (0.6 m wide)."
+    },
+    {
+      "id": "a1-yard",
+      "section": "A1",
+      "type": "exterior",
+      "room_class": "custom",
+      "function": "Goods yard beyond the wall: the wicket is unbolted from here; weighbridge, lorry bay, the L1 door",
+      "storey": 0,
+      "size": [
+        9,
+        17.5,
+        10
+      ],
+      "area": [
+        [
+          12.3,
+          2.25,
+          21.75,
+          19.75
+        ]
+      ],
+      "tension": 1,
+      "tags": [],
+      "note": "x 12.3 (wall far face, src/world/maps/ctcourseSets/a1Gate.ts:54) to 21.75 (L1 wall face), z 2.25-19.75: 9.45 x 17.5, written 9.0. A1_YARD_ZONE pass zone (src/world/maps/ctcourseSets/a1Gate.ts:57). Yard lamps group 12 at x 12.55, z 5 / 11 / 17 (src/world/maps/ctcourseSets/a1Gate.ts:201). custom: under the yard class's 14 m.",
+      "measured": {
+        "shadow_pct": 0.25,
+        "sees_pct": null,
+        "vantage_at": null,
+        "los_break_s": null,
+        "cells": 612,
+        "geom": "v83j27-1jwh0b5"
+      }
+    },
+    {
+      "id": "a1-hold-l1",
+      "section": "A1",
+      "type": "safe_room",
+      "room_class": "custom",
+      "function": "Holding room L1: the set crew's interlock lobby between two sets (pad, checkpoint, glass slot onto the next set)",
+      "storey": 0,
+      "size": [
+        5.5,
+        5.5,
+        3.2
+      ],
+      "area": [
+        [
+          22.25,
+          8.25,
+          27.75,
+          13.75
+        ]
+      ],
+      "tension": 1,
+      "tags": [
+        "exit",
+        "checkpoint"
+      ],
+      "note": "HOLD_BOX.L1 [22, 8, 28, 14] (src/world/maps/ctcourseSets/types.ts:116), wall centre lines, 0.5 m facility walls (FAC_T, src/world/maps/ctcourseSets/facility.ts:58): clear 5.5 x 5.5; lid underside HOLD_H 3.2 (src/world/maps/ctcourseSets/types.ts:125). custom: an airlock lobby has no scale-sheet class. Its far door is the spine link to the next set (exit of this section, checkpoint of the next set: SPEC 12 \"every holding room is the next set's checkpoint\"; the course restart puts both players here). No guard can see in (doors shut, glass stops sight).",
+      "measured": {
+        "shadow_pct": 0,
+        "sees_pct": null,
+        "vantage_at": null,
+        "los_break_s": null,
+        "cells": 104,
+        "geom": "v83j27-1jwh0b5"
+      }
+    },
+    {
+      "id": "a2-west",
+      "section": "A2",
+      "type": "connector",
+      "room_class": "custom",
+      "function": "West end of the shed inside the L1 door: buffer stops, the van ends, the lanes into the neck and the staging's leg-up mark (the entry vantage)",
+      "storey": 0,
+      "size": [
+        7.5,
+        17,
+        10
+      ],
+      "area": [
+        [
+          28.25,
+          5.1,
+          36,
+          17.5
+        ],
+        [
+          32.2,
+          0.25,
+          36,
+          5.1
+        ],
+        [
+          36,
+          0.25,
+          45.5,
+          3.7
+        ],
+        [
+          36,
+          16.3,
+          45.5,
+          17.5
+        ]
+      ],
+      "tension": 2,
+      "tags": [
+        "entry"
+      ],
+      "note": "x 28.25 (shell face) to 36 (west rake's west end, A2_RAKES src/world/maps/ctcourseSets/a2CarriageShed.ts:94), z 0.25 / 5 (cabin) to 17.5 (staging deck face, A2_DECK src/world/maps/ctcourseSets/a2CarriageShed.ts:97); plus the road 1 south cess (z 0.25-3.7) and the north walkway (z 16.3-17.5) behind the west rake, both closed at x 45.5 by the neck closures (A2_CLOSE_X / _S / _N, src/world/maps/ctcourseSets/a2CarriageShed.ts:70-72; walk482 X2b), so they are pockets of this space, not routes past the neck. Vantage A2-vantage (33.5, 12.5) (src/world/maps/ctcourseSets/a2CarriageShed.ts:342). h 10 to the hall roof (the 7 m roof ties are visual skins only, A2-18).",
+      "measured": {
+        "shadow_pct": 0.73,
+        "sees_pct": null,
+        "vantage_at": null,
+        "los_break_s": null,
+        "cells": 528,
+        "geom": "v83j27-1jwh0b5"
+      }
+    },
+    {
+      "id": "a2-cabin",
+      "section": "A2",
+      "type": "utility",
+      "room_class": "custom",
+      "function": "Shunter's cabin: isolator cabinet 1 (the neck lights, 15 s), the cabin switch, the dark coat corner (A's hide and lure destination)",
+      "storey": 0,
+      "size": [
+        3.5,
+        3.5,
+        2.5
+      ],
+      "area": [
+        [
+          28.25,
+          1.1,
+          31.9,
+          4.9
+        ]
+      ],
+      "tension": 2,
+      "tags": [
+        "objective"
+      ],
+      "note": "A2_CABIN x 28-32, z 1-5, 0.2 m walls to 2.5, plant wall to z 1.1 (src/world/maps/ctcourseSets/a2CarriageShed.ts:101-103, src/world/maps/ctcourseSets/a2CarriageShed.ts:227-243): clear 3.65 x 3.8. Two doors: north (x 30.4-31.6) and the back door on the east wall (z 2.0-3.2) (src/world/maps/ctcourseSets/a2CarriageShed.ts:106-107, src/world/maps/ctcourseSets/a2CarriageShed.ts:241-242). Cabinet 1 a2-iso-1 at (30.6, 1.6) (src/world/maps/ctcourseSets/a2CarriageShed.ts:84, src/world/maps/ctcourseSets/a2CarriageShed.ts:252); coat corner pocket (28.95, 4.25) (src/world/maps/ctcourseSets/a2CarriageShed.ts:363). Tagged objective: the A2 role claim and the first isolation (src/world/maps/ctcourseSets/a2CarriageShed.ts:305).",
+      "measured": {
+        "shadow_pct": 0.36,
+        "sees_pct": null,
+        "vantage_at": null,
+        "los_break_s": null,
+        "cells": 28,
+        "geom": "v83j27-1jwh0b5"
+      }
+    },
+    {
+      "id": "a2-neck",
+      "section": "A2",
+      "type": "encounter",
+      "room_class": "custom",
+      "function": "The shunting neck: 10 m of open floor between the two rakes under four high-bays on the isolator circuit; the shunter's post and the overwatch pair's field",
+      "storey": 0,
+      "size": [
+        10,
+        17,
+        10
+      ],
+      "area": [
+        [
+          46,
+          0.25,
+          56,
+          17.5
+        ]
+      ],
+      "tension": 2,
+      "tags": [
+        "teach:light-isolation"
+      ],
+      "shadow_pct": 0.05,
+      "los_break_s": 2,
+      "vantage": {
+        "from": "a2-west",
+        "sees_pct": 0.3,
+        "at": [
+          33.5,
+          0,
+          12.5
+        ]
+      },
+      "guards": {
+        "2": 3
+      },
+      "note": "x 46-56 between the rakes' neck ends, z 0.25-17.5 (src/world/maps/ctcourseSets/a2CarriageShed.ts:94, src/world/maps/ctcourseSets/a2CarriageShed.ts:97); the closures stand at x 45.5-46 / 56-56.5 on z 0.25-3.7 and 16.3-17.5 (src/world/maps/ctcourseSets/a2CarriageShed.ts:70-72). custom: a 10 m crossing has no sheet class. ESTIMATES (pending V6): shadow_pct 0.05 with every circuit on (four high-bays radius 11 at 6.8 m, (48.5 / 53.5, 6 / 14), src/world/maps/ctcourseSets/a2CarriageShed.ts:274-277, cover the floor); about 0.85 for the 15 s isolation (group 21 off; the group 20 cones stop short of the neck, src/world/maps/ctcourseSets/a2CarriageShed.ts:280-283). The set is \"lit by default, players make the dark\" (SPEC 7, P4): the 0.4-0.6 target is not what was built. los_break_s 2: the van ends and both lanes are within 5 m of any neck point. vantage: from A2-vantage (33.5, 12.5) (src/world/maps/ctcourseSets/a2CarriageShed.ts:342) the gap 2/3 lane (2.4 m wide, 10 m long) frames only a wedge of the neck: hand estimate 0.3. Guards 3: a2-shunter (post (51, 10), loop to x 66 along gap 1/2, src/world/maps/ctcourseSets/a2CarriageShed.ts:60-63, src/world/maps/ctcourseSets/a2CarriageShed.ts:297) and the two overwatch guards a2-watch-w / a2-watch-e standing ON the staging deck at (48, 4.4, 17.9) and (54, 4.4, 17.9), facing south over the neck, leash 0 (src/world/maps/ctcourseSets/a2CarriageShed.ts:68, src/world/maps/ctcourseSets/a2CarriageShed.ts:300-302), counted here because their job is this space; being seen fails the set (SPOT_FAIL, ctcourse.ts:59-61). Teach (validator-port S9): light-isolation, SPEC.md:402 (\"timed light isolation\").",
+      "measured": {
+        "shadow_pct": 0,
+        "sees_pct": 0.22,
+        "vantage_at": [
+          33.5,
+          0,
+          12.5
+        ],
+        "los_break_s": 0.74,
+        "cells": 610,
+        "geom": "v83j27-1jwh0b5"
+      }
+    },
+    {
+      "id": "a2-staging",
+      "section": "A2",
+      "type": "connector",
+      "room_class": "custom",
+      "function": "Carriage-cleaning staging deck along road 3: the high route over the rakes behind 1.2 m screens (chequer plate, loud)",
+      "storey": 4.4,
+      "size": [
+        2,
+        32,
+        5.6
+      ],
+      "area": [
+        [
+          30,
+          17.5,
+          62,
+          19.75
+        ]
+      ],
+      "tension": 2,
+      "tags": [],
+      "note": "coopDeck a2-stage: x 30-62, z 17.5-20, top 4.4, open loading edge x 31-35 (the lip), 1.2 m screens elsewhere (src/world/maps/ctcourseSets/a2CarriageShed.ts:97-99, src/world/maps/ctcourseSets/a2CarriageShed.ts:257-264; src/world/maps/ctcourseGreybox.ts:318-360): clear depth 2.25 to the wall face, written 2.0. h 5.6 = 10 - 4.4 (the 7 m ties are visual). The two overwatch guards stand on this deck at x 48 and 54 (counted in a2-neck): the high route passes 0.5-1 m behind them. custom: a deck walkway.",
+      "measured": {
+        "shadow_pct": 0.11,
+        "sees_pct": null,
+        "vantage_at": null,
+        "los_break_s": null,
+        "cells": 196,
+        "geom": "v83j27-1jwh0b5"
+      }
+    },
+    {
+      "id": "a2-east",
+      "section": "A2",
+      "type": "connector",
+      "room_class": "custom",
+      "function": "East apron: isolator cabinet 2 on the east wall, the staging stair foot, the L2 door",
+      "storey": 0,
+      "size": [
+        3.5,
+        18.5,
+        10
+      ],
+      "area": [
+        [
+          66,
+          0.25,
+          69.75,
+          18.75
+        ],
+        [
+          56.5,
+          0.25,
+          66,
+          3.7
+        ],
+        [
+          56.5,
+          16.3,
+          62,
+          17.5
+        ]
+      ],
+      "tension": 2,
+      "tags": [],
+      "note": "x 66 (east rake's east end, src/world/maps/ctcourseSets/a2CarriageShed.ts:94) to 69.75 (shell face), z 0.25-18.75 (to the stair's flight at z 18.8); plus the east cess and walkway pockets (closed at x 56.5, src/world/maps/ctcourseSets/a2CarriageShed.ts:70-72). Cabinet 2 a2-iso-2 at (69.4, 13.4) (src/world/maps/ctcourseSets/a2CarriageShed.ts:85, src/world/maps/ctcourseSets/a2CarriageShed.ts:253); A2_EAST_ZONE pass zone x 56-70 (src/world/maps/ctcourseSets/a2CarriageShed.ts:90).",
+      "measured": {
+        "shadow_pct": 0.71,
+        "sees_pct": null,
+        "vantage_at": null,
+        "los_break_s": null,
+        "cells": 352,
+        "geom": "v83j27-1jwh0b5"
+      }
+    },
+    {
+      "id": "a2-hold-l2",
+      "section": "A2",
+      "type": "safe_room",
+      "room_class": "custom",
+      "function": "Holding room L2: the set crew's interlock lobby between two sets (pad, checkpoint, glass slot onto the next set)",
+      "storey": 0,
+      "size": [
+        5.5,
+        5.5,
+        3.2
+      ],
+      "area": [
+        [
+          70.25,
+          7.25,
+          75.75,
+          12.75
+        ]
+      ],
+      "tension": 1,
+      "tags": [
+        "exit",
+        "checkpoint"
+      ],
+      "note": "HOLD_BOX.L2 [70, 7, 76, 13] (src/world/maps/ctcourseSets/types.ts:117), wall centre lines, 0.5 m facility walls (FAC_T, src/world/maps/ctcourseSets/facility.ts:58): clear 5.5 x 5.5; lid underside HOLD_H 3.2 (src/world/maps/ctcourseSets/types.ts:125). custom: an airlock lobby has no scale-sheet class. Its far door is the spine link to the next set (exit of this section, checkpoint of the next set: SPEC 12 \"every holding room is the next set's checkpoint\"; the course restart puts both players here). No guard can see in (doors shut, glass stops sight).",
+      "measured": {
+        "shadow_pct": 0,
+        "sees_pct": null,
+        "vantage_at": null,
+        "los_break_s": null,
+        "cells": 104,
+        "geom": "v83j27-1jwh0b5"
+      }
+    }
+  ],
+  "links": [
+    {
+      "from": "a1-lounge",
+      "to": "a1-apron",
+      "kind": "double_door",
+      "route": "shadow",
+      "width": 1.8,
+      "height": 2.1,
+      "length": 6,
+      "at": [
+        6,
+        0,
+        11
+      ],
+      "reason": "The lounge's motorised sliding door onto the apron (house door, open only)",
+      "note": "A1-lounge: kit.slidingDoor 1.8 at (6, 11) (src/world/maps/ctcourseSets/a1Gate.ts:167).",
+      "measured": {
+        "time_s": 4.32,
+        "path_m": 5.61
+      }
+    },
+    {
+      "from": "a1-apron",
+      "to": "a1-cabin",
+      "kind": "door",
+      "route": "secret",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 5.5,
+      "at": [
+        8.6,
+        0,
+        15
+      ],
+      "reason": "Cabin door off the apron: the checker's post and the two light switches",
+      "note": "Door x 8.0-9.2 on z 15 (src/world/maps/ctcourseSets/a1Gate.ts:68, src/world/maps/ctcourseSets/a1Gate.ts:193). A side room, not on the route.",
+      "measured": {
+        "time_s": 4.79,
+        "path_m": 6.22
+      }
+    },
+    {
+      "from": "a1-apron",
+      "to": "a1-yard",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 8,
+      "at": [
+        12,
+        0,
+        11
+      ],
+      "reason": "The wicket in the boundary wall: locked on the apron side, bolted on the yard side (the handshake: the partner over the wall unbolts it)",
+      "note": "A1-wicket, hinge z 10.4, 1.2 x 2.1, locked; bolt gate g-a1-wicket opens it from the yard side for good (src/world/maps/ctcourseSets/a1Gate.ts:139-148, src/world/maps/ctcourseGreybox.ts:259-268). Solo once unbolted; the graph does not model lock state.",
+      "measured": {
+        "time_s": 6.61,
+        "path_m": 8.59
+      }
+    },
+    {
+      "from": "a1-apron",
+      "to": "a1-walltop",
+      "kind": "coop_boost",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 11.5,
+      "time_s": 6,
+      "one_way": true,
+      "at": [
+        11.7,
+        4.4,
+        6
+      ],
+      "reason": "Leg-up from the striped mark onto the wall top (the booster crouches, the partner climbs)",
+      "note": "Mark A1_MARK (10.8, 6) (src/world/maps/ctcourseSets/a1Gate.ts:55), 0.9 m off the near face (WALL_STANDOFF, src/world/maps/ctcourseGreybox.ts:38); lip 4.4 on the near face (COOP_LIPS, src/world/maps/ctcourseGreybox.ts:283-292). time_s ESTIMATE: boost 4-6 s + a 5 m walk (graph-schema \"Estimating\"), pending V6. Teach (validator-port S9): leg-up, SPEC.md:371 (\"the handshake\").",
+      "teach": "leg-up",
+      "measured": {
+        "time_s": null,
+        "why": "coop_boost is not on the nav grid (walks, ladders and drops only)"
+      }
+    },
+    {
+      "from": "a1-apron",
+      "to": "a1-walltop",
+      "kind": "human_ladder",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 11.5,
+      "time_s": 8,
+      "one_way": true,
+      "at": [
+        11.7,
+        4.4,
+        6
+      ],
+      "reason": "Ledge relay: the first player up hangs on the lip and the partner climbs him (SPEC A1 E1, \"both go over the top\")",
+      "note": "Same 4.4 lip (src/world/maps/ctcourseSets/a1Gate.ts:139, src/world/maps/ctcourseGreybox.ts:244-248). time_s ESTIMATE (relay 6-8 s), pending V6.",
+      "measured": {
+        "time_s": null,
+        "why": "human_ladder is not on the nav grid (walks, ladders and drops only)"
+      }
+    },
+    {
+      "from": "a1-yard",
+      "to": "a1-walltop",
+      "kind": "coop_boost",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 5,
+      "time_s": 6,
+      "one_way": true,
+      "at": [
+        12.3,
+        4.4,
+        11
+      ],
+      "reason": "The wall's far face carries the same 4.4 lip: a leg-up from the yard side reaches the top too",
+      "note": "boostWall's far-face lip a1-wall-far (src/world/maps/ctcourseGreybox.ts:283-292); not in the SPEC (SPEC E1 boosts from the apron only). time_s ESTIMATE, pending V6.",
+      "measured": {
+        "time_s": null,
+        "why": "coop_boost is not on the nav grid (walks, ladders and drops only)"
+      }
+    },
+    {
+      "from": "a1-walltop",
+      "to": "a1-yard",
+      "kind": "drop",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 5,
+      "time_s": 2,
+      "one_way": true,
+      "at": [
+        12.3,
+        4.4,
+        11
+      ],
+      "reason": "Drop off the wall top into the yard (SPEC: \"B drops into the yard and unbolts the wicket\")",
+      "note": "4.4 m, under the 4.5 m safe drop (LANDING.heavy). time_s ESTIMATE.",
+      "measured": {
+        "time_s": null,
+        "why": "no area / floor cells on a1-walltop"
+      }
+    },
+    {
+      "from": "a1-walltop",
+      "to": "a1-apron",
+      "kind": "drop",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 3,
+      "time_s": 2,
+      "one_way": true,
+      "at": [
+        11.7,
+        4.4,
+        11
+      ],
+      "reason": "Drop back down to the apron side",
+      "note": "Way back for a player left on the wall top. time_s ESTIMATE.",
+      "measured": {
+        "time_s": null,
+        "why": "no area / floor cells on a1-walltop"
+      }
+    },
+    {
+      "from": "a1-yard",
+      "to": "a1-hold-l1",
+      "kind": "double_door",
+      "route": "shadow",
+      "width": 1.8,
+      "height": 2.1,
+      "length": 8,
+      "at": [
+        22,
+        0,
+        11
+      ],
+      "reason": "Into holding room one from the yard (both players cycle the airlock)",
+      "note": "L1-near: kit.slidingDoor 1.8 m clear (HOLD_DOOR_W, src/world/maps/ctcourseSets/types.ts:149) at (22, 11) (HOLD_DOORS.L1, src/world/maps/ctcourseSets/types.ts:140); a motorised double sliding door (scheme double_door 1.8 x 2.1).",
+      "measured": {
+        "time_s": 5.78,
+        "path_m": 7.52
+      }
+    },
+    {
+      "from": "a1-hold-l1",
+      "to": "a2-west",
+      "kind": "double_door",
+      "route": "spine",
+      "width": 1.8,
+      "height": 2.1,
+      "length": 7,
+      "at": [
+        28,
+        0,
+        11
+      ],
+      "reason": "L1 far door into the Carriage Shed (section connector)",
+      "note": "L1-far at (28, 11) (src/world/maps/ctcourseSets/types.ts:140), kit.slidingDoor 1.8 (src/world/maps/ctcourseSets/facility.ts:298).",
+      "measured": {
+        "time_s": 7.76,
+        "path_m": 10.09
+      }
+    },
+    {
+      "from": "a2-west",
+      "to": "a2-cabin",
+      "kind": "door",
+      "route": "secret",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 8.5,
+      "at": [
+        31,
+        0,
+        5
+      ],
+      "reason": "Cabin north door: cabinet 1 and the dark coat corner",
+      "note": "A2-cabin, x 30.4-31.6 on z 5 (src/world/maps/ctcourseSets/a2CarriageShed.ts:106, src/world/maps/ctcourseSets/a2CarriageShed.ts:241).",
+      "measured": {
+        "time_s": 5,
+        "path_m": 6.5
+      }
+    },
+    {
+      "from": "a2-west",
+      "to": "a2-cabin",
+      "kind": "door",
+      "route": "secret",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 11.5,
+      "at": [
+        32,
+        0,
+        2.6
+      ],
+      "reason": "Cabin back door onto road 1's cess (SPEC secret route)",
+      "note": "A2-back, z 2.0-3.2 on x 32 (src/world/maps/ctcourseSets/a2CarriageShed.ts:107, src/world/maps/ctcourseSets/a2CarriageShed.ts:242). The cess beyond is closed at x 45.5 (walk482 X2b, src/world/maps/ctcourseSets/a2CarriageShed.ts:70-72): the back door now only loops round the cabin.",
+      "measured": {
+        "time_s": 6.41,
+        "path_m": 8.33
+      }
+    },
+    {
+      "from": "a2-west",
+      "to": "a2-neck",
+      "kind": "opening",
+      "route": "loud",
+      "width": 2,
+      "height": 3.4,
+      "length": 20.5,
+      "at": [
+        46,
+        0,
+        7.5
+      ],
+      "reason": "Lane gap 1/2 between roads 1 and 2: the shunter's beat, lit by the shed strips (fast, through the guard)",
+      "note": "Gap z 6.3-8.7 (2.4 m clear, written 2.0 on the grid) between the 3.4 m vans x 36-46 (A2_ROADS / A2_RAKES / VAN, src/world/maps/ctcourseSets/a2CarriageShed.ts:93-95, src/world/maps/ctcourseSets/a2CarriageShed.ts:202). height = van height (open above). Route class is the builder's reading: the shunter walks this lane (src/world/maps/ctcourseSets/a2CarriageShed.ts:60).",
+      "measured": {
+        "time_s": 12.84,
+        "path_m": 16.69
+      }
+    },
+    {
+      "from": "a2-west",
+      "to": "a2-neck",
+      "kind": "opening",
+      "route": "shadow",
+      "width": 2,
+      "height": 3.4,
+      "length": 20.5,
+      "at": [
+        46,
+        0,
+        12.5
+      ],
+      "reason": "Lane gap 2/3: the taught crossing, crossed in the 15 s isolation dark",
+      "note": "Gap z 11.3-13.7 (2.4 m, written 2.0), A2_CROSS_Z 12.5 (src/world/maps/ctcourseSets/a2CarriageShed.ts:74).",
+      "measured": {
+        "time_s": 15.83,
+        "path_m": 20.58
+      }
+    },
+    {
+      "from": "a2-neck",
+      "to": "a2-east",
+      "kind": "opening",
+      "route": "loud",
+      "width": 2,
+      "height": 3.4,
+      "length": 18.5,
+      "at": [
+        56,
+        0,
+        7.5
+      ],
+      "reason": "East lane gap 1/2: the shunter's loop to x 66",
+      "note": "East rake x 56-66 (src/world/maps/ctcourseSets/a2CarriageShed.ts:94); shunter route [56, 7.5] -> [66, 7.5] (src/world/maps/ctcourseSets/a2CarriageShed.ts:60).",
+      "measured": {
+        "time_s": 12.04,
+        "path_m": 15.65
+      }
+    },
+    {
+      "from": "a2-neck",
+      "to": "a2-east",
+      "kind": "opening",
+      "route": "shadow",
+      "width": 2,
+      "height": 3.4,
+      "length": 19,
+      "at": [
+        56,
+        0,
+        12.5
+      ],
+      "reason": "East lane gap 2/3 to cabinet 2",
+      "note": "Gap z 11.3-13.7 (2.4 m, written 2.0) (src/world/maps/ctcourseSets/a2CarriageShed.ts:93-95).",
+      "measured": {
+        "time_s": 16.8,
+        "path_m": 21.85
+      }
+    },
+    {
+      "from": "a2-west",
+      "to": "a2-staging",
+      "kind": "coop_boost",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 20.5,
+      "time_s": 6,
+      "one_way": true,
+      "at": [
+        33,
+        4.4,
+        17.5
+      ],
+      "reason": "Leg-up onto the staging's open loading edge (the west stair is padlocked off for repair)",
+      "note": "Lip x 31-35 on z 17.5 at 4.4 (A2_LIP_X src/world/maps/ctcourseSets/a2CarriageShed.ts:98), mark (33, 17.0) (A2_MARK src/world/maps/ctcourseSets/a2CarriageShed.ts:99); the west stair is removed (A2-D3, permit gate src/world/maps/ctcourseSets/a2CarriageShed.ts:143). time_s ESTIMATE, pending V6.",
+      "measured": {
+        "time_s": null,
+        "why": "coop_boost is not on the nav grid (walks, ladders and drops only)"
+      }
+    },
+    {
+      "from": "a2-west",
+      "to": "a2-staging",
+      "kind": "human_ladder",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 20.5,
+      "time_s": 8,
+      "one_way": true,
+      "at": [
+        33,
+        4.4,
+        17.5
+      ],
+      "reason": "Ledge relay onto the staging at its west end (SPEC A2 high route: \"leg-up and relay\")",
+      "note": "Same lip (src/world/maps/ctcourseSets/a2CarriageShed.ts:98). time_s ESTIMATE, pending V6.",
+      "measured": {
+        "time_s": null,
+        "why": "human_ladder is not on the nav grid (walks, ladders and drops only)"
+      }
+    },
+    {
+      "from": "a2-staging",
+      "to": "a2-west",
+      "kind": "drop",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 19.5,
+      "time_s": 2,
+      "one_way": true,
+      "at": [
+        33,
+        4.4,
+        17.5
+      ],
+      "reason": "Drop off the open loading edge back to the shed floor",
+      "note": "The only unscreened edge (1.2 m solid screens elsewhere, noLedge). time_s ESTIMATE.",
+      "measured": {
+        "time_s": null,
+        "why": "drop not on the guard nav (1.0-2.2 m only)"
+      }
+    },
+    {
+      "from": "a2-staging",
+      "to": "a2-east",
+      "kind": "open_stair",
+      "route": "high",
+      "width": 1.2,
+      "level_change": 4.4,
+      "length": 33.5,
+      "at": [
+        69.7,
+        0,
+        19.4
+      ],
+      "reason": "The staging's east stair down to the east apron (the high route's way down, and a solo way up)",
+      "note": "coopDeck stair 'end': 27 risers of 0.163 m, x 62-69.7 against the back wall (A2-8, src/world/maps/ctcourseSets/a2CarriageShed.ts:265-267; src/world/maps/ctcourseGreybox.ts:350-356), 1.2 m wide; side rail from x 68.6 (A2_STAIR_RAIL src/world/maps/ctcourseSets/a2CarriageShed.ts:132).",
+      "measured": {
+        "time_s": 28.57,
+        "path_m": 37.14
+      }
+    },
+    {
+      "from": "a2-east",
+      "to": "a2-hold-l2",
+      "kind": "double_door",
+      "route": "shadow",
+      "width": 1.8,
+      "height": 2.1,
+      "length": 5,
+      "at": [
+        70,
+        0,
+        10
+      ],
+      "reason": "Into holding room two from the east apron (no wheel stop in its approach, walk482 X3)",
+      "note": "L2-near: kit.slidingDoor 1.8 m clear (HOLD_DOOR_W, src/world/maps/ctcourseSets/types.ts:149) at (70, 10) (HOLD_DOORS.L2, src/world/maps/ctcourseSets/types.ts:141); a motorised double sliding door (scheme double_door 1.8 x 2.1).",
+      "measured": {
+        "time_s": 5.7,
+        "path_m": 7.41
+      }
+    }
+  ],
+  "points": {
+    "geom": "v83j27-1jwh0b5",
+    "spaces": [
+      {
+        "id": "a1-lounge",
+        "section": "A1",
+        "storey": 0,
+        "floorY": 0,
+        "boxes": [
+          [
+            0.25,
+            8.15,
+            5.85,
+            13.85
+          ]
+        ],
+        "centre": [
+          3.05,
+          0,
+          11.0
+        ]
+      },
+      {
+        "id": "a1-apron",
+        "section": "A1",
+        "storey": 0,
+        "floorY": 0,
+        "boxes": [
+          [
+            6.15,
+            2.25,
+            11.7,
+            19.75
+          ]
+        ],
+        "centre": [
+          8.925,
+          0,
+          11.0
+        ]
+      },
+      {
+        "id": "a1-cabin",
+        "section": "A1",
+        "storey": 0,
+        "floorY": 0,
+        "boxes": [
+          [
+            7.1,
+            15.1,
+            9.9,
+            17.9
+          ]
+        ],
+        "centre": [
+          8.5,
+          0,
+          16.5
+        ]
+      },
+      {
+        "id": "a1-walltop",
+        "section": "A1",
+        "storey": 4.4,
+        "floorY": 4.4,
+        "boxes": [
+          [
+            11.7,
+            2.25,
+            12.3,
+            19.75
+          ]
+        ],
+        "centre": [
+          12.0,
+          4.4,
+          11.0
+        ]
+      },
+      {
+        "id": "a1-yard",
+        "section": "A1",
+        "storey": 0,
+        "floorY": 0,
+        "boxes": [
+          [
+            12.3,
+            2.25,
+            21.75,
+            19.75
+          ]
+        ],
+        "centre": [
+          17.025,
+          0,
+          11.0
+        ]
+      },
+      {
+        "id": "a1-hold-l1",
+        "section": "A1",
+        "storey": 0,
+        "floorY": 0,
+        "boxes": [
+          [
+            22.25,
+            8.25,
+            27.75,
+            13.75
+          ]
+        ],
+        "centre": [
+          25.0,
+          0,
+          11.0
+        ]
+      },
+      {
+        "id": "a2-west",
+        "section": "A2",
+        "storey": 0,
+        "floorY": 0,
+        "boxes": [
+          [
+            28.25,
+            5.1,
+            36,
+            17.5
+          ]
+        ],
+        "centre": [
+          32.125,
+          0,
+          11.3
+        ]
+      },
+      {
+        "id": "a2-cabin",
+        "section": "A2",
+        "storey": 0,
+        "floorY": 0,
+        "boxes": [
+          [
+            28.25,
+            1.1,
+            31.9,
+            4.9
+          ]
+        ],
+        "centre": [
+          30.075,
+          0,
+          3.0
+        ]
+      },
+      {
+        "id": "a2-neck",
+        "section": "A2",
+        "storey": 0,
+        "floorY": 0,
+        "boxes": [
+          [
+            46,
+            0.25,
+            56,
+            17.5
+          ]
+        ],
+        "centre": [
+          51.0,
+          0,
+          8.875
+        ]
+      },
+      {
+        "id": "a2-staging",
+        "section": "A2",
+        "storey": 4.4,
+        "floorY": 4.4,
+        "boxes": [
+          [
+            30,
+            17.5,
+            62,
+            19.75
+          ]
+        ],
+        "centre": [
+          46.0,
+          4.4,
+          18.625
+        ]
+      },
+      {
+        "id": "a2-east",
+        "section": "A2",
+        "storey": 0,
+        "floorY": 0,
+        "boxes": [
+          [
+            66,
+            0.25,
+            69.75,
+            18.75
+          ]
+        ],
+        "centre": [
+          67.875,
+          0,
+          9.5
+        ]
+      },
+      {
+        "id": "a2-hold-l2",
+        "section": "A2",
+        "storey": 0,
+        "floorY": 0,
+        "boxes": [
+          [
+            70.25,
+            7.25,
+            75.75,
+            12.75
+          ]
+        ],
+        "centre": [
+          73.0,
+          0,
+          10.0
+        ]
+      }
+    ],
+    "links": [
+      {
+        "from": "a1-lounge",
+        "to": "a1-apron",
+        "kind": "double_door",
+        "route": "shadow",
+        "at": [
+          6,
+          0,
+          11
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 4.32,
+          "path_m": 5.61
+        }
+      },
+      {
+        "from": "a1-apron",
+        "to": "a1-cabin",
+        "kind": "door",
+        "route": "secret",
+        "at": [
+          8.6,
+          0,
+          15
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 4.79,
+          "path_m": 6.22
+        }
+      },
+      {
+        "from": "a1-apron",
+        "to": "a1-yard",
+        "kind": "door",
+        "route": "shadow",
+        "at": [
+          12,
+          0,
+          11
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 6.61,
+          "path_m": 8.59
+        }
+      },
+      {
+        "from": "a1-apron",
+        "to": "a1-walltop",
+        "kind": "coop_boost",
+        "route": "high",
+        "at": [
+          10.8,
+          0,
+          6
+        ],
+        "atFrom": "mark",
+        "measured": {
+          "time_s": null,
+          "why": "coop_boost is not on the nav grid (walks, ladders and drops only)"
+        }
+      },
+      {
+        "from": "a1-apron",
+        "to": "a1-walltop",
+        "kind": "human_ladder",
+        "route": "high",
+        "at": [
+          11.7,
+          4.4,
+          6
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": null,
+          "why": "human_ladder is not on the nav grid (walks, ladders and drops only)"
+        }
+      },
+      {
+        "from": "a1-yard",
+        "to": "a1-walltop",
+        "kind": "coop_boost",
+        "route": "high",
+        "at": [
+          12.3,
+          4.4,
+          11
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": null,
+          "why": "coop_boost is not on the nav grid (walks, ladders and drops only)"
+        }
+      },
+      {
+        "from": "a1-walltop",
+        "to": "a1-yard",
+        "kind": "drop",
+        "route": "high",
+        "at": [
+          11.4,
+          0,
+          11
+        ],
+        "atFrom": "stub",
+        "measured": {
+          "time_s": null,
+          "why": "no area / floor cells on a1-walltop"
+        }
+      },
+      {
+        "from": "a1-walltop",
+        "to": "a1-apron",
+        "kind": "drop",
+        "route": "high",
+        "at": [
+          11.7,
+          4.4,
+          11
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": null,
+          "why": "no area / floor cells on a1-walltop"
+        }
+      },
+      {
+        "from": "a1-yard",
+        "to": "a1-hold-l1",
+        "kind": "double_door",
+        "route": "shadow",
+        "at": [
+          22,
+          0,
+          11
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 5.78,
+          "path_m": 7.52
+        }
+      },
+      {
+        "from": "a1-hold-l1",
+        "to": "a2-west",
+        "kind": "double_door",
+        "route": "spine",
+        "at": [
+          28,
+          0,
+          11
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 7.76,
+          "path_m": 10.09
+        }
+      },
+      {
+        "from": "a2-west",
+        "to": "a2-cabin",
+        "kind": "door",
+        "route": "secret",
+        "at": [
+          31,
+          0,
+          5
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 5,
+          "path_m": 6.5
+        }
+      },
+      {
+        "from": "a2-west",
+        "to": "a2-cabin",
+        "kind": "door",
+        "route": "secret",
+        "at": [
+          32,
+          0,
+          2.6
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 6.41,
+          "path_m": 8.33
+        }
+      },
+      {
+        "from": "a2-west",
+        "to": "a2-neck",
+        "kind": "opening",
+        "route": "loud",
+        "at": [
+          46,
+          0,
+          7.5
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 12.84,
+          "path_m": 16.69
+        }
+      },
+      {
+        "from": "a2-west",
+        "to": "a2-neck",
+        "kind": "opening",
+        "route": "shadow",
+        "at": [
+          46,
+          0,
+          12.5
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 15.83,
+          "path_m": 20.58
+        }
+      },
+      {
+        "from": "a2-neck",
+        "to": "a2-east",
+        "kind": "opening",
+        "route": "loud",
+        "at": [
+          56,
+          0,
+          7.5
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 12.04,
+          "path_m": 15.65
+        }
+      },
+      {
+        "from": "a2-neck",
+        "to": "a2-east",
+        "kind": "opening",
+        "route": "shadow",
+        "at": [
+          56,
+          0,
+          12.5
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 16.8,
+          "path_m": 21.85
+        }
+      },
+      {
+        "from": "a2-west",
+        "to": "a2-staging",
+        "kind": "coop_boost",
+        "route": "high",
+        "at": [
+          33,
+          4.4,
+          17.5
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": null,
+          "why": "coop_boost is not on the nav grid (walks, ladders and drops only)"
+        }
+      },
+      {
+        "from": "a2-west",
+        "to": "a2-staging",
+        "kind": "human_ladder",
+        "route": "high",
+        "at": [
+          33,
+          4.4,
+          17.5
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": null,
+          "why": "human_ladder is not on the nav grid (walks, ladders and drops only)"
+        }
+      },
+      {
+        "from": "a2-staging",
+        "to": "a2-west",
+        "kind": "drop",
+        "route": "high",
+        "at": [
+          33,
+          4.4,
+          17.5
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": null,
+          "why": "drop not on the guard nav (1.0-2.2 m only)"
+        }
+      },
+      {
+        "from": "a2-staging",
+        "to": "a2-east",
+        "kind": "open_stair",
+        "route": "high",
+        "at": [
+          69.7,
+          0,
+          19.4
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 28.57,
+          "path_m": 37.14
+        }
+      },
+      {
+        "from": "a2-east",
+        "to": "a2-hold-l2",
+        "kind": "double_door",
+        "route": "shadow",
+        "at": [
+          70,
+          0,
+          10
+        ],
+        "atFrom": "declared",
+        "measured": {
+          "time_s": 5.7,
+          "path_m": 7.41
+        }
+      }
+    ]
+  },
+  "expect": {
+    "players": 2,
+    "runs": [
+      {
+        "id": "a1-gate",
+        "section": "A1",
+        "name": "Selftest course: lounge, apron, the leg-up (stub) and the drop (a step-timeout at the locked wicket, recovered into the yard), holding room one, its airlock into A2",
+        "path": [
+          0,
+          3,
+          6,
+          8,
+          9
+        ],
+        "outcomes": {
+          "0": "walked",
+          "3": "stub",
+          "6": "step-timeout",
+          "8": "walked",
+          "9": "walked"
+        },
+        "lines": [
+          {
+            "type": "guardsAll"
+          },
+          {
+            "type": "deadStop",
+            "class": "step-timeout",
+            "link": 6,
+            "atLimit": true
+          },
+          {
+            "type": "robots",
+            "names": [
+              "leader",
+              "follower"
+            ]
+          }
+        ],
+        "course": {
+          "drills": {
+            "why": "gate",
+            "hold_s": 0
+          }
+        }
+      },
+      {
+        "id": "a2-seen-once",
+        "section": "A2",
+        "name": "Selftest course: the shed, the shadow gap into the neck (the shunter raised once there), the east gap, holding room two",
+        "path": [
+          13,
+          15,
+          20
+        ],
+        "outcomes": {
+          "13": "walked",
+          "15": "walked",
+          "20": "walked"
+        },
+        "lines": [
+          {
+            "type": "guardsAll"
+          },
+          {
+            "type": "noDeadStops"
+          },
+          {
+            "type": "robots",
+            "names": [
+              "leader",
+              "follower"
+            ]
+          }
+        ],
+        "course": {
+          "raise": [
+            {
+              "guard": "a2-shunter",
+              "space": "a2-neck",
+              "times": 1
+            }
+          ],
+          "restarts": [
+            {
+              "space": "a2-neck",
+              "set": "A2",
+              "restart": "set",
+              "then": "rejoined",
+              "linked": true
+            }
+          ],
+          "detections": {
+            "restart": "set",
+            "count": 1
+          }
+        }
+      },
+      {
+        "id": "a2-seen-twice",
+        "section": "A2",
+        "name": "Selftest course: the same path, the shunter raised twice in the neck: the second restart turns the spotted rule off and pushes the pair past",
+        "path": [
+          13,
+          15,
+          20
+        ],
+        "outcomes": {
+          "13": "walked",
+          "20": "walked"
+        },
+        "lines": [
+          {
+            "type": "guardsAll"
+          },
+          {
+            "type": "noDeadStops"
+          },
+          {
+            "type": "robots",
+            "names": [
+              "leader",
+              "follower"
+            ]
+          }
+        ],
+        "course": {
+          "raise": [
+            {
+              "guard": "a2-shunter",
+              "space": "a2-neck",
+              "times": 2
+            }
+          ],
+          "restarts": [
+            {
+              "space": "a2-neck",
+              "set": "A2",
+              "restart": "set",
+              "then": "rejoined",
+              "linked": true
+            },
+            {
+              "space": "a2-neck",
+              "set": "A2",
+              "restart": "set",
+              "then": "pushed-past",
+              "linked": true
+            }
+          ],
+          "detections": {
+            "restart": "set",
+            "count": 2
+          }
+        }
+      }
+    ]
+  }
+}
