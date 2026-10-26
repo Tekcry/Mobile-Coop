@@ -230,7 +230,6 @@ files:
   - src/audio/music/musicLab.ts
   - src/audio/sceneStorm.ts
   - scripts/music/piano.mjs
-  - scripts/music/pulse.mjs
   - src/assets/music/scene/*
   - src/pwa/precacheGlobs.ts
   - src/net/coopHost.ts
@@ -329,7 +328,7 @@ press kills every lamp and sets t0, the meter reads dark, input on, restart with
 `src/audio/music/scenePiano.ts` (decoded on scene start only; plays from 0, `seek(38)` for the skip, `seek(41)` at the
 EMP press, loop 41.0 s - end with a 2 s cross-fade, fade out, stop on leave); `Music.scene(on)` mutes the director; out
 of the precache (`PRECACHE_IGNORES` covers `src/assets/music/scene/*`); `docs/audio-credits.md` row. The one seam S5
-needs: scenePiano.ts takes its track URL from `sceneTracks.ts` (`sceneTrackUrl()`, default the Pixabay track); the
+needs: scenePiano.ts takes its track URL from `sceneTracks.ts` (S5b: intro and mission slot rows); the
 lead passes this line to S3 now, else S5 adds it after S3 merges.
 - Files: the asset, scenePiano.ts, music.ts, precacheGlobs.ts, tests/scenePiano.test.ts, tests/precacheGlobs.test.ts,
   docs/audio-credits.md. Est. ~300 lines.
@@ -384,9 +383,10 @@ its swells: a listening note for Michael's A/B. Each one loops whole (from 0) un
 
 **S5b Michael's music pick (Opus; Michael ~21:50, BRIEF "Michael said"; on PR #618).** The intro always plays
 "Investigation Piano" from 0 (skip: `seek(38)`); the EMP press (`seek(s)`, s >= 41, S2's `EMP_SEEK`) cross-fades about 2 s
-into the mission track "Suspense Thriller" from 0, looping whole (`missionLoopPeriod` = length - 2 s). Dev picker trimmed
-to `?pianomusic=grohl|1|pixabay` (default grohl; `1` = Held Breath as the mission track, the one alternative Michael
-liked; `pixabay` = the old Leberch loop from 41 s, for A/B). Sketches 2-4 and the six Grohl-form prototypes leave the
+into the mission track "Suspense Thriller" from 0, looping whole (`missionLoopPeriod` = length - 2 s). Dev picker: two slots,
+`?pianointro=` (default the Leberch track) and `?pianomusic=grohl|1|pixabay` (default grohl; `1` = Held Breath as the mission track, the one alternative Michael
+liked; `pixabay` = the old Leberch loop from 41 s, for A/B); Michael ~21:55 wants more realistic versions of both,
+so four more rows (intro-1/2, mission-1/2, from the orchestrator) drop in when they land. Sketches 2-4 and the six Grohl-form prototypes leave the
 bundle, scripts and credits (Michael: A-C "none. they all dont sound realistic, like they are part of a 2 bit game or
 something"; D-F "none"); they stay in C:/NightShift/scratch. Files: scenePiano.ts, sceneTracks.ts, musicLab.ts,
 audio-credits.md, their tests, the deletions. Brief scratch/campaign/piano/S5b-brief.md.
