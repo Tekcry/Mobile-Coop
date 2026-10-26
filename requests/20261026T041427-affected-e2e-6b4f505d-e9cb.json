@@ -1,0 +1,15 @@
+{
+  "id": "20261026T041427-affected-e2e-6b4f505d-e9cb",
+  "sha": "6b4f505d0b7ce1dd7b15f205fe83e366acc08df9",
+  "branch": "feature/player-j19-s2",
+  "pr": 561,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-gadgets",
+    "e2e-park",
+    "e2e-takedown"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #561"
+}
