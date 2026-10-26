@@ -6,6 +6,7 @@ import {
   ACTOR_LEN,
   ACTOR_RATE,
   ACTOR_WALK,
+  actorPath,
   ACTOR_START,
   AIM_X,
   AIM_Y,
@@ -28,6 +29,8 @@ import {
   type IntroCam,
 } from './pianoIntro';
 import type { PianoView } from './pianoScene';
+import { GuardActor } from '../ai/guardActor';
+import { ENEMIES } from '../ai/enemyDefs';
 
 /**
  * (piano-escape S2) The intro drawn (render only; `pianoIntro.ts` is the data): the camera override (the gameState
@@ -278,11 +281,13 @@ export class PianoIntroView implements SceneView, PianoView {
   }
 
   /**
-   * Intro actor `i` (built at the intro's start, rate 0 until his start time). TODO(#611): GuardActor:
-   * `new GuardActor(g.scene, g.world, ENEMY_DEFS.grunt, actorPath(i), { speed: ACTOR_WALK, rate: 0, vfx: g.vfx, nav: g.nav, y: INTRO_ACTORS[i].pts[0][1] })`
+   * Intro actor `i` (built at the intro's start, rate 0 until his start time): Guard AI's GuardActor (#611), a real guard
+   * rig walking its path with the aimed walk and the fire pose (`PosedStandIn` stays as the API's test double).
    */
   private makeActor(i: number): IntroActor {
-    return new PosedStandIn(this.g.scene, this.g.world.parts, i, ACTOR_WALK);
+    const g = this.g;
+    const a = INTRO_ACTORS[i]!;
+    return new GuardActor(g.scene, g.world, ENEMIES.grunt, actorPath(i), { speed: ACTOR_WALK, rate: 0, vfx: g.vfx, nav: g.nav, y: a.pts[0]![1], name: `piano-actor-${i}` });
   }
 
   /** The intro (to the cut) and a framed reveal hold the operator's input. */
