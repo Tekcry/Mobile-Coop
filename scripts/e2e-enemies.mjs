@@ -1,6 +1,7 @@
 // Enemy archetypes on the night Warehouse (Clear rules): heavy (plates, weak back / face plate, no frontal
 // choke), enforcer (shield stops frontal rounds, no frontal grab, pushes forward), sniper (laser, glint refuses a
-// mark, relocates after its shots), dog (smells a hidden crouched operator in the dark, no takedown (G348), gas knocks it out),
+// mark, relocates after its shots), runner (draws, fires bursts, never strikes, presses in), dog (smells a hidden
+// crouched operator in the dark, no takedown (G348), gas knocks it out),
 // drone operator (its recon drone spots and alerts; shot down; EMP drops it), officer (buffs squadmates, runs the
 // alarm first), squad radio checks (a silent member is searched for), callouts, and Perfectionist
 // (difficulty autostart). `node scripts/e2e-enemies.mjs [url] [--only=name]`
@@ -189,6 +190,43 @@ await run('autostart=warehouse&mode=clear', [
       assert(r.laser, 'its laser shows while it aims');
       assert(r.glintMax > 0.3, `its scope glints at you (${r.glintMax.toFixed(2)})`);
       assert(r.relocations >= 1 && r.moved > 3, `it relocates after its shots (${r.relocations}, moved ${r.moved.toFixed(1)} m)`);
+    },
+  ],
+  [
+    // (guard-ai runner-armed, G298) every guard is armed: the runner draws, fires bursts and never strikes hand to
+    // hand; he keeps his charge as a press in while he fires (`ARCHETYPE.runner.pressIn`)
+    'runner',
+    async (G) => {
+      const r = await G(() => {
+        const t = window.__t;
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        // the sniper's lane: 13 m down a clear floor
+        t.tp(8, 0, -4, 0);
+        // (no alarm run: an alerted armed guard would otherwise go for a panel, as the sniper above)
+        em.alarmRaised = true;
+        const e = t.spawn('runner', 8, 9, Math.PI, true);
+        let strikes = 0;
+        const prev = em.onEnemyMelee;
+        em.onEnemyMelee = (x) => {
+          if (x === e) strikes++;
+          prev?.(x);
+        };
+        try {
+          const feet = () => Math.hypot(e.pos.x - 8, e.pos.z + 4);
+          const d0 = feet();
+          for (let k = 0; k < 16; k++) t.step(0.5);
+          const d1 = feet();
+          return { fired: e.roundsFired, drawn: e.carry.drawn, gun: !!e['gun'], kindMelee: !!e.def.melee, strikes, d0, d1, state: e.state };
+        } finally {
+          em.onEnemyMelee = prev;
+        }
+      });
+      assert(r.gun && !r.kindMelee, `the runner carries a gun model and no melee block (G298) (gun ${r.gun}, melee ${r.kindMelee})`);
+      assert(r.drawn, `his gun is drawn in the fight (state ${r.state})`);
+      assert(r.fired > 0, `the runner fires on the player (${r.fired} rounds)`);
+      assert(r.strikes === 0, `no hand-to-hand strike (${r.strikes})`);
+      assert(r.d1 < r.d0 - 2, `he presses in while he fires (${r.d0.toFixed(1)} -> ${r.d1.toFixed(1)} m)`);
     },
   ],
   [
