@@ -120,17 +120,23 @@ export function addMeter(res, id, ok) {
 
 /**
  * (A7) Hold every moving light still for a read: the flicker and sway ticks do nothing, every flickering light (but the
- * storm flash lights, `FLICKER_FLASH`) sits at multiplier 1, the lightning level reads 0 and the flash is cleared.
- * `unpinLights` puts the three functions back. Gameplay code is untouched; the originals live on `window.__pin`.
+ * storm flash lights, `FLICKER_FLASH`) sits at multiplier 1, the lightning level reads 0, the flash is cleared and the
+ * picture draws no character shadows. `unpinLights` puts the four back. Gameplay code is untouched; the originals live on `window.__pin`.
  */
 export function pinLights(page) {
   return page.evaluate((flash) => {
     const g = window.__app.current;
     const reg = g.world.level.lights;
     const lt = g.world.lightning;
-    if (!window.__pin) window.__pin = { tickFlicker: reg.tickFlicker, tickSway: reg.tickSway, levelAt: lt ? lt.levelAt : null };
+    const lamps = g.world.lamps;
+    if (!window.__pin) {
+      window.__pin = { tickFlicker: reg.tickFlicker, tickSway: reg.tickSway, levelAt: lt ? lt.levelAt : null, capsules: lamps ? lamps.capsules : null };
+    }
     reg.tickFlicker = () => {};
     reg.tickSway = () => {};
+    // (check finding 1) no character shadow in the picture: the parked player and frozen guards may stand between a card
+    // and its lamp (`BakedLamps.capsules` null = 0 capsules)
+    if (lamps) lamps.capsules = null;
     for (const id of reg.flickering) if (reg.flickerMode(id) !== flash) reg.lights[id].flicker = 1;
     reg.flickerVersion++;
     if (lt) {
@@ -150,6 +156,7 @@ export function unpinLights(page) {
     reg.tickFlicker = pin.tickFlicker;
     reg.tickSway = pin.tickSway;
     if (g.world.lightning && pin.levelAt) g.world.lightning.levelAt = pin.levelAt;
+    if (g.world.lamps) g.world.lamps.capsules = pin.capsules;
     reg.flickerVersion++;
     window.__pin = null;
   });
