@@ -1,0 +1,15 @@
+{
+  "id": "20261026T043703-night-shift-sector-o-9804f784-2f2e",
+  "sha": "9804f7843722fd7697ef69d12d3cdab0f79178d8",
+  "branch": "feature/sectorops-part6-fix",
+  "pr": 568,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops:6",
+    "e2e-sectorops:7",
+    "e2e-sectorops:8",
+    "e2e-sectorops:9"
+  ],
+  "set": "f33-parts"
+}
