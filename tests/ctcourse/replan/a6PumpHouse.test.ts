@@ -317,6 +317,21 @@ describe('Marlow re-plan A6: the guard and the stations (STATIONS sections 3, 6,
     }
     expect(part.objectives[3]!.text).toMatch(/outfall culvert/);
     expect(part.objectives[3]!.text).toMatch(/holding room six/);
+    // (fix 1) until `dropCatch` ships station 16's way down is the stand-in ladder: the drop step's lines name it through the
+    // bridge opening into the drive pit (both go down it), never a catch; the retry line sends them to it too
+    const drop = part.objectives[2]!;
+    expect(drop.id).toBe('a6-drop');
+    for (const t of [drop.text, drop.a!, drop.b!]) {
+      expect(t, t).toMatch(/cage ladder/);
+      expect(t, t).toMatch(/bridge opening/);
+      expect(t, t).toMatch(/drive pit/);
+      expect(t.toLowerCase(), t).not.toMatch(/catch|drop/);
+      expect(/[–—]/.test(t), t).toBe(false);
+    }
+    expect(drop.text).toMatch(/^Both of you/);
+    const dropRetry = A6_RETRY_LINES.find((r) => r.id === 'a6-dropcatch')!.text;
+    expect(dropRetry).toMatch(/cage ladder/);
+    expect(dropRetry.toLowerCase()).not.toContain('catch');
   });
 });
 
