@@ -616,17 +616,21 @@ describe('piano-knife S3: the remote pair looks as the owner\'s (G400)', () => {
       const perA = await bytesPerCall((n) => {
         for (let k = 0; k < n; k++) rk.attacker(ar, vr, knife);
       }, HEAP_NUMBER, opts);
-      const perV = await bytesPerCall((n) => {
+      // (F58) the victim share is a difference of two measures whose boxed numbers vary run to run (7-11 seen): each
+      // side is the lowest of three, so a blip cannot fail it and a real allocation still shows in all three
+      const low3 = async (fn: (n: number) => void): Promise<number> =>
+        Math.min(await bytesPerCall(fn, HEAP_NUMBER, opts), await bytesPerCall(fn, HEAP_NUMBER, opts), await bytesPerCall(fn, HEAP_NUMBER, opts));
+      const perV = await low3((n) => {
         for (let k = 0; k < n; k++) rk.victim(ar, vr, kv);
-      }, HEAP_NUMBER, opts);
+      });
       // S1's hand helpers on the same rigs (out of S3's scope: `knifePair.ts` gets only `knifeSpan`)
       const tr = newPairTrack();
       const perAH = await bytesPerCall((n) => {
         for (let k = 0; k < n; k++) attackerHands(R, 0.6, 0.1, ar, vr, knife, 1, tr);
       }, HEAP_NUMBER, opts);
-      const perVH = await bytesPerCall((n) => {
+      const perVH = await low3((n) => {
         for (let k = 0; k < n; k++) victimHands(R, 0.1, ar, vr, tr);
-      }, HEAP_NUMBER, opts);
+      });
       console.info(`(piano-knife S3) RemoteKnife per call: read ${perRead.toFixed(1)} B, attacker ${perA.toFixed(1)} B (no hands ${perNoHands.toFixed(1)}, attackerHands alone ${perAH.toFixed(1)}), victim ${perV.toFixed(1)} B (victimHands alone ${perVH.toFixed(1)})`);
       expect(perRead).toBeLessThanOrEqual(HEAP_NUMBER);
       expect(perNoHands).toBeLessThanOrEqual(HEAP_NUMBER);
