@@ -1,0 +1,13 @@
+{
+  "id": "20261026T051403-night-shift-marlow-b-3c0d7c53-fa9b",
+  "sha": "3c0d7c537d0ce8e8c0003701a5e0067ab187a1e0",
+  "branch": "feature/marlow-replan-base",
+  "pr": 574,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-ctcourse:5"
+  ],
+  "set": "replan-part5",
+  "note": "J14 one closest test set (prototype mode)"
+}
