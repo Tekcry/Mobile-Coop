@@ -1,0 +1,13 @@
+{
+  "id": "20261026T192305-night-shift-player-b-be5de727-9b3c",
+  "sha": "be5de72741098d7b4d2d1b88ff5e8ffd50d7e06e",
+  "branch": "fix/f5-netmove-strike",
+  "pr": 663,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "set": "f5-netmove",
+  "fix": true
+}
