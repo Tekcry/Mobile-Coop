@@ -151,6 +151,7 @@ export class World {
     // (assigned after the capture: a material sampling the cube while it renders into it is a feedback loop)
     probe.cubeTexture.onAfterRenderObservable.addOnce(() => {
       if (scene.isDisposed) return;
+      this.probeCaptured = true;
       scene.environmentTexture = probe.cubeTexture;
       // night maps: the captured room is mostly dark - keep its reflections faint
       scene.environmentIntensity = (th.lightLevel ?? 0.75) < 0.5 ? 0.25 : 0.7;
@@ -444,6 +445,8 @@ export class World {
   }
 
   private probe: ReflectionProbe | null = null;
+  /** (map-ready S2) The environment probe has captured (the load gate's `probe` step). Render side only. */
+  probeCaptured = false;
   /** The level's procedural surface textures. */
   surfaces: SurfaceAtlas | null = null;
 
