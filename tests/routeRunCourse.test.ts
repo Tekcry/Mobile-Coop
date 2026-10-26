@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs tool script without types
 import * as C from '../scripts/route-run/course.mjs';
@@ -515,7 +516,7 @@ describe('the restart watcher (onPoll) on a fake page', () => {
     await w.poll({ t: 8.2, restarts: 3, feet: [25, 0, 11] });
     expect(w.run.restarts.map((x: Obj) => [x.restart, x.then])).toEqual([['other', 'rejoined'], ['other', 'dead-stop']]);
     expect(w.run.deadStops).toEqual([{ t: 8.2, robot: 'leader', at: [51, 0, 12], space: 'a2-neck', link: 15, class: 'restart-loop', shot: 'shots/a2-seen-twice-course-1.png', since: 0.6 }]);
-    expect(w.calls.filter((c) => c[0] === 'shot')).toEqual([['shot', '/tmp/rr-shots/a2-seen-twice-course-1.png']]);
+    expect(w.calls.filter((c) => c[0] === 'shot')).toEqual([['shot', join('/tmp/rr-shots', 'a2-seen-twice-course-1.png')]]);
     expect((await C.onRestart(w.ctx, w.run, a2Steps(), 2))?.place?.leader).toEqual(a2Steps()[3].past);
     expect(w.forbidden).toEqual([]);
   });
