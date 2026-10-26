@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-26T02:35:39Z
 # J13 route-runs, slice R6 (Sonnet, strict brief): the points table from J12's resolver
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3). PLAN R6 waits on J12's one point resolver: it is on
