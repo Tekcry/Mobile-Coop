@@ -1,13 +1,37 @@
 // (piano-escape S1) The scene shell: the flag, the `clear` objective, the empty kit, the porch line and the end (no
 // record, a fade, back to the menu). The map's geometry tests wait for the greybox (the map is a stub).
+// (piano-escape S2) The intro and the EMP beat on a fake world, the spawn seam and the 7 m rule on a stub SectorMode.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PREVIEW_ON, darkFlag, flags } from '../src/core/flags';
 import { MAPS, getMap } from '../src/world/maps';
 import { THORNBECK_SECTORS, thornbeckMill } from '../src/world/maps/thornbeckMill';
 import { SectorRun, checkSectors, clearDone, exitZone, type SectorDef } from '../src/game/sectors';
-import { PIANO_FADE_S, PORCH_LINE, PianoScene, emptyKit, isPianoScene, setPianoLeave, type FadeLayer, type PianoHost } from '../src/game/pianoScene';
+import {
+  BELT_Y,
+  PIANO_FADE_S,
+  PORCH_LINE,
+  PianoScene,
+  RESTART_SPAWN_S,
+  SCENE_SPAWN_MIN,
+  SEARCH_SLOTS,
+  SEARCH_X,
+  SEARCH_Z,
+  emptyKit,
+  isPianoScene,
+  setPianoLeave,
+  stubEmpHooks,
+  type FadeLayer,
+  type PianoEmpHooks,
+  type PianoHost,
+  type PianoMusic,
+  type PianoWorld,
+} from '../src/game/pianoScene';
+import { EMP_CUT_S, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PROMPT_AT, RADIO_LINE, SKIP_SEEK } from '../src/game/pianoIntro';
+import { SectorMode } from '../src/game/modes/sectorMode';
+import type { GameState } from '../src/game/gameState';
+import { hyp2 } from '../src/core/mathx';
 import type { PlayerRef } from '../src/ai/enemy';
 
 const src = (p: string): string => readFileSync(resolve(__dirname, '..', p), 'utf8').replace(/\r\n/g, '\n');
@@ -232,5 +256,377 @@ describe('the end', () => {
     const p = src('src/game/pianoScene.ts');
     expect(p).not.toMatch(/from '\.\.\/net|from '\.\/net/);
     expect(p).not.toMatch(/save|markCompleted|updateRatingRecord/i);
+  });
+});
+
+// ---------------------------------------------------------------- S2: the intro and the EMP
+
+describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
+  function world(over: Partial<PianoWorld> = {}) {
+    const log: string[] = [];
+    const slots: boolean[] = [false, false, false, false];
+    let onSkip: (() => void) | null = null;
+    let use: ((by: string) => void) | null = null;
+    let local = false;
+    const hooks: PianoEmpHooks = {
+      mainsOff: (x, y, z, o) => (log.push(`mainsOff ${x} ${y} ${z} ${o}`), 16),
+      lightningT0: (t) => void log.push(`t0 ${t}`),
+      sceneDark: (on) => void log.push(`dark ${on}`),
+      blackoutSearchSlots: (s, x, z) => {
+        log.push(`search ${s.join(',')} ${x} ${z}`);
+        return s.filter((k) => slots[k]).length;
+      },
+    };
+    const music: PianoMusic = {
+      scene: (on) => void log.push(`music ${on}`),
+      piano: {
+        start: () => (log.push('piano start'), Promise.resolve()),
+        seek: (s) => void log.push(`seek ${s}`),
+        fadeOut: (s) => void log.push(`fadeOut ${s}`),
+      },
+    };
+    const w: PianoWorld = {
+      hooks,
+      music,
+      spawn: () => void log.push('spawn'),
+      spawned: (k) => slots[k] === true,
+      retakeStart: () => void log.push('retake'),
+      simTime: () => 123.5,
+      localPress: () => local,
+      empItems: (on, u) => {
+        log.push(`items ${on}`);
+        use = u;
+      },
+      operatorAt: (by, out) => {
+        out.x = 4;
+        out.y = 0;
+        out.z = by === 'local' ? 4.6 : 6;
+      },
+      hud: (on) => void log.push(`hud ${on}`),
+      cutLines: (r, o) => void log.push(`lines ${r} | ${o}`),
+      guardWithin: () => false,
+      sectionGuards: () => 12,
+      view: (_i, s) => {
+        onSkip = s;
+        return null;
+      },
+      ...over,
+    };
+    return {
+      w,
+      log,
+      slots,
+      skip: () => onSkip?.(),
+      use: (by: string) => use?.(by),
+      pressLocal: (on: boolean) => {
+        local = on;
+      },
+    };
+  }
+
+  function started(over: Partial<PianoWorld> = {}) {
+    const f = world(over);
+    const sc = new PianoScene(host().h, () => null, f.w);
+    sc.start();
+    return { ...f, sc, intro: sc.intro! };
+  }
+
+  /** The intro to the prompt (music in, 38 s on the clock). */
+  function toPrompt(s: ReturnType<typeof started>): void {
+    s.intro.musicStarted();
+    s.intro.step(PROMPT_AT);
+    s.sc.step(1 / 60, true);
+  }
+
+  it('the intro: guards held, no objective yet, the HUD hidden, the piano from 0 s (once)', () => {
+    const s = started();
+    expect(s.sc.holdsSpawn).toBe(true);
+    expect(s.sc.inPlay).toBe(false);
+    expect(s.log).toEqual(['hud false', 'music true', 'piano start']);
+    // before the prompt: no items, a press does nothing
+    s.intro.musicStarted();
+    s.intro.step(20);
+    s.pressLocal(true);
+    s.sc.step(1 / 60, true);
+    expect(s.sc.pressed).toBe(false);
+    expect(s.sc.press('local')).toBe(false);
+    expect(s.log).toHaveLength(3);
+  });
+
+  it('the skip seeks the music to 38 s', () => {
+    const s = started();
+    s.skip();
+    expect(s.log[s.log.length - 1]).toBe(`seek ${SKIP_SEEK}`);
+  });
+
+  it('at the prompt: the EMP items go up once (either operator); the press runs the beat in the PLAN order', () => {
+    const s = started();
+    toPrompt(s);
+    s.sc.step(1 / 60, true);
+    expect(s.log.filter((l) => l === 'items true')).toHaveLength(1);
+    s.log.length = 0;
+    s.pressLocal(true);
+    s.sc.step(1 / 60, true);
+    expect(s.sc.pressed).toBe(true);
+    expect(s.sc.pressedBy).toBe('local');
+    expect(s.log).toEqual(['items false', `mainsOff 4 ${BELT_Y} 4.6 ${EMP_OUT_S}`, 'retake', 't0 123.5', `seek ${EMP_SEEK}`, 'dark true', 'spawn']);
+    expect(s.sc.t0).toBe(123.5);
+    expect(s.sc.lampsCut).toBe(16);
+    expect(s.sc.holdsSpawn).toBe(false);
+    // once
+    expect(s.sc.press('local')).toBe(false);
+  });
+
+  it('blackoutSearchSlots goes once fill has spawned the pair (never in the spawn step) and returns 2', () => {
+    const s = started();
+    toPrompt(s);
+    s.sc.press('local');
+    expect(s.log.some((l) => l.startsWith('search'))).toBe(false);
+    s.slots[0] = true;
+    s.sc.step(1 / 60, true);
+    expect(s.sc.searches).toBe(0);
+    s.slots[1] = s.slots[2] = s.slots[3] = true;
+    s.sc.step(1 / 60, true);
+    s.sc.step(1 / 60, true);
+    expect(s.log.filter((l) => l.startsWith('search'))).toEqual([`search ${SEARCH_SLOTS.join(',')} ${SEARCH_X} ${SEARCH_Z}`]);
+    expect(SEARCH_SLOTS).toEqual([0, 1]);
+    expect([SEARCH_X, SEARCH_Z]).toEqual([5.5, 5.25]);
+    expect(s.sc.searched).toBe(2);
+  });
+
+  it("a partner's press (the host-checked item use) sets it off at the partner", () => {
+    const s = started();
+    toPrompt(s);
+    s.use('p2');
+    expect(s.sc.pressedBy).toBe('p2');
+    expect(s.log).toContain(`mainsOff 4 ${BELT_Y} 6 ${EMP_OUT_S}`);
+  });
+
+  it('press + 2.5 s: the cut (input on, the HUD, the radio line, the objective line)', () => {
+    const s = started();
+    toPrompt(s);
+    s.sc.press('local');
+    s.intro.step(EMP_CUT_S - 0.1);
+    s.sc.step(1 / 60, true);
+    expect(s.sc.inPlay).toBe(false);
+    s.intro.step(0.2);
+    s.sc.step(1 / 60, true);
+    expect(s.sc.inPlay).toBe(true);
+    expect(s.log).toContain('hud true');
+    expect(s.log).toContain(`lines ${RADIO_LINE} | ${OBJECTIVE_LINE}`);
+    expect(RADIO_LINE).toBe("Lights are dead. They'll come with torches.");
+    expect(OBJECTIVE_LINE).toBe('Take down every guard. The hoist door, top floor, west end.');
+  });
+
+  it('a restart never replays the intro and the music plays on; after the respawn the dark, the spawn and the search run again', () => {
+    const s = started();
+    // before the EMP a restart changes nothing (the intro runs on)
+    s.sc.restarted();
+    expect(s.sc.holdsSpawn).toBe(true);
+    toPrompt(s);
+    s.sc.press('local');
+    s.slots[0] = s.slots[1] = true;
+    s.intro.step(EMP_CUT_S + 0.1);
+    s.sc.step(1 / 60, true);
+    const intro = s.sc.intro;
+    s.log.length = 0;
+    s.slots[0] = s.slots[1] = false;
+    s.sc.restarted();
+    expect(s.sc.holdsSpawn).toBe(true);
+    s.sc.step(0.2, true);
+    expect(s.log).toEqual([]);
+    s.sc.step(0.25, true);
+    expect(s.log).toEqual(['dark true', 'spawn']);
+    s.slots[0] = s.slots[1] = true;
+    s.sc.step(1 / 60, true);
+    expect(s.log).toEqual(['dark true', 'spawn', `search 0,1 ${SEARCH_X} ${SEARCH_Z}`]);
+    expect(s.sc.searches).toBe(2);
+    // no new intro, no music start or seek, no second mains cut (it holds)
+    expect(s.sc.intro).toBe(intro);
+    expect(s.sc.intro!.shot).toBe('play');
+    expect(s.log.some((l) => /piano start|seek|mainsOff|music/.test(l))).toBe(false);
+    expect(RESTART_SPAWN_S).toBeGreaterThan(0.3);
+  });
+
+  it('the end: the piano fades with the picture; dispose ends the dark, the items and the scene music', () => {
+    const s = started();
+    toPrompt(s);
+    s.sc.press('local');
+    s.log.length = 0;
+    s.sc.finish();
+    expect(s.log).toEqual([`fadeOut ${PIANO_FADE_S}`]);
+    s.sc.dispose();
+    expect(s.log.slice(1)).toEqual(['items false', 'dark false', 'music false']);
+  });
+
+  it('the framed reveals: the hoist door as the objective closes, once; a guard within 10 m stops it; none in the intro', () => {
+    for (const near of [false, true]) {
+      const reveals: number[] = [];
+      const s = started({
+        guardWithin: () => near,
+        view: () => ({ burst: () => undefined, cut: () => undefined, reveal: (i) => void reveals.push(i), revealing: false, dispose: () => undefined }),
+      });
+      s.sc.step(1 / 60, false);
+      expect(reveals).toEqual([]);
+      toPrompt(s);
+      s.sc.press('local');
+      s.intro.step(EMP_CUT_S + 0.1);
+      s.sc.step(1 / 60, true);
+      s.sc.step(1 / 60, false);
+      s.sc.step(1 / 60, true);
+      s.sc.step(1 / 60, false);
+      expect(reveals).toEqual(near ? [] : [1]);
+    }
+  });
+
+  it('stubEmpHooks: a whole-map disrupt that never ends; no flashes, the torch rule of today, no search', () => {
+    const calls: number[][] = [];
+    const h = stubEmpHooks({ disrupt: (...a: number[]) => (calls.push(a), 7) });
+    expect(h.mainsOff(1, 2, 3, 0.8)).toBe(7);
+    expect(calls).toEqual([[1, 2, 3, Infinity, Infinity]]);
+    h.lightningT0(5);
+    h.sceneDark(true);
+    expect(h.blackoutSearchSlots([0, 1], 5.5, 5.25)).toBe(0);
+    // each stub names the real API it stands in for
+    const p = src('src/game/pianoScene.ts');
+    expect(p).toContain('TODO(#602): `world.level.lights.mainsOff(x, y, z, 0.8)`');
+    expect(p).toContain('TODO(#604): `world.lightning.t0 = simTime`');
+    expect(p).toContain('TODO(#603): `em.sceneDark = on`');
+    expect(p).toContain('TODO(#603): `return em.blackoutSearchSlots(slots, x, z)`');
+  });
+});
+
+describe('S2: the spawn seam and the 7 m rule (SectorMode on a stub game)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** The four opening guards at their stop spots (PLAN section 3). */
+  const FOUR: readonly (readonly [number, number])[] = [
+    [7.5, 8.7],
+    [8.3, 8.0],
+    [9.0, 2.0],
+    [10.0, 3.4],
+  ];
+  const PLAYERS: readonly (readonly [number, number])[] = [
+    [4.0, 4.6],
+    [4.0, 6.0],
+  ];
+
+  function sector(spots: readonly (readonly [number, number])[]) {
+    const spawned: { x: number; z: number }[] = [];
+    const em = {
+      enemies: [] as unknown[],
+      maxAlive: 32,
+      coordinated: true,
+      get alive(): number {
+        return em.enemies.length;
+      },
+      spawn: (_kind: string, at: { x: number; z: number }) => {
+        const e = { alive: true, setPatrol: () => undefined };
+        em.enemies.push(e);
+        spawned.push({ x: at.x, z: at.z });
+        return e;
+      },
+      placeSlot: () => undefined,
+    };
+    const refs = PLAYERS.map(([x, z]) => ({ feet: { x, y: 0, z } }));
+    const g = {
+      world: { map: { sectors: [] }, layout: {}, doors: { list: [] } },
+      enemyMgr: em,
+      playerRefsInto: (out: unknown[]) => {
+        out.length = 0;
+        out.push(...refs);
+        return out;
+      },
+      hud: { feedItem: () => undefined },
+    } as unknown as GameState;
+    const mode = new SectorMode(g);
+    const m = mode as unknown as {
+      fill(): void;
+      sceneSpawn(): void;
+      scene: PianoScene | null;
+      pending: { k: number; slot: { kind: string; x: number; z: number; yaw: number }; alerted: boolean }[];
+    };
+    spots.forEach(([x, z], k) => m.pending.push({ k, slot: { kind: 'grunt', x, z, yaw: 0 }, alerted: false }));
+    return { m, spawned };
+  }
+
+  const nearest = (x: number, z: number): number => Math.min(...PLAYERS.map(([px, pz]) => hyp2(px - x, pz - z)));
+
+  it('the opening four stand 4-6.5 m from the players (inside the 7 m rule)', () => {
+    for (const [x, z] of FOUR) {
+      expect(nearest(x, z)).toBeGreaterThanOrEqual(4);
+      expect(nearest(x, z)).toBeLessThan(6.5);
+    }
+  });
+
+  it('a normal Sector Ops spawn keeps the 7 m rule: none of the four spawn, a guard 8 m off does', () => {
+    const { m, spawned } = sector([...FOUR, [14, 5]]);
+    m.fill();
+    expect(spawned).toEqual([{ x: 14, z: 5 }]);
+    expect(m.pending).toHaveLength(4);
+    // sceneSpawn on a map that is not a scene does nothing
+    m.sceneSpawn();
+    expect(spawned).toHaveLength(1);
+  });
+
+  it('the scene EMP spawn places the four on their spots 4-6 m away; 4 m stays the floor; a later fill keeps the 7 m rule', () => {
+    const { m, spawned } = sector([...FOUR, [5.5, 4.0]]);
+    m.scene = new PianoScene(host().h, () => null);
+    m.sceneSpawn();
+    expect(spawned).toEqual(FOUR.map(([x, z]) => ({ x, z })));
+    // the guard 1.6 m from a player waits (never nearer than SCENE_SPAWN_MIN)
+    expect(SCENE_SPAWN_MIN).toBe(4);
+    expect(m.pending.map((p) => p.k)).toEqual([4]);
+    m.fill();
+    expect(m.pending).toHaveLength(1);
+  });
+
+  it('while the scene holds its spawn (the intro, a restart wait) fill spawns no one', () => {
+    const { m, spawned } = sector([[20, 20]]);
+    const sc = new PianoScene(host().h, () => null);
+    sc.holdsSpawn = true;
+    m.scene = sc;
+    m.fill();
+    m.sceneSpawn();
+    expect(spawned).toEqual([]);
+    sc.holdsSpawn = false;
+    m.fill();
+    expect(spawned).toHaveLength(1);
+  });
+
+  it('SectorMode wires the seams: the scene steps, gates the objective, restarts before the reload, holds fill', () => {
+    const mode = src('src/game/modes/sectorMode.ts');
+    expect(mode).toContain("if (this.scene) this.scene.step(dt, this.run.phase === 'objective');");
+    expect(mode).toContain("s.objective.kind === 'clear' && (!this.scene || this.scene.inPlay)) this.clearStep(s);");
+    const r = mode.indexOf('this.scene?.restarted();');
+    expect(r).toBeGreaterThan(0);
+    expect(mode.indexOf('this.loadSection(this.run.index);', r)).toBeGreaterThan(r);
+    expect(mode).toContain('if (this.scene?.holdsSpawn) return;');
+    expect(mode).toContain('const minD = this.sceneNear ? SCENE_SPAWN_MIN : SPAWN_MIN_DIST;');
+  });
+});
+
+describe('S2: the view and the gameState render-override seam', () => {
+  it('one SceneView seam in gameState: the field, the held input and pause, the frame after the game view', () => {
+    const g = src('src/game/gameState.ts');
+    expect(g).toContain('export interface SceneView {');
+    expect(g).toContain('sceneView: SceneView | null = null;');
+    expect(g).toContain("if (realIn.pressed('pause') && !sv?.ownsPause) {");
+    expect(g).toContain('const real = this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp');
+    const fu = g.indexOf('sv?.frame(dt);');
+    expect(fu).toBeGreaterThan(g.indexOf('this.player.frameUpdate(dt, alpha, look'));
+  });
+
+  it("the intro actor API is Guard AI's GuardActor's (#611): the stand-in implements it; the swap is one line", () => {
+    const v = src('src/game/pianoIntroView.ts');
+    const api = v.slice(v.indexOf('export interface IntroActor {'), v.indexOf('}', v.indexOf('export interface IntroActor {')));
+    for (const k of ['setRate(r: number)', 'aimAt(x: number, y: number, z: number)', 'step(realDt: number)', 'fire(): boolean', 'muzzle(out: Vector3): Vector3', 'dispose(): void', 'done', 'pos', 'yaw', 'travelled', 'length', 'playRate', 'isDisposed']) {
+      expect(api, k).toContain(k);
+    }
+    expect(v).toContain('class PosedStandIn implements IntroActor');
+    expect(v).toContain('TODO(#611): GuardActor');
+    // Babylon only through core/babylon; never src/net
+    expect(v).not.toMatch(/@babylonjs/);
+    expect(v).not.toMatch(/from '\.\.\/net|from '\.\/net/);
   });
 });
