@@ -68,13 +68,14 @@ export async function walk(t, n) {
       return JSON.stringify({ att: g.traversal.attached, kind: c.m?.anchor?.kind ?? null, phase: c.m?.phase ?? null, vent: c.vent ? +c.vent.progress.toFixed(2) : null, feet: [p.x, p.y, p.z].map((v) => +v.toFixed(2)), grate: d ? g.world.breakables?.isOpen(`grate:${d.id}:entry`) : 'no duct', t: +g.time.toFixed(2) });
     });
   /**
-   * Settle the aim on the camera itself (the corridor panel at x 96 is a jam target 0.6 m in front of the lens): aim from the game
-   * camera's eye a few thousandths of a radian under the lens, lower on each retry, until this page's pick is the camera.
+   * Settle the aim on the camera itself, straight at the lens, until this page's pick is the camera. (marlow-play C1) The corridor
+   * panel at x 96 sits 0.6 m in front of the lens inside the jammer's cone; a camera in the cone now wins over a light, so the
+   * old aim a few thousandths of a radian under the lens is gone (the pick must be the camera aimed dead on).
    */
   async function aimPick(P, what) {
     let pick = '';
     for (let k = 0; k < 10; k++) {
-      const under = 0.003 * (1 + Math.min(k, 4));
+      const under = 0;
       await P.evaluate(([x, y, z, under]) => {
         const c = window.__app.current.player.cam;
         const p = c.gamePos;

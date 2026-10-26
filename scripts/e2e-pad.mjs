@@ -4,6 +4,15 @@ import { launch, openPage, press, pressPair, stick, frames, BTN, focusedText, fo
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url });
+// (player-flake-fix) a later navigation of the main page is printed when it happens (only src/pwa reloads a page: a
+// waiting update applied at the main menu). One desktop run (68c15083, 2026-10-25) died "Execution context was
+// destroyed" right after the quit to the main menu; the next one names itself
+let navigations = 0;
+page.on('framenavigated', (f) => {
+  if (f !== page.mainFrame()) return;
+  navigations++;
+  console.log(`  (main page navigated: ${f.url()})`);
+});
 const q = (sel) => page.evaluate((s) => !!document.querySelector(s), sel);
 const settings = () => page.evaluate(() => window.__app.settings.get());
 let failed = false;
@@ -486,20 +495,32 @@ try {
   await press(page, BTN.B);
   assert(!(await q('.pause-screen')), 'B resumes');
   await press(page, BTN.START);
-  for (let i = 0; i < 3; i++) await press(page, BTN.DOWN); // Resume, Objectives, Settings, Report feedback (menu-notes A2: no Controls item)
-  assert(/Report feedback/.test(await focusedText(page)), 'focus Report feedback');
-  await press(page, BTN.DOWN);
-  assert(/Animation tuner/.test(await focusedText(page)), 'focus Animation tuner (dev)'); // (anim-tuner: before Quit)
-  await press(page, BTN.DOWN);
-  assert(/Quit/.test(await focusedText(page)), 'focus Quit');
+  assert(await q('.pause-screen'), 'Start opens pause again');
+  // (player-flake-fix) the pad walks the whole field menu in its order (pauseScreen.ts): Resume, Objectives, Notes
+  // (hud-guidance B5), Settings, Report feedback, Animation tuner (dev, before Quit), Quit to menu (menu-notes A2: no
+  // Controls item). Read by the rows' keys; the old fixed three downs to Report feedback broke when B5 added Notes
+  const pauseKey = () => page.evaluate(() => window.__app.nav.focused?.dataset.key ?? '');
+  const pauseWant = ['resume', 'objectives', 'notes', 'settings', 'report-feedback', 'anim-tuner', 'quit'];
+  const pauseSeen = [await pauseKey()];
+  for (let i = 1; i < pauseWant.length; i++) {
+    await press(page, BTN.DOWN);
+    pauseSeen.push(await pauseKey());
+  }
+  assert(JSON.stringify(pauseSeen) === JSON.stringify(pauseWant), `the pad walks the field menu in order, ending on Quit (${pauseSeen.join(', ')})`);
   await press(page, BTN.A);
   assert(await q('.dialog'), 'confirm dialog');
   assert(/Stay/.test(await focusedText(page)), 'dialog opens on the safe option (Stay)');
   await press(page, BTN.RIGHT);
   assert(/Quit/.test(await focusedText(page)), 'right moves to Quit');
+  // (player-flake-fix r2) the quit can apply a waiting update: src/pwa reloads the page at the main menu (laptop run
+  // flake-fix-1 died here, "Execution context was destroyed", 2026-10-26). The check waits across the reload
+  // (waitForSelector survives a navigation, page.evaluate does not). The reload itself lands after the menu shows (the
+  // pwa poll), so the reloaded page gets its fake pad back before the main page's next use ("disconnect" below)
+  const navBefore = navigations;
   await press(page, BTN.A);
   await page.waitForTimeout(400);
-  assert(await q('.main-menu'), 'quit returns to main menu');
+  const home = await page.waitForSelector('.main-menu', { timeout: 60000 }).then(() => true, () => false);
+  assert(home, `quit returns to main menu${navigations > navBefore ? ' (the page reloaded: a waiting update applied)' : ''}`);
 
   // (process audit, 2026-10-19) the gameplay sections that each opened their own match (palm strike, back to a wall,
   // door menu, wall edge verb) are gone: the pad verb table below checks every button's action, and the behaviour is
@@ -953,6 +974,15 @@ try {
   }
 
   console.log('disconnect');
+  // (player-flake-fix r2) the main page's first use since the quit: if the update reload came, the page booted again
+  // with its fake pad disconnected, so it waits for the boot and the menu and connects the pad as the first section did
+  if (navigations > navBefore) {
+    console.log('  (the main page reloaded after the quit: a waiting update applied; reconnecting the pad)');
+    await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done') && !!document.querySelector('.main-menu'), null, { timeout: 60000 });
+    await page.evaluate(() => window.__pad.connect());
+    await press(page, BTN.LB); // harmless on the main menu; reveals the pad, as the first connect
+    await page.waitForFunction(() => document.body.classList.contains('input-gamepad'), null, { timeout: 8000 }).catch(() => {});
+  }
   await page.evaluate(() => window.__pad.disconnect());
   // the pad is noticed on the next poll; under software GL a frame can take a while
   await page.waitForFunction(() => [...document.querySelectorAll('.toast')].some((t) => /disconnected/.test(t.textContent ?? '')), null, { timeout: 8000 }).catch(() => {});

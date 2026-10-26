@@ -16,6 +16,15 @@ describe('section-rating S2: Sector Ops host parts', () => {
     expect(r.marks).toEqual(marks);
   });
 
+  it('(POL1) a later mission start: the sections before it read "skip", not "-" or 0/4', () => {
+    const marks = [-1, -1, ALL_MARKS, -1];
+    const r = sectorResult({ time: 60, kills: 0, spotted: 1, marks, skipped: 2 });
+    expect(r.line).toBe('Time 1:00  ·  Kills 0  ·  Spotted 1  ·  Marks skip skip 4/4 -');
+    // a rated section before the start (cannot happen, but a mark wins) and no start: unchanged
+    expect(sectorResult({ time: 0, kills: 0, spotted: 1, marks: [0, -1], skipped: 1 }).line).toBe('Time 0:00  ·  Kills 0  ·  Spotted 1  ·  Marks 0/4 -');
+    expect(sectorResult({ time: 0, kills: 0, spotted: 1, marks: [-1, 0], skipped: 0 }).line).toBe('Time 0:00  ·  Kills 0  ·  Spotted 1  ·  Marks - 0/4');
+  });
+
   it('a run starts with every section unrated and no syringe bonus', () => {
     const run = new SectorRun([]);
     expect(run.marks).toEqual([]);

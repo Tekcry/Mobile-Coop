@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import { Interactables, type Interactable } from '../src/game/interactables';
 import { BOLT_DEPTH, BOLT_DOOR_W, BOLT_REACH, BOLT_SIDE_MARGIN, SectorBolts, boltById, boltHalfSpan, boltItemId, checkSectors, inBoltReach, onBoltSide, type SectorBolt, type SectorDef } from '../src/game/sectors';
+import { SectorTeamDoors, type TeamDoorHost } from '../src/game/sectorTeamDoors';
+import type { DoorState } from '../src/world/doors';
+import type { PlayerRef } from '../src/ai/enemy';
 import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { warehouseOps } from '../src/world/maps/warehouseOps';
@@ -193,5 +196,167 @@ describe('(sector-fixes-r2) the unbolt reach spans the door only, not the wall b
       expect(verdict(s, k, b, ...at(BOLT_DEPTH + 0.05, 0))).toBe(false);
       expect(verdict(s, k, b, ...at(-0.6, 0))).toBe(false);
     }
+  });
+});
+
+describe('mission-scoped bolt (J8 A30)', () => {
+  // section 0: a bolt fitted in mission m1 only (10, 5) and a plain bolt (20, 5); section 1: a plain bolt (0, 0) and
+  // one fitted in m1 and m3 (4, 4)
+  const SCOPED: SectorDef[] = [
+    sec('s0', [
+      { at: [10, 5], side: [1, 0], missions: ['m1'] },
+      { at: [20, 5], side: [1, 0] },
+    ]),
+    sec('s1', [
+      { at: [0, 0], side: [0, -1] },
+      { at: [4, 4], side: [0, 1], missions: ['m1', 'm3'] },
+    ]),
+  ];
+
+  /** One fake door per bolt (its leaf along z, centred on the bolt), fake items, a nav that records its closures. */
+  const world = (missionId?: string) => {
+    const doors: DoorState[] = [];
+    SCOPED.forEach((s) => s.bolts?.forEach((b) => doors.push({ index: doors.length, anchor: { width: 1, yaw: 0, hinge: { x: b.at[0], y: 0, z: b.at[1] - 0.5 }, locked: false } } as unknown as DoorState)));
+    const doorAt = (x: number, z: number): DoorState | undefined => doors.find((d) => Math.abs(d.anchor.hinge.x - x) < 1e-6 && Math.abs(d.anchor.hinge.z + 0.5 - z) < 1e-6);
+    const items: Interactable[] = [];
+    const closures: { cx: number; cz: number; closed: boolean }[] = [];
+    const refs: PlayerRef[] = [];
+    const host: TeamDoorHost = {
+      doors: { nearest: (x, z, r) => doors.find((d) => Math.hypot(d.anchor.hinge.x - x, d.anchor.hinge.z + 0.5 - z) <= r) ?? null },
+      ints: {
+        add: (id, kind, pos, label, holdTime, yaw = 0) => {
+          const it = { id, kind, pos, label, holdTime, yaw, enabled: false, done: false, progress: 0 } as unknown as Interactable;
+          items.push(it);
+          return it;
+        },
+        setEnabled: (it, on) => {
+          it.enabled = on;
+        },
+      },
+      nav: {
+        addClosure: (cx, cz) => closures.push({ cx, cz, closed: false }) - 1,
+        setClosed: (id, on) => {
+          closures[id]!.closed = on;
+        },
+      },
+      lockDoor: (d, on) => {
+        (d.anchor as { locked: boolean }).locked = on;
+      },
+      refs: () => refs,
+      feed: () => undefined,
+      changed: () => undefined,
+    };
+    const team = new SectorTeamDoors(SCOPED, host);
+    team.build(missionId);
+    const item = (s: number, k: number): Interactable | undefined => items.find((q) => q.id === boltItemId(s, k));
+    const closure = (x: number, z: number) => closures.find((c) => c.cx === x && c.cz === z);
+    /** The local player's feet at (x, z). */
+    const stand = (x: number, z: number): void => {
+      refs.length = 0;
+      refs.push({ id: 'local', target: { alive: true } as PlayerRef['target'], feet: new Vector3(x, 0, z), speed: 0, crouched: false });
+    };
+    return { team, doorAt, item, closure, closures, items, stand };
+  };
+
+  it("built for its mission the bolt is fitted: door locked, an Unbolt item, a shut nav closure; a restart bolts it again", () => {
+    const w = world('m1');
+    expect(w.doorAt(10, 5)!.anchor.locked).toBe(true);
+    expect(w.item(0, 0)?.label).toBe('Unbolt');
+    expect(w.item(0, 0)?.enabled).toBe(true);
+    expect(w.closure(10, 5)?.closed).toBe(true);
+    expect(w.team.bolts.isShut(0, 0)).toBe(true);
+    expect(w.team.bolts.isFitted(0, 0)).toBe(true);
+    // m1 is one of section 1's bolt 1 missions too
+    expect(w.doorAt(4, 4)!.anchor.locked).toBe(true);
+    expect(w.team.boltInfo().map((b) => b.id)).toEqual([boltItemId(0, 0), boltItemId(0, 1), boltItemId(1, 0), boltItemId(1, 1)]);
+    w.stand(10.8, 5);
+    expect(w.team.unbolt(0, 0)).toBe(true);
+    expect(w.doorAt(10, 5)!.anchor.locked).toBe(false);
+    expect(w.closure(10, 5)?.closed).toBe(false);
+    w.team.reset(0);
+    expect(w.doorAt(10, 5)!.anchor.locked).toBe(true);
+    expect(w.closure(10, 5)?.closed).toBe(true);
+    expect(w.item(0, 0)?.enabled).toBe(true);
+    expect(w.team.bolts.isShut(0, 0)).toBe(true);
+  });
+
+  for (const [name, id] of [
+    ['another mission', 'm2'],
+    ['no mission bound', undefined],
+  ] as const) {
+    it(`built for ${name} it is a plain door: unlocked, no item, no closure, not shut, left out of boltInfo, and a restart keeps it so`, () => {
+      const w = world(id);
+      for (const [s, k, x, z] of [
+        [0, 0, 10, 5],
+        [1, 1, 4, 4],
+      ] as const) {
+        expect(w.doorAt(x, z)!.anchor.locked).toBe(false);
+        expect(w.item(s, k)).toBeUndefined();
+        expect(w.closure(x, z)).toBeUndefined();
+        expect(w.team.bolts.isShut(s, k)).toBe(false);
+        expect(w.team.bolts.isFitted(s, k)).toBe(false);
+      }
+      expect(w.items.length).toBe(2);
+      expect(w.closures.length).toBe(2);
+      expect(w.team.boltInfo().map((b) => b.id)).toEqual([boltItemId(0, 1), boltItemId(1, 0)]);
+      // a use or press of it is refused as for a drawn bolt; the door is not touched
+      w.stand(10.8, 5);
+      expect(w.team.unbolt(0, 0)).toBe(false);
+      expect(w.team.bolts.use(0, 0, 10.8, 5)).toBe(false);
+      expect(w.team.bolts.press(0, 0, { x: 10.8, y: 0, z: 5 }, [])).toBe('shut');
+      w.team.reset(0);
+      w.team.reset(1);
+      expect(w.doorAt(10, 5)!.anchor.locked).toBe(false);
+      expect(w.doorAt(4, 4)!.anchor.locked).toBe(false);
+      expect(w.team.bolts.isShut(0, 0)).toBe(false);
+      expect(w.team.bolts.isShut(1, 1)).toBe(false);
+      expect(w.items.length).toBe(2);
+      expect(w.closures.length).toBe(2);
+    });
+  }
+
+  for (const id of ['m1', 'm2', undefined]) {
+    it(`a bolt with no missions behaves as before A30 (built for ${id ?? 'no mission'})`, () => {
+      const w = world(id);
+      for (const [s, k, x, z] of [
+        [0, 1, 20, 5],
+        [1, 0, 0, 0],
+      ] as const) {
+        expect(w.doorAt(x, z)!.anchor.locked).toBe(true);
+        expect(w.item(s, k)?.enabled).toBe(true);
+        expect(w.closure(x, z)?.closed).toBe(true);
+        expect(w.team.bolts.isShut(s, k)).toBe(true);
+        expect(w.team.bolts.isFitted(s, k)).toBe(true);
+      }
+      w.stand(20.8, 5);
+      expect(w.team.unbolt(0, 1)).toBe(true);
+      expect(w.doorAt(20, 5)!.anchor.locked).toBe(false);
+      expect(w.item(0, 1)?.enabled).toBe(false);
+      w.team.reset(0);
+      expect(w.doorAt(20, 5)!.anchor.locked).toBe(true);
+      expect(w.item(0, 1)?.enabled).toBe(true);
+      expect(w.closure(20, 5)?.closed).toBe(true);
+      expect(w.team.bolts.isShut(0, 1)).toBe(true);
+    });
+  }
+
+  it('SectorBolts: rebolt skips an unfitted bolt; unfit ignores a bad index', () => {
+    const s = new SectorBolts(SCOPED);
+    s.unfit(0, 0);
+    s.unfit(0, 9);
+    s.unfit(7, 0);
+    expect(s.shut).toEqual([[false, true], [true, true]]);
+    expect(s.fitted).toEqual([[false, true], [true, true]]);
+    expect(s.use(0, 1, 20.8, 5)).toBe(true);
+    expect(s.rebolt(0)).toEqual([1]);
+    expect(s.shut[0]).toEqual([false, true]);
+    expect(s.isShut(0, 0)).toBe(false);
+    expect(s.rebolt(0)).toEqual([]);
+  });
+
+  it('a fresh SectorBolts fits every bolt (no build: the state before A30)', () => {
+    const s = new SectorBolts(SCOPED);
+    expect(s.shut).toEqual([[true, true], [true, true]]);
+    expect(s.fitted).toEqual([[true, true], [true, true]]);
   });
 });

@@ -1,0 +1,8 @@
+{
+ "map": "campusOps",
+ "about": "light-realism L1 v2 port: the S1 spaces measured on the v2 S1 rebuild (lux-grid.mjs --campusv2 1). park: v1 park rect (the bays and the aisle, x -36..6) 2 m south with v2s rows (z -78..-54); lane unchanged. Band as campusOps.json.",
+ "spaces": [
+  {"id": "park", "section": 1, "name": "Staff Car Park", "type": "Outdoor car park, high night use", "category": "AS/NZS 1158.3.1 P11a (A5)", "rect": {"minX": -36, "maxX": 6, "minZ": -78, "maxZ": -54}, "plane": 0.1, "band": {"avg": 14, "min": 3}},
+  {"id": "lane", "section": 1, "name": "Barrier Lane", "type": "Campus road, ring road", "category": "AS/NZS 1158.3.1 P2", "rect": {"minX": 8, "maxX": 14, "minZ": -80, "maxZ": -60}, "plane": 0.1, "band": {"avg": 3.5, "min": 0.7}, "verify": true}
+ ]
+}
