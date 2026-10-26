@@ -350,7 +350,14 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~10:20 SAVE for the ~10:35 swap).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~12:00, after the 11:33 swap; items below as at ~10:20 unless
+updated here).
+NEW 12:00: #459 MERGED (train 116). PRs opened to master: #511 map-ready S1, #512 S9 (b51ca6fd = fragment only, checker
+PASS on a89726ef, carried status not posted: auto mode blocked it), #513 S2 (includes S1). S10 waits for #511 / #512.
+#481: Opus checker IN FLIGHT (report scratch/sector-ops-checks/csm-a2-check.md); e2e-coop + e2e-netmove requested on
+40cac98c. #481 / #489 base retarget to master blocked by auto mode (sent to Michael). L1 e2e rerun GREEN: sign-off sent
+to the orchestrator for Michael; L1 PR (2026 counted, needs big-pr) after his pick. Lane stacks: s1-a..c, s2-a..d
+pushed; S3-S5 stacks not started (agent lost at the swap); restart when the desktop is under ~80% (100% at 11:45).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. CPU / disk tight:
 no new builders until the orchestrator says the desktop is under ~80%; tsc / vitest at BelowNormal. New node_modules
 junctions point only at C:/NightShift/Mobile-Coop-menu/node_modules. Checker reports: C:/NightShift/scratch/sector-ops-checks/.
