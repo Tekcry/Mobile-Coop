@@ -1332,10 +1332,12 @@ describe('A5 the Substation: dressing (slice 5 step 5)', () => {
     expect(src).toContain('window.__app.current.target.damageMul = 0');
     expect(src).toContain('r.damageMul = 0');
     expect(src).toMatch(/net\.remotes\.values\(\)/);
-    // 3: the height at the line is interpolated at the crossing, so an arc never measured there leaves ownMax 0 and fails
-    // (S3-7-dress-check S2: no separate band-sample count, which could miss under load)
-    expect(src).toMatch(/ownMax = Math\.max\(ownMax, prev\[1\] \+/);
-    expect(src).toMatch(/assert\(ownMax > 1\.45,/);
+    // 3: the arc is recorded on every client fixed step (F7, arcOverLine in e2e-ctcourse.mjs); an arc never seen in the band
+    // fails (no steps counted), and the height at the line is interpolated at the crossing
+    expect(src).toContain('const arc = await arcOverLine(BEAM_X, -1, what);');
+    expect(src).toMatch(/assert\(bandSamples >= 1 && ownMax > 1\.45,/);
     expect(src).not.toContain('ownMax === 0');
+    const lib = readFileSync('scripts/e2e-ctcourse.mjs', 'utf8');
+    expect(lib).toMatch(/async function arcOverLine\(beamX, dir, what/);
   });
 });

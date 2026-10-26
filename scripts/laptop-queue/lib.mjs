@@ -793,13 +793,16 @@ export function describe(result) {
   if (kf.length) d += `; known flaky: ${names(kf)}`;
   const bad = real.filter((x) => !x.ok && !x.flaky);
   const fail = bad.length ? `; FAIL: ${names(bad)}` : '';
+  // F34: result.note (the desktop's "draft PR, no laptop rerun") stays whole at the end, with room for "desktop: "
+  const note = result.note ? `; ${result.note}` : '';
+  const max = note ? 131 - note.length : 140;
   // laptop-queue-11 F35: the slow part only takes the room FAIL leaves (never cuts the FAIL names off)
   const slow = slowNote(result.slow);
-  const room = 140 - d.length - fail.length;
+  const room = max - d.length - fail.length;
   if (slow.length <= room) d += slow;
   else if (room >= 12) d += `${slow.slice(0, room - 3)}...`;
   d += fail;
-  return d.length > 140 ? `${d.slice(0, 137)}...` : d;
+  return `${d.length > max ? `${d.slice(0, max - 3)}...` : d}${note}`;
 }
 
 /** True when package-lock.json differs beyond its "version" lines (the npm ci rule). */
@@ -891,6 +894,7 @@ export function prBoard(rows) {
     const checker = roll.find((s) => s?.context === 'checker');
     out.set(Number(p.number), {
       head,
+      ...(p.isDraft === true ? { draft: true } : {}), // F34: a desktop failure on a draft files no laptop rerun (laptopRerunFor)
       conflicting: String(p.mergeable ?? '').toUpperCase() === 'CONFLICTING',
       green: String(check?.conclusion ?? '').toUpperCase() === 'SUCCESS' && String(checker?.state ?? '').toUpperCase() === 'SUCCESS',
     });
@@ -1304,6 +1308,19 @@ export function desktopFailDesc(suites, cpu) {
  */
 export function laptopRerunRequest(r, suites, { now, suffix }) {
   return { id: `${requestId(now, r.requester, r.sha)}-${suffix}`, sha: r.sha, branch: r.branch ?? '', pr: r.pr ?? null, kind: 'pr', requester: r.requester, suites: [...suites], set: r.set || (r.suites ?? []).join('+'), laptopRerun: true, note: `desktop failure of ${r.id}, rerun on the laptop` };
+}
+
+/** F34: the description suffix of a desktop failure that files no laptop rerun (laptopRerunFor). */
+export const DRAFT_NO_RERUN = 'draft PR, no laptop rerun';
+
+/**
+ * F34 (#487 rode train 122 as a draft): whether a desktop failure of request r goes to the laptop -> { rerun, why }. Its
+ * PR a draft on the PR board (prBoard `draft`): no rerun, the desktop failure is final (why = DRAFT_NO_RERUN, the
+ * description suffix). No PR, or not on the board (closed, or a GitHub error left it empty): rerun as before.
+ */
+export function laptopRerunFor(r, board) {
+  const pr = Number(r?.pr);
+  return Number.isInteger(pr) && pr > 0 && board?.get?.(pr)?.draft === true ? { rerun: false, why: DRAFT_NO_RERUN } : { rerun: true, why: '' };
 }
 
 /**

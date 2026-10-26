@@ -168,7 +168,7 @@ Status per entry: kept, CHANGED (with the answer that changed it) or REPLACED (n
   4.2 m drop is under the 4.5 m safe drop; the way back up stays the two-person rope. Undo: add the anchor when the engine's
   rappel query checks doors.
 - **A26 sector-marks first, campus-greybox carries** (new; same lead's order, `origin/feature/sector-marks`
-  `docs/sector-marks/PLAN.md` "Risks"). sector-marks (a G355 rule fix) merges first and edits master's files as they are:
+  `docs/archive/sector-marks/PLAN.md` "Risks"). sector-marks (a G355 rule fix) merges first and edits master's files as they are:
   the four objective `label` strings (S1 and S3 in `campusSectors.ts`, S4 in `campusS4Data.ts`, S5 in `campusS5Data.ts`)
   and `Math.hypot(dx, dz)` -> `hyp2(dx, dz)` in `campusS4Dress.ts` `around` (with `import { hyp2 } from
   '../../core/mathx'`). At its next master take campus-greybox carries them: the S1 / S3 labels into `campusS1Data.ts` /

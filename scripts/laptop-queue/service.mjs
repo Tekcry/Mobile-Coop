@@ -40,7 +40,8 @@
 // the median of the CPU samples taken every watch tick was over 90) instead of failure, no PR comment, and pushes a
 // laptop-only request (lib laptopRerunRequest: same sha / set / pr / requester, the failed suites, "laptopRerun": true;
 // with no set its set is the old suites joined by "+", so it posts on the same context). The desktop never claims it;
-// the laptop's verdict is final. A failed push leaves the desktop failure as before.
+// the laptop's verdict is final. A failed push leaves the desktop failure as before. A draft PR (the PR board's isDraft,
+// lib laptopRerunFor; F34) files no rerun: its desktop failure is final, "; draft PR, no laptop rerun".
 // Pinned requests (request.mjs --pin, "pin": true; A/B and baseline runs) are never superseded.
 // Train soon (laptop, lib nextTrain / fitsBeforeTrain, laptop-queue-6): while the next train is due only train reruns and
 // pr runs that fit before its ETA start. Rules and env: docs/systems/testing-tools.md "Laptop queue" "Train soon".
@@ -115,6 +116,7 @@ import { parseAffectedMax } from '../e2e-affected.mjs';
 // the automatic affected cap: E2E_AFFECTED_MAX on the task (prototype mode 2026-10-26: 1), else e2e-affected's AFFECTED_MAX
 const AFFECTED_MAX = parseAffectedMax(process.env.E2E_AFFECTED_MAX);
 import { partsTable, slowLines, slowRecord, slowSummary } from './lib.mjs'; // laptop-queue-11 (F35, F36)
+import { laptopRerunFor } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -663,7 +665,7 @@ let lastBoard = 0;
 function prBoardNow() {
   if (Date.now() - lastBoard < PR_BOARD_MS) return;
   lastBoard = Date.now();
-  try { board = prBoard(JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefOid,mergeable,statusCheckRollup']) || '[]')); }
+  try { board = prBoard(JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefOid,mergeable,statusCheckRollup,isDraft']) || '[]')); }
   catch (e) { board = new Map(); log(`pr board read failed: ${String(e.message).split('\n')[0]}`); }
 }
 
@@ -1570,7 +1572,9 @@ async function runRequest(r, port, pair = null) {
     const bad = result.suites.filter((s) => !s.ok && !s.flaky && !s.report).map((s) => s.s);
     let handedOff = '';
     let rerunId = '';
-    if (DESKTOP && bad.length) {
+    const lr = DESKTOP && bad.length ? laptopRerunFor(r, board) : null; // F34: a draft PR's desktop failure is final
+    if (lr && !lr.rerun) { result.note = lr.why; log(`${r.id}: #${r.pr} is a draft: ${lr.why}, the desktop failure stands`); }
+    if (lr?.rerun) {
       const rr = laptopRerunRequest(r, bad, { now: Date.now(), suffix: randomBytes(2).toString('hex') });
       const desc = desktopFailDesc(bad, median(cpuSamples));
       if (DRY) log(`dry-run: ${r.id}: would queue the laptop rerun ${rr.id} (${bad.join(' ')}): ${desc}`);

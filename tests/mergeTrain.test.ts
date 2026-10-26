@@ -16,6 +16,7 @@ import {
   trainNo, bumpVersion, impliedKind, joinTitles, deriveRelease, bumpPackageJson, bumpPackageLock, versionTreeCommit,
   DEPLOY_MARKER, tailPlan, parsePreviewVersion, pagesRoot, mergeOfHead, deployDispatchCmd, deployWaitMin,
   lintKey, newLintErrors, lintWhy, parseCatFileBatch, docLintAt, sameLintRules,
+  buildStopCode,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
 // @ts-expect-error plain .mjs process script without types
@@ -347,6 +348,24 @@ describe('merge-train build ends at the version-commit push (audit 2026-10-24)',
       expect(fs.existsSync(file)).toBe(false);
       expect(() => clearBuildMarker({ AUTO_TRAIN_BUILD_MARKER: file })).not.toThrow();
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+describe('merge-train build: nothing new exits 6 (F12)', () => {
+  it('buildStopCode: 6 for nothing new to release, 1 for any other version-commit stop', () => {
+    expect(buildStopCode('nothing new to release: every fragment entry is already in CHANGELOG.md')).toBe(6);
+    expect(buildStopCode('nothing to assemble: no changes/*.md fragment and no "## Unreleased - ..." block (empty train?)')).toBe(1);
+    expect(buildStopCode('changes/bad.md: first line must be "# <title>"')).toBe(1);
+    expect(buildStopCode(undefined)).toBe(1);
+  });
+
+  it('build returns buildStopCode of the version-commit error (nothing pushed), not a flat 1', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'merge-train.mjs'), 'utf8').replace(/\r\n/g, '\n');
+    const body = src.slice(src.indexOf('async function build('), src.indexOf('function predictPrNumber'));
+    const stop = body.slice(body.indexOf('try { v = make(predicted); } catch (e) {'), body.indexOf('const rel = deriveRelease('));
+    expect(stop).toMatch(/return buildStopCode\(e\.message\);/);
+    expect(stop).not.toMatch(/return 1;/);
+    expect(src).toMatch(/6 build:\n\/\/ nothing new to release/); // the header's exit list
   });
 });
 
@@ -802,6 +821,13 @@ describe('versionTreeCommit on a real git repo (validate before push)', () => {
     try { expect(() => call(empty)).toThrow(/nothing to assemble/); } finally { clean(); }
     const known = setup({ 'changes/old.md': '# Old\nkind: patch\n- old\n' });
     try { expect(() => call(known)).toThrow(/nothing new to release/); } finally { clean(); }
+    // F12: that very message makes build exit 6 (auto-train: idle, not an error tick)
+    const again = setup({ 'changes/old.md': '# Old\nkind: patch\n- old\n' });
+    try {
+      let msg = '';
+      try { call(again); } catch (e) { msg = (e as Error).message; }
+      expect(buildStopCode(msg)).toBe(6);
+    } finally { clean(); }
   });
 
   it('protocol.ts goes into the version commit when given', () => {
