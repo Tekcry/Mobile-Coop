@@ -377,6 +377,8 @@ export class GameState implements AppState {
   /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
   lightLevel = 1;
   private lightT = 0;
+  /** (piano SO5) The lightning level set last step (`updateLight`). */
+  private flashWas = 0;
   /** (char-shadow-meter S2) The character contract, filled every sim step from the sim; null with the flag off. Guard AI's
    *  `fillOccluders` and Player's `fillOperator` replace the interim fills later (PLAN section 6). */
   readonly charOccluders: CharOccluders | null = flags.charShadowLight ? new CharOccluders() : null;
@@ -1749,6 +1751,15 @@ export class GameState implements AppState {
     reg.tickFlicker(this.net?.simTime?.() ?? this.time);
     // (LR16-5b) the swinging pendants, on the same clock, before the meter samples (light parity)
     reg.tickSway(this.net?.simTime?.() ?? this.time);
+    // (piano SO5) lightning: this step's flash on the same shared clock, set once before the meter, the guards and the
+    // picture read it; the meter samples every step while a flash is lit (and the step after) so a short strike shows
+    const lt = this.world.lightning;
+    if (lt) {
+      const fl = lt.levelAt(this.net?.simTime?.() ?? this.time);
+      this.world.setFlash(fl);
+      if (fl > 0 || this.flashWas > 0) this.lightT = 0;
+      this.flashWas = fl;
+    }
     this.lightT -= dt;
     if (this.lightT > 0) return;
     this.lightT = 1 / LIGHT.playerHz;
@@ -2259,6 +2270,8 @@ export class GameState implements AppState {
       this.respawnT -= dt;
       if (this.respawnT < 0) {
         const sp = this.respawnAt ?? this.world.layout.playerSpawns[0]!.pos;
+        // (marlow-play C4) a retry ends a rope climb / hang-down / hold, or runRope / runHang put the body back next frame
+        this.team.end(true);
         this.player.controller.override = null;
         this.traversal.reset();
         this.wallCore?.reset();

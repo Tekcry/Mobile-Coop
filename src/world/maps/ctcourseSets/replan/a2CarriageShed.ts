@@ -41,8 +41,13 @@ export const FLOOR_HOLES: readonly FloorHole[] = [[A2_PIT.x0, A2_PIT.z0, A2_PIT.
 /** The pit's liners (outside the hole, under the slab) and its floor slab's thickness. */
 const LINER = 0.2;
 const PIT_FLOOR_T = 0.3;
-/** The far edge's site barrier (on the far landing, x0-x1, `h` over the floor), broken only where the walkway lands. */
-export const A2_PIT_BARRIER = { x0: 69.0, x1: 69.1, h: 1.1 } as const;
+/** The far edge's site barrier (on the far landing, x0-x1, `h` over the floor), broken only where the walkway lands. (marlow-play
+ *  B3) 0.04 m thick: the strip from the walkway to the L2 door, between it and the L2 wall's face (x 69.75), is 0.71 m, over a
+ *  body's 2 x (radius 0.3 + keepDistance 0.04) = 0.68 m (at 0.1 m it was 0.65 m). It still runs wall to wall: stopping it short
+ *  of the door would let the pit be mantled out onto the landing. */
+export const A2_PIT_BARRIER = { x0: 69.0, x1: 69.04, h: 1.1 } as const;
+/** (marlow-play B3) The L2 wall's face on the far landing. */
+export const A2_L2_FACE_X = 69.75;
 /** The step irons (ladders on the near face, base on the pit floor): one each side of the walkway. */
 export const A2_STEP_IRONS_Z = [6.8, 13.2] as const;
 export const A2_STEP_IRONS_X = A2_PIT.x0 + 0.35;
@@ -126,6 +131,12 @@ export const A2_RETRY_LINES: readonly { at: string; text: string }[] = [
 ];
 /** The built entry line the re-plan drops (no spotters, no staging); nothing replaces it (the stations' own lines carry the retries). */
 export const A2_BUILT_STAGING_LINE = 'Two spotters on the staging. Seen in the neck lights and we start again.';
+/** (marlow-play C2) The built neck lines the re-plan drops too: the re-plan's isolator lures nobody (`courseMode` `isolatorLures`),
+ *  so "press while the shunter stands at the neck" would send the presser to wait on a lure that never comes. */
+export const A2_BUILT_NECK_LINES: readonly string[] = [
+  'The neck is on two isolators. Fifteen seconds of dark each time. Use them well.',
+  "Press while the shunter stands at the neck, or he won't come and look.",
+];
 /** The built objective steps the re-plan replaces. */
 const BUILT_STEPS = ['a2-neck', 'a2-back', 'a2-lock'];
 /** Built map data the re-plan's geometry retires: the deck's leg-up mark, the old cabinet 2 spot, the deck and coat corner
@@ -224,7 +235,7 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     for (const z of A2_STEP_IRONS_Z) b.ladder(A2_STEP_IRONS_X, z, yb, 0, -Math.PI / 2, STEEL, 0.5);
   });
   const w = A2_WALKWAY;
-  tally(b, p.register, 'A2-35', "Far edge site barrier (1.1 m, noLedge, on the far landing x 69.0-69.1) wall to wall but for the walkway's landing: no mantle out of the pit and no running hop over it onto the far side", () => {
+  tally(b, p.register, 'A2-35', "Far edge site barrier (1.1 m, noLedge, on the far landing x 69.0-69.04) wall to wall but for the walkway's landing: no mantle out of the pit and no running hop over it onto the far side", () => {
     slab(A2_PIT_BARRIER.x0, A2_PIT_BARRIER.x1, pz0, w.z0 - w.board, 0, A2_PIT_BARRIER.h, BARRIER_C);
     slab(A2_PIT_BARRIER.x0, A2_PIT_BARRIER.x1, w.z1 + w.board, pz1, 0, A2_PIT_BARRIER.h, BARRIER_C);
   });
@@ -281,8 +292,9 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
       id: 'a2-shutter',
       bay: 'A2',
       text: 'Roller door off the stores bay: one holds it up, the other goes under.',
-      a: 'Hold the roller door up at its south jamb while your partner goes under.',
-      b: 'Crouch under the roller door into the lane, then hold it up from inside.',
+      // (marlow-play C6) holding only unlocks the roller door: someone still opens it, so the lines say who
+      a: 'Hold the roller door up at the south jamb; your partner opens it and goes under. Follow.',
+      b: 'Open the roller door, crouch under into the lane, then hold it up for your partner.',
       done: { flag: A2_LANE_FLAG },
     },
     {
@@ -302,7 +314,7 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     },
     { id: 'a2-lock', bay: 'A2', text: 'Both of you into holding room two.' },
   );
-  p.bay.radio = p.bay.radio.filter((r) => r.text !== A2_BUILT_STAGING_LINE);
+  p.bay.radio = p.bay.radio.filter((r) => r.text !== A2_BUILT_STAGING_LINE && !A2_BUILT_NECK_LINES.includes(r.text));
   p.bay.radio.push(...A2_RETRY_LINES);
 
   // ---- map data: debug points, nav seeds, spaces, light spots, shots ----
