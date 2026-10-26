@@ -507,6 +507,7 @@ describe('the station hooks\' window sources (fix round 2)', () => {
     takeChanged: () => false,
     repair: () => undefined,
     holdZones: () => undefined,
+    resetScans: () => undefined,
     wire: () => ({}),
     dispose: () => undefined,
   });

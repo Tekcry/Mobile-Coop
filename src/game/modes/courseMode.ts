@@ -6,7 +6,7 @@ import type { GameMode } from './gameMode';
 import type { Blip } from '../../ui/hud/minimap';
 import type { Interactable } from '../interactables';
 import type { DoorState } from '../../world/doors';
-import { CourseState, type CourseEvent, type LastRetry, type PackedCourse, type RetryCause, type StationCause } from '../course/courseState';
+import { CourseState, kitMoveOn, type CourseEvent, type LastRetry, type PackedCourse, type RetryCause, type StationCause } from '../course/courseState';
 import { airlockPad, courseUser, deviceHoldTime, isPanelId, layoutKnownIds, registerCourse, retryKey, validateCourse, warnKey, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
 import type { StationDef } from '../course/stationDef';
 import type { CourseWire } from '../course/courseWire';
@@ -936,7 +936,11 @@ export class CourseMode implements GameMode {
     const st = this.state!;
     const doors = this.g.world.doors;
     let n = 0;
+    // (marlow-play-2 C16) a kept stand-in (it stays open through the retry, `CourseState.retryStation`) keeps its doors as
+    // they are: A2 station 4's retry no longer shuts the roller door again
+    const keep = def.standIn !== undefined && (def.kit === undefined || !kitMoveOn(def.kit)) ? def.standIn : undefined;
     for (const id of def.gates) {
+      if (id === keep) continue;
       for (const cid of st.gateDoorIds(id)) {
         const d = this.doorOf.get(cid);
         if (!d || d.index >= this.doorStart.length) continue;
