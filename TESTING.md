@@ -61,6 +61,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Section rating: clear a Sector Ops section unseen; as the connector shuts, a card shows four ticks and the
   rewards that land (none with a full kit and health; use a gadget first and it names the charges), then fades. Set off
   an alarm (panel or camera) in the next: No alarms is a cross. The results list one line per section.
+- [ ] (mission-rules) With `?missions=1`, Three Grey Coats on Tallow Wharf: knock Teale out before he talks and the section restarts with him back at his table (no break); kill him or question a decoy and the rule breaks, he moves to the clock-mender's back loft, and the section restarts.
+- [ ] (mission-rules) With `?missions=1`, start Tallow Wharf Sector Ops alone: the Start button is blocked and the lobby says campaign missions need exactly two players. With the partner in, Start works. "Resume hosting" with the partner away waits in the lobby and starts on its own when they rejoin.
+- [ ] (mission-rules) With `?missions=1`, Tallow Wharf in a match: the objective line shows the current step on host and client, and changes once Teale moves. No mission list sits on screen. Field Terminal > Objectives lists the rule first, then the steps as done, current or to do.
+- [ ] (tallow-fixes) With `?missions=1` on Tallow Wharf (open it by URL): sections 1 and 3 read dark only under cover or with the power cut (or after a shot lamp); in section 2 climb the drainpipe from the walkway's west pier to the arcade roof, a second way up; the section 3 roof bulkhead door is bolted on Two-Key Ledger only (in Three Grey Coats it is a plain door).
 - [ ] Marlow Yard rating: clear A2 unseen with a gadget used; as its airlock seals a card shows four ticks and the
   charges. In A3 get seen, restart the set: the card at its exit ignores the sighting. Co-op: both screens show it.
 - [ ] (sector-fixes R) Co-op Sector Ops, each section: leg-up your partner onto a 4.4 m lip (section 1 the high door
