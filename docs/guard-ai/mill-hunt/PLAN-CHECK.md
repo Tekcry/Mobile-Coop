@@ -121,3 +121,81 @@ Verdict: FIX
 11. A body found by a hunt guard: the existing `bodyFound` path may start a body search (`SEARCH_BODY`); the hunt branch
     must still drive his movement after it.
 12. Walk card: name A1 (searching, not combat) and A2 (no helmets) so Michael can say "higher".
+
+## Check 2 (a9dd94fde)
+Verdict: FIX
+Checker: Opus 5.5, 2026-10-27 10:41, PLAN revision 1 at a9dd94fde. Three small, exact spec holes (each a few PLAN
+lines); the shape of the plan (A4 phase order, A5 stay upstairs, rank, room-edge check, slices) is right.
+
+### Own view
+- Intent: the fixed phase order (A4) answers "heading towards the players" without omniscience and reads as Michael's
+  ~10:05 "fixed readble path is good": both lines move along the players' only route (start bay to L1, stair head to
+  the hatch), each unit reverses at most once per run, holds face the search's way (A9 100 deg), legs face along the
+  line (from-behind window kept). Groups <= 2 hold in move / clear / hold / loop / check by positions (FIX 4 closed).
+- Gates: VISION 8 ok (no randomness, every target from data or a stated event). VISION 3: G426 keeps G146 "everywhere
+  else", so this scene is exempt; the bar is Michael's "so coop gameplay allows stealth takedowns" (fold-in 1). Host
+  only, no wire / save: ok. Flag dark, `/preview/` on: ok.
+- Claims: block present; `claims-check --plan` exit 1, 48 overlaps, exactly as PLAN "Order" lists (33 x `sectors.ts` /
+  `TESTING.md`; 8 x mission-hooks + s* on `flags.ts` / `enemy.ts` / `enemyManager.ts`; j16-2 on `enemy.ts` /
+  `enemyManager.ts` / `ai.md`; flags-only map-ready, coop-kit, campus-greybox, player-batch-j19). PR #694 still OPEN:
+  H3 / H4 wait, as planned. Orchestrator ordering of mission-hooks still to do (not a plan defect).
+- Slices: PR 1 = H1 ~350 + H2 ~850, no runtime caller: ok under ~1.5k. PR 2 = H3 ~350 after #694; PR 3 = H4 ~500: ok.
+- Walk pacing: Guard AI at cap; built dark, switched on only on Michael's acceptance: ok.
+
+### Check 1 items
+- FIX 1 (no-contact stall): closed by A4 / H2 order and the 15-minute no-trigger sim (fold-ins 1-2 on pacing and the
+  gallery end state).
+- FIX 2 (deadlock / start spread): partly. The mutual `gap` block is gone (only higher ranks count), but the room cap
+  still counts lower ranks (item 1) and the spread runs at a build that has no guards yet (item 2).
+- FIX 3 (dead cue): partly. The sight cue is right; the sound cue sits in a function the mill never calls for a
+  searching grunt (item 3).
+- FIX 4 (check vs cap): closed (room edge, positions, H4 test).
+- FIX 5 (claims block): closed (above).
+- Fold-ins 1-12: all carried into PLAN rev 1 (H1 fold-in 1; H2 fold-ins 2, 4, 5, 9; H3 fold-ins 6, 7, 10, 11; slices
+  fold-in 8; e2e fold-in 3; walk card fold-in 12).
+
+### Fix list (ranked)
+1. **The room cap still lets a lower rank block the top rank: a stall up to `phaseMax` (H2 "Rank").** "On entering a
+   new room, the guards in it ... plus this unit's size <= roomCap" counts every rank. After a phase step the new
+   target room often already holds a unit (it was walking towards the old target from the far side, e.g. G4 + G5 in
+   `millBay` when the target moves there from `aisle`) while the unit looping the old room is nearer the new target:
+   the near unit (rank 1) holds on the cap, the unit inside (rank 2) holds on `gap` to rank 1's stop. Both stand until
+   the 120 s clock, and "Blocking runs only down the ranks ... never deadlock" is false; the H2 no-hold assertion fails.
+   Done looks like: PLAN H2 ranks every unit inside the target room above every unit outside it (then line distance,
+   then index), so the room's occupant always walks to the target and loops while the outsider holds on a full room;
+   the no-hold assertion reads "next stop free of higher-ranked units and its room has space"; the sim has this case.
+2. **The board is built before any guard exists, so the start spread never runs in the game (H2 "Start spread", H3).**
+   `spawnBeat` sets `sceneDark(true)` and only then spawns (`pianoScene.ts:652-655`), on the EMP and every restart, so
+   `sceneDarkOn` sees no placed guards; members arrive through `placeSlot` (`sectorMode.ts:1036-1060`). Guards within
+   `SCENE_SPAWN_MIN` 4 m of a player stay pending and spawn later under the 7 m rule (`:1040-1047`), and the live cap
+   can defer more. A guard back from a fight rejoins too, possibly on the other storey via L1. The pure sim, which
+   builds with members, would pass while the 16 set keeps 3 in `stairHead` in play.
+   Done looks like: PLAN H2 / H3 state one admission rule run for every member that joins (the first board tick after
+   the spawn, a late spawn, a fight's end back to `searching`): line by his current y, nearest stop, then the spread
+   rule if his room is over the cap or he is inside `gap` of a higher rank; a member in `alert` is off the board until
+   then. The H2 sim builds empty and adds members (all at t = 0, plus one late joiner into a full room); the cap from
+   t = 0 assertion stands. H3's manager test places guards after `sceneDark = true`, as the scene does.
+3. **The H4 sound cue is in `hear()`, which a searching mill grunt never gets.** In the coordinated stealth mill
+   (`coordinated`, `COMBAT_HEAR.enabled`) a non-melee guard who is `searching` hears through `hearFight`
+   (`enemyManager.ts:3349-3352`) -> `Enemy.hearSearch` (`enemy.ts:1443`; calm guards get `hearTurn`, never `hear`).
+   Same class as check 1's FIX 3: the test on `hear()` passes, the game never fires it.
+   Done looks like: PLAN H4 puts the sound cue in `hearSearch` (or `hearFight`'s searching branch, after its tier
+   check) while `mhOn`; the H4 test drives a noise through the manager's hearing path (`EnemyManager` noise call) to a
+   held `searching` grunt and sees `mhCueN` bump and his unit go to `check`.
+
+### Fold-ins for the builders (no PLAN change needed)
+1. Gallery end state: the hoist door opens only when every guard is down (`thornbeckMill.ts:73`), so a stealthy pair
+   must take every gallery unit after climbing L1 into a queue that faces the hatch. Keep at least one hall-facing aim
+   per gallery hold stop (A5 "cover the hall from above"; south is inside the 100 deg) so the hatch is not watched
+   without a break; the H2 sim asserts in the final state that each queued gallery unit's aims include one not on the
+   hatch. Walk card: name the gallery cordon.
+2. Pacing: phases step on "cleared once", so the order may reach its last row in ~4-6 min and the rest of a careful
+   run is held queues. Add `HUNT.phaseMin` (prototype value, e.g. 60 s; A16) so the front does not race the players;
+   log it in A4.
+3. Risks line: "units then queue towards L1, facing them" holds for the gallery; on the ground the queue faces L1 with
+   its back to players coming from the west. Say so on the walk card (it is the from-behind window, intended).
+4. Sight cue: `hearSearch` / `hearTurn` lift the meter to the sound's floor (`turnMax` 0.45 > `PERCEPTION.suspicious`
+   0.3), so the sight cue must read the sight path (`sawMoment`), not any meter crossing, to keep `mhCueCause` right.
+5. e2e-piano already runs a checkpoint restart: assert every live guard `searching` and `mhOn` again after it, phase 0.
+6. A9 `loop` wraps from a room's last stop to its first: inside a 2-3 stop room that reads as back-and-forth; let the
+   return leg clear its aims (no plain walk-back) and name it on the walk card.
