@@ -1,6 +1,7 @@
 import { Vector3 } from '../core/babylon';
 import { emptyKinds } from '../ai/enemyDefs';
-import type { GameState, NetAttachment } from '../game/gameState';
+import type { GameState, ModeId, NetAttachment } from '../game/gameState';
+import type { Difficulty } from '../ai/archetypes';
 import type { Enemy } from '../ai/enemy';
 import type { HitInfo } from '../game/damage';
 import type { Interactable } from '../game/interactables';
@@ -48,6 +49,9 @@ import { assistHolder } from './assistTakedown';
 import type { TakedownVictim } from '../game/takedownController';
 import { stationHeal } from '../game/medkit';
 import { ReviveClock } from '../game/reviveClock';
+import { campaignReviveCap, isCampaignMission } from '../game/mission/campaign';
+import type { MissionDef } from '../game/mission/missionDef';
+import { pickMission } from '../game/mission/sectorMission';
 import type { CourseMode } from '../game/modes/courseMode';
 import type { PickupKind } from '../game/pickups';
 import { takeInfo } from '../ai/guardInfo';
@@ -86,6 +90,20 @@ const SHOT_NOISE = 28;
 /** A client takedown: the victim within this of the client (m), and let go after this long without an outcome (s). */
 const TD_REACH = 3;
 const TD_MAX = 6;
+
+/**
+ * (sector-ops step 3, M7, A10; mission-rules R5, G126, A7) The host's revive rules for a match, set on `clock`: Sector
+ * Ops gives the op's syringes per difficulty (G188); a campaign mission (`missionId`, the session's `sectorMission`, on
+ * the map's `missions`) gives `CAMPAIGN.revives` (2) at every difficulty; any other mode keeps the clock's default (2).
+ * The window stays `REVIVE_WINDOW` (30 s) everywhere. True for a campaign mission: its cap is never topped up
+ * (`addSyringes`). Runs once, in the constructor.
+ */
+export function matchRevives(clock: ReviveClock, mode: ModeId, difficulty: Difficulty | undefined, missions: readonly MissionDef[] | undefined, missionId: string): boolean {
+  if (mode !== 'sector') return false;
+  const def = pickMission(missions, missionId || null);
+  clock.cap = campaignReviveCap(def, syringesFor(difficulty));
+  return isCampaignMission(def);
+}
 
 type Tally = EndStats['players'][string];
 const emptyTally = (): Tally => ({ kills: 0, headshots: 0, byKind: emptyKinds(), weaponKills: {} });
@@ -175,6 +193,8 @@ export class CoopHost implements NetAttachment {
   private reviveTime: number;
   /** (B8, G126) 30 s revive window, 2 revives per mission; past either the player is out until the checkpoint. */
   readonly reviveClock = new ReviveClock();
+  /** (mission-rules R5, G126, Q19) The match runs a campaign mission: 2 revives, never topped up (`addSyringes`). */
+  private readonly campaign: boolean;
   private readonly expired: string[] = [];
   /** Whole seconds last written into each revive label (the label carries the countdown to every page). */
   private reviveSec = new Map<string, number>();
@@ -199,8 +219,9 @@ export class CoopHost implements NetAttachment {
     this.ff = mode === 'course';
     if (this.ff) g.target.friendly = (h) => this.friendly(h, s.selfId);
     this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? defaultHq()).reviveSpeed;
-    // (sector-ops step 3, M7, A10) Sector Ops: the revives are the op's syringes, per difficulty
-    if (mode === 'sector') this.reviveClock.cap = syringesFor(g.opts.difficulty);
+    // (sector-ops step 3, M7, A10) Sector Ops: the revives are the op's syringes, per difficulty; (mission-rules R5,
+    // G126) a campaign mission: 2 at every difficulty. `g.world.map` is set: the world is built before `attach`.
+    this.campaign = matchRevives(this.reviveClock, mode, g.opts.difficulty, g.world.map.missions, s.sectorMission);
     this.lampTx = mode === 'sector' ? new LampSender() : null;
     this.soloRemotes = g.remotePlayers;
     g.remotePlayers = () => this.remoteRefs;
@@ -854,8 +875,10 @@ export class CoopHost implements NetAttachment {
     return Math.max(0, this.reviveClock.cap - this.reviveClock.used);
   }
 
-  /** (section-rating S3) A rating's syringe reward: `n` (a whole 0-9) more revives this op. */
+  /** (section-rating S3) A rating's syringe reward: `n` (a whole 0-9) more revives this op. (mission-rules R5, G126,
+   *  Q19 "None") Nothing in a campaign mission: its 2 revives are never topped up. */
   addSyringes(n: number): void {
+    if (this.campaign) return;
     const k = Number.isFinite(n) ? Math.max(0, Math.min(9, Math.floor(n))) : 0;
     this.reviveClock.cap += k;
   }
