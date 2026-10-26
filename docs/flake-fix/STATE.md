@@ -6,7 +6,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 **Test Runner SAVE 75 (2026-10-27 ~07:50, Orchestrator save at 83%, reset 08:50; session [058b5c]; wins over SAVE 74):**
 - #664 (affected cap 1) MERGED. Service healthy, 2 requests queued; spare work (docs/laptop-queue/spare-jobs.json, once per
   master sha) fills idle slots through the reset.
-- Open from SAVE 74: e2e-netmove laptop quarantine to 2026-10-29T00:00Z (Player F5 removes it); UNDO the piano front
+- e2e-netmove quarantine LIFTED (~08:00; Player F5 #663 in 4.128.0); a netmove fail now: tell the Orchestrator (reopens F5).
+- UNDO the piano front
   (LQ_FRONT_BRANCHES back to 'mixamo', restart between trains) after Michael's ~09:00 walk.
 - Next: undo the piano front after the walk; triage any train failure (Opus) and tell the Orchestrator.
 
