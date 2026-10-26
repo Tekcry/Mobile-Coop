@@ -1,4 +1,5 @@
 import { Vector3 } from '../core/babylon';
+import { flags } from '../core/flags';
 import { emptyKinds } from '../ai/enemyDefs';
 import type { GameState, ModeId, NetAttachment } from '../game/gameState';
 import type { Difficulty } from '../ai/archetypes';
@@ -468,6 +469,8 @@ export class CoopHost implements NetAttachment {
    * stands there. Every other mode, and a remote in the section, is untouched.
    */
   private firstPlace(r: RemotePlayer, x: number, y: number, z: number): void {
+    // (NET3 gate) dark behind `missions` (orchestrator 2026-10-26 ~12:55: unfinished work ships dark)
+    if (!flags.missions) return;
     const mode = this.g.mode;
     if (mode?.id !== 'sector' || !offSection(this.g, mode.checkpointSpawns?.() ?? [], x, y, z)) return;
     this.joins.place(r.id, this.joinSpot(r, null), this.time);
