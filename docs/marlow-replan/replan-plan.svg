@@ -1,0 +1,513 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1184" height="904" viewBox="0 0 1184 904" font-family="Helvetica, Arial, sans-serif">
+<defs>
+<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#fff"/><line x1="0" y1="0" x2="0" y2="6" stroke="#777" stroke-width="1.4"/></pattern>
+<pattern id="gal" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#f1f1f1"/><circle cx="2" cy="2" r="0.6" fill="#999"/></pattern>
+<pattern id="upper" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="5" height="5" fill="#fff"/><line x1="0" y1="0" x2="0" y2="5" stroke="#bbb" stroke-width="0.8"/></pattern>
+<marker id="arr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#000"/></marker>
+<marker id="arrs" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#000"/></marker>
+<style>.h{paint-order:stroke;stroke:#fff;stroke-width:2.6px;stroke-linejoin:round}</style>
+</defs>
+<rect width="1184" height="904" fill="#fff"/>
+<text x="34" y="26" font-size="17" font-weight="bold">Marlow Yard re-plan (job J14): one forced route, every co-op move taught once, then splits</text>
+<text x="34" y="44" font-size="10.5">To scale, 1 m = 7 px, north up. Drawn from the positions of the sets as built. Ground floor; upper decks hatched.</text>
+<text x="34" y="59" font-size="10.5">Badges 1-18: what each set teaches, in order. Thick line: the one forced route. Dashed line: the partner's part of a co-op step or the second leg of a split. Dashed outline: new, built later.</text>
+<line x1="34" y1="96" x2="34" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="76" y1="96" x2="76" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="118" y1="96" x2="118" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="160" y1="96" x2="160" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="202" y1="96" x2="202" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="244" y1="96" x2="244" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="286" y1="96" x2="286" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="328" y1="96" x2="328" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="370" y1="96" x2="370" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="412" y1="96" x2="412" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="454" y1="96" x2="454" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="496" y1="96" x2="496" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="538" y1="96" x2="538" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="580" y1="96" x2="580" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="622" y1="96" x2="622" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="664" y1="96" x2="664" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="706" y1="96" x2="706" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="748" y1="96" x2="748" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="790" y1="96" x2="790" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="832" y1="96" x2="832" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="874" y1="96" x2="874" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="916" y1="96" x2="916" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="958" y1="96" x2="958" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="1000" y1="96" x2="1000" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="1042" y1="96" x2="1042" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="1084" y1="96" x2="1084" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="1126" y1="96" x2="1126" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="642" x2="1154" y2="642" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="600" x2="1154" y2="600" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="558" x2="1154" y2="558" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="516" x2="1154" y2="516" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="474" x2="1154" y2="474" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="432" x2="1154" y2="432" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="390" x2="1154" y2="390" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="348" x2="1154" y2="348" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="306" x2="1154" y2="306" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="264" x2="1154" y2="264" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="222" x2="1154" y2="222" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="180" x2="1154" y2="180" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="138" x2="1154" y2="138" stroke="#eee" stroke-width="0.6"/>
+<line x1="34" y1="96" x2="1154" y2="96" stroke="#eee" stroke-width="0.6"/>
+<text x="34" y="653" font-size="7.5" fill="#888" text-anchor="middle">0</text>
+<text x="118" y="653" font-size="7.5" fill="#888" text-anchor="middle">12</text>
+<text x="202" y="653" font-size="7.5" fill="#888" text-anchor="middle">24</text>
+<text x="286" y="653" font-size="7.5" fill="#888" text-anchor="middle">36</text>
+<text x="370" y="653" font-size="7.5" fill="#888" text-anchor="middle">48</text>
+<text x="454" y="653" font-size="7.5" fill="#888" text-anchor="middle">60</text>
+<text x="538" y="653" font-size="7.5" fill="#888" text-anchor="middle">72</text>
+<text x="622" y="653" font-size="7.5" fill="#888" text-anchor="middle">84</text>
+<text x="706" y="653" font-size="7.5" fill="#888" text-anchor="middle">96</text>
+<text x="790" y="653" font-size="7.5" fill="#888" text-anchor="middle">108</text>
+<text x="874" y="653" font-size="7.5" fill="#888" text-anchor="middle">120</text>
+<text x="958" y="653" font-size="7.5" fill="#888" text-anchor="middle">132</text>
+<text x="1042" y="653" font-size="7.5" fill="#888" text-anchor="middle">144</text>
+<text x="1126" y="653" font-size="7.5" fill="#888" text-anchor="middle">156</text>
+<text x="30" y="645" font-size="7.5" fill="#888" text-anchor="end">0</text>
+<text x="30" y="561" font-size="7.5" fill="#888" text-anchor="end">12</text>
+<text x="30" y="477" font-size="7.5" fill="#888" text-anchor="end">24</text>
+<text x="30" y="393" font-size="7.5" fill="#888" text-anchor="end">36</text>
+<text x="30" y="309" font-size="7.5" fill="#888" text-anchor="end">48</text>
+<text x="30" y="225" font-size="7.5" fill="#888" text-anchor="end">60</text>
+<text x="30" y="141" font-size="7.5" fill="#888" text-anchor="end">72</text>
+<rect x="34" y="96" width="1050.0" height="546.0" fill="none" stroke="#000" stroke-width="1.6"/>
+<rect x="1084" y="180" width="70.0" height="56.0" fill="none" stroke="#000" stroke-width="1.6"/>
+<rect x="34" y="474" width="784.0" height="28.0" fill="url(#gal)" stroke="#999" stroke-width="0.6"/>
+<rect x="524" y="306" width="42.0" height="168.0" fill="url(#gal)" stroke="#999" stroke-width="0.6"/>
+<rect x="314" y="278" width="462.0" height="28.0" fill="url(#gal)" stroke="#999" stroke-width="0.6"/>
+<rect x="314" y="264" width="168.0" height="14.0" fill="url(#gal)" stroke="#999" stroke-width="0.6"/>
+<text x="62.0" y="491.0" font-size="7.5" text-anchor="start" font-weight="normal" fill="#555" class="h">instructor gallery (view only, 4.5 m)</text>
+<rect x="566" y="502" width="168.0" height="49.0" fill="#e2e2e2" stroke="#999" stroke-width="0.6"/>
+<text x="650.0" y="529.5" font-size="7.5" text-anchor="middle" font-weight="normal" fill="#555" class="h">plant (closed)</text>
+<rect x="34" y="628" width="154.0" height="14.0" fill="#e2e2e2" stroke="none" stroke-width="0.8"/>
+<rect x="34" y="502" width="154.0" height="126.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="230" y="502" width="294.0" height="140.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="566" y="551" width="168.0" height="91.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="734" y="504.8" width="46.2" height="46.2" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="741" y="474" width="21.0" height="30.8" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="566" y="306" width="252.0" height="168.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="314" y="306" width="210.0" height="168.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="314" y="138" width="168.0" height="126.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="524" y="138" width="210.0" height="140.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="776" y="96" width="308.0" height="196.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<rect x="188" y="544" width="42.0" height="42.0" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<text x="217.4" y="568.0" font-size="9" text-anchor="middle" font-weight="bold" fill="#000" class="h">L1</text>
+<path d="M194.8 571L194.8 558L203.8 561L194.8 564" fill="#000" stroke="#000" stroke-width="1"/>
+<rect x="524" y="551" width="42.0" height="42.0" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<text x="553.4" y="575.0" font-size="9" text-anchor="middle" font-weight="bold" fill="#000" class="h">L2</text>
+<path d="M530.8 578L530.8 565L539.8 568L530.8 571" fill="#000" stroke="#000" stroke-width="1"/>
+<rect x="734" y="551" width="42.0" height="42.0" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<text x="763.4" y="575.0" font-size="9" text-anchor="middle" font-weight="bold" fill="#000" class="h">L3</text>
+<path d="M740.8 578L740.8 565L749.8 568L740.8 571" fill="#000" stroke="#000" stroke-width="1"/>
+<rect x="524" y="390" width="42.0" height="42.0" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<text x="553.4" y="414.0" font-size="9" text-anchor="middle" font-weight="bold" fill="#000" class="h">L4</text>
+<path d="M530.8 417L530.8 404L539.8 407L530.8 410" fill="#000" stroke="#000" stroke-width="1"/>
+<rect x="384" y="264" width="42.0" height="42.0" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<text x="413.4" y="288.0" font-size="9" text-anchor="middle" font-weight="bold" fill="#000" class="h">L5</text>
+<path d="M390.8 291L390.8 278L399.8 281L390.8 284" fill="#000" stroke="#000" stroke-width="1"/>
+<rect x="482" y="187" width="42.0" height="42.0" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<text x="511.4" y="211.0" font-size="9" text-anchor="middle" font-weight="bold" fill="#000" class="h">L6</text>
+<path d="M488.8 214L488.8 201L497.8 204L488.8 207" fill="#000" stroke="#000" stroke-width="1"/>
+<rect x="734" y="201" width="42.0" height="42.0" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<text x="763.4" y="225.0" font-size="9" text-anchor="middle" font-weight="bold" fill="#000" class="h">L7</text>
+<path d="M740.8 228L740.8 215L749.8 218L740.8 221" fill="#000" stroke="#000" stroke-width="1"/>
+<text x="769.0" y="220.5" font-size="6.5" text-anchor="end" font-weight="normal" fill="#000" class="h">model of A8</text>
+<text x="38.2" y="507.6" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A1 The Gate</text>
+<text x="38.2" y="517.6" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">no guards</text>
+<text x="267.8" y="507.6" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A2 The Carriage Shed</text>
+<text x="267.8" y="517.6" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">1 guard</text>
+<text x="570.2" y="556.6" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A3 The Office Range</text>
+<text x="570.2" y="566.6" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">no guards, 1 camera</text>
+<text x="570.2" y="478.2" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A4 The Goods Shed</text>
+<text x="570.2" y="488.2" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">3 guards, 3 cameras</text>
+<text x="318.2" y="310.2" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A5 The Substation</text>
+<text x="318.2" y="320.2" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">2 guards</text>
+<text x="318.2" y="140.8" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A6 The Pump House</text>
+<text x="318.2" y="150.8" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">1 guard</text>
+<text x="570.2" y="140.8" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A7 The Data Hall</text>
+<text x="570.2" y="150.8" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">2 guards, 2 cameras</text>
+<text x="804.0" y="290.6" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A8 The Strongroom</text>
+<text x="804.0" y="300.6" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">3 guards, 3 cameras</text>
+<rect x="34" y="544" width="42.0" height="42.0" fill="#f6f6f6" stroke="#000" stroke-width="1"/>
+<text x="55.0" y="568.0" font-size="7.5" text-anchor="middle" font-weight="normal" fill="#000" class="h">lounge</text>
+<rect x="115.9" y="502" width="4.2" height="126.0" fill="#000" stroke="#000" stroke-width="0.5"/>
+<rect x="115.2" y="560.8" width="5.6" height="8.4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="122.2" y="559.0" font-size="7" text-anchor="start" font-weight="normal" fill="#000" class="h">wicket: way back only</text>
+<rect x="83" y="516" width="21.0" height="21.0" fill="#ddd" stroke="#000" stroke-width="0.8"/>
+<line x1="93.5" y1="526.5" x2="93.5" y2="537.5" stroke="#000" stroke-width="1.6"/>
+<circle cx="93.5" cy="526.5" r="4" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<text x="83.0" y="546.0" font-size="6.8" text-anchor="start" font-weight="normal" fill="#000" class="h">checker: blind, kept for grab practice</text>
+<rect x="106.1" y="596.5" width="7.0" height="7.0" fill="url(#hatch)" stroke="#000" stroke-width="0.8"/>
+<text x="153.0" y="608.6" font-size="7" text-anchor="middle" font-weight="normal" fill="#000" class="h">wall 4.4 m</text>
+<path d="M48 565 L79.5 565 L101.2 595.8 L112.4 600" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M122.2 597.2 L142.5 579 L177.5 565" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M45 558.4L45 545.4L54 548.4L45 551.4" fill="#000" stroke="#000" stroke-width="1"/>
+<rect x="59.7" y="608.8" width="41.0" height="15" rx="7" fill="#000"/>
+<text x="80.2" y="620" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">1 BOOST</text>
+<rect x="130.9" y="608.8" width="47.0" height="15" rx="7" fill="#000"/>
+<text x="154.4" y="620" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">2 LADDER</text>
+<rect x="230" y="607" width="28.0" height="28.0" fill="#ddd" stroke="#000" stroke-width="0.8"/>
+<rect x="246.1" y="628.7" width="4.2" height="4.2" fill="#000" stroke="#000" stroke-width="0.8"/>
+<text x="232.1" y="627.2" font-size="6.8" text-anchor="start" font-weight="normal" fill="#000" class="h">cabin, isolator 1</text>
+<path d="M254.5 618.9L261.5 625.9M261.5 618.9L254.5 625.9" stroke="#000" stroke-width="1.8"/>
+<text x="260.1" y="637.8" font-size="6.5" text-anchor="start" font-weight="normal" fill="#000" class="h">back door locked</text>
+<rect x="499.5" y="519.5" width="21.0" height="122.5" fill="#f3f3f3" stroke="#000" stroke-width="0.9" stroke-dasharray="3 2"/>
+<text x="512" y="612" font-size="6.8" text-anchor="middle" font-weight="normal" fill="#000" class="h" transform="rotate(-90 512 612)">open pit 3 m</text>
+<rect x="494.6" y="548.6" width="4.2" height="4.2" fill="#000" stroke="#000" stroke-width="0.8"/>
+<text x="492.6" y="561.5" font-size="6.8" text-anchor="end" font-weight="normal" fill="#000" class="h">isolator 2 (moved)</text>
+<line x1="265" y1="605.6" x2="265" y2="565" stroke="#000" stroke-width="2.4" stroke-linecap="butt"/>
+<line x1="265" y1="544" x2="265" y2="519.5" stroke="#000" stroke-width="2.4" stroke-linecap="butt"/>
+<line x1="265" y1="565" x2="265" y2="544" stroke="#000" stroke-width="2.4" stroke-linecap="butt" stroke-dasharray="2 2"/>
+<text x="248.2" y="576.9" font-size="7" text-anchor="middle" font-weight="normal" fill="#000" class="h">stores bay</text>
+<rect x="286" y="597.9" width="70.0" height="18.2" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="426" y="597.9" width="70.0" height="18.2" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="286" y="562.9" width="70.0" height="18.2" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="426" y="562.9" width="70.0" height="18.2" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="286" y="527.9" width="70.0" height="18.2" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="426" y="527.9" width="70.0" height="18.2" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="244" y="502" width="224.0" height="17.5" fill="url(#hatch)" stroke="#000" stroke-width="0.8"/>
+<text x="356.0" y="513.8" font-size="7.5" text-anchor="middle" font-weight="bold" fill="#000" class="h">staging deck CLOSED (screened)</text>
+<line x1="354.3" y1="640.3" x2="354.3" y2="616.1" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<line x1="354.3" y1="527.9" x2="354.3" y2="519.5" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<line x1="427.8" y1="640.3" x2="427.8" y2="616.1" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<line x1="427.8" y1="527.9" x2="427.8" y2="519.5" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<line x1="354.3" y1="597.9" x2="354.3" y2="581.1" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<text x="350.5" y="592.5" font-size="6.5" text-anchor="end" font-weight="normal" fill="#000" class="h">lane closed</text>
+<circle cx="373.5" cy="600" r="2.6" fill="#fff" stroke="#000" stroke-width="0.9"/>
+<path d="M368.5 600H370M377 600H378.5M373.5 595V596.5M373.5 603.5V605" stroke="#000" stroke-width="0.8"/>
+<rect x="369.3" y="595.8" width="8.4" height="8.4" fill="none" stroke="#000" stroke-width="0.9"/>
+<circle cx="408.5" cy="600" r="2.6" fill="#fff" stroke="#000" stroke-width="0.9"/>
+<path d="M403.5 600H405M412 600H413.5M408.5 595V596.5M408.5 603.5V605" stroke="#000" stroke-width="0.8"/>
+<rect x="404.3" y="595.8" width="8.4" height="8.4" fill="none" stroke="#000" stroke-width="0.9"/>
+<circle cx="373.5" cy="544" r="2.6" fill="#fff" stroke="#000" stroke-width="0.9"/>
+<path d="M368.5 544H370M377 544H378.5M373.5 539V540.5M373.5 547.5V549" stroke="#000" stroke-width="0.8"/>
+<rect x="369.3" y="539.8" width="8.4" height="8.4" fill="none" stroke="#000" stroke-width="0.9"/>
+<circle cx="408.5" cy="544" r="2.6" fill="#fff" stroke="#000" stroke-width="0.9"/>
+<path d="M403.5 544H405M412 544H413.5M408.5 539V540.5M408.5 547.5V549" stroke="#000" stroke-width="0.8"/>
+<rect x="404.3" y="539.8" width="8.4" height="8.4" fill="none" stroke="#000" stroke-width="0.9"/>
+<text x="391.0" y="613.3" font-size="6.8" text-anchor="middle" font-weight="normal" fill="#000" class="h">caged neck lamps</text>
+<line x1="391" y1="572" x2="402.0" y2="572.0" stroke="#000" stroke-width="1.6"/>
+<circle cx="391" cy="572" r="4" fill="#000" stroke="#000" stroke-width="1.2"/>
+<circle cx="370" cy="516.7" r="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<path d="M366.5 513.2L373.5 520.2M373.5 513.2L366.5 520.2" stroke="#000" stroke-width="1.3"/>
+<circle cx="412" cy="516.7" r="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<path d="M408.5 513.2L415.5 520.2M415.5 513.2L408.5 520.2" stroke="#000" stroke-width="1.3"/>
+<text x="391.0" y="509.7" font-size="6.5" text-anchor="middle" font-weight="normal" fill="#000" class="h">deck watchers removed</text>
+<ellipse cx="350.4" cy="554.5" rx="6" ry="3.6" fill="#fff" stroke="#000" stroke-width="1"/><circle cx="350.4" cy="554.5" r="1.8" fill="#000"/>
+<path d="M232.8 565 L254.5 554.5 L286 554.5 L356 554.5 L426 554.5 L499.5 554.5 L514.2 565 L521.2 569.9" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M234.2 567.8 L240.5 600 L248.2 627.3" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="4 3" marker-end="url(#arrs)" opacity="1"/>
+<path d="M391 547.5L398 554.5L391 561.5L384 554.5Z" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<text x="391" y="571.5" font-size="8.5" text-anchor="middle" font-weight="bold" class="h">15 s dark</text>
+<rect x="265.1" y="569.6" width="51.8" height="15" rx="7" fill="#000"/>
+<text x="291" y="580.8000000000001" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">3 SHUTTER</text>
+<rect x="436.4" y="569.6" width="46.4" height="15" rx="7" fill="#000"/>
+<text x="459.6" y="580.8000000000001" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">4 LIGHTS</text>
+<rect x="499.5" y="552.5" width="21.0" height="4" fill="#fff" stroke="#000" stroke-width="0.9"/>
+<rect x="448.0" y="621.5" width="44.0" height="15" rx="7" fill="#000"/>
+<text x="470" y="632.7" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">5 PLANK</text>
+<rect x="591.6" y="581.1" width="39.9" height="59.1" fill="url(#hatch)" stroke="#000" stroke-width="0.8"/>
+<rect x="632.1" y="581.1" width="39.9" height="59.1" fill="url(#hatch)" stroke="#000" stroke-width="0.8"/>
+<rect x="672.8" y="581.1" width="39.2" height="59.1" fill="url(#hatch)" stroke="#000" stroke-width="0.8"/>
+<text x="651.8" y="612.6" font-size="7.5" text-anchor="middle" font-weight="bold" fill="#000" class="h">offices LOCKED (closed)</text>
+<line x1="590.5" y1="579" x2="713" y2="579" stroke="#000" stroke-width="1.2" stroke-linecap="butt"/>
+<line x1="590.5" y1="554.5" x2="713" y2="554.5" stroke="#000" stroke-width="1.2" stroke-linecap="butt"/>
+<rect x="646.9" y="579" width="9.8" height="7.0" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<line x1="590.5" y1="579" x2="590.5" y2="554.5" stroke="#000" stroke-width="2.6" stroke-linecap="butt"/>
+<text x="591.9" y="554.9" font-size="6.5" text-anchor="start" font-weight="normal" fill="#000" class="h">fire door (bolted)</text>
+<path d="M577.2 633.6 L612.2 633.6 L612.2 580.4" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="1.6 2.2" opacity="1"/>
+<rect x="608.7" y="578.3" width="7.0" height="3.5" fill="#000" stroke="#000" stroke-width="0.8"/>
+<text x="575.8" y="629.6" font-size="6.5" text-anchor="start" font-weight="normal" fill="#000" class="h">services crawl 1.2 x 1.5</text>
+<path d="M702.2 566.8L710.2 570.8L710.2 562.8Z" fill="#fff" stroke="#000" stroke-width="1"/>
+<path d="M710.2 566.8L612.2 555.2L612.2 578.3Z" fill="none" stroke="#000" stroke-width="0.6" stroke-dasharray="2 2"/>
+<circle cx="615" cy="621" r="4" fill="#fff" stroke="#000" stroke-width="1"/>
+<path d="M611.5 617.5L618.5 624.5M618.5 617.5L611.5 624.5" stroke="#000" stroke-width="1.3"/>
+<text x="623.4" y="628.0" font-size="6.5" text-anchor="start" font-weight="normal" fill="#000" class="h">cleaner removed</text>
+<path d="M568.8 572 L581.4 569.2 L593.3 566.8 L651.8 574.8 L716.5 566.8 L731.2 570.6" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M574.4 574.8 L577.2 630.8" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="4 3" opacity="1"/>
+<path d="M651.8 556.6L658.8 563.6L651.8 570.6L644.8 563.6Z" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<text x="651.8" y="580.6" font-size="8.5" text-anchor="middle" font-weight="bold" class="h">6.5 s hops</text>
+<rect x="562.2" y="590.6" width="35.6" height="15" rx="7" fill="#000"/>
+<text x="580" y="601.8000000000001" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">6 VENT</text>
+<rect x="666.4" y="555.6" width="30.2" height="15" rx="7" fill="#000"/>
+<text x="681.5" y="566.8000000000001" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">7 JAM</text>
+<rect x="734" y="504.8" width="46.2" height="46.2" fill="#fafafa" stroke="#000" stroke-width="1.2"/>
+<line x1="767.6" y1="518.8" x2="767.6" y2="507.8" stroke="#000" stroke-width="1.6"/>
+<circle cx="767.6" cy="518.8" r="4" fill="#000" stroke="#000" stroke-width="1.2"/>
+<rect x="771.1" y="511.8" width="4.2" height="4.2" fill="#000" stroke="#000" stroke-width="0.8"/>
+<text x="736.8" y="544.0" font-size="6.8" text-anchor="start" font-weight="normal" fill="#000" class="h">security room</text>
+<rect x="636" y="434.1" width="63.0" height="16.8" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="636" y="392.8" width="63.0" height="16.8" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="723.5" y="434.1" width="66.5" height="16.8" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="723.5" y="392.8" width="66.5" height="16.8" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="636" y="307.8" width="140.0" height="26.3" fill="url(#hatch)" stroke="#000" stroke-width="0.8"/>
+<text x="706.0" y="323.9" font-size="7.5" text-anchor="middle" font-weight="bold" fill="#000" class="h">mezzanine CLOSED</text>
+<rect x="566" y="334" width="46.2" height="42.0" fill="url(#hatch)" stroke="#000" stroke-width="0.8"/>
+<text x="589.1" y="358.0" font-size="6" text-anchor="middle" font-weight="bold" fill="#000" class="h">dispatch office CLOSED</text>
+<line x1="699" y1="472.3" x2="699" y2="450.9" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<line x1="765.5" y1="472.3" x2="765.5" y2="450.9" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<line x1="699" y1="434.1" x2="699" y2="409.6" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<line x1="723.5" y1="434.1" x2="723.5" y2="409.6" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<line x1="790" y1="393.5" x2="816.3" y2="393.5" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<line x1="596.1" y1="318.6" x2="605.2" y2="318.6" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<line x1="806.8" y1="318.6" x2="815.9" y2="318.6" stroke="#000" stroke-width="3.2" stroke-linecap="butt"/>
+<text x="667.5" y="463.4" font-size="6.5" text-anchor="middle" font-weight="normal" fill="#000" class="h">back aisle closed</text>
+<text x="671.0" y="423.5" font-size="6.5" text-anchor="middle" font-weight="normal" fill="#000" class="h">aisle 2 closed</text>
+<text x="804.0" y="427.0" font-size="6.5" text-anchor="middle" font-weight="normal" fill="#000" class="h">east lane closed</text>
+<path d="M806.5 363.4L814.5 367.4L814.5 359.4Z" fill="#fff" stroke="#000" stroke-width="1"/>
+<path d="M711.3 344.8L715.3 336.8L707.3 336.8Z" fill="#fff" stroke="#000" stroke-width="1"/>
+<path d="M576.8 411.0L568.8 407.0L568.8 415.0Z" fill="#fff" stroke="#000" stroke-width="1"/>
+<rect x="588.4" y="408.2" width="11.2" height="5.6" fill="#999" stroke="#000" stroke-width="0.6"/>
+<line x1="594" y1="401.2" x2="594.0" y2="412.2" stroke="#000" stroke-width="1.6"/>
+<circle cx="594" cy="401.2" r="4" fill="#000" stroke="#000" stroke-width="1.2"/>
+<line x1="594" y1="420.8" x2="594.0" y2="409.8" stroke="#000" stroke-width="1.6"/>
+<circle cx="594" cy="420.8" r="4" fill="#000" stroke="#000" stroke-width="1.2"/>
+<path d="M569.5 362L576.5 369M576.5 362L569.5 369" stroke="#000" stroke-width="1.8"/>
+<text x="580.5" y="368.5" font-size="6.5" text-anchor="start" font-weight="normal" fill="#000" class="h">kettle break removed</text>
+<ellipse cx="640.2" cy="387.2" rx="6" ry="3.6" fill="#fff" stroke="#000" stroke-width="1"/><circle cx="640.2" cy="387.2" r="1.8" fill="#000"/>
+<path d="M755 548.2 L757.8 526.5 L750.1 506.2 L751.5 477.5 L738.2 462.1 L711.3 455.8 L711.3 372.5 L664 363.4 L622 363.4 L610.8 384.4 L603.8 399.8 L570.2 408.2" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M725.6 351.5L732.6 358.5L725.6 365.5L718.6 358.5Z" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<text x="725.6" y="375.5" font-size="8.5" text-anchor="middle" font-weight="bold" class="h">60 s loop</text>
+<path d="M617.8 415.2L624.8 422.2L617.8 429.2L610.8 422.2Z" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<text x="617.8" y="439.2" font-size="8.5" text-anchor="middle" font-weight="bold" class="h">1.5 s</text>
+<rect x="765.3" y="524.8" width="73.4" height="15" rx="7" fill="#000"/>
+<text x="802" y="536" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">8 CAMERA LOOP</text>
+<rect x="551.0" y="435.2" width="100.0" height="15" rx="7" fill="#000"/>
+<text x="601" y="446.4" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">10 SYNCED TAKEDOWN</text>
+<line x1="741" y1="474.6" x2="762" y2="474.6" stroke="#000" stroke-width="3" stroke-dasharray="3 1.5"/>
+<text x="765" y="497" font-size="6.5" text-anchor="start" font-weight="normal" fill="#000" class="h">lift grille on a chain</text>
+<rect x="768.0" y="457.0" width="68.0" height="15" rx="7" fill="#000"/>
+<text x="802" y="468.2" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">9 DEADWEIGHT</text>
+<line x1="440" y1="474" x2="440" y2="411" stroke="#000" stroke-width="2.4" stroke-linecap="butt"/>
+<line x1="440" y1="369" x2="440" y2="306" stroke="#000" stroke-width="2.4" stroke-linecap="butt"/>
+<line x1="438.9" y1="411" x2="438.9" y2="369" stroke="#000" stroke-width="0.8" stroke-linecap="butt" stroke-dasharray="1.5 1.5"/>
+<line x1="441.1" y1="411" x2="441.1" y2="369" stroke="#000" stroke-width="0.8" stroke-linecap="butt" stroke-dasharray="1.5 1.5"/>
+<text x="442.8" y="364.8" font-size="6.8" text-anchor="start" font-weight="normal" fill="#000" class="h">beam gateway 6 m</text>
+<rect x="478.5" y="306" width="24.5" height="168.0" fill="#f3f3f3" stroke="#000" stroke-width="0.9" stroke-dasharray="3 2"/>
+<text x="491" y="440" font-size="6.8" text-anchor="middle" font-weight="normal" fill="#000" class="h" transform="rotate(-90 491 440)">open cable trench 3.5 m</text>
+<line x1="517" y1="306" x2="517" y2="474" stroke="#000" stroke-width="2.4" stroke-linecap="butt"/>
+<rect x="517" y="390" width="7.0" height="42.0" fill="#f3f3f3" stroke="#000" stroke-width="0.9" stroke-dasharray="3 2"/>
+<text x="513" y="370" font-size="6.5" text-anchor="middle" font-weight="normal" fill="#000" class="h" transform="rotate(-90 513 370)">6 m wall, ladder inside</text>
+<rect x="452.0" y="411" width="15.4" height="25.2" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<text x="459.7" y="444.4" font-size="6.5" text-anchor="middle" font-weight="normal" fill="#000" class="h">drums</text>
+<rect x="328" y="436.9" width="42.0" height="35.0" fill="#f0f0f0" stroke="#000" stroke-width="0.7"/>
+<rect x="336.8" y="445.7" width="24.5" height="17.5" fill="#cfcfcf" stroke="#000" stroke-width="0.6"/>
+<rect x="384" y="323.5" width="42.0" height="35.0" fill="#f0f0f0" stroke="#000" stroke-width="0.7"/>
+<rect x="392.8" y="332.3" width="24.5" height="17.5" fill="#cfcfcf" stroke="#000" stroke-width="0.6"/>
+<text x="405.0" y="344.0" font-size="6.5" text-anchor="middle" font-weight="normal" fill="#000" class="h">pen 2</text>
+<rect x="315.8" y="320" width="40.3" height="70.0" fill="url(#hatch)" stroke="#000" stroke-width="0.8"/>
+<text x="335.9" y="358.0" font-size="6" text-anchor="middle" font-weight="bold" fill="#000" class="h">switchroom LOCKED</text>
+<rect x="357.1" y="307.8" width="81.9" height="8.0" fill="url(#hatch)" stroke="#000" stroke-width="0.8"/>
+<text x="398.0" y="316.6" font-size="6.3" text-anchor="middle" font-weight="normal" fill="#000" class="h">cable trench closed</text>
+<rect x="361.3" y="408.2" width="3.5" height="5.6" fill="#000" stroke="#000" stroke-width="0.8"/>
+<text x="363.0" y="424.2" font-size="6.8" text-anchor="middle" font-weight="normal" fill="#000" class="h">release kiosk</text>
+<path d="M332 388.1L338 394.1M338 388.1L332 394.1" stroke="#000" stroke-width="1.8"/>
+<text x="321.0" y="406.0" font-size="6.3" text-anchor="start" font-weight="normal" fill="#000" class="h">beam panel out of jam reach</text>
+<path d="M345.5 392.8L394.5 379.5L394.5 427.8Z" fill="none" stroke="#000" stroke-width="0.6" stroke-dasharray="2 2"/>
+<circle cx="345.5" cy="392.8" r="2.6" fill="#fff" stroke="#000" stroke-width="0.9"/>
+<path d="M340.5 392.8H342M349 392.8H350.5M345.5 387.8V389.3M345.5 396.3V397.8" stroke="#000" stroke-width="0.8"/>
+<text x="349.2" y="399.8" font-size="6.5" text-anchor="start" font-weight="normal" fill="#000" class="h">flood</text>
+<path d="M369.3 408.2 L323.1 425 L363 399.8 L429.5 378.8 L369.3 408.2" fill="none" stroke="#000" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="1 2.4" opacity="1"/>
+<line x1="369.3" y1="404.7" x2="358.3" y2="404.7" stroke="#000" stroke-width="1.6"/>
+<circle cx="369.3" cy="404.7" r="4" fill="#000" stroke="#000" stroke-width="1.2"/>
+<ellipse cx="423.2" cy="371.8" rx="6" ry="3.6" fill="#fff" stroke="#000" stroke-width="1"/><circle cx="423.2" cy="371.8" r="1.8" fill="#000"/>
+<path d="M521.2 411 L496 400.5 L455.4 390" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M449.8 390Q437.2 368 426.7 390" fill="none" stroke="#000" stroke-width="2.2" marker-end="url(#arr)"/>
+<path d="M423.2 392.8 L387.5 402.6 L368.6 409.6 L387.5 362 L405 308.8" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M451.2 395.6 L426 399.8" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="4 3" marker-end="url(#arrs)" opacity="1"/>
+<path d="M392.4 413.8L399.4 420.8L392.4 427.8L385.4 420.8Z" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<text x="392.4" y="437.8" font-size="8.5" text-anchor="middle" font-weight="bold" class="h">9 s jam</text>
+<path d="M500 397 Q490.8 378 481.5 394" fill="none" stroke="#000" stroke-width="2.2" marker-end="url(#arr)"/>
+<rect x="430.0" y="374.5" width="46.0" height="15" rx="7" fill="#000"/>
+<text x="453" y="385.7" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">13 THROW</text>
+<rect x="468.0" y="322.0" width="46.0" height="15" rx="7" fill="#000"/>
+<text x="491" y="333.2" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">12 SWING</text>
+<rect x="519.0" y="456.5" width="58.0" height="15" rx="7" fill="#000"/>
+<text x="548" y="467.7" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">11 CHIMNEY</text>
+<rect x="371.4" y="236" width="67.2" height="26.3" fill="#f6f6f6" stroke="#000" stroke-width="0.7"/>
+<line x1="379.8" y1="236" x2="430.2" y2="236" stroke="#000" stroke-width="2" stroke-linecap="butt"/>
+<text x="405.0" y="254.2" font-size="6.5" text-anchor="middle" font-weight="normal" fill="#000" class="h">sump (re-lamped)</text>
+<circle cx="405" cy="247.2" r="2.6" fill="#000" stroke="#000" stroke-width="0.9"/>
+<path d="M400 247.2H401.5M408.5 247.2H410M405 242.2V243.7M405 250.7V252.2" stroke="#000" stroke-width="0.8"/>
+<circle cx="454" cy="215" r="8.4" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<circle cx="426" cy="215" r="8.4" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<circle cx="356" cy="215" r="8.4" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="316.1" y="139.6" width="109.9" height="15.2" fill="url(#upper)" stroke="#000" stroke-width="0.8"/>
+<rect x="377" y="154.8" width="35.0" height="56.0" fill="url(#upper)" stroke="#000" stroke-width="0.8"/>
+<rect x="379.8" y="178.6" width="29.4" height="29.4" fill="none" stroke="#000" stroke-width="1.1"/>
+<text x="394.5" y="206.8" font-size="6.3" text-anchor="middle" font-weight="normal" fill="#000" class="h">drive pit (sunk)</text>
+<line x1="319.6" y1="154.8" x2="351.1" y2="154.8" stroke="#000" stroke-width="2.2" stroke-linecap="butt" stroke-dasharray="3 1.5"/>
+<text x="318.2" y="166.7" font-size="6.3" text-anchor="start" font-weight="normal" fill="#000" class="h">edge gate self-closes</text>
+<circle cx="328" cy="147.1" r="2.6" fill="#000" stroke="#000" stroke-width="0.9"/>
+<path d="M323 147.1H324.5M331.5 147.1H333M328 142.1V143.6M328 150.6V152.1" stroke="#000" stroke-width="0.8"/>
+<rect x="426" y="140.1" width="53.9" height="11.9" fill="url(#hatch)" stroke="#000" stroke-width="0.8"/>
+<text x="452.6" y="148.4" font-size="6.3" text-anchor="middle" font-weight="bold" fill="#000" class="h">stair CLOSED</text>
+<rect x="458.2" y="177.2" width="12.6" height="5.6" fill="#999" stroke="#000" stroke-width="0.6"/>
+<path d="M464.5 172.3 L454 173 L440 200.3 L413.4 201.7 L413.4 213.6 L371.4 215 L413.4 213.6 L413.4 201.7 L454 173" fill="none" stroke="#000" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="1 2.4" opacity="1"/>
+<line x1="464.5" y1="172.3" x2="464.5" y2="183.3" stroke="#000" stroke-width="1.6"/>
+<circle cx="464.5" cy="172.3" r="4" fill="#000" stroke="#000" stroke-width="1.2"/>
+<ellipse cx="391" cy="243.7" rx="6" ry="3.6" fill="#fff" stroke="#000" stroke-width="1"/><circle cx="391" cy="243.7" r="1.8" fill="#000"/>
+<rect x="392.4" y="185.6" width="4.2" height="4.2" fill="#000" stroke="#000" stroke-width="0.8"/>
+<path d="M405 261.9 L394.5 241.6 L378.4 231.8 L345.5 194 L335.7 160.4" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M335.7 147.8 L373.5 147.1 L394.5 157.6 L394.5 180.7" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M409.2 199 L440 203.5 L478.5 207" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<line x1="306" y1="193.5" x2="379.8" y2="193.5" stroke="#000" stroke-width="0.8"/>
+<rect x="238.0" y="186.0" width="68.0" height="15" rx="7" fill="#000"/>
+<text x="272" y="197.2" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">16 DROP CATCH</text>
+<text x="238" y="211" font-size="6.8" text-anchor="start" font-weight="normal" fill="#000" class="h">the holder drops 6 m from the bridge</text>
+<text x="238" y="220" font-size="6.8" text-anchor="start" font-weight="normal" fill="#000" class="h">into the pit, caught by the hanger</text>
+<rect x="329.6" y="166.4" width="35.6" height="15" rx="7" fill="#000"/>
+<text x="347.4" y="177.6" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">14 ROPE</text>
+<rect x="393.2" y="150.8" width="62.6" height="15" rx="7" fill="#000"/>
+<text x="424.5" y="162" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">15 HANG-DOWN</text>
+<rect x="525.8" y="181.1" width="39.2" height="69.3" fill="#fafafa" stroke="#000" stroke-width="0.8"/>
+<rect x="524" y="138" width="42.0" height="42.0" fill="#e2e2e2" stroke="#999" stroke-width="0.6"/>
+<line x1="566" y1="250" x2="566" y2="180" stroke="#000" stroke-width="1" stroke-linecap="butt"/>
+<line x1="567.8" y1="250" x2="567.8" y2="180" stroke="#000" stroke-width="1" stroke-linecap="butt"/>
+<text x="545.0" y="196.8" font-size="7" text-anchor="middle" font-weight="normal" fill="#000" class="h">lobby</text>
+<text x="570.2" y="175.8" font-size="6.3" text-anchor="start" font-weight="normal" fill="#000" class="h">glazed screen (new)</text>
+<rect x="585.6" y="222" width="29.4" height="8.4" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="636" y="222.3" width="67.2" height="8.1" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="585.6" y="192.6" width="29.4" height="8.4" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="585.6" y="163.2" width="29.4" height="8.4" fill="#d6d6d6" stroke="#000" stroke-width="0.7"/>
+<rect x="636" y="180" width="70.0" height="42.0" fill="none" stroke="#000" stroke-width="1" stroke-dasharray="2.5 1.5"/>
+<rect x="666.8" y="196.1" width="8.4" height="24.5" fill="#999" stroke="#000" stroke-width="0.6"/>
+<text x="671.0" y="187.0" font-size="7" text-anchor="middle" font-weight="normal" fill="#000" class="h">cage</text>
+<rect x="706" y="166" width="28.0" height="84.3" fill="#fafafa" stroke="#000" stroke-width="0.8"/>
+<text x="720.0" y="173.0" font-size="7" text-anchor="middle" font-weight="normal" fill="#000" class="h">pod</text>
+<line x1="525.8" y1="252.5" x2="732.3" y2="252.5" stroke="#000" stroke-width="1" stroke-linecap="butt"/>
+<rect x="573.7" y="252.5" width="12.6" height="6.3" fill="#d6d6d6" stroke="#000" stroke-width="0.6"/>
+<rect x="622.7" y="252.5" width="12.6" height="6.3" fill="#d6d6d6" stroke="#000" stroke-width="0.6"/>
+<rect x="678.7" y="252.5" width="12.6" height="6.3" fill="#d6d6d6" stroke="#000" stroke-width="0.6"/>
+<rect x="636" y="259.1" width="42.0" height="16.8" fill="url(#hatch)" stroke="#000" stroke-width="0.6"/>
+<text x="657.0" y="272.5" font-size="6.3" text-anchor="middle" font-weight="normal" fill="#000" class="h">loud grating</text>
+<rect x="528.2" y="262.6" width="4.2" height="4.2" fill="#000" stroke="#000" stroke-width="0.8"/>
+<text x="533.8" y="264.3" font-size="6.3" text-anchor="start" font-weight="normal" fill="#000" class="h">rack-light panel</text>
+<rect x="633.2" y="209.4" width="4.2" height="4.2" fill="#000" stroke="#000" stroke-width="0.8"/>
+<rect x="704.6" y="209.4" width="4.2" height="4.2" fill="#000" stroke="#000" stroke-width="0.8"/>
+<path d="M637.4 149.2L643.4 142.5L635.6 140.5Z" fill="#fff" stroke="#000" stroke-width="1"/>
+<path d="M723.2 264.0L731.2 268.0L731.2 260.0Z" fill="#fff" stroke="#000" stroke-width="1"/>
+<path d="M624.8 217.8 L624.8 240.2 L576.5 240.2 L576.5 182.1 L624.8 182.1 L624.8 217.8" fill="none" stroke="#000" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="1 2.4" opacity="1"/>
+<line x1="624.8" y1="215.7" x2="635.8" y2="215.7" stroke="#000" stroke-width="1.6"/>
+<circle cx="624.8" cy="215.7" r="4" fill="#000" stroke="#000" stroke-width="1.2"/>
+<ellipse cx="560.4" cy="211.5" rx="6" ry="3.6" fill="#fff" stroke="#000" stroke-width="1"/><circle cx="560.4" cy="211.5" r="1.8" fill="#000"/>
+<path d="M521.2 208 L545 211.5 L569.5 211.5 L597.5 210.8 L630.4 211.5" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M545 216.4 L545 264 L699 264 L717.2 254.2 L711.6 213.6" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 3" marker-end="url(#arr)" opacity="1"/>
+<path d="M717.2 208 L724.2 219.2 L731.9 222" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M671 234.6L678 241.6L671 248.6L664 241.6Z" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<text x="671" y="258.6" font-size="8.5" text-anchor="middle" font-weight="bold" class="h">1.5 s sync</text>
+<rect x="561.9" y="146.8" width="105.8" height="15" rx="7" fill="#000"/>
+<text x="614.8" y="158" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">17 SPLIT + SYNC HACK</text>
+<rect x="777.8" y="97.8" width="193.2" height="19.3" fill="url(#upper)" stroke="#000" stroke-width="0.8"/>
+<rect x="777.8" y="117" width="19.3" height="133.0" fill="url(#upper)" stroke="#000" stroke-width="0.8"/>
+<line x1="797" y1="180" x2="797" y2="148.5" stroke="#000" stroke-width="2.2" stroke-linecap="butt" stroke-dasharray="3 1.5"/>
+<rect x="832" y="178.3" width="84.0" height="5.2" fill="#999" stroke="#000" stroke-width="0.6"/>
+<rect x="910.8" y="183.5" width="5.2" height="50.4" fill="#999" stroke="#000" stroke-width="0.6"/>
+<text x="874.0" y="189.8" font-size="6.8" text-anchor="middle" font-weight="normal" fill="#000" class="h">counters</text>
+<rect x="925.1" y="145.7" width="16.8" height="6.3" fill="#999" stroke="#000" stroke-width="0.6"/>
+<rect x="947.5" y="117" width="16.8" height="53.9" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="945.5" y="161.8" font-size="6.3" text-anchor="end" font-weight="normal" fill="#000" class="h">public stair 2.4 m (kept)</text>
+<rect x="972" y="96" width="70.0" height="46.2" fill="url(#upper)" stroke="#000" stroke-width="1"/>
+<line x1="972" y1="138" x2="972" y2="100.2" stroke="#000" stroke-width="1" stroke-linecap="butt" stroke-dasharray="1 1.4"/>
+<text x="1007.0" y="107.2" font-size="6.5" text-anchor="middle" font-weight="normal" fill="#000" class="h">security office (4.4 m)</text>
+<rect x="975.5" y="143.6" width="53.9" height="8.4" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<rect x="973.1" y="167.1" width="81.9" height="81.9" fill="#fafafa" stroke="#000" stroke-width="0.8"/>
+<line x1="1014" y1="248.6" x2="1014" y2="167.4" stroke="#000" stroke-width="1" stroke-linecap="butt" stroke-dasharray="1.5 1.5"/>
+<text x="1015.4" y="241.6" font-size="6.3" text-anchor="start" font-weight="normal" fill="#000" class="h">beam curtain</text>
+<rect x="1057.1" y="181.1" width="25.2" height="53.9" fill="#f0f0f0" stroke="#000" stroke-width="0.8"/>
+<text x="1070.0" y="191.2" font-size="6.5" text-anchor="middle" font-weight="normal" fill="#000" class="h">vault</text>
+<rect x="1112" y="187" width="37.8" height="42.0" fill="url(#hatch)" stroke="#000" stroke-width="0.6"/>
+<text x="1130.9" y="175.8" font-size="7" text-anchor="middle" font-weight="bold" fill="#000" class="h">exit</text>
+<line x1="972" y1="214.3" x2="972" y2="201.7" stroke="#000" stroke-width="3" stroke-linecap="butt"/>
+<text x="969.2" y="217.8" font-size="6.5" text-anchor="end" font-weight="normal" fill="#000" class="h">grille</text>
+<rect x="920.9" y="97.8" width="4.2" height="3.2" fill="#000" stroke="#000" stroke-width="0.8"/>
+<text x="916.0" y="107.2" font-size="6.5" text-anchor="end" font-weight="normal" fill="#000" class="h">board</text>
+<rect x="990.9" y="167.1" width="4.2" height="2.8" fill="#000" stroke="#000" stroke-width="0.8"/>
+<rect x="1052.1" y="222.7" width="2.8" height="4.2" fill="#000" stroke="#000" stroke-width="0.8"/>
+<circle cx="787.2" cy="229" r="2.6" fill="#000" stroke="#000" stroke-width="0.9"/>
+<path d="M782.2 229H783.7M790.7 229H792.2M787.2 224V225.5M787.2 232.5V234" stroke="#000" stroke-width="0.8"/>
+<circle cx="787.2" cy="180" r="2.6" fill="#000" stroke="#000" stroke-width="0.9"/>
+<path d="M782.2 180H783.7M790.7 180H792.2M787.2 175V176.5M787.2 183.5V185" stroke="#000" stroke-width="0.8"/>
+<circle cx="787.2" cy="131" r="2.6" fill="#000" stroke="#000" stroke-width="0.9"/>
+<path d="M782.2 131H783.7M790.7 131H792.2M787.2 126V127.5M787.2 134.5V136" stroke="#000" stroke-width="0.8"/>
+<text x="780.2" y="259.8" font-size="6.3" text-anchor="start" font-weight="normal" fill="#000" class="h">vestibule re-lit</text>
+<path d="M874.0 281.2L870.0 289.2L878.0 289.2Z" fill="#fff" stroke="#000" stroke-width="1"/>
+<path d="M965.5 124.6L967.1 133.4L973.5 128.6Z" fill="#fff" stroke="#000" stroke-width="1"/>
+<path d="M980.8 241.1L972.3 244.0L977.9 249.6Z" fill="#fff" stroke="#000" stroke-width="1"/>
+<line x1="933.5" y1="140.8" x2="933.5" y2="151.8" stroke="#000" stroke-width="1.6"/>
+<circle cx="933.5" cy="140.8" r="4" fill="#000" stroke="#000" stroke-width="1.2"/>
+<path d="M918.8 143.6 L941.2 176.5 L966.4 208 L951 232.5 L923 173.7 L918.8 143.6" fill="none" stroke="#000" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="1 2.4" opacity="1"/>
+<line x1="966.4" y1="205.2" x2="977.4" y2="205.2" stroke="#000" stroke-width="1.6"/>
+<circle cx="966.4" cy="205.2" r="4" fill="#000" stroke="#000" stroke-width="1.2"/>
+<line x1="1034.3" y1="119.1" x2="1045.3" y2="119.1" stroke="#000" stroke-width="1.6"/>
+<circle cx="1034.3" cy="119.1" r="4" fill="#000" stroke="#000" stroke-width="1.2"/>
+<ellipse cx="785.8" cy="190.5" rx="6" ry="3.6" fill="#fff" stroke="#000" stroke-width="1"/><circle cx="785.8" cy="190.5" r="1.8" fill="#000"/>
+<path d="M778.8 222 L790 197.5 L801.2 167.4" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M787.2 161.8 L787.2 107.2 L969.2 107.2 L1000 114.2 L1025.2 147.8 L980.4 149.2 L987.4 174.4" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M804 205.2 L846 192.6 L867 168.8 L902 122.6 L923 105.8 L958 152 L965.7 206.6 L997.2 208" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 3" marker-end="url(#arr)" opacity="1"/>
+<path d="M1005.6 208Q1016.8 188 1027.3 208" fill="none" stroke="#000" stroke-width="2.2" marker-end="url(#arr)"/>
+<path d="M1029.4 210.8 L1049 220.6 L1067.2 208 L1091 208 L1123.2 208" fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arr)" opacity="1"/>
+<path d="M892.2 140.8L899.2 147.8L892.2 154.8L885.2 147.8Z" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<text x="892.2" y="164.8" font-size="8.5" text-anchor="middle" font-weight="bold" class="h">25 s dark</text>
+<path d="M1035 178.6L1042 185.6L1035 192.6L1028 185.6Z" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<text x="1035" y="202.6" font-size="8.5" text-anchor="middle" font-weight="bold" class="h">60 s loop</text>
+<text x="825.0" y="259.8" font-size="7" text-anchor="start" font-weight="bold" fill="#000" class="h">side routes kept here only:</text>
+<text x="825.0" y="268.8" font-size="6.5" text-anchor="start" font-weight="normal" fill="#000" class="h">public stair, loop round the counters, ghost or take both</text>
+<rect x="833.0" y="211.2" width="68.0" height="15" rx="7" fill="#000"/>
+<text x="867" y="222.39999999999998" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="bold">18 GRADUATION</text>
+<path d="M1132 12L1139 36L1132 31L1125 36Z" fill="#000"/><text x="1132" y="50" font-size="11" text-anchor="middle" font-weight="bold">N</text>
+<rect x="954" y="64" width="35" height="5" fill="#000" stroke="#000" stroke-width="0.8"/>
+<rect x="989" y="64" width="35" height="5" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<rect x="1024" y="64" width="35" height="5" fill="#000" stroke="#000" stroke-width="0.8"/>
+<rect x="1059" y="64" width="35" height="5" fill="#fff" stroke="#000" stroke-width="0.8"/>
+<text x="954" y="79" font-size="8" text-anchor="middle">0</text>
+<text x="989" y="79" font-size="8" text-anchor="middle">5</text>
+<text x="1024" y="79" font-size="8" text-anchor="middle">10</text>
+<text x="1094" y="79" font-size="8" text-anchor="middle">20</text>
+<text x="1100" y="70" font-size="8">m</text>
+<text x="34" y="668" font-size="11" font-weight="bold">Key</text>
+<path d="M34 680H56" stroke="#000" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="64" y="683.5" font-size="9">The one forced route (both players)</text>
+<path d="M34 699H56" stroke="#000" stroke-width="2.2" stroke-dasharray="5 3" marker-end="url(#arr)"/>
+<text x="64" y="702.5" font-size="9">Second leg of a split (A7, A8)</text>
+<path d="M34 718H56" stroke="#000" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#arrs)"/>
+<text x="64" y="721.5" font-size="9">Partner's side trip (an isolator, the crawl)</text>
+<path d="M34 737H56" stroke="#000" stroke-width="0.8" stroke-dasharray="1 2.4"/>
+<text x="64" y="740.5" font-size="9">A guard's patrol round</text>
+<path d="M45 750V762" stroke="#000" stroke-width="3.2"/>
+<text x="64" y="759.5" font-size="9">Side route closed (pallets, gate, lock)</text>
+<rect x="34" y="769" width="22" height="12" fill="url(#hatch)" stroke="#000" stroke-width="0.8"/>
+<text x="64" y="778.5" font-size="9">Area closed (locked or screened off)</text>
+<line x1="335" y1="680" x2="346" y2="680" stroke="#000" stroke-width="1.6"/><circle cx="335" cy="680" r="4" fill="#000"/>
+<text x="354" y="683.5" font-size="9">Guard and where he faces</text>
+<circle cx="335" cy="699" r="4" fill="#fff" stroke="#000"/><path d="M331.5 695.5L338.5 702.5M338.5 695.5L331.5 702.5" stroke="#000" stroke-width="1.3"/>
+<text x="354" y="702.5" font-size="9">Guard removed</text>
+<circle cx="335" cy="718" r="4" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<text x="354" y="721.5" font-size="9">Seated role-player who cannot see or hear (A1)</text>
+<path d="M343 737L331 733L331 741Z" fill="#fff" stroke="#000"/>
+<text x="354" y="740.5" font-size="9">Camera (points where it looks)</text>
+<path d="M335 749L342 756L335 763L328 756Z" fill="#fff" stroke="#000" stroke-width="1.2"/>
+<text x="354" y="759.5" font-size="9">Timed drill and its limit (a miss retries in place)</text>
+<path d="M332 781L332 768L341 771L332 774" fill="#000" stroke="#000"/>
+<text x="354" y="778.5" font-size="9">Checkpoint (start and holding rooms L1-L7)</text>
+<ellipse cx="625" cy="680" rx="6" ry="3.6" fill="#fff" stroke="#000"/><circle cx="625" cy="680" r="1.8" fill="#000"/>
+<text x="644" y="683.5" font-size="9">Look-first spot (sees the guard, unseen)</text>
+<circle cx="625" cy="699" r="2.6" fill="#fff" stroke="#000" stroke-width="0.9"/><rect x="620.8" y="694.8" width="8.4" height="8.4" fill="none" stroke="#000" stroke-width="0.9"/>
+<text x="644" y="702.5" font-size="9">Lamp in a cage: cannot be shot (A2 neck)</text>
+<circle cx="625" cy="718" r="2.6" fill="#000" stroke="#000"/>
+<text x="644" y="721.5" font-size="9">Lamp added or re-lamped (no dead lamps)</text>
+<rect x="614" y="731" width="22" height="12" fill="url(#upper)" stroke="#000" stroke-width="0.8"/>
+<text x="644" y="740.5" font-size="9">Upper deck (gallery, bridge, office at 4.4 m)</text>
+<rect x="614" y="750" width="22" height="12" fill="#e9e9e9" stroke="#000" stroke-width="1.2"/>
+<text x="644" y="759.5" font-size="9">Holding room (quiet, no guard)</text>
+<rect x="614" y="769" width="22" height="12" rx="6" fill="#000"/>
+<text x="644" y="778.5" font-size="9">What the set teaches, in order</text>
+<rect x="34" y="788" width="22" height="12" fill="#f3f3f3" stroke="#000" stroke-width="0.9" stroke-dasharray="3 2"/>
+<text x="64" y="797.5" font-size="9">New, built later (pit, grille, wall gap, trench)</text>
+<text x="34" y="822" font-size="9.5">Teaching order: 1 boost up a wall, 2 human ladder, 3 hold a shutter, 4 timed light cut, 5 plank bridge, 6 vent unlock, 7 camera jam relay, 8 camera loop, 9 deadweight, 10 synced takedown, 11 chimney climb,</text>
+<text x="34" y="836" font-size="9.5">12 swing pass, 13 throw, 14 rope, 15 hang-down, 16 drop catch, then 17 split paths with a synced hack and 18 the graduation. Each co-op move is taught once, on its own, before the A7 split; only A8 keeps side routes.</text>
+<text x="34" y="850" font-size="9.5">Every lamp works: darkness comes only from cover, cut circuits and shot lamps. Every failure is a retry of that drill or station; nothing in Marlow Yard fails you or sends you back.</text>
+<text x="34" y="870" font-size="8.5" fill="#555">Positions are from the built sets or are the planned change, placed to the 0.5 m grid at build. Stations 5, 9, 11, 12 and 16 are the five new co-op moves: each opens when its move is built.</text>
+</svg>

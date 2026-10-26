@@ -428,3 +428,55 @@ describe('CMU output unchanged by the loader injection', () => {
     expect(JSON.stringify(AN.analyzeTake(e, { load: ASF.loadTake }))).toBe(JSON.stringify(AN.analyzeTake(e)));
   });
 });
+
+describe('(I7) take options: mirror and the measured travel heading', () => {
+  type Tk = { frames: number; pos: Map<string, V[]>; quat: Map<string, Q[]>; mirrored?: boolean };
+  const O = takeMod as {
+    mirrorTake: (t: Tk) => Tk;
+    travelHeading: (t: Tk, seg?: number[]) => { axis: string; headingDeg: number; offDeg: number; arcDeg: number; flags: string[] };
+  };
+  /** A take of `n` frames: the root along `path(i)`, the chest yawed by `chestYaw`, a left hand ahead of a right one. */
+  const tk = (n: number, path: (i: number) => V, chestYaw = 0): Tk => ({
+    frames: n,
+    pos: new Map([['root', Array.from({ length: n }, (_, i) => path(i))], ['lhand', Array.from({ length: n }, () => [-0.3, 1, 0.2])], ['rhand', Array.from({ length: n }, () => [0.3, 1, 0])]]),
+    quat: new Map([
+      ['thorax', Array.from({ length: n }, () => [0, Math.sin(chestYaw / 2), 0, Math.cos(chestYaw / 2)])],
+      ['lhand', Array.from({ length: n }, () => [0.1, 0.2, 0.3, Math.sqrt(1 - 0.14)])],
+      ['rhand', Array.from({ length: n }, () => [0, 0, 0, 1])],
+    ]),
+  });
+
+  it('mirror: x negated, left and right swapped, rotations reflected; twice gives the take back', () => {
+    const t = tk(3, (i) => [0.1 * i, 0.9, 0]);
+    const m = O.mirrorTake(t);
+    expect(m.mirrored).toBe(true);
+    expect(m.pos.get('root')![2]).toEqual([-0.2, 0.9, 0]);
+    expect(m.pos.get('rhand')![0]).toEqual([0.3, 1, 0.2]); // the left hand, now on the right
+    expect(m.quat.get('rhand')![0]).toEqual([0.1, -0.2, -0.3, Math.sqrt(1 - 0.14)]);
+    expect(t.pos.get('lhand')![0]).toEqual([-0.3, 1, 0.2]); // the input untouched
+    const back = O.mirrorTake(m);
+    for (const s of ['root', 'lhand', 'rhand']) {
+      expect(back.pos.get(s)).toEqual(t.pos.get(s));
+      expect(back.quat.get(s) ?? null).toEqual(t.quat.get(s) ?? null);
+    }
+  });
+
+  it('travel heading: the nearest axis, diagonals and arcs flagged, a chest facing away reverses it', () => {
+    const n = 121;
+    expect(O.travelHeading(tk(n, (i) => [0, 0.9, i / 100]))).toMatchObject({ axis: 'z', headingDeg: 0, flags: [] });
+    expect(O.travelHeading(tk(n, (i) => [i / 100, 0.9, 0])).axis).toBe('+x');
+    expect(O.travelHeading(tk(n, (i) => [-i / 100, 0.9, 0])).axis).toBe('-x');
+    expect(O.travelHeading(tk(n, (i) => [0, 0.9, -i / 100]))).toMatchObject({ axis: '-z', headingDeg: 180 });
+    // 40 deg right of forward: z, flagged as a diagonal; a 45 deg tie goes to z
+    const d = O.travelHeading(tk(n, (i) => [Math.sin(0.698) * i / 100, 0.9, Math.cos(0.698) * i / 100]));
+    expect(d).toMatchObject({ axis: 'z', flags: ['diagonal'] });
+    expect(d.offDeg).toBeCloseTo(40, 0);
+    expect(O.travelHeading(tk(n, (i) => [-i / 100, 0.9, i / 100])).axis).toBe('z');
+    // a quarter circle: the halves' headings differ by about 45 deg
+    const arc = O.travelHeading(tk(n, (i) => { const a = (Math.PI / 2) * (i / (n - 1)); return [1 - Math.cos(a), 0.9, Math.sin(a)]; }));
+    expect(arc.flags).toContain('arc');
+    expect(arc.arcDeg).toBeCloseTo(45, 0);
+    // the chest faces back (a take facing away from its rest facing): -z travel is forward for the body
+    expect(O.travelHeading(tk(n, (i) => [0, 0.9, -i / 100], Math.PI)).axis).toBe('z');
+  });
+});

@@ -117,7 +117,7 @@ function fakeGame(v: TakedownVictim, net: Partial<NetAttachment> | null): { g: G
     spottedLocal: true,
     wallCore: null,
     traversal: { attached: false, hintWindow: null, reset: () => undefined },
-    ballistics: { ray: () => ({ hit: false, distance: 0 }) },
+    ballistics: { ray: () => ({ hit: false, distance: 0 }), hitDistance: () => 100 },
     target: { health: { hp: 100 } },
     events: { emit: (_n: string, e: { phase: string; kind: string }) => events.push({ phase: e.phase, kind: e.kind }) },
     enemyMgr: null,
