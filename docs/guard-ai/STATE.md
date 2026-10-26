@@ -1016,7 +1016,7 @@ down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); light
 fixed timeline data (Sector Ops SO5), guards just read the light.
 STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano guard work (#624) moves, at most 2
 builders; 00:59 pace: up to 2 agents, piano first.
-Open (2026-10-27 ~08:00 SAVE, no agents until the orchestrator's resume after 08:50; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
+Open (2026-10-27 ~08:55, new window to ~13:50, 1 agent; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
      4bb733e14 committed ad3c1afd9 (A FIX 2: watch deaf in cooldown / caution, deck sweep leaves his storey; B PASS).
@@ -1047,8 +1047,7 @@ G2; 5 = carried-body shadow hand-off to Player, sent to the orchestrator). G1 + 
 (slices/G1-G2-CHECK.md; polish 1-6, item 4 = 16-bit owner keys into the G3 brief). PR 1 checked (G3 check A FIX -> fix round; check B FIX 2 -> fix round 2 54cc1b8f8 -> re-check PASS
 d808f062b). #669 (part 1) and #670 (part 2, G3) MERGED (08:45; dark, inert until PR 2 sets chars / cues). PR 2 (G4 gameState wiring) HELD until after Michael's walk and #665.
 PR 2 built 6a203cbba (G4a / G4b / G6 + slices/G5-BRIEF.md,
-+236 counted lines; its Opus checker was stopped at 08:00 for the meter: rerun it after the
-08:50 resume -> slices/PR2-CHECK.md; brief = check flag-off, G4a fill / set-once across restarts, G4b, the /preview/
++236 counted lines; Opus checker RERUN RUNNING (08:55) -> slices/PR2-CHECK.md; brief = check flag-off, G4a fill / set-once across restarts, G4b, the /preview/
 e2e-stealth-ai risk (cue live where the main page sets no charlight), the G5 brief, ai.md), branch feature/guard-ai-j16-2 (worktree -guard-ai-j16-2) stacked on #670 with Sector Ops #665's branch
 merged in locally -> slices/PR2-REPORT.md; then checker; PR after #669 / #670 / #665 merge.
 S3b-2 = Sector Ops PR #665 (GameState.shadowCues,
