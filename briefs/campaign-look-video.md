@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-26T02:39:59Z
+status: done feature/look-video 8a67136d33c3671108c5fe9a871693e5adfa1b74
 
 # campaign look-video: a look-video recorder for map walk videos (Sonnet)
 Owner: Campaign Build. Lead: Night Shift | Campaign Build. Released 2026-10-26 ~13:45. Gate item of the PR C split
@@ -51,3 +51,39 @@ real run is a PC run on the laptop queue ("pending PC run").
    `npx tsc --noEmit -p tsconfig.json`. Commit each step on the branch, push.
 7. Report at the end of this file (files, tests with counts, any hook you could not find, deviations), then line 1 =
    `status: done feature/look-video <sha>`.
+
+## Report (Night Shift | Cloud Builder 3, 2026-10-26)
+- Branch `feature/look-video` from 29f03b6c, pushed. Commits `c07e07ca` (script, plan, test), `8a67136d` (docs, fragment).
+  5 files, +371 / -2.
+- `scripts/look-video.mjs` (180 lines): exports `parseLookPlan(json, only)` -> `[{ key, seconds, path }]` (rejects bad
+  points, unknown sections, a first time not 0, a path longer than `seconds`), `pathAt(path, t)` (linear, clamped; a 0 s
+  segment is a cut), `pathSeconds(path)`. Main guard (`import.meta.url` vs argv[1]): importing starts nothing (checked).
+  Main: sector-lights-shots' serve / verify / stop pattern; per section `launch(..., viewport 1280x720, context:
+  { recordVideo: { dir: <out>/tmp-<key>, size 1280x720 } })`, `waitForFunction(__app.current.player && world)`,
+  `waitOperator`, then e2e-darkness' freeze (`vision.set('off')`, `photoFreeze(true)`, `photo-mode`, the player rig
+  hidden), `photoCamera()` on the first point, `scene.isReady()` wait, then one in-page rAF loop flies the path (the same
+  `pathAt` source runs in the page) for `seconds` of wall time; `ctx.close()`, the video moved to `<out>/<key>.webm`, tmp
+  removed. `GFX` env (default epic) as sector-lights-shots.
+- `scripts/look-video/tallowWharf.json`: the brief's params; w1-w4, `seconds` 75, 10 points each (path times 74 / 71 / 70
+  / 75 s), eye height 1.6-3 m, one high view each (W1 gallery deck 6.3, W2 arcade roof 10.2, W3 counting house roof
+  10.2-10.6 looking down into the coal yard, W4 over the crane gantry 12.8: above its 2.2 m drop-guard screens). Points
+  from tallowWharfW1-W4.ts / Kit on origin/feature/mission-engine: every segment checked by hand against the solids it
+  passes (doors and the fish-hall arch crossed at their openings, below their heights); where a straight line would cross
+  a wall or the W4 closed sliding loading door, the path cuts (0 s segment) instead.
+- `tests/lookVideo.test.ts`: 12 passed (parser: order / picks, unknown section, bad points, bad plans; pathAt: total, at 0
+  and before, at a point, between, a cut, past the end; Tallow: W1-W4 at 75 s with 6-10 points and the brief's params,
+  every camera and target inside WHARF_BOUNDS (hard-coded from tallowWharfKit.ts:20, named in the test) and every camera in
+  its SECTION_BOX (:27-32), one high view and eye height otherwise). `node --check` OK, eslint clean (the .mjs is
+  eslint-ignored by the repo config), `tsc --noEmit` clean, changesFragments 1 passed, doc-lint 0 errors.
+- Hooks: none missing; only `__app.current` (`photoFreeze`, `photoCamera`, `vision`, `player.rig`, `scene`) and
+  `waitOperator`, all used by sector-lights-shots / e2e-darkness.
+- Deviations: (1) the video also holds the boot (Playwright records from the page's start): each section writes
+  `<key>.json` `{ start, seconds }` and prints "the flight starts N s into the video"; trimming needs ffmpeg, not added.
+  (2) A plan point's `s` of 0 after the first is a cut (needed to avoid flying through walls); `seconds` must cover the path
+  and the camera holds the last view for the rest. (3) testing-tools.md sat exactly on its 720-line doc-lint budget: the
+  entry is one line and the soak bullet's two lines were joined into one (same words) to stay at 720. (4) Commit trailer is
+  the Opus one (the session's model), not the brief's Sonnet one.
+- Pending PC run: `npm run build` on a branch with the Tallow map, then
+  `E2E_GPU=1 E2E_PORT=4189 timeout 1800 node scripts/look-video.mjs <dir> scripts/look-video/tallowWharf.json`; check each
+  video for clipping (camera inside a solid) and that the views read; the params assume `missions=1&coopkit=1&mission=
+  threeGreyCoats` boot Tallow in sector mode as the brief says (not verifiable from master).
