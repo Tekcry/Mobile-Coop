@@ -123,11 +123,12 @@ function build(b: LevelBuilder): void {
   doorIn(b, false, 72, 8, 0);
   bx(b, 76, 86.75, 0, 1.1, 6.0, 6.1, C.rail);
   bx(b, 89.25, 100, 0, 1.1, 6.0, 6.1, C.rail);
-  // the crane's red aviation lamp sits on a jib box over the jetty (off the gantry)
-  bx(b, 86, 90, 11.6, 11.9, 4.7, 5.3, C.steel);
+  // the crane's red aviation lamp sits on a jib box over the jetty (off the gantry), raised so the W3 roof sees it (O20)
+  bx(b, 86, 90, 13.6, 13.9, 4.7, 5.3, C.steel);
 
   // ---- the boat and the gangway (jetty steps: one element, both links) ----
   bx(b, 84, 96, Y.canalBed, Y.boat, 1, 5, C.hull);
+  bx(b, 89.95, 90.05, Y.boat, 2.9, 2.95, 3.05, C.steel, false); // the launch's mast (visual), under its masthead light
   bx(b, 86.75, 89.25, Y.canalBed, Y.boat, 5, 6, C.hull); // the steps' solid body down to the bed
   const st = stairSteps(1);
   const i0 = b.boxes.length;
