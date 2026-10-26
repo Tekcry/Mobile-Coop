@@ -1052,7 +1052,12 @@ orchestrator 09:20: charlight=0 on e2e-stealth-ai's main page YES (in G5), telep
 passed to Sector Ops, G5 built 13c844815 (shadowCue block on its own charlight=1 page; charlight=0 on the main page):
 G5 check PASS d7fc1f6d5 (fixed the spot pick: walkable cells, snapped spot; second page closed).
 Laptop e2e-stealth-ai: set j16-g5 on 13c844815 FAILED (shadowCue "0 candidates": no lamp footprint
->= 0.5 contrast / 4 m; every other scenario passed): Opus triage RUNNING -> slices/G5-TRIAGE.md; set j16-g5b on d7fc1f6d5
+>= 0.5 contrast / 4 m; every other scenario passed; d7fc1f6d5 same). Triage 61c7d045b (G5-TRIAGE.md):
+test-design bug: hall lamps ~5 m give shadows whose bright points are all within ~1.5 m of the feet, so no spot exists
+on the warehouse page; pick loosened + instrumented; instrumented run queued (set j16-g5c) to confirm with numbers.
+Then (lead's call, orchestrator told): move the cue page to ctcourse (lamp 47: 0.61 at 5.1 m) + charlight=0 control.
+DESIGN FINDING sent to the orchestrator for Michael: the cue rarely fires on its own at today's lamp heights; options
+keep / loosen / judge on a walk (recommended: walk); set j16-g5b on d7fc1f6d5
 (the real verdict; read its "arcs shown max" line: if the arc shows, assert it). Sector Ops' teleport fix = #686;
 G5's 0.3 s step after a teleport is kept (harmless, also settles the guard spawn); brief = check flag-off, G4a fill / set-once across restarts, G4b, the /preview/
 e2e-stealth-ai risk (cue live where the main page sets no charlight), the G5 brief, ai.md), branch feature/guard-ai-j16-2 (worktree -guard-ai-j16-2) stacked on #670 with Sector Ops #665's branch
