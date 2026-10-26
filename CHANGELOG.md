@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.119.1 - Train 136: Marlow Yard re-plan: geometry for the plank and swing kit moves (2026-10-26, PR #613; #608)
+- Marlow Yard re-plan: geometry for the plank and swing kit moves (#608)
+
 ## 4.119.0 - Train 135: Lookouts and dog release (2026-10-26, PR #609; #595)
 - (dark, `?lookouts=1`) Lookouts: a guard on a lookout post (first: the Saltmarsh Park S5 roof marksman) never leaves
   his perch. A noise only turns him within a metre of it; when he glimpses you he radios it in and the best-placed calm
