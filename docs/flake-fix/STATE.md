@@ -3,6 +3,16 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 69 (2026-10-26 ~18:45, session [627e4d]; wins over SAVE 68):**
+- Orchestrator 18:10 priority after failed trains 125 / 127: all three items built and checked.
+- #572 (-11, affected cap 1): master merged (f16088b9, describe() keeps F34 note + F35 slow room), checker posted,
+  train-ready. If #552 ships first, merge master again (same lib / service files).
+- #586 (-13, F44 auto-drop members from `git log --first-parent --merges`): Opus checker PASS, train-ready.
+- #587 (-14, stacked on #572: F48 one automatic quarantine list, F46 claim-time withdraw of closed / stale / red-CI
+  PR requests (pins exempt), gh TLS retry): Opus checker PASS after 1 fix round on dacdbb30. Orchestrator labels.
+- #570 (-10b, Player): CI test red (laptopQueueVisual E2E_SUITE_TIMEOUT '900'); conflicts with #572 / #587, small.
+- Next: watch the batch train; re-merge #572 / #587 if a sibling ships first; check #570's new head when Player pushes.
+
 **Test Runner SAVE 68 (2026-10-26 ~17:15, new session [627e4d] at boot; wins over SAVE 67):**
 - Service healthy (task running, pid 60760), 0 trains / 0 requests, no heavy locks, ports 4189 / 4192 free.
 - Train 125 failed on e2e-ctcourse 5-8 (cause #574, already dropped by the Orchestrator; no triage needed).
