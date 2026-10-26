@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-26T01:18Z
+status: done feature/tallow-fixes-g4 06c1bc4a6db659e1d30a95d61585372d3c3238fa
 
 # campaign J8 G4 (cloud copy of docs/tallow-fixes/briefs/G4.md on the base)
 
@@ -178,3 +178,51 @@ builds to: E4 `w4-jetty>w4-canal-ledge` (`drop`, `level_change` 4.4, `time_s` 3,
 re-measures from the build. E8 needs nothing new from W4: the jetty pull (`W4_PULL`) is unchanged.
 
 ## Report (append below)
+
+### Report (Night Shift | Cloud Builder 1, 2026-10-26 ~01:50Z; branch feature/tallow-fixes-g4, head 06c1bc4a)
+Cut from c648c5d8. Diff: `src/world/maps/tallowWharfW4.ts`, `tests/tallowWharf/w4.test.ts` only (2 files, +495 / -39).
+
+**Commits:** d9288056 lights (step 1); 97e0429e jib and mast (2); 52a15b2d conduits (3); 02801f84 cover (4); 5f41478b hide spots,
+medkit, look-out bay, vantages, jetty drop point, header and `w4-gantry` deviation text (5-9); 06c1bc4a tests (10). The map steps
+were pushed before the tests, in the brief's order, so 52a15b2d-5f41478b carry the old light / exports tests (red until 06c1bc4a).
+
+**Built as the brief says:** the 18 lamps (91 x4, 92, 93 x3, 94 x3, 95 x4, 96, 97 at (88, 14, 5), 98 masthead), no `on: false`,
+no "stays dark"; jib box y 13.6-13.9; the visual mast; `W4_CONDUITS` (7 runs, 34 legs, `conduit(b, pts)`); the seven cover boxes;
+six hide spots; the medkit (95.0, 0, 33.85) yaw PI; the bay x 50-54 in `w4-dg-gantry-n` closed by `b.glass(50, 19, 54, 19, 2.2,
+10, 'clear')`; debug points `w4-jetty-drop` and the four vantages at the brief's spots and yaws.
+
+**Measured (all from the tests' console lines):**
+- Levels (`levelAt`, cones read through): shed three floor 1.000, west 0.837, candle chest 1.000; shed two mid 0.140; yard centre
+  0.756; jetty at the loading door 1.000; canal ledge 0.281; back lane checkpoint 0.244; clerestory spot 0.244; gantry 0.244 (also
+  0.244 with every W4 lamp counted). All equal fix round 1's replica.
+- Vantages (all W4 lamps): yard-a 0.244, yard-b 0.244, shed-a 0.250, shed-b 0.244. No guard post or route point within 6 m on the
+  floor band.
+- Crane line from the W3 roof eye (90, 10.0, 66) to (88, 14, 5): no collide piece; 0.318 m over the W3 coal-yard drop guard (10.6).
+- The drop: off (74, 0, 6.0) a body lands on the bed at -4.4 (6.0 m on plan to the jetty face, a 4.4 m drop); the bed is clear and
+  continuous (74, 5.6) -> (74, 4.5) -> (71.5, 4.5) -> (68, 4.5); the open edge x 72.2-75.9 has no collide piece to 1.1 m;
+  `soloJumpThreats` [] for the whole edge; no ledge of any height within 0.5 m of the edge or the rail's west end.
+- Takedown spot -> nearest hide spot: 1.50, 6.28, 4.81, 3.57, 3.50, 1.70, 2.06, 4.75, 1.21, 2.69, 2.06, 2.09 m (the brief's).
+- Medkit 5.3 m from the checkpoint, 12.7 m from the nearest guard point (the foreman's (85, 26)).
+
+**Does `soloNav` walk drops? No, and the canal bed is not on the guards' nav at all.** The runtime nav casts down only to y -2
+(`src/ai/navBuild.ts` `buildNavGrid`: `to.set(x, -2, z)`; the test helper `runtimeNav` copies it: `len = y + 2`), so no cell exists
+at -4.4 and a nav seed on the bed does nothing (probed: 0 bed cells with and without (68, -4.4, 4.5)). **No nav seed added.** The
+"bed does not reach the jetty" case is written as the brief says but is vacuous; the test pins "no nav cell under -2" so it fails
+(and asks for a real bed start) the day the bed comes on the nav. Not mine to change (outside the two files); it means no W4 guard
+can path on the canal bed, which may matter to D1 / E8.
+
+**Deviations:**
+1. **Vantage sight targets (test only):** the gantry's north-east leg (x 83.3-83.7, z 18.6-19.0, full height) stands in the stack
+   gap behind the fire door. shed-a's drawn line to (78, 20) crosses it at z 18.97 and shed-b's to (78, 18) grazes it at z 19.00, so
+   fix round 1's "all four clear" was not right for the shed pair. The vantage points stay as drawn; the test aims shed-a at
+   (78, 1.0, 21) (passes 0.34 m north of the leg) and shed-b at (78, 1.0, 16.2) (0.28 m south of the leg, 0.2 m north of the south
+   stack), both on the hand-truck line; the test also pins that the drawn targets are blocked by the leg. Lead: accept the targets,
+   or move a stack / the vantages for a wider view (a walk item with polish 12).
+2. **Drop-guard test:** `!p.glass` in the guards filter and the new `w4-dg-gantry-n` line, as the brief says; nothing else changed
+   there. All other existing W4 tests (graph, C9, C10, no solo jump, lips, no-bypass, canal) unchanged and green.
+3. **Commit attribution:** `Co-Authored-By: Claude Opus 5.5` (the model that built it), not the brief's Sonnet line.
+4. Extra checks beyond the brief: the crane floods aim straight down; the 97 lamp is red; no ledge on the glass pane; the four new
+   hide spots stand within 1.0 m of a cover box; the conduit box count equals the legs (34); the alley is a straight `lineClear`.
+
+**Checks:** `npx tsc --noEmit -p tsconfig.json` clean; eslint clean on both files; `npx vitest run tests/tallowWharf/ --maxWorkers=2`
+7 files, 234/234 (w4 51, sectors 38, shell 18, w1 46, w2 21, w3 54, levelGap 6). No e2e (pending PC run).
