@@ -2,7 +2,7 @@
 Owner: Night Shift | Player Build. Status: current.
 
 Job: the knife kill animations and the intro pose for the piano escape scene (ROADMAP Now row 20, main focus).
-Base: master 1b58989ed. Sibling job: `feature/piano-escape` (Campaign Build: scene, map `underhollow`, intro camera,
+Base: master 1b58989ed. Sibling job: `feature/piano-escape` (Campaign Build: scene, map `thornbeckMill`, intro camera,
 music, EMP, the `pianoEscape` flag, the scene switch in `src/game/pianoScene.ts`). Guard AI owns the scene guards,
 Sector Ops the scene lighting.
 
@@ -42,7 +42,7 @@ Campaign's scene flag and scene switch.
 
 ## Assumed decisions (A)
 - A1 The gate. Knife kills exist only when all three hold: Campaign's flag `pianoEscape` is on, the running map is the
-  piano scene's (`MapDef.scene === 'piano'`, map id `underhollow`), and Campaign's scene switch is live (set by
+  piano scene's (`MapDef.scene === 'piano'`, map id `thornbeckMill`), and Campaign's scene switch is live (set by
   `src/game/pianoScene.ts` when play starts after the EMP, cleared when the scene ends; Campaign PB5). One pure
   function decides it (`knifeSceneOn(flagOn, scene, live)`); `pianoScene.ts` is its only caller, through
   `takedown.setKnifeScene(..)` at play start and `setKnifeScene(false)` at scene end. Every other map and mode, with or

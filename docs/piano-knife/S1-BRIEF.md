@@ -19,7 +19,7 @@ no `pianoScene.ts` edit (Campaign writes the two `setKnifeScene` calls). No scor
 
 ## Files and exact behaviour
 1. `src/game/knifeKill.ts` (new; pure, no Babylon import, no allocation after load)
-   - `PIANO_SCENE = 'piano'`, `PIANO_MAP_ID = 'underhollow'`.
+   - `PIANO_SCENE = 'piano'`, `PIANO_MAP_ID = 'thornbeckMill'`.
    - `knifeSceneOn(flagOn: boolean, scene: string | undefined, live: boolean): boolean` returns
      `flagOn && live && scene === PIANO_SCENE`.
    - `KNIFE = { noise: 1.2, blendIn: 0.12, blendOut: 0.15, gripIn: 0.45, stabIn: 0.12, victimHandsIn: 0.1,
@@ -122,7 +122,7 @@ no `pianoScene.ts` edit (Campaign writes the two `setKnifeScene` calls). No scor
 ## Tests (one closest set, run once; a red test gets one fix and one rerun)
 - `tests/knifeKill.test.ts`: gate truth table over every `MAPS` and `DEV_MAPS` entry (read `scene` as
   `(m as { scene?: string }).scene`) x flag x live, true only for `scene: 'piano'` with both on, plus a synthetic
-  `{ id: 'underhollow', scene: 'piano' }`; `pickKnifeKill` over every `TakedownKind` x crouched; every row: `seconds`
+  `{ id: 'thornbeckMill', scene: 'piano' }`; `pickKnifeKill` over every `TakedownKind` x crouched; every row: `seconds`
   in 1.0-1.5, `0 < contact < limp < 1`, both clips are `mocapSources` keys; `KNIFE_KILL_IDS.length <= 8`; `buckleAt`
   0 before contact, at most 1, 0 after rise + decay.
 - `tests/killDrive.test.ts`: identity at `w` 0 and `buckle` 0; buckle touches spine and chest pitch only; 1000 calls

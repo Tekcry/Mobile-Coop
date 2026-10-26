@@ -3,7 +3,7 @@ Owner: Night Shift | Player Build. Status: current.
 
 ## Resume
 - Job: knife kill animations (paired, Michael ~19:45) + intro pose for the piano escape scene (ROADMAP Now row 20, main
-  focus). Player's part only; Campaign (`feature/piano-escape`) owns scene, map `underhollow`, intro camera, music, EMP,
+  focus). Player's part only; Campaign (`feature/piano-escape`) owns scene, map `thornbeckMill`, intro camera, music, EMP,
   the `pianoEscape` flag and the scene switch in `src/game/pianoScene.ts`.
 - Branch `feature/piano-knife` in `C:/NightShift/Mobile-Coop-piano-knife`, base master 1b58989ed.
 - Docs: `BRIEF.md` (Michael's words, picks, A1-A15), `PLAN.md` (today with file:line, design, claims, slices, PB map,
@@ -34,3 +34,7 @@ Next: the orchestrator passes the fix round to the plan checker (or signs off); 
 ## Done
 - 2026-10-26: BRIEF, PLAN, CLIP-LIST, STATE written (Opus planner).
 - 2026-10-26: plan fix round 1 (Opus fixer): check items 1-8 + polish, Campaign answers, paired kill, S1-BRIEF.
+- 2026-10-26 ~20:15 (Campaign, Michael): map is now `thornbeckMill` (Thornbeck Mill, timber grain mill, thunderstorm);
+  knife and night vision only; 12-16 guards sweeping in PAIRS, paired knife kills on the sweeping pairs (S3 double kill
+  matters more); gantries / ladders may add a rail-side kill or a crouched kill behind grain sacks: approach list
+  follows Michael's approval of Campaign's new page.

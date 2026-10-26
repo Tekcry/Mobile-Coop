@@ -77,8 +77,8 @@ Intro pose pieces
 - Close-up mesh: hero LOD for registered close-ups (`operators/runtime/figure.ts:211, 552`; `world/menuScene.ts:359`).
 
 Campaign's scene (answers ~20:20; `docs/piano-escape/PLAN.md` on origin/feature/piano-escape 04708b842)
-- Map `underhollow` (`src/world/maps/underhollow.ts`, `MapDef.scene: 'piano'`), joins `MAPS` only with the flag on;
-  dev URL `?piano=1&autostart=underhollow&mode=sector`. Flag `pianoEscape: darkFlag(params.get('piano'), PREVIEW_ON)`
+- Map `thornbeckMill` (`src/world/maps/thornbeckMill.ts`, `MapDef.scene: 'piano'`), joins `MAPS` only with the flag on;
+  dev URL `?piano=1&autostart=thornbeckMill&mode=sector`. Flag `pianoEscape: darkFlag(params.get('piano'), PREVIEW_ON)`
   (Campaign S1).
 - Scene switch: `src/game/pianoScene.ts` (Campaign S1 / S2; not on any branch yet) sets it when play starts after the
   EMP and clears it when the scene ends; it is the only caller of `setKnifeScene`.
@@ -93,7 +93,7 @@ Campaign's scene (answers ~20:20; `docs/piano-escape/PLAN.md` on origin/feature/
 
 ## 2. Design
 2.1 The gate (BRIEF A1). `knifeSceneOn(flagOn, scene, live)` in `src/game/knifeKill.ts` (pure): `flagOn && live &&
-scene === PIANO_SCENE` (`'piano'`; `PIANO_MAP_ID = 'underhollow'` for tests and docs). Campaign's `pianoScene.ts` calls
+scene === PIANO_SCENE` (`'piano'`; `PIANO_MAP_ID = 'thornbeckMill'` for tests and docs). Campaign's `pianoScene.ts` calls
 `takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, true))` when play starts after the EMP and
 `setKnifeScene(false)` when the scene ends; nothing else writes it (`TakedownController.knife` defaults false). What
 keeps it in: (a) a unit test runs the gate over every `MAPS` and `DEV_MAPS` entry with flag and live on and off (true
@@ -223,7 +223,7 @@ Order: S1 and S4a now (2 builders). Then S3 (after #599) and S2 (when the clips 
 `knifeKill.ts`. Then S4b. The walk cap counts the scene as one feature with Campaign's.
 
 ## 5. Campaign: answered and still to send
-- Answered (~20:20): Q-C1 map `underhollow`, switch in `pianoScene.ts`; Q-C2 `pianoEscape`; Q-C3 8 armed standard
+- Answered (~20:20): Q-C1 map `thornbeckMill`, switch in `pianoScene.ts`; Q-C2 `pianoEscape`; Q-C3 8 armed standard
   guards; Q-C4 approaches (section 1); Q-C5 intro (section 1, A11); Q-C6 knife only press to free (A2, A13); Q-C7
   `clear` counts dead or KO, bodies carry and hide.
 - Sent back with this round (via the orchestrator): the timings (A15: contact about 0.8 s, limp about 1.26 s, free
