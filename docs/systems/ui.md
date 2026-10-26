@@ -33,6 +33,9 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   unbound). As built the HUD shows the objective line at the top (`Hud.setObjective`, `.hud-objective`).
 - Built (G339, hud-guidance PR A): no minimap, compass or blip in any mode; the Marlow drill marker and world pings
   stay (G292, G135). Do not add a map, a waypoint or a marker to any mode.
+- Mission lines (`flags.missions`): the HUD objective line (`hud.setObjective`) shows the current mission step, on the host
+  and on the client. The field menu's Objectives screen (Field Terminal) lists the rules line first, then every step of the
+  sections reached so far, each as done, current or to do. The old always-on mission panel is gone.
 
 ## Menus and screens
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus` is

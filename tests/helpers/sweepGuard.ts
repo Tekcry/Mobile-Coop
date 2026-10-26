@@ -64,7 +64,7 @@ export const asEnemy = (g: SweepGuard): Enemy => g as unknown as Enemy;
 
 /** A flat open floor: every step allowed, height 0. */
 const NONE: never[] = [];
-const NAV = { cellOf: () => 0, cellNear: () => 0, canStep: () => true, isWalkable: () => true, heightAt: (_x: number, _z: number, y: number) => y, nearestWalkable: () => -1 };
+const NAV = { cellOf: () => 0, cellNear: () => 0, canStep: () => true, isWalkable: () => true, heightAt: (_x: number, _z: number, y: number) => y, nearestWalkable: () => -1, sliceFree: () => true, sliceCancel: () => {}, sliceTick: () => {} };
 
 let num = 9100;
 
@@ -95,6 +95,20 @@ export function sweepGuard(list: Enemy[], x: number, z: number, yaw: number, rou
     motion: new MotionDriver(yaw),
     motionIn: emptyMotionInput(),
     navCell: 0,
+    // (guard-ai play A, #588 on master) the walk home's fields, as the constructor sets them
+    routeGoal: [Number.NaN, Number.NaN] as P2,
+    routePart: false,
+    homeY: 0,
+    homeG: null,
+    homeX: x,
+    homeZ: z,
+    homeT: 0,
+    homeLong: false,
+    homeSlicing: false,
+    walkX: x,
+    walkZ: z,
+    walkT: 0,
+    meP: [0, 0] as P2,
     yaw,
     target: null,
     sepFree: 0,

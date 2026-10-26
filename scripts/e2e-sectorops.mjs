@@ -1198,15 +1198,16 @@ console.log('sector ops: co-op street lamps on Saltmarsh Park (client and host r
   try {
     await startMode('sector', 'campusOps');
     await until(B, () => !!window.__app.current?.net && window.__app.current.world.level.lights.lights.length > 0, null, 15000, 'the client is in the match');
-    // the lane lamp (9, 6, -66) and a car-park lamp (-34, 6, -62): lit and shootable on both pages, the same ids
-    const [la, lb] = [await lampAt(A, 9, -66), await lampAt(B, 9, -66)];
-    const [pa, pb] = [await lampAt(A, -34, -62), await lampAt(B, -34, -62)];
+    // the lane lamp (9.8, 6, -66) and a car-park head (-32.2, 6, -62) (light-realism L1: light points at the arm ends): lit and shootable on both pages, the same ids
+    const [la, lb] = [await lampAt(A, 9.8, -66), await lampAt(B, 9.8, -66)];
+    const [pa, pb] = [await lampAt(A, -32.2, -62), await lampAt(B, -32.2, -62)];
     assert(!!la && !!lb && la.id === lb.id && la.on && lb.on && la.destructible && !!pa && !!pb && pa.id === pb.id && pa.on, `the street lamps are lit, shootable and the same on both pages (${JSON.stringify([la, lb, pa, pb])})`);
-    // the client: 3 m east of the lane lamp, its real round
+    // the client: 3 m east of the lane head (x 12.8; light-realism L1 moved the head 0.8 m east to 9.8: from x 12 the aim needs
+    // pitch 1.11 rad, past the camera's maxPitch 1.05 (config/camera.ts), and the per-frame clamp sends the round under the head)
     await until(A, () => [...window.__app.current.net.remotes.values()].length > 0, null, 8000, 'the host has the client');
     await GB(() => { window.__app.current.player.forceAds = true; });
     await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 8000, 'the host sees the client drawn');
-    const cs = await fireAt(B, [12, 0.02, -66], lb, false);
+    const cs = await fireAt(B, [12.8, 0.02, -66], lb, false);
     assert(cs.fired === 1, `the client fires one round at the lane lamp (${JSON.stringify(cs)})`);
     const outA = await until(A, (id) => window.__app.current.world.level.lights.lights[id].destroyed, la.id, 8000, 'host lamp out').then(() => true, () => false);
     assert(outA, `the client's round on the lane lamp's pole top shoots it out on the host (${JSON.stringify(cs)}, lamp ${JSON.stringify(la)})`);
@@ -1216,7 +1217,7 @@ console.log('sector ops: co-op street lamps on Saltmarsh Park (client and host r
     assert(Math.abs(va - vb) < 1e-3, `the light under the lane lamp agrees on both pages (host ${va}, client ${vb})`);
     await GB(() => { window.__app.current.player.forceAds = false; });
     // the host: 3 m east of the car-park lamp, its own round
-    const hs = await fireAt(A, [-31, 0.02, -62], pa, true);
+    const hs = await fireAt(A, [-29.2, 0.02, -62], pa, true);
     const hOut = await GA((id) => window.__app.current.world.level.lights.lights[id].destroyed, pa.id);
     assert(hs.fired === 1 && hOut, `the host's round on the car-park lamp's pole top shoots it out (${JSON.stringify(hs)})`);
     await until(B, (id) => window.__app.current.world.level.lights.lights[id].destroyed, pb.id, 8000, 'the client sees the car-park lamp dark');
@@ -2153,8 +2154,9 @@ if (want(6)) {
     const route = await G(() => window.__app.current.world.map.sectors[0].routes[0].pts);
     await tp(G, route[1][0], 0, route[1][1], -Math.PI / 2);
     await sim(0.3);
-    // at the open window: 1.15 m from the PC
-    await tp(G, 20.6, 0, -76, -Math.PI / 2);
+    // at the open window, at its south end by the PC (F42: the PC sits on its desk at (19.3, -77.3), south of the window;
+    // the window spans z -76.6..-75.4): 1.5 m from the PC, inside the 1.8 m reach
+    await tp(G, 20.5, 0, -76.4, -Math.PI / 2);
     await sim(0.4);
     const near = await G(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 's1-obj'); return it ? Math.hypot(it.pos.x - g.player.position.x, it.pos.z - g.player.position.z) : -1; });
     assert(near > 0 && near < 1.8, `the PC is inside the interact reach from the open window (${near.toFixed(2)} m)`);
@@ -2319,12 +2321,12 @@ if (want(6)) {
       const k = sws.findIndex((s) => s.group === 40);
       return { k, group: sws[k]?.group ?? -1, n: g.world.level.lights.lights.filter((l) => l.group === 40).length, e: g.world.level.lights.lights.filter((l) => l.group === 41 && l.on).length };
     });
-    assert(sw.k >= 0 && sw.n === 8 && sw.e === 6, `the feeder board has the west (8 columns) and east (6) breakers (${JSON.stringify(sw)})`);
+    assert(sw.k >= 0 && sw.n === 16 && sw.e === 10, `the feeder board has the west (16 heads) and east (10) breakers (${JSON.stringify(sw)})`);
     await G((k) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === `switch-${k}`); it.onUse(it, 'local'); }, sw.k);
     await sim(0.5);
     const dark = await meter();
     const st = await G(() => ({ w: window.__app.current.world.level.lights.lights.filter((l) => l.group === 40 && l.on).length, e: window.__app.current.world.level.lights.lights.filter((l) => l.group === 41 && l.on).length }));
-    assert(st.w === 0 && st.e === 6, `the west breaker cuts only s1-park-w (${JSON.stringify(st)})`);
+    assert(st.w === 0 && st.e === 10, `the west breaker cuts only s1-park-w (${JSON.stringify(st)})`);
     assert(dark < 0.28, `the light meter at the west row (${W}) reads under the shadow line 0.28 once the circuit is cut (${dark.toFixed(3)}, lit ${lit.toFixed(3)})`);
     assert(lit > dark + 0.08, `the same point reads brighter with the columns on (${lit.toFixed(3)} against ${dark.toFixed(3)})`);
   });
@@ -2652,6 +2654,34 @@ if (want(7)) {
   console.log(`H8 block: ${Math.round((Date.now() - t0) / 1000)} s`);
 }
 
+// The posts and lookouts site: an open stretch near section 1's objective, clear 9 m east, 3.5 m west, north and south,
+// and 5 m north of the noise point 8 m east (fix round: the ring search within 30 m of the objective found none on the
+// laptop; scan every walkable cell on the grid instead, nearest to the objective first, and print what each check
+// rejected). (guard-rules S7) lifted out of the posts block, unchanged, so the lookouts block shares it.
+const postSite = (G, o) =>
+  G((o) => {
+    const em = window.__app.current.enemyMgr;
+    const nav = em.nav;
+    const cells = [];
+    for (let c = 0; c < nav.walk.length; c++) {
+      if (!nav.walk[c]) continue;
+      const [x, z] = nav.center(c);
+      const y = nav.height[c];
+      if (Math.abs(y - o[1]) > 1.5) continue;
+      cells.push([Math.hypot(x - o[0], z - o[2]), x, y, z]);
+    }
+    cells.sort((a, b) => a[0] - b[0]);
+    const fail = [0, 0, 0, 0, 0];
+    for (const [, x, y, z] of cells) {
+      const P = (dx, dz) => [x + dx, z + dz];
+      const ok = [nav.lineClear([x, z], P(9, 0), y, y), nav.lineClear([x, z], P(-3.5, 0), y, y), nav.lineClear(P(8, 0), P(8, 5), y, y), nav.lineClear([x, z], P(0, 3.5), y, y), nav.lineClear([x, z], P(0, -3.5), y, y)];
+      const k = ok.indexOf(false);
+      if (k < 0) return { at: [x, y, z], cells: cells.length };
+      fail[k]++;
+    }
+    return { at: null, cells: cells.length, fail };
+  }, o);
+
 // (guard-ai S5, goal 7, M1, A10, A12) Posts. No live map has a posted guard yet (Course Ready fills K1-K4), so the test
 // hook spawns guards on an open stretch of section 1 and gives them posts with `em.placeSlot` (no map data edited). The
 // section's own guards go, the cameras are held, the player stands far off in the dark. (a) A vault-door guard (leash 3,
@@ -2665,31 +2695,7 @@ if (want(1)) {
     await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
     await sim(0.5);
     const S = await sections(G);
-    // an open stretch near section 1's objective: clear 9 m east and 5 m north of the noise point
-    // (fix round: the ring search within 30 m of the objective found none on the laptop; scan every walkable cell on
-    // the grid instead, nearest to the objective first, and print what each check rejected)
-    const site = await G((o) => {
-      const em = window.__app.current.enemyMgr;
-      const nav = em.nav;
-      const cells = [];
-      for (let c = 0; c < nav.walk.length; c++) {
-        if (!nav.walk[c]) continue;
-        const [x, z] = nav.center(c);
-        const y = nav.height[c];
-        if (Math.abs(y - o[1]) > 1.5) continue;
-        cells.push([Math.hypot(x - o[0], z - o[2]), x, y, z]);
-      }
-      cells.sort((a, b) => a[0] - b[0]);
-      const fail = [0, 0, 0, 0, 0];
-      for (const [, x, y, z] of cells) {
-        const P = (dx, dz) => [x + dx, z + dz];
-        const ok = [nav.lineClear([x, z], P(9, 0), y, y), nav.lineClear([x, z], P(-3.5, 0), y, y), nav.lineClear(P(8, 0), P(8, 5), y, y), nav.lineClear([x, z], P(0, 3.5), y, y), nav.lineClear([x, z], P(0, -3.5), y, y)];
-        const k = ok.indexOf(false);
-        if (k < 0) return { at: [x, y, z], cells: cells.length };
-        fail[k]++;
-      }
-      return { at: null, cells: cells.length, fail };
-    }, S[0].obj);
+    const site = await postSite(G, S[0].obj);
     assert(site.at !== null, `posts: an open stretch on section 1's storey for the test guards (${site.cells} cells, rejected by east / west / north lane / north / south: ${site.fail})`);
     console.log(`  posts site ${site.at.map((v) => v.toFixed(1))} (${site.cells} cells on the storey)`);
     const r = await G(([cx, cy, cz]) => {
@@ -2780,6 +2786,191 @@ if (want(1)) {
     assert(r.back < 0.6 && r.yaw < 0.2, `posts: back on his post facing it (${f2(r.back)} m, yaw off by ${f2(r.yaw)} rad)`);
     assert(r.searched && r.sMax <= 3 + 0.4, `posts: a search 15 m off is searched from inside his leash (${r.searched}, ${f2(r.sMax)} m)`);
     assert(r.bSent >= 0 && r.bMax > 3.5, `posts: a normal post is sent and walks out past his 3 m leash (sent ${r.bSent}, ${f2(r.bMax)} m)`);
+  });
+}
+
+// (guard-rules S7, A3, A9) Lookouts, behind `?lookouts=1`, on the posts block's site (the test hook again: spawn +
+// placeSlot with a `lookout` post; no map data edited). The section's guards go, the cameras are held, the player stands
+// far off in the dark. (a) A lookout (leash 1) and a free guard 8 m east hear a bottle: the free one is sent, the
+// lookout is lured on his perch (never past 1 m) and comes back. (b) The radio: a free guard 3 m behind him (facing
+// away); the player, lit, steps into the lookout's view 8 m east until he grows suspicious by sight, then goes dark and
+// far: the lookout says one `spotCall` on the radio and the free guard is sent (a `noise` incident) toward what he saw;
+// the lookout holds his perch. (c) Once he is calm again, a second glimpse (4 m off the first spot) inside the 20 s
+// cooldown: a sight rise, no second call.
+if (want(1)) {
+  console.log('lookouts (guard-rules S7): never sent, a lure turns him on his perch, a sighting is radioed and someone else comes');
+  await run(PARAMS + '&lookouts=1', async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+    await sim(0.5);
+    const S = await sections(G);
+    const site = await postSite(G, S[0].obj);
+    assert(site.at !== null, `lookouts: an open stretch on section 1's storey for the test guards (${site.cells} cells, rejected by east / west / north lane / north / south: ${site.fail})`);
+    console.log(`  lookouts site ${site.at.map((v) => v.toFixed(1))} (${site.cells} cells on the storey)`);
+    const r = await G(([cx, cy, cz]) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      for (const e of [...em.enemies]) em.despawn(e);
+      // the player far off, in the dark (`lit` pins the light meter for the glimpses)
+      let lit = 0;
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = lit);
+      const away = () => {
+        lit = 0;
+        g.player.controller.teleport(new V(cx - 40, cy, cz - 40), 0);
+      };
+      away();
+      let T = 0;
+      const step = (s) => {
+        window.__app.loop.stepHeadless(s);
+        T += s;
+      };
+      const calls = [];
+      const prevBark = em.onBark;
+      em.onBark = (e, line, radio, ev, n, unit) => {
+        prevBark?.(e, line, radio, ev, n, unit);
+        if (ev === 'spotCall') calls.push({ id: e.id, radio, t: T, x: e.stimX, z: e.stimZ });
+      };
+      // the lookout: facing east (yaw pi/2) down the clear 9 m lane
+      const lookout = () => {
+        const e = em.spawn('grunt', new V(cx, cy, cz), false, Math.PI / 2);
+        em.placeSlot(e, { yaw: Math.PI / 2, post: { leash: 1, lookout: true } }, 0);
+        return e;
+      };
+      const out = {};
+      // (a) never sent, lured on his perch
+      let A = lookout();
+      out.aOk = A.secure && A.postDef !== null && A.postDef.lookout === true && A.postDef.highSecurity === true;
+      const F = em.spawn('grunt', new V(cx + 8, cy, cz + 4), false, -Math.PI / 2);
+      step(0.6);
+      let px = A.pos.x;
+      let pz = A.pos.z;
+      em.hear(new V(cx + 8, cy, cz), 18, 'distraction');
+      step(0.1);
+      out.aSent = A.incident;
+      out.fSent = F.incident;
+      let maxD = 0;
+      let aInc = A.incident;
+      let done = false;
+      const phases = [];
+      for (let k = 0; k < 400; k++) {
+        step(0.1);
+        if (phases[phases.length - 1] !== A.lurePhase) phases.push(A.lurePhase);
+        if (A.lurePhase === 5) done = true;
+        if (A.incident >= 0) aInc = A.incident;
+        maxD = Math.max(maxD, Math.hypot(A.pos.x - px, A.pos.z - pz));
+      }
+      out.a = { maxD, done, phases, aInc, back: Math.hypot(A.pos.x - px, A.pos.z - pz) };
+      em.despawn(F);
+      // (b) the radio: F2 3 m west of the lookout's post, facing west (away from the player)
+      let F2 = em.spawn('grunt', new V(px - 3, cy, pz), false, -Math.PI / 2);
+      step(0.6);
+      // one glimpse: the player lit, 8 m east of the post (`dz` north) in the lookout's view, until he rises (or alert,
+      // or `cap` s, 6 by default)
+      const glimpse = (light, dz = 0, cap = 6) => {
+        const n0 = A.riseN;
+        const from = A.level;
+        lit = light;
+        g.player.controller.teleport(new V(px + 8, cy, pz + dz), 0);
+        let t = 0;
+        while (t < cap && A.riseN === n0 && A.level !== 'alert') {
+          step(0.05);
+          t += 0.05;
+        }
+        away();
+        return { t, light, from, rose: A.riseN !== n0, level: A.level, cause: A.riseCause };
+      };
+      const risen = (q) => q.rose && (q.level === 'suspicious' || q.level === 'investigating');
+      // a glimpse that goes straight to alert proves nothing: start clean with a dimmer light (brief S7 6b)
+      const tries = [];
+      let gl = null;
+      for (const light of [1, 0.5, 0.3]) {
+        if (gl !== null) {
+          // a clean restart: every guard, the board and the manager's memory (command, radio, last known position);
+          // `placeSlot` counts the new lookout again
+          em.despawnAll();
+          A = lookout();
+          F2 = em.spawn('grunt', new V(cx - 3, cy, cz), false, -Math.PI / 2);
+          step(0.6);
+          px = A.pos.x;
+          pz = A.pos.z;
+          calls.length = 0;
+        }
+        gl = glimpse(light);
+        tries.push(gl);
+        if (risen(gl)) break;
+      }
+      out.tries = tries;
+      out.b = { ok: risen(gl), cause: gl.cause, calls: calls.slice() };
+      // the radio: F2 sent within 0.5 s (the call assigns at once), then he closes on the sighting spot
+      const call = calls[0];
+      const sx = call ? call.x : px + 8;
+      const sz = call ? call.z : pz;
+      let kind = F2.incident >= 0 ? em.board.kindOf(F2.incident) : null;
+      let kindT = 0;
+      while (kind === null && kindT < 0.5) {
+        step(0.05);
+        kindT += 0.05;
+        kind = F2.incident >= 0 ? em.board.kindOf(F2.incident) : null;
+      }
+      const t0 = call ? call.t : T;
+      const d0 = Math.hypot(F2.pos.x - sx, F2.pos.z - sz);
+      let dMin = d0;
+      let aMax = Math.hypot(A.pos.x - px, A.pos.z - pz);
+      let aIncB = A.incident;
+      const track = () => {
+        if (T - t0 <= 10) dMin = Math.min(dMin, Math.hypot(F2.pos.x - sx, F2.pos.z - sz));
+        aMax = Math.max(aMax, Math.hypot(A.pos.x - px, A.pos.z - pz));
+        if (A.incident >= 0) aIncB = A.incident;
+      };
+      while (T - t0 < 10) {
+        step(0.1);
+        track();
+      }
+      Object.assign(out.b, { kind, kindT, d0, close: d0 - dMin });
+      // (c) a second glimpse inside the cooldown: first wait for his calm (unaware or cooldown; at most 16 s after the
+      // call), so the glimpse is a fresh rise from calm, not a still-wary lookout pushed straight to alert; then the same
+      // light, 4 m north of the first spot (F2, sent there, is not standing on the player), cut off 19.5 s after the call
+      // so the whole glimpse stays inside the 20 s cooldown
+      while (T - t0 < 16 && A.level !== 'unaware' && A.level !== 'cooldown') {
+        step(0.1);
+        track();
+      }
+      const callsBefore = calls.length;
+      const at2 = T - t0;
+      const gl2 = glimpse(gl.light, 4, Math.min(6, 19.5 - at2));
+      out.c = { at: at2, end: T - t0, gl2, calls: calls.length - callsBefore };
+      // the lookout's perch over the 15 s after the call (and the second glimpse)
+      while (T - t0 < 15) {
+        step(0.1);
+        track();
+      }
+      track();
+      Object.assign(out.b, { aMax, aIncB });
+      out.callsAll = calls.slice();
+      for (const e of [...em.enemies]) em.despawn(e);
+      em.onBark = prevBark;
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      return out;
+    }, site.at);
+    const f2 = (v) => v.toFixed(2);
+    const J = (v) => JSON.stringify(v);
+    // (a)
+    assert(r.aOk, 'lookouts: the flag on, a lookout post is a high-security copy (secure, postDef.lookout and highSecurity)');
+    assert(r.aSent === -1 && r.fSent >= 0, `lookouts: the board sends the free guard, never the lookout (lookout ${r.aSent}, free ${r.fSent})`);
+    assert(r.a.aInc === -1, `lookouts: the lookout takes no incident over the lure (${r.a.aInc})`);
+    assert(r.a.maxD <= 1 + 0.35, `lookouts: the lure turns him on his perch, never past his 1 m leash (${f2(r.a.maxD)} m)`);
+    assert(r.a.done && r.a.back < 0.6, `lookouts: the lure ends and he is back on his post (phases ${J(r.a.phases)}, ${f2(r.a.back)} m)`);
+    // (b)
+    assert(r.b.ok, `lookouts: a glimpse makes him suspicious or investigating, not alert (tries ${J(r.tries)})`);
+    assert(r.b.cause === 1, `lookouts: the rise is by sight (riseCause ${r.b.cause}, RISE_SIGHT 1)`);
+    assert(r.b.calls.length === 1 && r.b.calls[0].radio, `lookouts: one spotCall, on the radio (${J(r.b.calls)})`);
+    assert(r.b.kind === 'noise' && r.b.kindT <= 0.5, `lookouts: the free guard is sent on a noise incident within 0.5 s (${r.b.kind}, ${f2(r.b.kindT)} s)`);
+    assert(r.b.close >= 3, `lookouts: the free guard closes on the sighting spot over 10 s (${f2(r.b.close)} m of ${f2(r.b.d0)} m)`);
+    assert(r.b.aIncB === -1, `lookouts: the lookout is never sent himself (${r.b.aIncB})`);
+    assert(r.b.aMax <= 1 + 0.35, `lookouts: the lookout holds his perch over 15 s (${f2(r.b.aMax)} m, leash 1)`);
+    // (c)
+    assert(r.c.gl2.rose && r.c.gl2.cause === 1 && r.c.end < 20, `lookouts: a second sight rise inside the 20 s cooldown (${J(r.c.gl2)}, ${f2(r.c.at)}..${f2(r.c.end)} s after the call)`);
+    assert(r.c.calls === 0 && r.callsAll.length === 1, `lookouts: no second spotCall inside the cooldown (${r.c.calls}, all ${J(r.callsAll)})`);
   });
 }
 

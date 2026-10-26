@@ -76,6 +76,12 @@ export function startableBays(e: CourseEntry | undefined, all = false, fallbackC
   return out;
 }
 
+/** (marlow-play B4) The lobby's "Start at" bay: clamped to `bays` only once the record has loaded, so a resumed host
+ * (or the lobby after the results) keeps its bay while `startableBays(undefined)` is still just [1]. */
+export function lobbyStartBay(bay: number, bays: readonly number[], loaded: boolean): number {
+  return !loaded || bays.includes(bay) ? bay : 1;
+}
+
 /** Fold a bay finished (time s) into the entry. */
 export function recordBay(e: CourseEntry, bays: readonly string[], bay: string, time: number): void {
   e.bays = bays.slice(0, MAX_BAYS);
