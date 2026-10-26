@@ -50,7 +50,7 @@ Night Shift | Cloud Builder 3, 2026-10-26. Branch `feature/tallow-s1-polish` fro
 
 - **Design.** The window lives on each device: new `ShutterDevice.holdOff` (s left, `shutter.ts:123-124`, 0 in
   `newShutterDevice` `:169`). `resetShutter` (the section-restart reset `resetKit` already calls for every shutter) sets it
-  to `SHUTTER_RESET_HOLDOFF_S = 0.5` (`:87`, one-line comment; doc `:320-337`). `syncShutters` counts it down by the tick's
+  to `SHUTTER_RESET_HOLDOFF_S = 0.5` (`:87`, one-line comment; doc `:321-337`). `syncShutters` counts it down by the tick's
   `dt` (the fixed step `SHUTTER_MOVE.tick` passes; no wall clock) on every shutter before the local-holder skip, so a local
   re-grab never stalls it (`:474`), and while it is above 0 skips the mate search (`:478`): no holder, so the closed shutter
   steps as closed (open 0, `visible` false, `noticed` untouched at -1). A mate's hold seen after the window is followed as
