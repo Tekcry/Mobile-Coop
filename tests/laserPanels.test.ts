@@ -116,8 +116,8 @@ describe('(sector-fixes P) every map with lasers has their panels', () => {
     for (const map of MAPS) {
       const lay = map.build(new LevelBuilder(), 0);
       expect(checkPanels(lay.lasers ?? [], lay.laserPanels ?? []), map.id).toEqual([]);
-      // (marlow-final 0d) Marlow Yard's lasers come and go with its set slices (A5, A8): the frame there checks them
-      if (map.id !== 'ctcourse') lasers += (lay.lasers ?? []).length;
+      // (marlow-final 0d) Marlow Yard's lasers come and go with its set slices (A5, A8): the frame there checks them (J14: both layouts)
+      if (map.id !== 'ctcourse' && map.id !== 'ctcourseReplan') lasers += (lay.lasers ?? []).length;
     }
     // Sector Ops' five bands and Saltmarsh Park's four (las-gown, las-store; sector-redesign slice 3; + S4's las-tray,
     // S5's las-shaft) = 9. Marlow Yard's lasers are left out above (marlow-final 0d); master's count of 10 included
