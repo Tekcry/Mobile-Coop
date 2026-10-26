@@ -1,5 +1,5 @@
 import { BaseTexture, Constants, max3DTextureSize, EffectRenderer, EffectWrapper, MaterialPluginBase, RawTexture, RawTexture3D, Texture, Viewport, type AbstractMesh, type Material, type MaterialDefines, type Observer, type RenderTargetWrapper, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
-import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_GRID_TEXELS, LAMP_STRIDE, lampGrid, type LampAtlas, type LampResult } from '../voxel/lampBake';
+import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_GRID_MAX_LIGHTS, LAMP_GRID_SLOTS, LAMP_GRID_TEXELS, LAMP_STRIDE, lampGrid, type LampAtlas, type LampResult } from '../voxel/lampBake';
 import { sectionBakerOf, type SectionBaker } from '../voxel/sectionJobs';
 import { slabDepth } from './sectionBake';
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
@@ -354,6 +354,7 @@ export class BakedLamps implements CharShadowLamps {
     dropCpuCopy(this.vis);
     const grid = lampGrid(baked.lights, lo, hi);
     if (grid.worst > LAMP_GRID_SLOTS) console.warn(`BakedLamps: a 2 m column has ${grid.worst} lamps in reach, past the ${LAMP_GRID_SLOTS} slots: the farthest are dropped`);
+    if (grid.dropped > 0) console.warn(`BakedLamps: ${grid.dropped} lamps past the grid's ${LAMP_GRID_MAX_LIGHTS} ids: unlit`);
     this.gridInfo = { lox: lo[0]!, loz: lo[2]!, cols: grid.cols, rows: grid.rows };
     const n = baked.ids.length;
     // (LR16b) `LAMP_GRID_TEXELS` texels a column; (LR15: with 8 door slots, the lamps' second door texels first)
