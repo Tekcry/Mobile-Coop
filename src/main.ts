@@ -21,6 +21,7 @@ import { TitleScreen } from './ui/screens/titleScreen';
 import { SettingsScreen } from './ui/screens/settingsScreen';
 import { GameState, type GameOptions, type SessionCallbacks } from './game/gameState';
 import { getMap } from './world/maps';
+import { setPianoLeave } from './game/pianoScene';
 import { courseSoloFlag } from './game/modes/courseMode';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
@@ -260,6 +261,17 @@ async function boot(): Promise<void> {
       action: () => a.screens.push(new SectorOpsScreen(a, (o) => startGame(o))),
     }),
   );
+  // (piano-escape) dark behind `?piano=1` (on in /preview/): the scene starts solo from here and ends back at the menu
+  if (flags.pianoEscape) {
+    setPianoLeave(goToMenu);
+    MainMenuScreen.entries.push(() => ({
+      key: 'piano',
+      label: 'Piano Escape',
+      order: 11,
+      ctx: 'A night escape with a knife and night vision only. Take down every guard in the dark, then get out. No score. Solo here; co-op from the lobby.',
+      action: () => startGame({ map: getMap('thornbeckMill'), mode: 'sector', difficulty: 'normal', seed: 1 }),
+    }));
+  }
   if (flags.legacy) {
     MainMenuScreen.entries.push(
       (a) => ({
