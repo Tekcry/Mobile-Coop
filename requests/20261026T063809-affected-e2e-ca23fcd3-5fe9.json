@@ -1,0 +1,15 @@
+{
+  "id": "20261026T063809-affected-e2e-ca23fcd3-5fe9",
+  "sha": "ca23fcd3d243f9688dce8edd60e511138648c98c",
+  "branch": "feature/campus-greybox-s2-a",
+  "pr": 526,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-sectorops:6",
+    "e2e-sectorops:7",
+    "e2e-sectorops:8",
+    "e2e-sectorops:9"
+  ],
+  "set": "affected"
+}
