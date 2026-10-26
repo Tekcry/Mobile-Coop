@@ -1016,8 +1016,9 @@ down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); light
 fixed timeline data (Sector Ops SO5), guards just read the light.
 Open (2026-10-26 ~20:30 SAVE):
 1. Piano asks, job feature/guard-ai-piano (worktree -guard-ai-piano, node_modules junction to -guard-ai-home):
-   - GA1 + GA3 BUILT 81a43f950, PR #603; Opus checker A running -> docs/guard-ai/checks/PIANO-GA13-CHECK-A.md; B
-     (covers GA7 too) after the #588 check frees a slot: EnemyManager.sceneDark (torch on in every state, Enemy.torchWanted),
+   - GA1 + GA3 BUILT 81a43f950, PR #603; check A PASS (PIANO-GA13-CHECK-A.md, polish: spawn G1-G4 first on the
+     4-slot fallback; sceneDark doc "before the cut if it goes through lightsOut"; the searchers walk at the wall from
+     5-7 m, S4 checks it is survivable); check B (covers GA7) running -> PIANO-GA13-CHECK-B.md: EnemyManager.sceneDark (torch on in every state, Enemy.torchWanted),
      blackoutSearch(guards, x, z) with SEARCH_BLACKOUT (6 m ring, response.ts), lightsOut sends nobody while sceneDark;
      tests/pianoGuards.test.ts 5/5, AI tests 90 files green. Next: PR (minor fragment in), TWO Opus checkers, tell
      Campaign the API (scene sets em.sceneDark = true at the EMP, calls em.blackoutSearch([G1..G4], wallX, wallZ)).
@@ -1031,15 +1032,19 @@ Open (2026-10-26 ~20:30 SAVE):
      players"): fixed readable pattern, some in pairs, slow walk, checking behind cover, deterministic (VISION 8).
      Plan only once Campaign's thornbeckMill room data lands. GA5 (patrol review) waits for the map too.
 2. #588 play pass A (feature/guard-ai-home): train 132 failed guardHome (S1 v2-c gatehouse: ~45000 A* expansions
-   needed). Fix e967d906e: sliced long plan (NavGrid sliceStart/sliceStep, 10000 per frame up to 60000); guardHome
-   limits scale with the path walk; verified on master + #518. Opus check running -> PLAY-A-TRAIN132-CHECK.md. PASS ->
-   post checker on the new head, affected-e2e, tell the orchestrator to re-label.
-3. #317 coop4: fix round + merge 7 check PASS (MERGE7-CHECK.md), checker POSTED on 412c4435e; waits on its co-op
-   group affected-e2e. Green -> tell the orchestrator train-ready. Sector Ops TAG lanes may later replace the S3-S5
-   extras (told the orchestrator).
+   needed). Fix e967d906e: sliced long plan (NavGrid sliceStart/sliceStep). Check FIX (PLAY-A-TRAIN132-CHECK.md: a
+   running slice starved by another guard taking the token; cap too low, worst ~77000) -> lead fix round 55a8cddcb
+   (sliceFree pure read before the token, sliceTick frames, sliceLost retried, homeCap 120000, (60, -36) case);
+   verified on master + #518 (guardHome 5 S1 starts home, 34/34). Opus re-check running -> PLAY-A-TRAIN132-RECHECK.md.
+   PASS -> post checker, affected-e2e, tell the orchestrator to re-label (#518 ships first).
+3. #317 coop4: merge 7 check PASS; then train 133 conflicted again -> merge 8 047c1ddf1 (PROTOCOL_VERSION 72; S1 v2-c
+   extras = master's TAG-1 rows from docs/campus-greybox/briefs/S1.md; graph S1 sums 15/15/16/17; master's S1 tests
+   adapted: base list, screen over 17, graph per team size). NEEDS one Opus merge check (when a slot frees), checker
+   post, co-op group affected-e2e, then train-ready. Sector Ops TAG lanes may later replace the S3-S5 extras.
 4. #595 J15 PR4: merge check PASS, checker POSTED on 258be2999 (adds the v2 S5 marksman lookout post); waits on
    affected-e2e. Green -> train-ready. Job-done: guard-rules. J26 mission hooks after it, spare capacity only.
-5. Polish (only if it helps the playthrough): #588 hard backstop on wake-body / alarm walks, "can't get through" bark,
+5. Polish (only if it helps the playthrough): after Sector Ops #602 lands, stealthSystems.ts isOff (:381) false when
+   every lamp of the circuit is mainsCut (a guard walks to a dead switch); #588 hard backstop on wake-body / alarm walks, "can't get through" bark,
    post guard off his storey re-plans every 5 s; #585 orphaned onEnemyJoined comment (courseMode.ts:1394-1407);
    pressing guards round waist-high blocks; NetSession.roomCap unused; guardpairs=0 on the flag-off talking-pairs e2e;
    autojoin 5th tab gets bye not "Room full"; J16 perception half.
