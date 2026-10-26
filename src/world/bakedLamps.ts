@@ -224,9 +224,10 @@ export class BakedLamps implements CharShadowLamps {
   lampLit(i: number): boolean {
     const o = (this.lampBase + i * LAMP_TEXELS + 1) * 4;
     if (this.buf[o]! + this.buf[o + 1]! + this.buf[o + 2]! > 0) return true;
-    // (LR16-5) a stuttering tube at an off step is still lit: it keeps its character shadow slot
+    // (LR16-5) a stuttering tube at an off step is still lit: it keeps its character shadow slot ((piano SO5b) a lightning
+    // opening's light between strikes does not)
     const l = this.reg.lights[this.order[i]!];
-    return !!l && this.fade[i]! > 0 && l.flicker < 1 && l.on && !l.destroyed && l.intensity > 0;
+    return !!l && this.fade[i]! > 0 && l.flicker < 1 && !l.flash && l.on && !l.destroyed && l.intensity > 0;
   }
   /** Characters' capsules each frame (foot + head points, radius): GameState's. */
   capsules: ((a: Float32Array, b: Float32Array, max: number) => number) | null = null;
