@@ -19,6 +19,15 @@
  * Fixture: `tests/fixtures/player-hygiene-s2.json`. `PH_S2_WRITE=1` rewrites it; only ever run that on the pre-refactor
  * code (the parity record). Values are hashed as float64 bit patterns (cyrb53 over the two words, as
  * `tests/helpers/animSkeletonIdentity.ts`) with -0 kept distinct from +0 (the arithmetic is the same, so the signs are).
+ *
+ * Platform independence: `Math.pow` (the curves) and `Math.exp` (the look smoothing) are not correctly rounded and their
+ * last bit differs between V8 versions (Node 22 in CI, Node 24 on the desktop), so a recorded hash of their results
+ * only reproduces on the Node it was recorded on. So the fixture pins only what is plain IEEE arithmetic (the radial
+ * dead zone, the button / trigger groups of `mapPad`, the poll run with its look rounded to 1e-9). Every value that
+ * goes through `Math.pow` (the curve sweeps, every `mapPad` group) is compared bit for bit, in the same process,
+ * against `MASTER` below: a verbatim copy of master 2a937eb6's `applyRadialDeadzone` / `applyAxisDeadzone` /
+ * `applyCurve` / `mapPad` (only the names changed). The look smoothing in `GamepadSource.poll` is not part of the
+ * refactor; the look it smooths is the `mapPad` look checked bit for bit against `MASTER`.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Session } from 'node:inspector';
@@ -33,6 +42,7 @@ import { assignPadBind, defaultPadBinds, padBindTable } from '../src/input/padBi
 import { InputState } from '../src/input/inputState';
 import { GamepadSource } from '../src/input/gamepadSource';
 import type { Settings } from '../src/core/settings';
+import { hyp2 } from '../src/core/mathx';
 import { bytesPerCall, HEAP_NUMBER, inputs } from './helpers/allocPerCall';
 
 const FIXTURE = path.resolve(__dirname, 'fixtures/player-hygiene-s2.json');
@@ -104,10 +114,26 @@ const want: Fixture | null = WRITE ? null : (JSON.parse(readFileSync(FIXTURE, 'u
 /** `last` goes through JSON: -0 as +0 there (the hash keeps the sign). */
 const plain = (a: number[]): number[] => a.map((v) => (v === 0 ? 0 : v));
 
-/** Records (write mode, the wrapper pass only) or checks one result against the fixture. */
-function check(group: 'stick' | 'map', name: string, v: Sweep, record: boolean): void;
-function check(group: 'poll', name: string, v: Run, record: boolean): void;
-function check(group: keyof Fixture, name: string, v: Sweep | Run, record: boolean): void {
+/** The results the fixture pins: no `Math.pow` / `Math.exp` result in them (see the header). */
+function pinned(group: keyof Fixture, name: string): boolean {
+  if (group === 'poll') return true;
+  if (group === 'stick') return name.startsWith('radial ');
+  return /^(single|analog|triggers):/.test(name);
+}
+
+/**
+ * Checks one result against `oracle` (master's code run on the same inputs in this process: bit-exact through the
+ * hash), and, for the pinned results, records it (write mode, the wrapper pass only) or checks it against the fixture.
+ */
+function check(group: 'stick' | 'map', name: string, v: Sweep, record: boolean, oracle: Sweep | null): void;
+function check(group: 'poll', name: string, v: Run, record: boolean, oracle: null): void;
+function check(group: keyof Fixture, name: string, v: Sweep | Run, record: boolean, oracle: Sweep | null): void {
+  if (oracle) {
+    expect((v as Sweep).n, `${group}.${name} n (master's code)`).toBe(oracle.n);
+    expect(v.last, `${group}.${name} last (master's code)`).toEqual(oracle.last);
+    expect(v.hash, `${group}.${name} hash (master's code)`).toBe(oracle.hash);
+  }
+  if (!pinned(group, name)) return;
   if (record) (got[group] as Record<string, Sweep | Run>)[name] = v;
   if (!want) return;
   const w = (want[group] as Record<string, Sweep | Run>)[name];
@@ -124,6 +150,95 @@ afterAll(() => {
   vi.unstubAllGlobals();
   if (WRITE) writeFileSync(FIXTURE, JSON.stringify(got, null, 1) + '\n');
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// MASTER: master 2a937eb6's stick maths and mapPad, copied verbatim (src/input/stickMath.ts, gamepadMapping.ts; only
+// the names changed). The oracle for every value through Math.pow. Never edit the bodies.
+// ---------------------------------------------------------------------------------------------------------------------
+
+function masterApplyRadialDeadzone(x: number, y: number, inner: number, outer = 0.98): Vec2 {
+  const mag = hyp2(x, y);
+  if (mag <= inner || mag === 0) return { x: 0, y: 0 };
+  const t = Math.min(1, (mag - inner) / Math.max(1e-6, outer - inner));
+  return { x: (x / mag) * t, y: (y / mag) * t };
+}
+
+function masterApplyAxisDeadzone(v: number, inner: number): number {
+  const a = Math.abs(v);
+  if (a <= inner) return 0;
+  return Math.sign(v) * Math.min(1, (a - inner) / (1 - inner));
+}
+
+const MASTER_CURVE_EXP: Record<CurveKind, number> = { linear: 1, classic: 1.6, precise: 2.4, aggressive: 0.7 };
+
+function masterApplyCurve(v: Vec2, curve: CurveKind): Vec2 {
+  const mag = hyp2(v.x, v.y);
+  if (mag === 0) return { x: 0, y: 0 };
+  const m = Math.pow(Math.min(1, mag), MASTER_CURVE_EXP[curve]);
+  return { x: (v.x / mag) * m, y: (v.y / mag) * m };
+}
+
+const MASTER_BTN_THRESHOLD = 0.5;
+
+const MASTER_CTX_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
+  [PAD.UP, 'ctxUp'],
+  [PAD.DOWN, 'ctxDown'],
+];
+
+const MASTER_UI_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
+  [PAD.A, 'uiConfirm'],
+  [PAD.B, 'uiBack'],
+  [PAD.START, 'uiStart'],
+  [PAD.X, 'uiX'],
+  [PAD.LB, 'uiTabPrev'],
+  [PAD.RB, 'uiTabNext'],
+  [PAD.Y, 'uiAlt'],
+  [PAD.UP, 'uiUp'],
+  [PAD.DOWN, 'uiDown'],
+  [PAD.LEFT, 'uiLeft'],
+  [PAD.RIGHT, 'uiRight'],
+];
+
+const MASTER_STICK_NAV_THRESHOLD = 0.55;
+
+function masterMapPad(p: PadSnapshot, t: PadTuning, table: ReadonlyArray<readonly [number, ButtonAction]> = GAME_BINDINGS): PadFrame {
+  const b = (i: number): number => p.buttons[i] ?? 0;
+  const ax = (i: number): number => p.axes[i] ?? 0;
+  const out: PadFrame['buttons'] = {};
+
+  for (const [i, a] of table) if (b(i) > MASTER_BTN_THRESHOLD) out[a] = true;
+  for (const [i, a] of MASTER_UI_BINDINGS) if (b(i) > MASTER_BTN_THRESHOLD) out[a] = true;
+  for (const [i, a] of MASTER_CTX_BINDINGS) if (b(i) > MASTER_BTN_THRESHOLD) out[a] = true;
+
+  const lt = masterApplyAxisDeadzone(b(PAD.LT), t.triggerDeadzone);
+  const rt = masterApplyAxisDeadzone(b(PAD.RT), t.triggerDeadzone);
+  if (rt > 0.35) out.fire = true;
+  // (anim-rework S1) LT is the aim, held
+  if (lt > 0.35) out.ads = true;
+
+  // Standard mapping: axis Y is +down. Our move.y is +forward.
+  const ls = masterApplyCurve(masterApplyRadialDeadzone(ax(0), ax(1), t.deadzoneLeft), 'linear');
+  const rsd = masterApplyRadialDeadzone(ax(2), ax(3), t.deadzoneRight);
+  const rs = masterApplyCurve(rsd, t.curve);
+  const move = { x: ls.x, y: -ls.y };
+  const look = { x: rs.x, y: t.invertY ? rs.y : -rs.y };
+  const stick = { x: rsd.x, y: -rsd.y };
+
+  // Left stick also navigates menus.
+  const rawLx = ax(0);
+  const rawLy = ax(1);
+  if (Math.abs(rawLx) > Math.abs(rawLy)) {
+    if (rawLx < -MASTER_STICK_NAV_THRESHOLD) out.uiLeft = true;
+    if (rawLx > MASTER_STICK_NAV_THRESHOLD) out.uiRight = true;
+  } else {
+    if (rawLy < -MASTER_STICK_NAV_THRESHOLD) out.uiUp = true;
+    if (rawLy > MASTER_STICK_NAV_THRESHOLD) out.uiDown = true;
+  }
+
+  const active =
+    Object.keys(out).length > 0 || move.x !== 0 || move.y !== 0 || look.x !== 0 || look.y !== 0 || lt > 0 || rt > 0;
+  return { buttons: out, move, look, stick, fireAnalog: rt, active };
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 // (a) stick maths
@@ -148,7 +263,9 @@ describe('(a) stick maths: the wrappers and the To forms equal the recording', (
       const name = `radial i${inner} o${outer ?? 'default'}`;
       it(name, () => {
         const h = new Hasher();
+        const ho = new Hasher();
         let last: number[] = [];
+        let lastO: number[] = [];
         let n = 0;
         for (const x of V) {
           for (const y of V) {
@@ -158,9 +275,14 @@ describe('(a) stick maths: the wrappers and the To forms equal the recording', (
             outs.push(r.x, r.y);
             last = [r.x, r.y];
             n++;
+            const m = outer === undefined ? masterApplyRadialDeadzone(x, y, inner) : masterApplyRadialDeadzone(x, y, inner, outer);
+            ho.add(m.x);
+            ho.add(m.y);
+            lastO = [m.x, m.y];
           }
         }
-        check('stick', name, { n, hash: h.digest(), last: plain(last) }, true);
+        const oracle: Sweep = { n, hash: ho.digest(), last: plain(lastO) };
+        check('stick', name, { n, hash: h.digest(), last: plain(last) }, true, oracle);
         const to = smx.applyRadialDeadzoneTo;
         if (!REFACTORED || !to) return;
         const o: Vec2 = { x: 9, y: 9 };
@@ -172,7 +294,7 @@ describe('(a) stick maths: the wrappers and the To forms equal the recording', (
             h2.add(o.y);
           }
         }
-        check('stick', name, { n, hash: h2.digest(), last: plain([o.x, o.y]) }, false);
+        check('stick', name, { n, hash: h2.digest(), last: plain([o.x, o.y]) }, false, oracle);
       });
     }
   }
@@ -182,15 +304,22 @@ describe('(a) stick maths: the wrappers and the To forms equal the recording', (
       const name = `curve ${label} ${c}`;
       it(name, () => {
         const h = new Hasher();
+        const ho = new Hasher();
         let last: number[] = [];
+        let lastO: number[] = [];
         for (let k = 0; k < src.length; k += 2) {
           const r = applyCurve({ x: src[k]!, y: src[k + 1]! }, c);
           h.add(r.x);
           h.add(r.y);
           last = [r.x, r.y];
+          const m = masterApplyCurve({ x: src[k]!, y: src[k + 1]! }, c);
+          ho.add(m.x);
+          ho.add(m.y);
+          lastO = [m.x, m.y];
         }
         const n = src.length / 2;
-        check('stick', name, { n, hash: h.digest(), last: plain(last) }, true);
+        const oracle: Sweep = { n, hash: ho.digest(), last: plain(lastO) };
+        check('stick', name, { n, hash: h.digest(), last: plain(last) }, true, oracle);
         const to = smx.applyCurveTo;
         if (!REFACTORED || !to) return;
         // into a separate out, and in place (out === v: alias-safe)
@@ -208,8 +337,8 @@ describe('(a) stick maths: the wrappers and the To forms equal the recording', (
           ha.add(v.x);
           ha.add(v.y);
         }
-        check('stick', name, { n, hash: hs.digest(), last: plain([o.x, o.y]) }, false);
-        check('stick', name, { n, hash: ha.digest(), last: plain([v.x, v.y]) }, false);
+        check('stick', name, { n, hash: hs.digest(), last: plain([o.x, o.y]) }, false, oracle);
+        check('stick', name, { n, hash: ha.digest(), last: plain([v.x, v.y]) }, false, oracle);
       });
     }
   };
@@ -304,14 +433,21 @@ describe('(a) mapPad: the wrapper and mapPadInto (one reused frame) equal the re
       it(name, () => {
         const cases = groups[gname]!;
         const h = new Hasher();
+        const ho = new Hasher();
         let last: number[] = [];
+        let lastO: number[] = [];
         for (const c of cases) {
           const f = mapPad(c.s, c.t, table);
           const keys = Object.keys(f.buttons).join(',');
           hashFrame(h, f, keys);
           last = frameLast(f, keys);
+          const m = masterMapPad(c.s, c.t, table);
+          const mkeys = Object.keys(m.buttons).join(',');
+          hashFrame(ho, m, mkeys);
+          lastO = frameLast(m, mkeys);
         }
-        check('map', name, { n: cases.length, hash: h.digest(), last }, true);
+        const oracle: Sweep = { n: cases.length, hash: ho.digest(), last: lastO };
+        check('map', name, { n: cases.length, hash: h.digest(), last }, true, oracle);
         if (!reused) return;
         const hi = new Hasher();
         for (const c of cases) {
@@ -320,7 +456,7 @@ describe('(a) mapPad: the wrapper and mapPadInto (one reused frame) equal the re
           hashFrame(hi, reused, keys);
           last = frameLast(reused, keys);
         }
-        check('map', name, { n: cases.length, hash: hi.digest(), last }, false);
+        check('map', name, { n: cases.length, hash: hi.digest(), last }, false, oracle);
       });
     }
   }
@@ -368,6 +504,8 @@ interface Counts {
   connect: number;
   disconnect: number;
   active: number;
+  /** The disconnected pads' ids, in the order reported (the poll run hashes and clears it each step). */
+  gone: string[];
 }
 function settingsStub(): Settings {
   return {
@@ -388,24 +526,34 @@ function settingsStub(): Settings {
 function events(c: Counts): ConstructorParameters<typeof GamepadSource>[2] {
   return {
     onConnect: () => void c.connect++,
-    onDisconnect: () => void c.disconnect++,
+    onDisconnect: (id: string) => {
+      c.disconnect++;
+      c.gone.push(id);
+    },
     onActive: () => void c.active++,
   };
 }
 const STYLES = ['xbox', 'playstation', 'nintendo'];
 
+/**
+ * The run's look to 1e-9: it went through `Math.pow` (the curve) and `Math.exp` (the smoothing), whose last bit
+ * depends on the V8 version (see the header; the curve's look is checked bit for bit against `MASTER`). A 1e-9 grid
+ * cell is ~10^7 ulps of these values, so a last-bit difference does not move a value across one in practice.
+ */
+const lookQ = (v: number): number => Math.round(v * 1e9) / 1e9;
+
 describe('(a) GamepadSource.poll: a scripted run equals the recording', () => {
   it('poll run', () => {
     const st = new InputState();
     const settings = settingsStub();
-    const c: Counts = { connect: 0, disconnect: 0, active: 0 };
+    const c: Counts = { connect: 0, disconnect: 0, active: 0, gone: [] };
     GP.list = [null, null, null, null];
     const gs = new GamepadSource(st, () => settings, events(c));
     const p0 = fakePad(0, XBOX_ID);
     const p1 = fakePad(1, DS_ID);
     const h = new Hasher();
     let last: number[] = [];
-    const steps = 200;
+    const steps = 210;
     for (let k = 0; k < steps; k++) {
       // the script: the state for poll k
       if (k === 5) {
@@ -455,7 +603,13 @@ describe('(a) GamepadSource.poll: a scripted run equals the recording', () => {
       if (k === 172) p1.axes[3] = -0.8;
       if (k === 180) GP.list[0] = null;
       if (k === 190) p1.connected = false;
-      if (k === 195) GP.list[0] = p0;
+      // two pads gone in one scan, reported in the order they connected (pad 1 first here, not the index order)
+      if (k === 195) p1.connected = true;
+      if (k === 200) GP.list[0] = p0;
+      if (k === 205) {
+        GP.list[0] = null;
+        p1.connected = false;
+      }
       // the browser moves a pad's timestamp when its input changes: here every third poll
       for (const p of GP.list) if (p && p.connected && k % 3 === 0) p.timestamp = k;
 
@@ -468,11 +622,13 @@ describe('(a) GamepadSource.poll: a scripted run equals the recording', () => {
         h.add(b.released ? 1 : 0);
       }
       const look = st.consumeLook();
-      last = [st.move.x, st.move.y, look.x, look.y, st.stick.x, st.stick.y, st.fireAnalog, STYLES.indexOf(gs.style), gs.connected ? 1 : 0, c.connect, c.disconnect, c.active];
+      for (const id of c.gone) h.str(id);
+      c.gone.length = 0;
+      last = [st.move.x, st.move.y, lookQ(look.x), lookQ(look.y), st.stick.x, st.stick.y, st.fireAnalog, STYLES.indexOf(gs.style), gs.connected ? 1 : 0, c.connect, c.disconnect, c.active];
       for (const v of last) h.add(v);
       st.consumeEdges();
     }
-    check('poll', 'run', { steps, hash: h.digest(), last: plain(last) }, true);
+    check('poll', 'run', { steps, hash: h.digest(), last: plain(last) }, true, null);
   });
 });
 
@@ -581,7 +737,7 @@ describe('(b) the pad poll allocates nothing per frame', () => {
   const NOW = inputs(100000, (k) => 100 + k * DT);
   const clk = new Int32Array(1);
   const settings = settingsStub();
-  const c: Counts = { connect: 0, disconnect: 0, active: 0 };
+  const c: Counts = { connect: 0, disconnect: 0, active: 0, gone: [] };
 
   /** A source on its own fixed pad array, one poll taken (the pad picked, the table built). */
   function source(state: InputState | StubState, setup: (p: FakePad) => void): GamepadSource {
