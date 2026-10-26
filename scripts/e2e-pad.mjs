@@ -514,17 +514,13 @@ try {
   assert(/Quit/.test(await focusedText(page)), 'right moves to Quit');
   // (player-flake-fix r2) the quit can apply a waiting update: src/pwa reloads the page at the main menu (laptop run
   // flake-fix-1 died here, "Execution context was destroyed", 2026-10-26). The check waits across the reload
-  // (waitForSelector survives a navigation, page.evaluate does not) and a reloaded page gets its fake pad back
+  // (waitForSelector survives a navigation, page.evaluate does not). The reload itself lands after the menu shows (the
+  // pwa poll), so the reloaded page gets its fake pad back before the main page's next use ("disconnect" below)
   const navBefore = navigations;
   await press(page, BTN.A);
   await page.waitForTimeout(400);
-  const home = await page.waitForSelector('.main-menu', { timeout: 15000 }).then(() => true, () => false);
+  const home = await page.waitForSelector('.main-menu', { timeout: 60000 }).then(() => true, () => false);
   assert(home, `quit returns to main menu${navigations > navBefore ? ' (the page reloaded: a waiting update applied)' : ''}`);
-  if (navigations > navBefore) {
-    await page.evaluate(() => window.__pad.connect());
-    await press(page, BTN.LB); // harmless on the main menu; reveals the pad, as the first connect
-    await page.waitForFunction(() => document.body.classList.contains('input-gamepad'), null, { timeout: 8000 }).catch(() => {});
-  }
 
   // (process audit, 2026-10-19) the gameplay sections that each opened their own match (palm strike, back to a wall,
   // door menu, wall edge verb) are gone: the pad verb table below checks every button's action, and the behaviour is
@@ -978,6 +974,15 @@ try {
   }
 
   console.log('disconnect');
+  // (player-flake-fix r2) the main page's first use since the quit: if the update reload came, the page booted again
+  // with its fake pad disconnected, so it waits for the boot and the menu and connects the pad as the first section did
+  if (navigations > navBefore) {
+    console.log('  (the main page reloaded after the quit: a waiting update applied; reconnecting the pad)');
+    await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done') && !!document.querySelector('.main-menu'), null, { timeout: 60000 });
+    await page.evaluate(() => window.__pad.connect());
+    await press(page, BTN.LB); // harmless on the main menu; reveals the pad, as the first connect
+    await page.waitForFunction(() => document.body.classList.contains('input-gamepad'), null, { timeout: 8000 }).catch(() => {});
+  }
   await page.evaluate(() => window.__pad.disconnect());
   // the pad is noticed on the next poll; under software GL a frame can take a while
   await page.waitForFunction(() => [...document.querySelectorAll('.toast')].some((t) => /disconnected/.test(t.textContent ?? '')), null, { timeout: 8000 }).catch(() => {});
