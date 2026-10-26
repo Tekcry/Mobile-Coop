@@ -532,6 +532,8 @@ export const thornbeckMill: MapDef = {
   sectors: THORNBECK_SECTORS,
   // (S4) the storm's strikes on the scene clock (t0 = the EMP press: `world.lightning.t0`, set by the scene)
   lightning: THORNBECK_LIGHTNING,
+  // (piano SO3) every guard's torch drawn and lit: 16 lit hold on Low (laptop 1080p p95 6.0 ms); shadows on all (default)
+  torchSlots: 16,
   detail: false,
   navLayers: 5,
   theme: {
