@@ -12,6 +12,22 @@ import { doorIn, duct, lamp, mass, MASS_TOP, OUTER, screen, standIn, T, wall, Y,
  * and its north arm (caged by drop guards), the walkable canal bed, the jetty (the pull-up edge, C10) and the boat. Greybox:
  * every box is `noLedge` but the one planned lip (a manual ledge on a `noLedge` wall). Frame: x east, z north, y up; yaw 0
  * faces +z (the canal is the south edge, z 0-6).
+ *
+ * J8 G4 (`docs/tallow-fixes/LIGHT.md` sections 4-5, EGRESS E4):
+ * - lights: every fitting is on (18 lamps, groups 91-98). Shed three is a staffed store under four pendants; the yard is watched
+ *   under the gate flood and two crane work floods hung under the gantry deck; the jetty under the loading-door flood and the
+ *   gangway lamp; shed two is closed, its exit lamp only (the map's darkest real spot); the lane has four photocell lamps with
+ *   long gaps between them. Switched circuits (91-93) carry conduit runs (`W4_CONDUITS`); 94-98 have none (photocell,
+ *   maintained, aviation, the launch's battery);
+ * - darkness from cover, real gaps, cuts and shots: the stack alley in shed three (two tea-chest stacks west of the foreman's
+ *   x 85 leg), the cart line in the yard (two drays) and the crane's rope bin; hide spots by every takedown spot, a medkit on
+ *   the back lane;
+ * - the way back from the jetty to a partner on the canal bed is the drop off the jetty's open south edge (x 72-76, the pull
+ *   edge; `w4-jetty-drop`): no new top by it;
+ * - the crane's red aviation lamp is raised to (88, 14, 5) on its jib so the W3 roof sees it (O20); the launch carries its own
+ *   masthead light (O6) on a visual mast;
+ * - the gantry's north screen has a clear-glass look-out bay x 50-54 for the yard vantages; the shed three vantages watch
+ *   through the fire door from shed two.
  */
 
 const PI = Math.PI;
@@ -66,7 +82,8 @@ export const W4_DROP_GUARDS: readonly DropGuard[] = [
 /** Where a guard is left open along its own axis (x on a long side, z on an end): the yard ladder's top and the arm's join. */
 export const W4_GUARD_GAPS: Readonly<Record<string, readonly (readonly [number, number])[]>> = {
   'w4-dg-gantry-s': [[59.4, 60.6]],
-  'w4-dg-gantry-n': [[84, 85.2]],
+  // the look-out bay x 50-54 (closed by a clear glass pane: bodies stop, sight and light pass) and the arm's join
+  'w4-dg-gantry-n': [[50.0, 54.0], [84, 85.2]],
 };
 
 type P3 = readonly [number, number, number];
@@ -208,6 +225,8 @@ function build(b: LevelBuilder): void {
   for (const x of [48.5, 83.5]) for (const z of [15.2, 18.8]) bx(b, x - 0.2, x + 0.2, 0, Y.gantry - 0.3, z - 0.2, z + 0.2, C.steel);
   bx(b, 84, 85.2, Y.gantry - 0.3, Y.gantry, 19, 29.4, C.steel); // the north arm
   for (const g of W4_DROP_GUARDS) guard(b, g);
+  // the crane man's look-out over the yard: the north screen's bay x 50-54 closed by clear glass (no ledge; G45)
+  b.glass(50.0, 19, 54.0, 19, 2.2, Y.gantry, 'clear');
   b.ladder(60, 14.55, 0, Y.gantry, 0); // the yard leg, on the gantry's south face (climber south, facing +z)
   b.ladder(84.6, 29.85, 0, Y.gantry, PI); // the arm's ladder, off its north end down to the apron
 
@@ -254,7 +273,17 @@ export const W4: WharfSection = {
     { pos: new Vector3(81.2, 0, 10.6), yaw: 0, group: 92 },
     { pos: new Vector3(63.4, 0, 27.6), yaw: PI, group: 93 },
   ],
-  hideSpots: [{ pos: new Vector3(76, 0, 26) }, { pos: new Vector3(46, 0, 26) }],
+  // the two built spots; the first dray's north side, the rope bin, the sack hamper, the empty chest (A9: one by every takedown spot)
+  hideSpots: [
+    { pos: new Vector3(76, 0, 26) },
+    { pos: new Vector3(46, 0, 26) },
+    { pos: new Vector3(53.5, 0, 23.8) },
+    { pos: new Vector3(63.5, 0, 15.8) },
+    { pos: new Vector3(73.4, 0, 15.5) },
+    { pos: new Vector3(81.2, 0, 15.0) },
+  ],
+  // A8: the wharf company's first-aid box on the back lane's north wall (the W3 mass face z 34), across from the shed doors
+  medkits: [{ pos: new Vector3(95.0, 0, 33.85), yaw: PI }],
   navSeeds: [new Vector3(90, 0, 32), new Vector3(58, 0, 18), new Vector3(79, 0, 18), new Vector3(93, 0, 18), new Vector3(86, 0, 8), new Vector3(66, 10, 17), new Vector3(90, -1, 3)],
   lips: [W4_LIP],
   legUps: [{ lip: LIP_ID, x: 79, y: 0, z: 29.2, facing: { x: 0, z: -1 } }],
@@ -273,11 +302,18 @@ export const W4: WharfSection = {
     { id: 'w4-shutter', label: 'W4 shed two shutter', pos: new Vector3(92, 0, 29.2), yaw: PI },
     { id: 'w4-canal-bed', label: 'W4 canal bed (pull)', pos: new Vector3(73.5, Y.canalBed, 5.0), yaw: 0 },
     { id: 'w4-boat', label: 'W4 boat', pos: new Vector3(90, Y.boat, 3), yaw: 0 },
+    // A6 / EGRESS E4: the way back from the jetty to the canal bed is the drop off its open south edge (x 72-76, the pull edge)
+    { id: 'w4-jetty-drop', label: 'W4 jetty drop to the canal bed', pos: new Vector3(74, 0, 6.3), yaw: PI },
+    // G157 rule 6: two vantages per encounter (the yard from the gantry's look-out, shed three through the fire door from shed two)
+    { id: 'w4-vantage-yard-a', label: 'W4 vantage: the yard from the gantry look-out', pos: new Vector3(51.0, Y.gantry, 18.6), yaw: 0 },
+    { id: 'w4-vantage-yard-b', label: 'W4 vantage: the yard from the gantry look-out', pos: new Vector3(53.0, Y.gantry, 18.6), yaw: 0 },
+    { id: 'w4-vantage-shed-a', label: 'W4 vantage: shed three through the fire door', pos: new Vector3(87.6, 0, 18.2), yaw: -PI / 2 },
+    { id: 'w4-vantage-shed-b', label: 'W4 vantage: shed three through the fire door', pos: new Vector3(87.6, 0, 19.8), yaw: -PI / 2 },
   ],
   deviations: [
     { space: 'w4-back-lane', why: 'the apron x 72-100 z 28-30 is open too: it fronts the shed doors, the shutter and the arm ladder' },
     { space: 'w4-canal-ledge', why: 'the bed is one walkable slab over the whole W4 canal (x 44-120, z 0-6); the room keeps the graph area' },
-    { space: 'w4-gantry', why: 'the walkway runs to x 85.2 so the north arm (x 84-85.2, z 19-29.4, caged) joins it; the arm ladder (84.6, 29.85) is 5.0 m from the clerestory lip; the graph marker (74, 0, 24.5) moves. Ladders are placed by the engine convention (the climber faces the wall: the quay ladder at (58, 5.55) facing +z, the yard leg at (60, 14.55) facing +z, the arm ladder facing -z), not the brief\'s outward-facing yaws' },
+    { space: 'w4-gantry', why: 'the walkway runs to x 85.2 so the north arm (x 84-85.2, z 19-29.4, caged) joins it; the arm ladder (84.6, 29.85) is 5.0 m from the clerestory lip; the graph marker (74, 0, 24.5) moves. The north screen has a look-out bay x 50-54 closed by clear glass (the crane man\'s look-out over the yard): bodies stop, sight and light pass, so the yard vantages see the yard north of z ~21.7 (the deck hides what is nearer). Ladders are placed by the engine convention (the climber faces the wall: the quay ladder at (58, 5.55) facing +z, the yard leg at (60, 14.55) facing +z, the arm ladder facing -z), not the brief\'s outward-facing yaws' },
     { space: 'w4-shed-two', why: 'the shutter marker (87.5, 0, 25.5) moves to the wall opening at x 92' },
     { space: 'w4-shed-three', why: 'the clerestory sash is 1.2 x 2.0 (y 4.4-6.4), not 1.2 x 1.2, and the shed walls run to 6.7 (roofs 6.7-7.0, both sheds): the climb-up off the lip needs a standing body\'s room (AttachController.climbRoom)' },
     { space: 'w4-jetty', why: 'the gangway and the jetty steps are one element (a stair x 86.75-89.25 down to the boat deck at -1)' },
