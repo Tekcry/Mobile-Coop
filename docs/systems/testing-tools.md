@@ -630,20 +630,20 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
 - Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
-- Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` (task
-  `NightShift-desktop-queue`, `install-task.ps1 -Worker desktop`) takes pr requests only (fixes first, then smallest
-  first, none over `LQ_DESKTOP_MAX_MIN` (15) min), on 4191 in `C:/NightShift/Mobile-Coop-testrun-4191` under
-  `C:/NightShift/heavy.lock` (and 4192 in `...-testrun-4192` under
-  `heavy2.lock`), `E2E_GPU=1 E2E_JOBS=1`. Start gates: `docs/RULES.md` "Machines"; env names `LQ_DESKTOP_BACKLOG`
-  (service default 3, `install-task.ps1` default 0), `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2` (80; CPU of Normal or higher
-  priority processes, lib `gatedCpu`; `LQ_DESKTOP_CPU_MODE=total` = whole machine) and `LQ_LAPTOP_SILENT_MIN` (10). Its
-  statuses read "desktop: ..."; logs `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/`.
-  While auto-train runs `merge-train build` it writes `<AUTO_TRAIN_SCRATCH or C:/NightShift/scratch>/auto-train-building.json`
-  ({ train, version, pid, at }; deleted once the version commit is pushed, and when the build ends); while it exists and
-  is under `LQ_BUILD_MARKER_MAX_MIN` (30) min old the desktop starts no new request or train (logged once per marker; an
-  older one is stale and ignored; runs going continue). `LQ_BUILD_MARKER` overrides the path (tests).
-- Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
-  a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
+- Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` takes pr requests only
+  (fixes first, then smallest first, none over `LQ_DESKTOP_MAX_MIN` (15) min), on 4191 in
+  `C:/NightShift/Mobile-Coop-testrun-4191` under `heavy.lock` (4192: `...-testrun-4192`, `heavy2.lock`), `E2E_GPU=1
+  E2E_JOBS=1`. Start gates: `docs/RULES.md` "Machines"; env `LQ_DESKTOP_BACKLOG` (service default 3, `install-task.ps1`
+  0), `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2` (80; CPU of Normal or higher priority processes, lib `gatedCpu`;
+  `LQ_DESKTOP_CPU_MODE=total` = whole machine), `LQ_LAPTOP_SILENT_MIN` (10). Statuses read "desktop: ..."; logs
+  `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/`. While auto-train's build marker
+  (`docs/systems/auto-train.md`; `LQ_BUILD_MARKER` overrides its path for tests) is under `LQ_BUILD_MARKER_MAX_MIN` (30)
+  min old the desktop starts no new request or train (logged once per marker; an older one is ignored).
+- Claims: before a run each worker pushes `claims/<id>.json` (a train: `claims/<sha>.json`) to `laptop-queue`, marked
+  done after. Both workers heartbeat their running claims (`LQ_HEARTBEAT_MIN` 5; a failed push retries each loop); an
+  open claim unbeaten for `LQ_CLAIM_BEATS` (4) beats, 20 min, is taken over (no beat field: `LQ_CLAIM_MAX_H`, 3 h) and
+  the run that lost it stops, posting nothing. A lost train verdict or done claim retries each pass (`LQ_TRAIN_RETRY` 0
+  = off); the alone hold drops a head whose verdict this worker holds or that has a done claim.
 - Spare work (laptop-queue-5; laptop only): once both slots sit idle with no open request and no pending train for
   `LQ_SPARE_IDLE_MIN` (5; 0 = off) min, the service queues the next job of `docs/laptop-queue/spare-jobs.json`
   (round-robin, never a set already queued on that sha) on the `origin/master` head as an ordinary request (requester

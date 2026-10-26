@@ -668,6 +668,14 @@ describe('claims and the desktop lane', () => {
     expect(claimBlocks({ worker: 'desktop', at: at(240), done: false }, 'laptop', NOW, 3 * H, 4)).toBe(false);
     expect(claimBlocks({ worker: 'desktop', at: at(25), done: false, beat: 3600_000 }, 'laptop', NOW, 20 * 60_000, 4)).toBe(false); // maxMs caps it
   });
+  it('a blocked heartbeat id cuts its run, at any stage and before any other reason (checker FIX 1)', () => {
+    const pr = { id: 'r1', kind: 'pr', suites: ['a'] };
+    // the laptop's claim went stale in a push outage; the desktop took the train over: its heartbeat names the desktop
+    expect(cutShort(pr, { taken: 'desktop' })).toBe('taken');
+    expect(cutShort({ id: 'f1', kind: 'full' }, { taken: 'desktop', started: true })).toBe('taken'); // a full run too
+    expect(cutShort(pr, { taken: 'desktop', withdrawn: true, superseded: 'r2' })).toBe('taken'); // nothing posted
+    expect(cutShort(pr, { taken: '' })).toBe('');
+  });
   it('the desktop gate needs backlog over the minimum and cpu under the cap', () => {
     expect(desktopGate(4, 40, 3, 60)).toBe('');
     expect(desktopGate(3, 40, 3, 60)).toMatch(/backlog/);
@@ -772,6 +780,9 @@ describe('desktop order and long-run skip (laptop-queue-8 slice D)', () => {
     expect(desktopTooLong({ suites: ['nope'] }, times, 900)).toBe(false); // NaN: taken
     expect(desktopTooLong({ suites: [] }, times, 900)).toBe(false);
     expect(desktopTooLong({ suites: ['long'] }, times, 0)).toBe(false);
+    // only what still runs counts: 'long' kept on this sha (lib keptPlan), 'quick' left (checker polish)
+    expect(desktopTooLong({ sha: 'S', suites: ['long', 'quick'], kept: { sha: 'S', suites: [{ s: 'long', sec: 1 }] } }, times, 900)).toBe(false);
+    expect(desktopTooLong({ sha: 'S', suites: ['long', 'quick'], kept: { sha: 'old', suites: [{ s: 'long', sec: 1 }] } }, times, 900)).toBe(true);
   });
   it('the desktop takes the smallest expected wall first, not the oldest', () => {
     const a = pr(30, 'a', ['mid']);

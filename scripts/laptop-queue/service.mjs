@@ -341,10 +341,12 @@ const gitIdEnv = () => (git(['config', 'user.email'], { soft: true }) ? {} : { G
  * the checkout untouched); a lost push race refetches and retries (5 tries). mode 'claim' (open; also refreshes this
  * worker's own `at`; carries `beat` = LQ_HEARTBEAT_MIN, lib claimBlocks A17) skips each id whose claim on the fresh
  * parent blocks this worker (the others are still written: a heartbeat refreshes the rest); 'done' marks finished;
- * 'release' removes the claim (the run gave up). Returns true when pushed, 'blocked' when another worker holds every
- * claim, false when the push failed.
+ * 'release' removes the claim (the run gave up). guard (mode 'done', syncTrains): an id whose fresh claim is another
+ * worker's live or done claim is skipped the same way. taken (a Map, optional) gets id -> worker for each skipped id
+ * (heartbeat stops those runs). Returns true when pushed, 'blocked' when another worker holds every claim, false when
+ * the push failed.
  */
-function writeClaims(ids, mode, label) {
+function writeClaims(ids, mode, label, { taken = null, guard = false } = {}) {
   if (ids.length === 0) return true;
   if (DRY) { log(`dry-run: would push ${mode} ${ids.length === 1 ? ids[0] : `${ids.length} ids`} (${WORKER})`); return true; }
   const tmpIndex = path.join(os.tmpdir(), `lq-claim-${process.pid}`);
@@ -355,11 +357,12 @@ function writeClaims(ids, mode, label) {
       const parent = git(['rev-parse', '--verify', '-q', QREF], { soft: true });
       if (!parent) return false;
       let write = ids;
-      if (mode === 'claim') {
+      if (mode === 'claim' || (mode === 'done' && guard)) {
         write = ids.filter((id) => {
           const have = parseClaim(git(['show', `${parent}:claims/${id}.json`], { soft: true }));
-          if (!blocks(have)) return true;
+          if (mode === 'claim' ? !blocks(have) : !otherClaim(have)) return true;
           log(`${id}: claimed by ${have.worker}${have.done ? ' (done)' : ''}, skipped`);
+          taken?.set(id, have.worker);
           return false;
         });
         if (write.length === 0) return 'blocked';
@@ -883,9 +886,12 @@ function syncTrains(heads) {
     if (e.posted !== true) {
       if (heads) ghState = head ? head.laptop : null;
       else {
-        try { ghState = laptopState(sha); } catch (err) { log(`${tag}: status read failed, retried next pass: ${String(err.message).split('\n')[0]}`); continue; }
+        // a gh error skips only the post (retried next pass); the done push is git and still goes (checker polish)
+        try { ghState = laptopState(sha); } catch (err) { ghState = null; log(`${tag}: status read failed, post retried next pass: ${String(err.message).split('\n')[0]}`); }
       }
     }
+    // laptop: heads were read and sha is not an open train head (a legacy entry, a moved head): never posted again
+    if (heads && !head && e.posted !== true) { e.posted = true; changed = true; }
     if (['success', 'failure', 'error'].includes(ghState)) { e.posted = true; changed = true; }
     const r = trainRepair(e, ghState, '', DESKTOP ? 'desktop: ' : '');
     if (r.post && postStatus(sha, r.post.state, 'laptop-e2e', r.post.desc)) {
@@ -896,7 +902,8 @@ function syncTrains(heads) {
     }
     if (!r.done) continue;
     if (c?.done && c.worker === WORKER) { e.doneSynced = true; changed = true; continue; }
-    if (writeClaims([sha], 'done', n ? `done train ${n}` : `done train ? ${sha.slice(0, 8)}`) === true) {
+    // guard: the fresh parent may carry another worker's live claim since QREF was read; never push done over it
+    if (writeClaims([sha], 'done', n ? `done train ${n}` : `done train ? ${sha.slice(0, 8)}`, { guard: true }) === true) {
       if (!DRY) { e.doneSynced = true; changed = true; }
       log(`${tag}: done claim pushed (lost push)`);
     }
@@ -1305,17 +1312,24 @@ const preemptedAlone = new Set();
 /** Train heads running here, for the heartbeat. */
 const runningTrains = new Set();
 let lastBeat = Date.now();
+/** Request ids / train shas running here whose claim another worker now holds (heartbeat): id -> worker; the run stops (cutShort 'taken'). */
+const takenBy = new Map();
 /**
  * Both workers: refresh the claims of everything running here every HEARTBEAT_MS (one push), so the desktop gate sees a
- * live laptop and a claim whose heartbeat stopped goes stale after LQ_CLAIM_BEATS beats (laptop-queue-8 A17).
+ * live laptop and a claim whose heartbeat stopped goes stale after LQ_CLAIM_BEATS beats (laptop-queue-8 A17). A failed
+ * push retries every loop (lastBeat moves only on a landed push). An id another worker now holds (its claim went stale
+ * here, e.g. a long push outage, and was taken over) stops its run here: no status, no done claim (checker FIX 1).
  */
 function heartbeat() {
   if (DRY || !(HEARTBEAT_MS > 0)) return;
-  const ids = [...activeReqs.keys(), ...runningTrains];
+  const ids = [...activeReqs.keys(), ...runningTrains].filter((id) => !takenBy.has(id));
   if (ids.length === 0) { lastBeat = Date.now(); return; }
   if (Date.now() - lastBeat < HEARTBEAT_MS) return;
-  lastBeat = Date.now();
-  if (writeClaims(ids, 'claim', `heartbeat ${ids.length} run(s)`) !== true) log(`heartbeat push failed for ${ids.length} run(s)`);
+  const taken = new Map();
+  const res = writeClaims(ids, 'claim', `heartbeat ${ids.length} run(s)`, { taken });
+  for (const [id, worker] of taken) { takenBy.set(id, worker); log(`${id}: claim taken by ${worker}, stopped`); }
+  if (res === true) lastBeat = Date.now();
+  else if (res !== 'blocked') log(`heartbeat push failed for ${ids.length} run(s), retried next loop`);
 }
 /** The train heads the last pass saw pending (desktop: those it may take); trainsNow() drops the ones claimed since. */
 let pendingNow = [];
@@ -1341,8 +1355,15 @@ async function runTrain(train, ports = PORTS) {
   const ctls = Object.fromEntries(ports.map((p) => [p, { child: null, why: '' }]));
   let misses = 0;
   let voided = false;
+  let taken = ''; // heartbeat: another worker now holds this train's claim (takenBy); stop, post nothing, push no done
   const watch = DRY ? null : setInterval(() => {
     if (voided) return;
+    if (takenBy.has(train.sha)) {
+      taken = takenBy.get(train.sha);
+      voided = true;
+      for (const c of Object.values(ctls)) cut(c, 'taken');
+      return;
+    }
     misses = voidMisses(misses, train.sha, voidHeads(train)); // a docs-only descendant head is not a miss (BRIEF A8)
     if (misses < VOID_MISSES) return;
     voided = true;
@@ -1350,6 +1371,7 @@ async function runTrain(train, ports = PORTS) {
     for (const c of Object.values(ctls)) cut(c, 'closed');
   }, TRAIN_VOID_POLL_MS);
   const closedEnd = () => {
+    if (taken) { log(`train ${train.n} ${train.sha.slice(0, 8)}: claim taken by ${taken}, run stopped (no status, no done)`); claimed.delete(train.sha); return; }
     postStatus(train.sha, 'error', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}train closed`);
     writeClaims([train.sha], 'release', `release train ${train.n} (closed)`);
     claimed.delete(train.sha);
@@ -1434,7 +1456,8 @@ async function runTrain(train, ports = PORTS) {
     // only slots this train locked: an unheld one may be serving a manual run
     for (const p of ports) { if (locks[p]) { releaseLock(p, locks[p]); freePort(p); } }
     saveState();
-    if (state.trains[train.sha]) { state.trains[train.sha].doneSynced = writeClaims([train.sha], 'done', `done train ${train.n}`) === true && !DRY; saveState(); }
+    takenBy.delete(train.sha);
+    if (state.trains[train.sha] && !taken) { state.trains[train.sha].doneSynced = writeClaims([train.sha], 'done', `done train ${train.n}`) === true && !DRY; saveState(); }
     log(`train ${train.n}: done`);
   }
 }
@@ -1522,7 +1545,7 @@ async function runRequest(r, port, pair = null) {
     const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
     const due = r.kind === 'alone' && ALONE_GAP && aloneGapOpen(state.aloneDue, r.id, lastTrainEnd); // started in its gap (A12)
     progressById.set(r.id, progress());
-    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), superseded: runningSup.get(r.id)?.id ?? '', trains, started, others, startedAt, now: Date.now(), progress: progress(), realOpen: spare && realOpenNow(), due });
+    const why = cutShort(r, { taken: takenBy.get(r.id) ?? '', withdrawn: withdrawnIds.has(r.id), superseded: runningSup.get(r.id)?.id ?? '', trains, started, others, startedAt, now: Date.now(), progress: progress(), realOpen: spare && realOpenNow(), due });
     if (why && !ctl.why) { ctl.by = why === 'superseded' ? runningSup.get(r.id) : trains[0] ?? null; for (const c of Object.values(ctls)) cut(c, why); }
   }, 5_000);
   const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
@@ -1563,6 +1586,12 @@ async function runRequest(r, port, pair = null) {
     else log(`${r.id}: kept push failed, the next run reruns all`);
   };
   const cutEnd = () => {
+    if (ctl.why === 'taken') {
+      // checker FIX 1: another worker holds the claim now (heartbeat); its run owns the head: no status, no done claim
+      log(`${r.id}: run stopped, ${takenBy.get(r.id) ?? 'the other worker'} holds the claim`);
+      claimed.delete(r.id);
+      return;
+    }
     if (ctl.why === 'withdrawn') {
       log(`${r.id}: withdrawn by the requester, run stopped`);
       for (const c of verdictCtx) if (posted || c === AFFECTED_CTX) postStatus(r.sha, 'error', c, 'withdrawn by the requester, run stopped');
@@ -1608,8 +1637,13 @@ async function runRequest(r, port, pair = null) {
     }
     postStatus(r.sha, 'pending', ctx, r.kind !== 'alone' && ports.length > 1 ? `rerun sharded on ${ports.join('+')}` : 'running');
     posted = true;
+    // laptop-queue-8 A10: a pr request a train preempted runs only the suites it has not passed on this sha (lib keptPlan);
+    // every suite kept: no prepare (fetch, npm ci, build) and no e2e call, the verdict comes from the kept passes
+    const plan = r.kind === 'pr' && KEEP_FINISHED ? keptPlan(r, r.sha, times) : { kept: [], rest: r.suites };
+    const allKept = r.kind === 'pr' && plan.rest.length === 0;
     let prep;
-    if (r.kind !== 'alone' && ports.length > 1) {
+    if (allKept) prep = 'ok';
+    else if (r.kind !== 'alone' && ports.length > 1) {
       const tried = [...ports];
       const preps = await settleAll(tried.map((p) => prepare(p, r.sha, path.join(runDir, `prepare-${p}.log`), stop, ctls[p])), Object.values(ctls));
       const yielding = preps.includes('yield');
@@ -1674,8 +1708,6 @@ async function runRequest(r, port, pair = null) {
       state.done[r.id] = { result: good ? 'success' : 'failure', date: new Date().toISOString() };
       return;
     }
-    // laptop-queue-8 A10: a pr request a train preempted runs only the suites it has not passed on this sha (lib keptPlan)
-    const plan = r.kind === 'pr' && KEEP_FINISHED ? keptPlan(r, r.sha, times) : { kept: [], rest: r.suites };
     keptNow = plan.kept;
     if (keptNow.length) log(`${r.id}: ${keptNow.length} suite(s) kept from a preempted run, runs ${plan.rest.length}`);
     const list = r.kind === 'full' ? cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[port].dir }).split('\n').map((x) => x.trim()).filter(Boolean) : plan.rest;
@@ -1734,6 +1766,7 @@ async function runRequest(r, port, pair = null) {
   } finally {
     if (watch) clearInterval(watch);
     progressById.delete(r.id);
+    takenBy.delete(r.id);
     missing.delete(r.id);
     withdrawnIds.delete(r.id);
     for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
@@ -1741,7 +1774,7 @@ async function runRequest(r, port, pair = null) {
     if (state.done[r.id] && state.aloneDue[r.id]) { delete state.aloneDue[r.id]; gapLogged.delete(r.id); } // done or withdrawn (A12)
     saveState();
     if (state.done[r.id] && writeClaims([r.id], 'done', `done ${r.id}`) === true) doneSynced.add(r.id);
-    if (!yielded && !yieldedSteps && ctl.why !== 'train') log(`${r.id}: done`);
+    if (!yielded && !yieldedSteps && ctl.why !== 'train' && ctl.why !== 'taken') log(`${r.id}: done`);
   }
 }
 
@@ -2069,7 +2102,7 @@ async function pass() {
     // laptop-queue-8 A9: a run estimated over LQ_DESKTOP_MAX_MIN at E2E_JOBS=1 is the laptop's (the backlog above counts it)
     queue.requests = queue.requests.filter((r) => {
       if (!desktopTooLong(r, times, DESKTOP_MAX_S)) return true;
-      if (!tooLongLogged.has(r.id)) { tooLongLogged.add(r.id); log(`${r.id}: ~${Math.round(expectedWallS(r.suites, times, 1) / 60)} min on the desktop, left to the laptop`); }
+      if (!tooLongLogged.has(r.id)) { tooLongLogged.add(r.id); log(`${r.id}: ~${Math.round(expectedWallS(keptPlan(r, r.sha, times).rest, times, 1) / 60)} min on the desktop, left to the laptop`); }
       return false;
     });
     const why = {};

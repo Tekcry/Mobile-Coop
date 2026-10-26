@@ -38,7 +38,16 @@ A-C pointers are this branch after slice C (shifted by D, E: find by name); D, E
 Verify per slice: `npm run typecheck:fast`, `npx vitest run tests/laptop-queue.test.ts tests/autoTrain.test.ts`.
 Dry runs not run: `--dry-run` still fetches origin (listRequests, train refs) into the shared
 C:/NightShift/Mobile-Coop/.git; run them where that is allowed.
-Next: one Opus checker on the PR head (A-G), then PR to master.
+- Checker FIX round 1 (Opus fixer): heartbeat sets lastBeat only on a landed push (a failed one retries every loop);
+  writeClaims `{ taken, guard }` reports ids another worker now holds, `takenBy` stops those runs (lib cutShort
+  'taken', first of all; runRequest cutEnd and runTrain closedEnd post nothing, push no done; log "<id>: claim taken
+  by <worker>, stopped"). Polish: syncTrains still pushes done when the status read fails, the done push re-checks
+  the fresh parent (guard), a laptop entry whose sha is no open train head is marked posted; desktopTooLong and its
+  log use keptPlan rest; runRequest skips prepare when every suite is kept. testing-tools "Laptop queue" Claims bullet
+  (beats, both heartbeat, LQ_TRAIN_RETRY, hold drop), desktop bullet points to auto-train.md for the build marker;
+  changes fragment slice G bullet. Tests: cutShort taken, desktopTooLong kept. Skipped: prCarry cache.
+- laptop-queue-9 item: auto-train's 3 h claim note (checker polish, skipped here).
+Next: narrow re-check of fix round 1 (heartbeat stop, docs), then post the checker status, then PR to master.
 Carry-ins (2026-10-26 ~13:45, after #517 merges):
 - #517 checker polish: refileOverCap passes `mustExist` to pushFile (withdrawal race); a null / [] recompute goes in a
   skip set; capAffected's coop / smoke checks use `norm()`; testing-tools.md:38 drop the restated "at most 3" and wrap;

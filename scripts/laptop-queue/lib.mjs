@@ -257,7 +257,7 @@ export const gateCpu = (c, mode) => (mode === 'total' ? c?.total : c?.gated);
  */
 export function desktopTooLong(r, times, maxS) {
   if (!(maxS > 0)) return false;
-  const w = expectedWallS(r?.suites ?? [], times, 1);
+  const w = expectedWallS(keptPlan(r, r?.sha, times).rest, times, 1); // only what still runs (A10 kept suites)
   return Number.isFinite(w) && w > maxS;
 }
 
@@ -813,14 +813,17 @@ export function yieldTo(r, started, trains) {
  * or past PREEMPT_MAX_PROGRESS of its expected wall (progress, lib runProgress; unknown = NaN cuts as before) finishes.
  * A spare run (SPARE_REQUESTER) is cut by any pending train ('train') or any waiting real request ('real', realOpen).
  * 'superseded' (laptop-queue-8 A6) when `superseded` names the newer request lib supersededRunning paired with it, at any
- * stage (lock wait, prepare, suites); 'withdrawn' wins.
+ * stage (lock wait, prepare, suites); 'withdrawn' wins over it. 'taken' (laptop-queue-8 G, checker FIX 1) first of
+ * all when `taken` names the worker that now holds the run's claim (a heartbeat push found it blocking, e.g. after a
+ * long push outage): the run stops and posts nothing, that worker's run owns the head.
  */
 export const ALONE_PREEMPT_MIN = 10;
 /** A pr run this far through its expected wall (runProgress) finishes instead (Orchestrator audit 2026-10-24: a coop4 run cut at 15/15 shards). */
 export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
-export function cutShort(r, { withdrawn = false, superseded = '', trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false } = {}) {
+export function cutShort(r, { taken = '', withdrawn = false, superseded = '', trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false } = {}) {
+  if (taken) return 'taken';
   if (withdrawn) return 'withdrawn';
   // laptop-queue-8 A6: a newer head of the same PR is queued (lib supersededRunning; the id): stop at any stage
   if (superseded) return 'superseded';
