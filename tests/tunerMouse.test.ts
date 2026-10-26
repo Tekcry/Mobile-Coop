@@ -135,7 +135,8 @@ describe('Keyed box', () => {
     expect(loopKeyedPick('state:walk', false)).toBe('state:walk');
   });
 
-  const NO_KEYED = ['state:aimStill', 'state:crouchAim', 'state:crouchAimFwd'];
+  // (piano-knife S4b) the intro pose is the wall stance plus the captured breath: no keyed clip either
+  const NO_KEYED = ['state:aimStill', 'state:crouchAim', 'state:crouchAimFwd', 'state:intro', 'state:introMirror', 'state:introCrouch'];
   it('every pairing names real loop entries and every state has its keyed clip', () => {
     for (const e of STUDIO_ENTRIES) {
       const k = loopKeyed(e.id);
