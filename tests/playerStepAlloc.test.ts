@@ -21,6 +21,20 @@
  * cross calls it does not inline (16 B HeapNumbers: `ray` / `floor` hits returned as `number | null`, arguments to
  * `Vector3.set`, `MotionDriver.step`, `AnalogGear.update`, `hyp2`), which reads 32-700 B per call by state and varies
  * between runs with V8's inlining, so the bytes are logged, not asserted (player-hygiene S1 report).
+ *
+ * player-hygiene S1b (the S1 residual): the step and the probe stop boxing numbers where our code can. A double passed to
+ * or returned from a call V8 does not inline, or stored into a field that has held a non-number, is a 16 B HeapNumber;
+ * V8 inlines within a budget (`--max-inlined-bytecode-size-cumulative`, 920 B of bytecode a function), so a big function
+ * such as `probe` boxes the arguments of the small calls past it. Flags: `S1B` (`TraversalController.prototype.rayHit`
+ * exists: the two player files and `speedGears.ts`) and `S1B_MOTION` (`stepLengthIn` exported from
+ * `src/anim/motion.ts`: the separate `MotionDriver` commit, a wire path). Before `S1B` the tiers only log. After it each
+ * state asserts its tier (`Tier`, the tables at the top of (b) and (c): strongest first, T0 `bytesPerCall` 0, T1 at most
+ * one HeapNumber (BRIEF A1), T2 no HeapNumber sampled in the two files, T3 the S1 assertion alone) with a comment naming
+ * what is left; a state that calls `MotionDriver` takes its higher tier only with `S1B_MOTION`. (d) is a parity sweep of
+ * every function S1b may touch, through its public form (the gear curves, `AnalogGear`, `StickRelease`, `MotionDriver`
+ * under scripted inputs and tunings, `gaitRate` / `stepLength` grids, a stubbed controller through overrides, the
+ * traversal's attach callbacks and rolls), hashed into `tests/fixtures/player-hygiene-s1b.json`; `PH_S1B_WRITE=1`
+ * rewrites it, only ever on the pre-S1b code. The S1 traces, rows, paths and fixture are unchanged.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Session } from 'node:inspector';
@@ -39,11 +53,13 @@ import {
   Vector3,
   type CharacterSurfaceInfo,
 } from '../src/core/babylon';
-import { MOVEMENT } from '../src/config/movement';
+import { ENEMY_MOTION, MOVEMENT } from '../src/config/movement';
+import * as motion from '../src/anim/motion';
 import { G } from '../src/physics/groups';
 import { GRAVITY } from '../src/physics/havok';
 import { PlayerController, type MoveOverride, type PlayerInput } from '../src/player/playerController';
 import { TraversalController } from '../src/player/traversal';
+import { AnalogGear, StickRelease, gearCap, stickCurve, stickSpeed } from '../src/player/speedGears';
 import type { Player } from '../src/player/player';
 import type { Breakables } from '../src/world/breakables';
 import { TraversalAnchors, type WindowAnchor } from '../src/world/anchors';
@@ -53,6 +69,11 @@ const FIXTURE = path.resolve(__dirname, 'fixtures/player-hygiene-s1.json');
 const WRITE = !!process.env.PH_S1_WRITE;
 /** The refactor is in (a member it adds). */
 const REFACTORED = 'glassKey' in TraversalController.prototype;
+/** (player-hygiene S1b) The S1b refactor is in (a method it adds), and its `MotionDriver` commit (an export it adds). */
+const S1B = 'rayHit' in TraversalController.prototype;
+const S1B_MOTION = 'stepLengthIn' in motion;
+const FIXTURE_S1B = path.resolve(__dirname, 'fixtures/player-hygiene-s1b.json');
+const WRITE_S1B = !!process.env.PH_S1B_WRITE;
 const DT = 1 / 60;
 const ALLOC = { n: 1000, warm: 20000 };
 
@@ -91,6 +112,14 @@ interface Fixture {
 }
 const got: Fixture = { trace: {}, probe: {}, commit: {} };
 const want: Fixture | null = WRITE ? null : (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture);
+/** (player-hygiene S1b) A (d) sweep: its steps, hash and the last step's first values (NaN as null, -0 as 0: JSON). */
+interface Sweep {
+  steps: number;
+  hash: string;
+  last: (number | null)[];
+}
+const gotS1b: Record<string, Sweep> = {};
+const wantS1b: Record<string, Sweep> | null = WRITE_S1B ? null : (JSON.parse(readFileSync(FIXTURE_S1B, 'utf8')) as Record<string, Sweep>);
 
 /** Records (write mode) or checks one result against the fixture. */
 function check(group: keyof Fixture, name: string, v: Run | Row): void {
@@ -105,9 +134,20 @@ function check(group: keyof Fixture, name: string, v: Run | Row): void {
   } else expect(v, `${group}.${name}`).toEqual(w);
 }
 
+/** (player-hygiene S1b) Records (write mode) or checks one (d) sweep against the S1b fixture. */
+function checkS1b(name: string, v: Sweep): void {
+  gotS1b[name] = v;
+  if (!wantS1b) return;
+  const w = wantS1b[name]!;
+  expect(v.last, `${name} last`).toEqual(w.last);
+  expect(v.steps, `${name} steps`).toBe(w.steps);
+  expect(v.hash, `${name} hash`).toBe(w.hash);
+}
+
 afterAll(() => {
   session?.disconnect();
   if (WRITE) writeFileSync(FIXTURE, JSON.stringify(got, null, 1) + '\n');
+  if (WRITE_S1B) writeFileSync(FIXTURE_S1B, JSON.stringify(gotS1b, null, 1) + '\n');
 });
 
 /** One input record per case (mutated between phases, never inside a measured loop). */
@@ -478,18 +518,32 @@ async function sampled(fn: (n: number) => void, n: number): Promise<{ ours: numb
 }
 
 /**
+ * (player-hygiene S1b) A state's allocation tier, strongest first: 0 `bytesPerCall` 0; 1 at most one HeapNumber a call
+ * (`HEAP_NUMBER`, BRIEF A1); 2 the sampled bytes made in the two files at most 0.1 B a call (no HeapNumber there on even
+ * 1 call in 160: only V8's one-off re-optimisation samples); 3 the S1 assertion alone (no object), the bytes logged. A
+ * state's pair is [its tier with `S1B`, with `S1B_MOTION` too].
+ */
+type Tier = 0 | 1 | 2 | 3;
+type Tiers = readonly [Tier, Tier];
+
+/**
  * Logs `fn`'s readings: `bytesPerCall`, and the sampled bytes in the two files / elsewhere (V8 boxing a double that
  * crosses a call it does not inline: 16 B HeapNumbers, also in `MotionDriver`, `AnalogGear` and `hyp2`). After the
- * refactor (`assert`) nothing bigger than a HeapNumber may be allocated: no object, vector, array, closure or string.
+ * refactor (`tiers` given) nothing bigger than a HeapNumber may be allocated: no object, vector, array, closure or
+ * string; (player-hygiene S1b) after S1b the state's tier holds too. `tiers` null: logged only.
  */
-async function readings(label: string, fn: (n: number) => void, assert = true): Promise<void> {
-  const per = await bytesPerCall(fn, HEAP_NUMBER, ALLOC);
+async function readings(label: string, fn: (n: number) => void, tiers: Tiers | null): Promise<void> {
+  const tier = S1B && tiers ? (S1B_MOTION ? tiers[1] : tiers[0]) : null;
+  const per = await bytesPerCall(fn, tier === 0 ? 0 : HEAP_NUMBER, ALLOC);
   const s = await sampled(fn, ALLOC.n);
-  const tag = REFACTORED ? 'refactored' : 'pre-refactor';
+  const tag = `${REFACTORED ? 'refactored' : 'pre-refactor'}${S1B ? `, S1b${S1B_MOTION ? ' + motion' : ''}` : ''}${tier !== null ? `, T${tier}` : ''}`;
   console.info(
     `player-hygiene S1 ${label} (${tag}): ${per.toFixed(1)} B per call; sampled HeapNumbers ${s.ours.toFixed(1)} B in the two files, ${s.other.toFixed(1)} B elsewhere; ${s.objects.length} kinds of object${s.objects.length ? `: ${s.objects.slice(0, 6).join('; ')}` : ''}`,
   );
-  if (REFACTORED && assert) expect(s.objects, label).toEqual([]);
+  if (REFACTORED && tiers) expect(s.objects, label).toEqual([]);
+  if (tier === 0) expect(per, `${label}: T0, B per call`).toBe(0);
+  else if (tier === 1) expect(per, `${label}: T1, B per call`).toBeLessThanOrEqual(HEAP_NUMBER);
+  else if (tier === 2) expect(s.ours, `${label}: T2, sampled B per call in the two files`).toBeLessThanOrEqual(0.1);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -497,6 +551,28 @@ async function readings(label: string, fn: (n: number) => void, assert = true): 
 // ---------------------------------------------------------------------------------------------------------------------
 
 describe('(b) PlayerController.fixedUpdate allocates nothing per step', () => {
+  /**
+   * (player-hygiene S1b) Tiers per state ([with S1B, with S1B_MOTION too], `Tier`) and what is left. The free-movement
+   * states stay T3: calls into modules outside the slice box their double arguments in `fixedUpdate` (A3: `paceSpeed` /
+   * `targetSpeed` src/player/movement.ts:61 / :25 at src/player/playerController.ts:604, `speedMoveMul`
+   * src/player/speedTune.ts:186 at :604, `weightSim` src/player/weightTune.ts:36 at :646), V8 / Babylon: `Vector3.set`
+   * arguments (`wish` :561, `tmp` :678) where V8 runs out of inlining budget, and the pace `Spring` in
+   * `MotionDriver.stepCt` stores its doubles into fields that held `undefined` (A3: src/anim/rigMath.ts:177, parameter
+   * properties).
+   */
+  const TIERS: Record<string, Tiers> = {
+    walk: [3, 3],
+    run: [3, 3],
+    // also V8 / Babylon: `normalizeFromLength` / `scaleInPlace` arguments on the slope (:701, :705)
+    ramp: [3, 3],
+    // also `EasedVelocity.reset` (A3, src/player/movement.ts:105, at :737) and `move.set` (:736)
+    air: [3, 3],
+    // also `tenseNear` (A3, src/player/tenseSneak.ts:40, at :626)
+    'crouch under ceiling': [3, 3],
+    // T1 with S1B: `MotionDriver.yaw` (src/anim/motion.ts) is declared without an initialiser, so it has held `undefined`
+    // and storing the facing into it boxes (src/player/playerController.ts:536); S1B_MOTION initialises it: none
+    kinematic: [1, 0],
+  };
   // the floor, and a ceiling over x 48..52 (underside 1.4 m)
   const world = new BoxWorld().box(-100, -1, -100, 100, 0, 100).box(48, 1.4, -2, 52, 2, 2);
   const fakeScene = { getPhysicsEngine: () => world };
@@ -512,9 +588,13 @@ describe('(b) PlayerController.fixedUpdate allocates nothing per step', () => {
   }
 
   async function measure(label: string, c: PlayerController, inp: PlayerInput): Promise<void> {
-    await readings(`fixedUpdate ${label}`, (n) => {
-      for (let k = 0; k < n; k++) c.fixedUpdate(DT, inp, 0);
-    });
+    await readings(
+      `fixedUpdate ${label}`,
+      (n) => {
+        for (let k = 0; k < n; k++) c.fixedUpdate(DT, inp, 0);
+      },
+      TIERS[label]!,
+    );
   }
 
   it('walk', async () => {
@@ -643,6 +723,21 @@ describe('(c) traversal probe and committed moves', () => {
     .box(47, -1, -3, 53, 0, 8);
   const fakeScene = { getPhysicsEngine: () => world };
   const LANES: [string, number, number][] = [['vault', 0, 2], ['mantle', 10, 0], ['drop', 20, 4], ['hop', 30, 5], ['nothing', 40, 1]];
+  /**
+   * (player-hygiene S1b) Tiers per state ([with S1B, with S1B_MOTION too], `Tier`): the probe casts through `seg` and
+   * `Vector3.FromArrayToRef` (no double crosses a call) and `probeDir` are T0. The committed step stays T3: `traversePath`
+   * (A3, src/player/traversePath.ts:37) takes `top`, `speed0` and `k` as double arguments (src/player/traversal.ts:716).
+   */
+  const TIERS: Record<string, Tiers> = {
+    'probe vault': [0, 0],
+    'probe mantle': [0, 0],
+    'probe drop': [0, 0],
+    'probe hop': [0, 0],
+    'probe nothing': [0, 0],
+    'probeDir facing': [0, 0],
+    'probeDir stick': [0, 0],
+    'committed step': [3, 3],
+  };
 
   function make(x: number, speed: number, anchors = new TraversalAnchors()): { tr: TraversalController; ctl: FakeCtl; pose: FakePose } {
     const f = fakePlayer(x, speed);
@@ -727,9 +822,13 @@ describe('(c) traversal probe and committed moves', () => {
     for (const [name, x, speed] of LANES) {
       const { tr } = make(x, speed);
       const feet = new Vector3(x, 0, 0);
-      await readings(`probe ${name}`, (n) => {
-        for (let k = 0; k < n; k++) tr.probe(feet, 0, 1);
-      });
+      await readings(
+        `probe ${name}`,
+        (n) => {
+          for (let k = 0; k < n; k++) tr.probe(feet, 0, 1);
+        },
+        TIERS[`probe ${name}`]!,
+      );
     }
     {
       // the window probe: `nearestInReach` (src/world/anchors.ts:785-815: `closestOn` and `reach` return literals) is
@@ -741,7 +840,7 @@ describe('(c) traversal probe and committed moves', () => {
         (n) => {
           for (let k = 0; k < n; k++) tr.probe(feet, 0, 1);
         },
-        false,
+        null,
       );
     }
     for (const stick of [false, true]) {
@@ -749,21 +848,316 @@ describe('(c) traversal probe and committed moves', () => {
       ctl.yaw = 0.4;
       if (stick) ctl.wishDir.set(0.5, 0, 0.6);
       const pd = tr as unknown as { probeDir(): { x: number; z: number } };
-      await readings(`probeDir ${stick ? 'stick' : 'facing'}`, (n) => {
-        for (let k = 0; k < n; k++) pd.probeDir();
-      });
+      const label = `probeDir ${stick ? 'stick' : 'facing'}`;
+      await readings(
+        label,
+        (n) => {
+          for (let k = 0; k < n; k++) pd.probeDir();
+        },
+        TIERS[label]!,
+      );
     }
     {
       const { tr, ctl } = make(0, 2);
       tr.fixedUpdate(DT, true, false);
       expect(tr.kind).toBe('vault');
-      await readings('committed step', (n) => {
-        for (let k = 0; k < n; k++) {
-          tr.t = 0;
-          tr.fixedUpdate(DT, false, false);
-        }
-      });
+      await readings(
+        'committed step',
+        (n) => {
+          for (let k = 0; k < n; k++) {
+            tr.t = 0;
+            tr.fixedUpdate(DT, false, false);
+          }
+        },
+        TIERS['committed step']!,
+      );
       expect(ctl.override?.kinematic).toBeDefined();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (d) player-hygiene S1b parity sweep: every function S1b may touch, through its public form
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** A run's hash: the values `each` pushes per step into one hasher; the last step's first six kept (a readable diff). */
+function sweep(name: string, steps: number, each: (k: number, out: number[]) => void): void {
+  const h = new Hasher();
+  const out: number[] = [];
+  for (let k = 0; k < steps; k++) {
+    out.length = 0;
+    each(k, out);
+    for (const v of out) h.add(v);
+  }
+  checkS1b(name, { steps, hash: h.digest(), last: out.slice(0, 6).map((v) => (Number.isNaN(v) ? null : v === 0 ? 0 : v)) });
+}
+
+const MOTION_STATES = ['idle', 'start', 'move', 'stop', 'turn', 'pivot'];
+/** The player's cover and glide tunings (src/player/playerController.ts `COVER_MOTION`, `GLIDE_MOTION`). */
+const COVER_TUNING = { ...MOVEMENT, accelMax: 6, decelMax: 7, jerkMax: 60, velGain: 10, startShift: 0.08, rootDip: 0.01, pivotMinSpeed: 99 };
+const GLIDE_TUNING = { ...MOVEMENT, accelMax: 40, decelMax: 40, jerkMax: 2000, velGain: 40, brakeGain: 40, startShift: 0, rootDip: 0.01, pivotMinSpeed: 99 };
+
+describe('(d) S1b parity sweep', () => {
+  it('stickCurve, stickSpeed, gearCap over grids', () => {
+    const NAN = Number.NaN;
+    sweep('stickCurve', 122, (k, o) => {
+      const m = k < 121 ? (k - 10) / 100 : NAN;
+      o.push(stickCurve(m), stickCurve(m, 0.2), stickCurve(m, 0));
+    });
+    for (const crouched of [false, true]) {
+      sweep(`stickSpeed ${crouched ? 'crouched' : 'standing'}`, 122, (k, o) => o.push(stickSpeed(k < 121 ? (k - 10) / 100 : NAN, crouched)));
+      const gears = [-1, 0, 1, 2, 3, 4, 5, 6, 2.5, 4.49, NAN, Infinity];
+      sweep(`gearCap ${crouched ? 'crouched' : 'standing'}`, gears.length, (k, o) => o.push(gearCap(gears[k]!, crouched)));
+    }
+  });
+
+  it('AnalogGear.update and StickRelease.update over scripted sticks', () => {
+    const a = new AnalogGear();
+    sweep('AnalogGear', 900, (k, o) => {
+      if (k === 600) a.reset();
+      const mag = k === 333 ? Number.NaN : k % 150 < 100 ? Math.abs(Math.sin(k * 0.05)) * 1.15 - 0.05 : (k % 7) / 6;
+      const maxGear = k % 211 === 7 ? 2.6 : 1 + (Math.floor(k / 120) % 5);
+      const crouched = Math.floor(k / 75) % 2 === 1;
+      o.push(a.update(maxGear, crouched, mag), a.gear, a.band, a.v, a.moving ? 1 : 0, a.speed());
+    });
+    const r = new StickRelease();
+    sweep('StickRelease', 900, (k, o) => {
+      if (k === 450) r.reset();
+      const ph = k % 90;
+      // a full push, then a snap release (fast), a slow spring-back, a push that settles, a diagonal
+      const d = ph < 30 ? 1 : ph < 33 ? 1 - (ph - 29) * 0.33 : ph < 45 ? 0 : ph < 60 ? 0.9 - (ph - 45) * 0.05 : ph < 75 ? 0.6 : 0.3 + 0.01 * ph;
+      const ang = Math.floor(k / 90) * 0.7;
+      const dt = k % 97 === 0 ? 0 : k % 53 === 0 ? 1 / 30 : DT;
+      r.update(Math.sin(ang) * d, Math.cos(ang) * d, dt);
+      o.push(r.x, r.y, r.latched ? 1 : 0);
+    });
+  });
+
+  it('MotionDriver under scripted inputs and tunings', () => {
+    type Script = (k: number, i: motion.MotionInput, d: motion.MotionDriver) => void;
+    const scripts: [string, Script][] = [
+      [
+        'free walk, stop, reversal',
+        (k, i) => {
+          const h = k * 0.01;
+          const sp = k < 200 ? 1.4 : k < 260 ? 0 : 1.6;
+          const rev = k >= 260 ? Math.PI : 0;
+          i.vx = Math.sin(h + rev) * sp;
+          i.vz = Math.cos(h + rev) * sp;
+          i.yaw = h;
+          i.faceTravel = true;
+        },
+      ],
+      [
+        'run, flick reversal, sprint',
+        (k, i) => {
+          const h = k < 100 ? 0.4 : k < 220 ? 0.4 + Math.PI : 1.9;
+          const sp = k < 300 ? 4.5 : 0;
+          i.vx = Math.sin(h) * sp;
+          i.vz = Math.cos(h) * sp;
+          i.sprinting = k >= 150 && k < 200;
+          i.faceTravel = true;
+        },
+      ],
+      [
+        'aiming strafe',
+        (k, i) => {
+          const s = Math.floor(k / 60) % 2 === 0 ? 1 : -1;
+          i.aiming = true;
+          i.yaw = 0.5;
+          i.vx = Math.cos(0.5) * 0.7 * s;
+          i.vz = -Math.sin(0.5) * 0.7 * s;
+          i.faceTravel = false;
+          i.crouch = k > 180 ? 1 : 0;
+        },
+      ],
+      [
+        'slowest backwards, then a turn',
+        (k, i, d) => {
+          const h = k < 150 ? d.yaw + Math.PI : 0.2;
+          i.slowest = k < 250;
+          i.vx = Math.sin(h) * 0.5;
+          i.vz = Math.cos(h) * 0.5;
+          i.faceTravel = true;
+        },
+      ],
+      [
+        'tense crouched sneak',
+        (k, i) => {
+          i.tense = k > 40 && k < 260;
+          i.crouch = k < 150 ? 1 : 0.5;
+          i.vx = 0.3;
+          i.vz = 0.85;
+          i.faceTravel = true;
+        },
+      ],
+      [
+        'mocap side-step strafe',
+        (k, i) => {
+          i.mocapSide = true;
+          i.aiming = true;
+          i.yaw = -0.3;
+          i.vx = k < 200 ? 0.7 : 0.35;
+          i.vz = k < 200 ? 0.1 : -0.6;
+          i.crouch = k > 250 ? 0.6 : 0;
+        },
+      ],
+      [
+        'explicit yaw (stepped turns), reset, carry',
+        (k, i, d) => {
+          if (k === 120) d.reset();
+          if (k === 200) d.reset(1.0);
+          if (k === 280) d.carry(2, -1);
+          i.yaw = Math.floor(k / 40) * 0.9 - 1.5;
+          i.faceTravel = false;
+          i.vx = k > 300 ? 1.1 : 0;
+          i.vz = 0;
+        },
+      ],
+    ];
+    const tunings: [string, motion.MotionTuning][] = [['player', MOVEMENT], ['guard', ENEMY_MOTION], ['cover', COVER_TUNING], ['glide', GLIDE_TUNING]];
+    const stride = motion.GLIDE_SIDE.stride;
+    try {
+      for (const side of [Number.NaN, 1.3]) {
+        motion.GLIDE_SIDE.stride = side;
+        for (const [sn, script] of scripts) {
+          for (const [tn, M] of tunings) {
+            for (const ct of [false, true]) {
+              const d = new motion.MotionDriver(0.3);
+              const i = motion.emptyMotionInput();
+              sweep(`MotionDriver ${sn} / ${tn}${ct ? ' / ct' : ''}${side > 0 ? ' / strafe captures' : ''}`, 360, (k, o) => {
+                script(k, i, d);
+                i.ct = ct;
+                d.step(DT, i, M);
+                o.push(d.vx, d.vz, d.ax, d.az, d.outX, d.outZ, d.yaw, d.yawRate, MOTION_STATES.indexOf(d.state), d.phase, d.simPhase, d.backward ? 1 : 0);
+                o.push(d.speed, d.accel, d.goalYaw, d.faceGoal, d.tense, d.ctStopDistance());
+              });
+            }
+          }
+        }
+      }
+    } finally {
+      motion.GLIDE_SIDE.stride = stride;
+    }
+  });
+
+  it('gaitRate and stepLength over a grid', () => {
+    const speeds = [-0.5, 0, 0.01, 0.03, 0.4, 0.85, 1.4, 1.95, 2.1, 2.6, 3.4, 4.5, 6, 9];
+    const unit = [0, 0.35, 1];
+    const stride = motion.GLIDE_SIDE.stride;
+    try {
+      for (const side of [Number.NaN, 1.3]) {
+        motion.GLIDE_SIDE.stride = side;
+        for (const [tn, M] of [['player', MOVEMENT], ['guard', ENEMY_MOTION]] as const) {
+          for (const [cn, cs] of [['crouch step', motion.CROUCH_STEP], ['guard crouch step', motion.CROUCH_STEP_GUARD]] as const) {
+            const name = `gaitRate / stepLength ${tn}, ${cn}${side > 0 ? ', strafe captures' : ''}`;
+            sweep(name, speeds.length, (k, o) => {
+              const v = speeds[k]!;
+              o.push(motion.stepLength(v), motion.gaitRate(v, 0));
+              for (const lat of unit)
+                for (const tense of [0, 1])
+                  for (const crouch of [0, 0.5, 1])
+                    for (const back of [0, 1])
+                      for (const glide of unit)
+                        for (const mside of [false, true]) {
+                          o.push(motion.stepLength(v, M, lat, tense, crouch, back, glide, mside, cs));
+                          for (const yr of [0, 0.8, -2.5, 6]) o.push(motion.gaitRate(v, yr, M, lat, tense, crouch, back, glide, mside, cs));
+                        }
+            });
+          }
+        }
+      }
+    } finally {
+      motion.GLIDE_SIDE.stride = stride;
+    }
+  });
+
+  it('a stubbed controller through free moves, overrides, kinematic moves and the air', () => {
+    const world = new BoxWorld().box(-100, -1, -100, 100, 0, 100).box(48, 1.4, -2, 52, 2, 2);
+    const fakeScene = { getPhysicsEngine: () => world };
+    const c = new PlayerController(scene, new Vector3(0, 0, 0), 0.2);
+    c.dispose();
+    const cc = new StubCC();
+    cc.pos.set(0, MOVEMENT.standHeight / 2 + 0.02, 0);
+    (c as unknown as { cc: unknown }).cc = cc;
+    (c as unknown as { scene: unknown }).scene = fakeScene;
+    const inp = input();
+    const kin = new Vector3();
+    const ovCover: MoveOverride = { velocity: { x: 1, z: 0.5 }, yaw: 1.2, turnRate: 6 };
+    const ovGlide: MoveOverride = { velocity: { x: -0.4, z: 0.9 }, yaw: -0.7, turnRate: 9, glide: true };
+    const ovYaw: MoveOverride = { yaw: -2 };
+    const ovRun: MoveOverride = { velocity: { x: 3, z: -1 }, run: true, noise: 'crouched' };
+    const ovKinTurn: MoveOverride = { kinematic: kin, yaw: 2.5, turnRate: 3, crouch: false };
+    const ovKin: MoveOverride = { kinematic: kin };
+    sweep('controller', 900, (k, o) => {
+      const ph = k % 900;
+      // the stick: a walk, a ramp up, a snap release, a diagonal, a reversal
+      const d = ph < 60 ? 0.5 : ph < 120 ? 0.3 + (ph - 60) * 0.012 : ph < 123 ? 1 - (ph - 119) * 0.33 : ph < 150 ? 0 : 1;
+      const ang = ph < 150 ? 0 : ph < 190 ? Math.PI / 4 : ph < 230 ? Math.PI : 0.5 * Math.sin(ph * 0.03);
+      inp.moveX = Math.sin(ang) * d;
+      inp.moveY = Math.cos(ang) * d;
+      inp.crouchPressed = ph === 240 || ph === 330 || ph === 700;
+      inp.ads = ph >= 280 && ph < 320;
+      inp.aiming = ph >= 300 && ph < 340;
+      inp.reloading = ph >= 340 && ph < 360;
+      c.frozen = ph >= 360 && ph < 375;
+      c.override = ph >= 380 && ph < 420 ? ovCover : ph >= 420 && ph < 450 ? ovGlide : ph >= 450 && ph < 480 ? ovYaw : ph >= 480 && ph < 510 ? ovRun : ph >= 520 && ph < 560 ? ovKinTurn : ph >= 560 && ph < 580 ? ovKin : null;
+      if (ph >= 520 && ph < 580) kin.set(Math.sin(ph * 0.05) * 2, Math.max(0, Math.sin(ph * 0.1)) * 0.4, ph * 0.01);
+      cc.supported = !(ph >= 600 && ph < 640);
+      c.fixedUpdate(DT, inp, 0.3 * Math.sin(k * 0.02));
+      const v = cc.vel;
+      o.push(c.pos.x, c.pos.y, c.pos.z, v.x, v.y, v.z, c.yaw, c.speed, c.grounded ? 1 : 0, c.crouched ? 1 : 0, c.crouchBlend, c.wantSpeed);
+      o.push(c.analog.v, c.analog.gear, c.analog.band, c.analog.moving ? 1 : 0, c.localMove.x, c.localMove.z, c.stopHold ? 1 : 0, c.kneeling ? 1 : 0);
+      o.push(c.motion.vx, c.motion.vz, c.motion.yaw, c.motion.phase, MOTION_STATES.indexOf(c.motion.state), c.landT);
+    });
+  });
+
+  it('traversal: the attach callbacks and landing / forward rolls', () => {
+    const world = new BoxWorld()
+      .box(-100, -1, -100, 100, 0, 100)
+      // a wall ahead of the roll lane at x 10, a low beam over x 20
+      .box(9, 0, 1.9, 11, 2, 2.3)
+      .box(19, 1.2, -2, 21, 1.5, 4);
+    const fakeScene = { getPhysicsEngine: () => world } as unknown as Scene;
+    const tr = new TraversalController(fakeScene, fakePlayer(0, 1).player, new TraversalAnchors());
+    const ac = tr.attachCtl as unknown as {
+      roomAt(x: number, y: number, z: number): boolean;
+      floorAt(x: number, z: number, y: number): number | null;
+      lineClear(ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean;
+    };
+    sweep('attach callbacks', 25 * 6, (k, o) => {
+      const x = (k % 25) - 2;
+      const y = Math.floor(k / 25) * 0.4 - 0.2;
+      const f = ac.floorAt(x, 1.3, y);
+      o.push(ac.roomAt(x, y, 1.6) ? 1 : 0, f === null ? 1 : 0, f ?? 0, ac.lineClear(x, y, -1, x + 0.5, y + 0.3, 3) ? 1 : 0);
+    });
+    // a landing roll in the open, one into the wall (the ray's hit shortens it), a forward roll under the beam
+    for (const [name, x, forward] of [['landing roll, open', 0, false], ['landing roll, wall', 10, false], ['forward roll, beam', 20, true]] as const) {
+      const f = fakePlayer(x, forward ? 5 : 1);
+      const ctl = f.ctl as FakeCtl & { landVX: number; landVZ: number };
+      const t = new TraversalController(fakeScene, f.player, new TraversalAnchors());
+      ctl.landVX = 0.4;
+      ctl.landVZ = 2.5;
+      if (forward) {
+        ctl.rollHeld = true;
+        ctl.gear = 5;
+        ctl.wishDir.set(0, 0, 1);
+        ctl.motion.vx = 0.3;
+        ctl.motion.vz = 4.8;
+      } else {
+        ctl.landings = 1;
+        ctl.lastLanding = 'roll';
+      }
+      let first = true;
+      sweep(name, 60, (_k, o) => {
+        t.fixedUpdate(DT, false, false);
+        if (first) expect(t.kind).toBe('roll');
+        first = false;
+        const ov = ctl.override;
+        if (ov) o.push(ov.kinematic!.x, ov.kinematic!.y, ov.kinematic!.z, ov.yaw!, ov.crouch ? 1 : 0);
+        else o.push(-1);
+        o.push(POSE_KINDS.indexOf(f.pose.traverse), f.pose.traverseT, f.pose.traverseH, f.pose.traverseD, ctl.crouchSet, ctl.landT);
+      });
     }
   });
 });

@@ -1,0 +1,1558 @@
+{
+ "stickCurve": {
+  "steps": 122,
+  "hash": "11d5d825b693645b",
+  "last": [
+   null,
+   null,
+   null
+  ]
+ },
+ "stickSpeed standing": {
+  "steps": 122,
+  "hash": "baf0cf63ddb5fad8",
+  "last": [
+   0
+  ]
+ },
+ "gearCap standing": {
+  "steps": 12,
+  "hash": "1537d7fd88e0fd7e",
+  "last": [
+   4
+  ]
+ },
+ "stickSpeed crouched": {
+  "steps": 122,
+  "hash": "e77f26e844c93a74",
+  "last": [
+   0
+  ]
+ },
+ "gearCap crouched": {
+  "steps": 12,
+  "hash": "4ad71d01a47c575c",
+  "last": [
+   2.6
+  ]
+ },
+ "AnalogGear": {
+  "steps": 900,
+  "hash": "3a4e276d6fbef861",
+  "last": [
+   2,
+   2,
+   3,
+   1.3270676691729324,
+   1,
+   1.3270676691729324
+  ]
+ },
+ "StickRelease": {
+  "steps": 900,
+  "hash": "55e2df583dd27b4e",
+  "last": [
+   0.020008541576376156,
+   1.1898317772962639,
+   0
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / player": {
+  "steps": 360,
+  "hash": "bffb8f641452c719",
+  "last": [
+   0.6791302906106911,
+   1.4485406984339477,
+   0.8711473076194265,
+   -0.4031257972155533,
+   0.6623272547702771,
+   1.4127009168653817
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / player / ct": {
+  "steps": 360,
+  "hash": "0da9f5618aade3f8",
+  "last": [
+   0.6791844858130767,
+   1.4486600618835483,
+   0.871228944100082,
+   -0.4031363723208248,
+   0.6715296477095334,
+   1.4323327480646644
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / guard": {
+  "steps": 360,
+  "hash": "a3c40177bd4649f7",
+  "last": [
+   0.5468900510452316,
+   1.4629534238913986,
+   0.978395742394111,
+   -0.1408765916291781,
+   0.532287983282194,
+   1.4238922908738896
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / guard / ct": {
+  "steps": 360,
+  "hash": "a4c0f136c8fe7bfc",
+  "last": [
+   0.6791844858130767,
+   1.4486600618835483,
+   0.871228944100082,
+   -0.4031363723208248,
+   0.6686050367394735,
+   1.4260947270300695
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / cover": {
+  "steps": 360,
+  "hash": "f4619010f3dede4c",
+  "last": [
+   0.6791302906022862,
+   1.4485406984347897,
+   0.8711473081237198,
+   -0.4031257972660729,
+   0.6741100520734374,
+   1.437832856470564
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / cover / ct": {
+  "steps": 360,
+  "hash": "ea75a166be1339f5",
+  "last": [
+   0.6791844858130767,
+   1.4486600618835483,
+   0.871228944100082,
+   -0.4031363723208248,
+   0.6749725473374479,
+   1.4396762479416714
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / glide": {
+  "steps": 360,
+  "hash": "b400948e982a05ff",
+  "last": [
+   0.6864062839283486,
+   1.4452177792230314,
+   0.8691754171199539,
+   -0.40750128912113937,
+   0.6796051387027711,
+   1.4308980734901096
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / glide / ct": {
+  "steps": 360,
+  "hash": "ea75a166be1339f5",
+  "last": [
+   0.6791844858130767,
+   1.4486600618835483,
+   0.871228944100082,
+   -0.4031363723208248,
+   0.6749725473374479,
+   1.4396762479416714
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / player": {
+  "steps": 360,
+  "hash": "dc80d1831bca23da",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / player / ct": {
+  "steps": 360,
+  "hash": "2389b531363aa646",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / guard": {
+  "steps": 360,
+  "hash": "27c6bded4435f9b1",
+  "last": [
+   -0.035016782628261654,
+   -2.674174931513887,
+   0.026186604730682992,
+   1.9998285580850872,
+   -0.03515079751777905,
+   -2.6844094314050273
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / guard / ct": {
+  "steps": 360,
+  "hash": "11271b71bb1f37fc",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / cover": {
+  "steps": 360,
+  "hash": "d06260b94146d91a",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / cover / ct": {
+  "steps": 360,
+  "hash": "a6fcd2b804d21608",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / glide": {
+  "steps": 360,
+  "hash": "0a8def27a5f6c330",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / glide / ct": {
+  "steps": 360,
+  "hash": "a6fcd2b804d21608",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver aiming strafe / player": {
+  "steps": 360,
+  "hash": "c95af34bd34929a4",
+  "last": [
+   -0.6143062276496863,
+   0.33559702169157,
+   -0.000023485103617826297,
+   0.000012829970580607863,
+   -0.6273042728411709,
+   0.3426978861427801
+  ]
+ },
+ "MotionDriver aiming strafe / player / ct": {
+  "steps": 360,
+  "hash": "8a78b8e8668bad46",
+  "last": [
+   -0.6143077933232606,
+   0.33559787702294197,
+   0,
+   0,
+   -0.5997259556873271,
+   0.32763178281593364
+  ]
+ },
+ "MotionDriver aiming strafe / guard": {
+  "steps": 360,
+  "hash": "a285787a26606b30",
+  "last": [
+   -0.5590245176913285,
+   0.3053964858984968,
+   -0.3685551708795489,
+   0.20134260749630195,
+   -0.5401869671082627,
+   0.2951054851124096
+  ]
+ },
+ "MotionDriver aiming strafe / guard / ct": {
+  "steps": 360,
+  "hash": "bfd9cd1f8691cee6",
+  "last": [
+   -0.6143077933232606,
+   0.33559787702294197,
+   0,
+   0,
+   -0.64367957162835,
+   0.35164375264215214
+  ]
+ },
+ "MotionDriver aiming strafe / cover": {
+  "steps": 360,
+  "hash": "9a38a4505ed081af",
+  "last": [
+   -0.6142515382666704,
+   0.33556714474546046,
+   -0.0006750606790850711,
+   0.0003687873297791855,
+   -0.6096599425652948,
+   0.33305874458144286
+  ]
+ },
+ "MotionDriver aiming strafe / cover / ct": {
+  "steps": 360,
+  "hash": "487b731bc2351812",
+  "last": [
+   -0.6143077933232606,
+   0.33559787702294197,
+   0,
+   0,
+   -0.6091343449986817,
+   0.33277160932214633
+  ]
+ },
+ "MotionDriver aiming strafe / glide": {
+  "steps": 360,
+  "hash": "c8b2f4880b53b341",
+  "last": [
+   -0.6143077933232609,
+   0.3355978770229421,
+   0,
+   0,
+   -0.616136778641605,
+   0.33659705625624115
+  ]
+ },
+ "MotionDriver aiming strafe / glide / ct": {
+  "steps": 360,
+  "hash": "487b731bc2351812",
+  "last": [
+   -0.6143077933232606,
+   0.33559787702294197,
+   0,
+   0,
+   -0.6091343449986817,
+   0.33277160932214633
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / player": {
+  "steps": 360,
+  "hash": "b6e93ad56dfc0dcf",
+  "last": [
+   0.09933466539753057,
+   0.4900332889206207,
+   3.3306690738754696e-16,
+   1.3322676295501878e-15,
+   0.10118893306284946,
+   0.4991806784944317
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / player / ct": {
+  "steps": 360,
+  "hash": "4f657dd0f3658470",
+  "last": [
+   0.09933466539753046,
+   0.49003328892062015,
+   0,
+   0,
+   0.10181441399471305,
+   0.5022662728030413
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / guard": {
+  "steps": 360,
+  "hash": "1e2429eb19316044",
+  "last": [
+   0.09933466475408546,
+   0.4900332858553614,
+   4.289634231158246e-9,
+   2.043506297511044e-8,
+   0.09887598766072934,
+   0.4877705607154485
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / guard / ct": {
+  "steps": 360,
+  "hash": "023739977db6289b",
+  "last": [
+   0.09933466539753046,
+   0.49003328892062015,
+   0,
+   0,
+   0.0952956420733501,
+   0.47010816131633065
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / cover": {
+  "steps": 360,
+  "hash": "3a83b5e7374b4188",
+  "last": [
+   0.09933466539753055,
+   0.4900332889206207,
+   4.163336342344337e-16,
+   1.1102230246251565e-15,
+   0.09842008277908446,
+   0.4855215112173063
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / cover / ct": {
+  "steps": 360,
+  "hash": "b867c7465a790008",
+  "last": [
+   0.09933466539753046,
+   0.49003328892062015,
+   0,
+   0,
+   0.09876958854970225,
+   0.48724567731367513
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / glide": {
+  "steps": 360,
+  "hash": "1a91e4751ce5b7fc",
+  "last": [
+   0.0993346653975306,
+   0.4900332889206208,
+   0,
+   0,
+   0.09896488013790973,
+   0.48820908096420196
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / glide / ct": {
+  "steps": 360,
+  "hash": "b867c7465a790008",
+  "last": [
+   0.09933466539753046,
+   0.49003328892062015,
+   0,
+   0,
+   0.09876958854970225,
+   0.48724567731367513
+  ]
+ },
+ "MotionDriver tense crouched sneak / player": {
+  "steps": 360,
+  "hash": "e1931f2e0bba38e9",
+  "last": [
+   0.2999999999999999,
+   0.8499999999999998,
+   1.3322676295501878e-15,
+   2.6645352591003757e-15,
+   0.30676808354410484,
+   0.8691762367082971
+  ]
+ },
+ "MotionDriver tense crouched sneak / player / ct": {
+  "steps": 360,
+  "hash": "3a1b1bf4385ac1de",
+  "last": [
+   0.29999999999999993,
+   0.8499999999999999,
+   0,
+   0,
+   0.3066254005074268,
+   0.868771968104376
+  ]
+ },
+ "MotionDriver tense crouched sneak / guard": {
+  "steps": 360,
+  "hash": "9666f1d5dc306ccc",
+  "last": [
+   0.2999999999999995,
+   0.8499999999999986,
+   3.3306690738754696e-15,
+   8.659739592076221e-15,
+   0.29126384160370306,
+   0.8252475512104922
+  ]
+ },
+ "MotionDriver tense crouched sneak / guard / ct": {
+  "steps": 360,
+  "hash": "5b6d0e37a9eb3fea",
+  "last": [
+   0.29999999999999993,
+   0.8499999999999999,
+   0,
+   0,
+   0.30529321424857386,
+   0.8649974403709593
+  ]
+ },
+ "MotionDriver tense crouched sneak / cover": {
+  "steps": 360,
+  "hash": "0a2f432e8b06319a",
+  "last": [
+   0.2999999999999998,
+   0.8499999999999996,
+   1.6653345369377348e-15,
+   3.3306690738754696e-15,
+   0.3023934340758919,
+   0.8567813965483606
+  ]
+ },
+ "MotionDriver tense crouched sneak / cover / ct": {
+  "steps": 360,
+  "hash": "3c04acf82b14bc85",
+  "last": [
+   0.29999999999999993,
+   0.8499999999999999,
+   0,
+   0,
+   0.2974960944126268,
+   0.842905600835776
+  ]
+ },
+ "MotionDriver tense crouched sneak / glide": {
+  "steps": 360,
+  "hash": "7c1091484cc2eee2",
+  "last": [
+   0.3,
+   0.85,
+   0,
+   0,
+   0.29730105713013216,
+   0.8423529952020412
+  ]
+ },
+ "MotionDriver tense crouched sneak / glide / ct": {
+  "steps": 360,
+  "hash": "3c04acf82b14bc85",
+  "last": [
+   0.29999999999999993,
+   0.8499999999999999,
+   0,
+   0,
+   0.2974960944126268,
+   0.842905600835776
+  ]
+ },
+ "MotionDriver mocap side-step strafe / player": {
+  "steps": 360,
+  "hash": "1d54dd649d4aed46",
+  "last": [
+   0.35,
+   -0.6,
+   0,
+   0,
+   0.34534463911820545,
+   -0.592019381345495
+  ]
+ },
+ "MotionDriver mocap side-step strafe / player / ct": {
+  "steps": 360,
+  "hash": "2498be34083e14eb",
+  "last": [
+   0.3500000000000002,
+   -0.6000000000000001,
+   0,
+   0,
+   0.3555488313655143,
+   -0.6095122823408814
+  ]
+ },
+ "MotionDriver mocap side-step strafe / guard": {
+  "steps": 360,
+  "hash": "d7331f6af01c72d0",
+  "last": [
+   0.3500000615825697,
+   -0.5999998768348596,
+   -4.1055046462457057e-7,
+   -8.211009359104793e-7,
+   0.3674888618565722,
+   -0.6299806658751365
+  ]
+ },
+ "MotionDriver mocap side-step strafe / guard / ct": {
+  "steps": 360,
+  "hash": "703d3d024725b1ad",
+  "last": [
+   0.3500000000000002,
+   -0.6000000000000001,
+   0,
+   0,
+   0.3673437967356314,
+   -0.6297322229753679
+  ]
+ },
+ "MotionDriver mocap side-step strafe / cover": {
+  "steps": 360,
+  "hash": "cb56d1d89ff067f2",
+  "last": [
+   0.3500000000000563,
+   -0.5999999999998872,
+   -6.761258219967203e-13,
+   -1.3533618670180658e-12,
+   0.3486666506245876,
+   -0.5977142582133702
+  ]
+ },
+ "MotionDriver mocap side-step strafe / cover / ct": {
+  "steps": 360,
+  "hash": "eec70bda7f8d2b86",
+  "last": [
+   0.3500000000000002,
+   -0.6000000000000001,
+   0,
+   0,
+   0.3507670636049914,
+   -0.601314966179985
+  ]
+ },
+ "MotionDriver mocap side-step strafe / glide": {
+  "steps": 360,
+  "hash": "7fa9e70a9857247f",
+  "last": [
+   0.35,
+   -0.6,
+   0,
+   0,
+   0.3513385022668494,
+   -0.602294575314599
+  ]
+ },
+ "MotionDriver mocap side-step strafe / glide / ct": {
+  "steps": 360,
+  "hash": "eec70bda7f8d2b86",
+  "last": [
+   0.3500000000000002,
+   -0.6000000000000001,
+   0,
+   0,
+   0.3507670636049914,
+   -0.601314966179985
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / player": {
+  "steps": 360,
+  "hash": "c719f72cb044a759",
+  "last": [
+   1.0999964144493166,
+   0,
+   0.00005378326025340385,
+   0,
+   1.0733292804065695,
+   0
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / player / ct": {
+  "steps": 360,
+  "hash": "4fadf6199aeb0874",
+  "last": [
+   1.099606542018296,
+   6.733148160020979e-17,
+   0.004099616780037785,
+   2.5102912836960577e-19,
+   1.0724327240614773,
+   6.566756514113823e-17
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / guard": {
+  "steps": 360,
+  "hash": "8c197cf677e2146f",
+  "last": [
+   1.1017908117390234,
+   -0.0037743384949980433,
+   -0.011938744926822231,
+   0.025162256633320286,
+   1.0469486199634346,
+   -0.0035864688981895893
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / guard / ct": {
+  "steps": 360,
+  "hash": "059e77684f98b4f8",
+  "last": [
+   1.099606542018296,
+   6.733148160020979e-17,
+   0.004099616780037785,
+   2.5102912836960577e-19,
+   1.0446451669676533,
+   6.396606799858445e-17
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / cover": {
+  "steps": 360,
+  "hash": "fc234c3bd014ffc2",
+  "last": [
+   1.0998339753278095,
+   0.00002758188199331871,
+   0.0019922960662888123,
+   -0.00033098258391982456,
+   1.088928996009349,
+   0.000027308404487214475
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / cover / ct": {
+  "steps": 360,
+  "hash": "aac6e536ed60d740",
+  "last": [
+   1.099606542018296,
+   6.733148160020979e-17,
+   0.004099616780037785,
+   2.5102912836960577e-19,
+   1.0946845271889214,
+   6.703009511490232e-17
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / glide": {
+  "steps": 360,
+  "hash": "6a088a7df9b07b02",
+  "last": [
+   1.1,
+   0,
+   0,
+   0,
+   1.0930208124248448,
+   0
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / glide / ct": {
+  "steps": 360,
+  "hash": "aac6e536ed60d740",
+  "last": [
+   1.099606542018296,
+   6.733148160020979e-17,
+   0.004099616780037785,
+   2.5102912836960577e-19,
+   1.0946845271889214,
+   6.703009511490232e-17
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / player / strafe captures": {
+  "steps": 360,
+  "hash": "bffb8f641452c719",
+  "last": [
+   0.6791302906106911,
+   1.4485406984339477,
+   0.8711473076194265,
+   -0.4031257972155533,
+   0.6623272547702771,
+   1.4127009168653817
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / player / ct / strafe captures": {
+  "steps": 360,
+  "hash": "0da9f5618aade3f8",
+  "last": [
+   0.6791844858130767,
+   1.4486600618835483,
+   0.871228944100082,
+   -0.4031363723208248,
+   0.6715296477095334,
+   1.4323327480646644
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / guard / strafe captures": {
+  "steps": 360,
+  "hash": "a3c40177bd4649f7",
+  "last": [
+   0.5468900510452316,
+   1.4629534238913986,
+   0.978395742394111,
+   -0.1408765916291781,
+   0.532287983282194,
+   1.4238922908738896
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / guard / ct / strafe captures": {
+  "steps": 360,
+  "hash": "a4c0f136c8fe7bfc",
+  "last": [
+   0.6791844858130767,
+   1.4486600618835483,
+   0.871228944100082,
+   -0.4031363723208248,
+   0.6686050367394735,
+   1.4260947270300695
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / cover / strafe captures": {
+  "steps": 360,
+  "hash": "f4619010f3dede4c",
+  "last": [
+   0.6791302906022862,
+   1.4485406984347897,
+   0.8711473081237198,
+   -0.4031257972660729,
+   0.6741100520734374,
+   1.437832856470564
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / cover / ct / strafe captures": {
+  "steps": 360,
+  "hash": "ea75a166be1339f5",
+  "last": [
+   0.6791844858130767,
+   1.4486600618835483,
+   0.871228944100082,
+   -0.4031363723208248,
+   0.6749725473374479,
+   1.4396762479416714
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / glide / strafe captures": {
+  "steps": 360,
+  "hash": "b400948e982a05ff",
+  "last": [
+   0.6864062839283486,
+   1.4452177792230314,
+   0.8691754171199539,
+   -0.40750128912113937,
+   0.6796051387027711,
+   1.4308980734901096
+  ]
+ },
+ "MotionDriver free walk, stop, reversal / glide / ct / strafe captures": {
+  "steps": 360,
+  "hash": "ea75a166be1339f5",
+  "last": [
+   0.6791844858130767,
+   1.4486600618835483,
+   0.871228944100082,
+   -0.4031363723208248,
+   0.6749725473374479,
+   1.4396762479416714
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / player / strafe captures": {
+  "steps": 360,
+  "hash": "dc80d1831bca23da",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / player / ct / strafe captures": {
+  "steps": 360,
+  "hash": "2389b531363aa646",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / guard / strafe captures": {
+  "steps": 360,
+  "hash": "27c6bded4435f9b1",
+  "last": [
+   -0.035016782628261654,
+   -2.674174931513887,
+   0.026186604730682992,
+   1.9998285580850872,
+   -0.03515079751777905,
+   -2.6844094314050273
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / guard / ct / strafe captures": {
+  "steps": 360,
+  "hash": "11271b71bb1f37fc",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / cover / strafe captures": {
+  "steps": 360,
+  "hash": "d06260b94146d91a",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / cover / ct / strafe captures": {
+  "steps": 360,
+  "hash": "a6fcd2b804d21608",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / glide / strafe captures": {
+  "steps": 360,
+  "hash": "0a8def27a5f6c330",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver run, flick reversal, sprint / glide / ct / strafe captures": {
+  "steps": 360,
+  "hash": "a6fcd2b804d21608",
+  "last": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "MotionDriver aiming strafe / player / strafe captures": {
+  "steps": 360,
+  "hash": "c95af34bd34929a4",
+  "last": [
+   -0.6143062276496863,
+   0.33559702169157,
+   -0.000023485103617826297,
+   0.000012829970580607863,
+   -0.6273042728411709,
+   0.3426978861427801
+  ]
+ },
+ "MotionDriver aiming strafe / player / ct / strafe captures": {
+  "steps": 360,
+  "hash": "8a78b8e8668bad46",
+  "last": [
+   -0.6143077933232606,
+   0.33559787702294197,
+   0,
+   0,
+   -0.5997259556873271,
+   0.32763178281593364
+  ]
+ },
+ "MotionDriver aiming strafe / guard / strafe captures": {
+  "steps": 360,
+  "hash": "a285787a26606b30",
+  "last": [
+   -0.5590245176913285,
+   0.3053964858984968,
+   -0.3685551708795489,
+   0.20134260749630195,
+   -0.5401869671082627,
+   0.2951054851124096
+  ]
+ },
+ "MotionDriver aiming strafe / guard / ct / strafe captures": {
+  "steps": 360,
+  "hash": "bfd9cd1f8691cee6",
+  "last": [
+   -0.6143077933232606,
+   0.33559787702294197,
+   0,
+   0,
+   -0.64367957162835,
+   0.35164375264215214
+  ]
+ },
+ "MotionDriver aiming strafe / cover / strafe captures": {
+  "steps": 360,
+  "hash": "9a38a4505ed081af",
+  "last": [
+   -0.6142515382666704,
+   0.33556714474546046,
+   -0.0006750606790850711,
+   0.0003687873297791855,
+   -0.6096599425652948,
+   0.33305874458144286
+  ]
+ },
+ "MotionDriver aiming strafe / cover / ct / strafe captures": {
+  "steps": 360,
+  "hash": "487b731bc2351812",
+  "last": [
+   -0.6143077933232606,
+   0.33559787702294197,
+   0,
+   0,
+   -0.6091343449986817,
+   0.33277160932214633
+  ]
+ },
+ "MotionDriver aiming strafe / glide / strafe captures": {
+  "steps": 360,
+  "hash": "c8b2f4880b53b341",
+  "last": [
+   -0.6143077933232609,
+   0.3355978770229421,
+   0,
+   0,
+   -0.616136778641605,
+   0.33659705625624115
+  ]
+ },
+ "MotionDriver aiming strafe / glide / ct / strafe captures": {
+  "steps": 360,
+  "hash": "487b731bc2351812",
+  "last": [
+   -0.6143077933232606,
+   0.33559787702294197,
+   0,
+   0,
+   -0.6091343449986817,
+   0.33277160932214633
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / player / strafe captures": {
+  "steps": 360,
+  "hash": "b6e93ad56dfc0dcf",
+  "last": [
+   0.09933466539753057,
+   0.4900332889206207,
+   3.3306690738754696e-16,
+   1.3322676295501878e-15,
+   0.10118893306284946,
+   0.4991806784944317
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / player / ct / strafe captures": {
+  "steps": 360,
+  "hash": "4f657dd0f3658470",
+  "last": [
+   0.09933466539753046,
+   0.49003328892062015,
+   0,
+   0,
+   0.10181441399471305,
+   0.5022662728030413
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / guard / strafe captures": {
+  "steps": 360,
+  "hash": "1e2429eb19316044",
+  "last": [
+   0.09933466475408546,
+   0.4900332858553614,
+   4.289634231158246e-9,
+   2.043506297511044e-8,
+   0.09887598766072934,
+   0.4877705607154485
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / guard / ct / strafe captures": {
+  "steps": 360,
+  "hash": "023739977db6289b",
+  "last": [
+   0.09933466539753046,
+   0.49003328892062015,
+   0,
+   0,
+   0.0952956420733501,
+   0.47010816131633065
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / cover / strafe captures": {
+  "steps": 360,
+  "hash": "3a83b5e7374b4188",
+  "last": [
+   0.09933466539753055,
+   0.4900332889206207,
+   4.163336342344337e-16,
+   1.1102230246251565e-15,
+   0.09842008277908446,
+   0.4855215112173063
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / cover / ct / strafe captures": {
+  "steps": 360,
+  "hash": "b867c7465a790008",
+  "last": [
+   0.09933466539753046,
+   0.49003328892062015,
+   0,
+   0,
+   0.09876958854970225,
+   0.48724567731367513
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / glide / strafe captures": {
+  "steps": 360,
+  "hash": "1a91e4751ce5b7fc",
+  "last": [
+   0.0993346653975306,
+   0.4900332889206208,
+   0,
+   0,
+   0.09896488013790973,
+   0.48820908096420196
+  ]
+ },
+ "MotionDriver slowest backwards, then a turn / glide / ct / strafe captures": {
+  "steps": 360,
+  "hash": "b867c7465a790008",
+  "last": [
+   0.09933466539753046,
+   0.49003328892062015,
+   0,
+   0,
+   0.09876958854970225,
+   0.48724567731367513
+  ]
+ },
+ "MotionDriver tense crouched sneak / player / strafe captures": {
+  "steps": 360,
+  "hash": "e1931f2e0bba38e9",
+  "last": [
+   0.2999999999999999,
+   0.8499999999999998,
+   1.3322676295501878e-15,
+   2.6645352591003757e-15,
+   0.30676808354410484,
+   0.8691762367082971
+  ]
+ },
+ "MotionDriver tense crouched sneak / player / ct / strafe captures": {
+  "steps": 360,
+  "hash": "3a1b1bf4385ac1de",
+  "last": [
+   0.29999999999999993,
+   0.8499999999999999,
+   0,
+   0,
+   0.3066254005074268,
+   0.868771968104376
+  ]
+ },
+ "MotionDriver tense crouched sneak / guard / strafe captures": {
+  "steps": 360,
+  "hash": "9666f1d5dc306ccc",
+  "last": [
+   0.2999999999999995,
+   0.8499999999999986,
+   3.3306690738754696e-15,
+   8.659739592076221e-15,
+   0.29126384160370306,
+   0.8252475512104922
+  ]
+ },
+ "MotionDriver tense crouched sneak / guard / ct / strafe captures": {
+  "steps": 360,
+  "hash": "5b6d0e37a9eb3fea",
+  "last": [
+   0.29999999999999993,
+   0.8499999999999999,
+   0,
+   0,
+   0.30529321424857386,
+   0.8649974403709593
+  ]
+ },
+ "MotionDriver tense crouched sneak / cover / strafe captures": {
+  "steps": 360,
+  "hash": "0a2f432e8b06319a",
+  "last": [
+   0.2999999999999998,
+   0.8499999999999996,
+   1.6653345369377348e-15,
+   3.3306690738754696e-15,
+   0.3023934340758919,
+   0.8567813965483606
+  ]
+ },
+ "MotionDriver tense crouched sneak / cover / ct / strafe captures": {
+  "steps": 360,
+  "hash": "3c04acf82b14bc85",
+  "last": [
+   0.29999999999999993,
+   0.8499999999999999,
+   0,
+   0,
+   0.2974960944126268,
+   0.842905600835776
+  ]
+ },
+ "MotionDriver tense crouched sneak / glide / strafe captures": {
+  "steps": 360,
+  "hash": "7c1091484cc2eee2",
+  "last": [
+   0.3,
+   0.85,
+   0,
+   0,
+   0.29730105713013216,
+   0.8423529952020412
+  ]
+ },
+ "MotionDriver tense crouched sneak / glide / ct / strafe captures": {
+  "steps": 360,
+  "hash": "3c04acf82b14bc85",
+  "last": [
+   0.29999999999999993,
+   0.8499999999999999,
+   0,
+   0,
+   0.2974960944126268,
+   0.842905600835776
+  ]
+ },
+ "MotionDriver mocap side-step strafe / player / strafe captures": {
+  "steps": 360,
+  "hash": "9af3aeaed4095ac4",
+  "last": [
+   0.35,
+   -0.6,
+   0,
+   0,
+   0.34534463911820545,
+   -0.592019381345495
+  ]
+ },
+ "MotionDriver mocap side-step strafe / player / ct / strafe captures": {
+  "steps": 360,
+  "hash": "55f021558128ee17",
+  "last": [
+   0.3500000000000002,
+   -0.6000000000000001,
+   0,
+   0,
+   0.3555488313655143,
+   -0.6095122823408814
+  ]
+ },
+ "MotionDriver mocap side-step strafe / guard / strafe captures": {
+  "steps": 360,
+  "hash": "d7331f6af01c72d0",
+  "last": [
+   0.3500000615825697,
+   -0.5999998768348596,
+   -4.1055046462457057e-7,
+   -8.211009359104793e-7,
+   0.3674888618565722,
+   -0.6299806658751365
+  ]
+ },
+ "MotionDriver mocap side-step strafe / guard / ct / strafe captures": {
+  "steps": 360,
+  "hash": "703d3d024725b1ad",
+  "last": [
+   0.3500000000000002,
+   -0.6000000000000001,
+   0,
+   0,
+   0.3673437967356314,
+   -0.6297322229753679
+  ]
+ },
+ "MotionDriver mocap side-step strafe / cover / strafe captures": {
+  "steps": 360,
+  "hash": "cb56d1d89ff067f2",
+  "last": [
+   0.3500000000000563,
+   -0.5999999999998872,
+   -6.761258219967203e-13,
+   -1.3533618670180658e-12,
+   0.3486666506245876,
+   -0.5977142582133702
+  ]
+ },
+ "MotionDriver mocap side-step strafe / cover / ct / strafe captures": {
+  "steps": 360,
+  "hash": "eec70bda7f8d2b86",
+  "last": [
+   0.3500000000000002,
+   -0.6000000000000001,
+   0,
+   0,
+   0.3507670636049914,
+   -0.601314966179985
+  ]
+ },
+ "MotionDriver mocap side-step strafe / glide / strafe captures": {
+  "steps": 360,
+  "hash": "7fa9e70a9857247f",
+  "last": [
+   0.35,
+   -0.6,
+   0,
+   0,
+   0.3513385022668494,
+   -0.602294575314599
+  ]
+ },
+ "MotionDriver mocap side-step strafe / glide / ct / strafe captures": {
+  "steps": 360,
+  "hash": "eec70bda7f8d2b86",
+  "last": [
+   0.3500000000000002,
+   -0.6000000000000001,
+   0,
+   0,
+   0.3507670636049914,
+   -0.601314966179985
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / player / strafe captures": {
+  "steps": 360,
+  "hash": "c719f72cb044a759",
+  "last": [
+   1.0999964144493166,
+   0,
+   0.00005378326025340385,
+   0,
+   1.0733292804065695,
+   0
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / player / ct / strafe captures": {
+  "steps": 360,
+  "hash": "4fadf6199aeb0874",
+  "last": [
+   1.099606542018296,
+   6.733148160020979e-17,
+   0.004099616780037785,
+   2.5102912836960577e-19,
+   1.0724327240614773,
+   6.566756514113823e-17
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / guard / strafe captures": {
+  "steps": 360,
+  "hash": "8c197cf677e2146f",
+  "last": [
+   1.1017908117390234,
+   -0.0037743384949980433,
+   -0.011938744926822231,
+   0.025162256633320286,
+   1.0469486199634346,
+   -0.0035864688981895893
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / guard / ct / strafe captures": {
+  "steps": 360,
+  "hash": "059e77684f98b4f8",
+  "last": [
+   1.099606542018296,
+   6.733148160020979e-17,
+   0.004099616780037785,
+   2.5102912836960577e-19,
+   1.0446451669676533,
+   6.396606799858445e-17
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / cover / strafe captures": {
+  "steps": 360,
+  "hash": "fc234c3bd014ffc2",
+  "last": [
+   1.0998339753278095,
+   0.00002758188199331871,
+   0.0019922960662888123,
+   -0.00033098258391982456,
+   1.088928996009349,
+   0.000027308404487214475
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / cover / ct / strafe captures": {
+  "steps": 360,
+  "hash": "aac6e536ed60d740",
+  "last": [
+   1.099606542018296,
+   6.733148160020979e-17,
+   0.004099616780037785,
+   2.5102912836960577e-19,
+   1.0946845271889214,
+   6.703009511490232e-17
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / glide / strafe captures": {
+  "steps": 360,
+  "hash": "6a088a7df9b07b02",
+  "last": [
+   1.1,
+   0,
+   0,
+   0,
+   1.0930208124248448,
+   0
+  ]
+ },
+ "MotionDriver explicit yaw (stepped turns), reset, carry / glide / ct / strafe captures": {
+  "steps": 360,
+  "hash": "aac6e536ed60d740",
+  "last": [
+   1.099606542018296,
+   6.733148160020979e-17,
+   0.004099616780037785,
+   2.5102912836960577e-19,
+   1.0946845271889214,
+   6.703009511490232e-17
+  ]
+ },
+ "gaitRate / stepLength player, crouch step": {
+  "steps": 14,
+  "hash": "8cedfeb96e941438",
+  "last": [
+   1.3,
+   3.4615384615384612,
+   1.3,
+   3.4615384615384612,
+   3.4615384615384612,
+   3.4615384615384612
+  ]
+ },
+ "gaitRate / stepLength player, guard crouch step": {
+  "steps": 14,
+  "hash": "e725784b323be536",
+  "last": [
+   1.3,
+   3.4615384615384612,
+   1.3,
+   3.4615384615384612,
+   3.4615384615384612,
+   3.4615384615384612
+  ]
+ },
+ "gaitRate / stepLength guard, crouch step": {
+  "steps": 14,
+  "hash": "83e71914cc5dc343",
+  "last": [
+   1.3,
+   3.4615384615384612,
+   2.25,
+   2,
+   2,
+   2
+  ]
+ },
+ "gaitRate / stepLength guard, guard crouch step": {
+  "steps": 14,
+  "hash": "83e71914cc5dc343",
+  "last": [
+   1.3,
+   3.4615384615384612,
+   2.25,
+   2,
+   2,
+   2
+  ]
+ },
+ "gaitRate / stepLength player, crouch step, strafe captures": {
+  "steps": 14,
+  "hash": "d1a3c71d15174f40",
+  "last": [
+   1.3,
+   3.4615384615384612,
+   1.3,
+   3.4615384615384612,
+   3.4615384615384612,
+   3.4615384615384612
+  ]
+ },
+ "gaitRate / stepLength player, guard crouch step, strafe captures": {
+  "steps": 14,
+  "hash": "5b620d1d805bcf05",
+  "last": [
+   1.3,
+   3.4615384615384612,
+   1.3,
+   3.4615384615384612,
+   3.4615384615384612,
+   3.4615384615384612
+  ]
+ },
+ "gaitRate / stepLength guard, crouch step, strafe captures": {
+  "steps": 14,
+  "hash": "83e71914cc5dc343",
+  "last": [
+   1.3,
+   3.4615384615384612,
+   2.25,
+   2,
+   2,
+   2
+  ]
+ },
+ "gaitRate / stepLength guard, guard crouch step, strafe captures": {
+  "steps": 14,
+  "hash": "83e71914cc5dc343",
+  "last": [
+   1.3,
+   3.4615384615384612,
+   2.25,
+   2,
+   2,
+   2
+  ]
+ },
+ "controller": {
+  "steps": 900,
+  "hash": "d1c930aaced279f8",
+  "last": [
+   -1.2508344415281887,
+   0.41040570412658073,
+   5.79,
+   0.6641246739621302,
+   -1.2,
+   2.568233842632653
+  ]
+ },
+ "attach callbacks": {
+  "steps": 150,
+  "hash": "2fcbe625fae5faf7",
+  "last": [
+   1,
+   0,
+   2.220446049250313e-16,
+   1
+  ]
+ },
+ "landing roll, open": {
+  "steps": 60,
+  "hash": "1d76258a51477d99",
+  "last": [
+   -1,
+   0,
+   0,
+   0,
+   1.6,
+   0
+  ]
+ },
+ "landing roll, wall": {
+  "steps": 60,
+  "hash": "ef6cb087eeba032f",
+  "last": [
+   -1,
+   0,
+   0,
+   0,
+   1.0241663129781688,
+   0
+  ]
+ },
+ "forward roll, beam": {
+  "steps": 60,
+  "hash": "2efb0ab9b0829a46",
+  "last": [
+   20.07092026084695,
+   0.11379337152162194,
+   1.1347241735511875,
+   0.06241880999595735,
+   1,
+   6
+  ]
+ }
+}
