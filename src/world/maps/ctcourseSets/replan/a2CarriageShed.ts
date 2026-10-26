@@ -331,7 +331,7 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     {
       id: 'a2-plank',
       bay: 'A2',
-      text: 'Cross the pit by the east vans',
+      text: 'Cross the pit to the L2 door',
       done: { flag: A2_ACROSS_FLAG },
     },
     { id: 'a2-lock', bay: 'A2', text: 'Both of you into holding room two.' },
