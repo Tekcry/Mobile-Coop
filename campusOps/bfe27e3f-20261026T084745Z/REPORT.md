@@ -1,0 +1,6822 @@
+# Route run report: campusOps
+
+**Result: FAIL.** 2 runs got stuck.
+
+Code routes, not a gate run.
+
+- Map: campusOps (sector)
+- Game version: 4.114.1, commit bfe27e3f, 2026-10-26T08:47:45.377Z
+- Graph files: campusOps-S1.json, campusOps-S2.json, campusOps-S3.json, campusOps-S4.json, campusOps-S5.json
+- Players: 1, pace: sneak, being seen: forgiven after each sighting
+- Walked links: 0, stubbed links: 5, drill stubs: 0
+
+## Summary
+
+| Run | Section | Route | Result | Time | Seen | Noticed | Stubs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| S3-code-1 | S3 | - | STUCK | n/a, stuck | 1461 | 466 | 0 |
+| S3-code-2 | S3 | - | pass | 1:36 | 1460 | 407 | 0 |
+| S3-code-3 | S3 | - | STUCK | n/a, stuck | 1270 | 478 | 2 |
+| S3-code-4 | S3 | - | pass | 1:35 | 941 | 257 | 3 |
+
+Total: 4 runs, 2 stuck, 0 not walked, 5132 seen, 1608 noticed, valid time 3:11.
+
+## Runs
+
+### S3 The south strip and the clean suite (code route) (S3-code-1)
+
+- Result: STUCK - the robot could not follow the path at the route (and 1 more)
+- Time: n/a, stuck, walked 207.2 m, guards 19 alive of 19
+- Seen:
+  - 1:15: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:15: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:15: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:15: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:15: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:15: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:16: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:16: the console probably saw you at an unnamed place (lit, 4 m)
+  - 1:16: the console probably saw you at an unnamed place (lit, 4 m)
+  - 1:16: the console probably saw you at an unnamed place (lit, 4 m)
+  - 1:16: the console probably saw you at an unnamed place (lit, 4 m)
+  - 1:16: the console probably saw you at an unnamed place (lit, 4 m)
+  - 1:16: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 1:16: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:16: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:16: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:16: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 1:17: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:17: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:17: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:17: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:17: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:17: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:17: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:17: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:17: the watch probably saw you at an unnamed place (lit, 12 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:17: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:17: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:18: the console probably saw you at an unnamed place (lit, 5 m)
+  - 1:18: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:18: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:18: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:18: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:18: the supervisor probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:18: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:18: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:18: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:18: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:18: the patrol probably noticed you at an unnamed place
+  - 1:18: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:18: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:18: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:19: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:19: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:19: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:19: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:19: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:19: the console probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:19: the console probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:19: the console probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:19: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:19: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:19: the console probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:19: the console probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:19: the keyholder probably saw you at an unnamed place (in shadow, 17 m)
+  - 1:20: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:20: the supervisor probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:20: the grunt probably noticed you at an unnamed place
+  - 1:20: the grunt probably noticed you at an unnamed place
+  - 1:20: a camera probably spotted you at an unnamed place
+  - 1:20: the patrol probably noticed you at an unnamed place
+  - 1:20: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:20: the posted probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:20: the patrol probably noticed you at an unnamed place
+  - 1:20: the tour probably noticed you at an unnamed place
+  - 1:20: the desk probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:20: the sentry probably noticed you at an unnamed place
+  - 1:20: the watch probably noticed you at an unnamed place
+  - 1:20: the escort probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:20: the bridge probably noticed you at an unnamed place
+  - 1:20: the sentry probably saw you at an unnamed place (in shadow, 13 m)
+  - 1:20: the console probably noticed you at an unnamed place
+  - 1:21: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:21: the patrol probably heard you at an unnamed place (16 m)
+  - 1:21: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:21: the operator probably heard you at an unnamed place (21 m)
+  - 1:21: the patrol probably heard you at an unnamed place (21 m)
+  - 1:22: the patrol probably heard you at an unnamed place (11 m)
+  - 1:22: the sentry probably saw you at an unnamed place (in shadow, 13 m)
+  - 1:22: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:23: the supervisor probably saw you at an unnamed place (in shadow, 15 m)
+  - 1:23: the sentry probably noticed you at an unnamed place
+  - 1:23: the grunt probably noticed you at an unnamed place
+  - 1:23: the grunt probably noticed you at an unnamed place
+  - 1:23: a camera probably spotted you at an unnamed place
+  - 1:23: the keyholder probably saw you at an unnamed place (in shadow, 20 m)
+  - 1:23: the posted probably noticed you at an unnamed place
+  - 1:23: the patrol probably noticed you at an unnamed place
+  - 1:23: the tour probably noticed you at an unnamed place
+  - 1:23: the desk probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:23: the sentry probably noticed you at an unnamed place
+  - 1:23: the watch probably noticed you at an unnamed place
+  - 1:23: the escort probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:23: the bridge probably noticed you at an unnamed place
+  - 1:23: the grunt probably noticed you at an unnamed place
+  - 1:23: the grunt probably noticed you at an unnamed place
+  - 1:49: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:49: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:49: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:49: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:49: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:49: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:49: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:49: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:49: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:49: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:49: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:49: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:49: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:51: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:51: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:51: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:51: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:51: the console probably noticed you at an unnamed place
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:52: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:52: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:52: the keyholder probably saw you at an unnamed place (in shadow, 15 m)
+  - 1:52: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:52: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:52: the keyholder probably saw you at an unnamed place (in shadow, 15 m)
+  - 1:52: the watch probably noticed you at an unnamed place
+  - 1:52: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:52: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:52: the keyholder probably saw you at an unnamed place (in shadow, 14 m)
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:52: the keyholder probably saw you at an unnamed place (lit, 14 m)
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:52: the keyholder probably saw you at an unnamed place (lit, 14 m)
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:52: the keyholder probably saw you at an unnamed place (lit, 14 m)
+  - 1:52: the sentry probably noticed you at an unnamed place
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:52: the keyholder probably noticed you at an unnamed place
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 1:53: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the patrol probably noticed you at an unnamed place
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the console probably noticed you at an unnamed place
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: a camera probably spotted you at an unnamed place
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:53: the patrol probably noticed you at an unnamed place
+  - 1:53: the sentry probably noticed you at an unnamed place
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:54: the posted probably noticed you at an unnamed place
+  - 1:54: the patrol probably noticed you at an unnamed place
+  - 1:54: the tour probably noticed you at an unnamed place
+  - 1:54: the operator probably noticed you at an unnamed place
+  - 1:54: the desk probably saw you at an unnamed place (lit, 12 m)
+  - 1:54: the patrol probably noticed you at an unnamed place
+  - 1:54: the supervisor probably noticed you at an unnamed place
+  - 1:54: the watch probably noticed you at an unnamed place
+  - 1:54: the escort probably noticed you at an unnamed place
+  - 1:54: the bridge probably noticed you at an unnamed place
+  - 1:54: the grunt probably noticed you at an unnamed place
+  - 1:54: the grunt probably noticed you at an unnamed place
+  - 1:54: the grunt probably noticed you at an unnamed place
+  - 1:54: the grunt probably noticed you at an unnamed place
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:54: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:54: the keyholder probably noticed you at an unnamed place
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:55: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:55: the sentry probably noticed you at an unnamed place
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:55: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:56: the console probably noticed you at an unnamed place
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:56: the patrol probably noticed you at an unnamed place
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:56: the sentry probably noticed you at an unnamed place
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:56: the escort probably saw you at an unnamed place (lit, 11 m)
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:57: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:57: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:57: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 1:57: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:57: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:57: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:57: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:57: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:57: the desk probably heard you at an unnamed place (14 m)
+  - 1:57: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 1:57: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:57: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:57: a camera probably spotted you at an unnamed place
+  - 1:57: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:57: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:57: the posted probably noticed you at an unnamed place
+  - 1:57: the patrol probably noticed you at an unnamed place
+  - 1:57: the tour probably noticed you at an unnamed place
+  - 1:57: the operator probably noticed you at an unnamed place
+  - 1:57: the patrol probably noticed you at an unnamed place
+  - 1:57: the supervisor probably noticed you at an unnamed place
+  - 1:57: the watch probably noticed you at an unnamed place
+  - 1:57: the console probably noticed you at an unnamed place
+  - 1:57: the bridge probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:57: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 1:58: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:58: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:58: the sentry probably noticed you at an unnamed place
+  - 1:58: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:58: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:58: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:58: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:58: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:58: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:58: the patrol probably noticed you at an unnamed place
+  - 1:58: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:58: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:59: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:59: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:59: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:59: the patrol probably saw you at an unnamed place (in shadow, 19 m)
+  - 1:59: the patrol probably noticed you at an unnamed place
+  - 1:59: the sentry probably noticed you at an unnamed place
+  - 1:59: the console probably noticed you at an unnamed place
+  - 1:59: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the escort probably saw you at an unnamed place (lit, 15 m)
+  - 2:00: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:00: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the desk probably noticed you at an unnamed place
+  - 2:01: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:01: the posted probably noticed you at an unnamed place
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the tour probably noticed you at an unnamed place
+  - 2:01: the operator probably saw you at an unnamed place (lit, 20 m)
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the supervisor probably saw you at an unnamed place (lit, 18 m)
+  - 2:01: the watch probably noticed you at an unnamed place
+  - 2:01: the console probably noticed you at an unnamed place
+  - 2:01: the bridge probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the sentry probably noticed you at an unnamed place
+  - 2:03: the patrol probably noticed you at an unnamed place
+  - 2:03: the sentry probably noticed you at an unnamed place
+  - 2:04: the patrol probably noticed you at an unnamed place
+  - 2:09: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 2:09: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:11: the keyholder probably heard you at an unnamed place (6 m)
+  - 2:12: the patrol probably saw you at an unnamed place (in shadow, 14 m)
+  - 2:12: a camera probably spotted you at an unnamed place
+  - 2:12: the watch probably heard you at an unnamed place (5 m)
+  - 2:12: the console probably noticed you at an unnamed place
+  - 2:13: the sentry probably noticed you at an unnamed place
+  - 2:13: the patrol probably noticed you at an unnamed place
+  - 2:13: the desk probably saw you at an unnamed place (in shadow, 25 m)
+  - 2:14: the patrol probably noticed you at an unnamed place
+  - 2:14: the posted probably noticed you at an unnamed place
+  - 2:14: the patrol probably noticed you at an unnamed place
+  - 2:14: the tour probably noticed you at an unnamed place
+  - 2:14: the operator probably noticed you at an unnamed place
+  - 2:14: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:14: the supervisor probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:14: the watch probably noticed you at an unnamed place
+  - 2:14: the escort probably noticed you at an unnamed place
+  - 2:14: the bridge probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:15: the patrol probably noticed you at an unnamed place
+  - 2:15: the sentry probably noticed you at an unnamed place
+  - 2:17: a camera probably spotted you at an unnamed place
+  - 2:18: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 2:18: the sentry probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:18: the sentry probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:19: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:19: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:19: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 2:20: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 2:20: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 2:20: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 2:20: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the sentry probably saw you at an unnamed place (lit, 2 m)
+  - 2:20: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the sentry probably saw you up close at an unnamed place (2 m)
+  - 2:20: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the sentry probably saw you up close at an unnamed place (2 m)
+  - 2:20: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 2:20: the sentry probably saw you up close at an unnamed place (2 m)
+  - 2:20: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:21: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:21: the patrol probably noticed you at an unnamed place
+  - 2:21: the supervisor probably noticed you at an unnamed place
+  - 2:21: the supervisor probably noticed you at an unnamed place
+  - 2:21: the sentry probably noticed you at an unnamed place
+  - 2:21: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:21: the console probably noticed you at an unnamed place
+  - 2:22: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:22: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:22: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:22: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:22: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:22: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:22: the watch probably saw you at an unnamed place (lit, 8 m)
+  - 2:22: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 2:22: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:22: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:22: the supervisor probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:22: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:22: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:22: the keyholder probably noticed you at an unnamed place
+  - 2:22: the supervisor probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:22: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:22: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:22: the patrol probably noticed you at an unnamed place
+  - 2:22: the supervisor probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:22: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:22: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:22: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:22: the supervisor probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:22: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:22: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:22: the supervisor probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:22: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:22: the sentry probably noticed you at an unnamed place
+  - 2:22: the keyholder probably noticed you at an unnamed place
+  - 2:22: the supervisor probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:23: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:23: the sentry probably noticed you at an unnamed place
+  - 2:23: the keyholder probably noticed you at an unnamed place
+  - 2:23: the supervisor probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:23: a camera probably spotted you at an unnamed place
+  - 2:23: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:23: the sentry probably noticed you at an unnamed place
+  - 2:23: the operator probably noticed you at an unnamed place
+  - 2:23: the supervisor probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:23: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:23: the sentry probably noticed you at an unnamed place
+  - 2:23: the supervisor probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:23: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:23: the sentry probably noticed you at an unnamed place
+  - 2:23: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 2:23: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 2:23: the patrol probably saw you at an unnamed place (lit, 15 m)
+  - 2:23: the sentry probably noticed you at an unnamed place
+  - 2:23: the patrol probably noticed you at an unnamed place
+  - 2:23: the posted probably noticed you at an unnamed place
+  - 2:23: the patrol probably noticed you at an unnamed place
+  - 2:23: the tour probably noticed you at an unnamed place
+  - 2:23: the desk probably noticed you at an unnamed place
+  - 2:23: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 2:23: the sentry probably noticed you at an unnamed place
+  - 2:23: the watch probably noticed you at an unnamed place
+  - 2:23: the escort probably noticed you at an unnamed place
+  - 2:23: the bridge probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 2:23: the patrol probably saw you at an unnamed place (lit, 15 m)
+  - 2:23: the sentry probably noticed you at an unnamed place
+  - 2:23: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 2:23: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 2:23: the patrol probably saw you at an unnamed place (lit, 15 m)
+  - 2:23: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 2:23: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 2:23: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 2:23: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 2:23: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 2:23: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 2:23: the patrol probably noticed you at an unnamed place
+  - 2:23: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 2:23: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 2:23: the keyholder probably noticed you at an unnamed place
+  - 2:23: the desk probably noticed you at an unnamed place
+  - 2:23: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 2:23: the patrol probably noticed you at an unnamed place
+  - 2:23: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 2:23: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:23: the keyholder probably noticed you at an unnamed place
+  - 2:23: the supervisor probably noticed you at an unnamed place
+  - 2:24: the patrol probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 2:24: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:24: the keyholder probably noticed you at an unnamed place
+  - 2:24: the supervisor probably noticed you at an unnamed place
+  - 2:24: the patrol probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 2:24: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:24: the keyholder probably noticed you at an unnamed place
+  - 2:24: the supervisor probably noticed you at an unnamed place
+  - 2:24: the patrol probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 2:24: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:24: the keyholder probably noticed you at an unnamed place
+  - 2:24: the supervisor probably noticed you at an unnamed place
+  - 2:24: the patrol probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 2:24: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:24: the keyholder probably noticed you at an unnamed place
+  - 2:24: the supervisor probably noticed you at an unnamed place
+  - 2:24: the patrol probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 2:24: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:24: the keyholder probably noticed you at an unnamed place
+  - 2:24: the supervisor probably noticed you at an unnamed place
+  - 2:24: the console probably noticed you at an unnamed place
+  - 2:24: the patrol probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 13 m)
+  - 2:24: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:24: the keyholder probably noticed you at an unnamed place
+  - 2:24: the supervisor probably noticed you at an unnamed place
+  - 2:24: the patrol probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 13 m)
+  - 2:24: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:24: the keyholder probably noticed you at an unnamed place
+  - 2:24: the supervisor probably noticed you at an unnamed place
+  - 2:24: the patrol probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 13 m)
+  - 2:24: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:24: the keyholder probably noticed you at an unnamed place
+  - 2:24: the supervisor probably noticed you at an unnamed place
+  - 2:24: the patrol probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 13 m)
+  - 2:24: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:24: the keyholder probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 15 m)
+  - 2:24: the operator probably noticed you at an unnamed place
+  - 2:24: the supervisor probably noticed you at an unnamed place
+  - 2:24: the patrol probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 13 m)
+  - 2:24: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:24: the keyholder probably noticed you at an unnamed place
+  - 2:24: the watch probably saw you at an unnamed place (lit, 6 m)
+  - 2:24: the supervisor probably noticed you at an unnamed place
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the patrol probably saw you at an unnamed place (lit, 13 m)
+  - 2:25: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:25: the keyholder probably noticed you at an unnamed place
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the supervisor probably noticed you at an unnamed place
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the patrol probably saw you at an unnamed place (lit, 13 m)
+  - 2:25: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:25: the keyholder probably noticed you at an unnamed place
+  - 2:25: the supervisor probably noticed you at an unnamed place
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the patrol probably saw you at an unnamed place (lit, 13 m)
+  - 2:25: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:25: the keyholder probably noticed you at an unnamed place
+  - 2:25: the supervisor probably noticed you at an unnamed place
+  - 2:25: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 2:25: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:25: the keyholder probably saw you at an unnamed place (lit, 11 m)
+  - 2:25: the supervisor probably noticed you at an unnamed place
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 2:25: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 2:25: the keyholder probably saw you at an unnamed place (lit, 11 m)
+  - 2:25: the supervisor probably noticed you at an unnamed place
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 2:25: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 2:25: the keyholder probably saw you at an unnamed place (lit, 11 m)
+  - 2:25: the supervisor probably noticed you at an unnamed place
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 2:25: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 2:25: the keyholder probably saw you at an unnamed place (lit, 11 m)
+  - 2:25: the supervisor probably noticed you at an unnamed place
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 2:25: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 2:25: the keyholder probably saw you at an unnamed place (lit, 11 m)
+  - 2:25: the supervisor probably noticed you at an unnamed place
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 2:25: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 2:25: the keyholder probably saw you at an unnamed place (lit, 11 m)
+  - 2:25: the supervisor probably noticed you at an unnamed place
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 2:25: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 2:25: the keyholder probably saw you at an unnamed place (lit, 10 m)
+  - 2:25: the supervisor probably noticed you at an unnamed place
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:26: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 2:26: the keyholder probably saw you at an unnamed place (lit, 10 m)
+  - 2:26: the supervisor probably noticed you at an unnamed place
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:26: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 2:26: the keyholder probably saw you at an unnamed place (lit, 10 m)
+  - 2:26: the desk probably saw you at an unnamed place (lit, 17 m)
+  - 2:26: the supervisor probably noticed you at an unnamed place
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:26: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 2:26: the keyholder probably saw you at an unnamed place (lit, 10 m)
+  - 2:26: the desk probably saw you at an unnamed place (lit, 17 m)
+  - 2:26: the supervisor probably noticed you at an unnamed place
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:26: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 2:26: the keyholder probably saw you at an unnamed place (lit, 10 m)
+  - 2:26: the desk probably saw you at an unnamed place (lit, 17 m)
+  - 2:26: the supervisor probably noticed you at an unnamed place
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:26: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 2:26: the keyholder probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:26: the desk probably saw you at an unnamed place (lit, 17 m)
+  - 2:26: the supervisor probably noticed you at an unnamed place
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:26: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 2:26: the desk probably saw you at an unnamed place (lit, 17 m)
+  - 2:26: the supervisor probably noticed you at an unnamed place
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:26: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:26: the keyholder probably noticed you at an unnamed place
+  - 2:26: the desk probably saw you at an unnamed place (lit, 16 m)
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the supervisor probably noticed you at an unnamed place
+  - 2:26: the console probably saw you at an unnamed place (lit, 5 m)
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:26: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:26: the desk probably saw you at an unnamed place (lit, 16 m)
+  - 2:26: the supervisor probably noticed you at an unnamed place
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 2:26: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:26: the operator probably saw you at an unnamed place (lit, 15 m)
+  - 2:26: the desk probably saw you at an unnamed place (lit, 16 m)
+  - 2:26: the supervisor probably noticed you at an unnamed place
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 2:26: the sentry probably saw you at an unnamed place (lit, 3 m)
+  - 2:26: the watch probably noticed you at an unnamed place
+  - 2:26: the desk probably saw you at an unnamed place (lit, 15 m)
+  - 2:26: the supervisor probably noticed you at an unnamed place
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:27: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the posted probably noticed you at an unnamed place
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the tour probably noticed you at an unnamed place
+  - 2:27: the desk probably saw you at an unnamed place (in shadow, 15 m)
+  - 2:27: the supervisor probably noticed you at an unnamed place
+  - 2:27: the sentry probably noticed you at an unnamed place
+  - 2:27: the watch probably noticed you at an unnamed place
+  - 2:27: the escort probably saw you at an unnamed place (in shadow, 20 m)
+  - 2:27: the bridge probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:27: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:27: the desk probably saw you at an unnamed place (in shadow, 15 m)
+  - 2:27: the supervisor probably noticed you at an unnamed place
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:27: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:27: the desk probably saw you at an unnamed place (in shadow, 14 m)
+  - 2:27: the supervisor probably noticed you at an unnamed place
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:27: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:27: the desk probably saw you at an unnamed place (in shadow, 14 m)
+  - 2:27: the supervisor probably noticed you at an unnamed place
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:27: the desk probably saw you at an unnamed place (in shadow, 13 m)
+  - 2:27: the supervisor probably noticed you at an unnamed place
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the supervisor probably saw you at an unnamed place (in shadow, 17 m)
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:27: the supervisor probably saw you at an unnamed place (in shadow, 17 m)
+  - 2:27: the sentry probably noticed you at an unnamed place
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the desk probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the console probably noticed you at an unnamed place
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the operator probably noticed you at an unnamed place
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:28: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:28: the sentry probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the sentry probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:28: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the sentry probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:28: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the sentry probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:28: the sentry probably noticed you at an unnamed place
+  - 2:29: the patrol probably noticed you at an unnamed place
+  - 2:29: the sentry probably noticed you at an unnamed place
+  - 2:29: the watch probably noticed you at an unnamed place
+  - 2:29: the patrol probably noticed you at an unnamed place
+  - 2:29: the keyholder probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:29: the patrol probably noticed you at an unnamed place
+  - 2:29: the desk probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:29: the patrol probably noticed you at an unnamed place
+  - 2:29: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:29: the patrol probably noticed you at an unnamed place
+  - 2:29: the sentry probably noticed you at an unnamed place
+  - 2:29: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:29: the keyholder probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:29: the posted probably noticed you at an unnamed place
+  - 2:29: the patrol probably noticed you at an unnamed place
+  - 2:29: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:29: the sentry probably noticed you at an unnamed place
+  - 2:29: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:30: the supervisor probably saw you at an unnamed place (in shadow, 20 m)
+  - 2:30: the escort probably noticed you at an unnamed place
+  - 2:30: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:30: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:30: the patrol probably noticed you at an unnamed place
+  - 2:30: the tour probably noticed you at an unnamed place
+  - 2:30: the sentry probably noticed you at an unnamed place
+  - 2:30: the watch probably noticed you at an unnamed place
+  - 2:30: the bridge probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:30: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:30: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:30: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:30: the console probably noticed you at an unnamed place
+  - 2:30: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:30: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:30: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:30: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 2:30: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:30: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 2:31: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 2:31: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 2:31: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the sentry probably heard you at an unnamed place (8 m)
+  - 2:31: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the sentry probably heard you at an unnamed place (8 m)
+  - 2:31: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:31: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the sentry probably heard you at an unnamed place (9 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the sentry probably heard you at an unnamed place (8 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:31: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the sentry probably heard you at an unnamed place (8 m)
+  - 2:31: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the sentry probably heard you at an unnamed place (8 m)
+  - 2:31: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the sentry probably heard you at an unnamed place (8 m)
+  - 2:31: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:31: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the sentry probably heard you at an unnamed place (8 m)
+  - 2:31: the operator probably heard you at an unnamed place (12 m)
+  - 2:31: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:31: the patrol probably heard you at an unnamed place (5 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:32: the sentry probably noticed you at an unnamed place
+  - 2:32: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:32: the sentry probably noticed you at an unnamed place
+  - 2:32: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the sentry probably noticed you at an unnamed place
+  - 2:32: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:32: the desk probably saw you up close at an unnamed place (2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the sentry probably noticed you at an unnamed place
+  - 2:32: the desk probably saw you up close at an unnamed place (2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the sentry probably noticed you at an unnamed place
+  - 2:32: the desk probably saw you up close at an unnamed place (2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the sentry probably noticed you at an unnamed place
+  - 2:32: the watch probably noticed you at an unnamed place
+  - 2:32: the desk probably saw you up close at an unnamed place (2 m)
+  - 2:32: the sentry probably noticed you at an unnamed place
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the sentry probably heard you at an unnamed place (11 m)
+  - 2:32: the desk probably saw you up close at an unnamed place (2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the sentry probably heard you at an unnamed place (11 m)
+  - 2:32: the desk probably saw you up close at an unnamed place (2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the sentry probably heard you at an unnamed place (11 m)
+  - 2:32: the desk probably heard you at an unnamed place (16 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:32: the sentry probably heard you at an unnamed place (11 m)
+  - 2:32: the desk probably heard you at an unnamed place (16 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the sentry probably heard you at an unnamed place (11 m)
+  - 2:33: the patrol probably heard you at an unnamed place (10 m)
+  - 2:33: the desk probably heard you at an unnamed place (16 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the sentry probably heard you at an unnamed place (11 m)
+  - 2:33: the desk probably heard you at an unnamed place (16 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the sentry probably heard you at an unnamed place (11 m)
+  - 2:33: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:33: the desk probably heard you at an unnamed place (16 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the sentry probably heard you at an unnamed place (11 m)
+  - 2:33: the posted probably heard you at an unnamed place (28 m)
+  - 2:33: the desk probably heard you at an unnamed place (16 m)
+  - 2:33: the supervisor probably saw you at an unnamed place (lit, 21 m)
+  - 2:33: the sentry probably heard you at an unnamed place (9 m)
+  - 2:33: the escort probably heard you at an unnamed place (27 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the sentry probably heard you at an unnamed place (11 m)
+  - 2:33: the desk probably heard you at an unnamed place (16 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the sentry probably heard you at an unnamed place (11 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the sentry probably noticed you at an unnamed place
+  - 2:33: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the sentry probably noticed you at an unnamed place
+  - 2:33: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the console probably saw you at an unnamed place (lit, 6 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the sentry probably noticed you at an unnamed place
+  - 2:33: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the sentry probably noticed you at an unnamed place
+  - 2:33: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the sentry probably noticed you at an unnamed place
+  - 2:34: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:34: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the sentry probably noticed you at an unnamed place
+  - 2:34: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:34: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the sentry probably noticed you at an unnamed place
+  - 2:34: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:34: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the sentry probably noticed you at an unnamed place
+  - 2:34: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:34: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the sentry probably noticed you at an unnamed place
+  - 2:34: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:34: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the sentry probably noticed you at an unnamed place
+  - 2:34: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:34: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:34: the sentry probably noticed you at an unnamed place
+  - 2:34: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:34: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:34: the sentry probably noticed you at an unnamed place
+  - 2:34: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:34: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:34: the sentry probably heard you at an unnamed place (10 m)
+  - 2:34: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:34: the patrol probably heard you at an unnamed place (8 m)
+  - 2:34: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:34: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:34: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:34: the sentry probably heard you at an unnamed place (10 m)
+  - 2:34: the keyholder probably heard you at an unnamed place (10 m)
+  - 2:34: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:35: the sentry probably heard you at an unnamed place (10 m)
+  - 2:35: the keyholder probably heard you at an unnamed place (10 m)
+  - 2:35: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:35: the sentry probably heard you at an unnamed place (10 m)
+  - 2:35: the keyholder probably heard you at an unnamed place (10 m)
+  - 2:35: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:35: the sentry probably heard you at an unnamed place (12 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:35: the sentry probably heard you at an unnamed place (10 m)
+  - 2:35: the keyholder probably heard you at an unnamed place (10 m)
+  - 2:35: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:35: the sentry probably heard you at an unnamed place (10 m)
+  - 2:35: the keyholder probably heard you at an unnamed place (10 m)
+  - 2:35: the sentry probably heard you at an unnamed place (10 m)
+  - 2:35: the keyholder probably heard you at an unnamed place (10 m)
+  - 2:35: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:35: the sentry probably heard you at an unnamed place (10 m)
+  - 2:35: the keyholder probably heard you at an unnamed place (10 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:35: the patrol probably heard you at an unnamed place (26 m)
+  - 2:35: the tour probably heard you at an unnamed place (27 m)
+  - 2:35: the operator probably heard you at an unnamed place (16 m)
+  - 2:35: the patrol probably heard you at an unnamed place (5 m)
+  - 2:35: the sentry probably heard you at an unnamed place (30 m)
+  - 2:35: the watch probably heard you at an unnamed place (26 m)
+  - 2:35: the bridge probably heard you at an unnamed place (37 m)
+  - 2:35: the grunt probably heard you at an unnamed place (32 m)
+  - 2:35: the grunt probably heard you at an unnamed place (38 m)
+  - 2:35: the grunt probably heard you at an unnamed place (32 m)
+  - 2:35: the grunt probably heard you at an unnamed place (38 m)
+  - 2:35: the grunt probably heard you at an unnamed place (32 m)
+  - 2:35: the grunt probably heard you at an unnamed place (39 m)
+  - 2:35: the sentry probably heard you at an unnamed place (10 m)
+  - 2:35: the keyholder probably heard you at an unnamed place (10 m)
+  - 2:35: the sentry probably heard you at an unnamed place (10 m)
+  - 2:35: the keyholder probably heard you at an unnamed place (10 m)
+  - 2:35: the sentry probably noticed you at an unnamed place
+  - 2:35: the keyholder probably noticed you at an unnamed place
+  - 2:35: the console probably noticed you at an unnamed place
+  - 2:35: the sentry probably noticed you at an unnamed place
+  - 2:35: the keyholder probably noticed you at an unnamed place
+  - 2:36: the sentry probably noticed you at an unnamed place
+  - 2:36: the keyholder probably noticed you at an unnamed place
+  - 2:36: the sentry probably noticed you at an unnamed place
+  - 2:36: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:36: the sentry probably noticed you at an unnamed place
+  - 2:36: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:36: the watch probably noticed you at an unnamed place
+  - 2:36: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:36: the sentry probably noticed you at an unnamed place
+  - 2:36: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:36: the sentry probably noticed you at an unnamed place
+  - 2:36: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:36: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:36: the sentry probably noticed you at an unnamed place
+  - 2:36: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:36: the sentry probably noticed you at an unnamed place
+  - 2:36: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:36: the patrol probably noticed you at an unnamed place
+  - 2:36: the sentry probably noticed you at an unnamed place
+  - 2:36: the keyholder probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:36: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:36: the sentry probably noticed you at an unnamed place
+  - 2:36: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:36: the sentry probably noticed you at an unnamed place
+  - 2:36: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:37: the sentry probably noticed you at an unnamed place
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:37: the sentry probably noticed you at an unnamed place
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:37: the sentry probably noticed you at an unnamed place
+  - 2:37: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:37: the console probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:37: the sentry probably noticed you at an unnamed place
+  - 2:37: the posted probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:37: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:37: the supervisor probably saw you at an unnamed place (in shadow, 23 m)
+  - 2:37: the sentry probably noticed you at an unnamed place
+  - 2:37: the escort probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:37: the sentry probably noticed you at an unnamed place
+  - 2:37: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:37: the sentry probably noticed you at an unnamed place
+  - 2:37: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:37: the sentry probably noticed you at an unnamed place
+  - 2:37: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:37: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:37: the sentry probably noticed you at an unnamed place
+  - 2:37: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:37: the sentry probably noticed you at an unnamed place
+  - 2:37: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:37: the sentry probably saw you at an unnamed place (in shadow, 13 m)
+  - 2:37: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:38: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:38: the sentry probably saw you at an unnamed place (in shadow, 13 m)
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:38: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:38: the sentry probably saw you at an unnamed place (in shadow, 13 m)
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:38: the sentry probably saw you at an unnamed place (in shadow, 13 m)
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:38: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:38: the sentry probably noticed you at an unnamed place
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the tour probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:38: the operator probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the sentry probably noticed you at an unnamed place
+  - 2:38: the watch probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:38: the bridge probably noticed you at an unnamed place
+  - 2:38: the grunt probably noticed you at an unnamed place
+  - 2:38: the grunt probably saw you at an unnamed place (in shadow, 23 m)
+  - 2:38: the grunt probably noticed you at an unnamed place
+  - 2:38: the grunt probably noticed you at an unnamed place
+  - 2:38: the grunt probably noticed you at an unnamed place
+  - 2:38: the grunt probably noticed you at an unnamed place
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:39: the patrol probably heard you at an unnamed place (4 m)
+  - 2:39: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:39: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:39: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:39: the patrol probably heard you at an unnamed place (4 m)
+  - 2:39: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:39: the patrol probably heard you at an unnamed place (11 m)
+  - 2:39: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:39: the console probably heard you at an unnamed place (11 m)
+  - 2:39: the patrol probably heard you at an unnamed place (4 m)
+  - 2:39: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:39: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:39: the patrol probably heard you at an unnamed place (4 m)
+  - 2:39: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:39: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:39: the patrol probably heard you at an unnamed place (4 m)
+  - 2:39: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:39: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:39: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:39: the patrol probably heard you at an unnamed place (4 m)
+  - 2:39: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:39: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:39: the patrol probably heard you at an unnamed place (4 m)
+  - 2:39: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:39: the patrol probably heard you at an unnamed place (4 m)
+  - 2:39: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:39: the patrol probably heard you at an unnamed place (4 m)
+  - 2:39: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:39: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:39: the watch probably heard you at an unnamed place (21 m)
+  - 2:39: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:39: the escort probably saw you at an unnamed place (lit, 8 m)
+  - 2:39: the patrol probably heard you at an unnamed place (4 m)
+  - 2:39: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:39: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the sentry probably noticed you at an unnamed place
+  - 2:40: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:40: the console probably saw you at an unnamed place (lit, 10 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the posted probably saw you at an unnamed place (lit, 9 m)
+  - 2:40: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:40: the supervisor probably saw you at an unnamed place (lit, 20 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:41: the patrol probably noticed you at an unnamed place
+  - 2:41: the patrol probably noticed you at an unnamed place
+  - 2:41: the keyholder probably noticed you at an unnamed place
+  - 2:41: the patrol probably noticed you at an unnamed place
+  - 2:41: the patrol probably noticed you at an unnamed place
+  - 2:41: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:41: the sentry probably noticed you at an unnamed place
+  - 2:41: the patrol probably noticed you at an unnamed place
+  - 2:41: the keyholder probably noticed you at an unnamed place
+  - 2:41: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:42: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:42: the patrol probably heard you at an unnamed place (38 m)
+  - 2:42: the tour probably heard you at an unnamed place (39 m)
+  - 2:42: the operator probably heard you at an unnamed place (8 m)
+  - 2:42: the patrol probably heard you at an unnamed place (9 m)
+  - 2:42: the sentry probably heard you at an unnamed place (40 m)
+  - 2:42: the watch probably heard you at an unnamed place (38 m)
+  - 2:42: the bridge probably heard you at an unnamed place (48 m)
+  - 2:42: the grunt probably heard you at an unnamed place (44 m)
+  - 2:42: the grunt probably heard you at an unnamed place (48 m)
+  - 2:42: the grunt probably saw you at an unnamed place (lit, 18 m)
+  - 2:42: the grunt probably saw you at an unnamed place (lit, 25 m)
+  - 2:42: the grunt probably heard you at an unnamed place (45 m)
+  - 2:42: the grunt probably heard you at an unnamed place (49 m)
+  - 2:42: the console probably heard you at an unnamed place (19 m)
+  - 2:42: the sentry probably saw you at an unnamed place (lit, 12 m)
+  - 2:43: the patrol probably noticed you at an unnamed place
+  - 2:43: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 2:43: the keyholder probably noticed you at an unnamed place
+  - 2:43: the posted probably saw you at an unnamed place (lit, 9 m)
+  - 2:43: the escort probably saw you at an unnamed place (lit, 7 m)
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:43: the watch probably noticed you at an unnamed place
+  - 2:43: the supervisor probably saw you at an unnamed place (lit, 20 m)
+  - 2:44: the console probably noticed you at an unnamed place
+  - 2:45: the patrol probably heard you at an unnamed place (24 m)
+  - 2:45: the patrol probably heard you at an unnamed place (5 m)
+  - 2:45: the tour probably heard you at an unnamed place (6 m)
+  - 2:45: the operator probably heard you at an unnamed place (34 m)
+  - 2:45: the patrol probably heard you at an unnamed place (27 m)
+  - 2:45: the sentry probably heard you at an unnamed place (14 m)
+  - 2:45: the sentry probably heard you at an unnamed place (22 m)
+  - 2:45: the watch probably heard you at an unnamed place (5 m)
+  - 2:45: the bridge probably heard you at an unnamed place (15 m)
+  - 2:45: the grunt probably heard you at an unnamed place (9 m)
+  - 2:45: the grunt probably heard you at an unnamed place (18 m)
+  - 2:45: the grunt probably heard you at an unnamed place (10 m)
+  - 2:45: the grunt probably heard you at an unnamed place (17 m)
+  - 2:45: the grunt probably heard you at an unnamed place (10 m)
+  - 2:45: the grunt probably heard you at an unnamed place (18 m)
+  - 2:54: the posted probably saw you at an unnamed place (lit, 3 m)
+  - 2:54: the posted probably saw you at an unnamed place (lit, 3 m)
+  - 2:54: the posted probably saw you at an unnamed place (lit, 3 m)
+  - 2:55: the posted probably saw you at an unnamed place (lit, 3 m)
+  - 2:55: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:55: the escort probably noticed you at an unnamed place
+  - 2:55: the posted probably saw you at an unnamed place (lit, 3 m)
+  - 2:55: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:55: the posted probably saw you at an unnamed place (lit, 3 m)
+  - 2:55: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:55: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:55: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:55: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:55: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:55: the tour probably noticed you at an unnamed place
+  - 2:55: the watch probably noticed you at an unnamed place
+  - 2:55: the escort probably noticed you at an unnamed place
+  - 2:55: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:55: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:55: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:55: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:55: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:55: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:55: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:55: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:55: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:55: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:55: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:55: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:55: the tour probably noticed you at an unnamed place
+  - 2:55: the watch probably noticed you at an unnamed place
+  - 2:55: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:55: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:55: the grunt probably noticed you at an unnamed place
+  - 2:55: the grunt probably noticed you at an unnamed place
+  - 2:55: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:55: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:55: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:55: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:55: the grunt probably noticed you at an unnamed place
+  - 2:56: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:56: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:56: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the grunt probably noticed you at an unnamed place
+  - 2:56: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:56: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:56: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the grunt probably noticed you at an unnamed place
+  - 2:56: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:56: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:56: the tour probably noticed you at an unnamed place
+  - 2:56: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the grunt probably noticed you at an unnamed place
+  - 2:56: the grunt probably noticed you at an unnamed place
+  - 2:56: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:56: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:56: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the grunt probably noticed you at an unnamed place
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 13 m)
+  - 2:56: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:56: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the grunt probably noticed you at an unnamed place
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 13 m)
+  - 2:56: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:56: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 13 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 13 m)
+  - 2:56: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:56: the tour probably noticed you at an unnamed place
+  - 2:56: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 13 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:56: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:56: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:56: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 13 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:56: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:56: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the escort probably noticed you at an unnamed place
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:56: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:56: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the escort probably noticed you at an unnamed place
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:56: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:57: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:57: the tour probably noticed you at an unnamed place
+  - 2:57: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 2:57: the escort probably noticed you at an unnamed place
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:57: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:57: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 2:57: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:57: the posted probably saw you up close at an unnamed place (2 m)
+  - 2:57: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 2:57: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:57: the posted probably saw you up close at an unnamed place (2 m)
+  - 2:57: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 2:57: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:57: the posted probably saw you up close at an unnamed place (2 m)
+  - 2:57: the tour probably noticed you at an unnamed place
+  - 2:57: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:57: the posted probably saw you up close at an unnamed place (2 m)
+  - 2:57: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the tour probably noticed you at an unnamed place
+  - 2:57: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:57: the posted probably saw you up close at an unnamed place (2 m)
+  - 2:57: the tour probably heard you at an unnamed place (10 m)
+  - 2:57: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 8 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 2:57: the posted probably saw you up close at an unnamed place (2 m)
+  - 2:57: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the tour probably heard you at an unnamed place (11 m)
+  - 2:57: the desk probably saw you at an unnamed place (lit, 10 m)
+  - 2:57: the watch probably saw you at an unnamed place (lit, 11 m)
+  - 2:57: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 8 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 2:57: the posted probably saw you up close at an unnamed place (2 m)
+  - 2:57: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the tour probably heard you at an unnamed place (11 m)
+  - 2:57: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 8 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 2:57: the posted probably saw you up close at an unnamed place (2 m)
+  - 2:57: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the tour probably heard you at an unnamed place (11 m)
+  - 2:57: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 8 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 2:58: the posted probably saw you up close at an unnamed place (2 m)
+  - 2:58: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:58: the tour probably heard you at an unnamed place (11 m)
+  - 2:58: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 2:58: the posted probably saw you up close at an unnamed place (2 m)
+  - 2:58: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:58: the tour probably heard you at an unnamed place (11 m)
+  - 2:58: the watch probably saw you at an unnamed place (lit, 11 m)
+  - 2:58: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 8 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 8 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 2:58: the posted probably heard you at an unnamed place (7 m)
+  - 2:58: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:58: the tour probably heard you at an unnamed place (11 m)
+  - 2:58: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 8 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 2:58: the posted probably heard you at an unnamed place (7 m)
+  - 2:58: the tour probably saw you at an unnamed place (lit, 12 m)
+  - 2:58: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 8 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 2:58: the posted probably heard you at an unnamed place (7 m)
+  - 2:58: the tour probably heard you at an unnamed place (12 m)
+  - 2:58: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 2:58: the posted probably heard you at an unnamed place (7 m)
+  - 2:58: the tour probably heard you at an unnamed place (12 m)
+  - 2:58: the watch probably saw you at an unnamed place (lit, 11 m)
+  - 2:58: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 2:58: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 2:58: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 2:58: the watch probably saw you at an unnamed place (lit, 12 m)
+  - 2:58: the escort probably noticed you at an unnamed place
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 2:58: the sentry probably noticed you at an unnamed place
+  - 2:58: the watch probably saw you at an unnamed place (lit, 12 m)
+  - 2:58: the escort probably noticed you at an unnamed place
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 6 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 2:58: the watch probably saw you at an unnamed place (lit, 12 m)
+  - 2:58: the escort probably noticed you at an unnamed place
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 6 m)
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:59: the tour probably noticed you at an unnamed place
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 6 m)
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the tour probably noticed you at an unnamed place
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 6 m)
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 2:59: the patrol probably noticed you at an unnamed place
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the tour probably noticed you at an unnamed place
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 6 m)
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the tour probably noticed you at an unnamed place
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 6 m)
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:59: the tour probably noticed you at an unnamed place
+  - 2:59: the watch probably noticed you at an unnamed place
+  - 2:59: the escort probably noticed you at an unnamed place
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 6 m)
+- Noticed:
+  - 1:13: the watch probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:14: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:15: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:15: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 1:16: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:17: the watch probably saw you at an unnamed place (lit, 12 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:18: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:18: the supervisor probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:18: the patrol probably noticed you at an unnamed place
+  - 1:18: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:19: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:19: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:19: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:19: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:19: the console probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:20: the keyholder probably saw you at an unnamed place (in shadow, 17 m)
+  - 1:20: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:20: the supervisor probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:20: the grunt probably noticed you at an unnamed place
+  - 1:20: the grunt probably noticed you at an unnamed place
+  - 1:20: the patrol probably noticed you at an unnamed place
+  - 1:20: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:20: the posted probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:20: the patrol probably noticed you at an unnamed place
+  - 1:20: the tour probably noticed you at an unnamed place
+  - 1:20: the desk probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:20: the sentry probably noticed you at an unnamed place
+  - 1:20: the watch probably noticed you at an unnamed place
+  - 1:20: the escort probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:20: the bridge probably noticed you at an unnamed place
+  - 1:20: the sentry probably saw you at an unnamed place (in shadow, 13 m)
+  - 1:20: the console probably noticed you at an unnamed place
+  - 1:21: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:21: the patrol probably heard you at an unnamed place (16 m)
+  - 1:21: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:21: the operator probably heard you at an unnamed place (21 m)
+  - 1:21: the patrol probably heard you at an unnamed place (21 m)
+  - 1:22: the patrol probably heard you at an unnamed place (11 m)
+  - 1:22: the sentry probably saw you at an unnamed place (in shadow, 13 m)
+  - 1:22: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:23: the supervisor probably saw you at an unnamed place (in shadow, 15 m)
+  - 1:23: the sentry probably noticed you at an unnamed place
+  - 1:23: the grunt probably noticed you at an unnamed place
+  - 1:23: the grunt probably noticed you at an unnamed place
+  - 1:24: the keyholder probably saw you at an unnamed place (in shadow, 20 m)
+  - 1:24: the posted probably noticed you at an unnamed place
+  - 1:24: the patrol probably noticed you at an unnamed place
+  - 1:24: the tour probably noticed you at an unnamed place
+  - 1:24: the desk probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:24: the sentry probably noticed you at an unnamed place
+  - 1:24: the watch probably noticed you at an unnamed place
+  - 1:24: the escort probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:24: the bridge probably noticed you at an unnamed place
+  - 1:24: the grunt probably noticed you at an unnamed place
+  - 1:24: the grunt probably noticed you at an unnamed place
+  - 1:47: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:48: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:48: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:49: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:50: the keyholder probably saw you at an unnamed place (lit, 15 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:51: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:51: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:51: the console probably noticed you at an unnamed place
+  - 1:52: the watch probably noticed you at an unnamed place
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:52: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 1:52: the sentry probably noticed you at an unnamed place
+  - 1:52: the keyholder probably noticed you at an unnamed place
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:53: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:53: the patrol probably noticed you at an unnamed place
+  - 1:53: the console probably noticed you at an unnamed place
+  - 1:53: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:54: the patrol probably noticed you at an unnamed place
+  - 1:54: the sentry probably noticed you at an unnamed place
+  - 1:54: the posted probably noticed you at an unnamed place
+  - 1:54: the patrol probably noticed you at an unnamed place
+  - 1:54: the tour probably noticed you at an unnamed place
+  - 1:54: the operator probably noticed you at an unnamed place
+  - 1:54: the desk probably saw you at an unnamed place (lit, 12 m)
+  - 1:54: the patrol probably noticed you at an unnamed place
+  - 1:54: the supervisor probably noticed you at an unnamed place
+  - 1:54: the watch probably noticed you at an unnamed place
+  - 1:54: the escort probably noticed you at an unnamed place
+  - 1:54: the bridge probably noticed you at an unnamed place
+  - 1:54: the grunt probably noticed you at an unnamed place
+  - 1:54: the grunt probably noticed you at an unnamed place
+  - 1:54: the grunt probably noticed you at an unnamed place
+  - 1:54: the grunt probably noticed you at an unnamed place
+  - 1:54: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 1:54: the keyholder probably noticed you at an unnamed place
+  - 1:55: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:55: the sentry probably noticed you at an unnamed place
+  - 1:55: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:56: the console probably noticed you at an unnamed place
+  - 1:56: the patrol probably noticed you at an unnamed place
+  - 1:56: the sentry probably noticed you at an unnamed place
+  - 1:56: the escort probably saw you at an unnamed place (lit, 11 m)
+  - 1:57: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:57: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 1:57: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:57: the desk probably heard you at an unnamed place (14 m)
+  - 1:57: the keyholder probably noticed you at an unnamed place
+  - 1:57: the posted probably noticed you at an unnamed place
+  - 1:57: the patrol probably noticed you at an unnamed place
+  - 1:57: the tour probably noticed you at an unnamed place
+  - 1:57: the operator probably noticed you at an unnamed place
+  - 1:57: the patrol probably noticed you at an unnamed place
+  - 1:57: the supervisor probably noticed you at an unnamed place
+  - 1:57: the watch probably noticed you at an unnamed place
+  - 1:57: the console probably noticed you at an unnamed place
+  - 1:57: the bridge probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:57: the grunt probably noticed you at an unnamed place
+  - 1:58: the sentry probably noticed you at an unnamed place
+  - 1:58: the patrol probably noticed you at an unnamed place
+  - 1:59: the sentry probably saw you at an unnamed place (in shadow, 4 m)
+  - 1:59: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:59: the patrol probably saw you at an unnamed place (in shadow, 19 m)
+  - 1:59: the patrol probably noticed you at an unnamed place
+  - 1:59: the sentry probably noticed you at an unnamed place
+  - 1:59: the console probably noticed you at an unnamed place
+  - 2:00: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the escort probably saw you at an unnamed place (lit, 15 m)
+  - 2:00: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:00: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the desk probably noticed you at an unnamed place
+  - 2:01: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:01: the posted probably noticed you at an unnamed place
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the tour probably noticed you at an unnamed place
+  - 2:01: the operator probably saw you at an unnamed place (lit, 20 m)
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the supervisor probably saw you at an unnamed place (lit, 18 m)
+  - 2:01: the watch probably noticed you at an unnamed place
+  - 2:01: the console probably noticed you at an unnamed place
+  - 2:01: the bridge probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the sentry probably noticed you at an unnamed place
+  - 2:03: the patrol probably noticed you at an unnamed place
+  - 2:03: the sentry probably noticed you at an unnamed place
+  - 2:04: the patrol probably heard you at an unnamed place (16 m)
+  - 2:09: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:11: the keyholder probably heard you at an unnamed place (6 m)
+  - 2:12: the patrol probably saw you at an unnamed place (in shadow, 14 m)
+  - 2:12: the watch probably heard you at an unnamed place (6 m)
+  - 2:12: the console probably noticed you at an unnamed place
+  - 2:13: the sentry probably noticed you at an unnamed place
+  - 2:13: the patrol probably noticed you at an unnamed place
+  - 2:14: the desk probably saw you at an unnamed place (in shadow, 25 m)
+  - 2:14: the patrol probably noticed you at an unnamed place
+  - 2:14: the posted probably noticed you at an unnamed place
+  - 2:14: the patrol probably noticed you at an unnamed place
+  - 2:14: the tour probably noticed you at an unnamed place
+  - 2:14: the operator probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:14: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:14: the supervisor probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:14: the watch probably noticed you at an unnamed place
+  - 2:14: the escort probably noticed you at an unnamed place
+  - 2:14: the bridge probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:15: the patrol probably noticed you at an unnamed place
+  - 2:15: the sentry probably noticed you at an unnamed place
+  - 2:18: the sentry probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:21: the sentry probably noticed you at an unnamed place
+  - 2:21: the patrol probably noticed you at an unnamed place
+  - 2:21: the supervisor probably noticed you at an unnamed place
+  - 2:21: the sentry probably noticed you at an unnamed place
+  - 2:21: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:22: the console probably noticed you at an unnamed place
+  - 2:22: the watch probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:22: the keyholder probably noticed you at an unnamed place
+  - 2:22: the patrol probably noticed you at an unnamed place
+  - 2:22: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:23: the keyholder probably noticed you at an unnamed place
+  - 2:23: the operator probably noticed you at an unnamed place
+  - 2:23: the patrol probably noticed you at an unnamed place
+  - 2:23: the posted probably noticed you at an unnamed place
+  - 2:23: the patrol probably noticed you at an unnamed place
+  - 2:23: the tour probably noticed you at an unnamed place
+  - 2:23: the desk probably noticed you at an unnamed place
+  - 2:23: the sentry probably noticed you at an unnamed place
+  - 2:23: the watch probably noticed you at an unnamed place
+  - 2:23: the escort probably noticed you at an unnamed place
+  - 2:23: the bridge probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the grunt probably noticed you at an unnamed place
+  - 2:23: the desk probably noticed you at an unnamed place
+  - 2:24: the console probably noticed you at an unnamed place
+  - 2:24: the patrol probably saw you at an unnamed place (lit, 15 m)
+  - 2:24: the operator probably noticed you at an unnamed place
+  - 2:25: the watch probably saw you at an unnamed place (lit, 6 m)
+  - 2:25: the patrol probably noticed you at an unnamed place
+  - 2:25: the sentry probably noticed you at an unnamed place
+  - 2:26: the keyholder probably noticed you at an unnamed place
+  - 2:26: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:26: the keyholder probably noticed you at an unnamed place
+  - 2:26: the patrol probably noticed you at an unnamed place
+  - 2:26: the console probably saw you at an unnamed place (lit, 5 m)
+  - 2:26: the operator probably saw you at an unnamed place (lit, 15 m)
+  - 2:27: the watch probably noticed you at an unnamed place
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the posted probably noticed you at an unnamed place
+  - 2:27: the patrol probably noticed you at an unnamed place
+  - 2:27: the tour probably noticed you at an unnamed place
+  - 2:27: the sentry probably noticed you at an unnamed place
+  - 2:27: the watch probably noticed you at an unnamed place
+  - 2:27: the escort probably saw you at an unnamed place (in shadow, 20 m)
+  - 2:27: the bridge probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the grunt probably noticed you at an unnamed place
+  - 2:27: the sentry probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:27: the desk probably saw you at an unnamed place (in shadow, 13 m)
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the supervisor probably saw you at an unnamed place (in shadow, 17 m)
+  - 2:27: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:27: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:27: the desk probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:28: the keyholder probably noticed you at an unnamed place
+  - 2:28: the console probably noticed you at an unnamed place
+  - 2:28: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:28: the operator probably noticed you at an unnamed place
+  - 2:28: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:28: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:28: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:28: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:28: the patrol probably noticed you at an unnamed place
+  - 2:28: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:29: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:29: the sentry probably noticed you at an unnamed place
+  - 2:29: the watch probably noticed you at an unnamed place
+  - 2:29: the keyholder probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:29: the desk probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:29: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:29: the patrol probably noticed you at an unnamed place
+  - 2:29: the sentry probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:29: the keyholder probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:29: the posted probably noticed you at an unnamed place
+  - 2:29: the patrol probably noticed you at an unnamed place
+  - 2:29: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:29: the sentry probably noticed you at an unnamed place
+  - 2:30: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:30: the supervisor probably saw you at an unnamed place (in shadow, 20 m)
+  - 2:30: the escort probably noticed you at an unnamed place
+  - 2:30: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:30: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:30: the patrol probably noticed you at an unnamed place
+  - 2:30: the tour probably noticed you at an unnamed place
+  - 2:30: the sentry probably noticed you at an unnamed place
+  - 2:30: the watch probably noticed you at an unnamed place
+  - 2:30: the bridge probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the grunt probably noticed you at an unnamed place
+  - 2:30: the console probably noticed you at an unnamed place
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 2:31: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:31: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:31: the sentry probably heard you at an unnamed place (9 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:31: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:32: the operator probably noticed you at an unnamed place
+  - 2:32: the patrol probably noticed you at an unnamed place
+  - 2:32: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:32: the watch probably heard you at an unnamed place (6 m)
+  - 2:32: the sentry probably heard you at an unnamed place (9 m)
+  - 2:33: the patrol probably heard you at an unnamed place (10 m)
+  - 2:33: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:33: the posted probably heard you at an unnamed place (28 m)
+  - 2:33: the supervisor probably saw you at an unnamed place (lit, 21 m)
+  - 2:33: the sentry probably heard you at an unnamed place (9 m)
+  - 2:33: the escort probably heard you at an unnamed place (27 m)
+  - 2:33: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:33: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:33: the console probably saw you at an unnamed place (lit, 6 m)
+  - 2:34: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:34: the patrol probably heard you at an unnamed place (8 m)
+  - 2:35: the sentry probably heard you at an unnamed place (12 m)
+  - 2:35: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:35: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:35: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:35: the patrol probably heard you at an unnamed place (26 m)
+  - 2:35: the tour probably heard you at an unnamed place (27 m)
+  - 2:35: the operator probably heard you at an unnamed place (16 m)
+  - 2:35: the patrol probably heard you at an unnamed place (5 m)
+  - 2:35: the sentry probably heard you at an unnamed place (30 m)
+  - 2:35: the watch probably heard you at an unnamed place (26 m)
+  - 2:35: the bridge probably heard you at an unnamed place (37 m)
+  - 2:35: the grunt probably heard you at an unnamed place (32 m)
+  - 2:35: the grunt probably heard you at an unnamed place (38 m)
+  - 2:35: the grunt probably heard you at an unnamed place (32 m)
+  - 2:35: the grunt probably heard you at an unnamed place (38 m)
+  - 2:35: the grunt probably heard you at an unnamed place (32 m)
+  - 2:35: the grunt probably heard you at an unnamed place (39 m)
+  - 2:35: the console probably noticed you at an unnamed place
+  - 2:36: the watch probably noticed you at an unnamed place
+  - 2:36: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:36: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:36: the patrol probably noticed you at an unnamed place
+  - 2:36: the keyholder probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:37: the console probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:37: the posted probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:37: the supervisor probably saw you at an unnamed place (in shadow, 23 m)
+  - 2:37: the sentry probably noticed you at an unnamed place
+  - 2:37: the escort probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:37: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:37: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:37: the patrol probably noticed you at an unnamed place
+  - 2:38: the sentry probably saw you at an unnamed place (in shadow, 13 m)
+  - 2:38: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:38: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:38: the sentry probably noticed you at an unnamed place
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the tour probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:38: the operator probably noticed you at an unnamed place
+  - 2:38: the patrol probably noticed you at an unnamed place
+  - 2:38: the sentry probably noticed you at an unnamed place
+  - 2:38: the watch probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:38: the bridge probably noticed you at an unnamed place
+  - 2:38: the grunt probably noticed you at an unnamed place
+  - 2:38: the grunt probably saw you at an unnamed place (in shadow, 23 m)
+  - 2:38: the grunt probably noticed you at an unnamed place
+  - 2:38: the grunt probably noticed you at an unnamed place
+  - 2:38: the grunt probably noticed you at an unnamed place
+  - 2:38: the grunt probably noticed you at an unnamed place
+  - 2:39: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:39: the patrol probably heard you at an unnamed place (11 m)
+  - 2:39: the console probably heard you at an unnamed place (11 m)
+  - 2:39: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:39: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:39: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 2:39: the watch probably heard you at an unnamed place (21 m)
+  - 2:39: the escort probably saw you at an unnamed place (lit, 8 m)
+  - 2:40: the sentry probably noticed you at an unnamed place
+  - 2:40: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the patrol probably noticed you at an unnamed place
+  - 2:40: the console probably saw you at an unnamed place (lit, 10 m)
+  - 2:40: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the posted probably saw you at an unnamed place (lit, 9 m)
+  - 2:40: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:40: the supervisor probably saw you at an unnamed place (lit, 20 m)
+  - 2:40: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 2:40: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:41: the patrol probably noticed you at an unnamed place
+  - 2:41: the patrol probably noticed you at an unnamed place
+  - 2:41: the keyholder probably noticed you at an unnamed place
+  - 2:41: the patrol probably noticed you at an unnamed place
+  - 2:41: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:41: the sentry probably noticed you at an unnamed place
+  - 2:41: the patrol probably noticed you at an unnamed place
+  - 2:41: the keyholder probably noticed you at an unnamed place
+  - 2:41: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:42: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:42: the patrol probably heard you at an unnamed place (38 m)
+  - 2:42: the tour probably heard you at an unnamed place (39 m)
+  - 2:42: the operator probably heard you at an unnamed place (8 m)
+  - 2:42: the patrol probably heard you at an unnamed place (9 m)
+  - 2:42: the sentry probably heard you at an unnamed place (40 m)
+  - 2:42: the watch probably heard you at an unnamed place (38 m)
+  - 2:42: the bridge probably heard you at an unnamed place (48 m)
+  - 2:42: the grunt probably heard you at an unnamed place (44 m)
+  - 2:42: the grunt probably heard you at an unnamed place (48 m)
+  - 2:42: the grunt probably saw you at an unnamed place (lit, 18 m)
+  - 2:42: the grunt probably saw you at an unnamed place (lit, 25 m)
+  - 2:42: the grunt probably heard you at an unnamed place (45 m)
+  - 2:42: the grunt probably heard you at an unnamed place (49 m)
+  - 2:42: the console probably heard you at an unnamed place (19 m)
+  - 2:42: the sentry probably saw you at an unnamed place (lit, 12 m)
+  - 2:43: the patrol probably noticed you at an unnamed place
+  - 2:43: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 2:43: the keyholder probably noticed you at an unnamed place
+  - 2:43: the posted probably saw you at an unnamed place (lit, 9 m)
+  - 2:43: the escort probably saw you at an unnamed place (lit, 7 m)
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:44: the watch probably noticed you at an unnamed place
+  - 2:44: the supervisor probably saw you at an unnamed place (lit, 20 m)
+  - 2:44: the console probably noticed you at an unnamed place
+  - 2:45: the patrol probably heard you at an unnamed place (24 m)
+  - 2:45: the patrol probably heard you at an unnamed place (5 m)
+  - 2:45: the tour probably heard you at an unnamed place (6 m)
+  - 2:45: the operator probably heard you at an unnamed place (34 m)
+  - 2:45: the patrol probably heard you at an unnamed place (27 m)
+  - 2:45: the sentry probably heard you at an unnamed place (14 m)
+  - 2:45: the sentry probably heard you at an unnamed place (22 m)
+  - 2:45: the watch probably heard you at an unnamed place (5 m)
+  - 2:45: the bridge probably heard you at an unnamed place (15 m)
+  - 2:45: the grunt probably heard you at an unnamed place (9 m)
+  - 2:45: the grunt probably heard you at an unnamed place (18 m)
+  - 2:45: the grunt probably heard you at an unnamed place (10 m)
+  - 2:45: the grunt probably heard you at an unnamed place (17 m)
+  - 2:45: the grunt probably heard you at an unnamed place (10 m)
+  - 2:45: the grunt probably heard you at an unnamed place (18 m)
+  - 2:52: the posted probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:54: the posted probably saw you at an unnamed place (lit, 4 m)
+  - 2:55: the escort probably noticed you at an unnamed place
+  - 2:55: the tour probably noticed you at an unnamed place
+  - 2:55: the watch probably noticed you at an unnamed place
+  - 2:55: the escort probably noticed you at an unnamed place
+  - 2:55: the tour probably noticed you at an unnamed place
+  - 2:55: the watch probably noticed you at an unnamed place
+  - 2:55: the grunt probably noticed you at an unnamed place
+  - 2:56: the tour probably noticed you at an unnamed place
+  - 2:56: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 2:56: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:56: the tour probably noticed you at an unnamed place
+  - 2:56: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the tour probably noticed you at an unnamed place
+  - 2:57: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 2:57: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:57: the desk probably saw you at an unnamed place (lit, 10 m)
+  - 2:57: the watch probably saw you at an unnamed place (lit, 11 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 8 m)
+  - 2:58: the watch probably saw you at an unnamed place (lit, 11 m)
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 8 m)
+  - 2:58: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:58: the posted probably noticed you at an unnamed place
+  - 2:58: the tour probably noticed you at an unnamed place
+  - 2:58: the watch probably saw you at an unnamed place (lit, 12 m)
+  - 2:58: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 2:58: the sentry probably noticed you at an unnamed place
+  - 2:58: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 2:59: the watch probably noticed you at an unnamed place
+  - 2:59: the escort probably noticed you at an unnamed place
+  - 2:59: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:59: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 2:59: the patrol probably noticed you at an unnamed place
+- Dead stops:
+  - 1:34: the robot could not follow the path, at an unnamed place, link ?, picture shots/S3-code-1-1.png
+  - 1:44: the robot could not follow the path, at an unnamed place, link ?, picture shots/S3-code-1-2.png
+- Stubs: none
+
+### S3 The hatch (code route) (S3-code-2)
+
+- Result: pass
+- Time: 1:36, walked 123.8 m, guards 20 alive of 20
+- Seen:
+  - 0:27: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:27: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:28: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:28: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:28: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:28: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:28: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:28: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:28: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:28: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:28: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:28: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:29: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:29: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:29: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 0:29: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 0:29: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 0:29: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 0:29: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:29: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 0:29: the bridge probably saw you at an unnamed place (lit, 16 m)
+  - 0:29: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:29: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:29: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 0:29: the bridge probably saw you at an unnamed place (in shadow, 16 m)
+  - 0:29: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 0:29: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:29: the desk probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:29: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:29: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:29: the desk probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:30: the posted probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:30: the escort probably noticed you at an unnamed place
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:30: the watch probably saw you at an unnamed place (in shadow, 10 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:31: the patrol probably saw you at an unnamed place (in shadow, 15 m)
+  - 0:31: the bridge probably saw you at an unnamed place (in shadow, 17 m)
+  - 0:31: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:31: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:31: the posted probably saw you at an unnamed place (in shadow, 11 m)
+  - 0:31: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:32: the tour probably heard you at an unnamed place (4 m)
+  - 0:32: the console probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:32: the escort probably heard you at an unnamed place (16 m)
+  - 0:32: the patrol probably heard you at an unnamed place (8 m)
+  - 0:32: the grunt probably heard you at an unnamed place (5 m)
+  - 0:32: the grunt probably heard you at an unnamed place (10 m)
+  - 0:32: a camera probably spotted you at an unnamed place
+  - 0:32: the watch probably heard you at an unnamed place (11 m)
+  - 0:32: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:32: the keyholder probably saw you at an unnamed place (in shadow, 15 m)
+  - 0:32: the watch probably heard you at an unnamed place (35 m)
+  - 0:32: the operator probably heard you at an unnamed place (50 m)
+  - 0:32: the patrol probably heard you at an unnamed place (45 m)
+  - 0:32: the supervisor probably saw you at an unnamed place (in shadow, 15 m)
+  - 0:32: the sentry probably saw you at an unnamed place (in shadow, 17 m)
+  - 0:32: the sentry probably heard you at an unnamed place (33 m)
+  - 0:32: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:32: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 0:32: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:32: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:32: the keyholder probably saw you at an unnamed place (lit, 15 m)
+  - 0:32: the supervisor probably saw you at an unnamed place (lit, 15 m)
+  - 0:32: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:32: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:32: the keyholder probably saw you at an unnamed place (lit, 15 m)
+  - 0:32: the supervisor probably saw you at an unnamed place (lit, 15 m)
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:33: the keyholder probably saw you at an unnamed place (lit, 15 m)
+  - 0:33: the supervisor probably saw you at an unnamed place (lit, 14 m)
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:33: the keyholder probably saw you at an unnamed place (lit, 15 m)
+  - 0:33: the supervisor probably saw you at an unnamed place (lit, 14 m)
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:33: the keyholder probably noticed you at an unnamed place
+  - 0:33: the supervisor probably saw you at an unnamed place (lit, 14 m)
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:33: the patrol probably noticed you at an unnamed place
+  - 0:33: the keyholder probably noticed you at an unnamed place
+  - 0:33: the supervisor probably saw you at an unnamed place (lit, 14 m)
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:33: the patrol probably noticed you at an unnamed place
+  - 0:33: the keyholder probably noticed you at an unnamed place
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 0:33: the supervisor probably saw you at an unnamed place (lit, 14 m)
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:33: the patrol probably noticed you at an unnamed place
+  - 0:33: the keyholder probably noticed you at an unnamed place
+  - 0:33: the supervisor probably saw you at an unnamed place (lit, 14 m)
+  - 0:33: the desk probably noticed you at an unnamed place
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:33: the patrol probably noticed you at an unnamed place
+  - 0:33: the keyholder probably noticed you at an unnamed place
+  - 0:33: the supervisor probably saw you at an unnamed place (lit, 14 m)
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:33: the patrol probably noticed you at an unnamed place
+  - 0:33: the keyholder probably noticed you at an unnamed place
+  - 0:33: the supervisor probably noticed you at an unnamed place
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:33: the patrol probably noticed you at an unnamed place
+  - 0:33: the keyholder probably noticed you at an unnamed place
+  - 0:33: the supervisor probably noticed you at an unnamed place
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:33: the patrol probably noticed you at an unnamed place
+  - 0:33: the keyholder probably noticed you at an unnamed place
+  - 0:33: the supervisor probably noticed you at an unnamed place
+  - 0:33: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:34: the keyholder probably noticed you at an unnamed place
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:34: the supervisor probably noticed you at an unnamed place
+  - 0:34: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:34: the keyholder probably noticed you at an unnamed place
+  - 0:34: the supervisor probably noticed you at an unnamed place
+  - 0:34: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:34: the keyholder probably noticed you at an unnamed place
+  - 0:34: the supervisor probably noticed you at an unnamed place
+  - 0:34: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:34: the keyholder probably noticed you at an unnamed place
+  - 0:34: the supervisor probably noticed you at an unnamed place
+  - 0:34: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:34: the keyholder probably noticed you at an unnamed place
+  - 0:34: the supervisor probably noticed you at an unnamed place
+  - 0:34: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:34: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the supervisor probably noticed you at an unnamed place
+  - 0:34: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:34: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the supervisor probably noticed you at an unnamed place
+  - 0:34: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:34: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the supervisor probably noticed you at an unnamed place
+  - 0:34: the desk probably saw you at an unnamed place (lit, 14 m)
+  - 0:34: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:34: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 0:34: the supervisor probably noticed you at an unnamed place
+  - 0:34: the desk probably saw you at an unnamed place (lit, 14 m)
+  - 0:34: the patrol probably saw you up close at an unnamed place (2 m)
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:34: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 0:34: the supervisor probably noticed you at an unnamed place
+  - 0:34: the desk probably saw you at an unnamed place (lit, 14 m)
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 0:35: the supervisor probably noticed you at an unnamed place
+  - 0:35: the desk probably saw you at an unnamed place (lit, 14 m)
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the supervisor probably noticed you at an unnamed place
+  - 0:35: the desk probably saw you at an unnamed place (lit, 14 m)
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the supervisor probably noticed you at an unnamed place
+  - 0:35: the console probably noticed you at an unnamed place
+  - 0:35: the desk probably saw you at an unnamed place (lit, 14 m)
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the supervisor probably noticed you at an unnamed place
+  - 0:35: the desk probably saw you at an unnamed place (lit, 14 m)
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the watch probably saw you at an unnamed place (lit, 11 m)
+  - 0:35: the supervisor probably noticed you at an unnamed place
+  - 0:35: the desk probably saw you at an unnamed place (lit, 14 m)
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the supervisor probably noticed you at an unnamed place
+  - 0:35: the desk probably saw you at an unnamed place (lit, 15 m)
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 0:35: the supervisor probably noticed you at an unnamed place
+  - 0:35: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 0:35: the desk probably saw you at an unnamed place (lit, 15 m)
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the supervisor probably noticed you at an unnamed place
+  - 0:35: the desk probably saw you at an unnamed place (lit, 15 m)
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the supervisor probably noticed you at an unnamed place
+  - 0:35: the desk probably saw you at an unnamed place (lit, 15 m)
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:35: the supervisor probably noticed you at an unnamed place
+  - 0:35: the desk probably saw you at an unnamed place (lit, 15 m)
+  - 0:36: the patrol probably noticed you at an unnamed place
+  - 0:36: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 0:36: the supervisor probably noticed you at an unnamed place
+  - 0:36: the desk probably saw you at an unnamed place (lit, 15 m)
+  - 0:36: the patrol probably noticed you at an unnamed place
+  - 0:36: the supervisor probably noticed you at an unnamed place
+  - 0:36: the desk probably saw you at an unnamed place (lit, 15 m)
+  - 0:36: the patrol probably noticed you at an unnamed place
+  - 0:36: the supervisor probably noticed you at an unnamed place
+  - 0:36: the posted probably noticed you at an unnamed place
+  - 0:36: the desk probably saw you at an unnamed place (lit, 15 m)
+  - 0:36: the patrol probably noticed you at an unnamed place
+  - 0:36: the supervisor probably noticed you at an unnamed place
+  - 0:36: the desk probably saw you at an unnamed place (lit, 16 m)
+  - 0:36: the patrol probably noticed you at an unnamed place
+  - 0:36: the keyholder probably saw you at an unnamed place (lit, 9 m)
+  - 0:36: the supervisor probably noticed you at an unnamed place
+  - 0:36: the desk probably saw you at an unnamed place (lit, 16 m)
+  - 0:36: the patrol probably noticed you at an unnamed place
+  - 0:36: the supervisor probably noticed you at an unnamed place
+  - 0:36: the desk probably saw you at an unnamed place (lit, 16 m)
+  - 0:36: the patrol probably noticed you at an unnamed place
+  - 0:36: the supervisor probably noticed you at an unnamed place
+  - 0:36: the watch probably noticed you at an unnamed place
+  - 0:36: the desk probably saw you at an unnamed place (lit, 16 m)
+  - 0:36: the patrol probably noticed you at an unnamed place
+  - 0:36: the supervisor probably noticed you at an unnamed place
+  - 0:36: the console probably saw you at an unnamed place (lit, 3 m)
+  - 0:36: the desk probably saw you at an unnamed place (lit, 16 m)
+  - 0:36: the patrol probably noticed you at an unnamed place
+  - 0:36: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 0:36: the operator probably noticed you at an unnamed place
+  - 0:36: the supervisor probably noticed you at an unnamed place
+  - 0:36: the desk probably saw you at an unnamed place (lit, 16 m)
+  - 0:36: the bridge probably saw you at an unnamed place (lit, 20 m)
+  - 0:36: the patrol probably noticed you at an unnamed place
+  - 0:36: the supervisor probably noticed you at an unnamed place
+  - 0:36: the desk probably saw you at an unnamed place (lit, 16 m)
+  - 0:37: the patrol probably noticed you at an unnamed place
+  - 0:37: the supervisor probably noticed you at an unnamed place
+  - 0:37: the desk probably saw you at an unnamed place (lit, 16 m)
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:37: the patrol probably noticed you at an unnamed place
+  - 0:37: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:37: the watch probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:37: the supervisor probably noticed you at an unnamed place
+  - 0:37: the desk probably saw you at an unnamed place (in shadow, 17 m)
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:37: the patrol probably noticed you at an unnamed place
+  - 0:37: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:37: the supervisor probably noticed you at an unnamed place
+  - 0:37: the desk probably saw you at an unnamed place (in shadow, 17 m)
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:37: the patrol probably noticed you at an unnamed place
+  - 0:37: the supervisor probably noticed you at an unnamed place
+  - 0:37: the desk probably saw you at an unnamed place (in shadow, 17 m)
+  - 0:37: the escort probably noticed you at an unnamed place
+  - 0:37: the grunt probably noticed you at an unnamed place
+  - 0:37: the grunt probably noticed you at an unnamed place
+  - 0:37: a camera probably spotted you at an unnamed place
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:37: the patrol probably noticed you at an unnamed place
+  - 0:37: the supervisor probably noticed you at an unnamed place
+  - 0:37: the desk probably saw you at an unnamed place (in shadow, 17 m)
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:37: the patrol probably noticed you at an unnamed place
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 23 m)
+  - 0:37: the tour probably noticed you at an unnamed place
+  - 0:37: the supervisor probably noticed you at an unnamed place
+  - 0:37: the sentry probably noticed you at an unnamed place
+  - 0:37: the desk probably saw you at an unnamed place (in shadow, 17 m)
+  - 0:37: the grunt probably noticed you at an unnamed place
+  - 0:37: the grunt probably noticed you at an unnamed place
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:37: the patrol probably noticed you at an unnamed place
+  - 0:37: the supervisor probably noticed you at an unnamed place
+  - 0:37: the desk probably saw you at an unnamed place (in shadow, 17 m)
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:37: the patrol probably noticed you at an unnamed place
+  - 0:37: the supervisor probably noticed you at an unnamed place
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:37: the patrol probably noticed you at an unnamed place
+  - 0:37: the supervisor probably noticed you at an unnamed place
+  - 0:37: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 0:37: the supervisor probably noticed you at an unnamed place
+  - 0:38: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:38: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:38: the supervisor probably noticed you at an unnamed place
+  - 0:38: the posted probably noticed you at an unnamed place
+  - 0:38: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:38: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:38: the supervisor probably noticed you at an unnamed place
+  - 0:38: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:38: the patrol probably noticed you at an unnamed place
+  - 0:38: the supervisor probably noticed you at an unnamed place
+  - 0:38: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:38: the supervisor probably noticed you at an unnamed place
+  - 0:38: the bridge probably saw you at an unnamed place (in shadow, 22 m)
+  - 0:38: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:38: the supervisor probably noticed you at an unnamed place
+  - 0:38: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:38: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:38: the supervisor probably noticed you at an unnamed place
+  - 0:38: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:38: the operator probably noticed you at an unnamed place
+  - 0:38: the supervisor probably noticed you at an unnamed place
+  - 0:38: the supervisor probably noticed you at an unnamed place
+  - 0:38: the watch probably noticed you at an unnamed place
+  - 0:38: the supervisor probably noticed you at an unnamed place
+  - 0:38: the patrol probably noticed you at an unnamed place
+  - 0:38: the watch probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:38: the patrol probably noticed you at an unnamed place
+  - 0:38: the supervisor probably noticed you at an unnamed place
+  - 0:39: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:39: the supervisor probably noticed you at an unnamed place
+  - 0:39: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:39: the supervisor probably noticed you at an unnamed place
+  - 0:39: the escort probably noticed you at an unnamed place
+  - 0:39: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:39: the supervisor probably noticed you at an unnamed place
+  - 0:39: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:39: the supervisor probably noticed you at an unnamed place
+  - 0:39: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:39: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:39: the supervisor probably noticed you at an unnamed place
+  - 0:39: the console probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:39: the supervisor probably noticed you at an unnamed place
+  - 0:39: the supervisor probably noticed you at an unnamed place
+  - 0:39: the supervisor probably noticed you at an unnamed place
+  - 0:39: the bridge probably saw you at an unnamed place (in shadow, 22 m)
+  - 0:39: the sentry probably saw you at an unnamed place (in shadow, 11 m)
+  - 0:39: the supervisor probably noticed you at an unnamed place
+  - 0:39: the supervisor probably noticed you at an unnamed place
+  - 0:40: the supervisor probably noticed you at an unnamed place
+  - 0:40: the supervisor probably noticed you at an unnamed place
+  - 0:40: the keyholder probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:40: the supervisor probably noticed you at an unnamed place
+  - 0:40: the posted probably noticed you at an unnamed place
+  - 0:40: the supervisor probably noticed you at an unnamed place
+  - 0:40: the operator probably noticed you at an unnamed place
+  - 0:40: the grunt probably noticed you at an unnamed place
+  - 0:40: the grunt probably noticed you at an unnamed place
+  - 0:40: a camera probably spotted you at an unnamed place
+  - 0:40: the patrol probably noticed you at an unnamed place
+  - 0:40: the watch probably noticed you at an unnamed place
+  - 0:40: the grunt probably noticed you at an unnamed place
+  - 0:40: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 0:40: the grunt probably noticed you at an unnamed place
+  - 0:40: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 0:40: the watch probably saw you at an unnamed place (lit, 6 m)
+  - 0:40: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 0:40: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 0:40: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 0:40: the escort probably noticed you at an unnamed place
+  - 0:41: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 0:41: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 0:41: the patrol probably noticed you at an unnamed place
+  - 0:41: the tour probably noticed you at an unnamed place
+  - 0:41: the sentry probably noticed you at an unnamed place
+  - 0:41: the console probably noticed you at an unnamed place
+  - 0:41: the desk probably noticed you at an unnamed place
+  - 0:41: the grunt probably noticed you at an unnamed place
+  - 0:41: the grunt probably noticed you at an unnamed place
+  - 0:41: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 0:41: the desk probably noticed you at an unnamed place
+  - 0:41: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 0:41: the desk probably noticed you at an unnamed place
+  - 0:41: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 0:41: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 0:41: the desk probably noticed you at an unnamed place
+  - 0:41: the bridge probably saw you at an unnamed place (lit, 23 m)
+  - 0:41: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 0:41: the desk probably saw you at an unnamed place (lit, 21 m)
+  - 0:41: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 0:41: the desk probably saw you at an unnamed place (lit, 22 m)
+  - 0:41: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 0:41: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 0:41: the bridge probably saw you at an unnamed place (lit, 24 m)
+  - 0:42: the supervisor probably saw you at an unnamed place (lit, 14 m)
+  - 0:42: a camera probably spotted you at an unnamed place
+  - 0:42: the operator probably noticed you at an unnamed place
+  - 0:42: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:42: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:42: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:42: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:42: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:42: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:42: the console probably saw you at an unnamed place (lit, 7 m)
+  - 0:42: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:42: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:43: the bridge probably saw you at an unnamed place (lit, 24 m)
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:43: the sentry probably saw you at an unnamed place (lit, 14 m)
+  - 0:43: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:43: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:43: the watch probably saw you at an unnamed place (lit, 5 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:43: the watch probably noticed you at an unnamed place
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:43: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:43: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:43: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 0:44: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:44: the patrol probably noticed you at an unnamed place
+  - 0:44: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:44: the patrol probably heard you at an unnamed place (7 m)
+  - 0:44: the sentry probably heard you at an unnamed place (31 m)
+  - 0:44: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:44: the patrol probably heard you at an unnamed place (7 m)
+  - 0:44: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:44: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:44: the patrol probably heard you at an unnamed place (8 m)
+  - 0:44: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:44: the patrol probably heard you at an unnamed place (8 m)
+  - 0:44: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 0:44: the patrol probably heard you at an unnamed place (8 m)
+  - 0:44: the posted probably heard you at an unnamed place (28 m)
+  - 0:44: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 0:44: the patrol probably heard you at an unnamed place (8 m)
+  - 0:44: the keyholder probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:44: the patrol probably saw you at an unnamed place (in shadow, 11 m)
+  - 0:44: the patrol probably heard you at an unnamed place (8 m)
+  - 0:44: the patrol probably saw you at an unnamed place (in shadow, 11 m)
+  - 0:44: the patrol probably heard you at an unnamed place (8 m)
+  - 0:44: the patrol probably heard you at an unnamed place (23 m)
+  - 0:44: the patrol probably heard you at an unnamed place (34 m)
+  - 0:44: the tour probably heard you at an unnamed place (39 m)
+  - 0:44: the desk probably saw you at an unnamed place (in shadow, 23 m)
+  - 0:44: the escort probably heard you at an unnamed place (29 m)
+  - 0:44: the grunt probably heard you at an unnamed place (36 m)
+  - 0:44: the grunt probably heard you at an unnamed place (39 m)
+  - 0:44: the grunt probably heard you at an unnamed place (37 m)
+  - 0:44: the grunt probably heard you at an unnamed place (41 m)
+  - 0:44: the grunt probably heard you at an unnamed place (37 m)
+  - 0:44: the grunt probably heard you at an unnamed place (40 m)
+  - 0:44: the patrol probably saw you at an unnamed place (in shadow, 11 m)
+  - 0:44: the patrol probably heard you at an unnamed place (9 m)
+  - 0:44: the console probably heard you at an unnamed place (11 m)
+  - 0:45: the patrol probably saw you at an unnamed place (in shadow, 11 m)
+  - 0:45: the patrol probably heard you at an unnamed place (9 m)
+  - 0:45: the keyholder probably heard you at an unnamed place (8 m)
+  - 0:45: the patrol probably noticed you at an unnamed place
+  - 0:45: the patrol probably noticed you at an unnamed place
+  - 0:45: the patrol probably noticed you at an unnamed place
+  - 0:45: the sentry probably noticed you at an unnamed place
+  - 0:45: the supervisor probably saw you at an unnamed place (lit, 11 m)
+  - 0:45: the patrol probably noticed you at an unnamed place
+  - 0:45: the operator probably noticed you at an unnamed place
+  - 0:45: the patrol probably noticed you at an unnamed place
+  - 0:45: the patrol probably noticed you at an unnamed place
+  - 0:45: the patrol probably noticed you at an unnamed place
+  - 0:45: the watch probably saw you at an unnamed place (lit, 8 m)
+  - 0:45: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 0:45: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 0:46: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 0:46: the supervisor probably noticed you at an unnamed place
+  - 0:46: the console probably noticed you at an unnamed place
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:47: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:47: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:47: the sentry probably saw you at an unnamed place (lit, 14 m)
+  - 0:47: the keyholder probably noticed you at an unnamed place
+  - 0:47: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:47: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:47: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 0:47: the bridge probably saw you at an unnamed place (lit, 24 m)
+  - 0:47: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:47: the operator probably saw you at an unnamed place (lit, 14 m)
+  - 0:47: the sentry probably noticed you at an unnamed place
+  - 0:47: the watch probably noticed you at an unnamed place
+  - 0:47: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 0:47: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:47: the keyholder probably noticed you at an unnamed place
+  - 0:47: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:47: the patrol probably saw you at an unnamed place (in shadow, 24 m)
+  - 0:47: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:47: the watch probably saw you at an unnamed place (in shadow, 10 m)
+  - 0:48: the patrol probably saw you up close at an unnamed place (2 m)
+  - 0:48: the patrol probably noticed you at an unnamed place
+  - 0:48: the keyholder probably noticed you at an unnamed place
+  - 0:48: the patrol probably noticed you at an unnamed place
+  - 0:48: the sentry probably noticed you at an unnamed place
+  - 0:48: the desk probably saw you at an unnamed place (in shadow, 23 m)
+  - 0:48: the patrol probably noticed you at an unnamed place
+  - 0:48: the patrol probably noticed you at an unnamed place
+  - 0:48: the patrol probably noticed you at an unnamed place
+  - 0:48: the keyholder probably noticed you at an unnamed place
+  - 0:48: the patrol probably noticed you at an unnamed place
+  - 0:48: the patrol probably noticed you at an unnamed place
+  - 0:48: the patrol probably noticed you at an unnamed place
+  - 0:48: the patrol probably noticed you at an unnamed place
+  - 0:48: the keyholder probably noticed you at an unnamed place
+  - 0:48: the patrol probably noticed you at an unnamed place
+  - 0:48: the patrol probably noticed you at an unnamed place
+  - 0:48: the supervisor probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:49: the patrol probably saw you at an unnamed place (in shadow, 14 m)
+  - 0:49: the patrol probably noticed you at an unnamed place
+  - 0:49: the keyholder probably noticed you at an unnamed place
+  - 0:49: the patrol probably noticed you at an unnamed place
+  - 0:49: the keyholder probably noticed you at an unnamed place
+  - 0:49: the patrol probably noticed you at an unnamed place
+  - 0:49: the keyholder probably noticed you at an unnamed place
+  - 0:49: the patrol probably noticed you at an unnamed place
+  - 0:49: the keyholder probably noticed you at an unnamed place
+  - 0:49: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 0:49: the patrol probably noticed you at an unnamed place
+  - 0:49: the posted probably noticed you at an unnamed place
+  - 0:49: the escort probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:49: the keyholder probably noticed you at an unnamed place
+  - 0:49: a camera probably spotted you at an unnamed place
+  - 0:49: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:49: the keyholder probably noticed you at an unnamed place
+  - 0:49: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:49: the keyholder probably noticed you at an unnamed place
+  - 0:49: the console probably noticed you at an unnamed place
+  - 0:49: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:49: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:49: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:49: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:49: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:50: the patrol probably noticed you at an unnamed place
+  - 0:50: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:50: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:50: the keyholder probably noticed you at an unnamed place
+  - 0:50: the keyholder probably noticed you at an unnamed place
+  - 0:50: the keyholder probably noticed you at an unnamed place
+  - 0:50: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 0:50: the tour probably noticed you at an unnamed place
+  - 0:50: the operator probably noticed you at an unnamed place
+  - 0:50: the keyholder probably noticed you at an unnamed place
+  - 0:50: the keyholder probably noticed you at an unnamed place
+  - 0:51: the keyholder probably noticed you at an unnamed place
+  - 0:51: the sentry probably noticed you at an unnamed place
+  - 0:51: the bridge probably noticed you at an unnamed place
+  - 0:51: the sentry probably saw you at an unnamed place (in shadow, 19 m)
+  - 0:51: the keyholder probably noticed you at an unnamed place
+  - 0:51: the patrol probably noticed you at an unnamed place
+  - 0:51: the sentry probably noticed you at an unnamed place
+  - 0:51: the watch probably noticed you at an unnamed place
+  - 0:51: the patrol probably noticed you at an unnamed place
+  - 0:51: the console probably noticed you at an unnamed place
+  - 0:51: the supervisor probably heard you at an unnamed place (35 m)
+  - 0:51: the patrol probably saw you at an unnamed place (in shadow, 15 m)
+  - 0:52: the patrol probably noticed you at an unnamed place
+  - 0:52: the posted probably noticed you at an unnamed place
+  - 0:52: the desk probably saw you at an unnamed place (in shadow, 24 m)
+  - 0:52: the escort probably noticed you at an unnamed place
+  - 0:52: the grunt probably noticed you at an unnamed place
+  - 0:52: the grunt probably noticed you at an unnamed place
+  - 0:52: the grunt probably noticed you at an unnamed place
+  - 0:52: the grunt probably noticed you at an unnamed place
+  - 0:52: the grunt probably noticed you at an unnamed place
+  - 0:52: the grunt probably noticed you at an unnamed place
+  - 0:53: the patrol probably noticed you at an unnamed place
+  - 0:53: the patrol probably saw you at an unnamed place (in shadow, 13 m)
+  - 0:53: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 0:54: the supervisor probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:54: the patrol probably noticed you at an unnamed place
+  - 0:54: the patrol probably noticed you at an unnamed place
+  - 0:54: the sentry probably saw you at an unnamed place (in shadow, 14 m)
+  - 0:54: a camera probably spotted you at an unnamed place
+  - 0:54: the console probably noticed you at an unnamed place
+  - 0:55: the operator probably saw you at an unnamed place (in shadow, 14 m)
+  - 0:55: the bridge probably saw you at an unnamed place (in shadow, 20 m)
+  - 0:55: the sentry probably saw you at an unnamed place (in shadow, 16 m)
+  - 0:55: the patrol probably saw you at an unnamed place (in shadow, 25 m)
+  - 0:55: the sentry probably noticed you at an unnamed place
+  - 0:55: the watch probably noticed you at an unnamed place
+  - 0:57: the tour probably heard you at an unnamed place (47 m)
+  - 1:00: a camera probably spotted you at an unnamed place
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:00: the supervisor probably noticed you at an unnamed place
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the bridge probably saw you at an unnamed place (lit, 11 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the bridge probably saw you at an unnamed place (lit, 10 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the bridge probably saw you at an unnamed place (lit, 10 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:02: the bridge probably saw you at an unnamed place (lit, 10 m)
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:02: the supervisor probably noticed you at an unnamed place
+  - 1:02: the desk probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the bridge probably saw you at an unnamed place (lit, 10 m)
+  - 1:02: the patrol probably noticed you at an unnamed place
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:02: the supervisor probably noticed you at an unnamed place
+  - 1:02: the desk probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the bridge probably saw you at an unnamed place (lit, 10 m)
+  - 1:02: the patrol probably noticed you at an unnamed place
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:02: the supervisor probably noticed you at an unnamed place
+  - 1:02: the desk probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the bridge probably saw you at an unnamed place (lit, 10 m)
+  - 1:02: the patrol probably noticed you at an unnamed place
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:02: the keyholder probably noticed you at an unnamed place
+  - 1:02: the supervisor probably noticed you at an unnamed place
+  - 1:02: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:02: the bridge probably saw you at an unnamed place (lit, 10 m)
+  - 1:02: the patrol probably noticed you at an unnamed place
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:02: the supervisor probably noticed you at an unnamed place
+  - 1:02: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:02: the bridge probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:02: the supervisor probably noticed you at an unnamed place
+  - 1:02: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:02: the bridge probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:02: the supervisor probably noticed you at an unnamed place
+  - 1:02: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:02: the bridge probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:02: the keyholder probably noticed you at an unnamed place
+  - 1:02: the operator probably noticed you at an unnamed place
+  - 1:02: the supervisor probably noticed you at an unnamed place
+  - 1:02: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:02: the bridge probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the patrol probably noticed you at an unnamed place
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:02: the supervisor probably noticed you at an unnamed place
+  - 1:02: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:02: the bridge probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the patrol probably noticed you at an unnamed place
+  - 1:02: the supervisor probably noticed you at an unnamed place
+  - 1:02: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:03: the bridge probably saw you at an unnamed place (lit, 9 m)
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 1:03: the bridge probably saw you at an unnamed place (lit, 9 m)
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 1:03: the bridge probably saw you at an unnamed place (lit, 9 m)
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 1:03: the bridge probably saw you at an unnamed place (lit, 8 m)
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 1:03: the bridge probably saw you at an unnamed place (lit, 8 m)
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 1:03: the bridge probably saw you at an unnamed place (lit, 8 m)
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 1:03: the bridge probably saw you at an unnamed place (lit, 8 m)
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 1:03: the bridge probably saw you at an unnamed place (lit, 8 m)
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 1:03: the bridge probably saw you at an unnamed place (lit, 8 m)
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:03: the watch probably saw you at an unnamed place (lit, 6 m)
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 1:03: the bridge probably saw you at an unnamed place (lit, 8 m)
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 1:04: the bridge probably saw you at an unnamed place (lit, 8 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 1:04: the bridge probably saw you at an unnamed place (lit, 8 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 1:04: the bridge probably saw you at an unnamed place (lit, 8 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 1:04: the bridge probably saw you at an unnamed place (lit, 7 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 1:04: the bridge probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:04: the bridge probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the operator probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the console probably noticed you at an unnamed place
+  - 1:04: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:04: the bridge probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:04: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:04: the bridge probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the keyholder probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:04: the bridge probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the keyholder probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the desk probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:04: the bridge probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the keyholder probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the bridge probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the keyholder probably noticed you at an unnamed place
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the bridge probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the keyholder probably noticed you at an unnamed place
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the posted probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:05: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the keyholder probably noticed you at an unnamed place
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the sentry probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 15 m)
+  - 1:05: the watch probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the sentry probably noticed you at an unnamed place
+  - 1:05: the watch probably noticed you at an unnamed place
+  - 1:05: the escort probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the bridge probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:05: the keyholder probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the bridge probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:05: the keyholder probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:06: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:06: the supervisor probably noticed you at an unnamed place
+  - 1:06: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 1:06: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:06: the supervisor probably noticed you at an unnamed place
+  - 1:06: the console probably noticed you at an unnamed place
+  - 1:06: the supervisor probably noticed you at an unnamed place
+  - 1:06: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:06: the bridge probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:06: the operator probably noticed you at an unnamed place
+  - 1:06: the supervisor probably noticed you at an unnamed place
+  - 1:06: the posted probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:06: the patrol probably noticed you at an unnamed place
+  - 1:06: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:06: the patrol probably noticed you at an unnamed place
+  - 1:06: the tour probably noticed you at an unnamed place
+  - 1:07: the watch probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:07: the bridge probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:07: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:07: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:07: the console probably heard you at an unnamed place (10 m)
+  - 1:07: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:07: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:07: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:07: the escort probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:07: the bridge probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:07: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 1:07: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:07: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:07: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:08: the bridge probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:08: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:08: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:08: the bridge probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:08: the operator probably heard you at an unnamed place (14 m)
+  - 1:08: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:08: the bridge probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:08: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:08: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:08: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:08: the watch probably heard you at an unnamed place (5 m)
+  - 1:08: the posted probably heard you at an unnamed place (15 m)
+  - 1:08: the desk probably heard you at an unnamed place (16 m)
+  - 1:08: the grunt probably heard you at an unnamed place (10 m)
+  - 1:08: the grunt probably heard you at an unnamed place (17 m)
+  - 1:08: the grunt probably heard you at an unnamed place (10 m)
+  - 1:08: the grunt probably heard you at an unnamed place (18 m)
+  - 1:08: the grunt probably heard you at an unnamed place (9 m)
+  - 1:08: the grunt probably heard you at an unnamed place (18 m)
+  - 1:08: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 1:08: the desk probably heard you at an unnamed place (16 m)
+  - 1:08: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 1:08: the desk probably heard you at an unnamed place (17 m)
+  - 1:08: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:08: the desk probably heard you at an unnamed place (17 m)
+  - 1:09: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:09: the desk probably heard you at an unnamed place (17 m)
+  - 1:09: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:09: the keyholder probably heard you at an unnamed place (21 m)
+  - 1:09: the desk probably heard you at an unnamed place (18 m)
+  - 1:09: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:09: the keyholder probably heard you at an unnamed place (24 m)
+  - 1:09: the desk probably heard you at an unnamed place (22 m)
+  - 1:09: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:09: the keyholder probably heard you at an unnamed place (24 m)
+  - 1:09: the watch probably saw you at an unnamed place (lit, 11 m)
+  - 1:09: the desk probably heard you at an unnamed place (22 m)
+  - 1:09: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:09: the patrol probably heard you at an unnamed place (14 m)
+  - 1:09: the keyholder probably heard you at an unnamed place (24 m)
+  - 1:09: the desk probably heard you at an unnamed place (22 m)
+  - 1:09: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:09: the patrol probably heard you at an unnamed place (14 m)
+  - 1:09: the keyholder probably heard you at an unnamed place (25 m)
+  - 1:09: the desk probably heard you at an unnamed place (22 m)
+  - 1:09: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:09: the patrol probably heard you at an unnamed place (14 m)
+  - 1:09: the keyholder probably heard you at an unnamed place (25 m)
+  - 1:09: the desk probably heard you at an unnamed place (23 m)
+  - 1:09: the bridge probably saw you at an unnamed place (lit, 2 m)
+  - 1:09: the patrol probably heard you at an unnamed place (13 m)
+  - 1:09: the keyholder probably heard you at an unnamed place (25 m)
+  - 1:09: the desk probably heard you at an unnamed place (23 m)
+  - 1:09: the bridge probably saw you up close at an unnamed place (2 m)
+  - 1:09: the patrol probably heard you at an unnamed place (13 m)
+  - 1:09: the keyholder probably heard you at an unnamed place (25 m)
+  - 1:09: the supervisor probably heard you at an unnamed place (37 m)
+  - 1:09: the desk probably heard you at an unnamed place (23 m)
+  - 1:09: the bridge probably saw you up close at an unnamed place (2 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:09: the patrol probably heard you at an unnamed place (13 m)
+  - 1:09: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:09: the keyholder probably heard you at an unnamed place (25 m)
+  - 1:09: the desk probably heard you at an unnamed place (23 m)
+  - 1:10: the bridge probably heard you at an unnamed place (18 m)
+  - 1:10: the patrol probably heard you at an unnamed place (13 m)
+  - 1:10: the keyholder probably heard you at an unnamed place (26 m)
+  - 1:10: the sentry probably heard you at an unnamed place (4 m)
+  - 1:10: the desk probably heard you at an unnamed place (24 m)
+  - 1:10: the bridge probably heard you at an unnamed place (18 m)
+  - 1:10: the patrol probably heard you at an unnamed place (13 m)
+  - 1:10: the keyholder probably heard you at an unnamed place (26 m)
+  - 1:10: the desk probably heard you at an unnamed place (24 m)
+  - 1:10: the bridge probably noticed you at an unnamed place
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the keyholder probably noticed you at an unnamed place
+  - 1:10: the desk probably noticed you at an unnamed place
+  - 1:10: the bridge probably noticed you at an unnamed place
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:10: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:10: the keyholder probably noticed you at an unnamed place
+  - 1:10: the desk probably noticed you at an unnamed place
+  - 1:10: the bridge probably noticed you at an unnamed place
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:10: the keyholder probably noticed you at an unnamed place
+  - 1:10: the desk probably noticed you at an unnamed place
+  - 1:10: the bridge probably heard you at an unnamed place (12 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:10: the keyholder probably heard you at an unnamed place (20 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:10: the posted probably heard you at an unnamed place (11 m)
+  - 1:10: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:10: the bridge probably heard you at an unnamed place (12 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:10: the keyholder probably heard you at an unnamed place (20 m)
+  - 1:10: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:10: the bridge probably heard you at an unnamed place (13 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:10: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:10: the keyholder probably heard you at an unnamed place (20 m)
+  - 1:10: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:10: the bridge probably heard you at an unnamed place (13 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:10: the keyholder probably heard you at an unnamed place (20 m)
+  - 1:10: the console probably heard you at an unnamed place (12 m)
+  - 1:10: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:10: the bridge probably heard you at an unnamed place (13 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:10: the keyholder probably heard you at an unnamed place (20 m)
+  - 1:10: the watch probably heard you at an unnamed place (19 m)
+  - 1:10: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:11: the bridge probably heard you at an unnamed place (13 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (20 m)
+  - 1:11: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:11: the bridge probably heard you at an unnamed place (14 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:11: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (20 m)
+  - 1:11: the desk probably saw you at an unnamed place (lit, 7 m)
+  - 1:11: the bridge probably heard you at an unnamed place (14 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (20 m)
+  - 1:11: the patrol probably heard you at an unnamed place (33 m)
+  - 1:11: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:11: the bridge probably heard you at an unnamed place (14 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (20 m)
+  - 1:11: the patrol probably heard you at an unnamed place (18 m)
+  - 1:11: the tour probably heard you at an unnamed place (20 m)
+  - 1:11: the desk probably saw you at an unnamed place (lit, 8 m)
+  - 1:11: the escort probably heard you at an unnamed place (10 m)
+  - 1:11: the bridge probably heard you at an unnamed place (15 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (20 m)
+  - 1:11: the desk probably heard you at an unnamed place (16 m)
+  - 1:11: the bridge probably noticed you at an unnamed place
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:11: the keyholder probably noticed you at an unnamed place
+  - 1:11: the desk probably noticed you at an unnamed place
+  - 1:11: the bridge probably noticed you at an unnamed place
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:11: the keyholder probably noticed you at an unnamed place
+  - 1:11: the sentry probably saw you at an unnamed place (lit, 12 m)
+  - 1:11: the desk probably noticed you at an unnamed place
+  - 1:11: the bridge probably noticed you at an unnamed place
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:11: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:11: the keyholder probably noticed you at an unnamed place
+  - 1:11: the desk probably noticed you at an unnamed place
+  - 1:11: the bridge probably noticed you at an unnamed place
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:11: the keyholder probably noticed you at an unnamed place
+  - 1:11: the desk probably noticed you at an unnamed place
+  - 1:11: the bridge probably noticed you at an unnamed place
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:11: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:11: the keyholder probably noticed you at an unnamed place
+  - 1:11: the desk probably noticed you at an unnamed place
+  - 1:12: the bridge probably noticed you at an unnamed place
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the desk probably noticed you at an unnamed place
+  - 1:12: the bridge probably noticed you at an unnamed place
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:12: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the desk probably noticed you at an unnamed place
+  - 1:12: the bridge probably noticed you at an unnamed place
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the desk probably noticed you at an unnamed place
+  - 1:12: the bridge probably noticed you at an unnamed place
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the desk probably noticed you at an unnamed place
+  - 1:12: the bridge probably noticed you at an unnamed place
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 1:12: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:12: the operator probably noticed you at an unnamed place
+  - 1:12: the watch probably noticed you at an unnamed place
+  - 1:12: the desk probably noticed you at an unnamed place
+  - 1:12: the grunt probably noticed you at an unnamed place
+  - 1:12: the grunt probably noticed you at an unnamed place
+  - 1:12: the grunt probably noticed you at an unnamed place
+  - 1:12: the grunt probably saw you at an unnamed place (lit, 25 m)
+  - 1:12: the grunt probably noticed you at an unnamed place
+  - 1:12: the grunt probably noticed you at an unnamed place
+  - 1:12: the bridge probably noticed you at an unnamed place
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 1:12: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the desk probably noticed you at an unnamed place
+  - 1:12: the bridge probably noticed you at an unnamed place
+  - 1:12: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:12: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the console probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:12: the desk probably noticed you at an unnamed place
+  - 1:12: the bridge probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the desk probably noticed you at an unnamed place
+  - 1:12: the escort probably noticed you at an unnamed place
+  - 1:12: the bridge probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the desk probably noticed you at an unnamed place
+  - 1:12: the bridge probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the desk probably noticed you at an unnamed place
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the posted probably noticed you at an unnamed place
+  - 1:13: the desk probably noticed you at an unnamed place
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the watch probably noticed you at an unnamed place
+  - 1:13: the desk probably noticed you at an unnamed place
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the supervisor probably noticed you at an unnamed place
+  - 1:13: the desk probably noticed you at an unnamed place
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the desk probably noticed you at an unnamed place
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the desk probably noticed you at an unnamed place
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the desk probably noticed you at an unnamed place
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the desk probably noticed you at an unnamed place
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the desk probably noticed you at an unnamed place
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the desk probably noticed you at an unnamed place
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the desk probably noticed you at an unnamed place
+  - 1:14: the bridge probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:14: the keyholder probably noticed you at an unnamed place
+  - 1:14: the supervisor probably noticed you at an unnamed place
+  - 1:14: the desk probably noticed you at an unnamed place
+  - 1:14: the bridge probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:14: the keyholder probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the console probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:14: the desk probably noticed you at an unnamed place
+  - 1:14: the bridge probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the keyholder probably noticed you at an unnamed place
+  - 1:14: the desk probably noticed you at an unnamed place
+  - 1:14: the bridge probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:14: the keyholder probably noticed you at an unnamed place
+  - 1:14: the desk probably noticed you at an unnamed place
+  - 1:14: the bridge probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the keyholder probably noticed you at an unnamed place
+  - 1:14: the supervisor probably noticed you at an unnamed place
+  - 1:14: the sentry probably noticed you at an unnamed place
+  - 1:14: the desk probably noticed you at an unnamed place
+  - 1:14: the bridge probably noticed you at an unnamed place
+  - 1:14: the patrol probably saw you at an unnamed place (lit, 18 m)
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the keyholder probably noticed you at an unnamed place
+  - 1:14: the supervisor probably noticed you at an unnamed place
+  - 1:14: the desk probably noticed you at an unnamed place
+  - 1:14: the escort probably noticed you at an unnamed place
+  - 1:14: the bridge probably noticed you at an unnamed place
+  - 1:14: the patrol probably saw you at an unnamed place (lit, 19 m)
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the keyholder probably noticed you at an unnamed place
+  - 1:14: the supervisor probably noticed you at an unnamed place
+  - 1:14: the sentry probably noticed you at an unnamed place
+  - 1:14: the desk probably noticed you at an unnamed place
+  - 1:14: the bridge probably noticed you at an unnamed place
+  - 1:14: the patrol probably saw you at an unnamed place (lit, 19 m)
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 1:14: the keyholder probably noticed you at an unnamed place
+  - 1:14: the supervisor probably noticed you at an unnamed place
+  - 1:14: the desk probably noticed you at an unnamed place
+  - 1:14: the bridge probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the keyholder probably noticed you at an unnamed place
+  - 1:14: the supervisor probably noticed you at an unnamed place
+  - 1:14: the desk probably noticed you at an unnamed place
+  - 1:14: the bridge probably noticed you at an unnamed place
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the keyholder probably noticed you at an unnamed place
+  - 1:14: the watch probably noticed you at an unnamed place
+  - 1:14: the supervisor probably noticed you at an unnamed place
+  - 1:14: the desk probably noticed you at an unnamed place
+  - 1:15: the bridge probably noticed you at an unnamed place
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the supervisor probably noticed you at an unnamed place
+  - 1:15: the desk probably noticed you at an unnamed place
+  - 1:15: the bridge probably noticed you at an unnamed place
+  - 1:15: the patrol probably saw you at an unnamed place (lit, 18 m)
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the supervisor probably noticed you at an unnamed place
+  - 1:15: the desk probably noticed you at an unnamed place
+  - 1:15: the bridge probably noticed you at an unnamed place
+  - 1:15: the patrol probably saw you at an unnamed place (lit, 18 m)
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the supervisor probably noticed you at an unnamed place
+  - 1:15: the console probably noticed you at an unnamed place
+  - 1:15: the posted probably noticed you at an unnamed place
+  - 1:15: the desk probably noticed you at an unnamed place
+  - 1:15: the bridge probably noticed you at an unnamed place
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the supervisor probably noticed you at an unnamed place
+  - 1:15: the desk probably noticed you at an unnamed place
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the operator probably noticed you at an unnamed place
+  - 1:15: the supervisor probably noticed you at an unnamed place
+  - 1:15: the desk probably noticed you at an unnamed place
+  - 1:15: the patrol probably saw you at an unnamed place (lit, 18 m)
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the supervisor probably noticed you at an unnamed place
+  - 1:15: the sentry probably saw you at an unnamed place (lit, 16 m)
+  - 1:15: the desk probably noticed you at an unnamed place
+  - 1:15: the patrol probably saw you at an unnamed place (lit, 18 m)
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the supervisor probably noticed you at an unnamed place
+  - 1:15: the desk probably noticed you at an unnamed place
+  - 1:15: the patrol probably saw you at an unnamed place (lit, 18 m)
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the supervisor probably noticed you at an unnamed place
+  - 1:15: the watch probably noticed you at an unnamed place
+  - 1:15: the desk probably noticed you at an unnamed place
+  - 1:15: the grunt probably noticed you at an unnamed place
+  - 1:15: the grunt probably saw you at an unnamed place (lit, 22 m)
+  - 1:15: the grunt probably noticed you at an unnamed place
+  - 1:15: the grunt probably noticed you at an unnamed place
+  - 1:15: the grunt probably saw you at an unnamed place (lit, 16 m)
+  - 1:15: the grunt probably saw you at an unnamed place (lit, 23 m)
+  - 1:15: the patrol probably saw you at an unnamed place (lit, 18 m)
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the supervisor probably noticed you at an unnamed place
+  - 1:15: the desk probably noticed you at an unnamed place
+  - 1:15: the bridge probably noticed you at an unnamed place
+  - 1:15: the patrol probably saw you at an unnamed place (lit, 17 m)
+  - 1:15: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the supervisor probably noticed you at an unnamed place
+  - 1:15: the desk probably noticed you at an unnamed place
+  - 1:16: the patrol probably saw you at an unnamed place (lit, 17 m)
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the patrol probably noticed you at an unnamed place
+  - 1:16: the tour probably noticed you at an unnamed place
+  - 1:16: the patrol probably noticed you at an unnamed place
+  - 1:16: the supervisor probably noticed you at an unnamed place
+  - 1:16: the desk probably noticed you at an unnamed place
+  - 1:16: the patrol probably saw you at an unnamed place (lit, 17 m)
+  - 1:16: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the supervisor probably noticed you at an unnamed place
+  - 1:16: the desk probably noticed you at an unnamed place
+  - 1:16: the patrol probably saw you at an unnamed place (lit, 17 m)
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the supervisor probably noticed you at an unnamed place
+  - 1:16: the desk probably noticed you at an unnamed place
+  - 1:16: the patrol probably saw you at an unnamed place (lit, 16 m)
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the supervisor probably noticed you at an unnamed place
+  - 1:16: the desk probably noticed you at an unnamed place
+  - 1:16: the escort probably noticed you at an unnamed place
+  - 1:16: the patrol probably saw you at an unnamed place (lit, 16 m)
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the supervisor probably noticed you at an unnamed place
+  - 1:16: the desk probably noticed you at an unnamed place
+  - 1:16: the patrol probably saw you at an unnamed place (lit, 16 m)
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the desk probably noticed you at an unnamed place
+  - 1:16: the patrol probably saw you at an unnamed place (lit, 15 m)
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the patrol probably noticed you at an unnamed place
+  - 1:16: the desk probably noticed you at an unnamed place
+  - 1:16: the patrol probably saw you at an unnamed place (lit, 15 m)
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the desk probably noticed you at an unnamed place
+  - 1:16: the bridge probably noticed you at an unnamed place
+  - 1:16: the patrol probably saw you at an unnamed place (lit, 15 m)
+  - 1:16: the supervisor probably noticed you at an unnamed place
+  - 1:16: the desk probably noticed you at an unnamed place
+  - 1:16: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 1:16: the desk probably noticed you at an unnamed place
+  - 1:17: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 1:17: the operator probably noticed you at an unnamed place
+  - 1:17: the console probably saw you at an unnamed place (lit, 10 m)
+  - 1:17: the desk probably noticed you at an unnamed place
+  - 1:17: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:17: the watch probably noticed you at an unnamed place
+  - 1:17: the desk probably noticed you at an unnamed place
+  - 1:17: the patrol probably saw you at an unnamed place (lit, 13 m)
+  - 1:17: the supervisor probably noticed you at an unnamed place
+  - 1:17: the posted probably noticed you at an unnamed place
+  - 1:17: the sentry probably noticed you at an unnamed place
+  - 1:17: the escort probably noticed you at an unnamed place
+  - 1:18: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:18: the bridge probably noticed you at an unnamed place
+  - 1:18: the keyholder probably noticed you at an unnamed place
+  - 1:18: the desk probably noticed you at an unnamed place
+  - 1:18: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 1:18: the operator probably heard you at an unnamed place (13 m)
+  - 1:18: the posted probably heard you at an unnamed place (7 m)
+  - 1:19: the console probably heard you at an unnamed place (11 m)
+  - 1:19: the patrol probably heard you at an unnamed place (9 m)
+  - 1:19: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 1:19: the sentry probably heard you at an unnamed place (14 m)
+  - 1:19: the watch probably heard you at an unnamed place (27 m)
+  - 1:19: the grunt probably heard you at an unnamed place (34 m)
+  - 1:19: the grunt probably heard you at an unnamed place (38 m)
+  - 1:19: the grunt probably heard you at an unnamed place (35 m)
+  - 1:19: the grunt probably heard you at an unnamed place (39 m)
+  - 1:19: the grunt probably heard you at an unnamed place (34 m)
+  - 1:19: the grunt probably heard you at an unnamed place (39 m)
+  - 1:19: the sentry probably saw you at an unnamed place (lit, 17 m)
+  - 1:19: the watch probably saw you at an unnamed place (lit, 18 m)
+  - 1:20: the escort probably heard you at an unnamed place (13 m)
+  - 1:20: the patrol probably heard you at an unnamed place (17 m)
+  - 1:20: the tour probably heard you at an unnamed place (21 m)
+  - 1:20: the patrol probably heard you at an unnamed place (32 m)
+  - 1:21: the supervisor probably noticed you at an unnamed place
+  - 1:21: the patrol probably heard you at an unnamed place (11 m)
+  - 1:22: the patrol probably noticed you at an unnamed place
+  - 1:36: the grunt probably saw you at an unnamed place (lit, 11 m)
+- Noticed:
+  - 0:13: the bridge probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:16: the bridge probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:26: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 0:27: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 0:28: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 0:28: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 0:28: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 0:29: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 0:29: the bridge probably saw you at an unnamed place (in shadow, 16 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:30: the desk probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:30: the posted probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:30: the escort probably noticed you at an unnamed place
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:30: the watch probably saw you at an unnamed place (in shadow, 10 m)
+  - 0:30: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:31: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:31: the patrol probably saw you at an unnamed place (in shadow, 15 m)
+  - 0:31: the bridge probably saw you at an unnamed place (in shadow, 17 m)
+  - 0:31: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:31: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:31: the posted probably saw you at an unnamed place (in shadow, 11 m)
+  - 0:32: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:32: the tour probably heard you at an unnamed place (4 m)
+  - 0:32: the console probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:32: the escort probably heard you at an unnamed place (16 m)
+  - 0:32: the patrol probably heard you at an unnamed place (8 m)
+  - 0:32: the grunt probably heard you at an unnamed place (5 m)
+  - 0:32: the grunt probably heard you at an unnamed place (10 m)
+  - 0:32: the watch probably heard you at an unnamed place (11 m)
+  - 0:32: the keyholder probably saw you at an unnamed place (lit, 15 m)
+  - 0:32: the watch probably heard you at an unnamed place (35 m)
+  - 0:32: the operator probably heard you at an unnamed place (50 m)
+  - 0:32: the patrol probably heard you at an unnamed place (45 m)
+  - 0:32: the supervisor probably saw you at an unnamed place (lit, 15 m)
+  - 0:32: the sentry probably saw you at an unnamed place (lit, 17 m)
+  - 0:32: the sentry probably heard you at an unnamed place (33 m)
+  - 0:33: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 0:33: the desk probably noticed you at an unnamed place
+  - 0:34: the patrol probably noticed you at an unnamed place
+  - 0:35: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 0:35: the console probably noticed you at an unnamed place
+  - 0:35: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 0:35: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 0:35: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 0:35: the patrol probably noticed you at an unnamed place
+  - 0:36: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 0:36: the posted probably noticed you at an unnamed place
+  - 0:36: the keyholder probably saw you at an unnamed place (lit, 9 m)
+  - 0:36: the watch probably noticed you at an unnamed place
+  - 0:36: the console probably saw you at an unnamed place (lit, 3 m)
+  - 0:36: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 0:36: the operator probably noticed you at an unnamed place
+  - 0:37: the bridge probably saw you at an unnamed place (lit, 20 m)
+  - 0:37: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:37: the watch probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:37: the keyholder probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:37: the escort probably noticed you at an unnamed place
+  - 0:37: the grunt probably noticed you at an unnamed place
+  - 0:37: the grunt probably noticed you at an unnamed place
+  - 0:37: the patrol probably saw you at an unnamed place (in shadow, 23 m)
+  - 0:37: the tour probably noticed you at an unnamed place
+  - 0:37: the sentry probably noticed you at an unnamed place
+  - 0:37: the grunt probably noticed you at an unnamed place
+  - 0:37: the grunt probably noticed you at an unnamed place
+  - 0:37: the desk probably saw you at an unnamed place (in shadow, 17 m)
+  - 0:37: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:38: the posted probably noticed you at an unnamed place
+  - 0:38: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:38: the patrol probably noticed you at an unnamed place
+  - 0:38: the bridge probably saw you at an unnamed place (in shadow, 22 m)
+  - 0:38: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:38: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:38: the operator probably noticed you at an unnamed place
+  - 0:38: the watch probably noticed you at an unnamed place
+  - 0:39: the patrol probably noticed you at an unnamed place
+  - 0:39: the watch probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:39: the patrol probably noticed you at an unnamed place
+  - 0:39: the escort probably noticed you at an unnamed place
+  - 0:39: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:39: the sentry probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:39: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:39: the console probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:39: the bridge probably saw you at an unnamed place (in shadow, 23 m)
+  - 0:39: the sentry probably saw you at an unnamed place (in shadow, 11 m)
+  - 0:40: the keyholder probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:40: the posted probably noticed you at an unnamed place
+  - 0:40: the supervisor probably noticed you at an unnamed place
+  - 0:40: the operator probably noticed you at an unnamed place
+  - 0:40: the grunt probably noticed you at an unnamed place
+  - 0:40: the grunt probably noticed you at an unnamed place
+  - 0:40: the patrol probably noticed you at an unnamed place
+  - 0:40: the watch probably noticed you at an unnamed place
+  - 0:40: the grunt probably noticed you at an unnamed place
+  - 0:40: the grunt probably noticed you at an unnamed place
+  - 0:40: the watch probably saw you at an unnamed place (lit, 6 m)
+  - 0:40: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 0:41: the escort probably noticed you at an unnamed place
+  - 0:41: the patrol probably noticed you at an unnamed place
+  - 0:41: the tour probably noticed you at an unnamed place
+  - 0:41: the sentry probably noticed you at an unnamed place
+  - 0:41: the console probably noticed you at an unnamed place
+  - 0:41: the grunt probably noticed you at an unnamed place
+  - 0:41: the grunt probably noticed you at an unnamed place
+  - 0:41: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 0:41: the bridge probably saw you at an unnamed place (lit, 24 m)
+  - 0:41: the desk probably saw you at an unnamed place (lit, 22 m)
+  - 0:41: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 0:42: the bridge probably saw you at an unnamed place (lit, 24 m)
+  - 0:42: the supervisor probably saw you at an unnamed place (lit, 14 m)
+  - 0:42: the operator probably noticed you at an unnamed place
+  - 0:42: the console probably saw you at an unnamed place (lit, 7 m)
+  - 0:43: the bridge probably saw you at an unnamed place (lit, 24 m)
+  - 0:43: the sentry probably saw you at an unnamed place (lit, 14 m)
+  - 0:43: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:43: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:43: the watch probably saw you at an unnamed place (lit, 5 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:43: the watch probably noticed you at an unnamed place
+  - 0:43: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:43: the patrol probably noticed you at an unnamed place
+  - 0:44: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 0:44: the sentry probably heard you at an unnamed place (31 m)
+  - 0:44: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:44: the posted probably heard you at an unnamed place (28 m)
+  - 0:44: the keyholder probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:44: the patrol probably heard you at an unnamed place (23 m)
+  - 0:44: the patrol probably heard you at an unnamed place (34 m)
+  - 0:44: the tour probably heard you at an unnamed place (39 m)
+  - 0:44: the desk probably saw you at an unnamed place (in shadow, 23 m)
+  - 0:44: the escort probably heard you at an unnamed place (29 m)
+  - 0:44: the grunt probably heard you at an unnamed place (36 m)
+  - 0:44: the grunt probably heard you at an unnamed place (39 m)
+  - 0:44: the grunt probably heard you at an unnamed place (37 m)
+  - 0:44: the grunt probably heard you at an unnamed place (41 m)
+  - 0:44: the grunt probably heard you at an unnamed place (37 m)
+  - 0:44: the grunt probably heard you at an unnamed place (40 m)
+  - 0:45: the console probably heard you at an unnamed place (11 m)
+  - 0:45: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 0:45: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:45: the sentry probably noticed you at an unnamed place
+  - 0:45: the supervisor probably saw you at an unnamed place (lit, 11 m)
+  - 0:45: the operator probably noticed you at an unnamed place
+  - 0:45: the watch probably saw you at an unnamed place (lit, 8 m)
+  - 0:46: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 0:46: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 0:46: the supervisor probably noticed you at an unnamed place
+  - 0:46: the console probably noticed you at an unnamed place
+  - 0:47: the sentry probably saw you at an unnamed place (lit, 15 m)
+  - 0:47: the keyholder probably noticed you at an unnamed place
+  - 0:47: the bridge probably saw you at an unnamed place (lit, 24 m)
+  - 0:47: the operator probably saw you at an unnamed place (lit, 14 m)
+  - 0:47: the sentry probably noticed you at an unnamed place
+  - 0:47: the watch probably noticed you at an unnamed place
+  - 0:47: the keyholder probably noticed you at an unnamed place
+  - 0:47: the patrol probably saw you at an unnamed place (in shadow, 24 m)
+  - 0:48: the watch probably saw you at an unnamed place (in shadow, 10 m)
+  - 0:48: the keyholder probably noticed you at an unnamed place
+  - 0:48: the sentry probably noticed you at an unnamed place
+  - 0:48: the desk probably saw you at an unnamed place (in shadow, 23 m)
+  - 0:48: the keyholder probably noticed you at an unnamed place
+  - 0:49: the patrol probably noticed you at an unnamed place
+  - 0:49: the patrol probably noticed you at an unnamed place
+  - 0:49: the supervisor probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:49: the patrol probably saw you at an unnamed place (in shadow, 14 m)
+  - 0:49: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 0:49: the patrol probably noticed you at an unnamed place
+  - 0:49: the posted probably noticed you at an unnamed place
+  - 0:49: the escort probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the grunt probably noticed you at an unnamed place
+  - 0:49: the console probably noticed you at an unnamed place
+  - 0:49: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 0:50: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:50: the patrol probably noticed you at an unnamed place
+  - 0:50: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 0:50: the tour probably noticed you at an unnamed place
+  - 0:50: the operator probably noticed you at an unnamed place
+  - 0:51: the sentry probably noticed you at an unnamed place
+  - 0:51: the bridge probably noticed you at an unnamed place
+  - 0:51: the sentry probably saw you at an unnamed place (in shadow, 19 m)
+  - 0:51: the keyholder probably noticed you at an unnamed place
+  - 0:51: the patrol probably noticed you at an unnamed place
+  - 0:51: the sentry probably noticed you at an unnamed place
+  - 0:51: the watch probably noticed you at an unnamed place
+  - 0:51: the patrol probably noticed you at an unnamed place
+  - 0:51: the console probably heard you at an unnamed place (17 m)
+  - 0:51: the supervisor probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:51: the patrol probably saw you at an unnamed place (in shadow, 15 m)
+  - 0:53: the patrol probably noticed you at an unnamed place
+  - 0:53: the posted probably noticed you at an unnamed place
+  - 0:53: the desk probably saw you at an unnamed place (in shadow, 24 m)
+  - 0:53: the escort probably noticed you at an unnamed place
+  - 0:53: the grunt probably noticed you at an unnamed place
+  - 0:53: the grunt probably noticed you at an unnamed place
+  - 0:53: the grunt probably noticed you at an unnamed place
+  - 0:53: the grunt probably noticed you at an unnamed place
+  - 0:53: the grunt probably noticed you at an unnamed place
+  - 0:53: the grunt probably noticed you at an unnamed place
+  - 0:53: the patrol probably noticed you at an unnamed place
+  - 0:53: the patrol probably saw you at an unnamed place (in shadow, 13 m)
+  - 0:53: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 0:54: the supervisor probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:54: the patrol probably noticed you at an unnamed place
+  - 0:54: the patrol probably noticed you at an unnamed place
+  - 0:54: the sentry probably saw you at an unnamed place (in shadow, 14 m)
+  - 0:54: the console probably noticed you at an unnamed place
+  - 0:55: the operator probably saw you at an unnamed place (in shadow, 14 m)
+  - 0:55: the bridge probably saw you at an unnamed place (in shadow, 20 m)
+  - 0:55: the sentry probably saw you at an unnamed place (in shadow, 16 m)
+  - 0:55: the patrol probably saw you at an unnamed place (in shadow, 25 m)
+  - 0:55: the sentry probably noticed you at an unnamed place
+  - 0:55: the watch probably noticed you at an unnamed place
+  - 0:57: the tour probably heard you at an unnamed place (47 m)
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:02: the keyholder probably noticed you at an unnamed place
+  - 1:02: the keyholder probably noticed you at an unnamed place
+  - 1:02: the patrol probably noticed you at an unnamed place
+  - 1:02: the keyholder probably noticed you at an unnamed place
+  - 1:02: the operator probably noticed you at an unnamed place
+  - 1:02: the patrol probably noticed you at an unnamed place
+  - 1:03: the watch probably saw you at an unnamed place (lit, 6 m)
+  - 1:04: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 1:04: the operator probably noticed you at an unnamed place
+  - 1:04: the console probably noticed you at an unnamed place
+  - 1:04: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:05: the bridge probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:05: the posted probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:05: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:05: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the sentry probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 15 m)
+  - 1:05: the watch probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:05: the sentry probably noticed you at an unnamed place
+  - 1:05: the watch probably noticed you at an unnamed place
+  - 1:05: the escort probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the bridge probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:05: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:06: the bridge probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:06: the keyholder probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:06: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 1:06: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:06: the console probably noticed you at an unnamed place
+  - 1:06: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:06: the bridge probably saw you at an unnamed place (in shadow, 4 m)
+  - 1:06: the operator probably noticed you at an unnamed place
+  - 1:06: the supervisor probably noticed you at an unnamed place
+  - 1:06: the posted probably saw you at an unnamed place (in shadow, 4 m)
+  - 1:06: the patrol probably noticed you at an unnamed place
+  - 1:06: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:06: the patrol probably noticed you at an unnamed place
+  - 1:06: the tour probably noticed you at an unnamed place
+  - 1:07: the watch probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:07: the bridge probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:07: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:07: the console probably heard you at an unnamed place (10 m)
+  - 1:07: the escort probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:08: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:08: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:08: the operator probably heard you at an unnamed place (14 m)
+  - 1:08: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:08: the watch probably heard you at an unnamed place (5 m)
+  - 1:08: the posted probably heard you at an unnamed place (15 m)
+  - 1:08: the grunt probably heard you at an unnamed place (10 m)
+  - 1:08: the grunt probably heard you at an unnamed place (17 m)
+  - 1:08: the grunt probably heard you at an unnamed place (10 m)
+  - 1:08: the grunt probably heard you at an unnamed place (18 m)
+  - 1:08: the grunt probably heard you at an unnamed place (9 m)
+  - 1:08: the grunt probably heard you at an unnamed place (18 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 1:09: the watch probably saw you at an unnamed place (lit, 11 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:09: the supervisor probably heard you at an unnamed place (37 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:10: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:10: the sentry probably heard you at an unnamed place (4 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:10: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:10: the posted probably heard you at an unnamed place (11 m)
+  - 1:10: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:10: the console probably heard you at an unnamed place (12 m)
+  - 1:11: the watch probably heard you at an unnamed place (19 m)
+  - 1:11: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:11: the patrol probably heard you at an unnamed place (33 m)
+  - 1:11: the patrol probably heard you at an unnamed place (18 m)
+  - 1:11: the tour probably heard you at an unnamed place (20 m)
+  - 1:11: the escort probably heard you at an unnamed place (10 m)
+  - 1:11: the sentry probably saw you at an unnamed place (lit, 12 m)
+  - 1:11: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 1:12: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:12: the operator probably noticed you at an unnamed place
+  - 1:12: the watch probably noticed you at an unnamed place
+  - 1:12: the grunt probably noticed you at an unnamed place
+  - 1:12: the grunt probably noticed you at an unnamed place
+  - 1:12: the grunt probably noticed you at an unnamed place
+  - 1:12: the grunt probably saw you at an unnamed place (lit, 25 m)
+  - 1:12: the grunt probably noticed you at an unnamed place
+  - 1:12: the grunt probably noticed you at an unnamed place
+  - 1:12: the console probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the escort probably noticed you at an unnamed place
+  - 1:13: the posted probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the watch probably noticed you at an unnamed place
+  - 1:13: the supervisor probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:14: the supervisor probably noticed you at an unnamed place
+  - 1:14: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:14: the patrol probably noticed you at an unnamed place
+  - 1:14: the console probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:14: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 1:14: the sentry probably noticed you at an unnamed place
+  - 1:14: the escort probably noticed you at an unnamed place
+  - 1:14: the sentry probably noticed you at an unnamed place
+  - 1:14: the patrol probably saw you at an unnamed place (lit, 19 m)
+  - 1:14: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 1:15: the watch probably noticed you at an unnamed place
+  - 1:15: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:15: the patrol probably saw you at an unnamed place (lit, 18 m)
+  - 1:15: the console probably noticed you at an unnamed place
+  - 1:15: the posted probably noticed you at an unnamed place
+  - 1:15: the bridge probably noticed you at an unnamed place
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the operator probably noticed you at an unnamed place
+  - 1:15: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:15: the sentry probably saw you at an unnamed place (lit, 16 m)
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the watch probably noticed you at an unnamed place
+  - 1:15: the grunt probably noticed you at an unnamed place
+  - 1:15: the grunt probably saw you at an unnamed place (lit, 22 m)
+  - 1:15: the grunt probably noticed you at an unnamed place
+  - 1:15: the grunt probably noticed you at an unnamed place
+  - 1:15: the grunt probably saw you at an unnamed place (lit, 16 m)
+  - 1:15: the grunt probably saw you at an unnamed place (lit, 23 m)
+  - 1:16: the bridge probably noticed you at an unnamed place
+  - 1:16: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:16: the patrol probably noticed you at an unnamed place
+  - 1:16: the tour probably noticed you at an unnamed place
+  - 1:16: the patrol probably noticed you at an unnamed place
+  - 1:16: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 1:16: the escort probably noticed you at an unnamed place
+  - 1:16: the supervisor probably noticed you at an unnamed place
+  - 1:16: the patrol probably noticed you at an unnamed place
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the bridge probably noticed you at an unnamed place
+  - 1:16: the supervisor probably noticed you at an unnamed place
+  - 1:17: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 1:17: the operator probably noticed you at an unnamed place
+  - 1:17: the console probably saw you at an unnamed place (lit, 10 m)
+  - 1:17: the desk probably noticed you at an unnamed place
+  - 1:17: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:17: the watch probably noticed you at an unnamed place
+  - 1:17: the desk probably noticed you at an unnamed place
+  - 1:17: the patrol probably saw you at an unnamed place (lit, 13 m)
+  - 1:17: the supervisor probably noticed you at an unnamed place
+  - 1:17: the posted probably noticed you at an unnamed place
+  - 1:17: the sentry probably noticed you at an unnamed place
+  - 1:17: the escort probably noticed you at an unnamed place
+  - 1:18: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:18: the bridge probably noticed you at an unnamed place
+  - 1:18: the keyholder probably noticed you at an unnamed place
+  - 1:18: the desk probably heard you at an unnamed place (11 m)
+  - 1:18: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 1:18: the operator probably heard you at an unnamed place (13 m)
+  - 1:19: the posted probably heard you at an unnamed place (7 m)
+  - 1:19: the console probably heard you at an unnamed place (10 m)
+  - 1:19: the patrol probably heard you at an unnamed place (9 m)
+  - 1:19: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 1:19: the sentry probably heard you at an unnamed place (14 m)
+  - 1:19: the watch probably heard you at an unnamed place (27 m)
+  - 1:19: the grunt probably saw you at an unnamed place (lit, 18 m)
+  - 1:19: the grunt probably heard you at an unnamed place (38 m)
+  - 1:19: the grunt probably heard you at an unnamed place (35 m)
+  - 1:19: the grunt probably heard you at an unnamed place (39 m)
+  - 1:19: the grunt probably heard you at an unnamed place (34 m)
+  - 1:19: the grunt probably heard you at an unnamed place (39 m)
+  - 1:19: the sentry probably saw you at an unnamed place (lit, 17 m)
+  - 1:19: the watch probably saw you at an unnamed place (lit, 18 m)
+  - 1:20: the escort probably heard you at an unnamed place (13 m)
+  - 1:20: the patrol probably heard you at an unnamed place (17 m)
+  - 1:20: the tour probably heard you at an unnamed place (21 m)
+  - 1:20: the patrol probably heard you at an unnamed place (32 m)
+  - 1:21: the supervisor probably noticed you at an unnamed place
+  - 1:21: the patrol probably heard you at an unnamed place (11 m)
+  - 1:22: the patrol probably noticed you at an unnamed place
+  - 1:34: the grunt probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 12 m)
+- Dead stops: none
+- Stubs: none
+
+### S3 The crane walkway (code route) (S3-code-3)
+
+- Result: STUCK - the robot could not follow the path at the route (and 1 more)
+- Time: n/a, stuck, walked 190 m, guards 20 alive of 20
+- Seen:
+  - 1:23: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:23: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:23: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:23: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:23: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:23: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:23: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:23: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:23: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:23: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:24: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:24: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:24: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:24: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:24: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:24: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:24: the console probably saw you at an unnamed place (lit, 3 m)
+  - 1:24: the console probably saw you at an unnamed place (lit, 2 m)
+  - 1:24: the console probably saw you at an unnamed place (lit, 2 m)
+  - 1:24: the console probably saw you at an unnamed place (lit, 2 m)
+  - 1:25: the console probably saw you at an unnamed place (lit, 2 m)
+  - 1:25: the console probably saw you at an unnamed place (lit, 2 m)
+  - 1:25: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:25: the console probably saw you at an unnamed place (lit, 2 m)
+  - 1:25: the console probably saw you at an unnamed place (lit, 2 m)
+  - 1:25: the console probably saw you at an unnamed place (lit, 2 m)
+  - 1:25: the console probably saw you at an unnamed place (lit, 2 m)
+  - 1:25: the supervisor probably noticed you at an unnamed place
+  - 1:25: the console probably saw you at an unnamed place (lit, 2 m)
+  - 1:25: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:25: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:25: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:25: the console probably saw you up close at an unnamed place (2 m)
+  - 1:26: the console probably saw you up close at an unnamed place (2 m)
+  - 1:26: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:26: the sentry probably noticed you at an unnamed place
+  - 1:27: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:27: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:27: the console probably saw you at an unnamed place (lit, 2 m)
+  - 1:27: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:27: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:27: the patrol probably noticed you at an unnamed place
+  - 1:27: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:27: the keyholder probably saw you at an unnamed place (in shadow, 17 m)
+  - 1:27: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:27: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:27: the grunt probably noticed you at an unnamed place
+  - 1:27: the grunt probably noticed you at an unnamed place
+  - 1:27: a camera probably spotted you at an unnamed place
+  - 1:27: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:27: the patrol probably noticed you at an unnamed place
+  - 1:27: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:27: the bridge probably noticed you at an unnamed place
+  - 1:27: the watch probably noticed you at an unnamed place
+  - 1:27: the patrol probably noticed you at an unnamed place
+  - 1:27: the tour probably noticed you at an unnamed place
+  - 1:27: the operator probably noticed you at an unnamed place
+  - 1:27: the patrol probably noticed you at an unnamed place
+  - 1:27: the sentry probably saw you at an unnamed place (in shadow, 18 m)
+  - 1:27: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:27: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:27: the posted probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:27: the desk probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:27: the escort probably noticed you at an unnamed place
+  - 1:27: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:28: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:28: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:28: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:29: the patrol probably saw you at an unnamed place (in shadow, 13 m)
+  - 1:29: the supervisor probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:40: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:40: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:40: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:40: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:40: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:40: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:40: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:40: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:40: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:40: the patrol probably saw you up close at an unnamed place (2 m)
+  - 1:41: the patrol probably saw you up close at an unnamed place (2 m)
+  - 1:41: the patrol probably saw you up close at an unnamed place (1 m)
+  - 1:41: the patrol probably saw you up close at an unnamed place (1 m)
+  - 1:41: the patrol probably noticed you at an unnamed place
+  - 1:41: the patrol probably saw you up close at an unnamed place (1 m)
+  - 1:41: the patrol probably saw you up close at an unnamed place (2 m)
+  - 1:41: the patrol probably noticed you at an unnamed place
+  - 1:41: the patrol probably noticed you at an unnamed place
+  - 1:41: the patrol probably noticed you at an unnamed place
+  - 1:41: the patrol probably noticed you at an unnamed place
+  - 1:42: the patrol probably noticed you at an unnamed place
+  - 1:42: the patrol probably noticed you at an unnamed place
+  - 1:42: the patrol probably noticed you at an unnamed place
+  - 1:42: the patrol probably noticed you at an unnamed place
+  - 1:42: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:42: the patrol probably noticed you at an unnamed place
+  - 1:42: the patrol probably noticed you at an unnamed place
+  - 1:42: the patrol probably noticed you at an unnamed place
+  - 1:42: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:42: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:42: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:42: the escort probably noticed you at an unnamed place
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:43: the posted probably saw you at an unnamed place (lit, 6 m)
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:43: the escort probably noticed you at an unnamed place
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:43: the posted probably saw you at an unnamed place (lit, 6 m)
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:43: the supervisor probably saw you at an unnamed place (lit, 8 m)
+  - 1:43: the escort probably noticed you at an unnamed place
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:43: the posted probably saw you at an unnamed place (lit, 6 m)
+  - 1:44: the desk probably noticed you at an unnamed place
+  - 1:44: the escort probably noticed you at an unnamed place
+  - 1:44: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 1:44: the sentry probably noticed you at an unnamed place
+  - 1:44: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:44: the grunt probably noticed you at an unnamed place
+  - 1:44: the grunt probably noticed you at an unnamed place
+  - 1:44: a camera probably spotted you at an unnamed place
+  - 1:44: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 1:44: the bridge probably noticed you at an unnamed place
+  - 1:44: the patrol probably noticed you at an unnamed place
+  - 1:44: the keyholder probably saw you at an unnamed place (lit, 19 m)
+  - 1:44: the watch probably noticed you at an unnamed place
+  - 1:44: the patrol probably noticed you at an unnamed place
+  - 1:44: the tour probably noticed you at an unnamed place
+  - 1:44: the operator probably noticed you at an unnamed place
+  - 1:44: the patrol probably noticed you at an unnamed place
+  - 1:44: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:44: the watch probably noticed you at an unnamed place
+  - 1:44: the grunt probably noticed you at an unnamed place
+  - 1:44: the grunt probably noticed you at an unnamed place
+  - 1:45: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:45: the escort probably noticed you at an unnamed place
+  - 1:45: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 1:46: the posted probably heard you at an unnamed place (6 m)
+  - 1:46: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 1:46: the desk probably heard you at an unnamed place (8 m)
+  - 1:48: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:48: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:48: a camera probably spotted you at an unnamed place
+  - 1:48: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:48: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 1:48: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:48: the bridge probably noticed you at an unnamed place
+  - 1:48: the patrol probably noticed you at an unnamed place
+  - 1:48: the keyholder probably saw you at an unnamed place (lit, 18 m)
+  - 1:48: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:48: the watch probably saw you at an unnamed place (lit, 14 m)
+  - 1:48: the patrol probably noticed you at an unnamed place
+  - 1:48: the tour probably noticed you at an unnamed place
+  - 1:48: the operator probably noticed you at an unnamed place
+  - 1:48: the patrol probably noticed you at an unnamed place
+  - 1:48: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:48: the watch probably noticed you at an unnamed place
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:48: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:48: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:48: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:48: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:49: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:49: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:49: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:49: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:49: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:49: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:49: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:49: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:49: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:49: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 1:50: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the desk probably noticed you at an unnamed place
+  - 1:51: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 1:51: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the escort probably saw you at an unnamed place (lit, 7 m)
+  - 1:52: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the patrol probably noticed you at an unnamed place
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:52: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 1:52: the posted probably saw you at an unnamed place (lit, 8 m)
+  - 1:53: the bridge probably noticed you at an unnamed place
+  - 1:53: the patrol probably noticed you at an unnamed place
+  - 1:53: the keyholder probably saw you at an unnamed place (lit, 18 m)
+  - 1:53: the watch probably noticed you at an unnamed place
+  - 1:53: the patrol probably noticed you at an unnamed place
+  - 1:53: the tour probably noticed you at an unnamed place
+  - 1:53: the operator probably noticed you at an unnamed place
+  - 1:53: the patrol probably noticed you at an unnamed place
+  - 1:53: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 1:53: the watch probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the desk probably saw you at an unnamed place (lit, 9 m)
+  - 1:53: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:53: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the supervisor probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 1:54: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 1:54: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 1:55: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:55: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 1:55: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:55: the escort probably saw you at an unnamed place (lit, 8 m)
+  - 1:56: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:56: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:56: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:56: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:56: the posted probably saw you at an unnamed place (lit, 9 m)
+  - 1:56: the bridge probably noticed you at an unnamed place
+  - 1:56: the patrol probably noticed you at an unnamed place
+  - 1:56: the keyholder probably saw you at an unnamed place (lit, 18 m)
+  - 1:56: the watch probably saw you at an unnamed place (lit, 12 m)
+  - 1:56: the patrol probably noticed you at an unnamed place
+  - 1:56: the tour probably noticed you at an unnamed place
+  - 1:56: the operator probably noticed you at an unnamed place
+  - 1:56: the patrol probably noticed you at an unnamed place
+  - 1:56: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:56: the watch probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:56: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:56: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 1:56: the keyholder probably saw you at an unnamed place (lit, 17 m)
+  - 1:56: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:57: the keyholder probably saw you at an unnamed place (lit, 17 m)
+  - 1:57: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:57: the keyholder probably saw you at an unnamed place (lit, 17 m)
+  - 1:57: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:57: the keyholder probably saw you at an unnamed place (lit, 17 m)
+  - 1:57: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:57: the desk probably saw you at an unnamed place (lit, 9 m)
+  - 1:57: the keyholder probably saw you at an unnamed place (in shadow, 17 m)
+  - 1:57: the supervisor probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:57: the keyholder probably saw you at an unnamed place (in shadow, 16 m)
+  - 1:57: the supervisor probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:57: the keyholder probably saw you at an unnamed place (in shadow, 16 m)
+  - 1:57: the supervisor probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:57: the keyholder probably saw you at an unnamed place (in shadow, 16 m)
+  - 1:57: the supervisor probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:58: the patrol probably noticed you at an unnamed place
+  - 1:58: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:59: the patrol probably noticed you at an unnamed place
+  - 1:59: the sentry probably noticed you at an unnamed place
+  - 1:59: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 1:59: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:59: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:59: the watch probably saw you at an unnamed place (lit, 8 m)
+  - 1:59: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:59: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:59: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the patrol probably noticed you at an unnamed place
+  - 2:00: the desk probably noticed you at an unnamed place
+  - 2:00: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the keyholder probably saw you at an unnamed place (lit, 10 m)
+  - 2:00: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the keyholder probably saw you at an unnamed place (lit, 10 m)
+  - 2:00: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the keyholder probably saw you at an unnamed place (lit, 9 m)
+  - 2:00: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the keyholder probably saw you at an unnamed place (lit, 9 m)
+  - 2:00: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:00: the patrol probably noticed you at an unnamed place
+  - 2:00: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the keyholder probably saw you at an unnamed place (lit, 9 m)
+  - 2:00: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the keyholder probably saw you at an unnamed place (lit, 9 m)
+  - 2:00: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the keyholder probably saw you at an unnamed place (lit, 9 m)
+  - 2:00: the escort probably noticed you at an unnamed place
+  - 2:00: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the keyholder probably saw you at an unnamed place (lit, 9 m)
+  - 2:00: the patrol probably noticed you at an unnamed place
+  - 2:00: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the keyholder probably saw you at an unnamed place (lit, 9 m)
+  - 2:01: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:01: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:01: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:01: the operator probably noticed you at an unnamed place
+  - 2:01: the posted probably saw you at an unnamed place (lit, 14 m)
+  - 2:01: the bridge probably noticed you at an unnamed place
+  - 2:01: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the tour probably noticed you at an unnamed place
+  - 2:01: the sentry probably noticed you at an unnamed place
+  - 2:01: the watch probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the bridge probably noticed you at an unnamed place
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:01: the bridge probably noticed you at an unnamed place
+  - 2:01: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the bridge probably noticed you at an unnamed place
+  - 2:01: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:01: the bridge probably noticed you at an unnamed place
+  - 2:01: the bridge probably noticed you at an unnamed place
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the bridge probably noticed you at an unnamed place
+  - 2:01: the supervisor probably noticed you at an unnamed place
+  - 2:01: the bridge probably noticed you at an unnamed place
+  - 2:02: the bridge probably noticed you at an unnamed place
+  - 2:02: the bridge probably noticed you at an unnamed place
+  - 2:02: the bridge probably noticed you at an unnamed place
+  - 2:02: the bridge probably noticed you at an unnamed place
+  - 2:02: the sentry probably noticed you at an unnamed place
+  - 2:02: the bridge probably noticed you at an unnamed place
+  - 2:02: the bridge probably noticed you at an unnamed place
+  - 2:02: the bridge probably noticed you at an unnamed place
+  - 2:02: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:02: the bridge probably noticed you at an unnamed place
+  - 2:02: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:02: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:02: the bridge probably noticed you at an unnamed place
+  - 2:02: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:02: the bridge probably noticed you at an unnamed place
+  - 2:02: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:03: the bridge probably noticed you at an unnamed place
+  - 2:03: the patrol probably noticed you at an unnamed place
+  - 2:03: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:03: the bridge probably noticed you at an unnamed place
+  - 2:03: the keyholder probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:03: the bridge probably noticed you at an unnamed place
+  - 2:03: the keyholder probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:03: the bridge probably noticed you at an unnamed place
+  - 2:03: the keyholder probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:03: the bridge probably noticed you at an unnamed place
+  - 2:03: the patrol probably noticed you at an unnamed place
+  - 2:03: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:03: the escort probably noticed you at an unnamed place
+  - 2:03: the bridge probably noticed you at an unnamed place
+  - 2:03: the patrol probably noticed you at an unnamed place
+  - 2:03: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:03: the watch probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:03: the grunt probably noticed you at an unnamed place
+  - 2:03: the bridge probably noticed you at an unnamed place
+  - 2:03: the patrol probably noticed you at an unnamed place
+  - 2:03: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:03: the bridge probably noticed you at an unnamed place
+  - 2:03: the patrol probably noticed you at an unnamed place
+  - 2:03: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:03: the bridge probably noticed you at an unnamed place
+  - 2:03: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:03: the bridge probably noticed you at an unnamed place
+  - 2:03: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:03: the patrol probably noticed you at an unnamed place
+  - 2:03: the grunt probably noticed you at an unnamed place
+  - 2:04: the bridge probably noticed you at an unnamed place
+  - 2:04: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:04: the bridge probably noticed you at an unnamed place
+  - 2:04: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:04: the desk probably noticed you at an unnamed place
+  - 2:04: the bridge probably noticed you at an unnamed place
+  - 2:04: the patrol probably noticed you at an unnamed place
+  - 2:04: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:04: the patrol probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:04: the grunt probably noticed you at an unnamed place
+  - 2:04: the bridge probably noticed you at an unnamed place
+  - 2:04: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:04: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:04: the bridge probably noticed you at an unnamed place
+  - 2:04: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:04: the bridge probably noticed you at an unnamed place
+  - 2:04: the bridge probably noticed you at an unnamed place
+  - 2:04: the patrol probably noticed you at an unnamed place
+  - 2:04: the sentry probably noticed you at an unnamed place
+  - 2:04: the watch probably noticed you at an unnamed place
+  - 2:04: the bridge probably noticed you at an unnamed place
+  - 2:04: the bridge probably noticed you at an unnamed place
+  - 2:04: the tour probably noticed you at an unnamed place
+  - 2:05: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:05: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:05: the grunt probably noticed you at an unnamed place
+  - 2:05: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:05: the patrol probably noticed you at an unnamed place
+  - 2:05: the grunt probably noticed you at an unnamed place
+  - 2:05: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:05: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:05: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:05: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:05: the supervisor probably noticed you at an unnamed place
+  - 2:05: the grunt probably noticed you at an unnamed place
+  - 2:05: the bridge probably noticed you at an unnamed place
+  - 2:05: the patrol probably noticed you at an unnamed place
+  - 2:05: the patrol probably noticed you at an unnamed place
+  - 2:05: the sentry probably noticed you at an unnamed place
+  - 2:05: the posted probably noticed you at an unnamed place
+  - 2:05: the grunt probably noticed you at an unnamed place
+  - 2:05: the grunt probably noticed you at an unnamed place
+  - 2:05: the patrol probably noticed you at an unnamed place
+  - 2:05: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:06: the patrol probably noticed you at an unnamed place
+  - 2:06: the watch probably noticed you at an unnamed place
+  - 2:06: the operator probably noticed you at an unnamed place
+  - 2:06: the grunt probably noticed you at an unnamed place
+  - 2:06: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:06: the patrol probably noticed you at an unnamed place
+  - 2:06: the patrol probably noticed you at an unnamed place
+  - 2:06: the patrol probably noticed you at an unnamed place
+  - 2:06: the keyholder probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:06: the patrol probably noticed you at an unnamed place
+  - 2:06: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:06: the keyholder probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:06: the patrol probably noticed you at an unnamed place
+  - 2:06: the keyholder probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:06: the keyholder probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:06: the keyholder probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:06: the watch probably noticed you at an unnamed place
+  - 2:06: the patrol probably noticed you at an unnamed place
+  - 2:06: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:06: the sentry probably noticed you at an unnamed place
+  - 2:06: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:07: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:07: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:07: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:07: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:07: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:07: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:07: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:07: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:07: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:07: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 2:07: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:07: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:07: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:07: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:07: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:07: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:07: the patrol probably saw you at an unnamed place (lit, 15 m)
+  - 2:07: the watch probably saw you at an unnamed place (lit, 6 m)
+  - 2:07: the desk probably noticed you at an unnamed place
+  - 2:07: the escort probably noticed you at an unnamed place
+  - 2:08: the patrol probably saw you up close at an unnamed place (2 m)
+  - 2:08: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:08: the patrol probably noticed you at an unnamed place
+  - 2:08: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:08: the patrol probably noticed you at an unnamed place
+  - 2:08: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:08: the patrol probably noticed you at an unnamed place
+  - 2:08: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 2:08: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:08: the tour probably noticed you at an unnamed place
+  - 2:08: a camera probably spotted you at an unnamed place
+  - 2:08: the patrol probably noticed you at an unnamed place
+  - 2:08: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:08: the patrol probably noticed you at an unnamed place
+  - 2:08: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:08: the patrol probably noticed you at an unnamed place
+  - 2:08: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:08: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 2:08: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:08: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:08: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 2:09: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:09: the keyholder probably noticed you at an unnamed place
+  - 2:09: the watch probably noticed you at an unnamed place
+  - 2:09: the sentry probably noticed you at an unnamed place
+  - 2:09: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:09: the keyholder probably noticed you at an unnamed place
+  - 2:09: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:09: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:09: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:09: the keyholder probably noticed you at an unnamed place
+  - 2:09: the patrol probably noticed you at an unnamed place
+  - 2:09: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:09: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:09: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:09: the operator probably saw you at an unnamed place (lit, 11 m)
+  - 2:09: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:09: the keyholder probably noticed you at an unnamed place
+  - 2:09: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:09: the keyholder probably noticed you at an unnamed place
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:10: the keyholder probably noticed you at an unnamed place
+  - 2:10: the bridge probably heard you at an unnamed place (2 m)
+  - 2:10: the patrol probably heard you at an unnamed place (31 m)
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:10: the keyholder probably heard you at an unnamed place (42 m)
+  - 2:10: the patrol probably heard you at an unnamed place (25 m)
+  - 2:10: the supervisor probably heard you at an unnamed place (28 m)
+  - 2:10: the sentry probably heard you at an unnamed place (30 m)
+  - 2:10: the watch probably heard you at an unnamed place (6 m)
+  - 2:10: the posted probably heard you at an unnamed place (28 m)
+  - 2:10: the grunt probably heard you at an unnamed place (23 m)
+  - 2:10: the grunt probably heard you at an unnamed place (10 m)
+  - 2:10: the grunt probably heard you at an unnamed place (21 m)
+  - 2:10: the grunt probably heard you at an unnamed place (10 m)
+  - 2:10: the grunt probably heard you at an unnamed place (22 m)
+  - 2:10: the grunt probably heard you at an unnamed place (10 m)
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:10: the keyholder probably heard you at an unnamed place (43 m)
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:10: the keyholder probably heard you at an unnamed place (43 m)
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:10: the keyholder probably heard you at an unnamed place (43 m)
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:10: the keyholder probably heard you at an unnamed place (44 m)
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:10: the keyholder probably heard you at an unnamed place (44 m)
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:10: the keyholder probably heard you at an unnamed place (44 m)
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:10: the keyholder probably heard you at an unnamed place (44 m)
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:10: the keyholder probably heard you at an unnamed place (45 m)
+  - 2:11: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:11: the sentry probably heard you at an unnamed place (30 m)
+  - 2:11: the keyholder probably heard you at an unnamed place (45 m)
+  - 2:11: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:11: the sentry probably noticed you at an unnamed place
+  - 2:11: the keyholder probably noticed you at an unnamed place
+  - 2:11: the operator probably noticed you at an unnamed place
+  - 2:11: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:11: the sentry probably noticed you at an unnamed place
+  - 2:11: the keyholder probably noticed you at an unnamed place
+  - 2:11: the patrol probably noticed you at an unnamed place
+  - 2:11: the desk probably noticed you at an unnamed place
+  - 2:11: the escort probably noticed you at an unnamed place
+  - 2:11: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:11: the sentry probably noticed you at an unnamed place
+  - 2:11: the keyholder probably noticed you at an unnamed place
+  - 2:11: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:11: the sentry probably noticed you at an unnamed place
+  - 2:11: the keyholder probably noticed you at an unnamed place
+  - 2:11: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:11: the sentry probably noticed you at an unnamed place
+  - 2:11: the keyholder probably saw you at an unnamed place (lit, 6 m)
+  - 2:11: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 2:11: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:11: the sentry probably noticed you at an unnamed place
+  - 2:11: the keyholder probably saw you at an unnamed place (lit, 6 m)
+  - 2:11: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:11: the sentry probably noticed you at an unnamed place
+  - 2:11: the keyholder probably saw you at an unnamed place (lit, 6 m)
+  - 2:11: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:11: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:11: the sentry probably noticed you at an unnamed place
+  - 2:11: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:11: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:11: the sentry probably noticed you at an unnamed place
+  - 2:11: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:12: the sentry probably noticed you at an unnamed place
+  - 2:12: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:12: the sentry probably noticed you at an unnamed place
+  - 2:12: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:12: the tour probably noticed you at an unnamed place
+  - 2:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:12: the sentry probably noticed you at an unnamed place
+  - 2:12: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:12: the sentry probably noticed you at an unnamed place
+  - 2:12: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:12: the sentry probably noticed you at an unnamed place
+  - 2:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:12: the sentry probably noticed you at an unnamed place
+  - 2:12: the keyholder probably saw you at an unnamed place (lit, 7 m)
+  - 2:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:12: the sentry probably noticed you at an unnamed place
+  - 2:12: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:12: the sentry probably noticed you at an unnamed place
+  - 2:12: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:12: the sentry probably noticed you at an unnamed place
+  - 2:12: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:12: the patrol probably noticed you at an unnamed place
+  - 2:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:12: the sentry probably noticed you at an unnamed place
+  - 2:12: the keyholder probably noticed you at an unnamed place
+  - 2:12: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:12: the sentry probably saw you at an unnamed place (lit, 14 m)
+  - 2:12: the keyholder probably noticed you at an unnamed place
+  - 2:12: the operator probably noticed you at an unnamed place
+  - 2:13: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:13: the sentry probably saw you at an unnamed place (lit, 14 m)
+  - 2:13: the keyholder probably noticed you at an unnamed place
+  - 2:13: the keyholder probably noticed you at an unnamed place
+  - 2:13: the supervisor probably noticed you at an unnamed place
+  - 2:13: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:13: the patrol probably noticed you at an unnamed place
+  - 2:13: the sentry probably noticed you at an unnamed place
+  - 2:13: the bridge probably noticed you at an unnamed place
+  - 2:13: the patrol probably noticed you at an unnamed place
+  - 2:13: the patrol probably noticed you at an unnamed place
+  - 2:13: the sentry probably noticed you at an unnamed place
+  - 2:13: the watch probably noticed you at an unnamed place
+  - 2:13: the posted probably noticed you at an unnamed place
+  - 2:13: the grunt probably noticed you at an unnamed place
+  - 2:13: the grunt probably noticed you at an unnamed place
+  - 2:13: the grunt probably noticed you at an unnamed place
+  - 2:13: the grunt probably noticed you at an unnamed place
+  - 2:13: the grunt probably noticed you at an unnamed place
+  - 2:13: the grunt probably noticed you at an unnamed place
+  - 2:14: the sentry probably noticed you at an unnamed place
+  - 2:14: the watch probably noticed you at an unnamed place
+  - 2:14: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:14: the operator probably noticed you at an unnamed place
+  - 2:14: the patrol probably noticed you at an unnamed place
+  - 2:14: the patrol probably noticed you at an unnamed place
+  - 2:14: the desk probably noticed you at an unnamed place
+  - 2:14: the escort probably noticed you at an unnamed place
+  - 2:14: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:15: the patrol probably noticed you at an unnamed place
+  - 2:15: the supervisor probably noticed you at an unnamed place
+  - 2:15: the keyholder probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:15: the tour probably noticed you at an unnamed place
+  - 2:15: the sentry probably noticed you at an unnamed place
+  - 2:15: a camera probably spotted you at an unnamed place
+  - 2:16: the patrol probably noticed you at an unnamed place
+  - 2:16: the sentry probably noticed you at an unnamed place
+  - 2:16: the watch probably noticed you at an unnamed place
+  - 2:17: the bridge probably noticed you at an unnamed place
+  - 2:17: the patrol probably noticed you at an unnamed place
+  - 2:17: the sentry probably noticed you at an unnamed place
+  - 2:17: the watch probably noticed you at an unnamed place
+  - 2:17: the posted probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the operator probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:21: a camera probably spotted you at an unnamed place
+  - 2:26: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:26: a camera probably spotted you at an unnamed place
+  - 2:26: the keyholder probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:26: the keyholder probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:26: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:27: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the keyholder probably noticed you at an unnamed place
+  - 2:27: the keyholder probably heard you at an unnamed place (23 m)
+  - 2:28: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:28: the keyholder probably heard you at an unnamed place (23 m)
+  - 2:28: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:28: the keyholder probably heard you at an unnamed place (24 m)
+  - 2:28: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:28: the keyholder probably heard you at an unnamed place (24 m)
+  - 2:28: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:28: the keyholder probably heard you at an unnamed place (24 m)
+  - 2:28: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:28: the keyholder probably heard you at an unnamed place (25 m)
+  - 2:28: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:28: the keyholder probably heard you at an unnamed place (25 m)
+  - 2:28: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:28: the keyholder probably heard you at an unnamed place (25 m)
+  - 2:28: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:28: the keyholder probably heard you at an unnamed place (26 m)
+  - 2:28: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:28: the keyholder probably heard you at an unnamed place (26 m)
+  - 2:28: the operator probably heard you at an unnamed place (27 m)
+  - 2:28: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:28: the keyholder probably noticed you at an unnamed place
+  - 2:29: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:29: the keyholder probably noticed you at an unnamed place
+  - 2:29: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:29: the keyholder probably noticed you at an unnamed place
+  - 2:29: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:29: the keyholder probably noticed you at an unnamed place
+  - 2:29: the patrol probably noticed you at an unnamed place
+  - 2:29: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:29: the keyholder probably noticed you at an unnamed place
+  - 2:29: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:29: the keyholder probably noticed you at an unnamed place
+  - 2:29: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:29: the keyholder probably noticed you at an unnamed place
+  - 2:29: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:29: the keyholder probably noticed you at an unnamed place
+  - 2:29: the supervisor probably saw you at an unnamed place (lit, 10 m)
+  - 2:29: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:29: the keyholder probably noticed you at an unnamed place
+  - 2:29: the supervisor probably saw you at an unnamed place (lit, 10 m)
+  - 2:29: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:29: the keyholder probably noticed you at an unnamed place
+  - 2:29: the supervisor probably saw you at an unnamed place (lit, 10 m)
+  - 2:29: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:29: the sentry probably noticed you at an unnamed place
+  - 2:29: the keyholder probably noticed you at an unnamed place
+  - 2:29: the watch probably saw you at an unnamed place (lit, 6 m)
+  - 2:29: the supervisor probably saw you at an unnamed place (lit, 10 m)
+  - 2:29: the desk probably saw you at an unnamed place (lit, 15 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:30: the keyholder probably noticed you at an unnamed place
+  - 2:30: the supervisor probably saw you at an unnamed place (lit, 10 m)
+  - 2:30: the desk probably saw you at an unnamed place (lit, 14 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:30: the keyholder probably noticed you at an unnamed place
+  - 2:30: the supervisor probably saw you at an unnamed place (lit, 10 m)
+  - 2:30: the desk probably saw you at an unnamed place (lit, 14 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:30: the keyholder probably noticed you at an unnamed place
+  - 2:30: the supervisor probably saw you at an unnamed place (lit, 10 m)
+  - 2:30: the desk probably saw you at an unnamed place (lit, 14 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:30: the keyholder probably noticed you at an unnamed place
+  - 2:30: the supervisor probably saw you at an unnamed place (lit, 9 m)
+  - 2:30: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:30: the keyholder probably noticed you at an unnamed place
+  - 2:30: the supervisor probably saw you at an unnamed place (lit, 9 m)
+  - 2:30: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:30: the keyholder probably noticed you at an unnamed place
+  - 2:30: the supervisor probably saw you at an unnamed place (lit, 9 m)
+  - 2:30: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 2:30: the keyholder probably noticed you at an unnamed place
+  - 2:30: the operator probably noticed you at an unnamed place
+  - 2:30: the supervisor probably saw you at an unnamed place (lit, 9 m)
+  - 2:30: the desk probably saw you at an unnamed place (lit, 13 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:30: the keyholder probably noticed you at an unnamed place
+  - 2:30: the supervisor probably saw you at an unnamed place (lit, 9 m)
+  - 2:30: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:30: the desk probably saw you at an unnamed place (lit, 12 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:30: the keyholder probably noticed you at an unnamed place
+  - 2:30: the supervisor probably saw you at an unnamed place (lit, 9 m)
+  - 2:30: the desk probably saw you at an unnamed place (lit, 12 m)
+  - 2:30: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:30: the keyholder probably noticed you at an unnamed place
+  - 2:30: the supervisor probably saw you at an unnamed place (lit, 9 m)
+  - 2:30: the desk probably saw you at an unnamed place (lit, 12 m)
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:31: the keyholder probably noticed you at an unnamed place
+  - 2:31: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 2:31: the supervisor probably saw you at an unnamed place (lit, 9 m)
+  - 2:31: the desk probably saw you at an unnamed place (lit, 12 m)
+  - 2:31: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:31: the keyholder probably noticed you at an unnamed place
+  - 2:31: the patrol probably noticed you at an unnamed place
+  - 2:31: the supervisor probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:31: the desk probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:31: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:31: the keyholder probably noticed you at an unnamed place
+  - 2:31: the supervisor probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:31: the desk probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:31: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:31: the keyholder probably noticed you at an unnamed place
+  - 2:31: the supervisor probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:31: the desk probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:31: the bridge probably noticed you at an unnamed place
+  - 2:31: the patrol probably noticed you at an unnamed place
+  - 2:31: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:31: the sentry probably noticed you at an unnamed place
+  - 2:31: the keyholder probably noticed you at an unnamed place
+  - 2:31: the patrol probably noticed you at an unnamed place
+  - 2:31: the tour probably noticed you at an unnamed place
+  - 2:31: the supervisor probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:31: the sentry probably noticed you at an unnamed place
+  - 2:31: the watch probably noticed you at an unnamed place
+  - 2:31: the posted probably noticed you at an unnamed place
+  - 2:31: the desk probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:31: the escort probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:31: the keyholder probably saw you at an unnamed place (in shadow, 16 m)
+  - 2:31: the supervisor probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:31: the desk probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:31: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:31: the keyholder probably saw you at an unnamed place (in shadow, 16 m)
+  - 2:31: the supervisor probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:31: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:31: the keyholder probably saw you at an unnamed place (in shadow, 16 m)
+  - 2:31: the supervisor probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:31: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:31: the keyholder probably saw you at an unnamed place (in shadow, 16 m)
+  - 2:31: the keyholder probably saw you at an unnamed place (in shadow, 16 m)
+  - 2:31: the desk probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:32: the keyholder probably saw you at an unnamed place (in shadow, 16 m)
+  - 2:32: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:32: the keyholder probably saw you at an unnamed place (in shadow, 16 m)
+  - 2:32: the watch probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:32: the keyholder probably saw you at an unnamed place (in shadow, 17 m)
+  - 2:32: the supervisor probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:32: the keyholder probably saw you at an unnamed place (in shadow, 17 m)
+  - 2:32: the keyholder probably saw you at an unnamed place (in shadow, 17 m)
+  - 2:32: the operator probably heard you at an unnamed place (46 m)
+  - 2:32: the keyholder probably heard you at an unnamed place (51 m)
+  - 2:32: the patrol probably heard you at an unnamed place (32 m)
+  - 2:32: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:32: the keyholder probably noticed you at an unnamed place
+  - 2:32: the sentry probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:32: the keyholder probably heard you at an unnamed place (37 m)
+  - 2:32: the patrol probably heard you at an unnamed place (36 m)
+  - 2:32: the patrol probably heard you at an unnamed place (9 m)
+  - 2:33: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:33: the desk probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:33: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:34: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:34: the posted probably heard you at an unnamed place (25 m)
+  - 2:34: the watch probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:34: the operator probably heard you at an unnamed place (11 m)
+  - 2:34: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:34: the escort probably heard you at an unnamed place (24 m)
+  - 2:34: the sentry probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:34: the bridge probably heard you at an unnamed place (39 m)
+  - 2:34: the patrol probably heard you at an unnamed place (35 m)
+  - 2:34: the tour probably heard you at an unnamed place (38 m)
+  - 2:34: the patrol probably saw you at an unnamed place (in shadow, 18 m)
+  - 2:34: the sentry probably heard you at an unnamed place (28 m)
+  - 2:34: the watch probably heard you at an unnamed place (33 m)
+  - 2:34: the grunt probably heard you at an unnamed place (34 m)
+  - 2:34: the grunt probably heard you at an unnamed place (38 m)
+  - 2:34: the grunt probably heard you at an unnamed place (35 m)
+  - 2:34: the grunt probably heard you at an unnamed place (39 m)
+  - 2:34: the grunt probably heard you at an unnamed place (35 m)
+  - 2:34: the grunt probably heard you at an unnamed place (39 m)
+  - 2:34: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:35: the patrol probably noticed you at an unnamed place
+  - 2:35: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:35: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:35: the desk probably saw you at an unnamed place (lit, 5 m)
+  - 2:35: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:35: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:35: the desk probably saw you at an unnamed place (lit, 5 m)
+  - 2:35: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:35: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:35: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:35: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:35: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:35: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:35: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:35: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:35: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:35: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:35: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:35: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:35: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:35: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:35: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:35: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:35: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:35: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 2:35: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:36: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 2:36: the desk probably saw you at an unnamed place (lit, 4 m)
+  - 2:36: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 2:36: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:36: the keyholder probably noticed you at an unnamed place
+  - 2:36: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 2:36: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:36: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 2:36: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:36: the supervisor probably noticed you at an unnamed place
+  - 2:36: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:36: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:36: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:36: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:36: the supervisor probably noticed you at an unnamed place
+  - 2:36: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:36: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:37: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:37: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:37: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:37: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:37: the supervisor probably noticed you at an unnamed place
+  - 2:37: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:37: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:37: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 2:37: the desk probably saw you at an unnamed place (lit, 3 m)
+  - 2:37: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:37: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:37: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:37: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:37: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:37: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:37: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:37: the supervisor probably noticed you at an unnamed place
+  - 2:37: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:37: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 2:37: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 2:37: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:37: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:37: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:37: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:37: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:38: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:38: the supervisor probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:38: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:38: the supervisor probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:38: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:38: the supervisor probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:38: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:38: the supervisor probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:38: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:38: the watch probably noticed you at an unnamed place
+  - 2:38: the supervisor probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:38: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:38: the supervisor probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:38: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:38: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:38: the supervisor probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:38: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 2:38: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:38: the supervisor probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (lit, 2 m)
+  - 2:38: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:38: the supervisor probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:38: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:38: the supervisor probably noticed you at an unnamed place
+  - 2:38: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:39: the supervisor probably noticed you at an unnamed place
+  - 2:39: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:39: the supervisor probably noticed you at an unnamed place
+  - 2:39: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:39: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:39: the supervisor probably noticed you at an unnamed place
+  - 2:39: the desk probably saw you at an unnamed place (in shadow, 2 m)
+  - 2:39: the patrol probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:39: the supervisor probably noticed you at an unnamed place
+  - 2:39: the desk probably noticed you at an unnamed place
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:39: the patrol probably saw you at an unnamed place (in shadow, 13 m)
+  - 2:39: the supervisor probably noticed you at an unnamed place
+  - 2:39: the desk probably noticed you at an unnamed place
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:39: the supervisor probably noticed you at an unnamed place
+  - 2:39: the desk probably noticed you at an unnamed place
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:39: the supervisor probably noticed you at an unnamed place
+  - 2:39: the desk probably noticed you at an unnamed place
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:39: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:39: the supervisor probably noticed you at an unnamed place
+  - 2:39: the desk probably noticed you at an unnamed place
+  - 2:39: the escort probably noticed you at an unnamed place
+  - 2:39: the bridge probably noticed you at an unnamed place
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:39: the keyholder probably saw you at an unnamed place (in shadow, 24 m)
+  - 2:39: the patrol probably noticed you at an unnamed place
+  - 2:39: the tour probably noticed you at an unnamed place
+  - 2:39: the operator probably noticed you at an unnamed place
+  - 2:39: the patrol probably noticed you at an unnamed place
+  - 2:39: the supervisor probably noticed you at an unnamed place
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:39: the watch probably noticed you at an unnamed place
+  - 2:39: the posted probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:39: the desk probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:39: the supervisor probably noticed you at an unnamed place
+  - 2:39: the desk probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:40: the supervisor probably noticed you at an unnamed place
+  - 2:40: the desk probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:40: the supervisor probably noticed you at an unnamed place
+  - 2:40: the supervisor probably noticed you at an unnamed place
+  - 2:40: the supervisor probably noticed you at an unnamed place
+  - 2:40: the supervisor probably noticed you at an unnamed place
+  - 2:40: the desk probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:40: the watch probably noticed you at an unnamed place
+  - 2:40: the supervisor probably noticed you at an unnamed place
+  - 2:40: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:40: the supervisor probably noticed you at an unnamed place
+  - 2:40: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:40: the supervisor probably noticed you at an unnamed place
+  - 2:40: the supervisor probably noticed you at an unnamed place
+  - 2:40: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:40: the supervisor probably noticed you at an unnamed place
+  - 2:41: the patrol probably noticed you at an unnamed place
+  - 2:41: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:41: the supervisor probably noticed you at an unnamed place
+  - 2:41: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:41: the supervisor probably noticed you at an unnamed place
+  - 2:41: the supervisor probably noticed you at an unnamed place
+  - 2:41: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:41: the supervisor probably noticed you at an unnamed place
+  - 2:41: the supervisor probably noticed you at an unnamed place
+  - 2:41: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:41: the patrol probably saw you at an unnamed place (in shadow, 15 m)
+  - 2:41: the supervisor probably noticed you at an unnamed place
+  - 2:41: the supervisor probably noticed you at an unnamed place
+  - 2:41: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:41: the supervisor probably noticed you at an unnamed place
+  - 2:41: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:41: the supervisor probably noticed you at an unnamed place
+  - 2:41: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:41: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:41: the supervisor probably noticed you at an unnamed place
+  - 2:41: the sentry probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:41: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:42: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:42: the supervisor probably noticed you at an unnamed place
+  - 2:42: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:42: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:42: the supervisor probably noticed you at an unnamed place
+  - 2:42: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:42: the supervisor probably noticed you at an unnamed place
+  - 2:42: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:42: the supervisor probably noticed you at an unnamed place
+  - 2:42: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:42: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:42: the supervisor probably noticed you at an unnamed place
+  - 2:42: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:42: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:42: the supervisor probably heard you at an unnamed place (7 m)
+  - 2:42: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:42: the supervisor probably heard you at an unnamed place (7 m)
+  - 2:42: the desk probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:42: the supervisor probably heard you at an unnamed place (7 m)
+  - 2:42: the desk probably heard you at an unnamed place (5 m)
+  - 2:42: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 2:42: the supervisor probably heard you at an unnamed place (7 m)
+  - 2:42: the desk probably heard you at an unnamed place (5 m)
+  - 2:42: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:42: the supervisor probably heard you at an unnamed place (7 m)
+  - 2:42: the desk probably heard you at an unnamed place (5 m)
+  - 2:42: the escort probably saw you at an unnamed place (lit, 8 m)
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:43: the supervisor probably heard you at an unnamed place (7 m)
+  - 2:43: the desk probably heard you at an unnamed place (6 m)
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:43: the supervisor probably heard you at an unnamed place (7 m)
+  - 2:43: the desk probably heard you at an unnamed place (6 m)
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:43: the supervisor probably heard you at an unnamed place (7 m)
+  - 2:43: the desk probably heard you at an unnamed place (6 m)
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:43: the watch probably saw you at an unnamed place (lit, 17 m)
+  - 2:43: the supervisor probably heard you at an unnamed place (8 m)
+  - 2:43: the desk probably heard you at an unnamed place (6 m)
+  - 2:43: the bridge probably heard you at an unnamed place (23 m)
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:43: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:43: the keyholder probably saw you at an unnamed place (lit, 23 m)
+  - 2:43: the patrol probably heard you at an unnamed place (17 m)
+  - 2:43: the tour probably heard you at an unnamed place (21 m)
+  - 2:43: the operator probably heard you at an unnamed place (27 m)
+  - 2:43: the patrol probably heard you at an unnamed place (26 m)
+  - 2:43: the supervisor probably heard you at an unnamed place (8 m)
+  - 2:43: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 2:43: the watch probably heard you at an unnamed place (19 m)
+  - 2:43: the posted probably saw you at an unnamed place (lit, 8 m)
+  - 2:43: the grunt probably heard you at an unnamed place (16 m)
+  - 2:43: the grunt probably saw you at an unnamed place (lit, 23 m)
+  - 2:43: the grunt probably heard you at an unnamed place (17 m)
+  - 2:43: the grunt probably heard you at an unnamed place (23 m)
+  - 2:43: the grunt probably heard you at an unnamed place (17 m)
+  - 2:43: the grunt probably heard you at an unnamed place (23 m)
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:43: the supervisor probably noticed you at an unnamed place
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:43: the supervisor probably noticed you at an unnamed place
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 2:43: the supervisor probably noticed you at an unnamed place
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 2:43: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 2:43: the supervisor probably noticed you at an unnamed place
+  - 2:43: the patrol probably noticed you at an unnamed place
+  - 2:43: the supervisor probably noticed you at an unnamed place
+  - 2:44: the patrol probably noticed you at an unnamed place
+  - 2:44: the supervisor probably noticed you at an unnamed place
+  - 2:44: the patrol probably noticed you at an unnamed place
+  - 2:44: the supervisor probably noticed you at an unnamed place
+  - 2:44: the supervisor probably noticed you at an unnamed place
+  - 2:44: the patrol probably noticed you at an unnamed place
+  - 2:44: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 2:44: the patrol probably noticed you at an unnamed place
+  - 2:44: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:44: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:45: the watch probably saw you at an unnamed place (lit, 17 m)
+  - 2:45: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:46: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:46: the sentry probably heard you at an unnamed place (8 m)
+  - 2:46: the escort probably saw you at an unnamed place (lit, 7 m)
+  - 2:46: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 2:46: the keyholder probably saw you at an unnamed place (lit, 22 m)
+  - 2:46: the supervisor probably saw you at an unnamed place (lit, 8 m)
+  - 2:46: the bridge probably noticed you at an unnamed place
+  - 2:46: the patrol probably noticed you at an unnamed place
+  - 2:46: the tour probably noticed you at an unnamed place
+  - 2:46: the operator probably noticed you at an unnamed place
+  - 2:46: the patrol probably noticed you at an unnamed place
+  - 2:46: the sentry probably saw you at an unnamed place (lit, 12 m)
+  - 2:46: the watch probably noticed you at an unnamed place
+  - 2:46: the posted probably noticed you at an unnamed place
+  - 2:46: the desk probably saw you at an unnamed place (lit, 5 m)
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:47: the patrol probably noticed you at an unnamed place
+  - 2:47: the patrol probably saw you up close at an unnamed place (1 m)
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the escort probably saw you up close at an unnamed place (2 m)
+  - 2:59: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 2:59: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:00: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:00: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:00: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:00: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:00: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:00: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:00: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:00: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:00: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:00: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:00: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:00: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:00: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:00: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:00: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:00: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:00: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:00: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:00: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:00: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:01: the posted probably saw you up close at an unnamed place (2 m)
+  - 3:01: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:01: the posted probably saw you up close at an unnamed place (2 m)
+  - 3:01: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:01: the posted probably saw you up close at an unnamed place (2 m)
+  - 3:01: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:01: the posted probably saw you up close at an unnamed place (2 m)
+  - 3:01: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:01: the posted probably saw you up close at an unnamed place (2 m)
+  - 3:01: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:01: the posted probably noticed you at an unnamed place
+  - 3:01: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:01: the posted probably noticed you at an unnamed place
+  - 3:01: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:01: the posted probably noticed you at an unnamed place
+  - 3:01: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 3:01: the posted probably noticed you at an unnamed place
+  - 3:01: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 3:01: the posted probably noticed you at an unnamed place
+  - 3:01: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 3:02: the patrol probably noticed you at an unnamed place
+  - 3:02: the posted probably noticed you at an unnamed place
+  - 3:02: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:02: the escort probably saw you up close at an unnamed place (2 m)
+  - 3:02: the escort probably noticed you at an unnamed place
+  - 3:02: the escort probably noticed you at an unnamed place
+  - 3:02: the posted probably noticed you at an unnamed place
+  - 3:02: the desk probably noticed you at an unnamed place
+  - 3:02: the escort probably noticed you at an unnamed place
+  - 3:02: the escort probably noticed you at an unnamed place
+  - 3:02: the escort probably noticed you at an unnamed place
+  - 3:02: the patrol probably noticed you at an unnamed place
+  - 3:02: the supervisor probably noticed you at an unnamed place
+  - 3:02: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:02: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:03: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:03: the escort probably saw you at an unnamed place (lit, 3 m)
+  - 3:03: the sentry probably noticed you at an unnamed place
+  - 3:03: the posted probably saw you at an unnamed place (lit, 2 m)
+  - 3:03: the escort probably saw you at an unnamed place (lit, 3 m)
+- Noticed:
+  - 1:20: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:21: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:22: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:23: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:25: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:25: the supervisor probably noticed you at an unnamed place
+  - 1:26: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:26: the console probably noticed you at an unnamed place
+  - 1:26: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:26: the sentry probably noticed you at an unnamed place
+  - 1:27: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:27: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:27: the patrol probably noticed you at an unnamed place
+  - 1:27: the keyholder probably saw you at an unnamed place (in shadow, 17 m)
+  - 1:27: the grunt probably noticed you at an unnamed place
+  - 1:27: the grunt probably noticed you at an unnamed place
+  - 1:27: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:27: the bridge probably noticed you at an unnamed place
+  - 1:27: the watch probably noticed you at an unnamed place
+  - 1:27: the patrol probably noticed you at an unnamed place
+  - 1:27: the tour probably noticed you at an unnamed place
+  - 1:27: the operator probably noticed you at an unnamed place
+  - 1:27: the patrol probably noticed you at an unnamed place
+  - 1:27: the sentry probably saw you at an unnamed place (in shadow, 18 m)
+  - 1:27: the watch probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:27: the posted probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:27: the desk probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:27: the escort probably noticed you at an unnamed place
+  - 1:28: the console probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:29: the patrol probably saw you at an unnamed place (in shadow, 13 m)
+  - 1:29: the supervisor probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:42: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:43: the escort probably noticed you at an unnamed place
+  - 1:43: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:43: the posted probably saw you at an unnamed place (lit, 6 m)
+  - 1:43: the escort probably noticed you at an unnamed place
+  - 1:43: the posted probably saw you at an unnamed place (lit, 6 m)
+  - 1:43: the supervisor probably saw you at an unnamed place (lit, 8 m)
+  - 1:43: the escort probably noticed you at an unnamed place
+  - 1:44: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:44: the posted probably saw you at an unnamed place (lit, 6 m)
+  - 1:44: the desk probably noticed you at an unnamed place
+  - 1:44: the escort probably noticed you at an unnamed place
+  - 1:44: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 1:44: the sentry probably noticed you at an unnamed place
+  - 1:44: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:44: the grunt probably noticed you at an unnamed place
+  - 1:44: the grunt probably noticed you at an unnamed place
+  - 1:44: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 1:45: the bridge probably noticed you at an unnamed place
+  - 1:45: the patrol probably noticed you at an unnamed place
+  - 1:45: the keyholder probably saw you at an unnamed place (lit, 19 m)
+  - 1:45: the watch probably noticed you at an unnamed place
+  - 1:45: the patrol probably noticed you at an unnamed place
+  - 1:45: the tour probably noticed you at an unnamed place
+  - 1:45: the operator probably noticed you at an unnamed place
+  - 1:45: the patrol probably noticed you at an unnamed place
+  - 1:45: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:45: the watch probably noticed you at an unnamed place
+  - 1:45: the grunt probably noticed you at an unnamed place
+  - 1:45: the grunt probably noticed you at an unnamed place
+  - 1:45: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:45: the escort probably noticed you at an unnamed place
+  - 1:46: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 1:46: the posted probably heard you at an unnamed place (6 m)
+  - 1:46: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 1:47: the desk probably noticed you at an unnamed place
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:48: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 1:48: the bridge probably noticed you at an unnamed place
+  - 1:48: the patrol probably noticed you at an unnamed place
+  - 1:48: the keyholder probably saw you at an unnamed place (lit, 18 m)
+  - 1:48: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:48: the watch probably saw you at an unnamed place (lit, 14 m)
+  - 1:48: the patrol probably noticed you at an unnamed place
+  - 1:48: the tour probably noticed you at an unnamed place
+  - 1:48: the operator probably noticed you at an unnamed place
+  - 1:48: the patrol probably noticed you at an unnamed place
+  - 1:48: the watch probably noticed you at an unnamed place
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:48: the grunt probably noticed you at an unnamed place
+  - 1:50: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:50: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 1:51: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:51: the desk probably noticed you at an unnamed place
+  - 1:51: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:52: the escort probably noticed you at an unnamed place
+  - 1:52: the patrol probably noticed you at an unnamed place
+  - 1:52: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 1:53: the posted probably saw you at an unnamed place (lit, 8 m)
+  - 1:53: the bridge probably noticed you at an unnamed place
+  - 1:53: the patrol probably noticed you at an unnamed place
+  - 1:53: the keyholder probably saw you at an unnamed place (lit, 18 m)
+  - 1:53: the watch probably noticed you at an unnamed place
+  - 1:53: the patrol probably noticed you at an unnamed place
+  - 1:53: the tour probably noticed you at an unnamed place
+  - 1:53: the operator probably noticed you at an unnamed place
+  - 1:53: the patrol probably noticed you at an unnamed place
+  - 1:53: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 1:53: the watch probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the grunt probably noticed you at an unnamed place
+  - 1:53: the desk probably saw you at an unnamed place (lit, 9 m)
+  - 1:54: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:54: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 1:55: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:55: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 1:55: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:55: the escort probably saw you at an unnamed place (lit, 8 m)
+  - 1:56: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:56: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:56: the posted probably saw you at an unnamed place (lit, 9 m)
+  - 1:56: the bridge probably noticed you at an unnamed place
+  - 1:56: the patrol probably noticed you at an unnamed place
+  - 1:56: the keyholder probably saw you at an unnamed place (lit, 18 m)
+  - 1:56: the watch probably saw you at an unnamed place (lit, 12 m)
+  - 1:56: the patrol probably noticed you at an unnamed place
+  - 1:56: the tour probably noticed you at an unnamed place
+  - 1:56: the operator probably noticed you at an unnamed place
+  - 1:56: the patrol probably noticed you at an unnamed place
+  - 1:56: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:56: the watch probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:56: the grunt probably noticed you at an unnamed place
+  - 1:57: the sentry probably saw you at an unnamed place (lit, 9 m)
+  - 1:57: the desk probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:57: the keyholder probably noticed you at an unnamed place
+  - 1:57: the supervisor probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:58: the patrol probably noticed you at an unnamed place
+  - 1:59: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:59: the patrol probably noticed you at an unnamed place
+  - 1:59: the sentry probably noticed you at an unnamed place
+  - 1:59: the watch probably saw you at an unnamed place (lit, 8 m)
+  - 2:00: the patrol probably noticed you at an unnamed place
+  - 2:00: the desk probably noticed you at an unnamed place
+  - 2:00: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:00: the patrol probably noticed you at an unnamed place
+  - 2:00: the escort probably noticed you at an unnamed place
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 2:01: the operator probably noticed you at an unnamed place
+  - 2:01: the posted probably noticed you at an unnamed place
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the tour probably noticed you at an unnamed place
+  - 2:01: the sentry probably noticed you at an unnamed place
+  - 2:01: the watch probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the grunt probably noticed you at an unnamed place
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the keyholder probably saw you at an unnamed place (lit, 8 m)
+  - 2:01: the patrol probably noticed you at an unnamed place
+  - 2:01: the supervisor probably noticed you at an unnamed place
+  - 2:02: the sentry probably noticed you at an unnamed place
+  - 2:02: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:03: the patrol probably noticed you at an unnamed place
+  - 2:03: the escort probably noticed you at an unnamed place
+  - 2:03: the watch probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:03: the grunt probably noticed you at an unnamed place
+  - 2:03: the patrol probably noticed you at an unnamed place
+  - 2:04: the patrol probably noticed you at an unnamed place
+  - 2:04: the grunt probably noticed you at an unnamed place
+  - 2:04: the desk probably noticed you at an unnamed place
+  - 2:04: the patrol probably noticed you at an unnamed place
+  - 2:04: the patrol probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:04: the grunt probably noticed you at an unnamed place
+  - 2:04: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:04: the keyholder probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:04: the patrol probably noticed you at an unnamed place
+  - 2:04: the sentry probably noticed you at an unnamed place
+  - 2:04: the watch probably noticed you at an unnamed place
+  - 2:04: the bridge probably noticed you at an unnamed place
+  - 2:05: the tour probably noticed you at an unnamed place
+  - 2:05: the grunt probably noticed you at an unnamed place
+  - 2:05: the patrol probably noticed you at an unnamed place
+  - 2:05: the grunt probably noticed you at an unnamed place
+  - 2:05: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:05: the supervisor probably noticed you at an unnamed place
+  - 2:05: the grunt probably noticed you at an unnamed place
+  - 2:05: the bridge probably noticed you at an unnamed place
+  - 2:05: the patrol probably noticed you at an unnamed place
+  - 2:05: the sentry probably noticed you at an unnamed place
+  - 2:05: the posted probably noticed you at an unnamed place
+  - 2:05: the grunt probably noticed you at an unnamed place
+  - 2:05: the grunt probably noticed you at an unnamed place
+  - 2:06: the keyholder probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:06: the watch probably noticed you at an unnamed place
+  - 2:06: the operator probably noticed you at an unnamed place
+  - 2:06: the grunt probably noticed you at an unnamed place
+  - 2:06: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:06: the patrol probably noticed you at an unnamed place
+  - 2:06: the sentry probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:06: the patrol probably noticed you at an unnamed place
+  - 2:06: the watch probably noticed you at an unnamed place
+  - 2:06: the patrol probably noticed you at an unnamed place
+  - 2:06: the sentry probably noticed you at an unnamed place
+  - 2:08: the patrol probably saw you at an unnamed place (lit, 15 m)
+  - 2:08: the watch probably saw you at an unnamed place (lit, 6 m)
+  - 2:08: the desk probably noticed you at an unnamed place
+  - 2:08: the escort probably noticed you at an unnamed place
+  - 2:08: the sentry probably saw you at an unnamed place (lit, 12 m)
+  - 2:08: the tour probably noticed you at an unnamed place
+  - 2:08: the patrol probably noticed you at an unnamed place
+  - 2:08: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 2:09: the watch probably noticed you at an unnamed place
+  - 2:09: the sentry probably noticed you at an unnamed place
+  - 2:09: the keyholder probably noticed you at an unnamed place
+  - 2:09: the keyholder probably noticed you at an unnamed place
+  - 2:09: the patrol probably noticed you at an unnamed place
+  - 2:09: the operator probably saw you at an unnamed place (lit, 11 m)
+  - 2:10: the bridge probably heard you at an unnamed place (2 m)
+  - 2:10: the patrol probably heard you at an unnamed place (31 m)
+  - 2:10: the patrol probably heard you at an unnamed place (25 m)
+  - 2:10: the supervisor probably heard you at an unnamed place (28 m)
+  - 2:10: the sentry probably heard you at an unnamed place (30 m)
+  - 2:10: the watch probably heard you at an unnamed place (6 m)
+  - 2:10: the posted probably heard you at an unnamed place (28 m)
+  - 2:10: the grunt probably heard you at an unnamed place (23 m)
+  - 2:10: the grunt probably heard you at an unnamed place (10 m)
+  - 2:10: the grunt probably heard you at an unnamed place (21 m)
+  - 2:10: the grunt probably heard you at an unnamed place (10 m)
+  - 2:10: the grunt probably heard you at an unnamed place (22 m)
+  - 2:10: the grunt probably heard you at an unnamed place (10 m)
+  - 2:10: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 2:11: the operator probably noticed you at an unnamed place
+  - 2:11: the patrol probably noticed you at an unnamed place
+  - 2:11: the desk probably noticed you at an unnamed place
+  - 2:11: the escort probably noticed you at an unnamed place
+  - 2:11: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 2:11: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:12: the tour probably noticed you at an unnamed place
+  - 2:12: the sentry probably noticed you at an unnamed place
+  - 2:12: the patrol probably noticed you at an unnamed place
+  - 2:13: the operator probably noticed you at an unnamed place
+  - 2:13: the patrol probably saw you at an unnamed place (lit, 3 m)
+  - 2:13: the sentry probably saw you at an unnamed place (lit, 14 m)
+  - 2:13: the keyholder probably noticed you at an unnamed place
+  - 2:13: the supervisor probably noticed you at an unnamed place
+  - 2:13: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 2:13: the patrol probably noticed you at an unnamed place
+  - 2:13: the sentry probably noticed you at an unnamed place
+  - 2:14: the bridge probably noticed you at an unnamed place
+  - 2:14: the patrol probably noticed you at an unnamed place
+  - 2:14: the patrol probably noticed you at an unnamed place
+  - 2:14: the sentry probably noticed you at an unnamed place
+  - 2:14: the watch probably noticed you at an unnamed place
+  - 2:14: the posted probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the grunt probably noticed you at an unnamed place
+  - 2:14: the sentry probably noticed you at an unnamed place
+  - 2:14: the watch probably noticed you at an unnamed place
+  - 2:14: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:14: the operator probably noticed you at an unnamed place
+  - 2:14: the patrol probably noticed you at an unnamed place
+  - 2:14: the patrol probably noticed you at an unnamed place
+  - 2:14: the desk probably noticed you at an unnamed place
+  - 2:14: the escort probably noticed you at an unnamed place
+  - 2:15: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:15: the patrol probably noticed you at an unnamed place
+  - 2:15: the supervisor probably noticed you at an unnamed place
+  - 2:15: the keyholder probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:15: the tour probably noticed you at an unnamed place
+  - 2:15: the sentry probably noticed you at an unnamed place
+  - 2:16: the patrol probably noticed you at an unnamed place
+  - 2:16: the sentry probably noticed you at an unnamed place
+  - 2:16: the watch probably noticed you at an unnamed place
+  - 2:17: the bridge probably noticed you at an unnamed place
+  - 2:17: the patrol probably noticed you at an unnamed place
+  - 2:17: the sentry probably noticed you at an unnamed place
+  - 2:17: the watch probably noticed you at an unnamed place
+  - 2:17: the posted probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the grunt probably noticed you at an unnamed place
+  - 2:17: the operator probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:27: the supervisor probably saw you at an unnamed place (lit, 13 m)
+  - 2:28: the supervisor probably saw you at an unnamed place (lit, 12 m)
+  - 2:28: the operator probably noticed you at an unnamed place
+  - 2:29: the patrol probably noticed you at an unnamed place
+  - 2:30: the sentry probably noticed you at an unnamed place
+  - 2:30: the watch probably saw you at an unnamed place (lit, 6 m)
+  - 2:30: the operator probably noticed you at an unnamed place
+  - 2:30: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 2:31: the patrol probably saw you at an unnamed place (in shadow, 14 m)
+  - 2:31: the patrol probably noticed you at an unnamed place
+  - 2:31: the bridge probably noticed you at an unnamed place
+  - 2:31: the patrol probably noticed you at an unnamed place
+  - 2:31: the sentry probably noticed you at an unnamed place
+  - 2:31: the patrol probably noticed you at an unnamed place
+  - 2:31: the tour probably noticed you at an unnamed place
+  - 2:31: the sentry probably noticed you at an unnamed place
+  - 2:31: the watch probably noticed you at an unnamed place
+  - 2:31: the posted probably noticed you at an unnamed place
+  - 2:31: the escort probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the grunt probably noticed you at an unnamed place
+  - 2:31: the desk probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:31: the supervisor probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:31: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:32: the desk probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:32: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:32: the watch probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:32: the supervisor probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:32: the operator probably heard you at an unnamed place (46 m)
+  - 2:32: the patrol probably noticed you at an unnamed place
+  - 2:32: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:32: the keyholder probably noticed you at an unnamed place
+  - 2:32: the sentry probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:32: the keyholder probably heard you at an unnamed place (37 m)
+  - 2:32: the patrol probably heard you at an unnamed place (36 m)
+  - 2:33: the patrol probably heard you at an unnamed place (9 m)
+  - 2:33: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:33: the desk probably saw you at an unnamed place (in shadow, 7 m)
+  - 2:33: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:34: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:34: the posted probably heard you at an unnamed place (25 m)
+  - 2:34: the watch probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:34: the operator probably heard you at an unnamed place (11 m)
+  - 2:34: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:34: the escort probably heard you at an unnamed place (24 m)
+  - 2:34: the sentry probably saw you at an unnamed place (in shadow, 5 m)
+  - 2:34: the bridge probably noticed you at an unnamed place
+  - 2:34: the patrol probably noticed you at an unnamed place
+  - 2:34: the tour probably noticed you at an unnamed place
+  - 2:34: the patrol probably noticed you at an unnamed place
+  - 2:34: the sentry probably saw you at an unnamed place (in shadow, 18 m)
+  - 2:34: the watch probably noticed you at an unnamed place
+  - 2:34: the grunt probably noticed you at an unnamed place
+  - 2:34: the grunt probably noticed you at an unnamed place
+  - 2:34: the grunt probably noticed you at an unnamed place
+  - 2:34: the grunt probably noticed you at an unnamed place
+  - 2:34: the grunt probably noticed you at an unnamed place
+  - 2:34: the grunt probably noticed you at an unnamed place
+  - 2:35: the patrol probably noticed you at an unnamed place
+  - 2:35: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:36: the keyholder probably saw you at an unnamed place (lit, 22 m)
+  - 2:36: the supervisor probably noticed you at an unnamed place
+  - 2:36: the supervisor probably noticed you at an unnamed place
+  - 2:37: the supervisor probably noticed you at an unnamed place
+  - 2:37: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:37: the patrol probably noticed you at an unnamed place
+  - 2:37: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 2:37: the supervisor probably noticed you at an unnamed place
+  - 2:37: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 2:38: the watch probably noticed you at an unnamed place
+  - 2:38: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 2:38: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:39: the patrol probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:39: the patrol probably saw you at an unnamed place (in shadow, 13 m)
+  - 2:39: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:39: the escort probably noticed you at an unnamed place
+  - 2:39: the bridge probably noticed you at an unnamed place
+  - 2:39: the keyholder probably saw you at an unnamed place (in shadow, 25 m)
+  - 2:39: the patrol probably noticed you at an unnamed place
+  - 2:39: the tour probably noticed you at an unnamed place
+  - 2:39: the operator probably noticed you at an unnamed place
+  - 2:39: the patrol probably noticed you at an unnamed place
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:39: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:39: the watch probably noticed you at an unnamed place
+  - 2:39: the posted probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:39: the grunt probably noticed you at an unnamed place
+  - 2:40: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:40: the desk probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:40: the desk probably saw you at an unnamed place (in shadow, 3 m)
+  - 2:40: the watch probably noticed you at an unnamed place
+  - 2:40: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 2:40: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:40: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:41: the patrol probably noticed you at an unnamed place
+  - 2:41: the patrol probably saw you at an unnamed place (in shadow, 10 m)
+  - 2:41: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:41: the desk probably saw you at an unnamed place (in shadow, 4 m)
+  - 2:41: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:41: the patrol probably saw you at an unnamed place (in shadow, 15 m)
+  - 2:42: the sentry probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:42: the patrol probably saw you at an unnamed place (in shadow, 12 m)
+  - 2:42: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 2:42: the patrol probably saw you at an unnamed place (in shadow, 11 m)
+  - 2:42: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 2:43: the escort probably saw you at an unnamed place (lit, 8 m)
+  - 2:43: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 2:43: the watch probably saw you at an unnamed place (lit, 17 m)
+  - 2:43: the desk probably heard you at an unnamed place (7 m)
+  - 2:43: the bridge probably noticed you at an unnamed place
+  - 2:43: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 2:43: the keyholder probably saw you at an unnamed place (lit, 23 m)
+  - 2:43: the patrol probably noticed you at an unnamed place
+  - 2:43: the tour probably noticed you at an unnamed place
+  - 2:43: the operator probably noticed you at an unnamed place
+  - 2:43: the patrol probably noticed you at an unnamed place
+  - 2:43: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 2:43: the watch probably noticed you at an unnamed place
+  - 2:43: the posted probably saw you at an unnamed place (lit, 8 m)
+  - 2:43: the grunt probably noticed you at an unnamed place
+  - 2:43: the grunt probably saw you at an unnamed place (lit, 23 m)
+  - 2:43: the grunt probably noticed you at an unnamed place
+  - 2:43: the grunt probably noticed you at an unnamed place
+  - 2:43: the grunt probably noticed you at an unnamed place
+  - 2:43: the grunt probably noticed you at an unnamed place
+  - 2:43: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 2:44: the patrol probably noticed you at an unnamed place
+  - 2:44: the supervisor probably noticed you at an unnamed place
+  - 2:44: the patrol probably noticed you at an unnamed place
+  - 2:44: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 2:44: the patrol probably noticed you at an unnamed place
+  - 2:44: the desk probably saw you at an unnamed place (lit, 6 m)
+  - 2:45: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:45: the watch probably saw you at an unnamed place (lit, 17 m)
+  - 2:45: the sentry probably saw you at an unnamed place (lit, 5 m)
+  - 2:46: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 2:46: the sentry probably heard you at an unnamed place (8 m)
+  - 2:46: the escort probably saw you at an unnamed place (lit, 7 m)
+  - 2:46: the patrol probably saw you at an unnamed place (lit, 14 m)
+  - 2:46: the keyholder probably saw you at an unnamed place (lit, 22 m)
+  - 2:46: the supervisor probably saw you at an unnamed place (lit, 8 m)
+  - 2:46: the bridge probably noticed you at an unnamed place
+  - 2:46: the patrol probably noticed you at an unnamed place
+  - 2:46: the tour probably noticed you at an unnamed place
+  - 2:46: the operator probably noticed you at an unnamed place
+  - 2:46: the patrol probably noticed you at an unnamed place
+  - 2:46: the sentry probably saw you at an unnamed place (lit, 12 m)
+  - 2:46: the watch probably noticed you at an unnamed place
+  - 2:46: the posted probably noticed you at an unnamed place
+  - 2:46: the desk probably saw you at an unnamed place (lit, 5 m)
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:46: the grunt probably noticed you at an unnamed place
+  - 2:47: the patrol probably saw you at an unnamed place (lit, 15 m)
+  - 2:48: the patrol probably saw you up close at an unnamed place (1 m)
+  - 2:55: the posted probably saw you at an unnamed place (in shadow, 6 m)
+  - 2:57: the posted probably saw you at an unnamed place (in shadow, 4 m)
+  - 3:01: the watch probably saw you at an unnamed place (lit, 13 m)
+  - 3:02: the patrol probably noticed you at an unnamed place
+  - 3:02: the posted probably noticed you at an unnamed place
+  - 3:02: the posted probably noticed you at an unnamed place
+  - 3:02: the desk probably noticed you at an unnamed place
+  - 3:02: the escort probably noticed you at an unnamed place
+  - 3:02: the patrol probably noticed you at an unnamed place
+  - 3:02: the supervisor probably noticed you at an unnamed place
+- Dead stops:
+  - 1:44: the robot could not follow the path, at an unnamed place, link ?, picture shots/S3-code-3-1.png
+  - 1:54: the robot could not follow the path, at an unnamed place, link ?, picture shots/S3-code-3-2.png
+- Stubs:
+  - climb at link 4, held 6 s, no link step for this kind yet (R5)
+  - climb at link 7, held 6 s, no link step for this kind yet (R5)
+
+### S3 The ceiling void (code route) (S3-code-4)
+
+- Result: pass
+- Time: 1:35, walked 94.9 m, guards 20 alive of 20
+- Seen:
+  - 0:48: a camera probably spotted you at an unnamed place
+  - 0:52: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 0:52: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:52: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:52: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:52: the supervisor probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:52: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:53: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:53: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:53: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:53: the supervisor probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:53: the keyholder probably noticed you at an unnamed place
+  - 0:53: the keyholder probably noticed you at an unnamed place
+  - 0:53: the keyholder probably noticed you at an unnamed place
+  - 0:53: the keyholder probably noticed you at an unnamed place
+  - 0:53: the supervisor probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:53: the keyholder probably noticed you at an unnamed place
+  - 0:53: the grunt probably noticed you at an unnamed place
+  - 0:53: the grunt probably noticed you at an unnamed place
+  - 0:53: a camera probably spotted you at an unnamed place
+  - 0:54: the supervisor probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:54: the supervisor probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:54: the supervisor probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:55: the supervisor probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:55: the supervisor probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:55: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:55: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:55: the supervisor probably noticed you at an unnamed place
+  - 0:55: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:55: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 0:55: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:55: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 0:55: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:55: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 0:55: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:55: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 0:55: the console probably noticed you at an unnamed place
+  - 0:55: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:55: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:55: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 0:55: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 0:56: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 0:56: the supervisor probably noticed you at an unnamed place
+  - 0:56: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 0:56: the supervisor probably noticed you at an unnamed place
+  - 0:56: the keyholder probably noticed you at an unnamed place
+  - 0:56: the supervisor probably noticed you at an unnamed place
+  - 0:56: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:56: the keyholder probably noticed you at an unnamed place
+  - 0:56: the supervisor probably noticed you at an unnamed place
+  - 0:56: the supervisor probably noticed you at an unnamed place
+  - 0:57: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 0:57: the keyholder probably heard you at an unnamed place (25 m)
+  - 0:57: the grunt probably heard you at an unnamed place (10 m)
+  - 0:57: the grunt probably heard you at an unnamed place (18 m)
+  - 0:57: a camera probably spotted you at an unnamed place
+  - 0:57: the keyholder probably heard you at an unnamed place (25 m)
+  - 0:57: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:57: the bridge probably heard you at an unnamed place (15 m)
+  - 0:57: the sentry probably heard you at an unnamed place (14 m)
+  - 0:57: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:57: the patrol probably saw you at an unnamed place (lit, 18 m)
+  - 0:57: the watch probably heard you at an unnamed place (28 m)
+  - 0:57: the patrol probably heard you at an unnamed place (11 m)
+  - 0:57: the tour probably heard you at an unnamed place (7 m)
+  - 0:57: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 0:57: the sentry probably heard you at an unnamed place (11 m)
+  - 0:57: the watch probably heard you at an unnamed place (4 m)
+  - 0:57: the posted probably heard you at an unnamed place (5 m)
+  - 0:57: the desk probably heard you at an unnamed place (3 m)
+  - 0:57: the escort probably heard you at an unnamed place (6 m)
+  - 0:57: the grunt probably saw you at an unnamed place (lit, 14 m)
+  - 0:57: the grunt probably saw you at an unnamed place (lit, 23 m)
+  - 0:57: the grunt probably heard you at an unnamed place (10 m)
+  - 0:57: the grunt probably heard you at an unnamed place (18 m)
+  - 0:57: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:57: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 0:57: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:57: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 0:57: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 0:57: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:57: the operator probably noticed you at an unnamed place
+  - 0:57: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 0:57: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:57: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 0:57: the patrol probably noticed you at an unnamed place
+  - 0:57: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 0:57: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 0:58: the patrol probably noticed you at an unnamed place
+  - 0:58: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 0:58: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 0:58: the patrol probably noticed you at an unnamed place
+  - 0:58: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 0:58: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 0:58: the patrol probably noticed you at an unnamed place
+  - 0:58: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 0:58: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 0:58: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:58: the patrol probably noticed you at an unnamed place
+  - 0:58: the keyholder probably saw you at an unnamed place (lit, 2 m)
+  - 0:58: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 0:58: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:58: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:58: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 0:58: the supervisor probably saw you at an unnamed place (lit, 2 m)
+  - 0:58: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:58: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:58: the keyholder probably saw you up close at an unnamed place (2 m)
+  - 0:58: the supervisor probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:58: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:58: the keyholder probably noticed you at an unnamed place
+  - 0:58: the supervisor probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:58: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:58: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:58: the keyholder probably noticed you at an unnamed place
+  - 0:58: the supervisor probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:58: the console probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:58: the keyholder probably noticed you at an unnamed place
+  - 0:58: the patrol probably noticed you at an unnamed place
+  - 0:58: the supervisor probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:58: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:58: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 0:59: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 0:59: the supervisor probably noticed you at an unnamed place
+  - 0:59: a camera probably spotted you at an unnamed place
+  - 0:59: the supervisor probably noticed you at an unnamed place
+  - 0:59: the keyholder probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:59: the supervisor probably noticed you at an unnamed place
+  - 0:59: the supervisor probably noticed you at an unnamed place
+  - 0:59: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 0:59: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:59: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 0:59: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:59: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 0:59: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:59: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:59: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:59: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 0:59: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:59: the supervisor probably noticed you at an unnamed place
+  - 0:59: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 0:59: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 0:59: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:00: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:00: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:00: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:00: the keyholder probably saw you at an unnamed place (lit, 4 m)
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:00: the keyholder probably saw you at an unnamed place (lit, 5 m)
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:00: the keyholder probably noticed you at an unnamed place
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:00: the console probably noticed you at an unnamed place
+  - 1:00: the patrol probably noticed you at an unnamed place
+  - 1:00: the keyholder probably noticed you at an unnamed place
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:00: the patrol probably noticed you at an unnamed place
+  - 1:00: the keyholder probably noticed you at an unnamed place
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:00: the patrol probably noticed you at an unnamed place
+  - 1:00: the keyholder probably noticed you at an unnamed place
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:00: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:00: the patrol probably noticed you at an unnamed place
+  - 1:00: the keyholder probably noticed you at an unnamed place
+  - 1:00: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:00: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the operator probably saw you at an unnamed place (lit, 12 m)
+  - 1:01: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:01: the grunt probably saw you at an unnamed place (lit, 9 m)
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:01: the sentry probably noticed you at an unnamed place
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:01: the keyholder probably noticed you at an unnamed place
+  - 1:01: the supervisor probably noticed you at an unnamed place
+  - 1:02: the bridge probably noticed you at an unnamed place
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the patrol probably noticed you at an unnamed place
+  - 1:02: the keyholder probably noticed you at an unnamed place
+  - 1:02: the patrol probably noticed you at an unnamed place
+  - 1:02: the watch probably noticed you at an unnamed place
+  - 1:02: the patrol probably noticed you at an unnamed place
+  - 1:02: the tour probably noticed you at an unnamed place
+  - 1:02: the supervisor probably noticed you at an unnamed place
+  - 1:02: the sentry probably noticed you at an unnamed place
+  - 1:02: the watch probably noticed you at an unnamed place
+  - 1:02: the console probably saw you at an unnamed place (lit, 6 m)
+  - 1:02: the posted probably noticed you at an unnamed place
+  - 1:02: the desk probably noticed you at an unnamed place
+  - 1:02: the escort probably noticed you at an unnamed place
+  - 1:02: the grunt probably saw you at an unnamed place (lit, 15 m)
+  - 1:02: the grunt probably noticed you at an unnamed place
+  - 1:02: the grunt probably noticed you at an unnamed place
+  - 1:02: the grunt probably noticed you at an unnamed place
+  - 1:02: the grunt probably noticed you at an unnamed place
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the patrol probably heard you at an unnamed place (14 m)
+  - 1:02: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:02: the supervisor probably heard you at an unnamed place (21 m)
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the patrol probably heard you at an unnamed place (14 m)
+  - 1:02: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:02: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the patrol probably heard you at an unnamed place (14 m)
+  - 1:02: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:02: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:02: the patrol probably heard you at an unnamed place (14 m)
+  - 1:02: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:02: the supervisor probably saw you at an unnamed place (lit, 5 m)
+  - 1:02: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:02: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 1:02: the patrol probably heard you at an unnamed place (14 m)
+  - 1:02: the supervisor probably saw you at an unnamed place (lit, 6 m)
+  - 1:02: the patrol probably heard you at an unnamed place (11 m)
+  - 1:02: the supervisor probably saw you at an unnamed place (lit, 6 m)
+  - 1:02: the patrol probably heard you at an unnamed place (5 m)
+  - 1:02: the patrol probably heard you at an unnamed place (11 m)
+  - 1:02: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:02: the supervisor probably saw you at an unnamed place (lit, 6 m)
+  - 1:02: the patrol probably heard you at an unnamed place (11 m)
+  - 1:02: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:02: the supervisor probably saw you at an unnamed place (lit, 7 m)
+  - 1:02: the patrol probably heard you at an unnamed place (11 m)
+  - 1:02: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:02: the supervisor probably saw you at an unnamed place (lit, 7 m)
+  - 1:03: the patrol probably heard you at an unnamed place (11 m)
+  - 1:03: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:03: the supervisor probably heard you at an unnamed place (20 m)
+  - 1:03: the patrol probably heard you at an unnamed place (11 m)
+  - 1:03: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:03: the supervisor probably heard you at an unnamed place (21 m)
+  - 1:03: the patrol probably heard you at an unnamed place (11 m)
+  - 1:03: the keyholder probably saw you at an unnamed place (in shadow, 13 m)
+  - 1:03: the patrol probably heard you at an unnamed place (20 m)
+  - 1:03: the supervisor probably heard you at an unnamed place (21 m)
+  - 1:03: the patrol probably heard you at an unnamed place (11 m)
+  - 1:03: the keyholder probably saw you at an unnamed place (in shadow, 13 m)
+  - 1:03: the supervisor probably heard you at an unnamed place (21 m)
+  - 1:03: the patrol probably heard you at an unnamed place (11 m)
+  - 1:03: the keyholder probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:03: the patrol probably heard you at an unnamed place (16 m)
+  - 1:03: the supervisor probably heard you at an unnamed place (22 m)
+  - 1:03: the patrol probably heard you at an unnamed place (11 m)
+  - 1:03: the sentry probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:03: the keyholder probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:03: the supervisor probably heard you at an unnamed place (22 m)
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the keyholder probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the keyholder probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the console probably noticed you at an unnamed place
+  - 1:03: the patrol probably noticed you at an unnamed place
+  - 1:03: the supervisor probably noticed you at an unnamed place
+  - 1:03: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the keyholder probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the operator probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the keyholder probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the patrol probably noticed you at an unnamed place
+  - 1:04: the supervisor probably noticed you at an unnamed place
+  - 1:04: the grunt probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the keyholder probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:05: the watch probably noticed you at an unnamed place
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the keyholder probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 4 m)
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the grunt probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the operator probably noticed you at an unnamed place
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the bridge probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the tour probably saw you at an unnamed place (in shadow, 21 m)
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:05: the sentry probably noticed you at an unnamed place
+  - 1:05: the watch probably noticed you at an unnamed place
+  - 1:05: the posted probably noticed you at an unnamed place
+  - 1:05: the desk probably noticed you at an unnamed place
+  - 1:05: the escort probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the supervisor probably noticed you at an unnamed place
+  - 1:06: the patrol probably noticed you at an unnamed place
+  - 1:06: the supervisor probably noticed you at an unnamed place
+  - 1:06: the patrol probably noticed you at an unnamed place
+  - 1:06: the supervisor probably noticed you at an unnamed place
+  - 1:06: the patrol probably noticed you at an unnamed place
+  - 1:06: the supervisor probably noticed you at an unnamed place
+  - 1:06: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:06: the patrol probably noticed you at an unnamed place
+  - 1:06: the supervisor probably noticed you at an unnamed place
+  - 1:06: the patrol probably heard you at an unnamed place (9 m)
+  - 1:06: the supervisor probably heard you at an unnamed place (28 m)
+  - 1:06: the patrol probably heard you at an unnamed place (9 m)
+  - 1:06: the supervisor probably heard you at an unnamed place (28 m)
+  - 1:06: the patrol probably heard you at an unnamed place (9 m)
+  - 1:06: the supervisor probably heard you at an unnamed place (28 m)
+  - 1:06: the patrol probably heard you at an unnamed place (8 m)
+  - 1:06: the supervisor probably heard you at an unnamed place (28 m)
+  - 1:06: the patrol probably heard you at an unnamed place (8 m)
+  - 1:06: the keyholder probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:06: the supervisor probably heard you at an unnamed place (28 m)
+  - 1:06: the patrol probably saw you at an unnamed place (in shadow, 2 m)
+  - 1:06: the patrol probably heard you at an unnamed place (8 m)
+  - 1:06: the keyholder probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:06: the supervisor probably heard you at an unnamed place (27 m)
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:07: the patrol probably heard you at an unnamed place (8 m)
+  - 1:07: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:07: the supervisor probably heard you at an unnamed place (27 m)
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:07: the patrol probably heard you at an unnamed place (8 m)
+  - 1:07: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:07: the supervisor probably heard you at an unnamed place (27 m)
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:07: the patrol probably heard you at an unnamed place (8 m)
+  - 1:07: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:07: the patrol probably heard you at an unnamed place (18 m)
+  - 1:07: the supervisor probably heard you at an unnamed place (27 m)
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:07: the patrol probably heard you at an unnamed place (9 m)
+  - 1:07: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:07: the supervisor probably heard you at an unnamed place (27 m)
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:07: the patrol probably noticed you at an unnamed place
+  - 1:07: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:07: the supervisor probably noticed you at an unnamed place
+  - 1:07: the grunt probably noticed you at an unnamed place
+  - 1:07: the grunt probably saw you at an unnamed place (lit, 5 m)
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:07: the patrol probably noticed you at an unnamed place
+  - 1:07: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:07: the supervisor probably noticed you at an unnamed place
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:07: the patrol probably noticed you at an unnamed place
+  - 1:07: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:07: the operator probably noticed you at an unnamed place
+  - 1:07: the supervisor probably noticed you at an unnamed place
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:07: the patrol probably noticed you at an unnamed place
+  - 1:07: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:07: the supervisor probably noticed you at an unnamed place
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:07: the patrol probably noticed you at an unnamed place
+  - 1:07: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:07: the supervisor probably noticed you at an unnamed place
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:07: the patrol probably noticed you at an unnamed place
+  - 1:07: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:07: the supervisor probably noticed you at an unnamed place
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the patrol probably noticed you at an unnamed place
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:08: the watch probably noticed you at an unnamed place
+  - 1:08: the supervisor probably noticed you at an unnamed place
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:08: the supervisor probably noticed you at an unnamed place
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 2 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the patrol probably noticed you at an unnamed place
+  - 1:08: the supervisor probably noticed you at an unnamed place
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the supervisor probably noticed you at an unnamed place
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 14 m)
+  - 1:08: the supervisor probably noticed you at an unnamed place
+  - 1:08: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 14 m)
+  - 1:08: the supervisor probably noticed you at an unnamed place
+  - 1:08: the console probably noticed you at an unnamed place
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 14 m)
+  - 1:08: the supervisor probably noticed you at an unnamed place
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 14 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 14 m)
+  - 1:08: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:08: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:08: the keyholder probably noticed you at an unnamed place
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:09: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:09: the patrol probably noticed you at an unnamed place
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:09: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:09: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:09: the console probably noticed you at an unnamed place
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:09: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:09: the bridge probably noticed you at an unnamed place
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:09: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:09: the patrol probably noticed you at an unnamed place
+  - 1:09: the tour probably saw you at an unnamed place (lit, 16 m)
+  - 1:09: the operator probably noticed you at an unnamed place
+  - 1:09: the sentry probably noticed you at an unnamed place
+  - 1:09: the watch probably noticed you at an unnamed place
+  - 1:09: the posted probably noticed you at an unnamed place
+  - 1:09: the desk probably noticed you at an unnamed place
+  - 1:09: the escort probably noticed you at an unnamed place
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:09: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:09: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:09: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:09: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:09: the patrol probably noticed you at an unnamed place
+  - 1:09: the keyholder probably noticed you at an unnamed place
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the keyholder probably noticed you at an unnamed place
+  - 1:10: the supervisor probably noticed you at an unnamed place
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:10: the keyholder probably noticed you at an unnamed place
+  - 1:10: the watch probably noticed you at an unnamed place
+  - 1:10: the operator probably noticed you at an unnamed place
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:10: the keyholder probably noticed you at an unnamed place
+  - 1:10: the sentry probably noticed you at an unnamed place
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:10: the keyholder probably noticed you at an unnamed place
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 1:10: the keyholder probably noticed you at an unnamed place
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:10: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:10: the keyholder probably noticed you at an unnamed place
+  - 1:11: the patrol probably heard you at an unnamed place (4 m)
+  - 1:11: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:11: the patrol probably heard you at an unnamed place (10 m)
+  - 1:11: the patrol probably heard you at an unnamed place (4 m)
+  - 1:11: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:11: the patrol probably heard you at an unnamed place (4 m)
+  - 1:11: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:11: the patrol probably heard you at an unnamed place (4 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:11: the grunt probably heard you at an unnamed place (8 m)
+  - 1:11: the patrol probably heard you at an unnamed place (4 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:11: the grunt probably heard you at an unnamed place (6 m)
+  - 1:11: the patrol probably heard you at an unnamed place (4 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:11: the patrol probably heard you at an unnamed place (16 m)
+  - 1:11: the patrol probably heard you at an unnamed place (4 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:11: the console probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:11: the patrol probably heard you at an unnamed place (4 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:11: the patrol probably heard you at an unnamed place (4 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:11: the patrol probably heard you at an unnamed place (4 m)
+  - 1:11: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the sentry probably saw you at an unnamed place (in shadow, 15 m)
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:12: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:12: the patrol probably noticed you at an unnamed place
+  - 1:12: the keyholder probably noticed you at an unnamed place
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the tour probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:13: the watch probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:13: the posted probably noticed you at an unnamed place
+  - 1:13: the desk probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:13: the escort probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the supervisor probably noticed you at an unnamed place
+  - 1:13: the console probably noticed you at an unnamed place
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the keyholder probably noticed you at an unnamed place
+  - 1:13: the patrol probably heard you at an unnamed place (7 m)
+  - 1:13: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:13: the patrol probably heard you at an unnamed place (7 m)
+  - 1:13: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:13: the patrol probably heard you at an unnamed place (7 m)
+  - 1:13: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:13: the watch probably heard you at an unnamed place (11 m)
+  - 1:13: the operator probably heard you at an unnamed place (10 m)
+  - 1:14: the patrol probably heard you at an unnamed place (8 m)
+  - 1:14: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:14: the patrol probably heard you at an unnamed place (8 m)
+  - 1:14: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:14: the patrol probably heard you at an unnamed place (16 m)
+  - 1:14: the patrol probably heard you at an unnamed place (8 m)
+  - 1:14: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:14: the patrol probably heard you at an unnamed place (9 m)
+  - 1:14: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:14: the patrol probably heard you at an unnamed place (9 m)
+  - 1:14: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:14: the patrol probably heard you at an unnamed place (9 m)
+  - 1:14: the keyholder probably heard you at an unnamed place (4 m)
+  - 1:14: the patrol probably heard you at an unnamed place (20 m)
+  - 1:14: the keyholder probably heard you at an unnamed place (16 m)
+  - 1:14: the patrol probably heard you at an unnamed place (20 m)
+  - 1:14: the patrol probably heard you at an unnamed place (21 m)
+  - 1:14: the keyholder probably heard you at an unnamed place (16 m)
+  - 1:14: the patrol probably heard you at an unnamed place (21 m)
+  - 1:14: the keyholder probably heard you at an unnamed place (16 m)
+  - 1:14: the patrol probably heard you at an unnamed place (21 m)
+  - 1:14: the keyholder probably heard you at an unnamed place (16 m)
+  - 1:15: the patrol probably heard you at an unnamed place (22 m)
+  - 1:15: the keyholder probably heard you at an unnamed place (16 m)
+  - 1:15: the grunt probably heard you at an unnamed place (16 m)
+  - 1:15: the patrol probably heard you at an unnamed place (22 m)
+  - 1:15: the keyholder probably heard you at an unnamed place (16 m)
+  - 1:15: the patrol probably heard you at an unnamed place (22 m)
+  - 1:15: the keyholder probably heard you at an unnamed place (16 m)
+  - 1:15: the operator probably saw you at an unnamed place (lit, 21 m)
+  - 1:15: the patrol probably heard you at an unnamed place (23 m)
+  - 1:15: the keyholder probably heard you at an unnamed place (16 m)
+  - 1:15: the sentry probably heard you at an unnamed place (16 m)
+  - 1:15: the patrol probably heard you at an unnamed place (23 m)
+  - 1:15: the keyholder probably heard you at an unnamed place (16 m)
+  - 1:15: the patrol probably heard you at an unnamed place (23 m)
+  - 1:15: the keyholder probably heard you at an unnamed place (16 m)
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the patrol probably noticed you at an unnamed place
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the console probably saw you at an unnamed place (lit, 10 m)
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:15: the keyholder probably noticed you at an unnamed place
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the supervisor probably noticed you at an unnamed place
+  - 1:16: the operator probably saw you at an unnamed place (lit, 19 m)
+  - 1:16: the grunt probably noticed you at an unnamed place
+  - 1:16: the grunt probably noticed you at an unnamed place
+  - 1:17: the watch probably noticed you at an unnamed place
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 16 m)
+  - 1:17: the bridge probably noticed you at an unnamed place
+  - 1:17: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 1:17: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:17: the patrol probably noticed you at an unnamed place
+  - 1:17: the tour probably saw you at an unnamed place (lit, 14 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:17: the watch probably saw you at an unnamed place (lit, 11 m)
+  - 1:17: the posted probably noticed you at an unnamed place
+  - 1:17: the desk probably saw you at an unnamed place (lit, 9 m)
+  - 1:17: the escort probably noticed you at an unnamed place
+  - 1:17: the grunt probably noticed you at an unnamed place
+  - 1:17: the grunt probably noticed you at an unnamed place
+  - 1:17: the grunt probably noticed you at an unnamed place
+  - 1:17: the grunt probably noticed you at an unnamed place
+  - 1:17: the patrol probably noticed you at an unnamed place
+  - 1:17: the console probably noticed you at an unnamed place
+  - 1:17: the keyholder probably saw you at an unnamed place (lit, 16 m)
+  - 1:18: the patrol probably saw you at an unnamed place (lit, 23 m)
+  - 1:18: the operator probably noticed you at an unnamed place
+  - 1:18: the grunt probably noticed you at an unnamed place
+  - 1:18: the patrol probably heard you at an unnamed place (16 m)
+  - 1:19: the patrol probably heard you at an unnamed place (20 m)
+  - 1:19: the grunt probably heard you at an unnamed place (12 m)
+  - 1:20: the sentry probably saw you at an unnamed place (lit, 18 m)
+  - 1:20: the console probably noticed you at an unnamed place
+  - 1:20: the supervisor probably noticed you at an unnamed place
+  - 1:20: the bridge probably noticed you at an unnamed place
+  - 1:20: the patrol probably noticed you at an unnamed place
+  - 1:20: the sentry probably noticed you at an unnamed place
+  - 1:20: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 1:20: the watch probably noticed you at an unnamed place
+  - 1:20: the patrol probably noticed you at an unnamed place
+  - 1:20: the tour probably saw you at an unnamed place (lit, 15 m)
+  - 1:20: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:20: the watch probably noticed you at an unnamed place
+  - 1:20: the posted probably noticed you at an unnamed place
+  - 1:20: the desk probably noticed you at an unnamed place
+  - 1:20: the escort probably noticed you at an unnamed place
+  - 1:20: the grunt probably noticed you at an unnamed place
+  - 1:20: the grunt probably noticed you at an unnamed place
+  - 1:20: the grunt probably noticed you at an unnamed place
+  - 1:20: the grunt probably noticed you at an unnamed place
+  - 1:31: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:31: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:32: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:32: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:32: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:32: the escort probably saw you at an unnamed place (lit, 6 m)
+  - 1:32: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:32: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:32: the escort probably saw you at an unnamed place (lit, 6 m)
+  - 1:32: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:32: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:32: the escort probably saw you at an unnamed place (lit, 5 m)
+  - 1:32: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:32: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:32: the escort probably saw you at an unnamed place (lit, 5 m)
+  - 1:32: the patrol probably noticed you at an unnamed place
+  - 1:32: the tour probably saw you at an unnamed place (lit, 9 m)
+  - 1:32: the sentry probably noticed you at an unnamed place
+  - 1:32: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:32: the escort probably saw you at an unnamed place (lit, 5 m)
+  - 1:32: the grunt probably noticed you at an unnamed place
+  - 1:32: the tour probably saw you at an unnamed place (lit, 9 m)
+  - 1:32: the sentry probably noticed you at an unnamed place
+  - 1:32: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:32: the escort probably saw you at an unnamed place (lit, 5 m)
+  - 1:32: the grunt probably noticed you at an unnamed place
+  - 1:32: the tour probably saw you at an unnamed place (lit, 9 m)
+  - 1:32: the sentry probably noticed you at an unnamed place
+  - 1:32: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:32: the escort probably saw you at an unnamed place (lit, 4 m)
+  - 1:32: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:32: the tour probably saw you at an unnamed place (lit, 9 m)
+  - 1:32: the sentry probably noticed you at an unnamed place
+  - 1:32: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:32: the escort probably saw you at an unnamed place (lit, 4 m)
+  - 1:32: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:32: the patrol probably noticed you at an unnamed place
+  - 1:32: the tour probably saw you at an unnamed place (lit, 9 m)
+  - 1:32: the sentry probably noticed you at an unnamed place
+  - 1:32: the watch probably noticed you at an unnamed place
+  - 1:32: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:32: the escort probably saw you at an unnamed place (lit, 4 m)
+  - 1:32: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:32: the grunt probably noticed you at an unnamed place
+  - 1:33: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the tour probably noticed you at an unnamed place
+  - 1:33: the sentry probably noticed you at an unnamed place
+  - 1:33: the posted probably noticed you at an unnamed place
+  - 1:33: the escort probably saw you at an unnamed place (lit, 3 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:33: the grunt probably noticed you at an unnamed place
+  - 1:33: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the tour probably noticed you at an unnamed place
+  - 1:33: the sentry probably noticed you at an unnamed place
+  - 1:33: the posted probably noticed you at an unnamed place
+  - 1:33: the escort probably saw you at an unnamed place (lit, 3 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 13 m)
+  - 1:33: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the tour probably noticed you at an unnamed place
+  - 1:33: the sentry probably noticed you at an unnamed place
+  - 1:33: the posted probably noticed you at an unnamed place
+  - 1:33: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 13 m)
+  - 1:33: the tour probably noticed you at an unnamed place
+  - 1:33: the sentry probably noticed you at an unnamed place
+  - 1:33: the watch probably noticed you at an unnamed place
+  - 1:33: the posted probably noticed you at an unnamed place
+  - 1:33: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:33: the tour probably noticed you at an unnamed place
+  - 1:33: the sentry probably noticed you at an unnamed place
+  - 1:33: the posted probably noticed you at an unnamed place
+  - 1:33: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:33: the tour probably noticed you at an unnamed place
+  - 1:33: the sentry probably noticed you at an unnamed place
+  - 1:33: the posted probably noticed you at an unnamed place
+  - 1:33: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:33: the tour probably noticed you at an unnamed place
+  - 1:33: the sentry probably noticed you at an unnamed place
+  - 1:33: the posted probably noticed you at an unnamed place
+  - 1:33: the escort probably saw you at an unnamed place (lit, 2 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:33: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the tour probably noticed you at an unnamed place
+  - 1:33: the sentry probably noticed you at an unnamed place
+  - 1:33: the watch probably noticed you at an unnamed place
+  - 1:33: the posted probably noticed you at an unnamed place
+  - 1:33: the escort probably saw you up close at an unnamed place (2 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:33: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:33: the tour probably noticed you at an unnamed place
+  - 1:33: the sentry probably noticed you at an unnamed place
+  - 1:33: the posted probably noticed you at an unnamed place
+  - 1:33: the escort probably saw you up close at an unnamed place (2 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 12 m)
+  - 1:33: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:33: the tour probably noticed you at an unnamed place
+  - 1:33: the sentry probably noticed you at an unnamed place
+  - 1:33: the posted probably noticed you at an unnamed place
+  - 1:33: the escort probably saw you up close at an unnamed place (2 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:34: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the tour probably noticed you at an unnamed place
+  - 1:34: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:34: the posted probably noticed you at an unnamed place
+  - 1:34: the escort probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:34: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the tour probably noticed you at an unnamed place
+  - 1:34: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:34: the watch probably noticed you at an unnamed place
+  - 1:34: the posted probably noticed you at an unnamed place
+  - 1:34: the escort probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:34: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:34: the tour probably noticed you at an unnamed place
+  - 1:34: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:34: the watch probably noticed you at an unnamed place
+  - 1:34: the posted probably noticed you at an unnamed place
+  - 1:34: the escort probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:34: the tour probably noticed you at an unnamed place
+  - 1:34: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:34: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 1:34: the posted probably noticed you at an unnamed place
+  - 1:34: the escort probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:34: the tour probably noticed you at an unnamed place
+  - 1:34: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:34: the posted probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:34: the tour probably noticed you at an unnamed place
+  - 1:34: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:34: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 1:34: the posted probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:34: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:34: the tour probably noticed you at an unnamed place
+  - 1:34: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:34: the posted probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:34: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:34: the tour probably noticed you at an unnamed place
+  - 1:34: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:34: the posted probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:34: the tour probably noticed you at an unnamed place
+  - 1:34: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:34: the posted probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:34: the tour probably saw you at an unnamed place (lit, 13 m)
+  - 1:34: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:34: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the posted probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:35: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:35: the tour probably saw you at an unnamed place (lit, 13 m)
+  - 1:35: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 1:35: the posted probably noticed you at an unnamed place
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:35: the tour probably saw you at an unnamed place (lit, 14 m)
+  - 1:35: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 1:35: the posted probably noticed you at an unnamed place
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:35: the tour probably saw you at an unnamed place (lit, 14 m)
+  - 1:35: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 1:35: the posted probably saw you at an unnamed place (lit, 12 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:35: the tour probably saw you at an unnamed place (lit, 14 m)
+  - 1:35: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:35: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 1:35: the posted probably saw you at an unnamed place (lit, 12 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:35: the tour probably heard you at an unnamed place (14 m)
+  - 1:35: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:35: the tour probably heard you at an unnamed place (14 m)
+  - 1:35: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the posted probably saw you at an unnamed place (lit, 12 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:35: the tour probably heard you at an unnamed place (14 m)
+  - 1:35: the posted probably saw you at an unnamed place (lit, 12 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:35: the tour probably heard you at an unnamed place (14 m)
+  - 1:35: the sentry probably heard you at an unnamed place (9 m)
+  - 1:35: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the posted probably saw you at an unnamed place (lit, 12 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:35: the tour probably heard you at an unnamed place (14 m)
+  - 1:35: the sentry probably heard you at an unnamed place (9 m)
+  - 1:35: the posted probably saw you at an unnamed place (lit, 12 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 11 m)
+- Noticed:
+  - 0:13: the bridge probably saw you at an unnamed place (in shadow, 6 m)
+  - 0:16: the bridge probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:52: the supervisor probably saw you at an unnamed place (in shadow, 5 m)
+  - 0:53: the supervisor probably saw you at an unnamed place (in shadow, 4 m)
+  - 0:53: the supervisor probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:53: the keyholder probably noticed you at an unnamed place
+  - 0:53: the grunt probably noticed you at an unnamed place
+  - 0:53: the grunt probably noticed you at an unnamed place
+  - 0:54: the supervisor probably saw you at an unnamed place (in shadow, 3 m)
+  - 0:54: the supervisor probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:55: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:55: the supervisor probably saw you up close at an unnamed place (2 m)
+  - 0:55: the console probably noticed you at an unnamed place
+  - 0:56: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:56: the patrol probably saw you at an unnamed place (lit, 10 m)
+  - 0:56: the keyholder probably noticed you at an unnamed place
+  - 0:56: the supervisor probably noticed you at an unnamed place
+  - 0:57: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 0:57: the grunt probably heard you at an unnamed place (10 m)
+  - 0:57: the grunt probably heard you at an unnamed place (18 m)
+  - 0:57: the bridge probably heard you at an unnamed place (15 m)
+  - 0:57: the sentry probably heard you at an unnamed place (14 m)
+  - 0:57: the patrol probably saw you at an unnamed place (lit, 18 m)
+  - 0:57: the watch probably heard you at an unnamed place (28 m)
+  - 0:57: the patrol probably heard you at an unnamed place (11 m)
+  - 0:57: the tour probably heard you at an unnamed place (7 m)
+  - 0:57: the sentry probably heard you at an unnamed place (11 m)
+  - 0:57: the watch probably heard you at an unnamed place (4 m)
+  - 0:57: the posted probably heard you at an unnamed place (5 m)
+  - 0:57: the desk probably heard you at an unnamed place (3 m)
+  - 0:57: the escort probably heard you at an unnamed place (6 m)
+  - 0:57: the grunt probably saw you at an unnamed place (lit, 14 m)
+  - 0:57: the grunt probably saw you at an unnamed place (lit, 23 m)
+  - 0:57: the grunt probably heard you at an unnamed place (10 m)
+  - 0:57: the grunt probably heard you at an unnamed place (18 m)
+  - 0:57: the patrol probably saw you at an unnamed place (lit, 5 m)
+  - 0:57: the operator probably noticed you at an unnamed place
+  - 0:58: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:58: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:58: the patrol probably saw you at an unnamed place (in shadow, 8 m)
+  - 0:58: the console probably saw you at an unnamed place (in shadow, 9 m)
+  - 0:58: the patrol probably noticed you at an unnamed place
+  - 0:59: the keyholder probably saw you at an unnamed place (in shadow, 2 m)
+  - 0:59: the keyholder probably saw you at an unnamed place (lit, 3 m)
+  - 0:59: the supervisor probably noticed you at an unnamed place
+  - 0:59: the patrol probably saw you at an unnamed place (lit, 4 m)
+  - 0:59: the supervisor probably saw you at an unnamed place (lit, 3 m)
+  - 1:00: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:00: the console probably noticed you at an unnamed place
+  - 1:01: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:01: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:01: the operator probably saw you at an unnamed place (lit, 12 m)
+  - 1:01: the grunt probably saw you at an unnamed place (lit, 8 m)
+  - 1:01: the sentry probably noticed you at an unnamed place
+  - 1:01: the patrol probably noticed you at an unnamed place
+  - 1:02: the bridge probably heard you at an unnamed place (21 m)
+  - 1:02: the patrol probably heard you at an unnamed place (8 m)
+  - 1:02: the watch probably heard you at an unnamed place (24 m)
+  - 1:02: the patrol probably heard you at an unnamed place (16 m)
+  - 1:02: the tour probably heard you at an unnamed place (11 m)
+  - 1:02: the sentry probably heard you at an unnamed place (12 m)
+  - 1:02: the watch probably heard you at an unnamed place (8 m)
+  - 1:02: the console probably saw you at an unnamed place (lit, 6 m)
+  - 1:02: the posted probably heard you at an unnamed place (9 m)
+  - 1:02: the desk probably heard you at an unnamed place (8 m)
+  - 1:02: the escort probably heard you at an unnamed place (7 m)
+  - 1:02: the grunt probably saw you at an unnamed place (lit, 15 m)
+  - 1:02: the grunt probably heard you at an unnamed place (14 m)
+  - 1:02: the grunt probably heard you at an unnamed place (21 m)
+  - 1:02: the grunt probably heard you at an unnamed place (15 m)
+  - 1:02: the grunt probably heard you at an unnamed place (23 m)
+  - 1:02: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:02: the keyholder probably saw you at an unnamed place (lit, 12 m)
+  - 1:02: the sentry probably saw you at an unnamed place (lit, 7 m)
+  - 1:02: the grunt probably saw you at an unnamed place (lit, 7 m)
+  - 1:02: the patrol probably heard you at an unnamed place (5 m)
+  - 1:03: the patrol probably heard you at an unnamed place (20 m)
+  - 1:03: the patrol probably heard you at an unnamed place (16 m)
+  - 1:03: the sentry probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:03: the keyholder probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:03: the console probably noticed you at an unnamed place
+  - 1:04: the sentry probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:04: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:04: the keyholder probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:04: the operator probably noticed you at an unnamed place
+  - 1:04: the keyholder probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:05: the grunt probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:05: the keyholder probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:05: the watch probably noticed you at an unnamed place
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:05: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:05: the keyholder probably saw you at an unnamed place (in shadow, 11 m)
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the patrol probably saw you at an unnamed place (in shadow, 3 m)
+  - 1:05: the grunt probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:05: the operator probably noticed you at an unnamed place
+  - 1:05: the bridge probably noticed you at an unnamed place
+  - 1:05: the patrol probably noticed you at an unnamed place
+  - 1:05: the tour probably saw you at an unnamed place (in shadow, 21 m)
+  - 1:05: the sentry probably noticed you at an unnamed place
+  - 1:05: the watch probably noticed you at an unnamed place
+  - 1:05: the posted probably noticed you at an unnamed place
+  - 1:05: the desk probably noticed you at an unnamed place
+  - 1:05: the escort probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:05: the grunt probably noticed you at an unnamed place
+  - 1:06: the sentry probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:07: the patrol probably heard you at an unnamed place (18 m)
+  - 1:07: the grunt probably noticed you at an unnamed place
+  - 1:07: the grunt probably saw you at an unnamed place (lit, 5 m)
+  - 1:07: the operator probably noticed you at an unnamed place
+  - 1:07: the patrol probably saw you at an unnamed place (lit, 7 m)
+  - 1:08: the watch probably noticed you at an unnamed place
+  - 1:08: the keyholder probably saw you at an unnamed place (lit, 13 m)
+  - 1:08: the patrol probably noticed you at an unnamed place
+  - 1:08: the patrol probably noticed you at an unnamed place
+  - 1:08: the sentry probably saw you at an unnamed place (lit, 10 m)
+  - 1:08: the console probably noticed you at an unnamed place
+  - 1:08: the supervisor probably noticed you at an unnamed place
+  - 1:09: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:09: the patrol probably noticed you at an unnamed place
+  - 1:09: the patrol probably noticed you at an unnamed place
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:09: the console probably noticed you at an unnamed place
+  - 1:09: the bridge probably noticed you at an unnamed place
+  - 1:09: the patrol probably noticed you at an unnamed place
+  - 1:09: the tour probably saw you at an unnamed place (lit, 16 m)
+  - 1:09: the operator probably noticed you at an unnamed place
+  - 1:09: the sentry probably noticed you at an unnamed place
+  - 1:09: the watch probably noticed you at an unnamed place
+  - 1:09: the posted probably noticed you at an unnamed place
+  - 1:09: the desk probably noticed you at an unnamed place
+  - 1:09: the escort probably noticed you at an unnamed place
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:09: the patrol probably saw you at an unnamed place (lit, 6 m)
+  - 1:09: the grunt probably noticed you at an unnamed place
+  - 1:10: the keyholder probably noticed you at an unnamed place
+  - 1:10: the supervisor probably noticed you at an unnamed place
+  - 1:10: the watch probably noticed you at an unnamed place
+  - 1:10: the operator probably noticed you at an unnamed place
+  - 1:10: the sentry probably noticed you at an unnamed place
+  - 1:10: the patrol probably noticed you at an unnamed place
+  - 1:11: the patrol probably heard you at an unnamed place (10 m)
+  - 1:11: the patrol probably saw you at an unnamed place (in shadow, 5 m)
+  - 1:11: the grunt probably heard you at an unnamed place (8 m)
+  - 1:11: the grunt probably heard you at an unnamed place (6 m)
+  - 1:11: the patrol probably heard you at an unnamed place (16 m)
+  - 1:11: the console probably saw you at an unnamed place (in shadow, 8 m)
+  - 1:12: the sentry probably saw you at an unnamed place (in shadow, 15 m)
+  - 1:12: the patrol probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:13: the bridge probably noticed you at an unnamed place
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:13: the patrol probably noticed you at an unnamed place
+  - 1:13: the tour probably saw you at an unnamed place (in shadow, 12 m)
+  - 1:13: the sentry probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:13: the watch probably saw you at an unnamed place (in shadow, 10 m)
+  - 1:13: the posted probably noticed you at an unnamed place
+  - 1:13: the desk probably saw you at an unnamed place (in shadow, 9 m)
+  - 1:13: the escort probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the grunt probably noticed you at an unnamed place
+  - 1:13: the patrol probably saw you at an unnamed place (in shadow, 7 m)
+  - 1:13: the supervisor probably noticed you at an unnamed place
+  - 1:13: the console probably noticed you at an unnamed place
+  - 1:14: the watch probably heard you at an unnamed place (11 m)
+  - 1:14: the operator probably heard you at an unnamed place (10 m)
+  - 1:14: the patrol probably heard you at an unnamed place (16 m)
+  - 1:14: the patrol probably heard you at an unnamed place (20 m)
+  - 1:15: the grunt probably heard you at an unnamed place (16 m)
+  - 1:15: the operator probably saw you at an unnamed place (lit, 21 m)
+  - 1:15: the sentry probably heard you at an unnamed place (16 m)
+  - 1:15: the patrol probably saw you at an unnamed place (lit, 23 m)
+  - 1:15: the console probably saw you at an unnamed place (lit, 10 m)
+  - 1:16: the keyholder probably noticed you at an unnamed place
+  - 1:16: the supervisor probably noticed you at an unnamed place
+  - 1:16: the operator probably saw you at an unnamed place (lit, 19 m)
+  - 1:16: the grunt probably noticed you at an unnamed place
+  - 1:16: the grunt probably noticed you at an unnamed place
+  - 1:17: the watch probably noticed you at an unnamed place
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 16 m)
+  - 1:17: the bridge probably noticed you at an unnamed place
+  - 1:17: the patrol probably saw you at an unnamed place (lit, 8 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 6 m)
+  - 1:17: the patrol probably saw you at an unnamed place (lit, 9 m)
+  - 1:17: the patrol probably noticed you at an unnamed place
+  - 1:17: the tour probably saw you at an unnamed place (lit, 14 m)
+  - 1:17: the sentry probably saw you at an unnamed place (lit, 11 m)
+  - 1:17: the watch probably saw you at an unnamed place (lit, 12 m)
+  - 1:17: the posted probably noticed you at an unnamed place
+  - 1:17: the desk probably saw you at an unnamed place (lit, 9 m)
+  - 1:17: the escort probably noticed you at an unnamed place
+  - 1:17: the grunt probably noticed you at an unnamed place
+  - 1:17: the grunt probably noticed you at an unnamed place
+  - 1:17: the grunt probably noticed you at an unnamed place
+  - 1:17: the grunt probably noticed you at an unnamed place
+  - 1:17: the patrol probably noticed you at an unnamed place
+  - 1:17: the console probably noticed you at an unnamed place
+  - 1:17: the keyholder probably saw you at an unnamed place (lit, 16 m)
+  - 1:18: the patrol probably saw you at an unnamed place (lit, 23 m)
+  - 1:18: the operator probably noticed you at an unnamed place
+  - 1:18: the grunt probably noticed you at an unnamed place
+  - 1:19: the patrol probably heard you at an unnamed place (16 m)
+  - 1:19: the patrol probably heard you at an unnamed place (20 m)
+  - 1:19: the grunt probably heard you at an unnamed place (12 m)
+  - 1:20: the sentry probably saw you at an unnamed place (lit, 18 m)
+  - 1:20: the console probably noticed you at an unnamed place
+  - 1:20: the supervisor probably noticed you at an unnamed place
+  - 1:20: the bridge probably heard you at an unnamed place (40 m)
+  - 1:20: the patrol probably heard you at an unnamed place (17 m)
+  - 1:20: the sentry probably heard you at an unnamed place (18 m)
+  - 1:20: the patrol probably saw you at an unnamed place (lit, 12 m)
+  - 1:20: the watch probably heard you at an unnamed place (11 m)
+  - 1:20: the patrol probably heard you at an unnamed place (38 m)
+  - 1:20: the tour probably saw you at an unnamed place (lit, 15 m)
+  - 1:20: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:20: the watch probably heard you at an unnamed place (29 m)
+  - 1:20: the posted probably heard you at an unnamed place (36 m)
+  - 1:20: the desk probably heard you at an unnamed place (28 m)
+  - 1:20: the escort probably heard you at an unnamed place (35 m)
+  - 1:20: the grunt probably heard you at an unnamed place (36 m)
+  - 1:20: the grunt probably heard you at an unnamed place (39 m)
+  - 1:20: the grunt probably heard you at an unnamed place (37 m)
+  - 1:20: the grunt probably heard you at an unnamed place (41 m)
+  - 1:29: the sentry probably saw you at an unnamed place (in shadow, 6 m)
+  - 1:31: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:31: the escort probably saw you at an unnamed place (lit, 7 m)
+  - 1:31: the sentry probably saw you at an unnamed place (lit, 4 m)
+  - 1:31: the escort probably saw you at an unnamed place (lit, 6 m)
+  - 1:31: the posted probably saw you at an unnamed place (lit, 7 m)
+  - 1:32: the patrol probably noticed you at an unnamed place
+  - 1:33: the watch probably noticed you at an unnamed place
+  - 1:33: the patrol probably saw you at an unnamed place (lit, 11 m)
+  - 1:33: the watch probably noticed you at an unnamed place
+  - 1:33: the watch probably noticed you at an unnamed place
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:34: the watch probably saw you at an unnamed place (lit, 9 m)
+  - 1:34: the escort probably noticed you at an unnamed place
+  - 1:34: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 1:34: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:35: the sentry probably saw you at an unnamed place (lit, 8 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 11 m)
+  - 1:35: the sentry probably heard you at an unnamed place (9 m)
+  - 1:35: the posted probably saw you at an unnamed place (lit, 12 m)
+  - 1:35: the grunt probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the watch probably saw you at an unnamed place (lit, 10 m)
+  - 1:35: the watch probably saw you at an unnamed place (lit, 10 m)
+- Dead stops: none
+- Stubs:
+  - climb at link 7, held 6 s, no link step for this kind yet (R5)
+  - climb at link 8, held 6 s, no link step for this kind yet (R5)
+  - climb at link 9, held 6 s, no link step for this kind yet (R5)
+
+## Notes
+
+- one robot walked every run (--players 1)
+- 1 console error(s) in the page (first: [warning] guard-ai pairs: section 0 slots 5 + 14: not both on a timed loop)
+- Two robots walked every run (the tool does two players only).
+
+## Walk card
+
+- S3 The south strip and the clean suite (code route): no valid time. Stuck twice: at an unnamed place (the robot could not follow the path); at an unnamed place (the robot could not follow the path). Seen 1461 times: the console probably saw you at an unnamed place (1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:17, 1:17, 1:17, 1:17, 1:17, 1:17, 1:17, 1:17, 1:17, 1:17, 1:18, 1:18, 1:18, 1:18, 1:18, 1:18, 1:18, 1:18, 1:18, 1:18, 1:19, 1:19, 1:19, 1:19, 1:19, 1:19, 1:19, 1:19, 1:20, 1:51, 1:53, 1:56, 1:57, 1:59, 2:01, 2:12, 2:21, 2:24, 2:26, 2:28, 2:30, 2:33, 2:35, 2:37, 2:39, 2:40, 2:42, 2:44); the sentry probably saw you at an unnamed place (1:16, 1:17, 1:17, 1:17, 1:17, 1:17, 1:17, 1:20, 1:20, 1:20, 1:22, 1:23, 1:23, 1:52, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:54, 1:54, 1:54, 1:54, 1:54, 1:54, 1:54, 1:54, 1:54, 1:54, 1:55, 1:55, 1:55, 1:55, 1:55, 1:55, 1:55, 1:55, 1:55, 1:55, 1:55, 1:56, 1:56, 1:56, 1:56, 1:56, 1:56, 1:56, 1:56, 1:56, 1:56, 1:56, 1:57, 1:57, 1:57, 1:57, 1:57, 1:57, 1:57, 1:57, 1:57, 1:57, 1:58, 1:58, 1:58, 1:58, 1:58, 1:58, 1:58, 1:58, 1:58, 1:58, 1:58, 1:59, 1:59, 1:59, 1:59, 2:01, 2:03, 2:09, 2:09, 2:13, 2:15, 2:18, 2:18, 2:18, 2:19, 2:19, 2:19, 2:20, 2:20, 2:20, 2:20, 2:20, 2:20, 2:20, 2:20, 2:20, 2:20, 2:21, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:28, 2:28, 2:28, 2:28, 2:28, 2:29, 2:29, 2:29, 2:29, 2:30, 2:30, 2:30, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:38, 2:38, 2:38, 2:38, 2:38, 2:40, 2:41, 2:42, 2:42, 2:45, 2:45, 2:58); the watch probably saw you at an unnamed place (1:17, 1:18, 1:19, 1:20, 1:22, 1:23, 1:52, 1:54, 1:54, 1:57, 1:57, 2:00, 2:01, 2:12, 2:14, 2:22, 2:23, 2:24, 2:26, 2:27, 2:29, 2:30, 2:32, 2:35, 2:36, 2:38, 2:39, 2:42, 2:43, 2:45, 2:55, 2:55, 2:56, 2:56, 2:56, 2:56, 2:56, 2:57, 2:57, 2:57, 2:57, 2:57, 2:58, 2:58, 2:58, 2:58, 2:58, 2:59); the supervisor probably saw you at an unnamed place (1:18, 1:20, 1:23, 1:54, 1:57, 2:01, 2:14, 2:20, 2:20, 2:20, 2:20, 2:20, 2:20, 2:20, 2:20, 2:20, 2:20, 2:21, 2:21, 2:21, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:30, 2:33, 2:37, 2:40, 2:43); the patrol probably noticed you at an unnamed place (1:18, 1:18, 1:19, 1:19, 1:19, 1:20, 1:20, 1:20, 1:21, 1:21, 1:21, 1:21, 1:22, 1:23, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:53, 1:53, 1:53, 1:53, 1:54, 1:54, 1:55, 1:55, 1:56, 1:57, 1:57, 1:57, 1:57, 1:58, 1:59, 1:59, 1:59, 2:00, 2:01, 2:01, 2:01, 2:03, 2:04, 2:12, 2:13, 2:14, 2:14, 2:14, 2:15, 2:21, 2:21, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:22, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:36, 2:36, 2:36, 2:36, 2:36, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:41, 2:41, 2:41, 2:41, 2:41, 2:42, 2:42, 2:42, 2:43, 2:43, 2:45, 2:45, 2:45, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:56, 2:56, 2:56, 2:56, 2:56, 2:57, 2:57, 2:57, 2:57, 2:57, 2:58, 2:58, 2:58, 2:58, 2:59, 2:59, 2:59); the keyholder probably saw you at an unnamed place (1:19, 1:23, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:54, 1:57, 2:01, 2:11, 2:22, 2:22, 2:23, 2:23, 2:23, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:24, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:25, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:27, 2:27, 2:27, 2:28, 2:28, 2:29, 2:29, 2:29, 2:30, 2:31, 2:31, 2:32, 2:33, 2:33, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:37, 2:38, 2:39, 2:39, 2:39, 2:40, 2:40, 2:41, 2:41, 2:43); the grunt probably noticed you at an unnamed place (1:20, 1:20, 1:23, 1:23, 1:23, 1:23, 1:53, 1:53, 1:54, 1:54, 1:54, 1:54, 1:57, 1:57, 1:57, 1:57, 1:57, 1:57, 2:01, 2:01, 2:01, 2:01, 2:01, 2:01, 2:14, 2:14, 2:14, 2:14, 2:14, 2:14, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:45, 2:45, 2:45, 2:45, 2:45, 2:45, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:59, 2:59, 2:59, 2:59, 2:59, 2:59, 2:59, 2:59, 2:59, 2:59, 2:59); a camera probably spotted you at an unnamed place (1:20, 1:23, 1:53, 1:57, 2:12, 2:17, 2:23); the posted probably saw you at an unnamed place (1:20, 1:23, 1:54, 1:57, 2:01, 2:14, 2:23, 2:27, 2:29, 2:33, 2:37, 2:40, 2:43, 2:54, 2:54, 2:54, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:55, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:59, 2:59, 2:59, 2:59, 2:59); the tour probably noticed you at an unnamed place (1:20, 1:23, 1:54, 1:57, 2:01, 2:14, 2:23, 2:27, 2:30, 2:35, 2:38, 2:42, 2:45, 2:55, 2:55, 2:56, 2:56, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:59, 2:59, 2:59, 2:59, 2:59); the desk probably saw you at an unnamed place (1:20, 1:23, 1:54, 1:57, 2:01, 2:13, 2:23, 2:23, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:26, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:29, 2:30, 2:30, 2:30, 2:30, 2:30, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:33, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:35, 2:35, 2:35, 2:35, 2:36, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:41, 2:41, 2:43, 2:57); the escort probably saw you at an unnamed place (1:20, 1:23, 1:54, 1:56, 2:00, 2:14, 2:23, 2:27, 2:30, 2:33, 2:37, 2:39, 2:43, 2:55, 2:55, 2:55, 2:55, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:56, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:57, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:58, 2:59); the bridge probably noticed you at an unnamed place (1:20, 1:23, 1:54, 1:57, 2:01, 2:14, 2:23, 2:27, 2:30, 2:35, 2:38, 2:42, 2:45); the operator probably heard you at an unnamed place (1:21, 1:54, 1:57, 2:01, 2:14, 2:23, 2:24, 2:26, 2:28, 2:31, 2:35, 2:38, 2:42, 2:45). Noticed 466 times: the watch probably saw you at an unnamed place (1:13, 1:15, 1:17, 1:18, 1:19, 1:20, 1:22, 1:24, 1:52, 1:54, 1:54, 1:57, 1:57, 2:00, 2:01, 2:12, 2:14, 2:22, 2:23, 2:25, 2:27, 2:27, 2:29, 2:30, 2:32, 2:35, 2:36, 2:38, 2:39, 2:42, 2:44, 2:45, 2:55, 2:55, 2:56, 2:57, 2:57, 2:58, 2:58, 2:59); the console probably saw you at an unnamed place (1:14, 1:15, 1:19, 1:20, 1:51, 1:53, 1:56, 1:57, 1:59, 2:01, 2:12, 2:22, 2:24, 2:26, 2:28, 2:30, 2:33, 2:35, 2:37, 2:39, 2:40, 2:42, 2:44); the sentry probably saw you at an unnamed place (1:16, 1:17, 1:17, 1:20, 1:20, 1:20, 1:22, 1:23, 1:24, 1:51, 1:52, 1:52, 1:54, 1:55, 1:56, 1:58, 1:59, 1:59, 2:00, 2:01, 2:03, 2:09, 2:13, 2:15, 2:18, 2:21, 2:21, 2:22, 2:23, 2:25, 2:27, 2:27, 2:27, 2:29, 2:29, 2:29, 2:30, 2:31, 2:32, 2:33, 2:35, 2:35, 2:37, 2:38, 2:38, 2:38, 2:40, 2:41, 2:42, 2:42, 2:45, 2:45, 2:58); the supervisor probably saw you at an unnamed place (1:18, 1:20, 1:23, 1:54, 1:57, 2:01, 2:14, 2:21, 2:27, 2:30, 2:33, 2:37, 2:40, 2:44); the patrol probably noticed you at an unnamed place (1:18, 1:18, 1:19, 1:19, 1:19, 1:20, 1:20, 1:20, 1:21, 1:21, 1:21, 1:21, 1:22, 1:24, 1:47, 1:48, 1:48, 1:49, 1:50, 1:50, 1:50, 1:51, 1:52, 1:52, 1:52, 1:53, 1:53, 1:53, 1:54, 1:54, 1:54, 1:55, 1:55, 1:56, 1:57, 1:57, 1:57, 1:57, 1:58, 1:59, 1:59, 1:59, 2:00, 2:01, 2:01, 2:01, 2:03, 2:04, 2:12, 2:13, 2:14, 2:14, 2:14, 2:15, 2:21, 2:21, 2:22, 2:23, 2:23, 2:24, 2:25, 2:26, 2:26, 2:27, 2:27, 2:28, 2:28, 2:28, 2:28, 2:28, 2:29, 2:29, 2:29, 2:29, 2:29, 2:30, 2:30, 2:31, 2:31, 2:32, 2:33, 2:34, 2:34, 2:35, 2:35, 2:35, 2:35, 2:35, 2:36, 2:36, 2:37, 2:37, 2:37, 2:38, 2:38, 2:38, 2:38, 2:38, 2:39, 2:39, 2:40, 2:40, 2:41, 2:41, 2:41, 2:41, 2:42, 2:42, 2:42, 2:43, 2:43, 2:45, 2:45, 2:45, 2:56, 2:56, 2:57, 2:57, 2:58, 2:58, 2:59, 2:59); the keyholder probably saw you at an unnamed place (1:20, 1:24, 1:50, 1:52, 1:54, 1:57, 2:01, 2:11, 2:22, 2:23, 2:26, 2:26, 2:27, 2:27, 2:28, 2:28, 2:28, 2:29, 2:29, 2:30, 2:31, 2:31, 2:31, 2:32, 2:33, 2:33, 2:36, 2:37, 2:38, 2:39, 2:39, 2:39, 2:40, 2:40, 2:41, 2:41, 2:43); the grunt probably noticed you at an unnamed place (1:20, 1:20, 1:23, 1:23, 1:24, 1:24, 1:53, 1:53, 1:54, 1:54, 1:54, 1:54, 1:57, 1:57, 1:57, 1:57, 1:57, 1:57, 2:01, 2:01, 2:01, 2:01, 2:01, 2:01, 2:14, 2:14, 2:14, 2:14, 2:14, 2:14, 2:23, 2:23, 2:23, 2:23, 2:23, 2:23, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:45, 2:45, 2:45, 2:45, 2:45, 2:45, 2:55, 2:58, 2:58, 2:58, 2:59); the posted probably saw you at an unnamed place (1:20, 1:24, 1:54, 1:57, 2:01, 2:14, 2:23, 2:27, 2:29, 2:33, 2:37, 2:40, 2:43, 2:52, 2:54, 2:58); the tour probably noticed you at an unnamed place (1:20, 1:24, 1:54, 1:57, 2:01, 2:14, 2:23, 2:27, 2:30, 2:35, 2:38, 2:42, 2:45, 2:55, 2:55, 2:56, 2:56, 2:57, 2:58); the desk probably saw you at an unnamed place (1:20, 1:24, 1:54, 1:57, 2:01, 2:14, 2:23, 2:23, 2:27, 2:27, 2:29, 2:30, 2:33, 2:35, 2:35, 2:36, 2:40, 2:40, 2:41, 2:41, 2:43, 2:57); the escort probably saw you at an unnamed place (1:20, 1:24, 1:54, 1:56, 2:00, 2:14, 2:23, 2:27, 2:30, 2:33, 2:37, 2:39, 2:43, 2:55, 2:55, 2:59); the bridge probably noticed you at an unnamed place (1:20, 1:24, 1:54, 1:57, 2:01, 2:14, 2:23, 2:27, 2:30, 2:35, 2:38, 2:42, 2:45); the operator probably heard you at an unnamed place (1:21, 1:54, 1:57, 2:01, 2:14, 2:23, 2:24, 2:26, 2:28, 2:32, 2:35, 2:38, 2:42, 2:45).
+- S3 The hatch (code route): 1:36, never stuck. Seen 1460 times: the desk probably saw you at an unnamed place (0:27, 0:27, 0:28, 0:28, 0:28, 0:28, 0:28, 0:28, 0:28, 0:28, 0:28, 0:28, 0:29, 0:29, 0:29, 0:29, 0:29, 0:29, 0:29, 0:29, 0:29, 0:29, 0:33, 0:33, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:41, 0:41, 0:41, 0:41, 0:41, 0:41, 0:44, 0:48, 0:52, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:05, 1:05, 1:05, 1:05, 1:06, 1:07, 1:07, 1:07, 1:07, 1:07, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:17, 1:17, 1:18); the patrol probably saw you at an unnamed place (0:29, 0:29, 0:29, 0:29, 0:29, 0:29, 0:29, 0:30, 0:30, 0:30, 0:30, 0:30, 0:30, 0:30, 0:30, 0:30, 0:31, 0:31, 0:31, 0:32, 0:32, 0:32, 0:32, 0:32, 0:32, 0:32, 0:32, 0:32, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:39, 0:39, 0:39, 0:39, 0:40, 0:40, 0:40, 0:40, 0:40, 0:40, 0:41, 0:41, 0:41, 0:41, 0:41, 0:41, 0:41, 0:41, 0:41, 0:41, 0:42, 0:42, 0:42, 0:42, 0:42, 0:42, 0:42, 0:42, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:43, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:45, 0:45, 0:45, 0:45, 0:45, 0:45, 0:45, 0:45, 0:45, 0:45, 0:45, 0:46, 0:46, 0:46, 0:46, 0:46, 0:46, 0:46, 0:46, 0:46, 0:46, 0:46, 0:46, 0:46, 0:47, 0:47, 0:47, 0:47, 0:47, 0:47, 0:47, 0:47, 0:47, 0:47, 0:47, 0:48, 0:48, 0:48, 0:48, 0:48, 0:48, 0:48, 0:48, 0:48, 0:48, 0:48, 0:48, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:50, 0:51, 0:51, 0:51, 0:52, 0:53, 0:53, 0:54, 0:54, 0:55, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:06, 1:06, 1:06, 1:06, 1:06, 1:07, 1:07, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:17, 1:17, 1:17, 1:18, 1:18, 1:19, 1:20, 1:20, 1:21, 1:22); the bridge probably saw you at an unnamed place (0:29, 0:29, 0:31, 0:36, 0:38, 0:39, 0:41, 0:41, 0:43, 0:47, 0:51, 0:55, 1:01, 1:01, 1:01, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:05, 1:05, 1:05, 1:05, 1:06, 1:07, 1:07, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:15, 1:15, 1:15, 1:15, 1:15, 1:16, 1:18); the posted probably saw you at an unnamed place (0:30, 0:31, 0:36, 0:38, 0:40, 0:44, 0:49, 0:52, 1:05, 1:06, 1:08, 1:10, 1:13, 1:15, 1:17, 1:18); the escort probably noticed you at an unnamed place (0:30, 0:32, 0:37, 0:39, 0:40, 0:44, 0:49, 0:52, 1:05, 1:07, 1:11, 1:12, 1:14, 1:16, 1:17, 1:20); the watch probably saw you at an unnamed place (0:30, 0:32, 0:32, 0:35, 0:36, 0:37, 0:38, 0:38, 0:40, 0:40, 0:43, 0:43, 0:45, 0:47, 0:47, 0:49, 0:50, 0:51, 0:53, 0:55, 1:03, 1:05, 1:05, 1:07, 1:08, 1:09, 1:10, 1:12, 1:13, 1:14, 1:15, 1:17, 1:19, 1:19); the sentry probably saw you at an unnamed place (0:31, 0:32, 0:32, 0:35, 0:35, 0:37, 0:37, 0:37, 0:39, 0:39, 0:41, 0:41, 0:43, 0:43, 0:44, 0:45, 0:46, 0:47, 0:47, 0:48, 0:51, 0:51, 0:51, 0:54, 0:55, 0:55, 1:04, 1:05, 1:05, 1:06, 1:08, 1:08, 1:09, 1:10, 1:10, 1:10, 1:11, 1:11, 1:11, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:15, 1:15, 1:15, 1:15, 1:16, 1:17, 1:19, 1:19, 1:19); the tour probably heard you at an unnamed place (0:32, 0:37, 0:41, 0:44, 0:50, 0:57, 1:06, 1:11, 1:16, 1:20); the console probably saw you at an unnamed place (0:32, 0:35, 0:36, 0:39, 0:41, 0:42, 0:44, 0:46, 0:49, 0:51, 0:54, 1:04, 1:06, 1:07, 1:10, 1:12, 1:14, 1:15, 1:17, 1:19); the grunt probably heard you at an unnamed place (0:32, 0:32, 0:37, 0:37, 0:37, 0:37, 0:40, 0:40, 0:40, 0:40, 0:41, 0:41, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:52, 0:52, 0:52, 0:52, 0:52, 0:52, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:19, 1:19, 1:19, 1:19, 1:19, 1:19, 1:36); a camera probably spotted you at an unnamed place (0:32, 0:37, 0:40, 0:42, 0:49, 0:54, 1:00); the keyholder probably saw you at an unnamed place (0:32, 0:32, 0:32, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:35, 0:36, 0:36, 0:37, 0:38, 0:39, 0:40, 0:43, 0:43, 0:43, 0:44, 0:44, 0:45, 0:47, 0:47, 0:48, 0:48, 0:48, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:50, 0:50, 0:50, 0:50, 0:50, 0:50, 0:50, 0:51, 0:51, 1:01, 1:01, 1:02, 1:02, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:07, 1:07, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:18); the operator probably heard you at an unnamed place (0:32, 0:36, 0:38, 0:40, 0:42, 0:45, 0:47, 0:50, 0:55, 1:02, 1:04, 1:06, 1:08, 1:12, 1:15, 1:17, 1:18); the supervisor probably saw you at an unnamed place (0:32, 0:32, 0:32, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:33, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:34, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:35, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:36, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:37, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:38, 0:39, 0:39, 0:39, 0:39, 0:39, 0:39, 0:39, 0:39, 0:39, 0:39, 0:40, 0:40, 0:40, 0:40, 0:42, 0:45, 0:46, 0:48, 0:51, 0:54, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:06, 1:06, 1:06, 1:06, 1:09, 1:13, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:16, 1:16, 1:16, 1:16, 1:16, 1:16, 1:17, 1:21). Noticed 407 times: the bridge probably saw you at an unnamed place (0:13, 0:16, 0:29, 0:31, 0:37, 0:38, 0:39, 0:41, 0:42, 0:43, 0:47, 0:51, 0:55, 1:05, 1:05, 1:06, 1:06, 1:07, 1:15, 1:16, 1:16, 1:18); the desk probably saw you at an unnamed place (0:26, 0:27, 0:30, 0:33, 0:37, 0:41, 0:44, 0:48, 0:53, 1:05, 1:05, 1:06, 1:17, 1:17, 1:18); the patrol probably saw you at an unnamed place (0:28, 0:28, 0:28, 0:29, 0:30, 0:30, 0:30, 0:30, 0:30, 0:31, 0:31, 0:31, 0:32, 0:32, 0:32, 0:33, 0:34, 0:35, 0:36, 0:37, 0:38, 0:38, 0:38, 0:39, 0:39, 0:39, 0:40, 0:40, 0:41, 0:41, 0:43, 0:43, 0:44, 0:44, 0:45, 0:46, 0:47, 0:49, 0:49, 0:49, 0:49, 0:49, 0:50, 0:51, 0:51, 0:51, 0:53, 0:53, 0:53, 0:54, 0:54, 0:55, 1:02, 1:02, 1:05, 1:05, 1:05, 1:06, 1:06, 1:06, 1:06, 1:08, 1:08, 1:09, 1:10, 1:10, 1:10, 1:11, 1:11, 1:12, 1:12, 1:12, 1:12, 1:13, 1:13, 1:14, 1:14, 1:15, 1:15, 1:15, 1:16, 1:16, 1:16, 1:17, 1:17, 1:17, 1:18, 1:18, 1:19, 1:20, 1:20, 1:21, 1:22); the posted probably saw you at an unnamed place (0:30, 0:31, 0:36, 0:38, 0:40, 0:44, 0:49, 0:53, 1:05, 1:06, 1:08, 1:10, 1:13, 1:15, 1:17, 1:19); the escort probably noticed you at an unnamed place (0:30, 0:32, 0:37, 0:39, 0:41, 0:44, 0:49, 0:53, 1:05, 1:07, 1:11, 1:12, 1:14, 1:16, 1:17, 1:20); the watch probably saw you at an unnamed place (0:30, 0:32, 0:32, 0:35, 0:36, 0:37, 0:38, 0:39, 0:40, 0:40, 0:43, 0:43, 0:45, 0:47, 0:48, 0:49, 0:50, 0:51, 0:53, 0:55, 1:03, 1:05, 1:05, 1:07, 1:08, 1:09, 1:11, 1:12, 1:13, 1:15, 1:15, 1:17, 1:19, 1:19); the sentry probably saw you at an unnamed place (0:31, 0:32, 0:32, 0:35, 0:35, 0:37, 0:37, 0:37, 0:39, 0:39, 0:41, 0:41, 0:43, 0:44, 0:44, 0:45, 0:46, 0:47, 0:47, 0:48, 0:51, 0:51, 0:51, 0:54, 0:55, 0:55, 1:04, 1:05, 1:05, 1:06, 1:08, 1:08, 1:10, 1:10, 1:10, 1:10, 1:11, 1:11, 1:11, 1:12, 1:14, 1:14, 1:14, 1:14, 1:14, 1:15, 1:15, 1:15, 1:16, 1:16, 1:17, 1:19, 1:19, 1:19); the tour probably heard you at an unnamed place (0:32, 0:37, 0:41, 0:44, 0:50, 0:57, 1:06, 1:11, 1:16, 1:20); the console probably saw you at an unnamed place (0:32, 0:35, 0:36, 0:39, 0:41, 0:42, 0:45, 0:46, 0:49, 0:51, 0:54, 1:04, 1:06, 1:07, 1:10, 1:12, 1:14, 1:15, 1:17, 1:19); the grunt probably heard you at an unnamed place (0:32, 0:32, 0:37, 0:37, 0:37, 0:37, 0:40, 0:40, 0:40, 0:40, 0:41, 0:41, 0:44, 0:44, 0:44, 0:44, 0:44, 0:44, 0:49, 0:49, 0:49, 0:49, 0:49, 0:49, 0:53, 0:53, 0:53, 0:53, 0:53, 0:53, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:19, 1:19, 1:19, 1:19, 1:19, 1:19, 1:34, 1:34, 1:35); the keyholder probably saw you at an unnamed place (0:32, 0:35, 0:36, 0:36, 0:37, 0:38, 0:39, 0:40, 0:43, 0:43, 0:43, 0:44, 0:44, 0:45, 0:47, 0:47, 0:48, 0:48, 0:50, 0:51, 1:01, 1:02, 1:02, 1:02, 1:04, 1:05, 1:06, 1:07, 1:08, 1:16, 1:18); the operator probably heard you at an unnamed place (0:32, 0:36, 0:38, 0:40, 0:42, 0:45, 0:47, 0:50, 0:55, 1:02, 1:04, 1:06, 1:08, 1:12, 1:15, 1:17, 1:18); the supervisor probably saw you at an unnamed place (0:32, 0:40, 0:42, 0:45, 0:46, 0:49, 0:51, 0:54, 1:06, 1:09, 1:13, 1:14, 1:16, 1:16, 1:17, 1:21).
+- S3 The crane walkway (code route): no valid time. Stuck twice: at an unnamed place (the robot could not follow the path); at an unnamed place (the robot could not follow the path). Seen 1270 times: the console probably saw you at an unnamed place (1:23, 1:23, 1:23, 1:23, 1:23, 1:23, 1:23, 1:23, 1:23, 1:23, 1:24, 1:24, 1:24, 1:24, 1:24, 1:24, 1:24, 1:24, 1:24, 1:24, 1:25, 1:25, 1:25, 1:25, 1:25, 1:25, 1:25, 1:25, 1:25, 1:25, 1:26, 1:27, 1:27, 1:27, 1:27, 1:27, 1:27, 1:27, 1:27, 1:27, 1:27, 1:28, 1:28, 1:28); the patrol probably saw you at an unnamed place (1:25, 1:25, 1:26, 1:27, 1:27, 1:27, 1:27, 1:27, 1:29, 1:40, 1:40, 1:40, 1:40, 1:40, 1:40, 1:40, 1:40, 1:40, 1:40, 1:41, 1:41, 1:41, 1:41, 1:41, 1:41, 1:41, 1:41, 1:41, 1:41, 1:42, 1:42, 1:42, 1:42, 1:42, 1:42, 1:42, 1:42, 1:42, 1:42, 1:43, 1:43, 1:43, 1:43, 1:43, 1:43, 1:43, 1:43, 1:43, 1:43, 1:43, 1:44, 1:44, 1:44, 1:44, 1:45, 1:48, 1:48, 1:48, 1:48, 1:50, 1:51, 1:52, 1:52, 1:52, 1:53, 1:53, 1:53, 1:54, 1:54, 1:55, 1:56, 1:56, 1:56, 1:56, 1:56, 1:58, 1:58, 1:59, 2:00, 2:00, 2:00, 2:00, 2:01, 2:01, 2:01, 2:01, 2:02, 2:03, 2:03, 2:03, 2:03, 2:03, 2:03, 2:04, 2:04, 2:04, 2:05, 2:05, 2:05, 2:05, 2:05, 2:05, 2:05, 2:05, 2:05, 2:05, 2:06, 2:06, 2:06, 2:06, 2:06, 2:06, 2:06, 2:06, 2:07, 2:07, 2:07, 2:07, 2:07, 2:07, 2:07, 2:07, 2:07, 2:08, 2:08, 2:08, 2:08, 2:08, 2:08, 2:08, 2:08, 2:09, 2:09, 2:09, 2:09, 2:09, 2:09, 2:09, 2:09, 2:09, 2:09, 2:09, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:13, 2:13, 2:13, 2:13, 2:13, 2:14, 2:14, 2:14, 2:14, 2:15, 2:16, 2:17, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:32, 2:32, 2:32, 2:32, 2:33, 2:33, 2:34, 2:34, 2:34, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:38, 2:38, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:40, 2:41, 2:41, 2:41, 2:41, 2:41, 2:41, 2:42, 2:42, 2:42, 2:42, 2:42, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:44, 2:44, 2:44, 2:44, 2:44, 2:46, 2:46, 2:46, 2:46, 2:47, 2:47, 3:02, 3:02); the supervisor probably noticed you at an unnamed place (1:25, 1:29, 1:43, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:49, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:50, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:51, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:52, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:54, 1:54, 1:54, 1:54, 1:54, 1:54, 1:54, 1:54, 1:54, 1:54, 1:55, 1:55, 1:56, 1:56, 1:56, 1:56, 1:56, 1:56, 1:57, 1:57, 1:57, 1:57, 1:57, 1:57, 1:57, 2:01, 2:05, 2:10, 2:13, 2:15, 2:29, 2:29, 2:29, 2:29, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:32, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:37, 2:37, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:40, 2:41, 2:41, 2:41, 2:41, 2:41, 2:41, 2:41, 2:41, 2:41, 2:41, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:44, 2:44, 2:44, 2:46, 3:02); the sentry probably noticed you at an unnamed place (1:26, 1:27, 1:27, 1:42, 1:44, 1:44, 1:44, 1:45, 1:46, 1:48, 1:50, 1:51, 1:52, 1:53, 1:54, 1:55, 1:56, 1:56, 1:56, 1:59, 1:59, 1:59, 1:59, 1:59, 1:59, 1:59, 2:00, 2:00, 2:00, 2:00, 2:00, 2:00, 2:00, 2:00, 2:00, 2:00, 2:01, 2:01, 2:02, 2:04, 2:04, 2:05, 2:06, 2:06, 2:08, 2:09, 2:10, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:13, 2:13, 2:13, 2:14, 2:15, 2:16, 2:17, 2:29, 2:30, 2:31, 2:31, 2:32, 2:32, 2:34, 2:34, 2:34, 2:37, 2:37, 2:37, 2:37, 2:37, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:40, 2:41, 2:42, 2:43, 2:43, 2:43, 2:44, 2:45, 2:46, 2:46, 3:03); the keyholder probably saw you at an unnamed place (1:27, 1:44, 1:48, 1:53, 1:56, 1:56, 1:57, 1:57, 1:57, 1:57, 1:57, 1:57, 1:57, 2:00, 2:00, 2:00, 2:00, 2:00, 2:00, 2:00, 2:00, 2:00, 2:01, 2:01, 2:01, 2:01, 2:01, 2:01, 2:02, 2:02, 2:02, 2:02, 2:03, 2:03, 2:03, 2:03, 2:03, 2:03, 2:03, 2:03, 2:03, 2:03, 2:04, 2:04, 2:04, 2:04, 2:04, 2:05, 2:05, 2:06, 2:06, 2:06, 2:06, 2:06, 2:06, 2:06, 2:07, 2:07, 2:07, 2:07, 2:07, 2:07, 2:07, 2:07, 2:07, 2:07, 2:08, 2:08, 2:08, 2:08, 2:08, 2:08, 2:08, 2:08, 2:08, 2:08, 2:09, 2:09, 2:09, 2:09, 2:09, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:11, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:12, 2:13, 2:13, 2:15, 2:26, 2:26, 2:26, 2:26, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:27, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:28, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:29, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:32, 2:36, 2:39, 2:43, 2:46); the grunt probably noticed you at an unnamed place (1:27, 1:27, 1:44, 1:44, 1:44, 1:44, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:56, 1:56, 1:56, 1:56, 1:56, 1:56, 2:01, 2:01, 2:01, 2:01, 2:01, 2:01, 2:03, 2:03, 2:04, 2:05, 2:05, 2:05, 2:05, 2:05, 2:06, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:13, 2:13, 2:13, 2:13, 2:13, 2:13, 2:17, 2:17, 2:17, 2:17, 2:17, 2:17, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:46, 2:46, 2:46, 2:46, 2:46, 2:46); a camera probably spotted you at an unnamed place (1:27, 1:44, 1:48, 2:08, 2:15, 2:21, 2:26); the bridge probably noticed you at an unnamed place (1:27, 1:44, 1:48, 1:53, 1:56, 2:01, 2:01, 2:01, 2:01, 2:01, 2:01, 2:01, 2:01, 2:02, 2:02, 2:02, 2:02, 2:02, 2:02, 2:02, 2:02, 2:02, 2:02, 2:03, 2:03, 2:03, 2:03, 2:03, 2:03, 2:03, 2:03, 2:03, 2:03, 2:04, 2:04, 2:04, 2:04, 2:04, 2:04, 2:04, 2:04, 2:04, 2:05, 2:10, 2:13, 2:17, 2:31, 2:34, 2:39, 2:43, 2:46); the watch probably noticed you at an unnamed place (1:27, 1:27, 1:44, 1:44, 1:48, 1:48, 1:53, 1:53, 1:56, 1:56, 1:59, 2:01, 2:03, 2:04, 2:06, 2:06, 2:07, 2:09, 2:10, 2:11, 2:13, 2:14, 2:16, 2:17, 2:29, 2:31, 2:32, 2:34, 2:34, 2:38, 2:39, 2:40, 2:43, 2:43, 2:45, 2:46); the tour probably noticed you at an unnamed place (1:27, 1:44, 1:48, 1:53, 1:56, 2:01, 2:04, 2:08, 2:12, 2:15, 2:31, 2:34, 2:39, 2:43, 2:46); the operator probably noticed you at an unnamed place (1:27, 1:44, 1:48, 1:53, 1:56, 2:01, 2:06, 2:09, 2:11, 2:12, 2:14, 2:17, 2:28, 2:30, 2:32, 2:34, 2:39, 2:43, 2:46); the posted probably saw you at an unnamed place (1:27, 1:43, 1:43, 1:43, 1:44, 1:46, 1:52, 1:56, 2:01, 2:05, 2:10, 2:13, 2:17, 2:31, 2:34, 2:39, 2:43, 2:46, 2:59, 2:59, 2:59, 2:59, 2:59, 2:59, 2:59, 3:00, 3:00, 3:00, 3:00, 3:00, 3:00, 3:00, 3:00, 3:00, 3:00, 3:01, 3:01, 3:01, 3:01, 3:01, 3:01, 3:01, 3:01, 3:01, 3:01, 3:02, 3:02, 3:02, 3:02, 3:03, 3:03); the desk probably saw you at an unnamed place (1:27, 1:44, 1:46, 1:51, 1:53, 1:57, 2:00, 2:04, 2:07, 2:11, 2:14, 2:29, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:30, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:33, 2:34, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:35, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:36, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:37, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:38, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:40, 2:40, 2:40, 2:41, 2:41, 2:41, 2:41, 2:41, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:42, 2:43, 2:43, 2:43, 2:43, 2:44, 2:46, 3:02); the escort probably noticed you at an unnamed place (1:27, 1:42, 1:43, 1:43, 1:44, 1:45, 1:52, 1:55, 2:00, 2:03, 2:07, 2:11, 2:14, 2:31, 2:34, 2:39, 2:42, 2:46, 2:59, 2:59, 2:59, 2:59, 3:00, 3:00, 3:00, 3:00, 3:00, 3:00, 3:00, 3:00, 3:00, 3:00, 3:01, 3:01, 3:01, 3:01, 3:01, 3:01, 3:01, 3:01, 3:01, 3:01, 3:02, 3:02, 3:02, 3:02, 3:02, 3:02, 3:02, 3:03, 3:03). Noticed 478 times: the patrol probably saw you at an unnamed place (1:20, 1:23, 1:25, 1:26, 1:26, 1:27, 1:27, 1:27, 1:27, 1:27, 1:29, 1:43, 1:44, 1:44, 1:45, 1:45, 1:45, 1:45, 1:48, 1:48, 1:48, 1:48, 1:50, 1:51, 1:52, 1:52, 1:52, 1:53, 1:53, 1:53, 1:54, 1:54, 1:55, 1:56, 1:56, 1:56, 1:56, 1:56, 1:58, 1:59, 1:59, 2:00, 2:00, 2:00, 2:01, 2:01, 2:01, 2:01, 2:01, 2:02, 2:03, 2:03, 2:04, 2:04, 2:04, 2:04, 2:05, 2:05, 2:06, 2:06, 2:06, 2:06, 2:08, 2:08, 2:08, 2:09, 2:10, 2:10, 2:10, 2:11, 2:11, 2:12, 2:13, 2:13, 2:13, 2:14, 2:14, 2:14, 2:14, 2:14, 2:15, 2:15, 2:16, 2:17, 2:29, 2:31, 2:31, 2:31, 2:31, 2:31, 2:32, 2:32, 2:32, 2:33, 2:33, 2:33, 2:34, 2:34, 2:34, 2:35, 2:35, 2:37, 2:37, 2:37, 2:38, 2:38, 2:39, 2:39, 2:39, 2:39, 2:39, 2:40, 2:41, 2:41, 2:41, 2:41, 2:41, 2:42, 2:42, 2:42, 2:43, 2:43, 2:43, 2:44, 2:44, 2:44, 2:45, 2:46, 2:46, 2:46, 2:46, 2:47, 2:48, 3:02, 3:02); the console probably saw you at an unnamed place (1:21, 1:22, 1:26, 1:28); the supervisor probably noticed you at an unnamed place (1:25, 1:29, 1:43, 1:55, 1:57, 2:01, 2:05, 2:10, 2:13, 2:15, 2:27, 2:28, 2:31, 2:32, 2:36, 2:36, 2:37, 2:37, 2:44, 2:46, 3:02); the sentry probably noticed you at an unnamed place (1:26, 1:27, 1:27, 1:42, 1:44, 1:44, 1:45, 1:46, 1:46, 1:48, 1:50, 1:51, 1:53, 1:53, 1:54, 1:55, 1:56, 1:56, 1:57, 1:59, 2:01, 2:01, 2:02, 2:04, 2:04, 2:05, 2:06, 2:06, 2:08, 2:09, 2:10, 2:12, 2:13, 2:13, 2:14, 2:14, 2:15, 2:16, 2:17, 2:30, 2:30, 2:31, 2:31, 2:32, 2:32, 2:34, 2:34, 2:34, 2:37, 2:39, 2:39, 2:40, 2:40, 2:42, 2:42, 2:43, 2:43, 2:43, 2:44, 2:45, 2:46, 2:46); the keyholder probably saw you at an unnamed place (1:27, 1:45, 1:48, 1:53, 1:56, 1:57, 2:01, 2:04, 2:05, 2:06, 2:09, 2:09, 2:13, 2:15, 2:32, 2:32, 2:36, 2:39, 2:43, 2:46); the grunt probably noticed you at an unnamed place (1:27, 1:27, 1:44, 1:44, 1:45, 1:45, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:53, 1:53, 1:53, 1:53, 1:53, 1:53, 1:56, 1:56, 1:56, 1:56, 1:56, 1:56, 2:01, 2:01, 2:01, 2:01, 2:01, 2:01, 2:03, 2:04, 2:04, 2:05, 2:05, 2:05, 2:05, 2:05, 2:06, 2:10, 2:10, 2:10, 2:10, 2:10, 2:10, 2:14, 2:14, 2:14, 2:14, 2:14, 2:14, 2:17, 2:17, 2:17, 2:17, 2:17, 2:17, 2:31, 2:31, 2:31, 2:31, 2:31, 2:31, 2:34, 2:34, 2:34, 2:34, 2:34, 2:34, 2:39, 2:39, 2:39, 2:39, 2:39, 2:39, 2:43, 2:43, 2:43, 2:43, 2:43, 2:43, 2:46, 2:46, 2:46, 2:46, 2:46, 2:46); the bridge probably noticed you at an unnamed place (1:27, 1:45, 1:48, 1:53, 1:56, 2:04, 2:05, 2:10, 2:14, 2:17, 2:31, 2:34, 2:39, 2:43, 2:46); the watch probably noticed you at an unnamed place (1:27, 1:27, 1:45, 1:45, 1:48, 1:48, 1:53, 1:53, 1:56, 1:56, 1:59, 2:01, 2:03, 2:04, 2:06, 2:06, 2:08, 2:09, 2:10, 2:11, 2:14, 2:14, 2:16, 2:17, 2:30, 2:31, 2:32, 2:34, 2:34, 2:38, 2:39, 2:40, 2:43, 2:43, 2:45, 2:46, 3:01); the tour probably noticed you at an unnamed place (1:27, 1:45, 1:48, 1:53, 1:56, 2:01, 2:05, 2:08, 2:12, 2:15, 2:31, 2:34, 2:39, 2:43, 2:46); the operator probably noticed you at an unnamed place (1:27, 1:45, 1:48, 1:53, 1:56, 2:01, 2:06, 2:09, 2:11, 2:13, 2:14, 2:17, 2:28, 2:30, 2:32, 2:34, 2:39, 2:43, 2:46); the posted probably saw you at an unnamed place (1:27, 1:43, 1:43, 1:44, 1:44, 1:46, 1:53, 1:56, 2:01, 2:05, 2:10, 2:14, 2:17, 2:31, 2:34, 2:39, 2:43, 2:46, 2:55, 2:57, 3:02, 3:02); the desk probably saw you at an unnamed place (1:27, 1:44, 1:47, 1:51, 1:53, 1:57, 2:00, 2:04, 2:08, 2:11, 2:14, 2:31, 2:32, 2:33, 2:40, 2:40, 2:40, 2:41, 2:43, 2:44, 2:46, 3:02); the escort probably noticed you at an unnamed place (1:27, 1:43, 1:43, 1:43, 1:44, 1:45, 1:52, 1:55, 2:00, 2:03, 2:08, 2:11, 2:14, 2:31, 2:34, 2:39, 2:43, 2:46, 3:02).
+- S3 The ceiling void (code route): 1:35, never stuck. Seen 941 times: a camera probably spotted you at an unnamed place (0:48, 0:53, 0:57, 0:59); the keyholder probably saw you at an unnamed place (0:52, 0:52, 0:52, 0:52, 0:52, 0:53, 0:53, 0:53, 0:53, 0:53, 0:53, 0:53, 0:53, 0:55, 0:55, 0:55, 0:55, 0:55, 0:55, 0:55, 0:55, 0:56, 0:56, 0:56, 0:56, 0:57, 0:57, 0:57, 0:57, 0:57, 0:57, 0:57, 0:57, 0:57, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:59, 0:59, 0:59, 0:59, 0:59, 0:59, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:04, 1:04, 1:05, 1:05, 1:06, 1:06, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:16, 1:16, 1:16, 1:17); the supervisor probably saw you at an unnamed place (0:52, 0:53, 0:53, 0:54, 0:54, 0:54, 0:55, 0:55, 0:55, 0:55, 0:55, 0:55, 0:55, 0:56, 0:56, 0:56, 0:56, 0:56, 0:57, 0:57, 0:57, 0:57, 0:57, 0:57, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:59, 0:59, 0:59, 0:59, 0:59, 0:59, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:06, 1:06, 1:06, 1:06, 1:06, 1:06, 1:06, 1:06, 1:06, 1:06, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:10, 1:13, 1:16, 1:20); the grunt probably noticed you at an unnamed place (0:53, 0:53, 0:57, 0:57, 0:57, 0:57, 0:57, 0:57, 1:01, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:04, 1:05, 1:05, 1:05, 1:05, 1:05, 1:07, 1:07, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:11, 1:11, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:15, 1:16, 1:16, 1:17, 1:17, 1:17, 1:17, 1:18, 1:19, 1:20, 1:20, 1:20, 1:20, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35); the patrol probably saw you at an unnamed place (0:55, 0:55, 0:56, 0:57, 0:57, 0:57, 0:57, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:58, 0:59, 0:59, 0:59, 0:59, 0:59, 0:59, 0:59, 0:59, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:00, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:01, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:03, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:04, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:06, 1:06, 1:06, 1:06, 1:06, 1:06, 1:06, 1:06, 1:06, 1:06, 1:06, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:07, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:08, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:10, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:11, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:12, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:14, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:15, 1:17, 1:17, 1:17, 1:17, 1:18, 1:18, 1:19, 1:20, 1:20, 1:20, 1:32, 1:32, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35); the console probably noticed you at an unnamed place (0:55, 0:58, 1:00, 1:02, 1:03, 1:08, 1:09, 1:11, 1:13, 1:15, 1:17, 1:20); the sentry probably saw you at an unnamed place (0:57, 0:57, 0:57, 1:00, 1:00, 1:01, 1:02, 1:02, 1:03, 1:03, 1:05, 1:05, 1:06, 1:08, 1:08, 1:09, 1:10, 1:12, 1:13, 1:13, 1:15, 1:17, 1:17, 1:17, 1:20, 1:20, 1:20, 1:31, 1:31, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:35, 1:35, 1:35); the bridge probably heard you at an unnamed place (0:57, 1:02, 1:05, 1:09, 1:13, 1:17, 1:20); the watch probably heard you at an unnamed place (0:57, 0:57, 1:02, 1:02, 1:05, 1:05, 1:08, 1:09, 1:10, 1:13, 1:13, 1:17, 1:17, 1:20, 1:20, 1:32, 1:33, 1:33, 1:34, 1:34, 1:34, 1:34, 1:34, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35); the tour probably heard you at an unnamed place (0:57, 1:02, 1:05, 1:09, 1:13, 1:17, 1:20, 1:32, 1:32, 1:32, 1:32, 1:32, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35); the posted probably heard you at an unnamed place (0:57, 1:02, 1:05, 1:09, 1:13, 1:17, 1:20, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:34, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35, 1:35); the desk probably heard you at an unnamed place (0:57, 1:02, 1:05, 1:09, 1:13, 1:17, 1:20); the escort probably heard you at an unnamed place (0:57, 1:02, 1:05, 1:09, 1:13, 1:17, 1:20, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:32, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:33, 1:34, 1:34, 1:34, 1:34); the operator probably noticed you at an unnamed place (0:57, 1:01, 1:04, 1:05, 1:07, 1:09, 1:10, 1:13, 1:15, 1:16, 1:18). Noticed 257 times: the bridge probably saw you at an unnamed place (0:13, 0:16, 0:57, 1:02, 1:05, 1:09, 1:13, 1:17, 1:20); the supervisor probably saw you at an unnamed place (0:52, 0:53, 0:53, 0:54, 0:54, 0:55, 0:56, 0:59, 0:59, 1:08, 1:10, 1:13, 1:16, 1:20); the keyholder probably noticed you at an unnamed place (0:53, 0:56, 0:59, 0:59, 1:02, 1:03, 1:04, 1:04, 1:05, 1:05, 1:08, 1:10, 1:16, 1:17); the grunt probably noticed you at an unnamed place (0:53, 0:53, 0:57, 0:57, 0:57, 0:57, 0:57, 0:57, 1:01, 1:02, 1:02, 1:02, 1:02, 1:02, 1:02, 1:05, 1:05, 1:05, 1:05, 1:05, 1:05, 1:07, 1:07, 1:09, 1:09, 1:09, 1:09, 1:09, 1:09, 1:11, 1:11, 1:13, 1:13, 1:13, 1:13, 1:13, 1:13, 1:15, 1:16, 1:16, 1:17, 1:17, 1:17, 1:17, 1:18, 1:19, 1:20, 1:20, 1:20, 1:20, 1:34, 1:34, 1:34, 1:35, 1:35); the patrol probably saw you at an unnamed place (0:55, 0:56, 0:56, 0:57, 0:57, 0:57, 0:58, 0:58, 0:58, 0:58, 0:59, 1:00, 1:01, 1:01, 1:02, 1:02, 1:02, 1:02, 1:03, 1:03, 1:04, 1:05, 1:05, 1:05, 1:05, 1:07, 1:07, 1:08, 1:08, 1:09, 1:09, 1:09, 1:09, 1:09, 1:10, 1:11, 1:11, 1:11, 1:12, 1:13, 1:13, 1:14, 1:14, 1:15, 1:17, 1:17, 1:17, 1:17, 1:18, 1:19, 1:19, 1:20, 1:20, 1:20, 1:32, 1:33); the console probably noticed you at an unnamed place (0:55, 0:58, 1:00, 1:02, 1:03, 1:08, 1:09, 1:11, 1:13, 1:15, 1:17, 1:20); the sentry probably saw you at an unnamed place (0:57, 0:57, 0:57, 1:01, 1:01, 1:02, 1:02, 1:03, 1:04, 1:05, 1:05, 1:06, 1:08, 1:09, 1:09, 1:10, 1:12, 1:13, 1:13, 1:15, 1:17, 1:17, 1:17, 1:20, 1:20, 1:20, 1:29, 1:31, 1:35, 1:35); the watch probably heard you at an unnamed place (0:57, 0:57, 1:02, 1:02, 1:05, 1:05, 1:08, 1:09, 1:10, 1:13, 1:14, 1:17, 1:17, 1:20, 1:20, 1:33, 1:33, 1:33, 1:34, 1:34, 1:35, 1:35); the tour probably heard you at an unnamed place (0:57, 1:02, 1:05, 1:09, 1:13, 1:17, 1:20); the posted probably heard you at an unnamed place (0:57, 1:02, 1:05, 1:09, 1:13, 1:17, 1:20, 1:31, 1:31, 1:35); the desk probably heard you at an unnamed place (0:57, 1:02, 1:05, 1:09, 1:13, 1:17, 1:20); the escort probably heard you at an unnamed place (0:57, 1:02, 1:05, 1:09, 1:13, 1:17, 1:20, 1:31, 1:31, 1:34); the operator probably noticed you at an unnamed place (0:57, 1:01, 1:04, 1:05, 1:07, 1:09, 1:10, 1:14, 1:15, 1:16, 1:18).
