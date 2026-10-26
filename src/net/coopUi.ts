@@ -12,7 +12,7 @@ import { MAPS, getMap } from '../world/maps';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { MISSIONS, missionById } from '../game/missions';
 import { capacity, CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
-import { NetSession, type LocalProfile, type StartInfo } from './session';
+import { NetSession, resumeMap, roomMap, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
 import { createTrysteroTransport } from './trysteroTransport';
@@ -402,11 +402,15 @@ function lobbyModes(current: NetMode): typeof MODE_OPTS {
   const cur = MODE_OPTS.find((m) => m.value === current);
   return cur && !shown.includes(cur) ? [...shown, cur] : shown;
 }
-/** The maps the host can pick for a mode: the campaign is Marlow Yard only (the course lab and bunker with `?legacy=1`). */
+/**
+ * The maps the host can pick for a mode: the campaign is Marlow Yard only (the course lab and bunker with `?legacy=1`).
+ * (J14 R1 fix 8) With `?marlowreplan=1` that is the re-planned yard (`roomMap`), so it is offered and named once.
+ */
 function lobbyMaps(mode: NetMode): typeof MAPS {
   const all = MAPS.filter((m) => m.modes.includes(mode));
   if (mode !== 'course' || flags.legacy) return all;
-  return all.filter((m) => m.id === CAMPAIGN_MAP);
+  const campaign = roomMap(CAMPAIGN_MAP);
+  return all.filter((m) => m.id === campaign);
 }
 const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
 const MISSION_OPTS = MISSIONS.map((m) => ({ value: m.id, label: m.name }));
@@ -810,7 +814,8 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     // the code, or rejoining from its menu) takes the match as it starts
     // (set directly: a lobby broadcast before the start would send a waiting joiner to the lobby)
     session.mode = resume.mode;
-    session.map = resume.map;
+    // (J14 R1 fix 8) a record on the re-planned yard reopens on the built yard with the flag off here
+    session.map = resumeMap(resume.map);
     session.difficulty = resume.difficulty;
     session.mission = resume.mode === 'infiltration' ? resume.mission : '';
     session.weather = resume.weather;
