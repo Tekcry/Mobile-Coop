@@ -1048,8 +1048,8 @@ G2; 5 = carried-body shadow hand-off to Player, sent to the orchestrator). G1 + 
 d808f062b). #669 (part 1) and #670 (part 2, G3) MERGED (08:45; dark, inert until PR 2 sets chars / cues). PR 2 (G4 gameState wiring) HELD until after Michael's walk and #665.
 PR 2 built 6a203cbba (G4a / G4b / G6 + slices/G5-BRIEF.md,
 +236 counted lines; check PASS a19fa1c41 (slices/PR2-CHECK.md; G5 brief fixed: step 0.3 s after a teleport);
-asked the orchestrator: charlight=0 on e2e-stealth-ai's main page (recommended), Sector Ops teleport-jump note, OK to
-start G5 (Sonnet e2e from G5-BRIEF.md on feature/guard-ai-j16-2); brief = check flag-off, G4a fill / set-once across restarts, G4b, the /preview/
+orchestrator 09:20: charlight=0 on e2e-stealth-ai's main page YES (in G5), teleport-jump note
+passed to Sector Ops, G5 go: Sonnet builder RUNNING -> "## G5" in PR2-REPORT.md, then a short Opus check; brief = check flag-off, G4a fill / set-once across restarts, G4b, the /preview/
 e2e-stealth-ai risk (cue live where the main page sets no charlight), the G5 brief, ai.md), branch feature/guard-ai-j16-2 (worktree -guard-ai-j16-2) stacked on #670 with Sector Ops #665's branch
 merged in locally -> slices/PR2-REPORT.md; then checker; PR after #669 / #670 / #665 merge.
 S3b-2 = Sector Ops PR #665 (GameState.shadowCues,
