@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-26T02:35:39Z
+status: done feature/route-runs-r6 51e0f197877b8df59535ad7c7700d085c0a66081
 # J13 route-runs, slice R6 (Sonnet, strict brief): the points table from J12's resolver
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3). PLAN R6 waits on J12's one point resolver: it is on
@@ -96,3 +96,54 @@ About 450 counted lines: `points.mjs` ~200, test ~250. PLAN estimate 250 + the t
 Append at the end of this file: what changed, tests with counts, the seam diff sketch, deviations, the pending PC
 runs. Then `status: done feature/route-runs-r6 <sha>`, or `status: blocked <reason>`. Commit trailer:
 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+
+## Report (Night Shift | Cloud Builder 2, 2026-10-26)
+- Branch `feature/route-runs-r6` from 29f03b6c, one commit `51e0f197877b8df59535ad7c7700d085c0a66081`; 3 new files,
+  294 lines (`scripts/route-run/points.mjs` 114, `tests/routeRunPoints.test.ts` 174, `changes/feature-route-runs-r6.md`
+  6, `kind: patch`).
+- `checkPoints(table, graphs)` -> `{ problems, notes }`: merges with `mergeGraphs` from `../level-validate.mjs` (as
+  `route-run.mjs:22`). Problems: not a table; geom differs from the merged `meta.measured.geom`; link count; per index
+  from / to / kind (first 5, then "and <k> more"). Notes: no measured geom; a graph space with an `area` missing from
+  `table.spaces`; a table space with no `centre`; a link with `at: null`; each `table.errors` line. Wording as the brief.
+- `loadPoints({ graphs, files, src, run })`: path or `'auto'` (`run(process.execPath, ['scripts/level-measure.mjs',
+  ...files, '--points', <tmp>/points.json])`, default `execFileSync` with cwd the repo root, `windowsHide`, 15 min
+  timeout; the temp folder under `os.tmpdir()` is removed after the read). Throws `route-run: the points table <src>
+  does not fit the graph:` plus one `  - <problem>` line each; an unreadable file throws "could not be read". Notes on
+  `table.notes`.
+- No fallbacks (header comment says why: J12 shipped `resolvePoints`).
+- Tests: routeRunPoints 12/12 (campus pair fits, its one `at: null` link noted; stale geom; unmeasured graph note;
+  two links swapped named both ways; dropped link count; >5 shifted -> "and <k> more"; six not-a-table shapes; notes
+  only for a missing space / no centre / `at: null` / table errors; two graph files merged in order; loadPoints by path,
+  by `auto` with a fake run (command line asserted, temp file gone), stale refused by path and by `auto`, unreadable and
+  non-table refused). routeRunPlan 19/19, routeRunCli 39/39, changesFragments 1/1. `npx tsc --noEmit -p tsconfig.json`
+  clean; eslint clean on the test (`scripts/**` is outside eslint's scope: "File ignored").
+- Deviations: (1) `auto` runs `process.execPath` rather than the bare `node` (same binary, no PATH lookup); (2) the
+  "space missing" note is for graph spaces that have an `area` (a space with no area is unplannable anyway and
+  `resolvePoints` lists every space).
+- Seam sketch for the lead (`scripts/route-run.mjs:316` on master, R4b's file; not made):
+  ```diff
+  +import { loadPoints } from './route-run/points.mjs';
+  @@ main
+  -  let points = o.points ? readJson(o.points) : null;
+  +  let points = null;
+     let fixture = null;
+     if (o.selftest) {
+       fixture = readJson(o.selftest);
+       graphs = [fixture];
+  -    points = fixture.points ?? points;
+  -  } else graphs = o.graphs.map(readJson);
+  +    points = fixture.points ?? (o.points ? readJson(o.points) : null); // a selftest keeps its own table, unchecked
+  +  } else {
+  +    graphs = o.graphs.map(readJson);
+  +    if (o.points) {
+  +      points = loadPoints({ graphs, files: o.graphs, src: o.points }); // throws on a stale table: main exits 2
+  +      for (const n of points.notes) console.log(`points: ${n}`);
+  +    }
+  +  }
+  ```
+  and in `USAGE`: `--points <points.json | auto>` ("auto: made by level-measure --points on the --graph files").
+  Check that main's catch maps the thrown Error to exit 2 (as for a usage error).
+- Pending PC run (laptop queue, `E2E_GPU=1`, alone, once the seam is in): level-measure `--points` on
+  `docs/sector-redesign/graph/campusOps-S1.json` then route-run `--graph ... --points <file>` (or `--points auto`)
+  `--section S1 --players 2`, `--set route-run-s1-graph`: the report names graph spaces and links; then the same with a
+  hand-edited stale table: refused with the plain message, no browser opened.
