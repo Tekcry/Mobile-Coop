@@ -54,7 +54,7 @@ export const THORNBECK_SPACES = {
 export const THORNBECK_NOOKS: readonly (readonly [number, number, number, number])[] = [
   [9.4, 4, 10.6, 5.2],
   [18.8, 6.6, 20, 8],
-  [8.2, 10.4, 9.4, 15],
+  [8.2, 10.2, 9.4, 15],
 ];
 
 /** The gallery deck (+4.2 m) and the hoist platform outside the west gable (same height). */
@@ -63,7 +63,7 @@ export const THORNBECK_PLATFORM = [-2.6, 15, 0, 18] as const;
 
 /** The hoist door (west gable, locked until every guard is down; the scene opens it) and the stair's foot gate. */
 export const THORNBECK_HOIST_DOOR = { x: -0.2, z: 16.6, y: DECK_Y, width: 1.6 } as const;
-export const THORNBECK_STAIR_GATE = { x: 8.8, z: 10.4, width: 1.2 } as const;
+export const THORNBECK_STAIR_GATE = { x: 8.8, z: 10.2, width: 1.2 } as const;
 
 /** Ladder L1 (lobby, through the deck hatch) and the hatch hole in the deck. */
 export const THORNBECK_LADDER = { x: 31.2, z: 15.6 } as const;
@@ -278,6 +278,16 @@ export const THORNBECK_LIGHTNING: { flashes: readonly ThornbeckFlash[]; period: 
 // TODO(#603): noisy: [mapWideNoise('rain', 6)]
 export const THORNBECK_RAIN = { id: 'rain', db: 6, label: 'rain' } as const;
 
+/** Where a carried body can be hidden (PLAN section 3 "Hide spots"): [what, x, z, y]. One by every kill spot's stretch. */
+export const THORNBECK_HIDE_SPOTS: readonly (readonly [string, number, number, number])[] = [
+  ['behind the low sacks Sa, start bay', 2.7, 0.55, 0],
+  ['behind Sb2, aisle', 18.3, 3.2, 0],
+  ['the bin-row niche, mill bay', 19.4, 7.3, 0],
+  ['beside the office desk', 27.2, 10.2, 0],
+  ['behind GS2, gallery', 23.0, 17.5, DECK_Y],
+  ['behind GS1, gallery', 5.9, 17.5, DECK_Y],
+];
+
 interface PieceOpts {
   collide?: boolean;
   visible?: boolean;
@@ -331,8 +341,9 @@ function rail(b: LevelBuilder, axis: 'x' | 'z', fixed: number, a0: number, a1: n
 /** The hall: floor, perimeter, four walls with their windows, board gaps and the hoist doorway, and the closed roof. */
 function buildShell(b: LevelBuilder): void {
   // the ground over the whole play area (the hall and the yard round it), then the outer wall
-  b.floor(14, 9, 40, 22, FLOOR, 0, 0.4);
-  b.perimeter(-6, 34, -2, 20, 14, DARK);
+  // (the outer wall stands 3.6 m off the hall: wider than a split jump reaches, so the yard has no split gap)
+  b.floor(15, 9, 42, 26, FLOOR, 0, 0.4);
+  b.perimeter(-6, 36, -4, 22, 14, DARK);
   const x0 = -WT;
   const x1 = 32 + WT;
   // south wall: windows x 2-4, 11-13, 21-23 (sill 1.0, head 3.4)
@@ -374,6 +385,8 @@ function buildGallery(b: LevelBuilder): void {
   box(b, 26, 28.4, top, top + 1.2, 17.1, 18, SACK);
   // the posts that carry the deck's south edge (on the machinery floor, clear of the path)
   for (const x of [2, 5.5, 11, 16, 21, 24.5]) b.pillar(x, 14.7, 0.15, bot, TIMBER);
+  // the hoist door: locked until every guard is down (the scene opens it); 1.6 m wide in the west gable at gallery level
+  b.door(THORNBECK_HOIST_DOOR.x, top, 15.8, THORNBECK_HOIST_DOOR.width, 0, { height: 2.1, locked: true, breachable: false });
   // the hoist platform outside the west gable: deck and three rails (the wall under the doorway is its sill)
   box(b, THORNBECK_PLATFORM[0], -WT, bot, top, 15, 18, PLANK);
   rail(b, 'x', 15, THORNBECK_PLATFORM[0], -WT, top);
@@ -381,14 +394,17 @@ function buildGallery(b: LevelBuilder): void {
   rail(b, 'z', THORNBECK_PLATFORM[0] + RAIL_T / 2, 15, 18, top);
 }
 
-/** The main stair (x 8.2-9.4, z 10.4-15, up to the gallery) in a closed housing, with its foot gate and the ladder L1. */
+/**
+ * The main stair (x 8.2-9.4, z 10.2-15, up to the gallery) in a closed housing, with its foot gate and the ladder L1. The
+ * plan draws it from z 10.4; 0.2 m longer keeps a 0.5 m nav cell's rise (0.44) under the guards' step (0.45).
+ */
 function buildStairAndLadder(b: LevelBuilder): void {
-  // 21 steps over 4.6 m (42 degrees: under the controller's 50)
-  b.stairs(8.8, 12.7, 1.2, 4.6, DECK_Y, 21, PLANK, 0, 0);
+  // 22 steps over 4.8 m (41 degrees: under the controller's 50)
+  b.stairs(8.8, 12.6, 1.2, 4.8, DECK_Y, 22, PLANK, 0, 0);
   // the housing: a 0.1 side wall each side (no way off the stair into the machinery floor), and a lintel over the gate
-  box(b, 8.1, 8.2, 0, DECK_Y + RAIL_H, 10.4, 15, TIMBER);
-  box(b, 9.4, 9.5, 0, DECK_Y + RAIL_H, 10.4, 15, TIMBER);
-  box(b, 8.2, 9.4, 2.1, DECK_Y + RAIL_H, 10.3, 10.5, TIMBER);
+  box(b, 8.1, 8.2, 0, DECK_Y + RAIL_H, 10.2, 15, TIMBER);
+  box(b, 9.4, 9.5, 0, DECK_Y + RAIL_H, 10.2, 15, TIMBER);
+  box(b, 8.2, 9.4, 2.1, DECK_Y + RAIL_H, 10.1, 10.3, TIMBER);
   // the foot gate: a locked door (bolted from the gallery side, `THORNBECK_BOLTS`)
   b.door(8.2, 0, THORNBECK_STAIR_GATE.z, THORNBECK_STAIR_GATE.width, Math.PI / 2, { height: 2.1, locked: true, breachable: false });
   // ladder L1: up the hatch, facing north; its top lands on the deck at z 16.05
@@ -502,6 +518,12 @@ export const thornbeckMill: MapDef = {
       // the start bay, the gallery deck and the hoist platform (the door between them is not on the nav grid)
       navSeeds: [new Vector3(4.0, 0, 4.6), new Vector3(20, DECK_Y, 16.5), new Vector3(-1.5, DECK_Y, 16.6)],
       camSpaces: [...THORNBECK_CAM_SPACES],
+      hideSpots: THORNBECK_HIDE_SPOTS.map(([, x, z, y]) => ({ pos: new Vector3(x, y, z) })),
+      // dev teleports: the first stop of each stretch
+      debugPoints: Array.from({ length: 10 }, (_, k) => {
+        const stop = THORNBECK_PATH.find((q) => q.stretch === k + 1)!;
+        return { group: 'Thornbeck Mill', id: `stretch${k + 1}`, label: `Stretch ${k + 1}: ${stop.name}`, pos: new Vector3(stop.pt[0], stop.pt[2] ?? 0, stop.pt[1]), yaw: 0 };
+      }),
     };
   },
 };
