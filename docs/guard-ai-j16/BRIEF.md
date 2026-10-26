@@ -50,9 +50,13 @@ grows suspicious and looks at it: a small rise, never a sighting, never a walk o
 - A5 How much: the reaction is `hearTurn`'s (enemy.ts:1367): meter floor 0.35 (`PERCEPTION.suspicious` 0.3 + 0.05;
   below hearing's `turnMax` 0.45 and `investigate` 0.6), stimulus at the point, `turnT = ALERT.hearLook` 2.4 s. No
   `heard`, incident, board report, bark, `lastKnown`, `sawOnce` or target change. Undo: `SHADOW_NOTICE.enabled` false.
-- A6 Who: a guard not alerted, not passive, not a dog, at unaware / cooldown / suspicious with no incident task; only
-  for a live player whose sight rate this think is <= `PERCEPTION.leak` (he does not see him). Undo: the gate list in
-  `Enemy.shadowLook` (one function).
+  No bark (G3, plan check 1 item 2): the unaware / cooldown -> suspicious rise the cue alone causes is hushed
+  (`Enemy.cueRise`, read in `onLevel`): the white arc only. A rise with sight or a sound behind it barks as today.
+- A6 Who: a guard not alerted, not passive, not a dog, at unaware / cooldown / suspicious with no incident task, who
+  sees nobody this think (every player's sight rate <= `PERCEPTION.leak`: sight keeps his look; G3); only for a live
+  player whose sight rate this think is <= `PERCEPTION.leak` (he does not see him). A guard on a mission order
+  (guard-ai-mission-hooks `orderSlot >= 0`, not on master at G3) is excluded too: the line goes into the gate list when
+  that branch and this one meet (plan check 1 item 3). Undo: the gate list in `Enemy.shadowLook` (one function).
 - A7 Owner keys: guards and dogs `occKey(kind, Enemy.num)`, bodies `occKey(OCC_KIND.body, Body.num)` (a new numeric id),
   not list indexes, so a list change between the fill and a sample never makes a body shadow itself. Undo: internal.
 - A8 A carried body adds no capsule of its own: its carrier lives in src/game (`StealthSystems.carry`) and src/net
