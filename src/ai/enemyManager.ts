@@ -15,6 +15,9 @@ import { newLie } from './bodyLie';
 import { BODY } from './bodies';
 import type { LightDef, Occluder } from '../world/lights';
 import { rayOccluder } from '../world/shadowAccuracy';
+import { OCC_KIND, occKey, type CharOccluders } from '../world/charOccluders';
+import type { ShadowCues } from '../world/shadowCues';
+import { putBody, putDog, putGuard } from './guardOccluders';
 import { beamReach, nextTorchSwap, torchKey, type BeamHit } from '../world/torches';
 import { ALARM_CALL, ALARM_REPEAT, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
@@ -175,6 +178,17 @@ export class EnemyManager {
    * chase the shared last known position and search it. Off (Wave): they are sent at the players.
    */
   stealth = false;
+  /**
+   * (guard-ai-j16 G3, G352) The character-occluder contract (`GameState.charOccluders`, set after construction by G4a;
+   * null while `charShadowLight` is off): the guards' light reads (a target without its own sample, a body, a fallen
+   * guard) take the characters' shadows from it. The guards read it through `AiContext.chars` (a getter, so a later set
+   * reaches them). Null: today's light.
+   */
+  chars: CharOccluders | null = null;
+  /** (guard-ai-j16 G3, G379) The players' cast-shadow cues (`GameState.shadowCues`, set by G4b; null on a co-op client,
+   *  which has no manager, and with the flag off): the guards' shadow cue (`Enemy.shadowLook`, through `AiContext.cues`).
+   *  Null: no cue. */
+  cues: ShadowCues | null = null;
   /** Shared last known position of the players (the latest sighting / located noise). (guard-ai S24) The mirror of the
    *  freshest intruder (`intruders.freshest`), written after every report and forget: solo reads it as before; the
    *  guards read their own intruder's (`lkpOf`). */
@@ -703,6 +717,9 @@ export class EnemyManager {
       stealth: () => this.stealth,
       coordinated: () => this.coordinated,
       sceneDark: () => this.sceneDark,
+      // (guard-ai-j16 G3, plan check 1 item 1) getters, never values: G4a / G4b set the fields after construction
+      chars: () => this.chars,
+      cues: () => this.cues,
       lkp: this.lkp,
       lkpValid: () => this.lkpValid,
       // (guard-ai S24) his intruder's slot (by player id): its last known position follows him; the guard hunts it
@@ -823,6 +840,32 @@ export class EnemyManager {
       if (k < 0) break;
       this.removeBody(this.bodies[k]!);
     }
+  }
+
+  /**
+   * (guard-ai-j16 G1 / G3, BRIEF A7-A9) The guard side of the character-occluder contract, after `fillPlayers`: every
+   * living guard and dog in list order (`putGuard` / `putDog`), then every lying body (`present`: not carried, hidden or
+   * gone; `putBody`), each culled to `FILL.reach` of the `n` player slots in `pin` (`FILL_IN` stride). Owner keys come
+   * from `Enemy.num` / `Body.num`, never list indexes. Note: `occKey` keeps the low 16 bits of the number, so two
+   * characters of one kind share a key only 65,536 spawns apart in one page session (the contract's layout, Sector Ops';
+   * a long sandbox session is the only way there). Returns how many did not fit (a writer's -1; `OCC_FAR`, beyond every
+   * player, is a normal skip). Runs every sim step once G4a calls it: no allocation.
+   */
+  fillOccluders(occ: CharOccluders, pin: Float64Array, n: number): number {
+    let over = 0;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (!e.alive) continue;
+      if ((e.dog !== null ? putDog(occ, e, pin, n) : putGuard(occ, e, pin, n)) === -1) over++;
+    }
+    const bodies = this.bodies;
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i]!;
+      if (!b.present) continue;
+      if (putBody(occ, b, pin, n) === -1) over++;
+    }
+    return over;
   }
 
   removeBody(b: Body): void {
@@ -1959,7 +2002,12 @@ export class EnemyManager {
     const vx = v.pos.x;
     const vy = v.pos.y;
     const vz = v.pos.z;
-    const light = this.world.lightField.totalAt(vx, vy + 0.2, vz, this.bodyOccluder);
+    // (guard-ai-j16 G3) with the character contract: his own capsule (still in this step's fill) skipped
+    const chars = this.chars;
+    const light =
+      chars === null
+        ? this.world.lightField.totalAt(vx, vy + 0.2, vz, this.bodyOccluder)
+        : this.world.lightField.totalAt(vx, vy + 0.2, vz, this.bodyOccluder, chars, occKey(v.dog ? OCC_KIND.dog : OCC_KIND.guard, v.num));
     let mask = 0;
     let n = 0;
     let first: Enemy | null = null;
@@ -4166,24 +4214,35 @@ export class EnemyManager {
     }
     this.updateTorches();
     this.spottedStep();
-    // bodies: settle, and sample the light on them now and then (how findable they are)
-    const field = this.world.lightField;
-    const bodies = this.bodies;
-    for (let i = 0; i < bodies.length; i++) {
-      const b = bodies[i]!;
-      b.update(dt);
-      b.lightT -= dt;
-      if (b.lightT <= 0 && b.present) {
-        b.lightT = 1;
-        b.light = field.totalAt(b.pos.x, b.pos.y + 0.2, b.pos.z, this.bodyOccluder);
-      }
-    }
+    this.stepBodies(dt);
     // drop dead entries (a dog keeps its own body: kept to draw and dispose)
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i]!;
       if (e.alive) continue;
       if (e.dog) this.dogCorpses.push(e);
       this.enemies.splice(i, 1);
+    }
+  }
+
+  /** Bodies: settle, and sample the light on them now and then (how findable they are). (guard-ai-j16 G3) With the
+   *  character contract the body's own capsule is skipped (its owner key, never a list index). */
+  private stepBodies(dt: number): void {
+    const field = this.world.lightField;
+    const bodies = this.bodies;
+    const chars = this.chars;
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i]!;
+      b.update(dt);
+      b.lightT -= dt;
+      // (guard-ai-j16 fix 2, check B polish 4) with the contract, not on its first step: a guard who died inside this
+      // `update` is still in this step's fill as a standing guard (his key, not the body's), and would shade his body
+      if (b.lightT <= 0 && b.present && (chars === null || b.age > dt)) {
+        b.lightT = 1;
+        b.light =
+          chars === null
+            ? field.totalAt(b.pos.x, b.pos.y + 0.2, b.pos.z, this.bodyOccluder)
+            : field.totalAt(b.pos.x, b.pos.y + 0.2, b.pos.z, this.bodyOccluder, chars, occKey(OCC_KIND.body, b.num));
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 import type { App } from '../../core/app';
-import { BRIGHTNESS_MAX, BRIGHTNESS_MIN, BRIGHTNESS_STEP, calibrationGrey } from '../../world/darkCurve';
+import { brightnessGain, calibrationGrey } from '../../vfx/displayBrightness';
+import { BRIGHTNESS_MAX, BRIGHTNESS_MIN, BRIGHTNESS_STEP } from '../../world/darkCurve';
 import { h } from '../dom';
 import type { Hint } from '../prompts';
 import { Screen } from '../screen';
@@ -7,8 +8,9 @@ import { button, slider } from '../widgets';
 
 /**
  * Brightness calibration (3.6 Phase 1 Step 4b, bible L7; Chaos Theory style): a symbol on black that should be barely
- * visible. The slider sets a small exposure offset in the grade (`CinematicPost.setBrightness`), clamped so it cannot
- * lift the dark band out of dark. Render only, stored per device (settings). Shown once after the update (skippable)
+ * visible. The slider sets the display curve's gain (`CinematicPost.setBrightness`, `src/vfx/displayBrightness.ts`:
+ * -1.5 .. +1.5 stops in the shadows, white fixed; brightness-range widened it from a small, clamped offset at Michael's
+ * word). Render only, stored per device (settings). Shown once after the update (skippable)
  * and from Settings > Display.
  */
 export class BrightnessScreen extends Screen {
@@ -52,7 +54,8 @@ export class BrightnessScreen extends Screen {
               app.settings.update((d) => void (d.video.brightness = v));
               this.paint();
             },
-            format: (v) => `${Math.round(v * 100)}%`,
+            // (brightness-range) the shadow gain it sets: 35% .. 100% .. 283%
+            format: (v) => `${Math.round(brightnessGain(v) * 100)}%`,
           }),
           button('Done', () => this.close(), { class: 'primary', autofocus: true }),
         ),

@@ -213,6 +213,9 @@ const OPACITY: readonly string[] = Array.from({ length: 101 }, (_, i) => String(
 
 const op = (x: number): string => OPACITY[Math.max(0, Math.min(100, Math.round(x * 100)))]!;
 
+/** Intros built on this page (a tap skips from the second on: Michael ~09:42 "allow skipping intro cinematic too"). */
+let introsSeen = 0;
+
 export class PianoIntroView implements SceneView, PianoView {
   private readonly cam: IntroCam = introCam();
   /** (S8) The shoulder camera's own pose this frame (the glide's end). */
@@ -242,6 +245,13 @@ export class PianoIntroView implements SceneView, PianoView {
   private readonly flash: HTMLDivElement | null;
   private readonly cold: HTMLDivElement | null;
   private readonly prompt: HTMLDivElement | null;
+  /** (walk ~09:42, "allow skipping intro cinematic too") The skip hint and its hold bar, shown while the skip is live. */
+  private readonly hint: HTMLDivElement | null;
+  private readonly hintBar: HTMLDivElement | null;
+  private hintShown = false;
+  private hintFill = -1;
+  /** A tap skips (no hold) once the intro has played before on this page. */
+  private readonly tapSkip: boolean;
   private lastBlack = '';
   private lastFlash = '';
   private lastCold = '';
@@ -328,6 +338,22 @@ export class PianoIntroView implements SceneView, PianoView {
       "inset:auto 0 18% 0;text-align:center;font:600 22px/1.4 'Barlow Condensed',sans-serif;letter-spacing:.08em;color:#e8edf2;text-shadow:0 1px 3px #000;opacity:0;transition:opacity .4s;z-index:9001",
     );
     if (this.prompt) this.prompt.textContent = `A / E   ${EMP_LABEL.toUpperCase()}`;
+    introsSeen++;
+    this.tapSkip = introsSeen > 1;
+    this.hint = layer(
+      "inset:auto 32px 32px auto;text-align:right;font:600 15px/1.3 'Barlow Condensed',sans-serif;letter-spacing:.08em;color:#c9d2da;text-shadow:0 1px 2px #000;opacity:0;transition:opacity .3s;z-index:9001",
+    );
+    this.hintBar = null;
+    if (this.hint && doc) {
+      this.hint.textContent = this.tapSkip ? 'BACK / ESC   SKIP' : 'HOLD BACK / ESC   SKIP';
+      const track = doc.createElement('div');
+      track.style.cssText = 'margin-top:4px;height:3px;background:rgba(255,255,255,.18)';
+      const bar = doc.createElement('div');
+      bar.style.cssText = 'height:100%;width:0;background:#e8edf2';
+      track.appendChild(bar);
+      this.hint.appendChild(track);
+      this.hintBar = bar;
+    }
     g.sceneView = this;
   }
 
@@ -353,6 +379,28 @@ export class PianoIntroView implements SceneView, PianoView {
     return !this.isCut && this.intro.pressT < 0 && this.intro.t < PROMPT_AT;
   }
 
+  /** (walk ~09:42) A tap skips once the intro has played before on this page (GameState.fixedUpdate calls it). */
+  tap(): void {
+    if (!this.tapSkip || !this.ownsPause || this.disposed || this.isCut) return;
+    if (this.intro.skip()) {
+      this.onSkip();
+      this.actorsToSpots();
+    }
+  }
+
+  /** The skip hint on while the skip is live; the bar fills with the hold (style writes only on change). */
+  private hintStep(on: boolean, held: number): void {
+    if (on !== this.hintShown && this.hint) {
+      this.hintShown = on;
+      this.hint.style.opacity = on ? '1' : '0';
+    }
+    const pct = on ? Math.min(100, Math.round((held / SKIP_HOLD_S) * 20) * 5) : 0;
+    if (pct !== this.hintFill && this.hintBar) {
+      this.hintFill = pct;
+      this.hintBar.style.width = pct + '%';
+    }
+  }
+
   get revealing(): boolean {
     return this.revealT >= 0;
   }
@@ -370,11 +418,14 @@ export class PianoIntroView implements SceneView, PianoView {
     intro.step(rdt);
     if (this.ownsPause) {
       const inp = g.app.input.state;
-      if (Math.max(inp.heldTime('pause'), inp.heldTime('objective')) >= SKIP_HOLD_S && intro.skip()) {
+      const held = Math.max(inp.heldTime('pause'), inp.heldTime('objective'));
+      this.hintStep(true, held);
+      if (held >= SKIP_HOLD_S && intro.skip()) {
         this.onSkip();
         this.actorsToSpots();
       }
     }
+    if (!this.ownsPause && this.hintShown) this.hintStep(false, 0);
     if (!this.boxed) {
       this.boxed = true;
       g.letterbox(LETTERBOX_HOLD);
@@ -640,6 +691,7 @@ export class PianoIntroView implements SceneView, PianoView {
     this.flash?.remove();
     this.cold?.remove();
     this.prompt?.remove();
+    this.hint?.remove();
   }
 
   dispose(): void {

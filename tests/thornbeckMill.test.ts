@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import {
+  ROOF_BEAM_Y,
   DECK_Y,
   THORNBECK_BOLTS,
   THORNBECK_CAM_SPACES,
@@ -601,5 +602,16 @@ describe('Thornbeck Mill: floors, camera spaces and hide spots', () => {
       expect(c, what).toBeGreaterThanOrEqual(0);
     }
     expect(lay.debugPoints).toHaveLength(10);
+  });
+});
+
+describe('(walk ~09:50) the roof reads as a roof', () => {
+  it('tie beams under the ceiling above every lamp and the intro camera (7.5 m), drawn only; a chain per lamp', () => {
+    const beams = b.boxes.filter((p) => !p.collide && p.c[1] - p.s[1] / 2 >= ROOF_BEAM_Y - 1e-9 && p.c[1] + p.s[1] / 2 <= 9 + 1e-9);
+    expect(beams.length).toBeGreaterThanOrEqual(9);
+    expect(ROOF_BEAM_Y).toBeGreaterThan(7.5 + 0.5);
+    for (const [, , y] of THORNBECK_LAMPS) expect(y).toBeLessThan(ROOF_BEAM_Y);
+    const chains = b.cylinders.filter((c) => !c.collide && c.r < 0.015 && Math.abs(c.c[1] + c.h / 2 - 9) < 1e-6);
+    expect(chains.length).toBe(THORNBECK_LAMPS.length);
   });
 });
