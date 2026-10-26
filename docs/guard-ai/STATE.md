@@ -1049,13 +1049,15 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    rulings: Q2 no role, Q3 rifle, Q4 pin runner FREE parity cases to an unarmed copy = A12, no tolerance change).
    Conflict: Player's origin/feature/player-j19-s4 commit 4fbce7eff arms him as data (melee kept) + tests/enemyArms.test.ts
    + sectors.test.ts; asked Player Build 13:35 to revert it (S4 keeps R17); if S4 lands first: brief A1 undo.
-   Then 2 Opus checkers, laptop set runner-armed (e2e-enemies e2e-modes e2e-levels), PR (kind patch).
+   BUILT fa53d2515 (tsc / eslint clean, vitest 24 files 445 pass; A12-A15 in its report: alarmRaised in 2 e2e, 8 s run,
+   chase keeps known.y for the runner; ai.md lines incl. A15 to fold; polish P4 known.y for every kind). Laptop
+   runner-armed (e2e-enemies e2e-modes e2e-levels) filed on fa53d2515; checks A + B running 13:50. Then PR (kind patch).
 8. J20 S6b seed-random: brief 994e636d2 on feature/guard-ai-seed-random (worktree -seed-random off master 29f03b6c0,
    slices/SEED-RANDOM-BRIEF.md; 5 Math.random sites -> senseRng / seeded01; allowlist -> {}). Builder starts AFTER the
-   runner-armed builder pushes (both edit src/ai/enemy.ts). Laptop set seed-random (e2e-stealth-ai e2e-sectorops e2e-enemies).
+   runner-armed builder pushes (both edit src/ai/enemy.ts). Builder STARTED 13:50. Laptop set seed-random (e2e-stealth-ai e2e-sectorops e2e-enemies).
 Laptop queue STALLED since 01:01Z (0 trains / 0 requests every pass, ~40 open requests, train 118 open): told Test
    Runner 13:32 (its area). #317 affected + mh-s4 wait on it.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
    coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); S4 checker status (Michael); J26 PRs open after J15 PR4 merges; runner-armed builder report -> 2 checkers -> PR; then seed-random builder.
+Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); S4 checker status (Michael); J26 PRs open after J15 PR4 merges; runner-armed checks A + B -> post checker -> PR + orchestrator; seed-random report -> 2 checkers -> laptop -> PR.
 ```
