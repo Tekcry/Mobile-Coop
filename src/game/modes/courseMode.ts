@@ -8,6 +8,7 @@ import type { DoorState } from '../../world/doors';
 import { CourseState, kitMoveOn, type CourseEvent, type LastRetry, type PackedCourse, type RetryCause, type StationCause } from '../course/courseState';
 import { airlockPad, courseUser, deviceHoldTime, isPanelId, layoutKnownIds, registerCourse, retryKey, validateCourse, warnKey, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
 import type { StationDef } from '../course/stationDef';
+import type { KitKind } from '../teamMoves';
 import type { CourseWire } from '../course/courseWire';
 import { COURSE_CALLSIGNS, COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { hyp2 } from '../../core/mathx';
@@ -743,6 +744,17 @@ export class CourseMode implements GameMode {
     this.dirty = true;
   }
 
+  /**
+   * (marlow-kit-wire, coop-kit K0) Kit move `kind` completed at kit spot `spot`: the live station's kit credit
+   * (`CourseState.kitDone`). Host only (CourseMode runs on the host; `kitDone` is a no-op on a client page). Spots that are
+   * not ours, '' (a free move), `pull` and `shutter` are ignored: no station's `kit` names them. No stats here
+   * (`onTeamMove` counted the team move at its start).
+   */
+  onKitDone(kind: KitKind, spot: string, _a: string | undefined, _b: string | undefined): void {
+    const st = this.state;
+    if (st && st.kitDone(kind, spot)) this.dirty = true;
+  }
+
   onRemoteMove(_id: string, mode: string): void {
     if (mode === this.remoteMode) return;
     this.remoteMode = mode;
@@ -1275,6 +1287,8 @@ export class CourseMode implements GameMode {
     const g = this.g;
     g.grenades.clear();
     g.gadgets.clearWorld();
+    // (marlow-kit-wire, A8) the kit move in flight ends and its devices go back (host; the client's own reset is Player's)
+    if (def.kit !== undefined && kitMoveOn(def.kit)) g.team?.resetKit();
     this.ct?.repair(-1);
     this.ct?.holdZones(2);
     // (marlow-play-2 C14) a hack running at the retry (station 17's `sc-a7`) resets silently, not "broken off... that one hurt"

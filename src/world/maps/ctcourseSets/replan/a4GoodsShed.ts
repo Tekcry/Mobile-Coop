@@ -21,10 +21,15 @@
  *   `a4-grille` is set (marlow-play B2: past the loop it saw every takedown at the desk);
  * - the lamps of Q2: group 49 (three strips over the back aisle), group 44 (the dispatch office's panel, its switch inside).
  * The drill windows of stations 8 and 10 are the set's tick, `src/game/course/replan/a4Ticks.ts`.
+ * (marlow-kit-wire) Station 9's Deadweight kit spot `a4-deadweight` (`A4_DEADWEIGHT`: the near chain in the passage, the far
+ * chain in the back aisle, the grille's door), placed unconditionally (inert while `deadweight` is off); with it on, both
+ * grille gates are held (`CourseState` refuses the motor button) and the move drives the door. The counterweight chain skins
+ * stand at the two grips. Value imports beside the set file and `types.ts`: the pure `kitApi`.
  */
 import type { GuardInfo } from '../../../../ai/guardInfo';
 import type { EgressGate, FlagGate, LeverGate } from '../../../../game/course/courseDef';
 import type { StationDef } from '../../../../game/course/stationDef';
+import { addKitSpot } from '../../../../game/kit/kitApi';
 import type { CameraDevice } from '../../../../security/data';
 import type { FacilityKit } from '../../../kit/facilityKit';
 import type { LevelBuilder } from '../../../levelBuilder';
@@ -46,6 +51,10 @@ export const A4_GRILLE_MOTOR = 'a4-grille-motor';
 export const A4_GRILLE = { x0: 101, x1: 104, z: 24, t: 0.5, h: 2.4 } as const;
 /** The motor button on the passage's east wall (face x 103.75) beside the mouth, facing west into the passage. */
 export const A4_GRILLE_MOTOR_AT = { x: 103.55, z: 23.3 } as const;
+/** (marlow-kit-wire) Station 9's Deadweight chains: both on the passage's west side, 0.5 m off its west face (x 101.25, the
+ *  0.5 m wall on x 101; a hanging body's 0.3 m clear, off the motor button and the passer's line), `off` m either side of the
+ *  grille's plane (the near grip in the passage, the far one in the back aisle); the grips at the grille's height. */
+export const A4_DEADWEIGHT = { x: A4_GRILLE.x0 + A4_GRILLE.t / 2 + 0.5, off: 1.5 } as const;
 /** The done flags this set adds (STATIONS section 8, both players): under the grille in the back aisle, at the dock wicket. */
 export const A4_GRILLE_FLAG = 'a4-grille';
 export const A4_GRILLE_ZONE: [number, number, number, number] = [98.5, 24.3, 104.5, 27.2];
@@ -152,6 +161,10 @@ export function replanA4GoodsShed(b: LevelBuilder, _kit: FacilityKit, part: SetP
     slab(gr.x0, gr.x1, gr.z - gr.t / 2, gr.z + gr.t / 2, gr.h, A4_PASSAGE.top, GRILLE_HEAD);
     p.doors[A4_GRILLE_DOOR] = b.door(gr.x0, 0, gr.z, gr.x1 - gr.x0, Math.PI / 2, { height: gr.h, locked: true, leaf: 'slide' }).id;
   });
+  // (marlow-kit-wire) the Deadweight spot: near chain (passage) to far chain (back aisle) across the grille, its world door
+  // (A5: the door anchor's id, a number in the level, as a string: `KitSpot.door` is a string)
+  const dw = A4_DEADWEIGHT;
+  addKitSpot(b.anchors, { id: 'a4-deadweight', kind: 'deadweight', x: dw.x, y: gr.h, z: gr.z - dw.off, yaw: 0, x2: dw.x, y2: gr.h, z2: gr.z + dw.off, door: String(p.doors[A4_GRILLE_DOOR]!) });
   p.devices[A4_GRILLE_MOTOR] = { x: A4_GRILLE_MOTOR_AT.x, y: 0, z: A4_GRILLE_MOTOR_AT.z, yaw: -Math.PI / 2, label: 'Run the grille motor' };
   p.bay.gates.push(
     { kind: 'lever', id: A4_GRILLE_MOTOR_GATE, switchId: A4_GRILLE_MOTOR, doorId: A4_GRILLE_DOOR } satisfies LeverGate,
@@ -197,11 +210,15 @@ export function replanA4GoodsShed(b: LevelBuilder, _kit: FacilityKit, part: SetP
     }
     skin(80.1 - 2 * S, 80.1 - S, 0.05, 2.1, 46.7, 47.6, LOOK.steel);
     skin(80.1 - 3 * S, 80.1 - 2 * S, 1.0, 1.12, 47.0, 47.06, LOOK.steelDark);
-    // the grille: bars on its floor face (z 24.25) to the leaf's top and a bottom rail; the counterweight chain in the passage's west corner
+    // the grille: bars on its floor face (z 24.25) to the leaf's top and a bottom rail; (marlow-kit-wire, A10) the counterweight
+    // chains at the Deadweight grips, the near one in the passage and the far one in the back aisle
     for (let x = gr.x0 + 0.15; x < gr.x1 - 0.05; x += 0.3) skin(x - 0.015, x + 0.015, 0.05, gr.h - 0.05, gr.z + gr.t / 2, gr.z + gr.t / 2 + S, LOOK.steelDark);
     skin(gr.x0, gr.x1, 0.05, 0.15, gr.z + gr.t / 2, gr.z + gr.t / 2 + S, LOOK.yellow);
-    skin(101.3, 101.33, 0.6, A4_PASSAGE.top - 0.1, 23.55, 23.58, LOOK.steel);
-    skin(101.27, 101.36, 0.6, 1.2, 23.45, 23.48, LOOK.black);
+    for (const gz of [gr.z - A4_DEADWEIGHT.off, gr.z + A4_DEADWEIGHT.off]) {
+      const gx = A4_DEADWEIGHT.x;
+      skin(gx - 0.015, gx + 0.015, 0.6, A4_PASSAGE.top - 0.1, gz - 0.015, gz + 0.015, LOOK.steel);
+      skin(gx - 0.045, gx + 0.045, 0.6, 1.2, gz - 0.115, gz - 0.085, LOOK.black);
+    }
     // the motor button's back plate (the device draws its own button)
     skin(103.75 - S, 103.75, 0.95, 1.35, A4_GRILLE_MOTOR_AT.z - 0.15, A4_GRILLE_MOTOR_AT.z + 0.15, LOOK.yellow);
     // the new strips hang from the back aisle's roof tie (7.55 m) on two cables each
