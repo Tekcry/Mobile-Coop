@@ -162,7 +162,7 @@ export const S3_SECTOR: SectorDef = {
   // weapons crate (E9): the glazed bridge south wall, strip to the walkway
   crate: { at: [7, C2_FLOOR, -15.3], yaw: 0 },
   // grab the Tidewater prototype board off the shelf at the store's east end (L1), past las-store: opens C3
-  objective: { kind: 'grab', label: 'Take the Tidewater prototype board', x: 51.0, y: S3_L1, z: -3.8, yaw: PI / 2 },
+  objective: { kind: 'grab', label: 'Take the Tidewater board from the prototype store', x: 51.0, y: S3_L1, z: -3.8, yaw: PI / 2 },
   connector: {
     label: 'Along the dock link to the data hall',
     box: [22, 0, 26, 16],

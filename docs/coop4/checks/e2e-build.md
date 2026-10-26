@@ -45,6 +45,6 @@ Chronological, one match. Legs; each check, the hook it reads, and whether the h
 7. SM (`__sector.run.teamSize`) is on `feature/coop4-sm`, not yet in `feature/coop4`; the check prints SKIP until it is.
 
 ## Notes for the laptop run
-- Run alone: `E2E_GPU=1 E2E_LOAD_MS=240000 E2E_PORT=<port> node scripts/run-e2e.mjs e2e-sectorops:7` (and `:8`); no `--jobs` above 1.
+- Run alone: `E2E_GPU=1 E2E_LOAD_MS=240000 E2E_PORT=<port> node scripts/run-e2e.mjs e2e-sectorops:10` (and `:11`; parts 7-8 when built, renumbered 10-11 in MERGE4); no `--jobs` above 1.
 - Rejoin uses `__coop.leave()` plus the main menu's "Rejoin <code>" (e2e-coop's path): the rejoin token lives in the tab's `sessionStorage`, so a closed tab would lose it; a page reload keeps it but the host only drops a silent page after 60 s.
 - Known soft spots for the fix round: the jam claim is forced by wrapping the client's `localStep` (the aim / pistol path is e2e-ctcourse station 4's); the throw spot is searched, not fixed; the `taken` test races two real presses (either may win, the other must be denied).

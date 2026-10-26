@@ -50,7 +50,7 @@ import { emptyMoveState } from '../player/moveState';
 import type { Difficulty } from '../ai/enemyDefs';
 import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
-import { Interactables, type Interactable } from './interactables';
+import { Interactables, drawsExitBeacon, type Interactable } from './interactables';
 import { WeaponCrates } from './weaponCrates';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
 import { addGapRows, GAP_KIND, gapMenuCandidate, pickOpenTrap, type GapOpt } from './gapMenu';
@@ -793,7 +793,7 @@ export class GameState implements AppState {
       };
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
-      w.interactables = new Interactables(this.scene, world.parts);
+      w.interactables = new Interactables(this.scene, world.parts, drawsExitBeacon(opts.mode));
       w.crates = new WeaponCrates(this);
       this.addMedkitWalls(w.interactables);
       w.mode =

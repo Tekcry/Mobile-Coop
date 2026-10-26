@@ -38,10 +38,10 @@ kind: minor
 - Guards (DATA): each Sector Ops section can add up to 2 extra guards for teams of 3 or 4 - 16 in all over the 5 Saltmarsh
   Park sections and the 3 Warehouse sections. They come from the team-door and split routes that 4 players make too easy.
   A team of 1 or 2 faces the same guards as before.
-- Tests (OUT): `e2e-sectorops` part 9 (Saltmarsh Park, 3 pages): slot 2 goes out, the section goes on, the connector
+- Tests (OUT): `e2e-sectorops` part 12 (Saltmarsh Park, 3 pages): slot 2 goes out, the section goes on, the connector
   cycles with slots 0 and 1, slot 2 comes back beside the host; then everyone down or out restarts the section.
-- Tests (E2E): `e2e-sectorops` parts 7 and 8 run 4 pages of one browser. Part 7 (Saltmarsh Park) checks slots, beacons,
-  spawns, light, the jam, the crate, a revive, the connector and a pair gate with 4 players. Part 8 (Warehouse) checks a
+- Tests (E2E): `e2e-sectorops` parts 10 and 11 run 4 pages of one browser. Part 10 (Saltmarsh Park) checks slots, beacons,
+  spawns, light, the jam, the crate, a revive, the connector and a pair gate with 4 players. Part 11 (Warehouse) checks a
   drop and rejoin into the same slot, a late fourth player, two team moves at once and the busy-brace denial. `e2e-coop`
   gains a "lobby caps" block. `E2E_LOAD_MS` (default 240 s for 3 or more pages) sets the match load wait. They run alone on
   the laptop.

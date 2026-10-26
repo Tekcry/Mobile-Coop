@@ -24,7 +24,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { selectSuites, suitesForFile, affectedPick, parseAffectedMax, QUICK_COVERS, LEGACY, GPU, AUDIO } from './e2e-affected.mjs';
-import { classify, status, reportSet, isReport } from './e2e-verdict.mjs';
+import { classify, status, reportSet, isReport, slowLine } from './e2e-verdict.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4179);
 // Windows: `localhost` can resolve to ::1, which a VPN adapter on the PC blocks (EACCES): bind and browse the IPv4 loopback there
@@ -34,7 +34,7 @@ const TIMES_FILE = 'scripts/e2e-times.json';
 // no suite may hang a run: past this it is killed (browsers included) and counts as failed (seconds; `E2E_SUITE_TIMEOUT`)
 const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 // (coop4 E2E) the 4-page parts load four pages, cycle connectors and run team moves: 1800 s unless `E2E_SUITE_TIMEOUT` is set
-const PART_TIMEOUT = { 'e2e-sectorops:7': 1800, 'e2e-sectorops:8': 1800, 'e2e-sectorops:9': 1800 };
+const PART_TIMEOUT = { 'e2e-sectorops:10': 1800, 'e2e-sectorops:11': 1800, 'e2e-sectorops:12': 1800 };
 const timeoutOf = (s) => (process.env.E2E_SUITE_TIMEOUT ? SUITE_TIMEOUT : (PART_TIMEOUT[s] ?? 600) * 1000);
 
 // (process audit, 2026-10-19, approved by Michael) REQUIRED = what `npm run e2e` runs: the co-op training level
@@ -50,11 +50,12 @@ const NEEDS_LEGACY_FLAG = new Set(['e2e-progression', 'e2e-cosmetics', 'e2e-clea
 const REPORT = ['anim-audit'];
 // A suite that is several independent sections (each its own browser) runs as one job per section: `e2e-desktop` =
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
-// (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages.
-// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6 (campusOps: S1-S3 greybox routes),
-// (coop4 E2E) 7 (campusOps, four pages: slots, beacons, spawns, light, jam, crate, revive, connector, pair gate, tagged guards), 8 (warehouseOps: drop and rejoin, a late fourth page, two pairs of team moves), (coop4 OUT) 9 (campusOps, three pages: an operator out waits for the connector); 7-9 run alone in a laptop slot (`E2E_GPU=1`, `E2E_LOAD_MS=240000`)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
-// (coop4 release check B 2) parts 7-9 (3-4 pages) are named only (`e2e-sectorops:7`): never in a full, quick or affected
+// (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages. (J14) Parts 5-8
+// are the same four pairs on the re-planned yard (map `ctcourseReplan`, `scripts/e2e-ctcourse/replan/`).
+// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6-9 (campusOps, solo: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5; split in F33 so no part nears the kill),
+// (coop4 E2E) 10 (campusOps, four pages: slots, beacons, spawns, light, jam, crate, revive, connector, pair gate, tagged guards), 11 (warehouseOps: drop and rejoin, a late fourth page, two pairs of team moves), (coop4 OUT) 12 (campusOps, three pages: an operator out waits for the connector); 10-12 run alone in a laptop slot (`E2E_GPU=1`, `E2E_LOAD_MS=240000`)
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9'] };
+// (coop4 release check B 2) parts 10-12 (3-4 pages) are named only (`e2e-sectorops:10`): never in a full, quick or affected
 // expansion, so they run alone on the laptop queue as the docs say.
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
@@ -277,6 +278,8 @@ const wall = (Date.now() - t00) / 1000;
 const sum = results.reduce((a, r) => a + r.sec, 0);
 console.log(`\ntimes (${process.env.E2E_GPU === '1' ? 'GPU' : 'software GL'}, ${jobs} at a time):\n  ${results.sort((a, b) => b.sec - a.sec).map((r) => `${r.s} ${status(r, verdictOpts)} ${r.sec.toFixed(0)}s`).join('\n  ')}`);
 console.log(`\nwall ${wall.toFixed(0)}s, suites summed ${sum.toFixed(0)}s${jobs > 1 ? ` (x${(sum / wall).toFixed(1)})` : ''}`);
+// (F33-c) a part that passes but used over 75% of the kill limit is drifting toward KILLED: say so before it gets there
+for (const r of results) { const slow = slowLine(r, SUITE_TIMEOUT / 1000); if (slow) console.log(slow); }
 if (fullRun && !allFailed.length) {
   // keep the schedule current (the file is committed: a fresh checkout starts with a good order)
   for (const r of results) known[r.s] = Math.round(r.sec);

@@ -301,7 +301,7 @@ export const teamLog = (P) =>
   });
 
 // ---------------------------------------------------------------------------------------------------------------------
-// (coop4 E2E) Helpers for the 3-4 page parts (e2e-sectorops parts 7-8). Slots are N1's: `GameState.localSlot` /
+// (coop4 E2E) Helpers for the 3-4 page parts (e2e-sectorops parts 10-12). Slots are N1's: `GameState.localSlot` /
 // `NetSession.selfSlot` for a page's own, `PlayerInfo.slot` in the lobby list. A build without them reads null.
 // ---------------------------------------------------------------------------------------------------------------------
 

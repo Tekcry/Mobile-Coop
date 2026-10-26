@@ -30,7 +30,9 @@ merge); `docs/RULES.md` (who merges).
   `shoulder-strike-<id>`, `src/save/db.ts`) and its own service worker; the live worker's `navigateFallbackDenylist`
   skips the preview paths. Every build's label shows the version and the commit (G183): the commit is the
   checked-out folder's own HEAD (`src/core/buildSha.ts`), so a slot shows its branch's commit; GITHUB_SHA (the
-  workflow's trigger, master) is only the fallback when git fails.
+  workflow's trigger, master) is only the fallback when git fails. On `/preview/` every dark feature flag in
+  `src/core/flags.ts` defaults on (`PREVIEW_ON`, `darkFlag`; Michael 2026-10-26 ~13:55, "All on in preview"); a URL
+  `=0` turns one off; the live game and `/ct/` keep them off.
 - Boot a preview straight into a map: `/<repo>/<slot>/?autostart=<mapId>&mode=<mode>`.
 
 ## One deploy per release (audit 2026-10-24 finding 9)

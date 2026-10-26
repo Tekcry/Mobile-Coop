@@ -12,11 +12,13 @@ const PARAMS = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
 // sections, alarms, restarts, nav and the co-op mirror (the suite before slice R); 2 solo: the co-op lips out of reach
 // alone, the engine links the routes rely on (pipe jumps, crouch-walk, climb-ups), the ways down alone, every team door;
 // 3-5 two pages: section 1, 2, 3's co-op routes walked by host and client (leg-up, relay / rope) and its team door
-// unbolted by the client for both pages, re-bolted by a restart; 6 campusOps S1-S3 greybox routes; (coop4 E2E) 7: four pages on
-// campusOps (slots, beacons, spawns, light, jam, crate, revive, connector, pair gate, tagged guards), 8: warehouseOps with a drop
-// and rejoin, a late fourth page and two pairs of team moves at once; (coop4 OUT) 9: three pages on campusOps, an operator out waits for
-// the connector (M1 b). Parts 7-9 run alone in a laptop slot. Named alone the
-// suite runs every part in sequence.
+// unbolted by the client for both pages, re-bolted by a restart. 6-9 are solo Saltmarsh Park (campusOps), split so no
+// job runs past the runner's kill (F33-b): 6 S1/S2 + the feeder + the CR1/CR2 probes; 7 S3 + H8 (guards on their floors);
+// 8 S4 + CR4 + S16 (guards hold fire at armour); 9 S5 (the Old House, the jetty). (coop4 E2E) 10: four pages on
+// campusOps (slots, beacons, spawns, light, jam, crate, revive, connector, pair gate, tagged guards), 11: warehouseOps with a drop
+// and rejoin, a late fourth page and two pairs of team moves at once; (coop4 OUT) 12: three pages on campusOps, an operator out waits for
+// the connector (M1 b). Parts 10-12 are named only and run alone in a laptop slot.
+// Named alone the suite runs every part in sequence.
 const PART = Number(process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? 0);
 const want = (n) => PART === 0 || PART === n;
 let failed = false;
@@ -49,7 +51,7 @@ const sections = (G) =>
       obj: [s.objective.x, s.objective.y, s.objective.z],
       exit: (s.connector ?? s.extract).box,
       cp: s.connector ? s.connector.checkpoint : null,
-      // (coop4 A8) the list a team of 1-2 spawns: the minPlayers-tagged guards are only for 3-4 (part 7 checks them)
+      // (coop4 A8) the list a team of 1-2 spawns: the minPlayers-tagged guards are only for 3-4 (part 10 checks them)
       guards: s.guards.filter((g) => g.minPlayers === undefined).length,
       tagged: s.guards.filter((g) => g.minPlayers !== undefined).length,
       seals: (s.connector?.sealUnlocks ?? []).length,
@@ -96,6 +98,9 @@ await run(PARAMS, async ({ page, G, sim }) => {
     await sim(0.3);
     const ph = await G(() => window.__sector.debug());
     assert(ph.phase === (last ? 'extract' : 'connector'), `section ${i + 1} (${s.id}): the ${s.kind} opens the connector or the extraction (${ph.phase})`);
+    // (sector-marks, G290) no exit beacon: the exit item is there (its zone) with nothing drawn
+    const ex = await G((id) => { const it = window.__app.current.interactables.items.find((x) => x.id === `${id}-exit`); return it ? { parts: it.parts.length, light: it.light !== null } : null; }, s.id);
+    assert(ex !== null && ex.parts === 0 && !ex.light, `section ${i + 1} (${s.id}): the exit has no beacon (${JSON.stringify(ex)})`);
     if (i === 0) {
       // (G343, hud-guidance B1) the objective popup: the exit line fades in when section 1's objective is done, is gone
       // after the hold (real time: the popup reads performance.now(), not the sim) with its text kept, and O brings it
@@ -2107,6 +2112,8 @@ if (want(5)) {
 // opens C2's card door, (d) the reception panel board (LR16-4, untimed) cuts s2-atrium and #1 walks to it; in the probe run (c) the CR2 nose is never held
 // alone (cafe floor, cafe table, feature stair, a wall jump off the hall's east wall). Skipped: the co-op leg-up + human ladder at CR2 (this
 // part has no co-op helper), the balustrade probe (the balustrade is on L1: a solo up there is already on the slab).
+// (F33-b) campus parts: `want(6)` S1/S2 + feeder + CR1/CR2 probes (3 launches), `want(7)` S3 + H8 (2), `want(8)` S4 + CR4 + S16 (3),
+// `want(9)` S5 (1): each is a separate job, one browser per launch.
 const CAMPUS = 'autostart=campusOps&mode=sector';
 
 if (want(6)) {
@@ -2433,7 +2440,7 @@ if (want(6)) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// (sector-redesign slice 3, `--part=6`) Saltmarsh Park, section 3: the lab block (docs/sector-redesign/SPEC.md "S3",
+// (sector-redesign slice 3, `--part=7`) Saltmarsh Park, section 3: the lab block (docs/sector-redesign/SPEC.md "S3",
 // PLAN slice 3). A self-contained block, run only when the page's section 3 is the built one (16 guards): S1 and the S2
 // stub are told done and their connectors cycled, then (a) 16 guards, cam-view / cam-dock and both lasers with their
 // panels are live; (b) the high-bay switch bank cuts `s3-hb-1` and draws #16 (the crane-bay sentry) towards it; (c) the
@@ -2601,15 +2608,15 @@ async function campusS3Part(page) {
   assert(s4.index === 3 && s4.id === 's4' && s4.phase === 'objective', `the S4 stub loads behind C3 (${JSON.stringify([s4.index, s4.id, s4.phase])})`);
 }
 
-if (want(6)) {
+if (want(7)) {
   console.log('campus ops (S3): the lab block - the switch-bank lure, the jammed store beams, the stealth grab, C3');
   await run(CAMPUS, async ({ page }) => campusS3Part(page));
 }
 
 // (test-runner-j20 S6c, H8) every guard the mode spawns is alive: campus sections 2-5 (S1 is the boot check in the first
-// part-6 block). `loadSection` / `unloadSection` are TS-private on SectorMode, callable from the page (BRIEF A10). The
+// part-6 block (`--part=6`)). `loadSection` / `unloadSection` are TS-private on SectorMode, callable from the page (BRIEF A10). The
 // guards stay put (enemyMgr.update off); each alive guard must stand within 2 m of its slot's floor (none fell through).
-if (want(6)) {
+if (want(7)) {
   console.log('campus ops (H8): every guard of sections 2-5 is alive after its load, none fell through the floor');
   const t0 = Date.now();
   await run(CAMPUS, async ({ G, sim }) => {
@@ -3177,7 +3184,7 @@ await run(PARAMS, async ({ G, sim }) => {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// (sector-redesign slice 4, `--part=6`) Saltmarsh Park, section 4: the data hall (docs/sector-redesign/briefs/SLICE4.md).
+// (sector-redesign slice 4, `--part=8`) Saltmarsh Park, section 4: the data hall (docs/sector-redesign/briefs/SLICE4.md).
 // Written, not run (the build sheet lists it). Run only when the page's section 4 is the built one (20 guards): S1-S3 are
 // told done and their connectors cycled, then (a) 20 guards, the three cameras and las-tray with its panel are live, (b) the
 // dock board gives the codes and both keypads open, (c) every walked route leg has a path on the real grid, (d) the desk
@@ -3337,7 +3344,7 @@ async function campusS4Part(page) {
   assert(s5.index === 4 && s5.id === 's5', `section 5 loads behind C4 (${JSON.stringify([s5.index, s5.id])})`);
 }
 
-if (want(6)) {
+if (want(8)) {
   console.log('campus ops (S4): the data hall - the dock board codes, the desk, the pair gate, the hall panel lure, the cage download, C4');
   await run(CAMPUS, async ({ page }) => campusS4Part(page));
 
@@ -3436,13 +3443,13 @@ if (want(6)) {
   });
 }
 
-// (guard-ai S16, `--part=6`) guards hold fire at armour: written, not run (the slice brief). The NOC pair (S4 #14-15, on
+// (guard-ai S16, `--part=8`) guards hold fire at armour: written, not run (the slice brief). The NOC pair (S4 #14-15, on
 // the mezzanine at z 43, y 3.6) watch the hall through arm-noc, the armoured clear window (x -3.5..7.5, z 42, sill 4.6).
 // Seeded Math.random, sim-time steps. The player stands on the hall floor in front of the window, the pair are told
 // straight to combat: one of them sees him through the pane (sight is MASK.SIGHT, which clear armour passes), the fire
 // gate casts and finds the pane, and neither fires a round while he stands in the NOC over 10 s; each then repositions
 // (leaves the NOC by the stairs, or a cover spot with a clear line) or holds there (a leash), still alerted.
-if (want(6)) {
+if (want(8)) {
   console.log('campus ops (S4, guard-ai S16): guards hold fire at armour (the NOC pair, arm-noc)');
   await run(CAMPUS, async ({ G, sim }) => {
     const S = await sections(G);
@@ -3540,7 +3547,7 @@ if (want(6)) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// (sector-redesign slice 5, `--part=6`) Saltmarsh Park, section 5: the Old House and the extraction
+// (sector-redesign slice 5, `--part=9`) Saltmarsh Park, section 5: the Old House and the extraction
 // (docs/sector-redesign/briefs/SLICE5.md). A self-contained block, run only when the page's section 5 is the built one (24
 // guards): sections 1-4 are told done and their connectors cycled, then (a) index 4, 24 guards, the three cameras, las-shaft
 // with its panel, the item cap; (b) the keyholders stand at their posts; (c) the rota board gives the archive code and
@@ -3661,7 +3668,7 @@ async function campusS5Part(page) {
   assert(end.phase === 'done', `standing on the jetty ends the run (${end.phase})`);
 }
 
-if (want(6)) {
+if (want(9)) {
   console.log('campus ops (S5): the Old House - the rota board, the garden board, the stealth grab, the jetty');
   await run(CAMPUS, async ({ page }) => campusS5Part(page));
 }
@@ -3933,15 +3940,15 @@ if (want(1)) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// (coop4 E2E, BRIEF A11-A20, A26) Parts 7-8: Sector Ops with three or four players. "Four pages" means four pages of one
+// (coop4 E2E, BRIEF A11-A20, A26) Parts 10-11: Sector Ops with three or four players. "Four pages" means four pages of one
 // headless browser over `?net=local` (`hostAndJoin(url, 4)`), the host's page and three joiners, each driven by its own
 // pad / teleports; they run alone in a laptop slot (`E2E_GPU=1`, `E2E_LOAD_MS=240000`). Every page but the one in front
 // is stepped headless by `pumpPages` (the e2e-ctcourse pattern, here for all pages). The features these parts test come
 // from the coop4 slices (N1 slots, D1 per-slot jammer, SM team scale, TM `taken`, H1 beacons, DATA tags): a hook a build
 // does not have yet makes the check print "SKIP: <hook> missing" (listed again at the end of the part), never crash.
-// Part 7: campusOps, four operators (slots, beacons, avatars, spawns, light, jam, crate, revive, connector, pair gate,
-// tagged guards). Part 8: warehouseOps, three operators, a drop and rejoin, a late fourth, two pairs of team moves.
-// (coop4 AI6) Part 8 ends with the guard-AI legs of guard-ai #319's spec (the AI back on, four pages: the stage's shaped teams, two teams on two players, the draw on alarm).
+// Part 10: campusOps, four operators (slots, beacons, avatars, spawns, light, jam, crate, revive, connector, pair gate,
+// tagged guards). Part 11: warehouseOps, three operators, a drop and rejoin, a late fourth, two pairs of team moves.
+// (coop4 AI6) Part 11 ends with the guard-AI legs of guard-ai #319's spec (the AI back on, four pages: the stage's shaped teams, two teams on two players, the draw on alarm).
 // ---------------------------------------------------------------------------------------------------------------------
 /** Hooks the 4-page parts could not find in this build (printed per part). */
 const MISSING = new Set();
@@ -4074,8 +4081,8 @@ const pairMin = (ps) => {
   return { min, at };
 };
 
-// ---- part 7: four operators on Saltmarsh Park (campusOps) -------------------------------------------------------------
-if (want(7)) {
+// ---- part 10: four operators on Saltmarsh Park (campusOps) ------------------------------------------------------------
+if (want(10)) {
   await coop4('sector ops (coop4): four operators on Saltmarsh Park - slots, beacons, avatars, spawns, light, jam, crate, revive, connector, pair gate, tagged guards', { n: 4, map: 'campusOps' }, async (h) => {
     const { A, pages, GA, GP, skip, idxOf, moveTo, posOf, allowAll, leg } = h;
     const finishObjective = () => GA(() => { const m = window.__sector; if (m.run.current.objective.kind === 'download') { m.run.downloading = true; m.run.download(999); } else m.run.objectiveDone(); });
@@ -4403,8 +4410,8 @@ if (want(7)) {
   });
 }
 
-// ---- part 8: drop, late join, team moves (warehouseOps) ----------------------------------------------------------------
-if (want(8)) {
+// ---- part 11: drop, late join, team moves (warehouseOps) ---------------------------------------------------------------
+if (want(11)) {
   await coop4('sector ops (coop4): drop and rejoin into the same slot, a late fourth operator, two pairs of team moves at once - the Warehouse', { n: 3, map: 'warehouseOps', params: 'net=local&sectorGuards=4' }, async (h) => {
     const { A, pages, GA, GP, skip, idxOf, moveTo, posOf, padReady, setPad, holdUntil, crouch, leg, lateJoin, refresh } = h;
     const RB = BTN.RB;
@@ -4852,8 +4859,8 @@ if (want(8)) {
   });
 }
 
-// ---- part 9: an operator out waits for the connector (coop4 OUT, M1 b; campusOps, 3 pages) -----------------------------
-if (want(9)) {
+// ---- part 12: an operator out waits for the connector (coop4 OUT, M1 b; campusOps, 3 pages) ----------------------------
+if (want(12)) {
   await coop4('sector ops (coop4 OUT): three operators - slot 2 out, the section goes on, the connector cycles with 0 + 1, slot 2 back beside the host', { n: 3, map: 'campusOps' }, async (h) => {
     const { A, pages, GA, GP, skip, idxOf, moveTo, posOf, allowAll, leg } = h;
     const finishObjective = () => GA(() => { const m = window.__sector; if (m.run.current.objective.kind === 'download') { m.run.downloading = true; m.run.download(999); } else m.run.objectiveDone(); });

@@ -263,16 +263,16 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
   the extraction (OUT below).
 
 ### coop4 e2e parts
-`e2e-sectorops` parts 7-9 are named only, never in a full, quick or affected run; each runs alone in a laptop slot
+`e2e-sectorops` parts 10-12 are named only, never in a full, quick or affected run (parts 7-9 are master's solo campusOps checks, F33; coop4's were 7-9 before the 4.114.0 merge); each runs alone in a laptop slot
 (`PART_TIMEOUT` 1800 s; 3+ pages load under `LOAD_MS_4`, `E2E_LOAD_MS=240000`).
-- Part 9 (campusOps, 3 pages): slot 2 goes OUT, the section goes on, the connector cycles with slots 0 and
+- Part 12 (campusOps, 3 pages): slot 2 goes OUT, the section goes on, the connector cycles with slots 0 and
   1, and slot 2 comes back beside the host (M1 b).
-- Parts 7 and 8 are Sector Ops with 3-4 players: "four pages" means four pages of one headless browser over
+- Parts 10 and 11 are Sector Ops with 3-4 players: "four pages" means four pages of one headless browser over
   `?net=local` (`hostAndJoin(url, 4)`, the host's page and three joiners, each driven by its own pad or teleports; every page
   but the one in front is stepped by `pumpPages`). Run each alone: `E2E_GPU=1 E2E_LOAD_MS=240000 E2E_PORT=<port> node
-  scripts/run-e2e.mjs e2e-sectorops:7` (or `:8`). A hook a build lacks prints `SKIP: <hook> missing` and is listed at the end
+  scripts/run-e2e.mjs e2e-sectorops:10` (or `:11`, `:12`). A hook a build lacks prints `SKIP: <hook> missing` and is listed at the end
   of the part; a failed leg prints every page's team log and the next leg still runs.
-  - Part 7, `campusOps`, 4 pages: all load with the device mirror, one host and three clients; slots 0-3 are distinct and
+  - Part 10, `campusOps`, 4 pages: all load with the device mirror, one host and three clients; slots 0-3 are distinct and
     agree on every page's lobby list; each page sees 3 avatars; the beacon of each rig and avatar equals its slot, all four
     different; spawns at least 0.9 m apart at the start and after a checkpoint restart; the guard count at team 4 is the base
     list plus the `minPlayers` tags (alive + pending), at the start, after the restart and in the pair-gate section; slot 2's
@@ -280,7 +280,7 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
     host and latched on every client; each slot uses the weapons crate once; slot 1 downed and revived by slot 3 with the
     syringe pool at preset + 2 (Normal 4, one used); the connector does not cycle with 3 inside and cycles with 4, door locks
     mirrored; the S4 pair gate opened by slots 2 and 3 while 0 and 1 stand more than 3 m away.
-  - Part 8, `warehouseOps` (`sectorGuards=4`), 3 pages then a late 4th: slot 2 drops (`__coop.leave()`) and rejoins from
+  - Part 11, `warehouseOps` (`sectorGuards=4`), 3 pages then a late 4th: slot 2 drops (`__coop.leave()`) and rejoins from
     "Rejoin <code>" into slot 2 with the same beacon colour, placed at the checkpoint on its slot (within 3.2 m); a 4th page late-joins the running op into
     slot 3 and stands within 3.2 m of the checkpoint with a loadout, every page sees 3 avatars; pairs 0+1 (leg-up) and 2+3
     (partner throw) are both approved with no denial (the overlap is logged and `CoopHost.teamActive` read, not asserted);

@@ -59,13 +59,13 @@ You are the coop4 job lead (session "Night Shift | Sector Ops Build"; Sector Ops
 Worktree C:/NightShift/Mobile-Coop-coop4, branch feature/coop4 (draft PR Tekcry/Mobile-Coop#317). Guard before every write:
 cd /c/NightShift/Mobile-Coop-coop4 && test "$(git rev-parse --abbrev-ref HEAD)" = feature/coop4 && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-coop4"
 Read CLAUDE.md ("Sessions", "Hard rules"), then this file's "Now", docs/coop4/BRIEF.md (M1 answered b, A1-A27), PLAN.md.
-Built and checked: N0, N1, D1, SM, TM, H1 + L1 (Marlow Build), DATA, E2E parts 7-9, DOC (Marlow Build), round (open-move fix,
+Built and checked: N0, N1, D1, SM, TM, H1 + L1 (Marlow Build), DATA, E2E parts 10-12 (7-9 before the 4.114.0 merge, MERGE4), DOC (Marlow Build), round (open-move fix,
 AI5 wiring, sweepSource, OUT = M1 b) + round fix 3f1c946f (checks A + B FIX -> fixed). Guard AI's side is PR #319
 (feature/guard-ai-coop4); both ride ONE train (the train bumps PROTOCOL once).
 Laptop on 3f1c946f (verdicts as GitHub statuses / PR #317 comments): laptop-e2e/coop4 (regular 2-player suites incl.
 Marlow guard) and laptop-e2e/alone-coop4-4p (sectorops 7, 8, 9). Laptop request CLI: copy scripts/laptop-queue/request.mjs
 + lib.mjs from origin/master to scratch; --sha --pr 317 --branch feature/coop4 --set <s> --suites "..." (4-page parts as
---alone --step "node scripts/run-e2e.mjs e2e-sectorops:7" ... --env E2E_GPU=1 --env E2E_LOAD_MS=240000 --env E2E_JOBS=1).
+--alone --step "node scripts/run-e2e.mjs e2e-sectorops:10" ... --env E2E_GPU=1 --env E2E_LOAD_MS=240000 --env E2E_JOBS=1).
 Next: both green -> merge feature/coop4-e2eai if done (Guard AI's AI6 asserts, SKIP without #319; scripts only), mark #317
 ready (gh pr ready 317), add label train-ready, message the orchestrator (train with #319). Red -> one Opus triage + fix round.
 If E2E-AI was cut off: rerun its builder from docs/coop4/checks (prompt: AI6-E2E-SPEC asserts on origin/feature/guard-ai-coop4,
