@@ -1,0 +1,14 @@
+{
+  "id": "20261026T090140-affected-e2e-b6c57d0f-b8b6",
+  "sha": "b6c57d0ff722a93719669336d1e863cec6ca0c6e",
+  "branch": "feature/mission-b-sector",
+  "pr": 578,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T081249-affected-e2e-b6c57d0f-c26d, rerun on the laptop"
+}
