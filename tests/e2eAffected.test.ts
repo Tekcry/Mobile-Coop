@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { selectSuites as selectUntyped, suitesForFile as fileUntyped, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS, CORE, LEGACY, GPU, affectedGateSuites } from '../scripts/e2e-affected.mjs';
+import { selectSuites as selectUntyped, suitesForFile as fileUntyped, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS, CORE, LEGACY, GPU, affectedGateSuites, affectedReportSuites, withWireSuites } from '../scripts/e2e-affected.mjs';
 
 type Covers = Record<string, string[]>;
+const wireSuites = withWireSuites as (suites: string[], files: string[], protocolTs: string) => string[];
+const reportSuites = affectedReportSuites as (suites: string[]) => string[];
 const select = selectUntyped as (files: string[], map?: Covers) => string[];
 const forFile = fileUntyped as (file: string, map?: Covers) => string[] | null;
 const quick = QUICK_COVERS as Covers;
@@ -184,7 +187,7 @@ describe('--affected: the DIRECT tier (default)', () => {
     expect(select(['scripts/e2e-takedown.mjs'])).toEqual(['e2e-takedown', 'smoke']);
     expect(select(['scripts\\e2e-wall.mjs'])).toEqual(['e2e-wall', 'smoke']);
     expect(select(['scripts/e2e-net-lib.mjs'])).toEqual(['anim-audit', 'e2e-netmove', 'smoke']);
-    for (const f of ['scripts/e2e-lib.mjs', 'scripts/run-e2e.mjs', 'scripts/e2e-affected.mjs', 'package.json', 'package-lock.json', 'index.html', 'vite.config.ts', 'public/icon.png']) {
+    for (const f of ['scripts/e2e-lib.mjs', 'scripts/run-e2e.mjs', 'scripts/e2e-affected.mjs', 'scripts/e2e-verdict.mjs', 'package.json', 'package-lock.json', 'index.html', 'vite.config.ts', 'public/icon.png']) {
       expect(select([f]), f).toEqual(coreSet);
     }
   });
@@ -306,5 +309,34 @@ describe('laptop-queue lib affectedSuites applies the gate (the service affected
     expect(got.suites).toContain('smoke');
     expect(got.suites).toContain('e2e-lightbake');
     for (const s of ['e2e-bunker', 'e2e-darkness', 'e2e-security', 'e2e-coop-gpu']) expect(got.suites).not.toContain(s);
+  });
+});
+
+describe('J20', () => {
+  const protocol = readFileSync(new URL('../src/net/protocol.ts', import.meta.url), 'utf8');
+  it('wire files pull the co-op group', () => {
+    for (const f of ['src/player/moveState.ts', 'src/game/sectors.ts', 'src/weapons/weaponDefs.ts', 'src/world/lampSway.ts', 'src/anim/motion.ts']) {
+      const got = wireSuites(['smoke'], [f], protocol);
+      for (const s of ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse']) expect(got, `${f} ${s}`).toContain(s);
+    }
+  });
+  it('non-wire files and an empty protocol add nothing', () => {
+    expect(wireSuites(['smoke'], ['src/world/other.ts'], protocol)).toEqual(['smoke']);
+    expect(wireSuites(['smoke'], ['src/player/moveState.ts'], '')).toEqual(['smoke']);
+  });
+  it('a whole suite absorbs its parts', () => {
+    expect(wireSuites(['e2e-coop:1', 'smoke'], ['src/anim/motion.ts'], protocol)).not.toContain('e2e-coop:1');
+  });
+  it('campus map files pull the campus suite', () => {
+    for (const f of ['src/world/maps/campusS4.ts', 'src/world/maps/campusBake.ts']) {
+      const got = select([f]);
+      for (const s of ['e2e-sectorops:6', 'e2e-levels', 'e2e-anchors']) expect(got, `${f} ${s}`).toContain(s);
+    }
+    expect(forFile('src/world/maps/campusS4.ts', wide)).toContain('e2e-sectorops');
+  });
+  it('the gate drops audio, the report list keeps LEGACY and AUDIO only', () => {
+    const gate = affectedGateSuites(['e2e-foley', 'e2e-coop']) as string[];
+    expect(gate).toEqual(['e2e-coop']);
+    expect(reportSuites(['smoke', 'e2e-security', 'e2e-foley', 'e2e-darkness', 'e2e-wall:flanker'])).toEqual(['e2e-security', 'e2e-foley', 'e2e-wall:flanker']);
   });
 });

@@ -42,8 +42,9 @@ This page lists the suites and how they are picked.
   named alone its six parts run as parallel jobs.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`). The laptop queue sets it per run (the numbers:
   `docs/RULES.md` "Machines"); cloud VMs use `E2E_JOBS=2`.
-- A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. The laptop queue runs with
-  `E2E_SUITE_TIMEOUT=900` (e2e-desktop takes about 553 s and e2e-mouse about 405 s solo).
+- A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails, quarantined or not: a quarantine forgives an assert (exit 1)
+  only, never a timeout, signal or other code (`scripts/e2e-verdict.mjs`). The laptop queue runs with `E2E_SUITE_TIMEOUT=900`
+  (e2e-desktop about 553 s, e2e-mouse about 405 s solo). `E2E_REPORT` (space or comma list) makes those suites or parts REPORT ONLY.
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
   changed folders (`QUICK_COVERS` in `scripts/e2e-affected.mjs`, master's map unchanged, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
   `src/game/studioStage`, `src/world/maps/studio.ts`, `src/save/animTuneStore`, `src/ui/studio*`, `tuneSnapshots`,
@@ -79,8 +80,7 @@ This page lists the suites and how they are picked.
   suite's second page is a background tab), page navigations wait up to 120 s, and `press` / `stick` hold for exactly
   one input poll (a page without the app's input falls back to a 3-frame hold), so a slow frame can neither drop nor
   double a press. Read fades, toasts and screens with a condition wait (a cap of a few seconds), never a fixed pause.
-- Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`); a part by name
-  (`e2e-wall:flanker`, `e2e-desktop:3`).
+- Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`); a part by name (`e2e-desktop:3`).
 - `E2E_PROFILE=1` makes each suite print where its time went (launch, boot, match build, frames, fixed waits,
   `stepHeadless`, screenshots).
 
@@ -90,10 +90,11 @@ This page lists the suites and how they are picked.
   `git diff --name-only <merge-base of base and HEAD> HEAD` (committed work only, so it works on a detached commit on the
   laptop; `--quick` reads the working tree). Add `--list` to print the chosen suites one per line and exit without running
   (what the laptop queue service and leads use to know what a PR must pass). Without `--list` it runs them like `--quick`:
-  `smoke` first, suites outside REQUIRED REPORT ONLY, GPU suites never.
+  `smoke` first, suites outside REQUIRED REPORT ONLY, GPU suites never. Wire rule: a change on the wire (`src/net/` or a file
+  `src/net/protocol.ts` imports, read at HEAD) also adds the co-op group (`withWireSuites`, after the map).
 - DIRECT rules (default): `src/player` -> move, anim, stealth, clip; `src/anim` -> anim, clip, move; `src/game` -> gadgets,
   tactics, takedown, park, plus `e2e-sectorops` for `src/game/sectors` and `src/game/modes`, the course suites (`e2e-course`,
-  `e2e-ctcourse`) for `src/game/course` and `courseMode`; `src/world` -> levels, anchors (a map file with its own suite: that suite);
+  `e2e-ctcourse`) for `src/game/course` and `courseMode`; `src/world` -> levels, anchors (a map file with its own suite: that suite; Saltmarsh Park `src/world/maps/campus*` -> `e2e-sectorops:6`);
   the lamp files (`src/world/light*`, `lamp*`, `bakedLamps`, `ambientGrid`, `darkCurve`) and `src/voxel` -> lightbake, desktop;
   `src/config`, `src/core` -> CORE (`e2e-move`, `e2e-combat`, `e2e-anim`); `src/weapons` -> combat, weapons-carry, stealth-ai,
   `e2e-sectorops:1` (`weapons.lastShotNoise` drives guard hearing; train 30); `src/ai` -> stealth-ai, guard-carry,
@@ -102,7 +103,7 @@ This page lists the suites and how they are picked.
   the section rating files (`src/ui/hud/ratingCard`, `src/game/rating/`, `src/save/ratingRecord`: a kv key, not the save shape)
   -> `e2e-section-rating`, which `courseMode` and `sectorMode` also pick; the Marlow Yard sets (`src/world/maps/ctcourseSets/`,
   `ctcourseGreybox.ts`) -> `e2e-ctcourse`; `src/player/smoothBody*` and `bodyEffectRecovery` also `e2e-guard-carry`.
-  Every LEGACY and GPU suite is reachable from the area that owns it (REPORT ONLY / dropped outside `--gpu` by the runner):
+  Every LEGACY and GPU suite is reachable from the area that owns it (LEGACY and AUDIO run REPORT ONLY, GPU is dropped outside `--gpu`; an affected request gates on neither, `affectedGateSuites` / `affectedReportSuites`):
   `src/progression` -> progression, `src/cosmetics` -> cosmetics, `clearMode` -> clear, `missionMode` -> modes,
   `infiltrationMode` and `src/game/missions.ts` -> missions, `src/ai/archetypes` / `enemyDefs` -> enemies, the Fallow files
   (`src/world/maps/bunker*`) -> bunker, `src/world/maps/warehouse.ts` / `warehouseDress` -> ct-warehouse, the camera files
@@ -111,10 +112,9 @@ This page lists the suites and how they are picked.
   Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**`, `scripts/e2e-times.json` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
   -> what it serves; a set step module `scripts/e2e-ctcourse/<set>.mjs` -> `e2e-ctcourse`, `SUITE_DIRS`); `e2e-lib`, the runner,
   `package.json` / lock, `index.html`, `vite.config`, `public/` and an unknown `src/` path -> smoke + CORE.
-  Example: optic-cable 13 jobs direct, 30 wide (e2e-ctcourse is 4 parts); guard-ai-carry-fix 7 direct, 15 wide.
 - WIDE rules (`--wide`): DIRECT plus the cross-area readers: `src/weapons` also enemies, gadgets, clip; `src/ai` also levels,
   tactics, takedown, weapons-carry, coop, `e2e-sectorops:6`; `src/player` / `src/anim` the quick rows plus takedown; `src/game`
-  also ctcourse and sectorops; `src/world` also lightbake, guard-carry, ctcourse; the lamp files and `src/voxel` the light readers
+  also ctcourse and sectorops; `src/world` also lightbake, guard-carry, ctcourse (campus: all of `e2e-sectorops`); the lamp files and `src/voxel` the light readers
   (desktop, stealth-ai, security, darkness); `src/net` / `src/save` the quick rows plus the co-op group; `src/game/rating` also
   sectorops and course, `src/save/ratingRecord` also sectorops and menus (the missions screen reads it); the Marlow Yard map and
   set files also `e2e-section-rating` (it rates A2-A8).

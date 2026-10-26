@@ -1,5 +1,57 @@
 # Changelog
 
+## 4.110.0 - Train 117: Campus greybox: per-section v2 switch; Mixamo body carry on Wren (behind ?mixamo=1) (2026-10-26, PR #509; #503, #493)
+
+### Campus greybox: per-section v2 switch
+- No player-visible change: Saltmarsh Park plays exactly as before.
+- Sector Ops build plumbing for the signed-off S1-S5 re-plans: each campus section can now be built from a new,
+  separate layout that stays off by default (`flags.campusV2`, `?campusv2=1,3` for test builds), so the five sections can be
+  rebuilt in parallel and switched on one by one after each walk. The new layouts start as exact copies of today's.
+
+### Mixamo body carry on Wren (behind ?mixamo=1)
+- Behind `?mixamo=1` (off by default): carrying a body on the shoulder, Wren's trunk, head and pelvis height play the
+  Mixamo carry walk (on the game's own step timing) and carry idle; the feet, the carry pace and the hands on the body
+  are unchanged. The co-op partner sees the same.
+- The Mixamo elbow strike and cross punch are wired to the knockout strike's timing (on Wren's own hips) but stay
+  hand-made in matches: squeezed onto the game's fast strike, their forearms snap too far in one frame. The kneel-down capture stays in the Anim
+  Studio only (the game has no kneeling put-down yet).
+
+## 4.109.0 - Train 116: Test Runner batch (J20), PR-A: affected suites and runner; Character shadows count in the light (part 1, dark) (2026-10-26, PR #508; #492, #459)
+
+### Character shadows count in the light (part 1, dark)
+- Light: a character standing between a lamp, the moon or a torch and another character now darkens that spot in the
+  light model the meter and guards read, with the same soft shadow shape the picture draws. Off by default
+  (`?charlight=1`, flag `charShadowLight`) until the meter wiring and the guards' cue land and Michael walks it.
+- Tests: the shadow shape, the light-field term and the torch holder rule; the shadow maths allocates nothing per call.
+
+### Test Runner batch (J20), PR-A: affected suites and runner
+- `--affected` adds the co-op group (e2e-coop, e2e-netmove, e2e-ctcourse) for any file on the wire: `src/net/` and the
+  files `src/net/protocol.ts` imports, read at the tested commit.
+- Saltmarsh Park map files pick `e2e-sectorops` part 6 (all of `e2e-sectorops` with `--wide`).
+- The audio suites join the legacy ones as REPORT ONLY: an affected request never gates on them.
+- A quarantined suite that times out or crashes now fails the run; only an assert failure (exit 1) counts as KNOWN
+  FLAKY. `E2E_REPORT` names suites that run REPORT ONLY in any run.
+- `perf.mjs` prints the map and mode it measured.
+
+## 4.108.0 - Train 115: Mixamo walking, jogging, starts, stops, turns and strafes on Wren (behind the Mixamo animation source); Route-run harness core (one robot) (2026-10-26, PR #504; #499, #496)
+
+### Mixamo walking, jogging, starts, stops, turns and strafes on Wren (behind the Mixamo animation source)
+- With the Mixamo animation source on (and "Mocap locomotion" on), Wren's walk, jog, start from standing, stop, turn on
+  the spot, turns while walking and aimed strafes play Mixamo captures in place of the CMU ones. Speeds and timing are
+  the game's own: the clips are fitted to the game's stride and to the CMU clips' seconds or turn angle.
+- The Mixamo run and sprint stay off in matches for now (their knees cross at the game's run speed); they and the run
+  stop, the left turn on the spot, the crouched side-steps and the backwards walk and run play in the Anim Studio.
+- With the default source (CMU) nothing changes.
+
+### Route-run harness core (one robot)
+- Route-runs (J13 R4a, test tooling only): `node scripts/route-run.mjs <url> --graph <files>` walks a robot through every
+  planned route of a map against its live guards, headless, with the pad, in game time, and writes the run log,
+  `route-run.json` and a plain `REPORT.md` (detections and notices with their inferred cause, dead stops with a
+  screenshot, stubbed links). `--dry-run` prints the plan without a browser, `--routes code` walks the map's own Sector
+  Ops routes, `--selftest` checks a fixture's expected outcomes, `--publish` / `--merge` carry laptop results to the
+  desktop through the `route-run-results` branch. Caller query params such as `?campusv2=2` stay on every page. One robot
+  for now; the pair, course drill gates and real link moves follow (R4b, R4c, R5).
+
 ## 4.107.0 - Train 114: Mixamo standing idle and crouched walk on Wren (behind ?mixamo=1); Mixamo crouch and stand-up on Wren (behind ?mixamo=1); +1 more (2026-10-26, PR #502; #485)
 
 ### Mixamo standing idle and crouched walk on Wren (behind ?mixamo=1)
