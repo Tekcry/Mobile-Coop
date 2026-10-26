@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 6 2026-10-26T08:59Z
 
 # Brief marlow-kit-wire: Marlow Yard kit stations on Player Build's kit API
 
