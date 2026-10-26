@@ -1,0 +1,15 @@
+{
+  "id": "20261026T061704-affected-e2e-c29ea923-da42",
+  "sha": "c29ea923bab290d41d00101e7f57077740333d6e",
+  "branch": "feature/guard-rules-f0",
+  "pr": 558,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-guard-carry",
+    "e2e-sectorops",
+    "e2e-stealth-ai"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #558"
+}
