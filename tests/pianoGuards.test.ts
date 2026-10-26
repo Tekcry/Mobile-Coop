@@ -146,3 +146,17 @@ describe('GA3: one blackout reaction', () => {
     expect(room).toHaveBeenCalled();
   });
 });
+
+describe('GA7: rain masks hearing over the whole map', () => {
+  it('a map-wide source gives its level at every listener, near and far, and halves the reach at 6 dB', async () => {
+    const { ambientDb, effectiveReach, mapWideNoise } = await import('../src/ai/hearing');
+    const rain = mapWideNoise('rain', 6);
+    for (const [x, z] of [[0, 0], [40, -25], [-300, 900]] as const) expect(ambientDb([rain], x, z)).toBe(6);
+    expect(effectiveReach(10, 0, ambientDb([rain], 12, 3))).toBeCloseTo(10 * 10 ** (-6 / 20), 9);
+    expect(effectiveReach(10, 0, ambientDb([rain], 12, 3))).toBeCloseTo(5, 0);
+    // a louder local source still wins where it is louder; the rain is the floor elsewhere
+    const gen = { id: 'gen', x: 0, z: 0, radius: 10, db: 12 };
+    expect(ambientDb([rain, gen], 1, 0)).toBeGreaterThan(6);
+    expect(ambientDb([rain, gen], 30, 0)).toBe(6);
+  });
+});
