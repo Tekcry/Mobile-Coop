@@ -1,0 +1,30 @@
+{
+  "id": "20261026T011301-affected-e2e-ed34b400-4770",
+  "sha": "ed34b400579004f7902088b8a90a8ae25bb41af9",
+  "branch": "feature/coop4",
+  "pr": 317,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "anim-audit",
+    "e2e-anchors",
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-combat",
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-gadgets",
+    "e2e-levels",
+    "e2e-move",
+    "e2e-netmove",
+    "e2e-park",
+    "e2e-section-rating",
+    "e2e-sectorops",
+    "e2e-stealth",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #317"
+}
