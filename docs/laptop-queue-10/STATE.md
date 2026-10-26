@@ -1,29 +1,34 @@
 # laptop-queue-10 - state
 Owner: Test Runner. Status: current.
 
-## Resume (2026-10-26, planner)
-- Location: C:/NightShift/Mobile-Coop-laptop-queue-10, branch feature/laptop-queue-10 (upstream origin), cut from
-  origin/feature/laptop-queue-8 e714c6e38; node_modules is a junction to C:/NightShift/Mobile-Coop-laptop-queue-8.
-  Guard before every write: `cd /c/NightShift/Mobile-Coop-laptop-queue-10 && test "$(git rev-parse --abbrev-ref HEAD)"
-  = feature/laptop-queue-10 && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-laptop-queue-10"`.
-- Read: BRIEF.md (Michael ~14:00 "prioritise getting the fixes done and out"; A1-A13), PLAN.md (S1-S7, knobs, tests,
-  overlap), then agent-preamble and session-method from origin/master.
-- Scope: tracker rows F9, F10, F11, F14, F15, F22, F24 (Orchestrator) and F26, F27 (coordinator ~14:40).
-- Slices, all Opus, in order on this branch (shared lib, service, tests): S1 hung runs + attempt folders (F10, F27);
-  S2 desktop parts / time cap + fail fast (F14, F11); S3 desktop train soon + CPU reading (F9, F24); S4 stacked last
-  (F22); S5 quarantine keys (F26); S6 moved requests (F15); S7 docs, fragment, STATE. Then one Opus checker.
-- Size: ~775 counted lines (code + tests), one PR, draft until laptop-queue-8 is on master, then rebase and force-push
-  once.
-- Findings at planning: F24's cause is likely lib gatedCpu subtracting the queue's own Playwright chromium (8 of them at
-  Idle priority 4 on the laptop during a run, 14:45); F27: sh appends logs (no truncation in code), so S1 checks train
-  118's folder on the laptop; F14: expectedWallS is NaN for any suite with no time, so desktopTooLong took it.
-- Overlap: laptop-queue-9 owns auto-train / merge-train / watchdog / tests/autoTrain.test.ts (not touched here); J20
-  PR-B2 (feature/test-runner-j20-prb2) shares the import lines, state defaults and one updateBudget line (PLAN
-  "Overlap").
-- Verify per slice: `npm run typecheck:fast`, `npx vitest run tests/laptop-queue.test.ts tests/autoTrain.test.ts`.
-Next: (1) `git fetch -q origin && git rebase --onto origin/feature/laptop-queue-8b e714c6e38`, force-push (PLAN
-"Start"; line refs re-based to 2fbfbd303 in the PLAN header); (2) ask the Orchestrator for the tracker number of the
-attempt-folder fix (BRIEF F27 note); (3) brief the S1 Opus builder from PLAN "S1".
+## Resume (2026-10-26, after S7)
+- Location: C:/NightShift/Mobile-Coop-laptop-queue-10b, branch feature/laptop-queue-10b (draft PR #570, base
+  feature/laptop-queue-8b 2fbfbd303 = PR #552, still open); node_modules is a junction (never delete). Guard before
+  every write: `cd /c/NightShift/Mobile-Coop-laptop-queue-10b && test "$(git rev-parse --abbrev-ref HEAD)" =
+  feature/laptop-queue-10b && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-laptop-queue-10b"`.
+  The plan branch feature/laptop-queue-10 holds only BRIEF / PLAN (d52d7b45a); all code is on 10b.
+- Read: BRIEF.md (Michael ~14:00 "prioritise getting the fixes done and out"; A1-A13), PLAN.md ("Env knobs", "Size and
+  PRs", "Overlap"), the Done list below (every slice's deviations).
+- Built, all Opus, in order: S1 hung cut + attempt folders (F10, F31), S2 desktop parts / time cap + fail fast and the
+  desktop no-result hand-off (F14, F11), S3 desktop train soon + CPU reading (F9, F24), S4 stacked last (F22), S5
+  quarantine keys (F26), S6 moved requests (F15), S6b fix / front before an aged alone (F39), S6c a parked run stops
+  (F40), S7 docs (RULES "Machines" 318 lines, testing-tools 720), fragment `changes/feature-laptop-queue-10.md`, STATE.
+- Tracker ids: the attempt-folder fix is F31 (the BRIEF / PLAN call it F27; tracker F27 is another item: never close
+  it from here).
+- Knobs (all default on; 0 = the old behaviour): PLAN "Env knobs" table; documented in testing-tools "Laptop queue" and
+  "Flakes and quarantine".
+- Tests: laptop-queue 269 + autoTrain 71 + e2eQuarantine 5 = 345 pass at S6c; S7 is docs only.
+- Open: A12 train 118 folder check is laptop-only (Test Runner); the 15:17 / 15:32 freeze finding (S6c): the freeze
+  must move running request files too, or F40's cut never fires.
+- Live checks after release (PLAN "Tests and verify"): a hung run logs "hung" within 17 min; a desktop failure posts
+  "laptop rerun queued" mid-run; a stacked request waits behind a master-based one; flake-budget entries carry keys.
+- Overlap: laptop-queue-9 owns auto-train / merge-train / watchdog / tests/autoTrain.test.ts (not touched); J20 PR-B2
+  shares the lib import line, state defaults and one updateBudget line (PLAN "Overlap"). RULES "Machines" and
+  testing-tools are also claimed by laptop-queue-9, map-ready and route-runs-2: whichever merges second re-checks
+  `wc -l` (318 / 720).
+Next: (1) one Opus checker on the S7 head (queue code: PLAN "Order and builders"), one fix round; (2) once #552 is on
+master, `git rebase --onto origin/master 2fbfbd303`, force-push once, retarget #570 to master, PR body ends with the
+"Repeat guards" list below and `Job-done: laptop-queue-10`, mark ready.
 
 ## Done
 - 2026-10-26: worktree and branch made and pushed; BRIEF, PLAN, STATE written (planner, Opus).
@@ -101,3 +106,41 @@ attempt-folder fix (BRIEF F27 note); (3) brief the S1 Opus builder from PLAN "S1
   6642 was parked after it yielded), so the existing two-listing withdrawn cut never saw them: the freeze must move
   running files too. Tests: describe "parked and withdrawn runs stop (laptop-queue-10 S6c, F40)", 5 cases; 345 pass
   (laptop-queue 269 + autoTrain 71 + e2eQuarantine 5); typecheck:fast clean. +94 / -13 (lib 25/2, service 28/10, tests 41/1).
+- 2026-10-26: S7 (Opus builder, feature/laptop-queue-10b): docs, fragment, STATE. RULES "Machines" rewritten in place
+  (318 lines kept): the laptop pick order (fixes and front branches, then an aged alone, then master-based PRs, then
+  stacked; F39, F22), the desktop rerun at the first failed suite or no result (F11), the due-train hold (F9), the e2e
+  browsers count in the CPU gate (F24); paid for by dropping "installed backlog gate 0", lib `gatedCpu` and the CPU
+  mode knob from RULES (both stay in testing-tools) and "Both locks" for the lock names. testing-tools "Laptop queue"
+  and "Flakes and quarantine" (720 lines, net 0): order (stacked tier, F39), yield (parked F40, hung F10), train soon
+  (desktop at one job F9), statuses (attempt folders F31), desktop (parts F14, CPU F24, fail fast F11), claims (moved
+  F15), keys (F26); lines freed: the archive pointer, dated history notes ("2026-10-24", "4.101.1", audit notes), the
+  build-marker detail, the Scheduled tasks parenthetical, the stale "Commits cut before this change" sentence, the
+  "Flakes ... below" pointer, and the 4191 / heavy.lock restatement (its doc-lint owners warning is gone). Fragment
+  `changes/feature-laptop-queue-10.md` (kind patch, plain English). `docs/laptop-queue/STATE.md` dated entry on top.
+  Not done: `docs/stale-terms.json` (old wording not added; not claimed).
+
+Repeat guards (the lead copies this list into the PR body): one line per fix, the unit test in
+tests/laptop-queue.test.ts (describe > case) that fails if the problem comes back.
+- F9: "desktop train soon and CPU reading (laptop-queue-10 S3)" > "fitsBeforeTrain jobs: the desktop fits at one job,
+  over r.jobs; the laptop passes none" and "holdKeeps with the desktop fit: a due train drops a run that does not fit;
+  no train keeps it".
+- F10: "hung runs and attempt folders (laptop-queue-10 S1)" > "idleStep moves the clock on a new event and is hung at
+  the limit", "cutShort: hung stops at any stage, after withdrawn and superseded, before a pending train" and
+  "hungTrainDesc names the failed and unfinished parts as FAIL, cut to 140".
+- F11: "desktop wall by parts and fail fast (laptop-queue-10 S2)" > "failFast: the first counted failure hands off the
+  failed and unfinished parts" (the no-result hand-off is service code with no unit case).
+- F14: "desktop wall by parts and fail fast (laptop-queue-10 S2)" > "tallow-prg1 replay: 7 suites as 17 parts are over
+  15 min on the desktop (NaN took them before)".
+- F15: "moved requests (laptop-queue-10 S6)" > "the Mixamo replay: a running request re-filed under an early id, suites
+  in another order, is a move".
+- F22: "pick: master-based before stacked (laptop-queue-10 S4)" > "the 14:00 replay: 7 stacked requests (51 suites)
+  older than 2 master green PRs; both master PRs go first".
+- F24: "desktop train soon and CPU reading (laptop-queue-10 S3)" > "gatedCpu replay (A9): 8 Idle Playwright chromium
+  count as load, a BelowNormal Blender is still subtracted".
+- F26: "quarantine keys (laptop-queue-10 S5)" > "e2e-pad replay (trains 112-118): the keyless entry forgives for 48 h
+  after first seen; keys of another failure do not forgive".
+- F31: "hung runs and attempt folders (laptop-queue-10 S1)" > "attemptDir gives each attempt its own folder".
+- F39: "fix and front before an aged alone (laptop-queue-10 S6b, F39)" > "the 15:00 audit replay: a fronted fix pr
+  request beats an alone request aged 45 min; knob 0 = the alone".
+- F40: "parked and withdrawn runs stop (laptop-queue-10 S6c, F40)" > "parked: the freeze moved its file to parked/ ->
+  cut at the first listing".
