@@ -1,13 +1,17 @@
 /**
  * (J9 S1) The shutter's world wiring, pure parts (no scene): the curtain slots from the level's specs, the guards' nav
  * closure over each opening (A15), and the always-shut light leaf the field and the screen test (A16). A level with no
- * shutter specs gets none of it.
+ * shutter specs gets none of it. And (late hunk A) the team controller's per-step curtain update and `resetKit` (A27).
  */
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { Vector3 } from '../src/core/babylon';
+import { flags } from '../src/core/flags';
+import { TeamController } from '../src/game/teamController';
+import { registerKitMove, type KitDevice } from '../src/game/kit/registry';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { LightField } from '../src/world/lightField';
 import { LightRegistry, makeCone } from '../src/world/lights';
-import { SHUTTER, shutterSpecsOf, type ShutterSpec } from '../src/game/kit/shutter';
+import { SHUTTER, SHUTTER_MOVE, addShutterSpec, shutterSpecsOf, type ShutterDevice, type ShutterSpec } from '../src/game/kit/shutter';
 import { SHUTTER_NAV, closeShutterNav, placeShutter, shutterLightLeaf, shutterLightLeaves, shutterNavRect, shutterSlotsOf, type ShutterNavRect } from '../src/world/shutterDoor';
 import { runtimeNav } from './helpers/runtimeNav';
 import type { NavGrid } from '../src/ai/navGrid';
@@ -170,5 +174,65 @@ describe('light: the curtain is an always-shut leaf (A16)', () => {
     const specs = shutterSpecsOf({ anchors: b.anchors });
     expect(specs.map((s) => s.id)).toEqual(['sz']);
     expect(shutterLightLeaves({ anchors: b.anchors })).toEqual([shutterLightLeaf(SPEC_Z)]);
+  });
+});
+
+describe('team controller: the curtain update and the section restart (late hunk A, A27)', () => {
+  const coopKit0 = flags.coopKit;
+  beforeAll(() => void (flags.coopKit = true));
+  afterAll(() => void (flags.coopKit = coopKit0));
+  const DT = 1 / 60;
+
+  /** The kit test's fake game with two shutters (the second far off) and a world that records the curtain updates. */
+  function fakeGame() {
+    registerKitMove(SHUTTER_MOVE);
+    const anchors = {};
+    addShutterSpec(anchors, { id: 'sh1', x: 0, y: 0, z: 0, yaw: 0, width: 3, height: 2.4 });
+    addShutterSpec(anchors, { id: 'sh2', x: 20, y: 0, z: 0, yaw: 0, width: 3, height: 2.4 });
+    const controller = { pos: new Vector3(0, 0, SHUTTER.holdSpot), renderPos: new Vector3(), yaw: 0, renderYaw: 0, override: null as unknown, grounded: true, swallowCrouch: false, crouched: false, crouchIntent: false, autoCrouch: false, setCrouchToggle: () => {} };
+    const mates = [{ id: 'm', pos: new Vector3(6, 0, 3), yaw: 0, mode: 'ground', sub: 0, s: 0 }];
+    const updates: (readonly KitDevice[])[] = [];
+    const g = {
+      player: { alive: true, controller, pose: { traverse: 'none', traverseT: 0, tumble: 0 } },
+      net: { teamMates: () => mates, teamRequest: () => {}, teamHangEnd: () => {} },
+      app: { toasts: { show: () => {} } },
+      traversal: { attached: false, committed: null, attach: { kind: 'none', phase: 'off' } },
+      takedown: { active: null },
+      strike: { active: false },
+      target: { health: { hp: 100 } },
+      ballistics: { ray: () => ({ hit: false, distance: 0, point: new Vector3() }) },
+      world: { level: { anchors }, shutters: { update: (l: readonly KitDevice[]) => updates.push(l) } },
+    };
+    return { tm: new TeamController(g as never), updates };
+  }
+
+  it('every fixed step hands the kit devices to the world curtains; resetKit ends the hold and shuts every shutter', () => {
+    const { tm, updates } = fakeGame();
+    const steps = (n: number, coop = false): void => {
+      for (let i = 0; i < n; i++) tm.fixedUpdate(DT, coop && i === 0, false);
+    };
+    steps(1);
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toBe(tm.devices.list);
+    expect(tm.devices.list).toHaveLength(2);
+    // the local player lifts and holds sh1
+    steps(1, true);
+    expect(tm.state).toBe('shutterOffer');
+    steps(Math.round((SHUTTER.grip + SHUTTER.liftTime + 0.2) / DT));
+    expect(tm.state).toBe('shutterHold');
+    const held = tm.devices.get('sh1') as ShutterDevice;
+    const other = tm.devices.get('sh2') as ShutterDevice;
+    expect([held.open, held.user]).toEqual([SHUTTER.holdGap, '@local']);
+    held.noticed = 1;
+    // sh2 mid-drop under a mate, noticed by a guard
+    Object.assign(other, { phase: 'dropping', open: 0.4, rate: 1, user: 'm', visible: true, openFor: 2, opens: 3, noticed: 3 });
+    tm.resetKit();
+    expect(tm.state).toBe('none');
+    for (const d of [held, other]) expect([d.phase, d.open, d.user, d.noticed, d.visible]).toEqual(['closed', 0, '', -1, false]);
+    expect(other.opens).toBe(3);
+    // and it stays that way (no drop run left)
+    steps(30);
+    expect(tm.state).toBe('none');
+    for (const d of [held, other]) expect([d.phase, d.open]).toEqual(['closed', 0]);
   });
 });
