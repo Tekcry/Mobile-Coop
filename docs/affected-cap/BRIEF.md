@@ -26,28 +26,35 @@ Owner: Test Runner. Status: current.
   backlog drops at once."
 
 ## Assumed decisions (planner; each with how to undo)
-- A1 Ranking ("closest"). Per candidate suite: (1) hits = how many changed files reach it (their DIRECT row names it),
-  more first; (2) depth = for the files that reach it, the length of the shortest DIRECT_COVERS key that matches the
-  file and names the suite (so a suite only a specific row adds, like `e2e-traverse` for `src/player/traversal`, ranks
-  above the folder's shared suites); a suite script or helper outside `src/` counts as the deepest; an unmapped path
-  (CORE) as 0; deeper first; (3) shorter expected time from `scripts/e2e-times.json` (a parted suite: the sum of its
-  parts; a suite with no entry: 60 s); (4) name. Deterministic, file order irrelevant. Undo: another sort key in
-  `rankAffected`, one function.
-- A2 One place. `affectedPick(files, { max })` in `scripts/e2e-affected.mjs` = DIRECT select, then the GPU / LEGACY
-  gate, then the cap. `run-e2e.mjs --affected`, `request.mjs --affected` and the service's automatic requests (both
-  through lib `affectedSuites`) all call it, so `--list` names exactly what the laptop runs. Lift: `--affected-max N`
-  on run-e2e and request.mjs, env `E2E_AFFECTED_MAX` for all three (the service reads it too); 0 = no cap = today's
-  gated DIRECT list, `smoke` included. Undo: set `AFFECTED_MAX` to 0.
-- A3 Co-op group. When any changed file's DIRECT row names all three co-op suites (`src/net/`, the save shape
-  `src/save/`, `src/save/sectorRecord`, `src/security/data`: today's DIRECT meaning of "src/net, src/save and wire"),
-  the pick is exactly e2e-coop + e2e-netmove + e2e-ctcourse, whatever else the PR touches. Files that merge-train's
-  `wirePaths` counts as wire for the PROTOCOL_VERSION bump (protocol.ts imports such as `src/player/moveState.ts`,
-  `src/core/mathx.ts`, `src/world/mapDef.ts`) are not forced to the group: "keep" means what they get today, and the
-  checker gate covers `src/player` / `src/game`. Undo / widen: pass `wirePaths(protocol.ts at the head)` into
-  `affectedPick` as extra co-op paths.
+- A1 Ranking ("closest"). Per candidate suite, compared by its base (`e2e-sectorops:1` counts as `e2e-sectorops`):
+  (1) hits = how many changed files reach it (their DIRECT row names the base), more first; (2) depth = for the files
+  that reach it, the length of the shortest DIRECT_COVERS key that matches the file and names the base (so a suite only
+  a specific row adds, like `e2e-traverse` for `src/player/traversal`, ranks above the folder's shared suites); a suite
+  script or helper outside `src/` counts as the deepest; an unmapped path (CORE) as 0; deeper first; (3) shorter
+  expected time from `scripts/e2e-times.json` (a parted suite: the sum of its part keys whenever they exist, even when a
+  whole-suite key exists too, as for `e2e-sectorops`; a part token: its own key; no entry: 60 s); (4) name.
+  Deterministic, file order irrelevant. Undo: another sort key in `rankAffected`, one function.
+- A2 One place. `affectedPick(files, { max, wide, protocolTs })` in `scripts/e2e-affected.mjs` = DIRECT (or WIDE)
+  select, master's wire rule (`withWireSuites`), the GPU / LEGACY / AUDIO gate, then the cap. `run-e2e.mjs --affected`,
+  `request.mjs --affected` and the service's automatic requests (both through lib `affectedSuites`) all call it, so
+  `--list` names what the laptop runs (the time tie-break reads each checkout's `scripts/e2e-times.json`). Lift:
+  `--affected-max N` and env `E2E_AFFECTED_MAX`, read by run-e2e and request.mjs only; 0 = no cap = today's gated list,
+  `smoke` included. The service never reads the env: its automatic requests and the re-file (A7) both use
+  `AFFECTED_MAX`. Undo: set `AFFECTED_MAX` to 0 (stops the cap everywhere and the re-file).
+- A3 Co-op group (the decision: "src/net, src/save and wire changes keep the co-op group as their 3"). The pick is
+  exactly e2e-coop + e2e-netmove + e2e-ctcourse, whatever else the PR touches, when (a) any changed file's DIRECT row
+  names all three (`src/net/`, `src/save/` (the shape), `src/save/sectorRecord`, `src/security/data`), or (b) a
+  changed file is on the wire: `touchesWire(files, wirePaths(protocolTs))`, protocol.ts as committed at the tested
+  head (today `src/net/` plus the 14 files it imports, e.g. `src/player/moveState.ts`, `src/game/ctDevices.ts`,
+  `src/game/sectors.ts`, `src/weapons/weaponDefs.ts`, `src/core/mathx.ts`). `affectedPick` applies `withWireSuites`
+  before the gate, so the uncapped list is run-e2e's list of today, gated. Lib `affectedSuites` reads protocol.ts at the
+  sha (`git show <sha>:src/net/protocol.ts`, '' on failure = no wire rule), so the service and request.mjs gain the
+  wire rule run-e2e already has. The `src/player` / `src/game` checker gate stays separate (A6). Undo: drop (b) in
+  `capAffected` (a wire file then ranks like any other).
 - A4 Smoke. Not one of the 3 and no longer added beside them (Michael: "at most 3"; an 8 s boot check every suite
-  repeats, and the train runs it). It stays when a changed file reaches it directly (`scripts/smoke.mjs`). Undo: add
-  `smoke` back after the cap in `affectedPick`.
+  repeats, and the train runs it). It stays when a changed file reaches it directly (`scripts/smoke.mjs`), and when the
+  cap would leave nothing else (an audio-only change: its suites are gated, so it keeps today's lone smoke run instead
+  of passing with no browser run). Undo: add `smoke` back after the cap in `capAffected`.
 - A5 Counting. A suite counts once whether it runs whole or as parts (`e2e-ctcourse` = 4 parts = 1;
   `e2e-sectorops:1` and `:6` from two files = 1 slot, both parts kept). `--wide` is a lead's explicit wide run and is
   not capped unless `--affected-max` is given. Auto-drop (`suiteSetFor`, `coverFolders`) stays uncapped: it must see
@@ -56,17 +63,24 @@ Owner: Test Runner. Status: current.
   even less co-op cover before the train, so the lead's e2e-coop + e2e-netmove request stays the checker's gate. The
   RULES row keeps it in one sentence. Undo: drop the sentence from the row.
 - A7 Re-filing is a service step, no session needed: each affected turn (laptop, before `affectedPass`) every open,
-  unclaimed affected request (requester `affected-e2e`, or set `affected` from `request.mjs --affected`; kind pr; not
-  pinned, not a train rerun, not a laptop rerun) whose suites exceed the cap gets its suites recomputed with
-  `affectedSuites(.., { max })` and its file rewritten in place under the same id: it keeps its queue place (the
-  ~10:12 "fixed change keeps its old place" spirit) and its pending `affected-e2e` (re-posted with the new count). A
-  request already at or under the cap is left alone, so the step is idempotent and costs one filter per turn. Undo:
-  `E2E_AFFECTED_MAX=0` stops it (nothing exceeds no cap); the rewritten files keep their old suites in git history.
-- A8 laptop-queue-7 (#507, open, edits lib.mjs / service.mjs / tests / testing-tools.md / RULES "Machines"): this PR
-  edits no line inside or next to its hunks: lib only the `affectedSuites` body (:976-986) and one new function after
-  `affectedRequest` (:1021); service a new function before the task guard (:371), a separate import line, the two
-  `affectedPass()` call sites in `main` and `selfUpdate`'s watched paths (:1587); testing-tools only "Choosing suites
-  for a change" (:86-112); RULES only the "Test tiers" PR row (:152). Whichever merges second rebases on a clean tree.
+  unclaimed automatic affected request (requester `affected-e2e` only; kind pr; not pinned, not a train rerun, not a
+  laptop rerun) whose distinct suite bases exceed `AFFECTED_MAX` gets its suites recomputed with lib `affectedSuites`
+  (the default cap) and its file rewritten in place under the same id: it keeps its queue place (the ~10:12 "fixed
+  change keeps its old place" spirit) and its pending `affected-e2e` (re-posted with the new count). A lead's own
+  request is never narrowed: request.mjs `--affected` writes no set and the lead's requester, and set `affected` on a
+  non-automatic request marks a lead's hand-filed request. A request at or under the cap is left alone, so the step is
+  idempotent and costs one filter per turn. Undo: `AFFECTED_MAX = 0` in code stops both the cap and the re-file
+  (nothing exceeds no cap); the rewritten files keep their old suites in git history.
+- A8 laptop-queue-7 (#507, open; cut from 2a937eb6b, whose lib, service, request.mjs, lq test and RULES equal master
+  3f0ab7fec line for line, and whose testing-tools differs only above :121 with net zero lines). This PR edits no line
+  inside or next to #507's hunks: lib the import (:4), the `affectedSuites` doc and body (:969-986; #507's nearest
+  change is :990, the `affectedNeeds` doc) and one new function after `affectedRequest` (:1021; #507 inserts before its
+  doc, after :1013); service two new import lines after :104 (#507 rewrites the :103 lib import), a new function before
+  `// ---------- task guard` (:368; #507's nearest hunks :199 and :438), the two `affectedPass()` calls in `main`
+  (:1600, :1611) and `selfUpdate`'s watched paths (:1587; #507's last hunk is :1560 in `pass`); lq test a new import
+  after :7 (#507 rewrites :3), edits in :1139-1152 and new `it`s after :1153 (#507 inserts after :1182 and :1388);
+  testing-tools only "Choosing suites for a change" (:87-122; #507: :569-627); RULES only the "Test tiers" PR row
+  (:152; #507: :167-171). Whichever merges second rebases on a clean tree.
 - A9 `selfUpdate` (service.mjs:1587) also watches `scripts/e2e-affected.mjs`: today a map or cap change there alone
   never restarts the service, whose cached module keeps the old picks. Undo: remove the path.
 
