@@ -12,6 +12,8 @@ import { describe, expect, it } from 'vitest';
 import { addPast, stepsForPath } from '../scripts/route-run.mjs';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { campusOps } from '../src/world/maps/campusOps';
+import { ctcourse } from '../src/world/maps/ctcourse';
+import type { MapDef } from '../src/world/mapDef';
 import { LockedDoorNav } from '../src/ai/lockedDoors';
 import type { NavGrid } from '../src/ai/navGrid';
 import { hyp2 } from '../src/core/mathx';
@@ -34,16 +36,17 @@ const DOOR_KINDS = new Set(['door', 'double_door', 'roller_door']);
 const WALK_ACTIONS = new Set(['walk', 'door']);
 
 /** The map's guards' nav grid (locked doors shut, as `LockedDoorNav` holds them at run time) and its down-cast. */
-function campusMap(): { nav: NavGrid; cast: ReturnType<typeof downCast> } {
+function mapNav(def: MapDef): { nav: NavGrid; cast: ReturnType<typeof downCast> } {
   const b = new LevelBuilder();
-  const lay = campusOps.build(b, 0);
-  const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, campusOps.navLayers ?? 3, lay.navSeeds ?? []);
+  const lay = def.build(b, 0);
+  const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, def.navLayers ?? 3, lay.navSeeds ?? []);
   const doors = b.anchors.doors.map((a) => ({ cx: a.hinge.x + Math.sin(a.yaw) * a.width * 0.5, cz: a.hinge.z + Math.cos(a.yaw) * a.width * 0.5, target: 0, anchor: a }));
   new LockedDoorNav(nav, doors).sync();
   return { nav, cast: downCast(b) };
 }
-const MAPS: Record<string, () => { nav: NavGrid; cast: ReturnType<typeof downCast> }> = { campusOps: campusMap };
-const built = new Map<string, ReturnType<typeof campusMap>>();
+// (J13 R4c) the course selftest runs on Marlow Yard
+const MAPS: Record<string, () => { nav: NavGrid; cast: ReturnType<typeof downCast> }> = { campusOps: () => mapNav(campusOps), ctcourse: () => mapNav(ctcourse) };
+const built = new Map<string, ReturnType<typeof mapNav>>();
 const mapOf = (id: string) => {
   if (!built.has(id)) built.set(id, MAPS[id]!());
   return built.get(id)!;
