@@ -8,6 +8,7 @@ Bypass mode: the lead posts `checker` statuses itself. Local checks via scratch/
 PROTOTYPE MODE (ROADMAP Decided ~16:05, e18f09d2f): the freeze ends once the fix train ships; one closest test set
 per change, no proof runs; build toward playable pieces. Goal: Tallow W1 (Three Grey Coats) playable in /preview/.
 My old tallow laptop requests are cancelled: re-file one set per change only. Never wait >10 min on a session (15:55).
+Michael 16:20: no tuning before he plays; a red test gets one fix + one rerun max, then quarantine / note and ship.
 1. F28 #567 (base master, contains #553; checker PASS; label fix). Both conflict with master in scripts/e2e-ctcourse.mjs
    only (#553 part). Asked Marlow 16:10 who resolves; >10 min silent -> orchestrator. CI green -> train-ready +
    no-affected-e2e; rides with #553.
@@ -16,8 +17,9 @@ My old tallow laptop requests are cancelled: re-file one set per change only. Ne
    (S-a PASS). Merge both in with one closest set each (prototype mode).
 3. G5 (TGC split: caged stair for the gallery ladder, leg b re-cut; plan docs/tallow-fixes/G5-plan.md) waits on its
    Opus plan check (scratch/campaign/tallow-g5-plan-check.md); then a Marlow note (S11 reach message + assist bolt).
-4. Master has none of the campaign: C1 #521, C2 #522 open (16-member split plan scratch/campaign/prc-split-refresh.md).
-   Proposed to the orchestrator: fewer, bigger members in prototype mode; flags via #560 darkFlag (on in /preview/).
+4. Engine to master as 4 big-pr members (BRIEF A29, 7c0ddfa48): (a) = #522 2a202c430 (C1 #521 already released; contains #560;
+   missions / coopKit on in /preview/; checker PASS x2; CI running). (b) cut by Opus -> scratch/campaign/member-b-cut-report.md
+   (branch feature/mission-b-sector on (a)). Then (c) net, (d) Tallow map + tests (G5 after (d), A30).
 5. #549 look-video tool (PASS); its first Tallow run was cancelled with the parked requests.
 Next: #567 conflict + train-ready; engine <- tallow-fixes-2 + shutters; land the engine for a /preview/ Tallow W1.
 
