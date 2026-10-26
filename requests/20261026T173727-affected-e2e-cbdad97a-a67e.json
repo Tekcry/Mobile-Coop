@@ -11,5 +11,18 @@
     "e2e-netmove"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #652"
+  "note": "auto affected-e2e, PR #652",
+  "kept": {
+    "sha": "cbdad97a0c4062b2cc7738c3d9418442760d9764",
+    "suites": [
+      {
+        "s": "e2e-ctcourse:5",
+        "sec": 119
+      },
+      {
+        "s": "e2e-ctcourse:6",
+        "sec": 196
+      }
+    ]
+  }
 }
