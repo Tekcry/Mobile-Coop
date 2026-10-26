@@ -1033,12 +1033,15 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    first-event guard -> partner goes alone without the 20 s wait; 23 m e2e margin). S1b report: ai.md "Mission orders" lines (groups, followGap +
    FOLLOW_SLACK, leader end ends group, checkMissionOrders same-name warnings) to fold; limits: one pend tag per slot,
    late 2nd event waits full joinWait, no catch-up pace (polish). Lead ruling: the order walk is not `turning` (A5).
-   S3b Opus builder RUNNING (11:30 2026-10-26) in worktree -s3b, branch feature/guard-ai-mission-hooks-s3b (base
-   3c3a7d17b = S1b a98de4381 + S3a merged; CPU-gated tsc / vitest). Then S4. Polish: S1a-1 recheck list (add doc :240, NaN guard :427 z, A3 / A4 / B7 / B8); S3a ago Float32 ->
+   S3b BUILT -s3b 28a4c2ac9 (base 3c3a7d17b = S1b + S3a; +750 lines; tsc / eslint clean; 16 files 247/247).
+   Deviations: net holds one command call at a time (area 1 waits its retry), canCallIn / holdsCommand, setAreas reads
+   zoneX/Z (placeSlot only). Opus checks A + B RUNNING -> checks/S3b-CHECK-A/B.md (no status posts; post the combined
+   checker after both PASS); laptop mh-s3b queued (stealth-ai, guard-carry, sectorops:1). ai.md lines in the S3b
+   report (fold later). Then S4. Polish: S1a-1 recheck list (add doc :240, NaN guard :427 z, A3 / A4 / B7 / B8); S3a ago Float32 ->
    Float64 (areaAlarms.ts:73), header :9-10 wording, out-of-range tests. Campaign Build has C1-C7. A9 dark.
 8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
    coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s1b-early verdict (4947ef2c8, unclaimed 11:25); S3b report -> 2 Opus checkers + laptop set (brief step 6).
+Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s1b-early verdict (4947ef2c8, unclaimed 11:25); S3b checks A / B + mh-s3b -> post checker; then S4 brief.
 ```
