@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-26T01:32Z
 # J12 validator-port, slice I-C (chore, Sonnet/Haiku): close PR C - Marlow set in the manifest, counts rewritten, fragments folded
 
 Lead: Night Shift | Marlow Build. PLAN: `docs/validator-port/PLAN.md` row I-C ("add the Marlow Yard set (S9's graph and
