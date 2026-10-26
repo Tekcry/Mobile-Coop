@@ -1,0 +1,16 @@
+{
+  "id": "20261026T010645-affected-e2e-92a7c997-508e",
+  "sha": "92a7c9972437471795aa4efa08a0a1c57fda3332",
+  "branch": "feature/affected-cap2",
+  "pr": 517,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-move",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #517"
+}
