@@ -54,10 +54,23 @@ const SEEN = [54, 10];
 const CROSS = [51, 12.5];
 const WALKWAY_MID = [67.5, 12.0];
 const LANDING = [69.4, 10.0];
+/** (marlow-play B3) The walkway's end on the far landing: from here each player walks south by the stick down the 0.71 m strip
+ *  between the pit barrier and the L2 wall to the door (no teleport over it). */
+const LANDING_END = [69.4, 12.0];
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
 export async function walk(t, n) {
-  const { A, B, GA, GB, until, assert, waitSim, use, moveHost, moveClient, doorIndex, stepLine } = t;
+  const { A, B, GA, GB, until, assert, waitSim, use, moveHost, moveClient, doorIndex, stepLine, padReady } = t;
+  /** (marlow-play B3) Page P's player walks south by the stick (camera yaw PI: -z, camera-relative) until its feet pass z `zTo`. */
+  async function walkSouth(P, zTo, what) {
+    await padReady(P);
+    await P.evaluate(() => { const g = window.__app.current; g.player.cam.yaw = Math.PI; g.player.cam.pitch = 0; window.__pad.axis(1, -1); });
+    try {
+      await until(P, (z) => window.__app.current.player.position.z < z, zTo, 15000, what);
+    } finally {
+      await P.evaluate(() => window.__pad.axis(1, 0));
+    }
+  }
 
   // ---- helpers local to the set ----
   const station = (P) => P.evaluate(() => (typeof window.__course.station === 'function' ? window.__course.station() : -1));
@@ -214,8 +227,11 @@ export async function walk(t, n) {
   await openDoor(A, DOOR_WALKWAY, 'A2 walkway');
   await moveHost(WALKWAY_MID[0], WALKWAY_MID[1], 0.1, Math.PI / 2);
   await moveClient(WALKWAY_MID[0] - 0.8, WALKWAY_MID[1], 0.1, Math.PI / 2);
-  await moveHost(LANDING[0], LANDING[1], 0.1, Math.PI / 2);
-  await moveClient(LANDING[0], LANDING[1] + 0.5, 0.1, Math.PI / 2);
+  // (marlow-play B3) the strip to the L2 door is walked: the host first to the door's middle, the client behind him
+  await moveHost(LANDING_END[0], LANDING_END[1], 0.1, Math.PI);
+  await walkSouth(A, LANDING[1], 'A2: the host walks the strip from the walkway to the L2 door');
+  await moveClient(LANDING_END[0], LANDING_END[1], 0.1, Math.PI);
+  await walkSouth(B, LANDING[1] + 0.9, 'A2: the client walks the strip behind the host');
   await until(A, (f) => window.__course.state.hasShared(f), FLAG_ACROSS, 10000, 'A2: both on the far landing set a2-across');
   assert(await gateOpen(GATE_WALKWAY), 'A2: the walkway stays open');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {

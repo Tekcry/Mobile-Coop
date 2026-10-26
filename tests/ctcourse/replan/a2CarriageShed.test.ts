@@ -20,6 +20,7 @@ import { REPLAN_TICKS } from '../../../src/game/course/replan/ticks';
 import { a2Tick } from '../../../src/game/course/replan/a2Ticks';
 import type { StationDef } from '../../../src/game/course/stationDef';
 import type { NavGrid } from '../../../src/ai/navGrid';
+import { isolatorLures } from '../../../src/game/modes/courseMode';
 import { STAGE_NAV_ACROSS, STAGE_NAV_ALONG } from '../../../src/game/sectorStage';
 import { FacilityKit } from '../../../src/world/kit/facilityKit';
 import { generateLedges } from '../../../src/world/anchors';
@@ -46,7 +47,9 @@ import {
   A2_ACROSS_ZONE,
   A2_CAB2_REPLAN,
   A2_COAT_LAMP,
+  A2_BUILT_NECK_LINES,
   A2_GAP12_CLOSE,
+  A2_L2_FACE_X,
   A2_LANE_FLAG,
   A2_LANE_ZONE,
   A2_NORTH_CLOSE,
@@ -282,6 +285,21 @@ describe('A2 re-plan: stations 3-5, the marks, the flags, the lines', () => {
     for (const s of STATIONS_A2) expect(part.bay.radio.some((r) => r.at === `retry:${s.id}`), s.id).toBe(true);
   });
 
+  it('(marlow-play C2) the neck isolator lures nobody on the re-plan (the shunter stays off the crossers\' lane), and the built lines that promise a lure are gone', () => {
+    expect(isolatorLures('ctcourseReplan', A2_GATE)).toBe(false);
+    expect(isolatorLures('ctcourse', A2_GATE)).toBe(true);
+    expect(isolatorLures('ctcourseReplan', 'g-a5-other')).toBe(true);
+    expect(A2_BUILT_NECK_LINES).toHaveLength(2);
+    // the built set still has them (the built yard keeps its lure), the re-plan's radio does not
+    const soloRadio = new LevelBuilder();
+    const builtPart = buildA2CarriageShed(soloRadio, new FacilityKit(soloRadio));
+    for (const t of A2_BUILT_NECK_LINES) {
+      expect(builtPart.bay.radio.some((r) => r.text === t), t).toBe(true);
+      expect(part.bay.radio.some((r) => r.text === t), t).toBe(false);
+    }
+    expect(part.bay.radio.some((r) => /shunter stands at the neck|on two isolators/i.test(r.text))).toBe(false);
+  });
+
   it('the objective lines: one per station then the holding-room line, each what and where, at most COURSE_TEXT_MAX, never "fail"; the built neck steps are gone', () => {
     const ids = part.objectives.map((o) => o.id);
     expect(ids).toEqual(['a2-shutter', 'a2-lights', 'a2-plank', 'a2-lock']);
@@ -299,6 +317,13 @@ describe('A2 re-plan: stations 3-5, the marks, the flags, the lines', () => {
     const text = part.objectives.map((o) => o.text.toLowerCase());
     expect(text[0]).toMatch(/roller door/);
     expect(text[0]).toMatch(/stores bay/);
+    // (marlow-play C6) holding only unlocks the roller door: the lines say the one going under opens it, the holder follows
+    const s3 = part.objectives[0]!;
+    expect(s3.a).toMatch(/roller door/);
+    expect(s3.a).toMatch(/opens it/);
+    expect(s3.a).toMatch(/[Ff]ollow/);
+    expect(s3.b).toMatch(/roller door/);
+    expect(s3.b).toMatch(/^Open the roller door/);
     expect(text[1]).toMatch(/neck/);
     expect(text[1]).toMatch(/cabinet/);
     expect(text[2]).toMatch(/pit/);
@@ -636,6 +661,21 @@ describe('A2 re-plan: the pit (SA9: x 66.0-69.0, depth 1.6 m)', () => {
     expect(A2_ACROSS_ZONE[2]).toBe(69.75);
   });
 
+  it('(marlow-play B3) the strip from the walkway to the L2 door between the barrier and the L2 wall is at least a body wide (2 x (radius + keepDistance 0.04)) at every z', () => {
+    const need = 2 * (MOVEMENT.radius + 0.04);
+    expect(A2_L2_FACE_X - A2_PIT_BARRIER.x1).toBeGreaterThanOrEqual(need);
+    // the solids in a body's band (0.15-1.7 m) on the landing, walking from the walkway (z 12.0) to the L2 door's middle (z 10.0)
+    const mid = (A2_PIT_BARRIER.x1 + A2_L2_FACE_X) / 2;
+    const band = solid.filter((p) => bottom(p) < 1.7 && top(p) > 0.15);
+    for (let z = 10.0; z <= 12.0 + 1e-9; z += 0.05) {
+      const at = band.filter((p) => Math.abs(z - p.c[2]) < p.s[2] / 2);
+      const west = Math.max(...at.map((p) => p.c[0] + p.s[0] / 2).filter((e) => e <= mid), -Infinity);
+      const east = Math.min(...at.map((p) => p.c[0] - p.s[0] / 2).filter((e) => e >= mid), Infinity);
+      expect(at.some((p) => Math.abs(mid - p.c[0]) < p.s[0] / 2), `a solid across the strip at z ${z.toFixed(2)}`).toBe(false);
+      expect(east - west, `strip width at z ${z.toFixed(2)}`).toBeGreaterThanOrEqual(need);
+    }
+  });
+
   it('nothing is a ledge or a lip reachable from the pit floor: no generated ledge and no co-op lip in or on the pit, every liner, the floor, the barrier and the walkway noLedge', () => {
     const anchors = generateLedges(b.boxes, b.anchors);
     const near = anchors.ledges.filter((l) => (l.a.x + l.b.x) / 2 > x0 - 0.5 && (l.a.x + l.b.x) / 2 < 69.8 && l.top > floorY + 0.1 && l.top < 3.5 && (l.a.z + l.b.z) / 2 > 0 && (l.a.z + l.b.z) / 2 < 20);
@@ -651,7 +691,7 @@ describe('A2 re-plan: the pit (SA9: x 66.0-69.0, depth 1.6 m)', () => {
     const rise = A2_PIT_BARRIER.h - floorY;
     expect(rise).toBeGreaterThan(MANTLE);
     const w = A2_WALKWAY;
-    const faceX = x1 + 0.05;
+    const faceX = (A2_PIT_BARRIER.x0 + A2_PIT_BARRIER.x1) / 2;
     for (let z = A2_PIT.z0 + 0.05; z < A2_PIT.z1; z += 0.1) {
       const covered = solid.filter((p) => Math.abs(p.c[0] - faceX) < p.s[0] / 2 + 1e-9 && Math.abs(p.c[2] - z) < p.s[2] / 2 && bottom(p) < 0.05);
       const heights = covered.map(top);
