@@ -60,3 +60,13 @@ License (commercial use allowed, no attribution required; credited anyway).
 | Track | Artist | Page | Pixabay id | File | File SHA-256 |
 | --- | --- | --- | --- | --- | --- |
 | "Suspense Thriller" | Alex Grohl | https://pixabay.com/music/search/suspense%20thriller/ (search URL: the page slug was not confirmed) | 552495 | `src/assets/music/scene/alexgrohl-suspense-thriller-552495.mp3` | `b7b1df7d44176d6b9ab794d65a9fa574f1fa57ac3a6433cfce702826953fafe2` |
+
+Three more original prototypes on the form of the "Suspense Thriller" track above (about 163 s, 192 kb/s MP3), made in
+this repo by `scripts/music/grohl-form.mjs`: original notes and sounds, no samples, nothing taken from the track. No
+third-party licence applies. Prototypes only (no tuning); the lightning keeps its 91.03 s timetable and they do not follow it.
+
+| Prototype | Source | File | File SHA-256 |
+| --- | --- | --- | --- |
+| a "Clockwork" | original, `scripts/music/grohl-form.mjs` | `src/assets/music/scene/grohl-a-clockwork.mp3` | `a12a182b98acbd39ea12feee0161cde4a43320343e8efcc029c33e3e5992b278` |
+| b "Storm Piano" | original, `scripts/music/grohl-form.mjs` | `src/assets/music/scene/grohl-b-storm-piano.mp3` | `916450e57f2a0ecb8977c61f44837649b0d03a6cf8443b52ab877fb2015b2bc0` |
+| c "Heartbeat" | original, `scripts/music/grohl-form.mjs` | `src/assets/music/scene/grohl-c-heartbeat.mp3` | `456950d62916cb4f9326a01cddd22377bc2ee7a5cab36f2b7503944c9506240a` |
