@@ -556,7 +556,7 @@ Wharf walk.
    route (shadow, high, loud) against live guards, logging time, detections and dead stops (the route-runs job, Marlow
    Build; G330, "Bot route-runs + your walk"). A map passes its route-runs when no run has a dead stop; the times the
    robots were seen go on the walk card (G372; Michael, 2026-10-25 ~16:40, Q7, "Never stuck"). What a dead stop is:
-   `docs/systems/testing-tools.md` "Route-runs". (3) A 10-minute walk card for Michael.
+   `docs/systems/route-runs.md`. (3) A 10-minute walk card for Michael.
 4. **Guards and mission**.
 5. **Dressing, readability and verification**.
 
@@ -567,8 +567,7 @@ Wharf walk.
   (11.6) and split leg times (11.3), measured from the light bake and the nav grid by `scripts/level-measure.mjs` and
   checked under `--require-measured` (14); the shadow share is information only (G329). The light band (5.5) is
   measured when the lux band check lands (light-realism J10). A measured value that misses its target fails the map.
-- A map passes its route-runs when no run has a dead stop (14); what a dead stop is: `docs/systems/testing-tools.md`
-  "Route-runs".
+- A map passes its route-runs when no run has a dead stop (14); what a dead stop is: `docs/systems/route-runs.md`.
 - Every planned traversal element engages from its planned approach (pad).
 - `e2e-anchors.mjs` covers the map.
 - The split gaps on the map are exactly the planned ones.
