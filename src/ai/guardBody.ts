@@ -7,7 +7,9 @@
  * - Built right after the rig (the figure measures the rig's rest), on the host's guards (`Enemy`), the co-op client's
  *   puppets (`EnemyPuppet`) and the fresh rigs of carried bodies (`buildBodyRig`); the dog keeps its own model.
  * - The merged body (or the parts) stays drawn until the figure's first LOD is ready, then is disabled: no invisible
- *   guard on a slow load (a failed load leaves the merged body).
+ *   guard on a slow load (a failed load leaves the merged body). (gm-watchdog) and comes back while the figure's shown
+ *   LOD's shader is not ready (`GuardFigure.drawState`); a stuck or failed figure compile is recompiled by the S1
+ *   body's watchdog (`bodyEffectRecovery.ts`).
  * - Once per render (one observer per scene, before the active meshes are evaluated): thermal heat (the rig's
  *   `heat`), the owner's hit flash, then the figure's LOD pick and pose, skipped while the owner's guard-render S4 anim
  *   tier skipped the rig's solve (`skip`) or the render freeze has the rig root disabled (S11). A ragdoll and a
@@ -59,7 +61,8 @@ const OF_RIG = new WeakMap<CharacterRig, GuardBody>();
 function frameAll(scene: Scene, list: readonly GuardBody[]): void {
   const cams = scene.activeCameras;
   const cam = cams && cams.length ? cams[0]! : scene.activeCamera;
-  for (let i = 0; i < list.length; i++) list[i]!.frame(cam);
+  const now = performance.now();
+  for (let i = 0; i < list.length; i++) list[i]!.frame(cam, now);
 }
 
 function register(scene: Scene, b: GuardBody): void {
@@ -112,6 +115,11 @@ export class GuardBody {
   skip = false;
   /** The figure draws (its first LOD is in): the merged body is off. */
   shown = false;
+  /** (gm-watchdog) The figure is in (`shown`) but its shown LOD's shader is not ready (compiling, or stuck and being
+   *  recompiled): the merged body stands in. `shown` keeps its meaning: the load gate and the pop-in count read it. */
+  fallback = false;
+  /** (tests, e2e) Times the merged body has stood in. */
+  fallbacks = 0;
   /** The enforcer's figure shield (`guardShield.ts`; null: none, or the placeholder part), posed and freed with the figure. */
   shield: GuardShield | null = null;
   private readonly variant: GuardVariant = createVariant();
@@ -166,9 +174,22 @@ export class GuardBody {
     for (let i = 0; i < ms.length; i++) ms[i]!.setEnabled(false);
   }
 
-  /** The mesh an anim tier watches: the figure's shown LOD once it draws (it changes with the LOD), else the merged body's. */
+  /**
+   * (gm-watchdog) The merged body stands in (`on`) while the figure's shown LOD's shader is not ready, or goes again.
+   * The figure's meshes stay enabled (Babylon must keep asking for its effect). No allocation.
+   */
+  private setFallback(on: boolean): void {
+    if (on === this.fallback || this.disposed) return;
+    this.fallback = on;
+    if (on) this.fallbacks++;
+    const ms = this.rig.renderMeshes;
+    for (let i = 0; i < ms.length; i++) ms[i]!.setEnabled(on);
+  }
+
+  /** The mesh an anim tier watches: the figure's shown LOD once it draws (it changes with the LOD), else the merged
+   *  body's ((gm-watchdog) also while it stands in: the tier tracks the body that draws). */
   get viewMesh(): AbstractMesh | null {
-    return (this.shown ? this.figure.mesh : null) ?? this.rig.voxel?.meshes[0] ?? null;
+    return (this.shown && !this.fallback ? this.figure.mesh : null) ?? this.rig.voxel?.meshes[0] ?? null;
   }
 
   /** His look seed (0-127): variant, tints and pieces again on a change only (a woken guard, the wire seed arriving). */
@@ -223,8 +244,8 @@ export class GuardBody {
     return this.pieces.ids.slice(0, this.pieces.count);
   }
 
-  /** Once per render (the scene's observer): heat, flash, LOD and pose. No allocation. */
-  frame(camera: Camera | null): void {
+  /** Once per render (the scene's observer): heat, flash, LOD and pose, (gm-watchdog) then the stand-in. No allocation. */
+  frame(camera: Camera | null, now = performance.now()): void {
     if (this.disposed) return;
     const f = this.figure;
     f.setHeat(this.rig.heat);
@@ -235,6 +256,12 @@ export class GuardBody {
     // sets `skip` in; a disabled root draws nothing of the figure, and the rig is not solved while frozen)
     if ((!this.skip && this.rig.root.isEnabled(false)) || f.current < 0) f.update(camera);
     this.skip = false;
+    // (gm-watchdog) no judgement while frozen (the root disabled draws nothing of either body); 0 (nothing to judge)
+    // holds whatever is showing
+    if (this.shown && this.rig.root.isEnabled(false)) {
+      const s = f.drawState(now);
+      if (s !== 0) this.setFallback(s < 0);
+    }
     this.shield?.follow();
   }
 

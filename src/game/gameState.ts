@@ -36,7 +36,7 @@ import { buildNavGrid } from '../ai/navBuild';
 import { holdNoisePulse } from '../config/noise';
 import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
-import { warmGuardModels } from '../ai/guardWarm';
+import { guardWarmPending, warmGuardModels } from '../ai/guardWarm';
 import { liveGuardBodies, type GuardBody } from '../ai/guardBody';
 import { CompileLog, type CompileLogRecord } from '../core/compileLog';
 import { bakeSourceOf, MapReadyStats, type FrameSample, type MapReadyRecord } from '../core/mapReadyStats';
@@ -1055,21 +1055,28 @@ export class GameState implements AppState {
       // point is here (the end of World.create, the S1 `world` step).
       g.holding = true;
       g.gateWorldAt = readyWorld;
-      // (the guard warm meshes still start here, not awaited: the gate's `shaders` step compiles them with the rest)
-      if (flags.guardModels) void warmGuardModels(g.scene, opts.map.id).catch(() => undefined);
+      // (the guard warm meshes still start here, not awaited: the gate's `shaders` step compiles them with the rest;
+      // (F59) its `bodies` step waits until every one is built, `guardWarmPending`)
+      if (flags.guardModels) void warmGuardModels(g.scene, opts.map.id, undefined, { parts: world.parts, capMs: MAP_READY_CAP_MS }).catch(() => undefined);
       rs.step('create', performance.now());
       return g;
     }
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
-    // (guard-models G7b) with the guard figures: LOD2 of every guard base in, and the guard shader compiled, on the same
-    // screen and under the same cap (`guardWarm.ts`; the flag off waits for exactly what it did)
+    // (guard-models G7b) with the guard figures: every guard base's game LODs in, and the guard shader compiled for
+    // each, (F59) and the merged S1 body's, on the same screen and under the same cap (`guardWarm.ts`; the flag off
+    // waits for exactly what it did)
     // (section-bake, SB5) a map baking per section: its live section's lamps (section 0 to start; the client's `ls`
     // moves it later) land during the load, beside the warm-up; the other sections bake on in the background
+    // (F59 check FIX 1; Michael's "settings before the warm-up", ROADMAP Decided ~18:50) the real graphics settings in
+    // before the compile: their first apply turns the sun / lamp / character shadows on, and a guard that receives
+    // shadows needs that shader, not the one compiled without them. `setState`'s later apply is then a no-op (World and
+    // the post stack return early on unchanged settings)
+    g.applyQuality(app.quality.level);
     const ready = g.scene.whenReadyAsync();
     const sb = world.lightBake?.sections;
     await Promise.all([
-      Promise.race([flags.guardModels ? Promise.all([ready, warmGuardModels(g.scene, opts.map.id)]) : ready, new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]),
+      Promise.race([flags.guardModels ? Promise.all([ready, warmGuardModels(g.scene, opts.map.id, undefined, { parts: world.parts, capMs: WARMUP_MAX_MS })]) : ready, new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]),
       sb ? sb.whenReady(sb.plan.live) : null,
     ]);
     // (SB14) from here the bake's cache write waits for a section change or the match's end (no mid-play hitch)
@@ -2744,6 +2751,8 @@ export class GameState implements AppState {
     if (flags.guardModels) {
       const gb = liveGuardBodies(this.scene);
       for (let i = 0; i < gb.length; i++) if (!gb[i]!.shown) bodies = false;
+      // (F59) every guard warm mesh built (each game LOD's, the merged body's): the `shaders` sweep compiles them
+      if (guardWarmPending(this.scene) > 0) bodies = false;
     }
     g.bodies = bodies;
     // (S14 cut A) each compile group starts as its inputs come in, in priority order, none waiting on another (parallel);
