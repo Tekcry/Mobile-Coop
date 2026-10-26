@@ -76,14 +76,6 @@ Format: `N. Item - destination - status`.
 the expiry, a failure in any other suite does. Remove the entry when the test is fixed. Rerun a suspect alone
 (`E2E_PORT=4191 node scripts/run-e2e.mjs e2e-coop`) before reading anything into one failure.
 
-- **e2e-ctcourse:5, e2e-ctcourse:7, e2e-ctcourse:8, the re-planned yard (quarantined to 2026-10-29 under the prototype rule; owner Marlow Build)** -
-  #574 (J14) red on train 125; one fix (6c180bd99: A1 trap zone, A7 retry zone hold, A4 / A5 walk checks) moved each
-  part further and part 6 passed, then train 127 failed the next steps, which had never run before: :5 "A1: the wicket
-  unlocks on the host" (`scripts/e2e-ctcourse/replan/a1Gate.mjs` ~:117, after the human ladder), :7 "A5: the host takes
-  the wall's access ladder at its head" (`a5Substation.mjs`), :8 "A8: the host reads the split line" (`a8Strongroom.mjs`
-  ~:144). Logs: train-127-d7cda0a0 on the laptop (PR #580 comment). Cause (walk or game) not yet known; triaged
-  with Michael's playthrough findings, before the re-plan is switched on in the live game.
-
 Process audit (2026-10-19, approved by Michael; `docs/process-audit/REPORT.md` section 2): the co-op suites are fixed
 by their own desktop job (the likely shared cause: wall-clock waits against a sim slower than real time on software
 GL); the rest are parked, not fixed. Co-op test fix (2026-10-19, `docs/archive/coop-tests/`): the cause confirmed and fixed

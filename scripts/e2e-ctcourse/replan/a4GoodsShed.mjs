@@ -56,8 +56,8 @@ const LOOP_S = 60;
 const BACK_AISLE = [100, 25.8];
 /** Stations 8 and 10 have A and B lines, so each page's step line is its player's job line (`CourseState.stepLine`), never the shared
  *  text: either job's line counts (the unit test pins both against these). */
-export const S8_LINE = /(Down the officer|console once the officer is down), then run/;
-export const S10_LINE = /Take the (north|south) man: count down and go together/;
+export const S8_LINE = /(Take down the officer|Loop the cameras at the console), then run to the dock/;
+export const S10_LINE = /Count down with your partner and take the (north|south) loader/;
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
 export async function walk(t, n) {
@@ -164,7 +164,7 @@ export async function walk(t, n) {
   await GA(() => { for (const r of window.__app.current.net.remotes.values()) { r.damageMul = 0; r.protectT = 0; } });
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stationLive(P, 9, `A4: station 9 is live on the ${tag} page`);
-    await sees(P, /lift grille/, `A4: the ${tag} reads station 9's step line`);
+    await sees(P, /Sneak past the officer, under the grille/, `A4: the ${tag} reads station 9's step line`);
     const m = await camModes(P);
     assert(m.length === 3 && m.every((x) => x === 'online'), `A4: the three cameras are online on the ${tag} (${JSON.stringify(m)})`);
     assert((await lampCount(P, 49)) === 3 && (await lampCount(P, 44)) === 1, `A4: the ${tag} has the three back aisle strips (49) and the office panel (44)`);
@@ -266,7 +266,7 @@ export async function walk(t, n) {
   assert(await GA(() => !window.__course.squadOf('a4-dock1').alive), 'A4: D1 is down alone');
   await until(A, ([r]) => window.__course.state.restarts > r && window.__course.state.lastRetry?.st === 10, [r3], 20000, 'A4: the second loader is not down 1.5 s later: station 10 retries');
   assert((await GA(() => window.__course.state.lastRetry.cause)) === 'timer', 'A4: the retry cause is timer');
-  await until(B, (n0) => (window.__course.wire.rln ?? 0) > n0 && /Both loaders at once/.test(window.__course.wire.rl ?? ''), rln1, 30000, "A4: LANTERN's station 10 timer line reaches the client");
+  await until(B, (n0) => (window.__course.wire.rln ?? 0) > n0 && /Not together, so the other loader saw/.test(window.__course.wire.rl ?? ''), rln1, 30000, "A4: LANTERN's station 10 timer line reaches the client");
   await onMarks(ST10, 'A4 takedown retry');
   assert((await hasFlag('a4-grille')) && (await hasFlag('a4-west')), 'A4: stations 9 and 8 are still done');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await stationLive(P, 10, `A4: station 10 is live again on the ${tag} page`);

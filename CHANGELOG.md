@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.126.2 - Train 155: Lamp ids past 255; Route-runs: a course restart during a link step; Marlow yard step lines (2026-10-27, PR #657; #655, #649, #627)
+
+### Lamp ids past 255
+- (F56) The lamp grid (which lamps reach each 2 m column) holds lamp ids in 16 bits: up to 65535 lamps a map, was 255.
+  Saltmarsh Park with every section on the v2 layout (/preview/) has 260 lamps; the last 5 (the S5 service stair) were
+  dark in the picture and the light meter. Every lamp is now lit in both, and the guards see it. A map past 65535
+  lamps warns at load. The lamp bakes are unchanged (no rebake, no prebake key change); no wire or save change.
+
+### Marlow yard step lines
+- Marlow Yard re-plan: shorter, plainer step lines (what to do and where).
+- Marlow Yard: the set lamps no longer draw long light beams, which made the lights blinding on the Epic setting.
+- Marlow Yard re-plan walks: e2e-ctcourse parts 5, 7 and 8 are out of quarantine (all green on the laptop after the test fixes in #610 and #632).
+
+### Route-runs: a course restart during a link step
+- Route-run harness: a course restart or retry that lands while a robot is mid-ladder, mid-drop or holding at a
+  stubbed link is no longer lost. The step ends there and the run follows the course's rejoin or push-past, instead
+  of a false step-timeout or a placement past the stub.
+
 ## 4.126.1 - Train 154: Docs: the 2026-10-26 / 27 decisions folded (G408-G434); Guard torch slots per map (piano SO3) (2026-10-27, PR #654; #650, #605)
 
 ### Docs: the 2026-10-26 / 27 decisions folded (G408-G434)
