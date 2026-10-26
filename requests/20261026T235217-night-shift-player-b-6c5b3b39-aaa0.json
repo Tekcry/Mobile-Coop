@@ -1,0 +1,13 @@
+{
+  "id": "20261026T235217-night-shift-player-b-6c5b3b39-aaa0",
+  "sha": "6c5b3b3961887a36172c181bf782b553f7328ea5",
+  "branch": "feature/context-prompts-p1",
+  "pr": 699,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "cp-p1"
+}
