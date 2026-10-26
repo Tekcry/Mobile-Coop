@@ -9,6 +9,11 @@
  * rad centred on the lure bearing (A12: the map author sizes the leash so that facing the lure from the edge faces him
  * away from the choke), then walks back and faces his post yaw (`PostLure`).
  *
+ * A lookout (guard-rules S7, A9, `PostDef.lookout`) is a perch: with the `lookouts` flag on he reads as a high-security
+ * post with a leash of at most `POST.lookoutLeash` (never sent, never leaves; a lure only turns him), and when he grows
+ * suspicious by sight he radios it (`LOOKOUT`) so the board sends a calm guard to what he saw. Flag off he is no post.
+ * Map authors (M3): a lookout on a vent route stands where he overlooks the vent run or its exit.
+ *
  * Yaw convention as `Enemy`: radians, 0 = +Z, yaw = atan2(dx, dz).
  *
  * Allocation-free: functions write into a caller's `out`; `PostLure` holds a few numbers and allocates nothing per step.
@@ -26,6 +31,9 @@ export interface PostDef {
   highSecurity?: boolean;
   /** What the post guards ('vault door', 'token', 'c1-door'), for barks and debug. */
   guards?: string;
+  /** (guard-rules S7, A9) A lookout's perch: read as a high-security post with the `lookouts` flag on (never sent,
+   *  never leaves; leash <= `POST.lookoutLeash`), and he radios what he sees (`LOOKOUT`). Flag off: no post. */
+  lookout?: boolean;
 }
 
 /** Post numbers (prototype starting values, G4). A12 promises Course Ready `lureLook` >= 5 and `lureSweep` <= 0.6. */
@@ -44,6 +52,14 @@ export const POST = {
   lureWalkMax: 12,
   /** Suggested arrival radius (m) for the caller's `atTarget`. */
   arrive: 0.3,
+  /** (guard-rules S7, A9) A lookout's largest leash (m): he holds his perch and only turns to a lure. */
+  lookoutLeash: 1,
+} as const;
+
+/** (guard-rules S7, A9) Lookout numbers (prototype starting values, G4). */
+export const LOOKOUT = {
+  /** s between one lookout's radioed sightings (A9). */
+  callCd: 20,
 } as const;
 
 /**
@@ -85,11 +101,11 @@ export function inLeash(x: number, z: number, postX: number, postZ: number, leas
 
 /**
  * May this guard be sent out of his leash for an incident of `kind` (an investigation, a search, a body, the alarm
- * panel)? No post or a normal post: yes, like any guard. A high-security post: never (A10); distractions reach him
- * through `PostLure` inside his leash instead.
+ * panel)? No post or a normal post: yes, like any guard. A high-security post: never (A10); a lookout: never (A9);
+ * distractions reach him through `PostLure` inside his leash instead.
  */
 export function mayLeave(post: PostDef | null | undefined, _kind: IncidentKind): boolean {
-  return !(post && post.highSecurity);
+  return !(post && (post.highSecurity || post.lookout));
 }
 
 /** `PostLure` phases. */
