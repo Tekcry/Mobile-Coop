@@ -74,5 +74,14 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
   startMode; fix on Campaign's feature/mission-engine-gb6fix2). Dropped from the gate until Campaign sends the engine sha
   with a green wharf run. Fresh Opus checker PASS on f24afb25a (mixamo-kit-check.md; polish 1-2: test (f) asserts no
   entry / exit / phase pops, the shutter holder's velocity pop 19.36 vs 6.63 cm; (h) depends on (f) running first).
+- Step 8 merge 1e74a4902 (68c15083d = #498 head: mixamo-on + i3 + `AnimGraph.animSource`): 7 conflicts unioned, stub
+  swap in the merge commit (real addMixamoResolver import; `kitSourceOf = rig.graph?.animSource === 'mixamo'`).
+  Report: C:/NightShift/scratch/marlow/mixamo-kit-step8-report.md.
+- LEAD CALL (step 8, 2026-10-26): crawling_prone ON. The merged test runs the real Mixamo source (CMU locomotion on +
+  captures; before, captures over hand-keyed locomotion), where the placeholder crawl steps 16.29 cm (elbowR) and the
+  take 13.73, pop 14.29 (14.37): inside 2x. Knee bow 0.133 vs 0.040 m kept as a tuning item. Hand-keyed basis read toe
+  13.07 (5.10), pop 15.98 (4.27): off. Player wanted it on; Michael ~00:15 "add all mixamo animations in game, i will
+  fine tune as needed"; the Mixamo source is not the default. Undo: the row back to false and (f) pinned to hand-keyed
+  (`applyAnimSource({ setting: 'mixamo', mocapUrl: false })`).
 Next: step 8 when Player sends a head holding i3 + mixamo-on (+ AnimGraph.animSource): merge it, swap the two stub lines
 (kitMixamo.ts:110, Q39) in that merge commit, rerun step 6; then merge the gb6fix2 engine head, re-add both wharf suites. Open: crawl row (Player wanted it on; the A8 rule turned it off), the lift palms in the low bar.

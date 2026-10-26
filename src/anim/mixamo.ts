@@ -102,9 +102,11 @@ export const MIXAMO_ON: Record<string, boolean> = {
   pulling_up_to_a_ledge: false,
   // the shutter holder's lift and hold
   lifting_heavy_object: true,
-  // off: the crawl under a held shutter (on the distance crawled) folds the IK legs under its prone pelvis: a toe steps
-  // 13.1 cm in a frame (placeholder 5.1), a knee bows 0.13 m (0.04): over 2x (the I2 rule; Player asked to keep it on)
-  crawling_prone: false,
+  // on (lead call, step 8): the crawl under a held shutter (on the distance crawled). Under the real Mixamo source (CMU
+  // locomotion on) an elbow steps 13.7 cm in a frame (placeholder 16.3), pop 14.3 (14.4): inside 2x (the I2 rule). The
+  // knees bow 0.13 m (0.04): the prone pelvis folds the IK legs (a tuning item). Against hand-keyed locomotion it read
+  // toe 13.1 (5.1), pop 16.0 (4.3): off; undo = false here and (f) pinned to hand-keyed
+  crawling_prone: true,
   // (mixamo-kit A1) optional phases, today's pose: the pull offer's held frame
   kit_pull_offer: false,
   // the pull partner's hang (local page only: the remote ph is 0 through the hang)

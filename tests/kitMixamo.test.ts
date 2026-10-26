@@ -523,10 +523,10 @@ describe('mixamo-kit (b): on, each pose id plays its take at the table time', ()
   it('the copies equal the game\'s numbers; the tables by rows (optional phases off, one row off leaves the rest)', () => {
     expect([KIT_SHOT.holdGap, KIT_SHOT.crawlGap, KIT_SHOT.holdSpot]).toEqual([SHUTTER.holdGap, SHUTTER.crawlGap, SHUTTER.holdSpot]);
     expect([KIT_PULL.catchClose, KIT_PULL.landT, KIT_PULL.haul, KIT_PULL.scramble]).toEqual([PULL.catchClose, PULL.landT, PULL.haul, PULL.scramble]);
-    // as shipped: the ledge and the crawl takes off by the A8 rule ((h))
+    // as shipped: the ledge take off by the A8 rule ((h)); the crawl on (lead call, step 8: the rule under the real source)
     resolveKit();
     const T = KIT_TABLES[1];
-    expect(T).toMatchObject({ pullScramble: null, crawlUnder: null, pullHaul: MOCAP_KNEELING_PULL_UP, shutterLift: MOCAP_LIFTING_HEAVY_OBJECT });
+    expect(T).toMatchObject({ pullScramble: null, crawlUnder: MOCAP_CRAWLING_PRONE, pullHaul: MOCAP_KNEELING_PULL_UP, shutterLift: MOCAP_LIFTING_HEAVY_OBJECT });
     rows(true);
     for (const [id, c] of Object.entries(CLIP)) expect(T[id as KitPoseId], id).toBe(c);
     for (const id of ['pullOffer', 'pullJump', 'pullHang', 'shutterOffer', 'shutterDrop'] as const) expect(T[id], id).toBeNull();
@@ -835,6 +835,8 @@ describe('mixamo-kit (f) no pop, (h) the A8 readings', () => {
       const broken = ['local', 'remote'].some((pg) => (r => r !== undefined && r.on.step > Math.max(2 * r.off.step, 2))(READ[`${scene[t]} (${pg})`]));
       expect(ON0[t], t).toBe(!broken);
     }
+    // the shipped rows under the real Mixamo source (CMU locomotion on): only the ledge take is off
+    expect(TAKES.filter((t) => ON0[t])).toEqual(['kneeling_pull_up', 'lifting_heavy_object', 'crawling_prone']);
   });
 });
 

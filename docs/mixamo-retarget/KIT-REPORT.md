@@ -4,7 +4,9 @@ Owner: Marlow Build. Status: current (2026-10-26, Opus builder).
 Plan: docs/mixamo-kit/PLAN.md on origin/feature/mixamo-kit. Code: src/anim/kitMixamo.ts (KIT_SHOT, KIT_TABLES),
 src/anim/clips/team.ts (TeamPoser's kit shot), src/anim/animGraph.ts (`kitShot`, the hang skip), src/player/characterRig.ts
 (`keyShot`). Measured headless on Wren's rig by tests/kitMixamo.test.ts (h): each kit scene (local and remote page) run
-with the take on and with every kit row off (today's placeholder), 60 Hz.
+with the take on and with every kit row off (today's placeholder), 60 Hz, under the real Mixamo source (step 8 on:
+`setAnimSource('mixamo')` = the CMU mocap locomotion on plus the captures; before step 8 the test ran the captures
+over hand-keyed locomotion).
 
 ## Readings (on vs placeholder)
 Step: the largest joint step in a frame, the body less its root (cm). Pop: the largest velocity change in a frame (cm).
@@ -12,18 +14,23 @@ Wing: elbows outside the shoulders (m). Bow: knees outside the ankles (m).
 
 | Scene | Step (joint) | Pop | Wing | Bow | Row |
 | --- | --- | --- | --- | --- | --- |
-| pull holder, local / remote (kneeling_pull_up) | 11.32 / 11.23 wristR (8.02 / 8.27) | 11.28 (6.98) | 0.212 (0.212) | 0.032 (0.028) | on |
-| shutter holder, local / remote (lifting_heavy_object) | 11.79 wristR (6.74) | 19.36 (6.63) | 0.215 (0.215) | 0.028 (0.028) | on |
-| pull partner, local / remote (pulling_up_to_a_ledge) | 28.11 wristL (12.30) | 38.17 (9.36) | 0.204 (0.208) | 0.334 (0.084) | OFF |
-| crawler, local / remote (crawling_prone) | 13.07 toeL (5.10) | 15.98 (4.27) | 0.250 (0.249) | 0.131 (0.040) | OFF |
+| pull holder, local / remote (kneeling_pull_up) | 11.32 / 11.23 wristR (8.02 / 8.27) | 11.28 / 11.24 (7.52 / 7.50) | 0.212 (0.212) | 0.032 (0.029) | on |
+| shutter holder, local / remote (lifting_heavy_object) | 11.79 wristR (6.72) | 19.36 / 19.56 (7.26) | 0.215 (0.215) | 0.032 (0.032) | on |
+| pull partner, local / remote (pulling_up_to_a_ledge) | 28.11 wristL (12.30) | 38.17 (10.40 / 10.75) | 0.204 (0.208) | 0.334 (0.084 / 0.068) | OFF |
+| crawler, local / remote (crawling_prone) | 13.73 elbowR (16.29) | 14.29 (14.37) | 0.279 (0.277) | 0.133 (0.040) | on (lead call) |
+| crawler, hand-keyed locomotion (before step 8) | 13.07 toeL (5.10) | 15.98 (4.27) | 0.250 (0.249) | 0.131 (0.040) | (was OFF) |
 
 Rule (plan 4 (h), the I2 rule): a take is visibly broken when a joint jumps over 2x the placeholder's (floor 2 cm) or a
 limb goes through the body; its row goes false with the reading as its comment (src/anim/mixamo.ts).
 - pulling_up_to_a_ledge: off. The take's rise is dropped (the game's root path does it) but its pelvis turn is kept: the
   IK legs bow 0.33 m and a wrist steps 28 cm a frame in the scramble's last 0.15 s (the take fades out before the landing,
   KIT_SHOT.tail). Without the tail fade the landing cut was 56.6 cm.
-- crawling_prone: off. The prone pelvis (0.89 m under rest) folds the IK legs under it: a toe steps 13.1 cm a frame
-  mid-crawl, the knees bow 0.13 m. (Player Build asked to keep it on; the plan's rule turned it off: one row to flip.)
+- crawling_prone: on (lead call at step 8). Under the real Mixamo source the placeholder crawl itself steps 16.3 cm a
+  frame (an elbow, the CMU locomotion under the crawl), so the take's 13.7 is inside 2x. The knees still bow 0.133 m
+  (placeholder 0.040): the prone pelvis (0.89 m under rest) folds the IK legs under it; the rule reads the step only, so
+  this is a tuning item. Against hand-keyed locomotion (the pre-step-8 basis) it read toe 13.1 (5.1), pop 16.0 (4.3):
+  off. Undo: the row back to false and (f) pinned to hand-keyed (`applyAnimSource({ setting: 'mixamo', mocapUrl: false })`).
+  Player Build asked for it on; Michael ~00:15 "add all mixamo animations in game, i will fine tune as needed".
 - Both still play whole in the Anim Studio (mocapSources.ts loops).
 
 ## Other readings
