@@ -1,5 +1,5 @@
 {
-  "id": "20261026T031507-night-shift-player-b-1d24b5de-c0b4",
+  "id": "20261025T000016-night-shift-player-b-1d24b5de-ff58",
   "sha": "1d24b5de7d46428d656d99327ac8b1ed945dc2ae",
   "branch": "feature/player-flake-fix",
   "pr": null,
@@ -9,6 +9,6 @@
     "e2e-pad",
     "e2e-netmove"
   ],
-  "set": "flake-fix-1",
-  "note": "F4/F5 proof run 1 of 5"
+  "set": "flake-fix-2",
+  "note": "F4/F5 proof run 2 of 5"
 }
