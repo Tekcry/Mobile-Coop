@@ -9,6 +9,14 @@
  * The caller mocks `../src/weapons/weaponMesh` (`vi.mock` is hoisted per test file): the knife's GLB is not loaded
  * headless (the tip is the node's frame and `KNIFE_TIP`).
  *
+ * (piano-knife S3) `via`: `'local'` is the run above; `'wire-client'` / `'wire-host'` feed the same attacker root track
+ * through a MoveState per frame (`knifeSub`, `ph` over `knifeSpan` and `s`, both rounded to 3 decimals as the wire
+ * packs them) into a `RemoteKnife`, which drives her clip and hands and his root, clip and hands. Client order (the
+ * puppet poses after the partner): her hands, she poses, `victim`, he poses. Host order (the enemies pose before the
+ * remote avatars): he poses, her hands, she poses, `victim`. Each run also records, per measured frame, her right
+ * wrist, the knife tip and his head (`trace`), and (wire) the victim root's largest miss of `victimRoot` off her drawn
+ * root at the owner's grab share (`wireRoot`).
+ *
  * Plus two pure clip measures (no rig): `stabPhase` (the stab's full reach) and `standsUntil` (the victim still on his
  * feet).
  */
@@ -32,7 +40,14 @@ export interface RowResult {
   samples: number;
   endFwd: number;
   at: string;
+  /** (S3) Per measured frame: her right wrist, the knife tip, his head (x, y, z each: 9 numbers a frame). */
+  trace: number[];
+  /** (S3, wire runs) The victim root's largest miss of `victimRoot` off her drawn root from the grab to `limp` (m). */
+  wireRoot: number;
 }
+
+/** (S3) How the pair is driven: the owner's own run, or the remote pair from the wire on a client / the host. */
+export type PairVia = 'local' | 'wire-client' | 'wire-host';
 
 /** A candidate's numbers for one run (the fit's grid). */
 export type RowOverride = Partial<Pick<KnifeKillRow, 'standoff' | 'side' | 'contact' | 'limp' | 'victimTo' | 'attackerFrom' | 'attackerTo'>>;
@@ -42,7 +57,12 @@ export function worstContact(r: RowResult): number {
   return Math.max(r.grip, r.tip, r.handR, r.handL);
 }
 
-export async function runRow(row: number, override: RowOverride | null = null): Promise<RowResult> {
+export async function runRow(row: number, override: RowOverride | null = null, via: PairVia = 'local', packed = true): Promise<RowResult> {
+  const wire = via !== 'local';
+  if (wire && override) throw new Error('a wire run plays the game rows (no override)');
+  const { Vector3 } = await import('../../src/core/babylon');
+  const { RemoteKnife } = await import('../../src/net/remoteKnife');
+  const { knifeSub } = await import('../../src/player/moveState');
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene } = await import('../../src/core/babylon');
   const { PartLibrary } = await import('../../src/world/partLibrary');
@@ -87,7 +107,25 @@ export async function runRow(row: number, override: RowOverride | null = null): 
   const fromYaw = R.id === 'front' ? Math.PI : R.id === 'corner' ? -Math.PI / 2 : 0;
   const approach = TAKEDOWN.approach;
   const total = approach + R.seconds;
-  const out: RowResult = { grip: 0, tip: 0, handR: 0, handL: 0, root: 0, samples: 0, endFwd: 0, at: '' };
+  const out: RowResult = { grip: 0, tip: 0, handR: 0, handL: 0, root: 0, samples: 0, endFwd: 0, at: '', trace: [], wireRoot: 0 };
+  // (S3) the wire runs: the remote pair, its MoveState (the owner's numbers, rounded as packed), the guard's side as
+  // `Enemy.knifeVictim` (his drive at full weight, the buckle as the pitch)
+  const rk = wire ? new RemoteKnife() : null;
+  const span = P.knifeSpan(R);
+  const mv = { m: 'takedown' as const, a: -1, s: 0, sub: knifeSub(row), ph: 0, tid: 'g1', g: 3, r: 0, ay: 0, dw: 0 };
+  const side = {
+    knifeVictim(clip: KeyedClip | null, ph: number, buckle: number): void {
+      vD.clip = clip;
+      vD.phase = ph;
+      vD.w = clip ? 1 : 0;
+      vD.buckle = 1;
+      vD.bucklePitch = buckle;
+    },
+  };
+  // the wire packs `ph` and `s` to 3 decimals (`packMoveState`); `packed` false sends them exact (the code-parity check)
+  const r3 = (v: number): number => (packed ? Math.round(v * 1000) / 1000 : v);
+  const tipW = new Vector3();
+  const vrK = { x: 0, y: 0, z: 0, yaw: 0 };
   const err = { grip: 0, tip: 0, handR: 0, handL: 0 };
   const vr0 = { x: 0, y: 0, z: 0, yaw: 0 };
   const random = Math.random;
@@ -100,8 +138,17 @@ export async function runRow(row: number, override: RowOverride | null = null): 
     // a warm-up standing (the planners settle), then the move
     const WARM = 30;
     const N = Math.ceil(total / DT);
-    ar.graph.kill = aD;
+    // (S3) a wire run: her drive is the remote pair's (from its first call); he starts where the local run's root
+    // starts (the pair eases him from his drawn root) with his clip at its first frame, as the local run's drive
+    ar.graph.kill = wire ? null : aD;
     vr.graph.kill = vD;
+    if (wire) {
+      vr.root.position.set(fromX, 0, fromZ - 0.6);
+      vr.root.rotation.y = fromYaw;
+      vD.phase = K.victimPhase(R, 0);
+      vD.buckle = 1;
+      vD.bucklePitch = 0;
+    }
     for (let n = -WARM; n <= N; n++) {
       const t = Math.max(0, n) * DT;
       if (n > 0) {
@@ -117,22 +164,46 @@ export async function runRow(row: number, override: RowOverride | null = null): 
       const kt = t - approach;
       const ph = kt > 0 ? kt / R.seconds : 0;
       const since = kt - R.contact * R.seconds;
-      // (S2) the attacker's clip window at its own speed (`attackerPhase`, as the controller writes it)
-      aD.phase = K.attackerPhase(R, ph);
-      aD.w = (kt > 0 ? Math.min(1, kt / K.KNIFE.blendIn) : 0) * (process.env.KP_AW ? +process.env.KP_AW : 1);
-      vD.phase = K.victimPhase(R, ph);
-      vD.buckle = K.buckleAt(since);
-      const wGrip = ph >= R.limp ? 0 : K.handsAt(t, approach);
-      // the game's render order (`TakedownController.frameUpdate`, the player's frame, `frameLate`, the enemies'): her
-      // hands off his last drawn pose, she poses, his root off her drawn root and his hands on her drawn forearm, he poses
-      P.attackerHands(R, ph, since, ar, vr, knife, wGrip, track);
-      ar.animate(DT, aPose);
-      P.victimRoot(R, ax, 0, az, ayaw, k, fromX, fromZ - 0.6, fromYaw, vr0);
-      vr.root.position.set(vr0.x, vr0.y, vr0.z);
-      vr.root.rotation.y = vr0.yaw;
-      if (ph < R.limp) P.victimHands(R, since, ar, vr, track);
-      vr.animate(DT, vPose);
+      if (rk) {
+        // (S3) the owner's MoveState this frame (`localMoveState`: ph over the span, s the approach's progress), packed
+        mv.ph = r3(Math.max(0, Math.min(1, kt / span)));
+        mv.s = r3(Math.min(1, t / approach));
+        rk.read(mv);
+        if (via === 'wire-host') vr.animate(DT, vPose);
+        rk.attacker(ar, vr, knife);
+        ar.animate(DT, aPose);
+        if (rk.posesVictim) rk.victim(ar, vr, side);
+        if (via === 'wire-client') vr.animate(DT, vPose);
+        if (n >= 0 && ph < R.limp && k > 0) {
+          const p = ar.root.position;
+          P.victimRoot(R, p.x, p.y, p.z, ar.root.rotation.y, k, fromX, fromZ - 0.6, fromYaw, vrK);
+          const d = Math.sqrt((vr.root.position.x - vrK.x) ** 2 + (vr.root.position.y - vrK.y) ** 2 + (vr.root.position.z - vrK.z) ** 2);
+          if (d > out.wireRoot) out.wireRoot = d;
+        }
+      } else {
+        // (S2) the attacker's clip window at its own speed (`attackerPhase`, as the controller writes it)
+        aD.phase = K.attackerPhase(R, ph);
+        aD.w = (kt > 0 ? Math.min(1, kt / K.KNIFE.blendIn) : 0) * (process.env.KP_AW ? +process.env.KP_AW : 1);
+        vD.phase = K.victimPhase(R, ph);
+        vD.buckle = K.buckleAt(since);
+        const wGrip = ph >= R.limp ? 0 : K.handsAt(t, approach);
+        // the game's render order (`TakedownController.frameUpdate`, the player's frame, `frameLate`, the enemies'): her
+        // hands off his last drawn pose, she poses, his root off her drawn root and his hands on her drawn forearm, he poses
+        P.attackerHands(R, ph, since, ar, vr, knife, wGrip, track);
+        ar.animate(DT, aPose);
+        P.victimRoot(R, ax, 0, az, ayaw, k, fromX, fromZ - 0.6, fromYaw, vr0);
+        vr.root.position.set(vr0.x, vr0.y, vr0.z);
+        vr.root.rotation.y = vr0.yaw;
+        if (ph < R.limp) P.victimHands(R, since, ar, vr, track);
+        vr.animate(DT, vPose);
+      }
       if (n < 0 || ph >= R.limp) continue;
+      // (S3) the parity trace: her right wrist, the knife tip, his head
+      const w = ar.wristR.computeWorldMatrix(true).getTranslation();
+      knife.tipWorld(tipW);
+      vr.headNode.computeWorldMatrix(true);
+      const h = vr.headNode.getAbsolutePosition();
+      out.trace.push(w.x, w.y, w.z, tipW.x, tipW.y, tipW.z, h.x, h.y, h.z);
       P.contactErrors(R, ar, vr, knife, err);
       if (process.env.KP_TRACE) {
         const dbg = (rig: typeof ar, side: number) => {
@@ -181,6 +252,42 @@ export async function runRow(row: number, override: RowOverride | null = null): 
     scene.dispose();
   }
   return out;
+}
+
+/** (S3) Wren's rig with the knife in hand and a guard rig (as `runRow` builds them), for the remote pair's allocation
+ *  check; `dispose` frees them. The caller mocks `weaponMesh` and loads the knife clips. */
+export async function knifeRigs(): Promise<{ ar: import('../../src/player/characterRig').CharacterRig; vr: import('../../src/player/characterRig').CharacterRig; knife: import('../../src/weapons/knifeModel').KnifeModel; dispose: () => void }> {
+  const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+  const { Scene } = await import('../../src/core/babylon');
+  const { PartLibrary } = await import('../../src/world/partLibrary');
+  const { defaultLook } = await import('../../src/cosmetics/avatarLook');
+  const { operatorRig } = await import('../../src/operators/runtime/playerFigure');
+  const { ENEMIES } = await import('../../src/ai/enemyDefs');
+  const { buildEnemyRig } = await import('../../src/ai/enemyRig');
+  const { WREN_HANDS } = await import('../../src/operators/handFrame');
+  const { KnifeModel } = await import('../../src/weapons/knifeModel');
+  const scene = new Scene(new NullEngine());
+  const parts = new PartLibrary(scene);
+  const world = { parts, map: { theme: { faction: 'urban' } }, addShadowCaster: () => {} };
+  const op = operatorRig(scene, (s, h, sl) => parts.instance(s, h, sl), defaultLook(), 'knife-alloc');
+  const ar = op.rig;
+  const { rig: vr, gun } = buildEnemyRig(scene, world as never, ENEMIES.grunt, 'knife-alloc-guard');
+  gun?.setVisible(false);
+  const knife = new KnifeModel(scene, ar, WREN_HANDS.R);
+  knife.show(true);
+  return {
+    ar,
+    vr,
+    knife,
+    dispose: () => {
+      knife.dispose();
+      op.figure.dispose();
+      ar.dispose();
+      gun?.dispose();
+      vr.dispose();
+      scene.dispose();
+    },
+  };
 }
 
 /** Wren's body unit (CLIP-FORMAT: K = H / 1.75 = 0.96): clip lengths x K = metres. */
