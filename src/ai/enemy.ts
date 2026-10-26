@@ -233,6 +233,10 @@ export interface AiContext {
   /** (guard-ai S20) May he step from (x0, z0) to (x1, z1) at feet height y past the doors (`DoorGate.blocking`)? False:
    *  a shut door's leaf is in the way (the manager opens it when it is not locked; he waits). Absent: no doors. */
   doorStep?(e: Enemy, x0: number, z0: number, x1: number, z1: number, y: number): boolean;
+  /** (guard-ai play A, check B) Take this frame's one long plan (`GIVE_UP.homeExpand` A*, all guards share it; the
+   *  manager frees it at the top of each `update`): true = his, run it now; false = taken, ask again next frame. Absent:
+   *  always his. */
+  longPlan?(): boolean;
 }
 
 let nextId = 1;
@@ -598,8 +602,9 @@ export class Enemy implements Damageable {
   /** (guard-ai play A, P2-1) Time on the run to the alarm panel; he gave a run up this fight (not sent again). */
   private alarmRunT = 0;
   private alarmQuit = false;
-  /** (guard-ai play A, P3-5) Time on the walk to the body he wakes. */
+  /** (guard-ai play A, P3-5) Time on the walk to the body he wakes; the body he gave up (not sent to it again). */
   private reviveT = 0;
+  private reviveQuit: Body | null = null;
   /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
   private searchOwn = false;
   /** (guard-ai S18) The search's kind (`response.ts` `SEARCH_*`): plain, a dead body's (longer, wider), a device's. */
@@ -1709,7 +1714,7 @@ export class Enemy implements Damageable {
     this.searchReq = true;
     this.searchOwn = true;
     // (guard-ai S5) a high-security post wakes no one outside his leash (he searches from its edge)
-    if (revive && this.inLeash(revive.pos.x, revive.pos.z, 1)) {
+    if (revive && revive !== this.reviveQuit && this.inLeash(revive.pos.x, revive.pos.z, 1)) {
       this.reviving = revive;
       this.reviveT = 0;
     }
@@ -2789,12 +2794,17 @@ export class Enemy implements Damageable {
       this.homeZ = this.pos.z;
       this.homeLong = false;
     }
-    // a partial plan (the full one is past goTo's budget): one long plan first (a partial end can be a dead end)
-    if (this.routePart && !this.homeLong) return this.homeLongPlan(g) ?? wp;
+    // a partial plan to this point (the full one is past goTo's budget; `routeGoal` g: not a previous point's flag): one
+    // long plan first (a partial end can be a dead end). One per frame across the guards (`AiContext.longPlan`): denied,
+    // he walks the partial path and asks again next frame
+    const part = this.routePart && this.routeGoal[0] === g[0] && this.routeGoal[1] === g[1];
+    if (part && !this.homeLong && this.longPlanFree()) return this.homeLongPlan(g) ?? wp;
     this.homeT += dt;
     if (this.homeT < GIVE_UP.homeT) return wp;
-    this.homeT = 0;
     const moved = hyp2(this.pos.x - this.homeX, this.pos.z - this.homeZ);
+    // stuck with the long plan untried and the frame's taken: the window stays over, he asks again next frame
+    if (moved < GIVE_UP.homeMove && !this.homeLong && !this.longPlanFree()) return wp;
+    this.homeT = 0;
     this.homeX = this.pos.x;
     this.homeZ = this.pos.z;
     if (moved >= GIVE_UP.homeMove) return wp;
@@ -2802,6 +2812,11 @@ export class Enemy implements Damageable {
     this.walker.giveUp(this.pos.x, this.pos.z);
     this.homeG = null;
     return null;
+  }
+
+  /** (guard-ai play A, check B) The frame's long plan is his (taken now: call `homeLongPlan` straight after). */
+  private longPlanFree(): boolean {
+    return this.ctx.longPlan?.() ?? true;
   }
 
   /** (guard-ai play A, P1-1) One A* to `g` with the budget `GIVE_UP.homeExpand` (a way round past `goTo`'s), once per
@@ -2911,6 +2926,7 @@ export class Enemy implements Damageable {
             this.reviveT += dt;
             if (this.reviveT < GIVE_UP.runMax) return this.goal(this.goTo(this.spot, dt, 0.9), def.walkSpeed * PACE.revive, null);
             this.reviving = null;
+            this.reviveQuit = rv;
           }
         }
         // (guard-ai S17) a responder runs his entry route in before he searches the device's spot
