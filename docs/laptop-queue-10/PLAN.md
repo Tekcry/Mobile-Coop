@@ -4,14 +4,23 @@ Owner: Test Runner. Status: current.
 Lead: Night Shift | Test Runner. Planner: Opus 5.5, on origin/feature/laptop-queue-8 e714c6e38 (master 99fbd37fd).
 Brief: `BRIEF.md` (Michael ~14:00: "prioritise getting the fixes done and out to prevent repeat issues"; F9, F10, F11,
 F14, F15, F22, F24, F26, F27; A1-A13). One PR (feature/laptop-queue-10), seven slices, all Opus, in order: every
-slice edits lib.mjs, service.mjs and tests/laptop-queue.test.ts. Line pointers are this branch's head e714c6e38; a
-builder finds each place by name once an earlier slice has shifted it.
+slice edits lib.mjs, service.mjs and tests/laptop-queue.test.ts. Line pointers are e714c6e38; a builder finds each
+place by name. Re-based (plan check 1): laptop-queue-8 is now PR #552, branch feature/laptop-queue-8b 2fbfbd303 (a
+squash of A-G plus a checker fix round, on a newer master). On 2fbfbd303 lib shifts +2..+18 (cutShort :825,
+finishedSuites :893, prBoard :1072, fitsBeforeTrain :1142, assertKey :1175, median :1463, vanishedRequests :1609),
+service +2..+66 (CLAIM_BEATS :176, listRequests :285, prBoardNow :721, pendingTrains :951, e2e :1222, sectionOf :1234,
+updateBudget :1279, runTrain :1380, runRequest :1528, cutEnd :1621, incomplete branch :1759-1767, BG_CPU_PS :1868,
+desktopTrains :2035, pass :2083, desktop too-long filter :2136-2140, order wallS :2200), tests +2..+38 (cutShort :1477,
+fitsBeforeTrain :1250, flake budget :948). 2fbfbd303 has 301 unit tests.
 
 ## Start (the lead)
-- Branch made from origin/feature/laptop-queue-8 (pushed, upstream set; node_modules junction to the laptop-queue-8
-  worktree). Before each slice: `git fetch -q origin`; when laptop-queue-8 has new commits, `git merge --no-edit
-  origin/feature/laptop-queue-8`. Once laptop-queue-8 is on master: `git rebase origin/master`, force-push once, open
-  the PR (draft until then, never `train-ready` before it).
+- Branch made from origin/feature/laptop-queue-8 e714c6e38 (pushed, upstream set; node_modules junction to the
+  laptop-queue-8 worktree). Before S1: `git fetch -q origin && git rebase --onto origin/feature/laptop-queue-8b
+  e714c6e38` (moves the one plan commit onto the squash; a merge of the old A-G branch would double laptop-queue-8),
+  force-push once. Before each slice: `git fetch -q origin`; when laptop-queue-8b has new commits, `git rebase --onto
+  origin/feature/laptop-queue-8b <its old head>` while only docs commits sit on top, else `git merge --no-edit
+  origin/feature/laptop-queue-8b`. Once #552 is on master: `git rebase --onto origin/master <laptop-queue-8b head this
+  branch sits on>`, force-push once, open the PR (draft until then, never `train-ready` before it).
 - Guard before every write: `cd /c/NightShift/Mobile-Coop-laptop-queue-10 && test "$(git rev-parse --abbrev-ref HEAD)"
   = feature/laptop-queue-10 && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-laptop-queue-10"`.
 
@@ -103,14 +112,17 @@ Highest repeat cost first: #317 held 4192 for 65 min; train 118's first-run logs
   - `desktopWallS(parts, times, jobs = 1)` (new, after `desktopTooLong` :258-262): weights = `times[p]` when finite,
     else the median (lib `median` :1445) of every finite value in times, 60 when none; heaviest of `jobs` bins (lib
     `shard` over a weights map that holds every part); 0 for no parts. Never NaN (A6).
-  - `desktopTooLong(r, times, maxS, parts = suiteParts(r?.suites ?? [], times))` (:258-262): `maxS > 0 &&
-    desktopWallS(parts, times, 1) > maxS`. Docstring updated (unknown no longer taken).
+  - `desktopTooLong(r, times, maxS, parts = suiteParts(keptPlan(r, r?.sha, times).rest, times))` (:258-262): `maxS > 0
+    && desktopWallS(parts, times, 1) > maxS`. On 2fbfbd303 it already weighs only `keptPlan(...).rest` (laptop-queue-8
+    A10 kept suites): keep that; the service passes `partsOf(keptPlan(r, r.sha, times).rest)`, never `r.suites`.
+    Docstring updated (unknown no longer taken).
   - `failFast(rows, parts, isQuarantined)` (new, after `unfinishedParts`): null unless some row is `!ok && !report &&
     !isQuarantined(s)`; then `{ failed: [those], rerun: [failed + unfinishedParts(parts, rows)] }`.
 - service:
   - `partsOf(suites)` (new, after `trainBuilding` :1984-1996): `node scripts/run-e2e.mjs --list <suites>` in HERE (the
     service checkout), memo by the sorted suite list, error or empty -> lib `suiteParts(suites, times)`.
-  - Desktop filter (:2070-2074): `desktopTooLong(r, times, DESKTOP_MAX_S, partsOf(r.suites))`; the log says
+  - Desktop filter (:2070-2074): `desktopTooLong(r, times, DESKTOP_MAX_S, partsOf(keptPlan(r, r.sha, times).rest))`;
+    the log says
     "~N min over P parts". Order block (:2134): on the desktop `wallS[r.id] = desktopWallS(partsOf(r.suites), times,
     1)`; the laptop keeps `expectedWallS`.
   - `quarantineNow()` (new, after `attemptEvents`): the committed `scripts/e2e-quarantine.json` quarantine plus this
@@ -124,6 +136,12 @@ Highest repeat cost first: #317 held 4192 for 65 min; train 118's first-run logs
     too), `state.done[r.id] = { result: 'laptop-rerun', rerun, date }`, log "<id>: <desc> as <rerun> (fail fast)". The
     S1 desktop 'hung' branch uses the same hand-off with failed [] and desc "desktop hung <m> min (cpu N%), laptop rerun
     queued" and rerun = the unfinished parts.
+  - Incomplete runs (tracker F11, 10-26 ~15:00: tallow-prg1 c648c5d8 timed out on 4191 at 60 min, 0/7 suites, final
+    red, no laptop rerun): on the desktop (kind pr, not trainRerun / laptopRerun) the incomplete branch (:1696-1702,
+    2fbfbd303 :1759-1767) no longer posts failure: it pushes `laptopRerunRequest(r, every suite of r.suites)` and posts
+    pending "desktop: slot <p> gave no result (cpu N%), laptop rerun queued" on every verdict context, `state.done[r.id]
+    = { result: 'laptop-rerun', rerun }`, no PR comment. A failed push keeps today's failure. Under
+    `LQ_DESKTOP_FAIL_FAST` (0 = today). The laptop's incomplete path is unchanged.
 - Tests: new describe "desktop wall by parts and fail fast (laptop-queue-10 S2)" beside "desktop order and long-run
   skip" (:759).
   - desktopWallS(['a', 'b'], { a: 100, b: 50 }) -> 150; (['a', 'zz'], { a: 100, b: 50, c: 300 }) -> 200 (median 100);
@@ -138,8 +156,9 @@ Highest repeat cost first: #317 held 4192 for 65 min; train 118's first-run logs
   - failFast: rows [a ok, b FAIL], parts [a, b, c, d] -> { failed: [b], rerun: [b, c, d] }; a REPORT ONLY fail ->
     null; b quarantined -> null; no fail -> null; two fails -> both in failed, in log order.
 - Done looks like: a tallow-prg1-like request logs "left to the laptop"; a desktop run whose first suite fails posts
-  "desktop FAIL x (cpu N%), laptop rerun queued" within a watch tick and frees the slot.
-- Size: ~35 lib, ~55 service, ~60 tests.
+  "desktop FAIL x (cpu N%), laptop rerun queued" within a watch tick and frees the slot; a desktop run that ends
+  incomplete (timeout, no summary) posts pending and queues a laptop rerun of every suite instead of a final red.
+- Size: ~35 lib, ~70 service, ~60 tests.
 
 ## S3 (Opus) - the desktop holds for a due train (F9); the CPU gate reads the real load (F24)
 - lib:
@@ -302,8 +321,8 @@ fix round. Order = repeat cost: hangs and lost logs, desktop slot holds, desktop
 renames.
 
 ## Tests and verify (per slice)
-- `npm run typecheck:fast`; `npx vitest run tests/laptop-queue.test.ts tests/autoTrain.test.ts` (Babylon-free; 298 pass
-  at e714c6e38); S5 also `npx vitest run tests/e2eQuarantine.test.ts`; S7 `node scripts/doc-lint.mjs`.
+- `npm run typecheck:fast`; `npx vitest run tests/laptop-queue.test.ts tests/autoTrain.test.ts` (Babylon-free; 301 pass
+  at 2fbfbd303); S5 also `npx vitest run tests/e2eQuarantine.test.ts`; S7 `node scripts/doc-lint.mjs`.
 - Dry runs fetch origin into the shared `C:/NightShift/Mobile-Coop/.git` (laptop-queue-8 STATE): run them only where
   that is allowed: `node scripts/laptop-queue/service.mjs --once --dry-run` (laptop: "order: ... stacked <k>");
   `LQ_WORKER=desktop` (the cpu note on the "queue:" line, "left to the laptop ... parts").
@@ -316,23 +335,27 @@ Counted by pr-size (code and tests, cap 1500), against master once laptop-queue-
 | Slice | lib | service | tests | Total |
 | --- | --- | --- | --- | --- |
 | S1 F10, F27 | 45 | 70 | 80 | 195 |
-| S2 F14, F11 | 35 | 55 | 60 | 150 |
+| S2 F14, F11 | 35 | 70 | 60 | 165 |
 | S3 F9, F24 | 25 | 45 | 55 | 125 |
 | S4 F22 | 20 | 8 | 60 | 88 |
 | S5 F26 | 20 | 35 | 45 | 100 |
 | S6 F15 | 25 | 45 | 45 | 115 |
-| Total | 170 | 258 | 345 | ~775 |
+| Total | 170 | 273 | 345 | ~790 |
 Docs (~200 lines of job docs, ~40 changed in testing-tools / RULES) are not counted. One PR. Before laptop-queue-8
 merges, a diff against master also counts its ~900 lines (~1 675): the PR stays draft until the rebase. Past 1 500 after
 the rebase: split at S3 (PR 1 = S1-S3, PR 2 = S4-S7).
 
 ## Overlap with other branches (keep hunks apart)
-- laptop-queue-9 (feature/laptop-queue-9, planning, no commits yet; F12, F16, F18, F19, F20): owns auto-train.mjs,
+- laptop-queue-9 (feature/laptop-queue-9, plan only at f5b2db8b0; F12, F16, F18, F19, F20, F23): owns auto-train.mjs,
   merge-train.mjs, watchdog.mjs and tests/autoTrain.test.ts. This job edits none of them. Links: F9 keeps reading the
   build marker auto-train writes and the `train-ready` label through readyNow (if F16 drops the label wait, the queue
   follows in laptop-queue-9: A2); F10's hung train posts "FAIL: <list>" in the form auto-train `failSuites` already
   reads; F15's early-id re-files are the ids F20 teaches the watchdog. Both jobs run `tests/autoTrain.test.ts`; this job
-  never edits it.
+  never edits it. claims-check (plan check 1): docs/RULES.md is claimed by both; laptop-queue-9 edits only :134-135
+  ("Getting to master", line-neutral), this job only "Machines" (:164-185, 318 kept): no shared hunk; whichever
+  merges second re-checks `wc -l` = 318.
+- map-ready and route-runs-2 also claim docs/systems/testing-tools.md (`__mapReady` notes; a new "Route-runs"
+  section): other sections; this job stays net <= 0.
 - J20 PR-B (feature/test-runner-j20-prb2, cut from an older master; touches service, lib, request and tests):
   - lib: J20 edits NOT_SUITE_SCRIPTS, dupKey, flakeBudget / autoQuarantine / flakeSummary, queueRequester,
     affectedNeeds / affectedRequest, after desktopFailDesc (perfStep) and appends after vanishedRequests (train
