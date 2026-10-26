@@ -1,0 +1,19 @@
+{
+  "id": "20261026T013919-night-shift-marlow-b-313a983f-8a80",
+  "sha": "313a983f038c0589fdaec912c54b964c556dd144",
+  "branch": "feature/mixamo-kit",
+  "pr": 490,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-anim",
+    "e2e-traverse",
+    "e2e-studio",
+    "anim-audit",
+    "e2e-sectorops:wharf-tgc",
+    "e2e-sectorops:wharf-tkl"
+  ],
+  "set": "kitmix2"
+}
