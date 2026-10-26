@@ -1,0 +1,12 @@
+{
+  "id": "20261026T111532-night-shift-player-b-3a7c8548-1e4c",
+  "sha": "3a7c8548f7dccd3d4a149d28d11ade287e297c06",
+  "branch": "feature/piano-knife-s4a",
+  "pr": 623,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-weapons-carry"
+  ],
+  "set": "pk-s4a-weapons"
+}
