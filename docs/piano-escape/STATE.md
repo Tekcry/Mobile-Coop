@@ -20,6 +20,9 @@ BUILDING: S4 (Opus) on feature/piano-escape-s4 = LOCAL INTEGRATION branch (orche
   Done -> two Opus checkers (src/net) -> when the parts are on master, re-merge onto master and open its PR.
   S4 told (~22:45) to merge at its next step boundary: SO5b 345c55ac8 (window lights, passed) and Guard AI's final
   sweep 89f13ef1c (PR #624, two Opus checkers running), then re-tune G4 / G5 end waits with sweepPeriod (equal laps).
+Knife S4b (introPose, Player Build, builds after the swap; docs/piano-knife/S4b-BRIEF.md on feature/piano-knife): when it lands
+  put introPose(true, variant) on S2's TODO(knife S4b) in onIntro ('stand' host / solo, 'mirror' start2) and introPose(false)
+  in cut(); answered ~22:50: stay ON the wall at the cut (pistol away). Do not register the hero camera (introPose does).
 Waiting on others: #603 / #604 (+ SO5b window lights) / #611 GuardActor (S2 TODO) / #614 + #620 knife / GA6-GA7 PR.
 Music: Michael ~21:50 picked intro Investigation Piano, mission Suspense Thriller (S5b); ~21:55 "music isnt settled":
   the orchestrator's 4 realistic tracks (intro-1/2, mission-1/2, feature/music-real) go in as picker rows when it says.
