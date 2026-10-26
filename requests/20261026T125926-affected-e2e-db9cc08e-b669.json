@@ -1,0 +1,15 @@
+{
+  "id": "20261026T125926-affected-e2e-db9cc08e-b669",
+  "sha": "db9cc08e7794b5dc44ea25be3b5b2f8138a87215",
+  "branch": "feature/gm-flip",
+  "pr": 375,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #375"
+}
