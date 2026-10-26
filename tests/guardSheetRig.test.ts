@@ -40,10 +40,13 @@ describe('sheetRig', () => {
     }
   });
 
-  it("the operator's default look would draw them (the old sheet's bug, so the check above can fail)", async () => {
+  // (gm-flip merge) J19 S4 (G69) took the three-lens goggle out of the look (the headset is the default; a stored
+  // 'trilens' reads as the headset), so the operator's default look no longer draws the glow either: the old sheet's
+  // bug cannot come back through the look
+  it("the operator's default look draws no goggle glow since J19 S4", async () => {
     const { scene, make, CharacterRig, defaultLook } = await setup();
     const rig = new CharacterRig(scene, make, defaultLook(), 1.8, 'operator');
-    expect(scene.meshes.some((m) => m.name === 'goggleGlow')).toBe(true);
+    expect(scene.meshes.some((m) => m.name === 'goggleGlow' && m.isEnabled())).toBe(false);
     rig.dispose();
   });
 });
