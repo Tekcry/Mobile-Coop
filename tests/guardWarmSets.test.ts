@@ -208,7 +208,8 @@ describe('map-ready S3: the guard warm sets', () => {
     expect(gens[0]!.getShadowMap()!.renderList!.map((m) => m.name)).toEqual(['level-static']);
     expect(gens[1]!.getShadowMap()!.renderList!.length).toBe(0);
     // the set rigs are stand-ins (thermal's door figures skip them)
-    const setRigs = LIVE_RIGS.filter((r) => r.root.name.startsWith('guard-warm-set-'));
+    // (fix 1: this scene's only, whatever ran before in the file)
+    const setRigs = LIVE_RIGS.filter((r) => r.root.getScene() === scene && r.root.name.startsWith('guard-warm-set-'));
     expect(setRigs.length).toBe(ENEMY_KINDS.length);
     for (const r of setRigs) expect(r.standIn).toBe(true);
     // the sets' own meshes compiled: their main effect is in
@@ -346,6 +347,36 @@ describe('map-ready S3: the guard warm sets', () => {
     expect(casterSpy).not.toHaveBeenCalled();
     expect(fetched).toEqual([]);
     scene.dispose();
+  });
+
+  it('(i) freed with the scene: after scene.dispose no warm rig in LIVE_RIGS / DEBUG_RIGS, no warm dog in LIVE_DOGS', async () => {
+    const { LIVE_RIGS } = await import('../src/player/characterRig');
+    const { LIVE_DOGS } = await import('../src/ai/dogModel');
+    const { DEBUG_RIGS } = await import('../src/ui/debugVolumes');
+    const { flags } = await import('../src/core/flags');
+    // the merged-body path (8 rigs, 1 dog), then the figure path (the dog only); each in its own scene
+    for (const models of [false, true]) {
+      flags.guardModels = models;
+      const { scene, world, W, ENEMY_KINDS } = await setup();
+      const rigsBefore = new Set(LIVE_RIGS);
+      const dogsBefore = new Set(LIVE_DOGS);
+      await W.warmGuardSets(scene, world, ENEMY_KINDS);
+      // what the warm added to the page-wide lists (only the warm builds in this scene)
+      const rigs = LIVE_RIGS.filter((r) => !rigsBefore.has(r));
+      const dogs = LIVE_DOGS.filter((d) => !dogsBefore.has(d));
+      expect(rigs.length, `rigs, guardModels ${models}`).toBe(models ? 0 : ENEMY_KINDS.length);
+      expect(dogs.length, `dogs, guardModels ${models}`).toBe(1);
+      for (const r of rigs) expect(DEBUG_RIGS.has(r)).toBe(true);
+      scene.dispose();
+      for (const r of rigs) {
+        expect(LIVE_RIGS.includes(r)).toBe(false);
+        expect(DEBUG_RIGS.has(r)).toBe(false);
+        expect(r.disposed).toBe(true);
+      }
+      for (const d of dogs) expect(LIVE_DOGS.includes(d)).toBe(false);
+      expect(LIVE_RIGS.some((r) => r.root.getScene() === scene)).toBe(false);
+      expect(LIVE_DOGS.some((d) => d.root.getScene() === scene)).toBe(false);
+    }
   });
 });
 

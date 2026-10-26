@@ -168,3 +168,34 @@ Files: only the brief's list. No `src/net` edit or import; nothing in the never-
 - The same alone run with `--env "E2E_PARAMS=mapready=1&guardmodels=1"` (helmet drop and shield in at the reveal, no
   box), set `map-ready-s3-on-gm`.
 - GPU look: none needed for the warm itself (the sets are never drawn); the e2e runs above cover the loading screen.
+
+## Fix round 1 (two Opus checkers: FIX, the same single item)
+- What: `src/ai/guardWarm.ts` keeps each warm set's rig and dog in the scene's `WarmSets` (`rigs`, `dogs`) and, once
+  per scene when the sets are first made, `scene.onDisposeObservable.addOnce(() => freeWarmSets(...))` disposes them
+  (as `smoothBody.ts:166`). `buildWarmSet` records the rig and the dog as soon as each is built, so a throw later in the
+  set still frees them.
+- Why: `new CharacterRig` joins the page-wide `LIVE_RIGS` / `DEBUG_RIGS` and `new DogModel` joins `LIVE_DOGS`; only
+  their own `dispose()` takes them out, and nothing called it for a warm set. Every flag-on match left 8 rigs + 1 dog
+  (each holding the disposed scene) in those lists, walked every frame by thermal's heat loop and by the debug overlay.
+- No double dispose: Babylon 9.29 `Scene.dispose` notifies `onDisposeObservable` (scene.pure.js:4768) before it
+  disposes lights, materials, meshes and nodes (:4784-4793), so the rigs and the dog are disposed on a whole scene, as
+  `GameState.exit` disposes the real guards' rigs before `scene.dispose`; the scene's own pass then skips what is gone.
+  A rig already disposed is skipped (`disposed`).
+- Guard test: `tests/guardWarmSets.test.ts` "(i) freed with the scene: after scene.dispose no warm rig in LIVE_RIGS /
+  DEBUG_RIGS, no warm dog in LIVE_DOGS" (both paths: merged body, 8 rigs + 1 dog; guard figures, the dog only). With
+  the `addOnce` line removed it fails ("expected true to be false"); with it, it passes.
+- Order: test (b) now counts only its own scene's warm rigs (`r.root.getScene() === scene`), so it passes whatever
+  ran before it; checked with a shuffled run.
+- Commands: `npx tsc --noEmit --incremental --tsBuildInfoFile C:/NightShift/scratch/sector-ops-checks/s3-fix.tsbuildinfo
+  -p tsconfig.json` (clean); `npx vitest run tests/guardWarmSets.test.ts tests/mapReadyAudio.test.ts
+  tests/mapGate.test.ts tests/guardFigureWarm.test.ts --maxWorkers=2` (4 files, 45 tests passed);
+  `npx vitest run tests/guardWarmSets.test.ts --maxWorkers=2 --sequence.shuffle --sequence.seed=7` (14 passed); the
+  guard alone with the fix line disabled (1 failed, then restored).
+- Files: `src/ai/guardWarm.ts` only in src (Guard AI re-reviews src/ai), `tests/guardWarmSets.test.ts`, this report.
+- Polish carried (not in S3's file list): skip `standIn` rigs in gameState's thermal heat loop (`gameState.ts:3256-3268`
+  is outside the gate members and `create`'s gated block) and keep the warm dog off `LIVE_DOGS` (`dogModel.ts` is
+  never-touch); with fix 1 both now only cost heat writes on 9 hidden figures during a match, freed with it. Also
+  carried: dispose the ~400 already-disabled part meshes once the compile settles (checker A polish 1); indexed loops
+  or a slower poll in `untilWarm` / `warmReady` after a cap hit (checker B polish 1); `subMesh.getMaterial()` in
+  `warmReady` for a MultiMaterial (checker A polish 4); the brief's empty "## Report" section (checker A polish 3, the
+  lead's); the `?guardmodels=1` helmet / shield hold on `bodies` (checker B polish 2, S6 note).

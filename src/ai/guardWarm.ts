@@ -20,11 +20,13 @@
  * sniper's laser and glint, the helmet and armour parts) with its main pass and its depth pass for every shadow
  * generator in the scene compiled on the loading screen, so a guard arriving after the reveal (a course bay's squad, a
  * reinforcement, a sector slot inside 7 m) compiles nothing. Same rule as above: the sets stay disabled for the
- * scene's life (their sub-meshes hold the effects; course mode despawns every guard between sets).
+ * scene's life (their sub-meshes hold the effects; course mode despawns every guard between sets). Their rigs and dog
+ * sit in page-wide lists (`LIVE_RIGS`, `DEBUG_RIGS`, `LIVE_DOGS`), so they are disposed with the scene.
  */
 import { Bone, InstancedMesh, Matrix, Mesh, Skeleton, TransformNode, VertexBuffer, type Light, type Scene } from '../core/babylon';
 import { flags } from '../core/flags';
 import type { ModeId } from '../game/modes/gameMode';
+import type { CharacterRig } from '../player/characterRig';
 import type { GuardBase } from '../operators/guards/gearMask';
 import { guardAsset } from '../operators/guards/guardAssets';
 import { createVariant, guardVariant } from '../operators/guards/guardVariant';
@@ -215,12 +217,25 @@ const WARM_SET = 'guard-warm-set-';
 /** Where the sets sit (m): far under every map, out of every gameplay and render range (they are disabled anyway). */
 const WARM_SET_Y = -1000;
 
-/** Per scene: each warmed kind's root, and the compiles started (a second call waits on them, builds nothing). */
+/** Per scene: each warmed kind's root, the compiles started (a second call waits on them, builds nothing), and the
+ *  sets' rigs and dogs (disposed with the scene: they sit in `LIVE_RIGS` / `DEBUG_RIGS` / `LIVE_DOGS`). */
 interface WarmSets {
   roots: Map<EnemyKind, TransformNode>;
   runs: Promise<void>[];
+  rigs: CharacterRig[];
+  dogs: DogModel[];
 }
 const SETS = new WeakMap<Scene, WarmSets>();
+
+/** (map-ready S3 fix 1) The sets' rigs and dogs out of the page-wide lists. Runs from `scene.onDisposeObservable`,
+ *  which Babylon notifies before it disposes the scene's nodes (as `GameState.exit` disposes the real guards' rigs
+ *  before `scene.dispose`), so nothing is disposed twice. */
+function freeWarmSets(sets: WarmSets): void {
+  for (const r of sets.rigs) if (!r.disposed) r.dispose();
+  for (const d of sets.dogs) d.dispose();
+  sets.rigs.length = 0;
+  sets.dogs.length = 0;
+}
 
 /** The builders' shadow-list hook on a warm set: nothing (a warm set is never a caster: not in `charCasters`, not in
  *  `sunMoving`). */
@@ -247,7 +262,7 @@ export function guardWarmSets(scene: Scene): TransformNode[] {
  * volumes, no audio, nothing in `enemyMgr`. With `flags.guardModels` the dog's model and the sniper's parts only: the
  * rig would make a live `GuardBody`, and the figure's programs are `warmGuardModels`' (A23). Load time (allocates).
  */
-function buildWarmSet(scene: Scene, world: GearWorld, k: EnemyKind): TransformNode {
+function buildWarmSet(scene: Scene, world: GearWorld, k: EnemyKind, sets: WarmSets): TransformNode {
   const def = ENEMIES[k];
   const root = new TransformNode(WARM_SET + k, scene);
   root.position.y = WARM_SET_Y;
@@ -258,6 +273,7 @@ function buildWarmSet(scene: Scene, world: GearWorld, k: EnemyKind): TransformNo
     // `world.map.theme.faction` and `world.addShadowCaster`, the three fields of the view)
     const built = buildEnemyRig(scene, view as World, def, WARM_SET + k);
     const rig = built.rig;
+    sets.rigs.push(rig);
     rig.root.parent = root;
     // (render passes that walk `LIVE_RIGS`, thermal's door figures, skip a stand-in: this rig is never drawn)
     rig.standIn = true;
@@ -268,7 +284,11 @@ function buildWarmSet(scene: Scene, world: GearWorld, k: EnemyKind): TransformNo
       buildArmourParts(view, rig, gearColour(def, view, 'accent'));
     }
   }
-  if (def.quadruped) new DogModel(scene, parts, def.look.colors.torso, def.look.colors.accent).root.parent = root;
+  if (def.quadruped) {
+    const dog = new DogModel(scene, parts, def.look.colors.torso, def.look.colors.accent);
+    sets.dogs.push(dog);
+    dog.root.parent = root;
+  }
   if (k === 'sniper') {
     const laser = parts.instance('cyl', '#ff2a1a', 'laser');
     const glint = parts.instance('sphere', '#ffffff', 'glint');
@@ -306,14 +326,17 @@ export async function warmGuardSets(scene: Scene, world: GearWorld, kinds: reado
   if (!flags.mapReady) return 0;
   let sets = SETS.get(scene);
   if (!sets) {
-    sets = { roots: new Map(), runs: [] };
+    sets = { roots: new Map(), runs: [], rigs: [], dogs: [] };
     SETS.set(scene, sets);
+    // (fix 1) once per scene: the sets' rigs and dogs leave the page-wide lists with the scene (as `smoothBody.ts:166`)
+    const owned = sets;
+    scene.onDisposeObservable.addOnce(() => freeWarmSets(owned));
   }
   const built: TransformNode[] = [];
   for (const k of kinds) {
     if (sets.roots.has(k)) continue;
     try {
-      const r = buildWarmSet(scene, world, k);
+      const r = buildWarmSet(scene, world, k, sets);
       sets.roots.set(k, r);
       built.push(r);
     } catch (e: unknown) {
