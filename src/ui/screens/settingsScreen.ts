@@ -160,6 +160,8 @@ export class SettingsScreen extends MenuScreen {
         build: () =>
           rowList(
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
+            // (mission-framework FLG) the Hints row only with `?missions=1` (`flags.missions`)
+            flags.missions ? desc(toggle('Hints', () => s().gameplay.hints, (v) => upd((d) => void (d.gameplay.hints = v))), 'Shows a hint line under the current mission objective.') : null,
             // (mixamo-retarget Toggle) the Animation source: a look choice (gameplay unchanged); the Anim Studio has the same switch
             desc(choice('Animation source', ANIM_SOURCE_OPTS, () => s().gameplay.animSource, (v) => upd((d) => void (d.gameplay.animSource = v))), 'Which animation set Wren moves with. CMU is the game as it ships; Hand-made the original keyed clips; Mixamo the CMU set with the Mixamo captures on top (hang, shimmy, ladder top-out).'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
@@ -220,6 +222,7 @@ export class SettingsScreen extends MenuScreen {
       fromDefaults((d, def) => {
         d.gameplay.courseMarkers = def.gameplay.courseMarkers;
         d.gameplay.slowBeat = def.gameplay.slowBeat;
+        d.gameplay.hints = def.gameplay.hints;
         d.gameplay.animSource = def.gameplay.animSource;
       }),
     );
