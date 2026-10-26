@@ -33,20 +33,25 @@ and the pacing switch-off, and the watchdog reads re-filed request ids correctly
 - Areas touched and their unwalked count: none (tooling only, no walk item, no flag).
 
 ## Answers (M) and assumptions (A)
-- A1 (F12): merge-train `build` exits 6 (new code) when the version commit has nothing new to release; auto-train
-  records state `idle` with `nothingNew: { heads, master }` and skips the build while the candidate heads and master are
-  unchanged. Undo: drop the exit-6 branch in auto-train `build` (exit 6 then reads as error again).
+- A1 (F12): merge-train `build` exits 6 (new code) when the version commit has nothing new to release; for a new train
+  auto-train records state `idle` with `nothingNew: { heads, master }` and skips the build while the candidate heads and
+  master are unchanged. A rebuild after release exit 3 (`rebuildOf`) that exits 6 stays `failed` (through `failed()`,
+  so `rebuildFailed` guards it). Undo: drop the exit-6 branch in auto-train `build` (exit 6 then reads as error again).
 - A2 (F12): the retry covers read-only calls only (`read`, `api`, `apiRaw`, the laptop-queue GraphQL read); `act()`
   writes never retry (a duplicate comment or label is worse than an error tick). Undo: `AUTO_TRAIN_GH_RETRY_S=0`.
 - A3 (F12): retried = any non-zero exit except a definite HTTP 4xx other than 499 (a 404 is already "null"; 401 / 422
-  do not heal in 5 s). Undo: widen or narrow `ghRetryable`.
+  do not heal in 5 s), a timeout (`ETIMEDOUT` / killed: a second 120-s wait would stall the tick) and a first try that
+  took over 30 s; at most one retry per tick. Undo: widen or narrow `ghRetryable`.
 - A4 (F16): labelled PRs stay candidates on a green `check` as today (G325 stays enforced by the watchdog's `--fix prs`
   and the orchestrator); unlabelled PRs need the full rule on their current head (so G325 holds for them by
   construction) and must not have lost `train-ready` since that head was pushed (a drop, a left-out, a watchdog unlabel
-  or a human hold all stay out until a new head). Undo: `AUTO_TRAIN_UNLABELLED=0`.
+  or a human hold all stay out until a new head). gh's `statusCheckRollup` reads `commits(last:1)` (newest by date, not
+  always the head), so before an unlabelled PR becomes a candidate its `checker` and `affected-e2e` are re-read from
+  the head's own combined status (`commits/<headRefOid>/status`, which must name that sha); any disagreement keeps it
+  out. Undo: `AUTO_TRAIN_UNLABELLED=0`.
 - A5 (F16): auto-train adds `train-ready` to an unlabelled PR it puts in a build, so auto-drop, left-out, the
-  watchdog's G325 check and the laptop queue's train-ready reads all see one label. Undo: remove the add in
-  `labelTaken` (auto-train.mjs).
+  watchdog's G325 check and the laptop queue's train-ready reads all see one label. A member whose `--add-label` fails
+  (or is only logged under `--dry-run`) is left out of this build. Undo: remove the add in `labelTaken` (auto-train.mjs).
 - A6 (F18): the release tick passes `MERGE_TRAIN_DEPLOY_WAIT_MIN=0`; from the next tick auto-train fetches
   `/preview/version.json` each tick while `deployWatch` is open; still stale 20 min after the release it runs
   `merge-train repair` once (it re-dispatches the deploy when stale); stale 20 min after that it closes the watch and
@@ -54,8 +59,9 @@ and the pacing switch-off, and the watchdog reads re-filed request ids correctly
   wait) and `AUTO_TRAIN_DEPLOY_REPAIR_MIN=0` (no repair).
 - A7 (F18): the deploy check runs on every tick, not only idle ones: back-to-back trains leave no idle tick (audit
   2026-10-25, self-update). Undo: gate `deployStep` on `d.state === 'idle'`.
-- A8 (F19): an unclaimed queued request still counts busy (the laptop takes every kind); only open claims are filtered
-  to `worker === 'laptop'`. Undo: drop the worker filter in `laptopQueueState`.
+- A8 (F19): busy = an open, non-stale claim with `worker === 'laptop'` whose id does not contain `-laptop-queue-spare-`
+  (lib `requestId` slug of `SPARE_REQUESTER`: spare work yields to a train). Unclaimed requests never count (a queued
+  desktop request or a dead request held pacing). Undo: count unclaimed requests and all workers in `laptopQueueState`.
 - A9 (F19): `--min-interval` goes back to 60, the code default and Michael's pace ("60 min old, or earlier when the
   laptop queue is idle", `docs/systems/auto-train.md`); the task ran on the default until the orchestrator re-registered
   it with `--min-interval 0` at 2026-10-25 15:35 (feature/menu 5d18ebc0b, "restore the default"). Undo: re-register with
