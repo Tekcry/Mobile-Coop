@@ -113,3 +113,127 @@ the grille walls; the plenum (cover, hatch open, runtime-nav isolation); the bas
   basket B1 into it.
 
 **Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags); E2E-1 (v2): the CR8 / CR8-west climbs engage.
+
+## G4.3 West strip: battery room, colonnade, UPS room, ess board (D:27-30, C12-C15)
+
+Resumed by a second cloud builder (Sonnet) at 8bd64d26; the slice-set at that head was 7 files, 102 / 102, before any edit.
+
+**Files:** `s4.ts`, `s4Data.ts`, `tests/campusV2S4.test.ts`, `tests/campusV2S4Lights.test.ts` (new), the graph, the fragment,
+this report. `s4Dress.ts` unchanged (no skinned box moved: the battery rows and UPS cabinets keep their centres).
+
+**Built (s4.ts lines):**
+- C13 / C14 colonnade z 27.5..31: walls `wall(b, true, 27.5, ... doorHole(-8.5))` and `wall(b, true, 31, ... doorHole(-5.5))`
+  (:481-482), battCC `doorAt(true, 27.5, -8.5, 0, -1)` (:483), ccUps `doorAt(true, 31, -5.5, 0, 1)` (:484), slab
+  `slab(b, -10, -4, 27.5, 31, 3.2)` (:485). `S4_DOORS.battCC = [-8.5, 27.5]`, `ccUps = [-5.5, 31]` (:72-73);
+  `S4_BOX.battery = [-10, 16, -4, 27.5]`, `ups = [-10, 31, -4, 48]`.
+- hallCC walled: the `doorHole(29)` and its `doorAt` gone (:472-473); `S4_DOORS.hallCC` removed.
+- C15 staff door UPS -> security room: `doorHole(46.5)` in the hall west wall and `doorAt(false, -4, 46.5, 0, 1)` (:473, :478);
+  `S4_DOORS.upsSec = [-4, 46.5]` (:68); console z 43.2..45.6 (:542).
+- Light (C12): `S4_LIGHTS.batt` (-7, 2.4, 24) r 3.6 i 0.8 cone down w 0.3, group `batt 142` (:308; `S4_GROUPS` gains `nc 140`,
+  `riser 141`, `batt 142`, :51). Switch (-4.3, 0, 26.2) yaw -PI / 2 (:237, derived).
+- Ess board `S4_BOARDS` second entry (-5.5, 0, 27.3) yaw PI groups [76, 77] window 25 (:188), `// sync-s4-ess-board`;
+  `// sync-s4-yard-board` on the first (:186).
+- Rooms: `s4-batt` z 16..27.5, `s4-cc` z 27.5..31 maxY 3.1, `s4-ups` z 31..48 (:249-251).
+
+**Data (s4Data.ts):** #19 K3 (-8.8, 30.0) yaw PI / 2, takedown (-9.3, 30.0), post as built (:72); alarm-sec4 (-3.85, 43.0) (:161).
+
+**Sync nodes:** ess board (sync-s4-ess-board) `s4.ts:188`; yard board (sync-s4-yard-board) `s4.ts:186` (unmoved).
+
+**Graph:** `s4-batt`, `s4-cc`, `s4-ups` and the `s4-batt -> s4-cc`, `s4-cc -> s4-ups`, `s4-ups -> s4-sec` link notes -> "BUILT G4.3 (...)".
+
+**Tests:** `tests/campusV2S4.test.ts` 8 -> 11 (colonnade; UPS door, console, alarm; K3 cone with #19 at (-8.8, 30.0)),
+`tests/campusV2S4Lights.test.ts` 2 / 2 (ess board [76, 77] 25 s on nav, switching 76 + 77 darkens exactly the group-76 / 77
+lamps; battery lamp on 142 with one switch within 1.5 m of hallBatt). Slice set: 8 files, 107 / 107; typecheck clean.
+
+**Assumptions:** the ess-board lamp check reads "the NOC and security room lamps" as every S4 lamp on groups 76 / 77 (so the
+G4.4 console lamp joins it). Undo: none needed.
+**Deviations:** the T4 K3 case also asserts the three colonnade doors sit inside the cone; not ported (the brief lists only the
+cone-blocker path and the leash margin), so battCC / ccUps are not asserted in the cone.
+**Findings for the lead:** the graph `s4-batt` note still says the east rack row is "z 21.0..26.5" (plan text, P1 built 23.5).
+**Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags).
+
+## G4.4 NOC block: fire stair, roof hatch, escape, rooflight, lights (D:31-35, C16-C20)
+
+**Files:** `s4.ts`, `s4Dress.ts`, `tests/campusV2S4.test.ts`, `tests/campusV2S4Lights.test.ts`, the graph, the fragment, this
+report. (`s4Data.ts` needed nothing: the nav seed is in `s4.ts`.)
+
+**Built (s4.ts lines):**
+- C16 stair: `S4_FLIGHT` -> `S4_FLIGHTS` (two flights as the brief's literal, :91); NOC slab one rect minus the well x 0..4.2,
+  z 45.1..47.85 via `slabCut` (S5's `subtract` / `slab(rect, top, holes)` copied as private `subtract` / `cutRect` / `slabCut`,
+  :419-445), mid landing, spine, three rails (:587-592), `b.stairs` x 2 (:593). Nav seed (4.85, 3.6, 45.75) (:222).
+- C17 roof slab = one rect x -10..34, z 16..48 minus the riser hatch, the NOC hatch and the rooflight (:490); hatch ladder and
+  three rails (:601-605) - see A1.
+- C19 rooflight pane `b.box(2, 7.275, 44.5, 4, 0.05, 2, GLASS_COLOR, 0, 0, true, false)`, `glass = 'clear'`, noLedge, overhead (:607-611).
+- C18 escape: wall x 8 with two holes (:614), secNc `doorAt(8, 43.5, 0, 1)` (:616), escape door (8, 45.5, 3.6) swing -1 (:617),
+  platform, four rails (:619-623), ladder `b.ladder(9.55, 45.5, 0, S4_NOC, -PI / 2)` (:624). `S4_DOORS.secNc = [8, 43.5]`,
+  `nocEscape = [8, 45.5]` (:80-82).
+- Lights: `console` (-2.0, 2.4, 44.6) r 3.6 i 0.8 `WARM` cone down w 0.3 group 77 (:328); `nc` x3 at (11.75 / 19.25 / 26.75, 3.5, 45) r 5
+  i 0.8 cone 1.2 w 0.4 group 140 (:329); switch (21.2, 0, 42.3) yaw 0 on 140 (:254). The as-built NOC and security room lamps
+  all stay; the window-seat lamp is not built (0.5 rule 2). The NOC switch (6.0, 3.6, 47.85) stays: 1.15 m from the hatch
+  ladder (6.95, 47.2) (0.65 m from the brief's literal (6.6, 47.6)).
+
+**Dress (s4Dress.ts):** hero log with the flag on: NOC video wall now lands on the west wall (-3.85, 3.6, 45.0) (the east wall has
+no 3 m run left beside the escape door; fallback candidates added); NOC desk 1 at (-1.3, 3.6, 46.0); **NOC desk 2 omitted** (no
+candidate passes the keepouts); security room desk (-0.5, 0, 46.9); the rest as G4.2. The NOC desk candidates now skip the
+stair well and the hatch ladder's foot (before the filter desk 1 landed over the well at (0.1, 3.6, 45.6)). No skin moved.
+
+**Sync nodes:** none built or moved (desk-sec4 (-2.8, 44.6) unmoved; the side door is now (8, 43.5)).
+
+**Graph:** `s4-sec`, `s4-noc`, `s4-nc`, `s4-deck` and the `s4-sec -> s4-noc`, `s4-noc -> s4-deck`, `s4-noc -> s4-nc`,
+`s4-sec -> s4-nc` link notes -> "BUILT G4.4 (...)", with "(A19: as-built lamps kept)" on the light lines.
+
+**Tests:** `tests/campusV2S4.test.ts` 11 -> 15 (fire stair: risers, goings, 2R + G, slope rule, the stair path, headroom over 100+
+flight cells; the NOC is no dead end: hatch ladder, escape, stair, rails, roof slab holes; bolt point clear; rooflight and the
+sight line, and blocked when the pane is solid), `tests/campusV2S4Lights.test.ts` 2 -> 4 (console lamp warm on 77; corridor lamps on
+140 with one switch within 1.5 m of ncDoor on nav; every S4 lamp on, lit, shootable, electric, from `S4_LIGHTS`). Slice set:
+8 files, 113 / 113; typecheck clean.
+
+**Assumptions:**
+- **A1 (deviation from the literal, undo: one edit)** The brief's NOC hatch ladder `b.ladder(6.6, 47.6, S4_NOC, S4_DECK, 0)` faces
+  north: its top step-off is z 48.05, inside the deck screen (z 47.85..48.15, 2.0 high), and the brief's rails close the other three
+  sides (west, south, east), so nothing could climb out. Built instead: `b.ladder(6.95, 47.2, S4_NOC, S4_DECK, PI / 2)` (S1's
+  hatch-ladder rule turned east: base 0.25 m inside the east rim, facing it, top 0.45 m past it, exit onto the deck at x 7.4+), and the
+  east rail x 7.2..7.3 is two pieces (z 46.6..46.95 and 47.45..47.8) leaving the 0.5 m ladder gap (as R1's landing rail). The graph
+  note already put the ladder at z 47.2. Undo: the literal ladder and the unbroken rail, plus a cut in the screen for the exit.
+- NOC desk / video wall hero candidates (above): dress only.
+**Deviations:** A1 only.
+**Findings for the lead:** A1 (the plan's hatch sits 0.05 m off the deck screen, so the plan's "rails on three sides" has no exit;
+if the lead wants the north exit the screen needs a gap); NOC desk 2 is omitted by the kit; `F:monitorWall` moved to the west wall.
+**Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags); E2E-1 / E2E-2 (v2): the hatch ladder, the escape ladder and the
+fire stair climb, the nav of the dog-leg flights, the deck exit.
+
+## G4.5 Compound, riser, deck, CR10 (D:36-40, C21-C25)
+
+**Files:** `s4.ts`, `s4Data.ts`, `tests/campusV2S4.test.ts`, `tests/campusV2S4Coop.test.ts`, `tests/campusV2S4Lights.test.ts`, the
+graph, the fragment, this report. (`s4Dress.ts` unchanged: no skinned box moved; the cage and poles get no art.)
+
+**Built (s4.ts lines):**
+- C22 riser partition x 30.5 (:638, door :641); `S4_BOX.nc = [8, 42, 30.5, 48]`, `riser = [30.5, 42, 34, 48]` (:114-115); rooms
+  `s4-nc` maxX 30.5, `s4-riser` minX 30.5 (:276-277); `S4_DOORS.kpDeck = [30.5, 45]`. Riser-side keypad prop (:642).
+- kp-riser: `doorHole(46.5, 0)` in the shell east wall, `doorAt(34, 46.5, 0, 1)` into the compound (:510); `S4_DOORS.kpRiser = [34, 46.5]`
+  (:66); keypad `{ at: [34, 46.5], code: 's4-codes' }` in `S4_SECTOR.keypads` (`s4Data.ts:204`, `// kp-riser (Code Relay BT:102)`).
+- C23 cage `bx(34.15, 35.05, 0, 4.4, 22.4, 23.6, STEEL)` (not noLedge), ladder `b.ladder(34.6, 23, 4.4, D, -PI / 2)`, two `noLedge`
+  points (:673-679) - see A2.
+- C25 four poles (`S4_DECK_POLES`, :103; built :688-689).
+- CR10 in `S4_COOP_LIPS` (:188).
+- Lights: `deckFloods` x4 at 12.3, r 7.5, i 0.9, cone 1.15, w 0.6, group 79 (:349); `riser` (31.2, 3.5, 47.2) r 4 i 0.7 no cone w 0.3 group 141
+  (:350); switch (30.75, 0, 46.2) yaw PI / 2 on 141 (:271). The two compound floods stay on the yard board (75); the plan's single flood is
+  not built (0.5 rule 2). Group 79 has no switch (photocell, the LD 5.1 named reason).
+
+**Sync nodes:** none built or moved; the yard board (33.85, 0, 20.8) group 75, 20 s is unmoved (`s4.ts:186`).
+
+**Graph:** `s4-yard`, `s4-riser`, `s4-deck` and the CR10, `s4-deck -> s4-yard`, `s4-yard -> s4-riser`, `s4-nc -> s4-riser` link notes -> "BUILT G4.5 (...)".
+
+**Tests:** `tests/campusV2S4.test.ts` 15 -> 17 (riser: partition, kp-deck, kp-riser, prop, codes, the compound -> riser path; plant ladder
+and poles); `tests/campusV2S4Coop.test.ts` 24 -> 29 (CR10 as briefed; no solo jump / top landing; rules 2, 3, 5; no floor attach by `reach()`
+and the cage top attaches; the planned ledge; the lip list now CR4, CR4-west, CR8, CR8-west, CR10); `tests/campusV2S4Lights.test.ts` 4 -> 5 (group
+79 = 4 + 4, no switch; group 75; riser lamp on 141 with its switch). Slice set: 8 files, all pass (counts at the end of the report); typecheck clean.
+
+**Assumptions:**
+- **A2 (deviation, undo: 0.5)** `b.noLedge(34.6, 22.4, 0.5)` / `(34.6, 23.6, 0.5)` as briefed also remove the east lip: `suppressLedgesNear`
+  drops every ledge whose nearest point is within r, and the lip's ends are 0.45 m from those points. The first CR10 ledge test showed no
+  `canHang` ledge left. Built with radius 0.4 (the north and south edges still go; the east lip stays).
+**Deviations:** A2.
+**Findings for the lead:** A2 (the brief's literal 0.5 kills CR10; a test that builds `generateLedges` alone misses it, the noLedge points apply in
+`LevelBuilder.build`). The test helper applies them (`noLedgeAt`) to see the real result.
+**Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags); E2E-1 / E2E-2 (v2): the CR10 leg-up and the cage-top ladder attach, the kp-riser door.

@@ -8,7 +8,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { BoxPiece, LevelBuilder as LB } from '../src/world/levelBuilder';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { hyp2 } from '../src/core/mathx';
+import { PERCEPTION } from '../src/ai/perception';
+import { checkSectorCodes } from '../src/game/sectors';
 import { lampReach } from '../src/world/lampMath';
+import { generateLedges } from '../src/world/anchors';
+import { SightWorld } from '../src/game/sectorCheck';
 import { LevelBuilder as LiveBuilder } from '../src/world/levelBuilder';
 import { buildCampusS4 as buildLiveS4 } from '../src/world/maps/campusS4';
 
@@ -30,7 +34,7 @@ async function loadCampus(v2: readonly number[]) {
 }
 
 const m = await loadCampus([4]);
-const { S4_DOORS, S4_FLIGHT, S4_LIGHTS, S4_ROOMS, S4_SWITCHES, S4_HIDESPOTS } = m.s4;
+const { S4_DOORS, S4_FLIGHTS, S4_LIGHTS, S4_ROOMS, S4_SWITCHES, S4_HIDESPOTS } = m.s4;
 const b: LB = new m.LevelBuilder();
 const lay = m.buildCampus(b, { dress: false });
 const S4 = m.sectors.CAMPUS_SECTORS[3]!;
@@ -65,7 +69,7 @@ function flightH(f: { cx: number; cz: number; w: number; len: number; rise: numb
   if (Math.abs(across) > f.w / 2 || Math.abs(along) > f.len / 2) return Number.NaN;
   return f.y0 + (f.rise * (along + f.len / 2)) / f.len;
 }
-const FLIGHTS = [S4_FLIGHT];
+const FLIGHTS = [...S4_FLIGHTS];
 
 /** An analytic layered nav grid over a rectangle: the pieces as `navBuild` does (blockers, fences, cylinders), the flights as ramps, the ladders as links. */
 function analyticNav(rect: readonly [number, number, number, number], cell = 0.5): NavGrid {
@@ -127,6 +131,7 @@ function analyticNav(rect: readonly [number, number, number, number], cell = 0.5
   });
 }
 const nav = analyticNav([-28, -2, 42, 50]);
+const pathTo = (a: readonly number[], c: readonly number[]) => nav.findPath([a[0]!, a[1]!], [c[0]!, c[1]!], 200000, a[2] ?? 0, c[2] ?? 0);
 const onNav = (x: number, z: number, y = 0): boolean => nav.isWalkable(nav.cellOf(x, z, y)) && Math.abs(nav.heightAt(x, z, y) - y) < 0.6;
 /** A walkable nav cell on floor y within r of (x, z): a switch or panel stands on a wall, its user beside it. */
 const nearNav = (x: number, z: number, y: number, r = 1.1): boolean => {
@@ -268,6 +273,270 @@ describe('G4.1 south band (D:16-23, C1-C8)', () => {
     expect(g4).toMatchObject({ x: 1.3, z: 20.1, yaw: PI / 2, takedownSpot: [0.8, 20.1] });
     expect(m.s4Data.S4_ARMOURED.find((a) => a.id === 'arm-mantrap')!.at).toEqual([9.5, 22]);
     expect(m.s4Data.S4_ARMOURED.find((a) => a.id === 'arm-mantrap')!.bypass.at).toEqual([-4, 18.5]);
+  });
+});
+
+describe('G4.3 west strip (D:27-30, C12-C15)', () => {
+  /** A door anchor's opening centre in plan. */
+  const centre = (d: (typeof b.anchors.doors)[number]): [number, number] => [d.hinge.x + (Math.sin(d.yaw) * d.width) / 2, d.hinge.z + (Math.cos(d.yaw) * d.width) / 2];
+
+  it('G4.3 colonnade z 27.5..31: 3.3 clear between the wall faces, a 3.0-3.2 slab over it, battCC and ccUps 3.0 m apart in x, no door at (-4, 29), no two doors within 2.0 m across it', () => {
+    // the two walls (P 0.2) at x -7: faces z 27.6 and 30.9
+    const south = solid.find((p) => x0(p) <= -7 && x1(p) >= -7 && Math.abs(z0(p) - 27.4) < 1e-6 && top(p) > 6);
+    const north = solid.find((p) => x0(p) <= -7 && x1(p) >= -7 && Math.abs(z1(p) - 31.1) < 1e-6 && top(p) > 6);
+    expect(south, 'south wall z 27.5').toBeTruthy();
+    expect(north, 'north wall z 31').toBeTruthy();
+    expect(z1(south!)).toBeCloseTo(27.6);
+    expect(z0(north!)).toBeCloseTo(30.9);
+    expect(z0(north!) - z1(south!)).toBeCloseTo(3.3);
+    const slab = findBox([-10, -4, 3.0, 3.2, 27.5, 31]);
+    expect(slab?.overhead).toBe(true);
+    expect(S4_DOORS.battCC).toEqual([-8.5, 27.5]);
+    expect(S4_DOORS.ccUps).toEqual([-5.5, 31]);
+    expect(S4_DOORS.ccUps[0] - S4_DOORS.battCC[0]).toBeCloseTo(3.0);
+    expect(S4_DOORS).not.toHaveProperty('hallCC');
+    expect(doorAt(-8.5, 27.5), 'battCC').toBeTruthy();
+    expect(doorAt(-5.5, 31), 'ccUps').toBeTruthy();
+    // battCC opens north into the colonnade (P2), ccUps into it (south)
+    expect(doorAt(-8.5, 27.5)!.swing).toBe(-1);
+    expect(doorAt(-5.5, 31)!.swing).toBe(1);
+    // hallCC is walled: no door anchor within 0.6 m of (-4, 29), the wall is solid there up to the roof
+    expect(b.anchors.doors.filter((d) => d.hinge.y < 0.05).every((d) => hyp2(...centre(d).map((v, k) => v - [-4, 29][k]!) as [number, number]) > 0.6)).toBe(true);
+    expect(inRect(-4.05, -3.95, 28.9, 29.1, 0, 2.1).length).toBeGreaterThan(0);
+    // no two door centres within 2.0 m facing each other across the colonnade (one on z 27.5, one on z 31), nor the C4 near door and a colonnade door
+    const ds = b.anchors.doors.filter((d) => d.hinge.y < 0.05 && centre(d)[0] < -4 && centre(d)[0] > -10.1 && centre(d)[1] > 27 && centre(d)[1] < 31.5).map(centre);
+    expect(ds.length).toBe(3);
+    for (let i = 0; i < ds.length; i++) for (let j = i + 1; j < ds.length; j++) expect(hyp2(ds[i]![0] - ds[j]![0], ds[i]![1] - ds[j]![1]), `doors ${i}/${j}`).toBeGreaterThanOrEqual(2.0);
+    // the S4 box list and the rooms follow
+    expect(m.s4.S4_BOX.battery).toEqual([-10, 16, -4, 27.5]);
+    expect(m.s4.S4_BOX.ups).toEqual([-10, 31, -4, 48]);
+    const room = (id: string) => S4_ROOMS.find((r) => r.id === id)!;
+    expect(room('s4-batt')).toMatchObject({ minZ: 16, maxZ: 27.5 });
+    expect(room('s4-cc')).toMatchObject({ minZ: 27.5, maxZ: 31, maxY: 3.1 });
+    expect(room('s4-ups')).toMatchObject({ minZ: 31, maxZ: 48 });
+  });
+
+  it('G4.3 UPS door and console: the door anchor at (-4, 46.5) on floor 0 opens into the security room; the console box z 43.2..45.6; alarm-sec4 at (-3.85, 43.0)', () => {
+    const d = doorAt(-4, 46.5)!;
+    expect(d).toBeTruthy();
+    expect(d.hinge.x).toBeCloseTo(-4);
+    expect(d.hinge.z).toBeCloseTo(45.9);
+    expect(d.swing).toBe(1);
+    expect(S4_DOORS.upsSec).toEqual([-4, 46.5]);
+    expect(findBox([-3.9, -3.3, 0, 0.75, 43.2, 45.6])).toBeTruthy();
+    // the leaf (1.2 into +x) sweeps x -4..-2.8: the console (x -3.9..-3.3) ends at z 45.6, where the leaf's hinge side starts
+    expect(inRect(-4, -2.8, 45.9, 47.1, 0, 2.1).filter((p) => !(top(p) > 6)).map((p) => [p.c, p.s])).toEqual([]);
+    const alarm = lay.alarms!.filter((a) => a.section === 3).find((a) => Math.abs(a.pos.x + 3.85) < 1e-6);
+    expect(alarm).toBeTruthy();
+    expect(alarm!.pos.z).toBeCloseTo(43.0);
+    expect(nearNav(-3.85, 43.0, 0)).toBe(true);
+  });
+
+  it('G4.3 K3 (M12): #19 at (-8.8, 30.0); with his cone as a nav blocker no path from the start to the cell 0.6 m east of the C4 near door, without it one; the leash edge is >= 1 m beyond the door cell', () => {
+    const post = S4.guards[18]!;
+    expect(post).toMatchObject({ x: -8.8, z: 30.0, yaw: PI / 2, takedownSpot: [-9.3, 30.0], role: 'posted', zone: 'c4' });
+    expect(post.post).toEqual({ leash: 5, guards: 'c4-gate' });
+    const door = S4_DOORS.c4Near;
+    const from: [number, number] = [S4.start.x, S4.start.z];
+    const to: [number, number] = [door[0] + 0.6, door[1]];
+    expect(nav.findPath(from, to, 1e7, 0, 0)).not.toBeNull();
+    const fx = Math.sin(post.yaw);
+    const fz = Math.cos(post.yaw);
+    const inCone = (x: number, z: number): boolean => {
+      const dx = x - post.x;
+      const dz = z - post.z;
+      const dd = hyp2(dx, dz);
+      if (dd < 1e-6) return true;
+      const ang = Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / dd)));
+      return (dd <= PERCEPTION.focusRange && ang <= PERCEPTION.focusHalf) || (dd <= PERCEPTION.periphRange && ang <= PERCEPTION.periphHalf);
+    };
+    const doorCell = nav.center(nav.cellOf(door[0], door[1], 0));
+    expect(inCone(doorCell[0], doorCell[1]), 'the C4 door cell is not in the cone').toBe(false);
+    expect(post.post!.leash - hyp2(doorCell[0] - post.x, doorCell[1] - post.z)).toBeGreaterThanOrEqual(1);
+    const blocked: number[] = [];
+    for (let i = 0; i < nav.walk.length; i++) {
+      if (!nav.walk[i]) continue;
+      if (Math.abs(nav.height[i]!) > 1.7) continue;
+      const [x, z] = nav.center(i % nav.cols);
+      if (inCone(x, z)) {
+        blocked.push(i);
+        nav.walk[i] = 0;
+      }
+    }
+    try {
+      expect(blocked.length).toBeGreaterThan(50);
+      expect(nav.findPath(from, to, 1e7, 0, 0)).toBeNull();
+    } finally {
+      for (const i of blocked) nav.walk[i] = 1;
+    }
+    expect(nav.findPath(from, to, 1e7, 0, 0)).not.toBeNull();
+    expect(door[0]).toBeLessThan(post.x);
+  });
+});
+
+describe('G4.4 NOC block (D:31-35, C16-C20)', () => {
+  it('G4.4 fire stair: two flights w 1.3, 11 risers, riser 0.15-0.19, going 0.24-0.355, 2R + G 0.55-0.70; the mid landing top 1.8; the spine to 4.7; three rails; a path from the security room to the NOC by the flights; headroom >= 1.7 over every flight cell', () => {
+    expect(S4_FLIGHTS.length).toBe(2);
+    for (const f of S4_FLIGHTS) {
+      expect(f.w).toBeCloseTo(1.3);
+      expect(f.steps).toBe(11);
+      const riser = f.rise / f.steps;
+      const going = f.len / (f.steps - 1);
+      expect(riser).toBeGreaterThanOrEqual(0.15);
+      expect(riser).toBeLessThanOrEqual(0.19);
+      expect(going).toBeGreaterThanOrEqual(0.24);
+      expect(going).toBeLessThanOrEqual(0.355);
+      expect(2 * riser + going).toBeGreaterThanOrEqual(0.55);
+      expect(2 * riser + going).toBeLessThanOrEqual(0.7);
+      // the slope rule (navBuild.ts:88): normal.y > 0.65
+      expect(Math.cos(Math.atan2(f.rise, f.len))).toBeGreaterThan(0.65);
+    }
+    // flight 1 from G (x 4.2) west to 1.8 (x 1.4); flight 2 from 1.8 east to the NOC slab 3.6 (x 4.2)
+    expect(flightH(S4_FLIGHTS[0], 4.2 - 1e-6, 47.15)).toBeCloseTo(0, 3);
+    expect(flightH(S4_FLIGHTS[0], 1.4 + 1e-6, 47.15)).toBeCloseTo(1.8, 3);
+    expect(flightH(S4_FLIGHTS[1], 1.4 + 1e-6, 45.75)).toBeCloseTo(1.8, 3);
+    expect(flightH(S4_FLIGHTS[1], 4.2 - 1e-6, 45.75)).toBeCloseTo(3.6, 3);
+    expect(findBox([0, 1.4, 1.6, 1.8, 45.1, 47.85])?.noLedge).toBe(true);
+    expect(findBox([1.4, 4.2, 0, 4.7, 46.4, 46.5])?.noLedge).toBe(true);
+    for (const e of [[-0.1, 0, 3.6, 4.7, 45.1, 47.85], [0, 4.2, 3.6, 4.7, 45.0, 45.1], [4.2, 4.3, 3.6, 4.7, 46.5, 47.85]]) expect(findBox(e), JSON.stringify(e)).toBeTruthy();
+    // the NOC slab is one rect minus the well x 0..4.2, z 45.1..47.85
+    expect(inRect(0.01, 4.19, 45.11, 47.84, 3.3, 3.7).filter((p) => p.overhead).map((p) => [p.c, p.s])).toEqual([]);
+    expect(inRect(-4, 8, 42, 45.1, 3.3, 3.7).length).toBeGreaterThan(0);
+    // security room (0, 0, 44) -> the NOC (2, 3.6, 43.5) by the flights
+    const path = pathTo([0, 44, 0], [2, 43.5, 3.6]);
+    expect(path).not.toBeNull();
+    expect(path!.some((w) => w[0] > 3.5 && w[1] > 46.4), 'the path rounds the foot (x > 3.5, z > 46.4)').toBe(true);
+    expect(pathTo([2, 43.5, 3.6], [0, 44, 0])).not.toBeNull();
+    // headroom over every flight cell (0.25 m lattice): no solid piece (overhead too) within 1.7 above the ramp
+    let cells = 0;
+    for (const f of S4_FLIGHTS) {
+      for (let x = f.cx - f.len / 2 + 0.01; x < f.cx + f.len / 2; x += 0.25) {
+        for (let z = f.cz - f.w / 2 + 0.01; z < f.cz + f.w / 2; z += 0.25) {
+          const h = flightH(f, x, z);
+          cells++;
+          expect(inRect(x - 0.005, x + 0.005, z - 0.005, z + 0.005, h + 0.02, h + 1.7).map((p) => [p.c, p.s]), `flight cell (${x.toFixed(2)}, ${z.toFixed(2)}) h ${h.toFixed(2)}`).toEqual([]);
+        }
+      }
+    }
+    expect(cells).toBeGreaterThan(100);
+  });
+
+  it('G4.4 the NOC is no dead end: nav links the NOC to the deck (hatch ladder), to the north corridor (escape door, platform, ladder) and to the security room (flights); the deck rails stand on three sides of the hatch', () => {
+    const noc = [4.85, 44.5, 3.6];
+    expect(onNav(noc[0]!, noc[1]!, 3.6)).toBe(true);
+    // the hatch ladder 3.6 -> 7.3 (A1: east rim): exit onto the deck east of the hatch
+    const hatch = b.anchors.ladders.find((l) => Math.abs(l.base.y - 3.6) < 1e-6 && Math.abs(l.top.y - 7.3) < 1e-6 && l.base.x > 6 && l.base.x < 7.2)!;
+    expect(hatch).toBeTruthy();
+    expect(hatch.base.z).toBeGreaterThan(46.6);
+    expect(hatch.base.z).toBeLessThan(47.8);
+    expect(hatch.top.x).toBeGreaterThan(7.2);
+    const exit = [hatch.top.x + 0.3, hatch.base.z, 7.3];
+    expect(onNav(exit[0]!, exit[1]!, 7.3), 'the ladder top lands on the deck').toBe(true);
+    expect(pathTo(noc, exit)).not.toBeNull();
+    expect(pathTo(exit, noc)).not.toBeNull();
+    // the escape: door (8, 45.5) at y 3.6, the platform, the ladder 0 -> 3.6, down to the corridor floor
+    const esc = doorAt(8, 45.5, 3.6)!;
+    expect(esc).toBeTruthy();
+    expect(esc.swing).toBe(-1);
+    expect(S4_DOORS.nocEscape).toEqual([8, 45.5]);
+    expect(S4_DOORS.secNc).toEqual([8, 43.5]);
+    expect(doorAt(8, 43.5)).toBeTruthy();
+    const ladder = b.anchors.ladders.find((l) => Math.abs(l.base.y) < 1e-6 && Math.abs(l.top.y - 3.6) < 1e-6 && l.base.x > 9 && l.base.x < 10)!;
+    expect(ladder).toBeTruthy();
+    expect([ladder.base.x, ladder.base.z]).toEqual([9.55, 45.5]);
+    expect(pathTo(noc, [11, 45.5, 0])).not.toBeNull();
+    expect(pathTo([11, 45.5, 0], noc)).not.toBeNull();
+    // the stair back to the security room
+    expect(pathTo(noc, [0, 44, 0])).not.toBeNull();
+    // the platform 1.2 x 1.2 at y 3.4..3.6 with rails and the 0.6 m ladder gap on its east edge
+    expect(findBox([8.1, 9.3, 3.4, 3.6, 44.9, 46.1])?.noLedge).toBe(true);
+    for (const e of [[8.1, 9.3, 3.6, 4.7, 46.0, 46.1], [8.1, 9.3, 3.6, 4.7, 44.9, 45.0], [9.2, 9.3, 3.6, 4.7, 44.9, 45.2], [9.2, 9.3, 3.6, 4.7, 45.8, 46.1]]) expect(findBox(e), JSON.stringify(e)).toBeTruthy();
+    // the deck rails: west, south and east (the east one with the ladder gap); the north side is the deck screen
+    for (const e of [[5.9, 6.0, 7.3, 8.4, 46.6, 47.8], [5.9, 7.3, 7.3, 8.4, 46.5, 46.6], [7.2, 7.3, 7.3, 8.4, 46.6, 46.95], [7.2, 7.3, 7.3, 8.4, 47.45, 47.8]]) expect(findBox(e), JSON.stringify(e)).toBeTruthy();
+    expect(findBox([-10.15, 34.15, 7.3, 9.3, 47.85, 48.15])).toBeTruthy();
+    // the roof slab: one rect minus the riser hatch, the NOC hatch and the rooflight
+    expect(inRect(6.01, 7.19, 46.61, 47.79, 7.0, 7.3).map((p) => [p.c, p.s])).toEqual([]);
+    expect(inRect(0.01, 3.99, 43.51, 45.49, 7.0, 7.3).filter((p) => !p.glass).map((p) => [p.c, p.s])).toEqual([]);
+    expect(inRect(31.61, 32.79, 42.61, 43.79, 7.0, 7.3).map((p) => [p.c, p.s])).toEqual([]);
+    expect(inRect(-9.9, 33.9, 16.1, 47.8, 7.0, 7.3).length).toBeGreaterThan(3);
+  });
+
+  it('G4.4 bolt point clear: no box below 2.1 and no door, ladder or ledge within 1.0 m (plan) of (28, 45.8)', () => {
+    expect(inRect(27, 29, 44.8, 46.8, 0, 2.1).map((p) => [p.c, p.s])).toEqual([]);
+    for (const d of b.anchors.doors) expect(hyp2(d.hinge.x + (Math.sin(d.yaw) * d.width) / 2 - 28, d.hinge.z + (Math.cos(d.yaw) * d.width) / 2 - 45.8)).toBeGreaterThan(1.0);
+    for (const l of b.anchors.ladders) expect(hyp2(l.base.x - 28, l.base.z - 45.8)).toBeGreaterThan(1.0);
+    for (const e of generateLedges(b.boxes).ledges) {
+      const dx = e.b.x - e.a.x;
+      const dz = e.b.z - e.a.z;
+      const l2 = dx * dx + dz * dz;
+      const t = l2 > 1e-9 ? Math.max(0, Math.min(1, ((28 - e.a.x) * dx + (45.8 - e.a.z) * dz) / l2)) : 0;
+      expect(hyp2(28 - (e.a.x + dx * t), 45.8 - (e.a.z + dz * t)), `ledge (${e.a.x}, ${e.a.z})`).toBeGreaterThan(1.0);
+    }
+    expect(onNav(28, 45.8)).toBe(true);
+  });
+
+  it('G4.4 rooflight: a clear glass pane at x 0..4, z 43.5..45.5, top 7.3; a sight line from the deck (2, 8.9, 44.5) to Dunmore\'s seat (1.0, 4.6, 43.6) is clear (solid pane: blocked)', () => {
+    const pane = b.boxes.find((p) => p.glass === 'clear' && Math.abs(p.c[0] - 2) < 1e-6 && Math.abs(p.c[2] - 44.5) < 1e-6 && Math.abs(p.s[0] - 4) < 1e-6 && Math.abs(p.s[2] - 2) < 1e-6)!;
+    expect(pane).toBeTruthy();
+    expect(top(pane)).toBeCloseTo(7.3);
+    expect(pane.noLedge).toBe(true);
+    expect(pane.overhead).toBe(true);
+    expect(pane.collide).toBe(true);
+    const leaves: BoxPiece[] = [];
+    for (const d of b.anchors.doors) {
+      const cx = d.hinge.x + (Math.sin(d.yaw) * d.width) / 2;
+      const cz = d.hinge.z + (Math.cos(d.yaw) * d.width) / 2;
+      leaves.push({ c: [cx, d.hinge.y + 1.05, cz], s: Math.abs(Math.sin(d.yaw)) > 0.5 ? [d.width, 2.1, 0.1] : [0.1, 2.1, d.width], yaw: 0, pitch: 0, color: '#000', collide: true });
+    }
+    const world = new SightWorld([...b.boxes, ...leaves], b.cylinders);
+    const walled = new SightWorld([...b.boxes.map((p) => (p === pane ? { ...p, glass: undefined } : p)), ...leaves], b.cylinders);
+    expect(world.clear(2, 8.9, 44.5, 1.0, 4.6, 43.6)).toBe(true);
+    expect(walled.clear(2, 8.9, 44.5, 1.0, 4.6, 43.6)).toBe(false);
+  });
+});
+
+describe('G4.5 compound, riser, deck (D:36-40, C21-C25)', () => {
+  it('G4.5 riser: the partition at x 30.5 with kp-deck (30.5, 45); kp-riser a door anchor at (34, 46.5) on floor 0; the kp-deck prop on the riser face; checkSectorCodes []; nav compound (37, 45) -> riser (32.2, 46.5)', () => {
+    expect(inRect(30.45, 30.55, 42.1, 44.3, 0, 7).length).toBeGreaterThan(0);
+    expect(solid.some((p) => Math.abs(x0(p) - 30.45) < 1e-6 && Math.abs(x1(p) - 30.75) < 1e-6), 'the old x 30.6 partition is gone').toBe(false);
+    expect(m.s4.S4_BOX.nc).toEqual([8, 42, 30.5, 48]);
+    expect(m.s4.S4_BOX.riser).toEqual([30.5, 42, 34, 48]);
+    expect(S4_DOORS.kpDeck).toEqual([30.5, 45]);
+    expect(S4_DOORS.kpRiser).toEqual([34, 46.5]);
+    expect(doorAt(30.5, 45), 'kp-deck door').toBeTruthy();
+    const kr = doorAt(34, 46.5)!;
+    expect(kr).toBeTruthy();
+    expect(kr.hinge.x).toBeCloseTo(34);
+    expect(kr.hinge.z).toBeCloseTo(45.9);
+    expect(kr.swing).toBe(1);
+    // the keypad's riser side: a visual prop on the partition's east face (x 30.6), beside the door
+    const prop = b.boxes.find((p) => Math.abs(p.c[0] - 30.62) < 1e-6 && Math.abs(p.c[1] - 1.3) < 1e-6 && Math.abs(p.c[2] - 45.85) < 1e-6)!;
+    expect(prop).toBeTruthy();
+    expect(prop.collide).toBe(false);
+    expect(prop.c[0] - prop.s[0] / 2).toBeGreaterThanOrEqual(30.6 - 1e-6);
+    // the keypads: kp-batt, kp-deck, kp-riser, all on the dock board's code; the codes check passes
+    expect(S4.keypads!.map((k) => [...k.at])).toEqual([[-4, 18.5], [30.5, 45], [34, 46.5]]);
+    expect(S4.keypads!.every((k) => k.code === 's4-codes')).toBe(true);
+    expect(S4.intel!.some((n) => n.grants === 's4-codes' && n.line === 'Dock board: plant doors 2208, battery room the same.')).toBe(true);
+    expect(m.sectors.CAMPUS_SECTORS.length).toBe(5);
+    expect(checkSectorCodes(m.sectors.CAMPUS_SECTORS)).toEqual([]);
+    // the compound -> the riser through kp-riser (doors open)
+    expect(pathTo([37, 45, 0], [32.2, 46.5, 0])).not.toBeNull();
+    expect(pathTo([32.2, 46.5, 0], [37, 45, 0])).not.toBeNull();
+    // rooms follow the partition
+    expect(S4_ROOMS.find((r) => r.id === 's4-nc')).toMatchObject({ minX: 8, maxX: 30.5 });
+    expect(S4_ROOMS.find((r) => r.id === 's4-riser')).toMatchObject({ minX: 30.5, maxX: 34 });
+  });
+
+  it('G4.5 plant ladder and deck poles: the cage 34.15..35.05 x 22.4..23.6 up to 4.4, the ladder 4.4 -> 7.3 at (34.6, 23); four poles 0.15 square 5.0 over the deck at (-3, 24), (8, 36), (20, 24), (24, 38)', () => {
+    expect(findBox([34.15, 35.05, 0, 4.4, 22.4, 23.6])).toBeTruthy();
+    const l = b.anchors.ladders.find((q) => q.base.x === 34.6 && q.base.z === 23)!;
+    expect(l.base.y).toBeCloseTo(4.4);
+    expect(l.top.y).toBeCloseTo(7.3);
+    for (const [x, z] of [[-3, 24], [8, 36], [20, 24], [24, 38]] as const) {
+      const pole = findBox([x - 0.075, x + 0.075, 7.3, 12.3, z - 0.075, z + 0.075]);
+      expect(pole?.noLedge, `pole (${x}, ${z})`).toBe(true);
+    }
   });
 });
 

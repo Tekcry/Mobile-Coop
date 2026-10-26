@@ -292,12 +292,15 @@ function heroes(d: CampusDresser): void {
   const PI = Math.PI;
   const N = S4_NOC;
 
-  // the NOC video wall: the north wall's inner face is over the stair opening (the flight rises along it), so it goes on the
-  // east wall's inner face (x 7.9, the security room / corridor partition), facing the operators
-  place(d, 'F:monitorWall', around({ x: 7.9, y: N, z: 44.6, yaw: -PI / 2 }, 0, 1.5, 0.1), { cls: 'solid', why: 'the NOC video wall the operators watch', group: S4_GROUPS.noc, label: 'NOC video wall' });
-  // the NOC operators' desks: the strip south of the stair rail, outside the guards' takedown spots and the nav seed
-  place(d, 'F:securityDesk', around({ x: 0, y: N, z: 46.0, yaw: PI }, 3, 0.6, 0.1, [PI, 0]), { cls: 'solid', why: 'NOC operator desk', group: S4_GROUPS.noc, label: 'NOC desk 1' });
-  place(d, 'F:securityDesk', around({ x: 4, y: N, z: 46.0, yaw: PI }, 3, 0.6, 0.1, [PI, 0]), { cls: 'solid', why: 'NOC operator desk', group: S4_GROUPS.noc, label: 'NOC desk 2' });
+  // the NOC video wall: the north wall's inner face is over the stair well (the flights rise along it), so it goes on the
+  // east wall's inner face (x 7.9, the security room / corridor partition), facing the operators; (G4.4 C18) the escape door
+  // and its platform leave that wall no 3 m run, so the west wall's inner face (x -3.85) is the fallback
+  place(d, 'F:monitorWall', [...around({ x: 7.9, y: N, z: 44.6, yaw: -PI / 2 }, 0, 1.5, 0.1), ...around({ x: -3.85, y: N, z: 45.0, yaw: PI / 2 }, 0, 1.5, 0.1)], { cls: 'solid', why: 'the NOC video wall the operators watch', group: S4_GROUPS.noc, label: 'NOC video wall' });
+  // the NOC operators' desks: the strip south of the stair well, outside the guards' takedown spots and the nav seed. (G4.4 C16)
+  // The dog-leg stair well (x 0..4.2, z 45.1..47.85) and the roof-hatch ladder's foot (x 5.9..7.6, z 46.5..47.9) are no floor
+  const nocFloor = (c: Cand): boolean => !(c.x > -1.0 && c.x < 5.3 && c.z > 44.3) && !(c.x > 5.3 && c.x < 7.8 && c.z > 45.8);
+  place(d, 'F:securityDesk', around({ x: 0, y: N, z: 46.0, yaw: PI }, 3, 0.6, 0.1, [PI, 0]).filter(nocFloor), { cls: 'solid', why: 'NOC operator desk', group: S4_GROUPS.noc, label: 'NOC desk 1' });
+  place(d, 'F:securityDesk', around({ x: 4, y: N, z: 46.0, yaw: PI }, 3, 0.6, 0.1, [PI, 0]).filter(nocFloor), { cls: 'solid', why: 'NOC operator desk', group: S4_GROUPS.noc, label: 'NOC desk 2' });
   // the security room's second desk
   place(d, 'F:securityDesk', around({ x: 2, y: 0, z: 46.2, yaw: PI }, 4, 0.8, 0.1, [PI, 0]), { cls: 'solid', why: 'security room desk', group: S4_GROUPS.sec, label: 'security room desk' });
 

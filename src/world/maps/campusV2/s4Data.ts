@@ -69,7 +69,7 @@ export const S4_GUARDS: GearGuard[] = [
   { kind: 'grunt', x: 31.8, z: 18.6, yaw: -PI / 2, route: [[31.8, 18.6], [16.2, 20.4]], loop: DOCK_LOOP, takedownSpot: [31.8, 18.6], role: 'dock', zone: 'dock', squad: 1, reason: 'Unloads the 03:00 drives (staggered, A89)' },
   { kind: 'grunt', x: 16.2, z: 18.6, yaw: PI / 2, route: [[16.2, 18.6], [31.8, 20.4]], loop: DOCK_LOOP, takedownSpot: [16.2, 18.6], role: 'dock', zone: 'dock', squad: 1, reason: 'Unloads the drives; alone at the shelf end each trip' },
   // 19 the colonnade sentry (K3, M12): posted at the C4 gate, facing east, the C4 door 1.5 m behind him
-  { kind: 'grunt', x: -8.5, z: 29, yaw: PI / 2, takedownSpot: [-9.0, 29], post: { leash: 5, guards: 'c4-gate' }, role: 'posted', zone: 'c4', squad: 4, reason: 'The Old House is closed tonight: nobody goes down the colonnade' },
+  { kind: 'grunt', x: -8.8, z: 30.0, yaw: PI / 2, takedownSpot: [-9.3, 30.0], post: { leash: 5, guards: 'c4-gate' }, role: 'posted', zone: 'c4', squad: 4, reason: 'The Old House is closed tonight: nobody goes down the colonnade' },
   // 20 the mobile supervisor: the hall's west aisle, visiting the battery, colonnade and UPS doors
   { kind: 'officer', x: -2.5, z: 23.0, yaw: 0, route: [[-2.5, 23.0], [-2.5, 39.5]], waits: [3, 3], takedownSpot: [-2.5, 23.0], role: 'supervisor', zone: 'hall-w', squad: 3, reason: 'Mobile supervisor: visits the battery, colonnade and UPS doors' },
 ];
@@ -158,7 +158,7 @@ export const S4_AMMO_CRATE = { x: 25.2, y: 0, z: 6.8, yaw: -PI / 2, section: 3 }
 
 /** Section 4's alarm panels: alarm-sec4 (security room, west wall), alarm-mt (the lobby, on the hall's south wall), alarm-dk (the dock, west wall). */
 export const S4_ALARMS: { at: [number, number]; yaw: number; section: number; y?: number }[] = [
-  { at: [-3.85, 46.8], yaw: PI / 2, section: 3 },
+  { at: [-3.85, 43.0], yaw: PI / 2, section: 3 }, // (G4.3 C15, D:30) clear of the new UPS door (-4, 46.5)
   { at: [5.0, 21.85], yaw: PI, section: 3 },
   { at: [14.15, 20.8], yaw: PI / 2, section: 3 },
 ];
@@ -202,6 +202,7 @@ export const S4_SECTOR: SectorDef = {
   keypads: [
     { at: [S4_DOORS.kpBatt[0], S4_DOORS.kpBatt[1]], code: 's4-codes' },
     { at: [S4_DOORS.kpDeck[0], S4_DOORS.kpDeck[1]], code: 's4-codes' },
+    { at: [S4_DOORS.kpRiser[0], S4_DOORS.kpRiser[1]], code: 's4-codes' }, // kp-riser (Code Relay BT:102)
   ],
   intel: [{ kind: 'board', grants: 's4-codes', line: 'Dock board: plant doors 2208, battery room the same.', at: [16.0, 1.5, 21.85], yaw: PI }],
   pairGates: [{ door: [S4_DOORS.pgCage[0], S4_DOORS.pgCage[1]], a: { at: [13.85, 39.6], yaw: -PI / 2 }, b: { at: [21.8, 40.15], yaw: 0 } }],

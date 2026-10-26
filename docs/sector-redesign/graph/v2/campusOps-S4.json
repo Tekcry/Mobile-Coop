@@ -211,7 +211,7 @@
       "guards": {
         "2": 1
       },
-      "note": "BUILT G4.2 (racks s4.ts:116, :475: 2.0 noLedge, east row z 21.0..23.5, P1; kpBatt s4.ts:464-465 G4.1). x -10..-4, z 16..27.5 (was 27.8: the colonnade corridor widens). Ceiling 7.0 to the roof (WARN: plant_room 4-6). kpBatt moves to (-4, 18.5) (1.5 m off the corner; code on the dock board). Battery racks raised 1.2 -> 2.0 and noLedge (the CR8 lip rule: nothing solo-standable within 4 m); the east row shortened to z 21.0..26.5 so the boost spot under the grille (-4.8, 20.2) is clear. One hydrogen-rated 2.4 m lamp over the monitor panel at (-7, 24) (pool r 3.6, ~35 of 69 m2: shadow 0.5, pending V6; was fully dark). New: the essential lighting board (sync-s4-ess-board) at (-5.5, 27.3). battCC moves to (-8.5, 27.5). Vantage: the dark kpBatt doorway, sees 0.8 (racks 2.0 hide the far aisle). Guard #12 battery checker (route through battCC / ccUps)."
+      "note": "BUILT G4.3 (batt lamp s4.ts:308 (-7, 2.4, 24) r 3.6 on circuit batt 142, switch s4.ts:237 (-4.3, 0, 26.2); ess board s4.ts:188 (-5.5, 0, 27.3) groups 76 + 77, 25 s; wall z 27.5 s4.ts:481, battCC s4.ts:483; hallCC walled s4.ts:472-473; room s4.ts:249). BUILT G4.2 (racks s4.ts:116, :475: 2.0 noLedge, east row z 21.0..23.5, P1; kpBatt s4.ts:464-465 G4.1). x -10..-4, z 16..27.5 (was 27.8: the colonnade corridor widens). Ceiling 7.0 to the roof (WARN: plant_room 4-6). kpBatt moves to (-4, 18.5) (1.5 m off the corner; code on the dock board). Battery racks raised 1.2 -> 2.0 and noLedge (the CR8 lip rule: nothing solo-standable within 4 m); the east row shortened to z 21.0..26.5 so the boost spot under the grille (-4.8, 20.2) is clear. One hydrogen-rated 2.4 m lamp over the monitor panel at (-7, 24) (pool r 3.6, ~35 of 69 m2: shadow 0.5, pending V6; was fully dark). New: the essential lighting board (sync-s4-ess-board) at (-5.5, 27.3). battCC moves to (-8.5, 27.5). Vantage: the dark kpBatt doorway, sees 0.8 (racks 2.0 hide the far aisle). Guard #12 battery checker (route through battCC / ccUps)."
     },
     {
       "id": "s4-yard",
@@ -242,7 +242,7 @@
       "guards": {
         "2": 4
       },
-      "note": "PLAN. x 34..40, z 16..48, open sky (12.0 by convention). Re-classed yard -> plant_room (AS1: an external plant enclosure; yard min 14 x 14 cannot fit the 6 m strip): length 32 over max 28 and the open ceiling are WARNs. Light: the two floods -> one flood over the tanks at (37, 30), 6.0 m (pool r 9 covers z 21..39, ~108 of 192 m2: shadow 0.45, pending V6); the dock door end, the gate and the north end (generator, the new riser door) are dark. New: the riser's compound door (34, 46.5), keypad (plant doors code). The plant ladder (34.6, 23) now starts at 4.4 above a locked anti-climb shield (CR10 co-op boost; solo down = hang-drop). Vantage: the plant deck's east parapet (x 33.85, z 36..44, dark), looking down, sees 0.8 (generator 2.6 and tanks 2.0 hide short strips). Guards #1 handler + #2 dog (44 s loop), #3 gate officer, #23 tank watch (new)."
+      "note": "BUILT G4.5 (kp-riser door (34, 46.5) s4.ts:510, keypad s4Data.ts:204; the plant ladder from 4.4 above the cage s4.ts:673-679 (A2: noLedge radius 0.4, so the east lip stays); CR10 s4.ts:188; the two compound floods stay on the board (yard 75), the plan's single flood (37, 30) is not built) (A19: as-built lamps kept). x 34..40, z 16..48, open sky (12.0 by convention). Re-classed yard -> plant_room (AS1: an external plant enclosure; yard min 14 x 14 cannot fit the 6 m strip): length 32 over max 28 and the open ceiling are WARNs. Light: the two floods -> one flood over the tanks at (37, 30), 6.0 m (pool r 9 covers z 21..39, ~108 of 192 m2: shadow 0.45, pending V6); the dock door end, the gate and the north end (generator, the new riser door) are dark. New: the riser's compound door (34, 46.5), keypad (plant doors code). The plant ladder (34.6, 23) now starts at 4.4 above a locked anti-climb shield (CR10 co-op boost; solo down = hang-drop). Vantage: the plant deck's east parapet (x 33.85, z 36..44, dark), looking down, sees 0.8 (generator 2.6 and tanks 2.0 hide short strips). Guards #1 handler + #2 dog (44 s loop), #3 gate officer, #23 tank watch (new)."
     },
     {
       "id": "s4-riser",
@@ -264,7 +264,7 @@
       ],
       "tension": 2,
       "tags": [],
-      "note": "PLAN. Partition moved x 30.6 -> 30.5 (box 3.5 on the grid); kpDeck at (30.5, 45). New compound door (34, 46.5), keypad. Ladders R1 (32.2,45.05), R2 (32.2,43.35) unchanged. Ceiling 7.0 (WARN: stair_core 3.3). kp-deck gets a second keypad on its riser side (planned, Marlow: Relay comes down the riser into the north corridor; same s4-codes)."
+      "note": "BUILT G4.5 (partition x 30.5 s4.ts:638, kpDeck (30.5, 45) s4.ts:641, riser-side keypad prop s4.ts:642 (Code Relay BT:100); kpRiser (34, 46.5) s4.ts:510; riser lamp S4_LIGHTS.riser s4.ts:350 (31.2, 3.5, 47.2) r 4 i 0.7 on circuit riser 141, switch (30.75, 0, 46.2) s4.ts:271; rooms s4.ts:276-277). Partition moved x 30.6 -> 30.5 (box 3.5 on the grid); kpDeck at (30.5, 45). New compound door (34, 46.5), keypad. Ladders R1 (32.2,45.05), R2 (32.2,43.35) unchanged. Ceiling 7.0 (WARN: stair_core 3.3). kp-deck gets a second keypad on its riser side (planned, Marlow: Relay comes down the riser into the north corridor; same s4-codes)."
     },
     {
       "id": "s4-deck",
@@ -295,7 +295,7 @@
       "guards": {
         "2": 2
       },
-      "note": "PLAN. x -10..34, z 16..48, y 7.3 (S4_DECK). Light: the four 1.5 m chiller task lights -> four pole floods 5 m over the deck at (-3, 24), (8, 36), (20, 24), (24, 38) (r 7.5, ~700 of 1408 m2: shadow 0.5, pending V6); the three ways on (plant ladder top (34, 23), riser hatch (32.2, 43.2), NOC hatch (6.6, 47.2)) and the NOC rooflight stay dark (8.3-16 m from a flood). New: NOC roof access hatch 1.2 x 1.2 at x 6.0..7.2, z 46.6..47.8 with rails on three sides; NOC rooflight (fixed wired glass) x 0..4, z 43.5..45.5. Vantage: the dark riser hatch, sees 0.8 (chillers 2.0 hide some). Guards #13 deck patrol, #24 chiller watch (new)."
+      "note": "BUILT G4.5 (four pole floods S4_LIGHTS.deckFloods s4.ts:349 at 12.3 over (-3, 24), (8, 36), (20, 24), (24, 38), r 7.5 i 0.9 on group 79 (no switch: photocell), poles s4.ts:688-689; the four chiller task lights stay) (A19: as-built lamps kept, the deck floods add light). BUILT G4.4 (NOC roof hatch x 6.0..7.2, z 46.6..47.8 s4.ts:490, rails s4.ts:602-605; rooflight s4.ts:607-611) (A19: as-built lamps kept; the deck pole floods land in G4.5). x -10..34, z 16..48, y 7.3 (S4_DECK). Light: the four 1.5 m chiller task lights -> four pole floods 5 m over the deck at (-3, 24), (8, 36), (20, 24), (24, 38) (r 7.5, ~700 of 1408 m2: shadow 0.5, pending V6); the three ways on (plant ladder top (34, 23), riser hatch (32.2, 43.2), NOC hatch (6.6, 47.2)) and the NOC rooflight stay dark (8.3-16 m from a flood). New: NOC roof access hatch 1.2 x 1.2 at x 6.0..7.2, z 46.6..47.8 with rails on three sides; NOC rooflight (fixed wired glass) x 0..4, z 43.5..45.5. Vantage: the dark riser hatch, sees 0.8 (chillers 2.0 hide some). Guards #13 deck patrol, #24 chiller watch (new)."
     },
     {
       "id": "s4-noc",
@@ -328,7 +328,7 @@
       "guards": {
         "2": 2
       },
-      "note": "PLAN. x -4..8, z 42..48, y 3.6 (S4_NOC); 3.4 clear (WARN: security_room 3.0; length 12 over max 11, WARN). V5f-3: Track A now walks it and it holds guards, so it is an encounter again (was utility, dead end). Fixes the dead end: roof hatch ladder to the deck (6.6, 47.2) and an escape door in its east wall (8, 45.5, y 3.6) onto a 1.2 x 1.2 platform with a caged ladder down into the north corridor (9.4, 45.5) (a staffed mezzanine needs a second exit). Light: one lamp at (1.0, 6.4, 43.6) over the window pair (pool r 4.2, ~40 of 72 m2: shadow 0.45, pending V6), the east end (stair head, hatch, escape door) dark. Vantage: the deck rooflight x 0..4, z 43.5..45.5 (dark), looking down, sees 0.75 (V6). Overwatch for split s4r: the armoured window sees the hall floor and the cage front. Guards #14 duty officer Dunmore (Code Relay target, west seat x 1.0, seat placard), #15 Pryce (decoy, east seat x 3.0). sync-s4-noc: the NOC console release."
+      "note": "BUILT G4.4 (stair top landing s4.ts:587-593; roof hatch and ladder s4.ts:601-605, ASSUMPTION A1: the ladder is on the hatch's east rim (6.95, 47.2) facing +x, the east rail leaves a 0.5 m gap, because a north-facing ladder would step off into the deck screen; rooflight s4.ts:490, :607-611; escape door (8, 45.5, 3.6), platform and ladder s4.ts:614-624) (A19: as-built lamps kept, the east lamp (5, 6.4, 45) stays; the window-seat lamp (1.0, 6.4, 43.6) is not built). x -4..8, z 42..48, y 3.6 (S4_NOC); 3.4 clear (WARN: security_room 3.0; length 12 over max 11, WARN). V5f-3: Track A now walks it and it holds guards, so it is an encounter again (was utility, dead end). Fixes the dead end: roof hatch ladder to the deck (6.6, 47.2) and an escape door in its east wall (8, 45.5, y 3.6) onto a 1.2 x 1.2 platform with a caged ladder down into the north corridor (9.4, 45.5) (a staffed mezzanine needs a second exit). Light: one lamp at (1.0, 6.4, 43.6) over the window pair (pool r 4.2, ~40 of 72 m2: shadow 0.45, pending V6), the east end (stair head, hatch, escape door) dark. Vantage: the deck rooflight x 0..4, z 43.5..45.5 (dark), looking down, sees 0.75 (V6). Overwatch for split s4r: the armoured window sees the hall floor and the cage front. Guards #14 duty officer Dunmore (Code Relay target, west seat x 1.0, seat placard), #15 Pryce (decoy, east seat x 3.0). sync-s4-noc: the NOC console release."
     },
     {
       "id": "s4-nc",
@@ -350,7 +350,7 @@
       ],
       "tension": 2,
       "tags": [],
-      "note": "PLAN. x 8..30.5, z 42..48 (on the grid now). secNc moves to (8, 43.5) to clear the escape ladder foot (9.4, 45.5). Dark (no lamp). Width 6 over the corridor max 4 and ceiling 7.0: WARNs, as built. Guard #16 tour (dormant) counted here in the note. Dunmore's spook bolt point (Marlow A11) at (28, 45.8) by the riser door: kept clear (the escape ladder foot is at x 9.4)."
+      "note": "BUILT G4.4 (secNc (8, 43.5) s4.ts:616; escape ladder foot (9.55, 45.5) s4.ts:624; three corridor lamps S4_LIGHTS.nc s4.ts:329 on circuit nc 140, switch (21.2, 0, 42.3) s4.ts:254; bolt point (28, 45.8) kept clear, tested) (the plan's dark corridor reads 'lit; dark once the players cut nc 140', S4.md 0.5 rule 4). x 8..30.5, z 42..48 (on the grid now). secNc moves to (8, 43.5) to clear the escape ladder foot (9.4, 45.5). Dark (no lamp). Width 6 over the corridor max 4 and ceiling 7.0: WARNs, as built. Guard #16 tour (dormant) counted here in the note. Dunmore's spook bolt point (Marlow A11) at (28, 45.8) by the riser door: kept clear (the escape ladder foot is at x 9.4)."
     },
     {
       "id": "s4-sec",
@@ -383,7 +383,7 @@
       "guards": {
         "2": 3
       },
-      "note": "PLAN. x -4..8, z 42..48; 3.4 to the NOC slab (WARN: security_room 3.0; length 12 over 11, WARN). V5f-3: Track A now walks it with two guards, so encounter again (was utility). NOC stair rebuilt as a dog-leg fire stair 1.3 wide, 2 x 11 risers (0.165 / 0.28), mid landing x 0..1.4 at y 1.8, flights on z 46.7..48 and 45.4..46.7 between x 1.4 and 4.2, foot at x 4.2..5.5, z 46.7..48, top landing x 4.2..5.5, z 45.4..46.7 (slab hole x 0..4.2, z 45.4..48). New door to the UPS room (-4, 46.5); the operator console shortened to z 43.2..45.6, alarm-sec4 moves to (-3.85, 43.0). Light: the two room lamps -> one warm 2.4 m console lamp at (-2.0, 44.6) (pool r 3.6, ~36 of 72 m2: shadow 0.5, pending V6). Vantage: the dark mid landing of the stair, sees 0.8. Duty roster (lead-s4-roster) on the west wall at (-3.85, 45.2). Split s4r leg a (Relay at sync-s4-desk). Guards #5 operator, #6 site supervisor (armour), #25 night runner (new: back-and-forth desk (0, 43.2) <-> side door (7, 43.5), 30 s, carries the log up to the NOC)."
+      "note": "BUILT G4.4 (fire stair S4_FLIGHTS s4.ts:91, slab well and landing s4.ts:587-593, rails :590-592; console lamp S4_LIGHTS.console s4.ts:328 warm, group sec 77; side door secNc (8, 43.5) s4.ts:616; nav seed s4.ts:222) (A19: as-built lamps kept, the two room lamps stay beside the console lamp). x -4..8, z 42..48; 3.4 to the NOC slab (WARN: security_room 3.0; length 12 over 11, WARN). V5f-3: Track A now walks it with two guards, so encounter again (was utility). NOC stair rebuilt as a dog-leg fire stair 1.3 wide, 2 x 11 risers (0.165 / 0.28), mid landing x 0..1.4 at y 1.8, flights on z 46.7..48 and 45.4..46.7 between x 1.4 and 4.2, foot at x 4.2..5.5, z 46.7..48, top landing x 4.2..5.5, z 45.4..46.7 (slab hole x 0..4.2, z 45.4..48). New door to the UPS room (-4, 46.5); the operator console shortened to z 43.2..45.6, alarm-sec4 moves to (-3.85, 43.0). Light: the two room lamps -> one warm 2.4 m console lamp at (-2.0, 44.6) (pool r 3.6, ~36 of 72 m2: shadow 0.5, pending V6). Vantage: the dark mid landing of the stair, sees 0.8. Duty roster (lead-s4-roster) on the west wall at (-3.85, 45.2). Split s4r leg a (Relay at sync-s4-desk). Guards #5 operator, #6 site supervisor (armour), #25 night runner (new: back-and-forth desk (0, 43.2) <-> side door (7, 43.5), 30 s, carries the log up to the NOC)."
     },
     {
       "id": "s4-hall",
@@ -438,7 +438,7 @@
       ],
       "tension": 2,
       "tags": [],
-      "note": "PLAN. x -10..-4, z 31..48 (was 30.2: the colonnade widens). ccUps moves to (-5.5, 31); new door to the security room (-4, 46.5). Ceiling 7.0 (WARN). Rejoin space of split s4r. #12 crosses it (counted in s4-batt, as V5f)."
+      "note": "BUILT G4.3 (ccUps s4.ts:484; the staff door to the security room s4.ts:478, S4_DOORS.upsSec (-4, 46.5); console z 43.2..45.6 s4.ts:542; alarm-sec4 s4Data.ts:161 (-3.85, 43.0); room s4.ts:251). x -10..-4, z 31..48 (was 30.2: the colonnade widens). ccUps moves to (-5.5, 31); new door to the security room (-4, 46.5). Ceiling 7.0 (WARN). Rejoin space of split s4r. #12 crosses it (counted in s4-batt, as V5f)."
     },
     {
       "id": "s4-baskets",
@@ -508,7 +508,7 @@
       "tags": [
         "exit"
       ],
-      "note": "PLAN. Widened: x -10..-4, z 27.5..31 (box 3.5, clear 3.3; was 2.4 / 2.2), with a 3.0 ceiling slab (3.0-3.2). Doors: C4 near (-10, 29) unchanged; battCC (-8.5, 27.5) and ccUps (-5.5, 31), 3.0 m offset; hallCC walled up, so no two doors face each other. Guard #19 (K3) re-posted at (-8.8, 30.0) facing east, leash 5, guards c4-gate (the choke), counted in the note."
+      "note": "BUILT G4.3 (walls s4.ts:481-482, slab s4.ts:485; battCC s4.ts:483, ccUps s4.ts:484; room s4.ts:250 maxY 3.1; #19 s4Data.ts:72 at (-8.8, 30.0), takedown (-9.3, 30.0)). Widened: x -10..-4, z 27.5..31 (box 3.5, clear 3.3; was 2.4 / 2.2), with a 3.0 ceiling slab (3.0-3.2). Doors: C4 near (-10, 29) unchanged; battCC (-8.5, 27.5) and ccUps (-5.5, 31), 3.0 m offset; hallCC walled up, so no two doors face each other. Guard #19 (K3) re-posted at (-8.8, 30.0) facing east, leash 5, guards c4-gate (the choke), counted in the note."
     }
   ],
   "links": [
@@ -639,7 +639,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "Battery room door into the colonnade corridor (battCC, moved to (-8.5, 27.5)), under the K3 sentry's eyes",
-      "length": 8
+      "length": 8,
+      "note": "BUILT G4.3 (battCC s4.ts:483, swing -1 into the colonnade, P2)."
     },
     {
       "from": "s4-cc",
@@ -649,7 +650,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "Colonnade corridor door into the UPS room (ccUps, moved to (-5.5, 31)), 3.0 m off battCC",
-      "length": 11
+      "length": 11,
+      "note": "BUILT G4.3 (ccUps s4.ts:484)."
     },
     {
       "from": "s4-ups",
@@ -669,7 +671,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "New staff door from the UPS room into the security room (-4, 46.5), behind the UPS cabinets: Track A's way out",
-      "length": 14
+      "length": 14,
+      "note": "BUILT G4.3 (s4.ts:478, opens into the security room)."
     },
     {
       "from": "s4-hall",
@@ -699,7 +702,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "Side door between the security room and the north corridor (secNc, moved to (8, 43.5) to clear the escape ladder)",
-      "length": 17.5
+      "length": 17.5,
+      "note": "BUILT G4.4 (secNc (8, 43.5) s4.ts:616)."
     },
     {
       "from": "s4-nc",
@@ -709,7 +713,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "Keypad door from the north corridor into the cable riser (kpDeck, (30.5,45)); code on the dock board",
-      "length": 13
+      "length": 13,
+      "note": "BUILT G4.5 (kpDeck (30.5, 45) s4.ts:638-642)."
     },
     {
       "from": "s4-yard",
@@ -729,7 +734,7 @@
       "width": 1.3,
       "level_change": 3.6,
       "reason": "The NOC's staff stair rebuilt as a dog-leg fire stair: 1.3 wide, 2 x 11 risers 0.165 / 0.28, mid landing 1.3 (was one 1.2 m flight of 20)",
-      "note": "time_s: the walk (13 m) at 1.3 m/s plus 3.6 s of rise.",
+      "note": "BUILT G4.4 (s4.ts:91, :587-593). time_s: the walk (13 m) at 1.3 m/s plus 3.6 s of rise.",
       "length": 13,
       "time_s": 13
     },
@@ -740,7 +745,7 @@
       "route": "loud",
       "level_change": 3.7,
       "reason": "NOC roof access hatch (x 6.0..7.2, z 46.6..47.8) with a caged ladder from the mezzanine to the plant deck; Track A drops in on the staffed NOC here",
-      "note": "time_s: 1 s per metre of ladder plus the walk.",
+      "note": "BUILT G4.4 (s4.ts:601-605; A1: the ladder is on the hatch's east rim). time_s: 1 s per metre of ladder plus the walk.",
       "length": 21,
       "time_s": 20
     },
@@ -751,7 +756,7 @@
       "route": "shadow",
       "level_change": 3.6,
       "reason": "NOC escape door (8, 45.5, y 3.6) onto a 1.2 x 1.2 platform and a caged ladder down to the dark north corridor (9.4, 45.5): the mezzanine's second means of escape",
-      "note": "time_s: 1 s per metre of ladder plus the walk.",
+      "note": "BUILT G4.4 (s4.ts:614-624; the ladder foot is at (9.55, 45.5)). time_s: 1 s per metre of ladder plus the walk.",
       "length": 17,
       "time_s": 17
     },
@@ -763,7 +768,7 @@
       "one_way": true,
       "level_change": 4.4,
       "reason": "CR10: the plant ladder (34.6, 23) has its lower 4.4 m behind a locked anti-climb shield (real plant-ladder security); a leg-up onto the shield top (lip 4.4) reaches the rungs, then 2.9 m of ladder to the deck",
-      "note": "Lip rules: the tanks (2.0 noLedge) are 3.3 m away but not standable; the compound walls 2.8 noLedge. Solo bypass: the riser door, R1, R2 (a longer way). time_s: boost 5 s, ladder 2.9 s, the walk.",
+      "note": "BUILT G4.5 (CR10 s4.ts:188-196; cage s4.ts:673; the ladder from 4.4 s4.ts:674; A2: noLedge radius 0.4). Lip rules: the tanks (2.0 noLedge) are 3.3 m away but not standable; the compound walls 2.8 noLedge. Solo bypass: the riser door, R1, R2 (a longer way). time_s: boost 5 s, ladder 2.9 s, the walk.",
       "length": 41,
       "time_s": 39
     },
@@ -775,7 +780,8 @@
       "level_change": 4.4,
       "reason": "Down the plant ladder to the shield top, hang and drop 4.4 m to the compound floor",
       "length": 41,
-      "time_s": 35
+      "time_s": 35,
+      "note": "BUILT G4.5 (the plant ladder down to the cage top, s4.ts:673-674; hang-drop 4.4)."
     },
     {
       "from": "s4-yard",
@@ -785,7 +791,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "New cable-pull door from the compound's dark north end into the riser (34, 46.5); keypad on the plant doors code",
-      "length": 17
+      "length": 17,
+      "note": "BUILT G4.5 (kp-riser (34, 46.5) s4.ts:510, keypad s4Data.ts:204)."
     },
     {
       "from": "s4-riser",

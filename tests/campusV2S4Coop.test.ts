@@ -1,14 +1,14 @@
 /**
  * (campus-greybox S4, `docs/campus-greybox/briefs/S4.md` G4.2 / G4.5) Section 4's v2 co-op lips against a solo player, flag on
  * (`flags.campusV2 = [4]`): CR4 / CR4-west unchanged (the live `tests/campusS4.test.ts` cases on the v2 build), CR8 / CR8-west
- * (the return-air grilles' sills into the plenum), the plenum itself, the baskets' run-on to the hall wall and the battery
+ * (the return-air grilles' sills into the plenum), CR10 (the plant ladder's anti-climb cage top), the plenum itself, the baskets' run-on to the hall wall and the battery
  * racks. Built undressed with the pure `LevelBuilder`; the nav is the live test's analytic raster (copied, never imported),
  * the guards' grid the runtime one (`tests/helpers/runtimeNav.ts`).
  */
 import { describe, expect, it, vi } from 'vitest';
 import type { BoxPiece, LevelBuilder as LB } from '../src/world/levelBuilder';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
-import { HANG, LEDGE, generateLedges } from '../src/world/anchors';
+import { HANG, LEDGE, generateLedges, reach, suppressLedgesNear } from '../src/world/anchors';
 import { LIGHT, contribution } from '../src/world/lights';
 import { MOVEMENT } from '../src/config/movement';
 import { hyp2 } from '../src/core/mathx';
@@ -28,7 +28,7 @@ async function loadCampus(v2: readonly number[]) {
 }
 
 const m = await loadCampus([4]);
-const { S4_BASKET, S4_BOX, S4_COOP_LIPS, S4_FLIGHT } = m.s4;
+const { S4_BASKET, S4_BOX, S4_COOP_LIPS, S4_FLIGHTS } = m.s4;
 const b: LB = new m.LevelBuilder();
 const lay = m.buildCampus(b, { dress: false });
 const FOOT = { x0: -10, x1: 40, z0: 16, z1: 48 };
@@ -61,7 +61,7 @@ function flightH(f: { cx: number; cz: number; w: number; len: number; rise: numb
   if (Math.abs(across) > f.w / 2 || Math.abs(along) > f.len / 2) return Number.NaN;
   return f.y0 + (f.rise * (along + f.len / 2)) / f.len;
 }
-const FLIGHTS = [S4_FLIGHT];
+const FLIGHTS = [...S4_FLIGHTS];
 
 /** An analytic layered nav grid over a rectangle (the live S4 test's raster): blockers, fences, cylinders, the flights, ladder links. */
 function analyticNav(rect: readonly [number, number, number, number], cell = 0.5): NavGrid {
@@ -164,7 +164,7 @@ describe('G4.2 CR4 / CR4-west unchanged (the live T4:486-536 cases on the v2 bui
     expect(onNav(cr4.boost.x, cr4.boost.z)).toBe(true);
     expect(onNav(west.boost.x, west.boost.z)).toBe(true);
     const s4Ids = m.CAMPUS_COOP_LIPS.filter((l) => S4_COOP_LIPS.includes(l)).map((l) => l.id);
-    for (const id of ['CR4', 'CR4-west', 'CR8', 'CR8-west']) expect(s4Ids.filter((q) => q === id).length, id).toBe(1);
+    for (const id of ['CR4', 'CR4-west', 'CR8', 'CR8-west', 'CR10']) expect(s4Ids.filter((q) => q === id).length, id).toBe(1);
     for (const l of S4_COOP_LIPS) expect(m.CAMPUS_COOP_LIPS.includes(l)).toBe(true);
   });
 
@@ -225,7 +225,7 @@ describe('G4.2 CR8 / CR8-west: the return-air grille sills (D:24, GR s4-dock / s
   const boostSide = (l: Lip, p: BoxPiece): boolean => (p.c[0] - l.lip.x) * l.lip.n.x > 0;
 
   it('CR8 and CR8-west as briefed: lips x 14.1 / -4.15, z 19.5..21.0 at 4.4 over floor 0 (4.3-4.5, SS:49); boosts (14.6, 20.2) / (-4.8, 20.2) on nav; the sills are not noLedge', () => {
-    expect(S4_COOP_LIPS.map((l) => l.id)).toEqual(['CR4', 'CR4-west', 'CR8', 'CR8-west']);
+    expect(S4_COOP_LIPS.map((l) => l.id)).toEqual(['CR4', 'CR4-west', 'CR8', 'CR8-west', 'CR10']);
     expect(cr8).toMatchObject({ section: 3, lip: { x: 14.1, z0: 19.5, z1: 21.0, y: 4.4, n: { x: 1, z: 0 } }, top: { x0: -4, x1: 14, z0: 16, z1: 22, top: 3.2 }, boost: { floor: 0, x: 14.6, z: 20.2 } });
     expect(west).toMatchObject({ section: 3, lip: { x: -4.15, z0: 19.5, z1: 21.0, y: 4.4, n: { x: -1, z: 0 } }, top: { x0: -4, x1: 14, z0: 16, z1: 22, top: 3.2 }, boost: { floor: 0, x: -4.8, z: 20.2 } });
     for (const l of [cr8, west]) {
@@ -366,5 +366,86 @@ describe('G4.2 plenum, baskets, racks (D:24-26, C9-C11)', () => {
     const gx = Math.max(0, ex0 - -4.8, -4.8 - ex1);
     const gz = Math.max(0, ez0 - 20.2, 20.2 - ez1);
     expect(hyp2(gx, gz)).toBeGreaterThanOrEqual(0.6);
+  });
+});
+
+describe('G4.5 CR10: the plant ladder behind a locked anti-climb cage (D:38, P6)', () => {
+  const cr10 = lipOf('CR10');
+  const cage = solid.find((p) => Math.abs(x0(p) - 34.15) < 1e-6 && Math.abs(x1(p) - 35.05) < 1e-6 && Math.abs(z0(p) - 22.4) < 1e-6 && Math.abs(z1(p) - 23.6) < 1e-6 && Math.abs(bottom(p)) < 1e-6)!;
+  const ladder = b.anchors.ladders.find((l) => Math.abs(l.base.x - 34.6) < 1e-6 && Math.abs(l.base.z - 23) < 1e-6)!;
+
+  it('CR10 as briefed: lip x 35.05, z 22.4..23.6 at 4.4 over floor 0 (4.3-4.5); the cage 0.9 x 1.2 x 4.4, not noLedge; the ladder starts on the cage top; the boost (35.65, 23.0) on nav', () => {
+    expect(cr10).toMatchObject({ section: 3, lip: { x: 35.05, z0: 22.4, z1: 23.6, y: 4.4, n: { x: 1, z: 0 } }, top: { x0: 34.15, x1: 35.05, z0: 22.4, z1: 23.6, top: 4.4 }, boost: { floor: 0, x: 35.65, z: 23.0 } });
+    expect(cage).toBeTruthy();
+    expect(top(cage)).toBeCloseTo(4.4);
+    expect(cage.noLedge).not.toBe(true);
+    expect(cr10.lip.y - cr10.boost.floor).toBeGreaterThanOrEqual(4.3);
+    expect(cr10.lip.y - cr10.boost.floor).toBeLessThanOrEqual(4.5);
+    expect(onNav(cr10.boost.x, cr10.boost.z), 'boost').toBe(true);
+    expect(ladder).toBeTruthy();
+    expect(ladder.base.y).toBeCloseTo(4.4);
+    expect(ladder.top.y).toBeCloseTo(7.3);
+    expect(m.CAMPUS_COOP_LIPS.filter((l) => l.id === 'CR10').length).toBe(1);
+  });
+
+  it('CR10: no solo running jump reaches the 4.4 lip (0.5 m margin) and none lands on the cage top', () => {
+    expect(soloJumpThreats(solid, grip(cr10), (p) => p === cage, 0.5)).toEqual([]);
+    expect(soloTopLandingThreats(solid, cr10.top, (p) => p === cage, 0.5)).toEqual([]);
+  });
+
+  it('CR10 rule 2: nothing solo-standable 1.2 or higher (under the lip) within 4 m in plan (the tanks 2.0 noLedge at 0.95 m, the compound wall 2.8 noLedge); rule 3: nothing 0.3-4.3 high within 1 m of the lip\'s face; rule 5: headroom to 6.2', () => {
+    const g = cr10.lip;
+    const bad = solid.filter((p) => {
+      const t = top(p);
+      if (p === cage || t < 1.2 || t >= g.y - 0.05) return false;
+      if (Math.min(p.s[0], p.s[2]) < LEDGE.climbDepth) return false;
+      if (p.noLedge && t > MANTLE) return false;
+      const gx = Math.max(0, Math.abs(p.c[0] - g.x) - p.s[0] / 2);
+      const gz = Math.max(0, Math.max(g.z0 - z1(p), z0(p) - g.z1));
+      return hyp2(gx, gz) <= 4;
+    });
+    expect(bad.map((p) => [p.c, p.s])).toEqual([]);
+    const [tx0] = S4_BOX.tanks;
+    const tank = solid.find((p) => Math.abs(x0(p) - tx0) < 1e-6 && Math.abs(top(p) - 2.0) < 1e-6)!;
+    expect(tank.noLedge).toBe(true);
+    expect(x0(tank) - g.x).toBeCloseTo(0.95, 2);
+    const wall = solid.find((p) => Math.abs(x1(p) - 40.1) < 0.06 && top(p) > 2.7 && top(p) < 2.9)!;
+    expect(wall?.noLedge).toBe(true);
+    const under = solid.filter((p) => p !== cage && (p.c[0] - g.x) * g.n.x > 0 && top(p) > 0.3 && bottom(p) < 4.3 && x1(p) > g.x - 1 && x0(p) < g.x + 1 && z1(p) > g.z0 && z0(p) < g.z1);
+    expect(under.map((p) => [p.c, p.s])).toEqual([]);
+    const hit = solid.filter((p) => x1(p) > g.x - 0.4 && x0(p) < g.x + 0.45 + HANG.out && z1(p) > g.z0 && z0(p) < g.z1 && top(p) > g.y + 0.1 && bottom(p) < 6.2);
+    expect(hit.map((p) => [p.c, p.s])).toEqual([]);
+  });
+
+  it('CR10 no floor attach: reach() of the plant ladder from every compound nav cell within 1.5 m of (34.6, 23), facing it, is null; from the cage top (34.6, 4.4, 23) facing -x it returns entry \'bottom\'; the cage top holds a standing capsule; the hang-drop 4.4 <= 4.5', () => {
+    let cells = 0;
+    for (let x = 33.1; x <= 36.1; x += 0.25) {
+      for (let z = 21.5; z <= 24.5; z += 0.25) {
+        if (hyp2(x - 34.6, z - 23) > 1.5 || !onNav(x, z, 0)) continue;
+        cells++;
+        const d = hyp2(34.6 - x, 23 - z) || 1;
+        expect(reach(ladder, x, 0, z, (34.6 - x) / d, (23 - z) / d), `cell (${x}, ${z})`).toBeNull();
+      }
+    }
+    expect(cells).toBeGreaterThan(5);
+    const up = reach(ladder, 34.6, 4.4, 23, -1, 0);
+    expect(up?.entry).toBe('bottom');
+    // the cage top 0.9 x 1.2 holds a capsule (radius 0.3) with headroom to 6.2
+    expect(x1(cage) - x0(cage)).toBeGreaterThanOrEqual(2 * MOVEMENT.radius);
+    expect(z1(cage) - z0(cage)).toBeGreaterThanOrEqual(2 * MOVEMENT.radius);
+    expect(inRect(34.6 - MOVEMENT.radius, 34.6 + MOVEMENT.radius, 23 - MOVEMENT.radius, 23 + MOVEMENT.radius, 4.45, 6.2).map((p) => [p.c, p.s])).toEqual([]);
+    expect(4.4).toBeLessThanOrEqual(4.5);
+  });
+
+  it('CR10 exactly the planned ledge: one canHang ledge at 4.4 on the cage\'s east face (x 35.05, z 22.4..23.6), none on its other faces', () => {
+    // the build's `noLedge(x, z, r)` points (`LevelBuilder.build` applies them after generating the ledges)
+    const anchors = generateLedges(b.boxes);
+    for (const [x, z, r] of (b as unknown as { noLedgeAt: [number, number, number][] }).noLedgeAt) suppressLedgesNear(anchors, x, z, r);
+    const near = anchors.ledges.filter((q) => Math.abs(q.top - 4.4) < 1e-6 && Math.min(q.a.x, q.b.x) >= 34.05 && Math.max(q.a.x, q.b.x) <= 35.15 && Math.min(q.a.z, q.b.z) >= 22.3 && Math.max(q.a.z, q.b.z) <= 23.7);
+    const hang = near.filter((q) => q.canHang);
+    expect(hang.length).toBeGreaterThan(0);
+    for (const q of hang) expect([q.a.x, q.b.x], 'only the east face hangs').toEqual([expect.closeTo(35.05, 3), expect.closeTo(35.05, 3)]);
+    // the cage's other faces carry ledges, but the two noLedge points suppress them (no hang, no climb-up)
+    expect(near.filter((q) => !hang.includes(q)).every((q) => !q.canHang && !q.canClimbUp)).toBe(true);
   });
 });
