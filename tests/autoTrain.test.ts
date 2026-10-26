@@ -7,6 +7,7 @@ import {
   stackedTips, versionFromSubjects, withRecentSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
   checkWaitReason, ciLabel, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN, FAST_POLL_LATE_S, LAPTOP_EXPECT_MIN, pendingSince, laptopLate,
   failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase, repeatedSuites, carryLastDrop, AUTODROP_MAX_SUITES, confirmPlan,
+  ghRetryable, withRetry, GH_RETRY_S, buildExitState, nothingNewSkip, carryNothingNew, NOTHING_NEW_EXIT, deployPlan, carryDeployWatch, DEPLOY_REPAIR_MIN, SPARE_ID_TAG,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 // @ts-expect-error plain .mjs script without types
@@ -206,14 +207,14 @@ describe('auto-train: pacing', () => {
     expect(pacing({ now, releases: [now - 30 * 60 * MIN], maxPerDay: 1 })).toBeNull();
   });
 
-  it('reads the laptop queue branch: busy on an unclaimed request or an open claim (requests/, claims/, alerts/)', () => {
+  it('reads the laptop queue branch: busy only on an open laptop claim (requests/, claims/, alerts/; F19)', () => {
     const T = Date.UTC(2026, 9, 25, 2, 0, 0);
     const id = '20261025T013649-affected-e2e-d5ccca5a-f205';
     const done = { worker: 'laptop', at: '2026-10-25T01:40:00.000Z', done: true };
     expect(laptopQueueState([], { now: T })).toBe('idle');
     expect(laptopQueueState(['alerts/20261024T220717Z-desktop-tasks.json', 'README.md'], { now: T })).toBe('idle');
-    // queued: the request has no claim yet (auto-train.log: 483 idle ticks, 0 waits before this read requests/)
-    expect(laptopQueueState([`requests/${id}.json`], { now: T })).toBe('busy');
+    // queued: the request has no claim yet; F19 (2026-10-25 15:35): an unclaimed request no longer holds a train
+    expect(laptopQueueState([`requests/${id}.json`], { now: T })).toBe('idle');
     // finished (run, superseded, duplicate, withdrawn: all done claims)
     expect(laptopQueueState([`requests/${id}.json`, `claims/${id}.json`], { claims: { [id]: done }, now: T })).toBe('idle');
     // running: an open claim of a request or a train head
@@ -222,9 +223,198 @@ describe('auto-train: pacing', () => {
     // stale: a dead worker's open claim (over 3 h) or a never-claimed bad request (over 12 h) stop counting
     expect(laptopQueueState([`claims/${id}.json`], { claims: { [id]: { ...done, done: false, at: '2026-10-24T22:00:00.000Z' } }, now: T })).toBe('idle');
     expect(laptopQueueState(['requests/20261024T120000-bad-a-12345678-0000.json'], { now: T })).toBe('idle');
-    expect(laptopQueueState(['requests/20261024T215933-night-shift-sector-o-62d80c02-f7c4.json'], { now: T })).toBe('busy');
+    expect(laptopQueueState(['requests/20261024T215933-night-shift-sector-o-62d80c02-f7c4.json'], { now: T })).toBe('idle');
     // a busy queue holds the build until the interval; idle builds at once
-    expect(pacing({ now: T, releases: [T - 10 * MIN], queue: laptopQueueState([`requests/${id}.json`], { now: T }) })).toMatch(/laptop queue busy/);
+    const running = { [id]: { ...done, done: false } };
+    expect(pacing({ now: T, releases: [T - 10 * MIN], queue: laptopQueueState([`claims/${id}.json`], { claims: running, now: T }) })).toMatch(/laptop queue busy/);
+    expect(pacing({ now: T, releases: [T - 10 * MIN], queue: laptopQueueState([`requests/${id}.json`], { now: T }) })).toBeNull();
+  });
+});
+
+type Exec = { status: number | null, out?: string, err?: string, signal?: string | null, error?: { code: string } };
+
+describe('auto-train: gh retry (F12, HTTP 499 2026-10-26 13:50)', () => {
+  it('ghRetryable: HTTP 5xx, 499 and plain non-zero exits retry; success, timeouts, slow first tries and other 4xx do not', () => {
+    expect(GH_RETRY_S).toBe(5);
+    expect(ghRetryable({ status: 1, err: 'HTTP 499' })).toBe(true);
+    expect(ghRetryable({ status: 1, err: 'gh: Server Error (HTTP 502)' })).toBe(true);
+    expect(ghRetryable({ status: 1 })).toBe(true); // no HTTP text: a network blip
+    expect(ghRetryable({ status: null, signal: 'SIGTERM' })).toBe(false); // killed at exec's 120-s timeout
+    expect(ghRetryable({ status: -1, err: 'spawnSync gh ETIMEDOUT', error: { code: 'ETIMEDOUT' } })).toBe(false);
+    expect(ghRetryable({ status: 1, err: 'HTTP 502' }, 31_000)).toBe(false); // the first try already took over 30 s
+    expect(ghRetryable({ status: 1, err: 'gh: Not Found (HTTP 404)' })).toBe(false);
+    expect(ghRetryable({ status: 1, err: 'HTTP 422: Validation Failed' })).toBe(false);
+    expect(ghRetryable({ status: 0, out: 'x' })).toBe(false);
+  });
+
+  const runs = (results: Exec[]) => {
+    let i = 0;
+    const r = { calls: 0, waits: [] as number[], logs: [] as string[] };
+    const once = () => { r.calls++; return results[Math.min(i++, results.length - 1)]; };
+    return { r, once, opts: { waitMs: 5000, wait: (ms: number) => { r.waits.push(ms); }, log: (l: string) => { r.logs.push(l); } } };
+  };
+
+  it('withRetry: one retry after ~5 s on a transient failure, none on a 404 or with the knob at 0', () => {
+    const a = runs([{ status: 1, err: 'HTTP 499' }, { status: 0, out: 'x' }]);
+    const budget = { left: 1 };
+    expect(withRetry(a.once, { ...a.opts, budget }).out).toBe('x');
+    expect(a.r.calls).toBe(2);
+    expect(a.r.waits).toEqual([5000]);
+    expect(a.r.logs.join('\n')).toMatch(/retrying in 5 s/);
+    expect(budget.left).toBe(0);
+    const b = runs([{ status: 1, err: 'gh: Not Found (HTTP 404)' }, { status: 0, out: 'x' }]);
+    expect(withRetry(b.once, { ...b.opts, budget: { left: 1 } }).status).toBe(1);
+    expect([b.r.calls, b.r.waits.length]).toEqual([1, 0]);
+    const c = runs([{ status: 1, err: 'HTTP 502' }, { status: 0, out: 'x' }]);
+    expect(withRetry(c.once, { ...c.opts, waitMs: 0, budget: { left: 1 } }).status).toBe(1); // AUTO_TRAIN_GH_RETRY_S=0
+    expect([c.r.calls, c.r.waits.length]).toEqual([1, 0]);
+  });
+
+  it('withRetry: at most one retry per step (a second failing call with the budget spent is not retried), none after a slow first try', () => {
+    const budget = { left: 1 };
+    const a = runs([{ status: 1, err: 'HTTP 502' }, { status: 1, err: 'HTTP 502' }]);
+    expect(withRetry(a.once, { ...a.opts, budget }).status).toBe(1);
+    expect(a.r.calls).toBe(2); // retried once, failed again
+    const b = runs([{ status: 1, err: 'HTTP 502' }, { status: 0, out: 'x' }]);
+    expect(withRetry(b.once, { ...b.opts, budget }).status).toBe(1);
+    expect([b.r.calls, b.r.waits.length]).toEqual([1, 0]);
+    let t = 0;
+    const c = runs([{ status: 1, err: 'HTTP 502' }, { status: 0, out: 'x' }]);
+    const slow = () => { const v = t; t += 31_000; return v; };
+    expect(withRetry(c.once, { ...c.opts, now: slow, budget: { left: 1 } }).status).toBe(1);
+    expect(c.r.calls).toBe(1);
+  });
+
+  it('the shell retries read-only calls only: read / api / apiRaw / the laptop-queue read go through execRetry, act() never', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'auto-train.mjs'), 'utf8').replace(/\r\n/g, '\n');
+    expect(src).toMatch(/const read = \(cmd\) => readOnce\(cmd, execRetry\);/);
+    const act = src.slice(src.indexOf('function act(cmd)'), src.indexOf('function mergeTrain('));
+    expect(act).toMatch(/return readOnce\(cmd\);/);
+    expect(act).not.toMatch(/execRetry|read\(cmd\)/);
+    expect(src.slice(src.indexOf('function api('), src.indexOf('const fileAt'))).not.toMatch(/= exec\(/);
+    expect(src.slice(src.indexOf('function laptopQueue()'), src.indexOf('function nextN()'))).toMatch(/execRetry\(\['gh', 'api', 'graphql'/);
+    expect(src).toMatch(/GH_BUDGET\.left = 1;/); // reset each step
+  });
+});
+
+describe('auto-train: nothing new is idle (F12, train 102)', () => {
+  const cands = [{ pr: 5, branch: 'feature/a', head: 'aaa1' }, { pr: 6, branch: 'feature/b', head: 'bbb1' }, { pr: null, branch: 'feature/menu', head: undefined }];
+  const base = { train: 102, version: '4.103.0', members: ['feature/a', 'feature/b', 'feature/menu'] };
+
+  it('build exit 6: a new train is idle with nothingNew, a rebuild after release exit 3 stays failed', () => {
+    expect(NOTHING_NEW_EXIT).toBe(6);
+    const s = buildExitState({ n: 102, base, cands, master: 'm1' });
+    expect(s.state).toBe('idle');
+    expect(s.nothingNew).toEqual({ heads: ['feature/a@aaa1', 'feature/b@bbb1'], master: 'm1' });
+    expect(s.reason).toMatch(/^train 102: nothing new to release \(every member fragment is already in CHANGELOG\.md\): feature\/a, feature\/b, feature\/menu$/);
+    expect(s.members).toEqual(base.members);
+    const r = buildExitState({ n: 102, base, cands, master: 'm1', rebuildOf: '4.102.0' });
+    expect(r.state).toBe('failed'); // step's failed() records rebuildFailed (an idle would drop the open train)
+    expect(r.nothingNew).toBeUndefined();
+  });
+
+  it('nothingNewSkip: the same heads (any order) on the same master skip; a moved head, a new member or a moved master build', () => {
+    const prev = { state: 'idle', nothingNew: { heads: ['feature/b@bbb1', 'feature/a@aaa1'], master: 'm1' } };
+    expect(nothingNewSkip(prev, [...cands].reverse(), 'm1')).toBe(true);
+    expect(nothingNewSkip(prev, [{ ...cands[0], head: 'aaa2' }, cands[1]], 'm1')).toBe(false);
+    expect(nothingNewSkip(prev, [...cands, { pr: 7, branch: 'feature/c', head: 'ccc1' }], 'm1')).toBe(false);
+    expect(nothingNewSkip(prev, [cands[0]], 'm1')).toBe(false);
+    expect(nothingNewSkip(prev, cands, 'm2')).toBe(false);
+    expect(nothingNewSkip(prev, cands, null)).toBe(false);
+    expect(nothingNewSkip({ state: 'idle' }, cands, 'm1')).toBe(false);
+    expect(nothingNewSkip(null, cands, 'm1')).toBe(false);
+  });
+
+  it('carryNothingNew: rides along (pacing waits, holds, error ticks) until a status sets its own or a release', () => {
+    const nn = { heads: ['feature/a@aaa1'], master: 'm1' };
+    expect(carryNothingNew({ nothingNew: nn }, { state: 'waiting' }).nothingNew).toEqual(nn);
+    expect(carryNothingNew({ nothingNew: nn }, { state: 'error' }).nothingNew).toEqual(nn);
+    const nn2 = { heads: ['feature/a@aaa2'], master: 'm1' };
+    expect(carryNothingNew({ nothingNew: nn }, { state: 'idle', nothingNew: nn2 }).nothingNew).toEqual(nn2);
+    expect('nothingNew' in carryNothingNew({ nothingNew: nn }, { state: 'built', released: '4.103.0 (train 102)' })).toBe(false);
+    expect('nothingNew' in carryNothingNew({}, { state: 'idle' })).toBe(false);
+  });
+
+  it('the shell: exit 6 returns before any left-out comment; noTrain skips the build on nothingNewSkip', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'auto-train.mjs'), 'utf8').replace(/\r\n/g, '\n');
+    const b = src.slice(src.indexOf('async function build('), src.indexOf('async function noTrain('));
+    expect(b.indexOf('r.code === NOTHING_NEW_EXIT')).toBeGreaterThan(0);
+    expect(b.indexOf('r.code === NOTHING_NEW_EXIT')).toBeLessThan(b.indexOf('commentLeftOut('));
+    const nt = src.slice(src.indexOf('async function noTrain('), src.indexOf('async function step('));
+    expect(nt.indexOf('nothingNewSkip(')).toBeGreaterThan(0);
+    expect(nt.indexOf('nothingNewSkip(')).toBeLessThan(nt.indexOf('return build(nextN()'));
+  });
+});
+
+describe('auto-train: release without the deploy wait (F18)', () => {
+  const at = (min: number) => new Date(NOW + min * MIN).toISOString();
+  const W = { version: '4.119.0', at: at(0), repaired: null };
+
+  it('deployPlan: ok when /preview/ serves the version or a newer one; repair once 20 min after the release; give up 20 min after the repair', () => {
+    expect(DEPLOY_REPAIR_MIN).toBe(20);
+    expect(deployPlan(null, { now: NOW }).action).toBe('none');
+    expect(deployPlan(W, { now: NOW + MIN, served: '4.119.0' }).action).toBe('ok');
+    expect(deployPlan(W, { now: NOW + 30 * MIN, served: '4.120.0' }).action).toBe('ok');
+    expect(deployPlan(W, { now: NOW + 5 * MIN, served: '4.118.0' }).action).toBe('wait');
+    const rp = deployPlan(W, { now: NOW + 21 * MIN, served: '4.118.0' });
+    expect(rp.action).toBe('repair');
+    expect(rp.reason).toMatch(/^PREVIEW STALE 21 min after 4\.119\.0/);
+    expect(deployPlan(W, { now: NOW + 21 * MIN, served: null }).action).toBe('repair'); // unreadable counts as stale
+    const R = { ...W, repaired: at(21) };
+    expect(deployPlan(R, { now: NOW + 31 * MIN, served: '4.118.0' }).action).toBe('wait');
+    const g = deployPlan(R, { now: NOW + 42 * MIN, served: '4.118.0' });
+    expect(g.action).toBe('give-up');
+    expect(g.reason).toMatch(/pages-behind/);
+    expect(deployPlan(R, { now: NOW + 42 * MIN, served: '4.119.0' }).action).toBe('ok');
+    expect(deployPlan(W, { now: NOW + 60 * MIN, served: '4.118.0', repairMin: 0 }).action).toBe('wait'); // AUTO_TRAIN_DEPLOY_REPAIR_MIN=0: watch only
+  });
+
+  it('carryDeployWatch: carried on a tick without one, replaced by a new release, dropped after ok / give-up', () => {
+    const W2 = { version: '4.120.0', at: at(50), repaired: null };
+    expect(carryDeployWatch({ deployWatch: W }, { state: 'idle' }).deployWatch).toEqual(W);
+    expect(carryDeployWatch({ deployWatch: W }, { state: 'error' }).deployWatch).toEqual(W);
+    expect(carryDeployWatch({ deployWatch: W }, { state: 'building', released: '4.120.0', deployWatch: W2 }).deployWatch).toEqual(W2);
+    expect('deployWatch' in carryDeployWatch({ deployWatch: null }, { state: 'idle' })).toBe(false); // deployStep dropped it
+    expect(carryDeployWatch({ deployWatch: W }, { state: 'idle', deployWatch: null }).deployWatch).toBeNull();
+    expect('deployWatch' in carryDeployWatch({}, { state: 'idle' })).toBe(false);
+  });
+
+  it('the shell: release hands merge-train MERGE_TRAIN_DEPLOY_WAIT_MIN (default 0) and opens the watch; repair runs without a wait', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'auto-train.mjs'), 'utf8').replace(/\r\n/g, '\n');
+    expect(src).toMatch(/const DEPLOY_WAIT = envMin\('AUTO_TRAIN_DEPLOY_WAIT_MIN', 0\);/);
+    expect(src).toMatch(/mergeTrain\(releaseArgs\(t\), \{ MERGE_TRAIN_DEPLOY_WAIT_MIN: String\(DEPLOY_WAIT\) \}\)/);
+    expect(src).toMatch(/deployWatch = \{ version: t\.version, at: new Date\(\)\.toISOString\(\), repaired: null \}/);
+    expect(src).toMatch(/mergeTrain\(\['repair'\], \{ MERGE_TRAIN_DEPLOY_WAIT_MIN: '0' \}\)/);
+    const ss = src.slice(src.indexOf('async function safeStep('), src.indexOf('function writeStatus('));
+    expect(ss.indexOf('deployStep(before)')).toBeLessThan(ss.indexOf('await step(o)')); // every tick, before the step
+  });
+});
+
+describe('auto-train: pacing counts laptop claims only (F19, 2026-10-25 15:35)', () => {
+  const T = Date.UTC(2026, 9, 26, 14, 0, 0);
+  const id = '20261026T135500-affected-e2e-d5ccca5a-f205';
+  const claim = (worker: string, o: Record<string, unknown> = {}) => ({ worker, at: '2026-10-26T13:56:00.000Z', done: false, ...o });
+  const state = (claims: Record<string, unknown>) => laptopQueueState(Object.keys(claims).map((k) => `claims/${k}.json`), { claims, now: T });
+
+  it('busy only on an open, fresh, non-spare laptop claim', () => {
+    expect(state({ [id]: claim('desktop') })).toBe('idle');
+    expect(state({ [id]: claim('laptop') })).toBe('busy');
+    expect(state({ [id]: claim('laptop', { done: true }) })).toBe('idle');
+    expect(state({ [id]: claim('laptop', { at: '2026-10-26T10:30:00.000Z' }) })).toBe('idle'); // 3.5 h: a dead worker's
+    expect(state({ '20261026T140000-laptop-queue-spare-ab12cd34': claim('laptop') })).toBe('idle');
+    expect(state({ [id]: claim('desktop'), ['a'.repeat(40)]: claim('laptop') })).toBe('busy'); // a train head on the laptop
+    expect(laptopQueueState([`requests/${id}.json`], { now: T })).toBe('idle'); // unclaimed, fresh
+  });
+
+  it('the spare tag matches the laptop queue lib\'s request id of its spare requester', async () => {
+    // @ts-expect-error plain .mjs script without types
+    const lib = await import('../scripts/laptop-queue/lib.mjs');
+    expect(lib.requestId(T, lib.SPARE_REQUESTER, 'ab12cd34ef')).toContain(SPARE_ID_TAG);
+  });
+
+  it('the pacing line: a desktop claim only and the last release 10 min ago builds', () => {
+    expect(pacing({ now: T, releases: [T - 10 * MIN], queue: state({ [id]: claim('desktop') }) })).toBeNull();
+    expect(pacing({ now: T, releases: [T - 10 * MIN], queue: state({ [id]: claim('laptop') }) })).toMatch(/laptop queue busy/);
   });
 });
 
