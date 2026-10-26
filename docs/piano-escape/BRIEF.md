@@ -31,6 +31,9 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
   similar samples based off the provided file and tags."
 - 2026-10-26 ~20:16, chat (relayed by the orchestrator), on the grain mill: "Must be very cinematic, Not meant to be open
   world or explored. Must force stealth, stalking, kills, coop kills. I want it to showcase a tense, coop gameplay"
+- 2026-10-26 ~20:40 (relayed by the orchestrator, not verbatim): Michael supplied a second Pixabay track for the picker,
+  "Suspense Thriller" by Alex Grohl (id 552495, Pixabay Content License), at
+  C:/NightShift/scratch/music/alexgrohl-suspense-thriller-552495.mp3.
 - 2026-10-26 ~20:15 (relayed by the orchestrator): the bunker felt too close to one of CT's final missions; replaced.
 
 ## Michael picked

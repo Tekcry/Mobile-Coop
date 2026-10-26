@@ -27,4 +27,12 @@ stealth / stalking / solo kills / paired co-op kills (~20:16). The approved open
    thunder AND music cues from `flashAt`, never each machine's music time (drift). Light enters only through real
    openings (windows, board gaps); keep the pre-EMP electric lamps (window-pool path needs one fixed lamp). Look:
    `?lightning=1`. TODO after re-check 2: PLAN flash timetable restated from t0 = EMP press (not track time), S6 uses it.
-Next: finish the mill redraw -> re-check -> SIGNOFF to the orchestrator; S1 report -> S1 + S3 checker -> PR.
+7. ~20:45 USAGE LIMIT. Redraw fix round 2 pushed (PLAN 9b237f61c, SVG c04187955, SIGNOFF 1605c60fa). Re-check 3 = FIX on
+   three lead-sized items (piano-plan-check.md "Re-check 3"); B1 (the Grohl line in BRIEF) is fixed. Still to apply in
+   the PLAN (one small Opus fix, then SIGNOFF to the orchestrator without another full re-check):
+   L1a lightning `period: 91.03` (S3 loop restarts every 91.03 s, scenePiano.ts:66-68) + S1b test period == loopPeriod();
+   L1b the client learns t0: S4 sends the host's EMP-press time as one optional field in the existing sector state
+   (claims `protocol` line updated; no PROTOCOL_VERSION bump, the train does it);
+   L2 S2 calls blackoutSearchSlots after the opening guards exist (not in the spawn step) + a test that it returns 2;
+   L5 polish: S4 survivable-start pass line ("both players reach the low sacks within 4 s, no guard past suspicious").
+Next: apply L1a / L1b / L2 / L5 to the PLAN -> SIGNOFF to the orchestrator for Michael's click; PR #606 rides the train.
