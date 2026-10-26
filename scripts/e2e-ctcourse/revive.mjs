@@ -26,6 +26,9 @@ export const SURFACES = {
   8: { name: 'A8 gallery', y: 4.4, client: [107.9, 68.2], host: [107.9, 69.4], below: [107.9, 0, 68.2] },
 };
 
+/** The re-plan's table: A2's staging deck is gone there (x 33 is its stores-bay wall), so set 2 has no raised surface. */
+export const REPLAN_SURFACES = { 1: SURFACES[1], 6: SURFACES[6], 8: SURFACES[8] };
+
 /** Free one revive of the team budget (reset the clock only when it is spent): returns `used` before the revive. */
 export const freeRevive = (GA) =>
   GA(() => {

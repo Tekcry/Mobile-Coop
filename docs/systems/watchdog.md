@@ -65,7 +65,8 @@ commit itself, `headRef.target`, and counts only while that is `headRefOid`):
   (a FIX verdict may post `state=failure`);
 - `affected-e2e` = success. Required by default: without it the PR is not labelled (`pr-affected-unavailable`; the
   laptop service posts it on every non-draft head). Opt out with `--no-require-affected` / `WATCHDOG_REQUIRE_AFFECTED=0`, or per PR with the
-  `no-affected-e2e` label (the label reason and comment then say "affected-e2e waived", plus a `pr-affected-waived` alert);
+  `no-affected-e2e` label, which also waives an `error` affected-e2e that never ran (withdrawn, conflict; F55), never a red
+  or pending one (the label reason and comment then say "affected-e2e waived", plus a `pr-affected-waived` alert);
 - not a draft (a draft never keeps `train-ready`: the label comes off it too), not CONFLICTING, not a `train/<n>` head.
 With `--fix prs` the label comes off when a required check turns red on the head, or when commits land after it that
 touch more than docs, `*.md`, `changes/` fragments or CHANGELOG and the new head has no `checker` success.
