@@ -1014,40 +1014,27 @@ docs/piano-escape/PLAN.md "Guard AI Build asks" on origin/feature/piano-escape).
 Mill (map id thornbeckMill), a tall timber grain mill at night in a thunderstorm, 12-16 guards, one exit, all must go
 down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); lightning = one flash value per sim step from
 fixed timeline data (Sector Ops SO5), guards just read the light.
-Open (2026-10-26 ~20:30 SAVE):
-1. Piano asks, job feature/guard-ai-piano (worktree -guard-ai-piano, node_modules junction to -guard-ai-home):
-   - GA1 + GA3 BUILT 81a43f950, PR #603; check A PASS (PIANO-GA13-CHECK-A.md, polish: spawn G1-G4 first on the
-     4-slot fallback; sceneDark doc "before the cut if it goes through lightsOut"; the searchers walk at the wall from
-     5-7 m, S4 checks it is survivable); check B (covers GA7) running -> PIANO-GA13-CHECK-B.md: EnemyManager.sceneDark (torch on in every state, Enemy.torchWanted),
-     blackoutSearch(guards, x, z) with SEARCH_BLACKOUT (6 m ring, response.ts), lightsOut sends nobody while sceneDark;
-     tests/pianoGuards.test.ts 5/5, AI tests 90 files green. Next: PR (minor fragment in), TWO Opus checkers, tell
-     Campaign the API (scene sets em.sceneDark = true at the EMP, calls em.blackoutSearch([G1..G4], wallX, wallZ)).
-   - GA7 BUILT cdd11c540 on #603: hearing.ts mapWideNoise(id, db) (infinite radius: full dB at every listener);
-     AGREED with Sector Ops ~20:40: noisy: [mapWideNoise('rain', 6)] in the scene section, constant level.
-     Campaign told the GA1 / GA3 / GA7 API ~20:40.
-   - GA4 intro actors: sectorGuardFreeze.ts is a render-only cull (brain and rig run on), so freeze + anim rate does
-     NOT do it; Campaign told to stub with posed stand-ins. Next slice: a GuardActor (buildEnemyRig + MotionDriver,
-     enemy.ts:713-719 and :3978, driven along a path at a rate, aimed walk + fire pose, no AI, not in the enemy lists).
-   - GA6 slow methodical torch sweep (Michael ~20:10 "The guards must move slowly and methodically to find both
-     players"): fixed readable pattern, some in pairs, slow walk, checking behind cover, deterministic (VISION 8).
-     Plan only once Campaign's thornbeckMill room data lands. GA5 (patrol review) waits for the map too.
-2. #588 play pass A (feature/guard-ai-home): train 132 failed guardHome (S1 v2-c gatehouse: ~45000 A* expansions
-   needed). Fix e967d906e: sliced long plan (NavGrid sliceStart/sliceStep). Check FIX (PLAY-A-TRAIN132-CHECK.md: a
-   running slice starved by another guard taking the token; cap too low, worst ~77000) -> lead fix round 55a8cddcb
-   (sliceFree pure read before the token, sliceTick frames, sliceLost retried, homeCap 120000, (60, -36) case);
-   verified on master + #518 (guardHome 5 S1 starts home, 34/34). Opus re-check running -> PLAY-A-TRAIN132-RECHECK.md.
-   PASS -> post checker, affected-e2e, tell the orchestrator to re-label (#518 ships first).
-3. #317 coop4: merge 7 check PASS; then train 133 conflicted again -> merge 8 047c1ddf1 (PROTOCOL_VERSION 72; S1 v2-c
-   extras = master's TAG-1 rows from docs/campus-greybox/briefs/S1.md; graph S1 sums 15/15/16/17; master's S1 tests
-   adapted: base list, screen over 17, graph per team size). NEEDS one Opus merge check (when a slot frees), checker
-   post, co-op group affected-e2e, then train-ready. Sector Ops TAG lanes may later replace the S3-S5 extras.
-4. #595 J15 PR4: merge check PASS, checker POSTED on 258be2999 (adds the v2 S5 marksman lookout post); waits on
-   affected-e2e. Green -> train-ready. Job-done: guard-rules. J26 mission hooks after it, spare capacity only.
+Open (2026-10-26 ~21:05, new account boot):
+1. Piano asks (Campaign's PLAN numbering: GA7 there = the flash-sighting reaction; our mapWideNoise is "rain"):
+   - #603 feature/guard-ai-piano (worktree -guard-ai-piano) = GA1 sceneDark + GA3 blackoutSearch / blackoutSearchSlots +
+     rain mapWideNoise: checks A + B PASS, checker POSTED on e772cb25d, CI green; affected-e2e queued. Green -> tell
+     the orchestrator train-ready. Campaign has the API (PLAN folded it, 9b237f61c).
+   - GA4 GuardActor: brief docs/guard-ai/slices/PIANO-GA4.md on feature/guard-ai-piano-actor (worktree
+     -guard-ai-piano-actor, off master 1396ebd4c), Opus builder running -> PIANO-GA4-REPORT.md. Then PR (patch
+     fragment), TWO Opus checkers, send Campaign the API (S2 swaps its posed stand-ins).
+   - GA5 route review + GA6 slow torch sweep (+ PLAN GA7 flash glimpse at sweep pace, folds into GA6): wait for
+     Campaign's thornbeckMill greybox S1b (stub map today; after Michael's click). Plan GA6 then, not before.
+2. #588 play pass A (feature/guard-ai-home): re-check PASS, checker POSTED on 9d265be2b, CI green; affected-e2e queued.
+   Ships after #518; green -> tell the orchestrator.
+3. #317 coop4: merge 8 check PASS (docs/coop4/checks/MERGE8-CHECK.md, d150ed1d5); orchestrator asked ~21:00 to post
+   checker on d150ed1d5; co-op group affected-e2e queued. Green -> train-ready. Another master conflict -> merge 9.
+4. #595 J15 PR4: checker POSTED on 258be2999, CI green, affected-e2e running. Green -> train-ready. Job-done:
+   guard-rules. J26 mission hooks after it, spare capacity only.
 5. Polish (only if it helps the playthrough): after Sector Ops #602 lands, stealthSystems.ts isOff (:381) false when
    every lamp of the circuit is mainsCut (a guard walks to a dead switch); #588 hard backstop on wake-body / alarm walks, "can't get through" bark,
    post guard off his storey re-plans every 5 s; #585 orphaned onEnemyJoined comment (courseMode.ts:1394-1407);
    pressing guards round waist-high blocks; NetSession.roomCap unused; guardpairs=0 on the flag-off talking-pairs e2e;
    autojoin 5th tab gets bye not "Room full"; J16 perception half.
-Next: #588 check verdict -> status; GA1 + GA3 PR + two Opus checkers; GA7 hook with Sector Ops; GA4; GA6 when the map
-lands; #317 / #595 train-ready as their e2e go green.
+Next: GA4 report -> PR + two Opus checkers -> API to Campaign; tell the orchestrator as #603 / #588 / #317 / #595 go
+green; GA5 / GA6 when the thornbeckMill greybox lands.
 ```
