@@ -6,6 +6,11 @@ Process as below. Newest: scratch/campaign/lead-notes.md section "Session after 
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 Fixes first (Michael ~14:00, docs/orchestrator/FIXES.md via the orchestrator). Bypass mode: the lead posts `checker`
 statuses itself. Local checks via scratch/ctcore/low.mjs. Desktop CPU 82% at 14:55: no new local builders over ~80%.
+FIX FREEZE from 15:20 (FIXES.md "Fix freeze", feature/menu 185328f2f): no feature builders or feature queue requests
+until every open fix ships; my tallow requests (prg2-a / -b, look-video) are parked on laptop-queue `parked/`, #522
+drafted by the orchestrator (mark ready at the end). Re-file prg2-a / -b only if tallow-fixes-2 moved past ab129b96c.
+My fix: F28 (e2e-course + e2e-bunker second tab `&autojoin=1` + boot diagnostic), branch feature/f28-course-bunker in
+C:/NightShift/Mobile-Coop-f28-course-bunker, stacked on #553 (feature/ctcourse-flake-fix). Spare time: plans / briefs.
 1. Engine feature/mission-engine 321e4eed2 (PR T + NET3 gate merged; claims block 6be3da64b; BRIEF A25-A28: C4 big-pr
    only, wharf as C9-C16, members retargeted to master just before train-ready, NET3 firstPlace behind `missions`).
 2. PR G1 c648c5d85: laptop tallow-prg1 ran on the desktop slot 4191 and timed out (exit 124, 0/7 suites, 60 min cap
@@ -26,7 +31,7 @@ statuses itself. Local checks via scratch/ctcore/low.mjs. Desktop CPU 82% at 14:
 7. PR #549 feature/look-video 8a67136d3 (tool to master; PASS + status). First run: alone 20261026T031806 on run branch
    feature/look-video-tallow dc7bb9342 (engine + 2 script files; webm on the laptop C:/NightShift/scratch/look-video/).
    The W1-W4 videos gate C9 / C10 bodies.
-Next: laptop verdicts tallow-prg2-a / -b -> G2 (carries G1 + E8), then S into the engine; cut C3; D1 pickup.
+Next: F28 fix PR (freeze); after the freeze: tallow-prg2-a / -b verdicts -> G2 into the engine, then S; cut C3; D1 pickup.
 
 ## OLD RESUME 2026-10-26 ~14:30 (Night Shift | Campaign Build)
 Superseded by the block above (G1 rerun dropped; G2 carries it).
