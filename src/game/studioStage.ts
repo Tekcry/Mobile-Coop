@@ -27,7 +27,7 @@ import type { WeaponModel } from '../weapons/weaponModel';
 import { loadStudioCaptures, stageLightKeep, stageLightMeshes } from '../anim/studio';
 import { LOD_NAMES } from '../operators/runtime/manifest';
 import { newKillDrive } from '../anim/killDrive'; // (piano-knife S1) the knife pairs
-import { bucklePitchOf, buckleAt, KNIFE, KNIFE_KILLS, knifeClip, knifeClipsReady, loadKnifeClips, victimPhase } from './knifeKill';
+import { attackerPhase, bucklePitchOf, buckleAt, KNIFE, KNIFE_KILLS, knifeClip, knifeClipsReady, loadKnifeClips, victimPhase } from './knifeKill';
 import { attackerHands, newPairTrack, pairHandsOff, resetPairTrack, victimHands, victimRoot, type RootOut } from './knifePair';
 import { KnifeModel } from '../weapons/knifeModel';
 import { WREN_HANDS } from '../operators/handFrame';
@@ -716,7 +716,7 @@ export class StudioStage {
     const since = t - R.contact * R.seconds;
     const a = this.kAD;
     a.clip = knifeClip(k, false);
-    a.phase = ph;
+    a.phase = attackerPhase(R, t / R.seconds); // (piano-knife S2) the clip window at its own speed, on through the blend-out
     a.w = t < R.seconds ? Math.min(1, t / KNIFE.blendIn) : Math.max(0, 1 - (t - R.seconds) / KNIFE.blendOut);
     ar.graph.kill = a;
     const v = this.kVD;

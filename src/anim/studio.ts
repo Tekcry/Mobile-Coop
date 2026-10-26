@@ -148,10 +148,10 @@ function teamPair(m: TeamMoveId): StudioEntry {
 export const KNIFE_PAIR_REST = 0.5;
 
 /** (piano-knife S1) A knife kill pair (`pair:knife_<id>`): Wren and a guard through the game's kill drive and pairing
- *  (the S1 stand-in clips), the knife shown, looping with `KNIFE_PAIR_REST`. For the look video. */
+ *  (the real Mixamo pairs since piano-knife S2), the knife shown, looping with `KNIFE_PAIR_REST`. For the look video. */
 function knifePair(k: number): StudioEntry {
   const id = KNIFE_KILL_IDS[k]!;
-  return { id: `pair:knife_${id}`, label: `pair: knife ${id} (stand-in clips)`, kind: 'pair', clip: null, pace: 0, cycle: KNIFE_KILLS[k]!.seconds + KNIFE_PAIR_REST, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: null, knife: k };
+  return { id: `pair:knife_${id}`, label: `pair: knife ${id}`, kind: 'pair', clip: null, pace: 0, cycle: KNIFE_KILLS[k]!.seconds + KNIFE_PAIR_REST, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: null, knife: k };
 }
 
 /** (anim-studio-2) A hold pair: Wren's hold clip and the guard's clip in place on one clock (Wren's keyed cycle). */

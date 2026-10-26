@@ -8,7 +8,7 @@ import { Vector3 } from '../src/core/babylon';
 import { TAKEDOWN, type TakedownKind, type TakedownPlan } from '../src/game/takedown';
 import { TakedownController, type TakedownVictim } from '../src/game/takedownController';
 import type { GameState } from '../src/game/gameState';
-import { bucklePitchOf, buckleAt, KNIFE, KNIFE_KILLS, knifeClipsReady, loadKnifeClips, resetKnifeClipsForTest, victimPhase } from '../src/game/knifeKill';
+import { attackerPhase, bucklePitchOf, buckleAt, KNIFE, KNIFE_KILLS, knifeClipsReady, loadKnifeClips, resetKnifeClipsForTest, victimPhase } from '../src/game/knifeKill';
 
 const DT = 1 / 60;
 
@@ -187,6 +187,8 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
       for (let n = 0; n < 600 && s.td.active; n++) {
         s.td.fixedUpdate(DT, false, false);
         if (s.graph.kill !== null) drove = true;
+        // (S2) her clip's window at its own speed (`attackerPhase`), written out by the step
+        if (s.td.kt > 0) expect((s.graph.kill as { phase: number }).phase).toBeCloseTo(attackerPhase(R, s.td.kt / R.seconds), 12);
         // his clip's phase and buckle as the pure helpers give them (the step writes them out: no boxed numbers)
         if (s.td.kt > 0) {
           expect(v.lastPh).toBeCloseTo(victimPhase(R, s.td.kt / R.seconds), 12);
@@ -209,7 +211,12 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
       // the tail: the attacker held, no offer, the knife still in hand, then free
       expect(s.knife.shown).toBe(true);
       expect(s.controller.override).not.toBeNull();
+      // (S2, S1 checker polish 1) `active` is null in the tail but the takedown still owns her (`busy`: gameState keeps
+      // the gun stowed and traversal off)
+      expect(s.td.active).toBeNull();
+      expect(s.td.busy).toBe(true);
       runOut(s);
+      expect(s.td.busy).toBe(false);
       expect(s.td.offer).toBeNull();
       expect(s.knife.shown).toBe(false);
       expect(s.graph.kill).toBeNull();
@@ -245,6 +252,8 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
     expect(s.knife.shown).toBe(true);
     runOut(s);
     expect(v.killed).toBe(true);
+    // (S2, S1 checker polish) every piano kill is quiet: the -1 path at the knife's radius too
+    expect(s.hears).toEqual([KNIFE.noise]);
     expect(s.ev.map((e) => [e.phase, e.lethal, e.knife])).toEqual([
       ['start', true, true],
       ['done', true, true],
