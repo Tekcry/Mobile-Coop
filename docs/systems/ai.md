@@ -50,11 +50,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   lookouts on some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight
   above) stays the base rule; a lookout is the deliberate exception on its route; a vent lookout stands where he
   overlooks the vent run or its exit, not in the vent (G378). Built: talking pairs on a timed loop that meet, and search
-  when the partner is missing at the meeting (guard-ai S10, "Talking pairs" below), plus the squad radio checks. Not
-  built yet (job guard-rules, FOLDED-PLAN J15): lookouts, a partner check while the pair walks between meetings, and
-  posted (static) pairs (`pairWhyNot` skips them).
+  when the partner is missing at the meeting (guard-ai S10, "Talking pairs" below), plus the squad radio checks. Built
+  dark behind `guardPairs` (guard-rules S6, J15): a partner check while the pair walks between meetings, and posted
+  (static) pairs that talk and check. Lookouts: guard-rules S7 (PR4, `lookouts`).
 - Decided (G327, "Yes, shadow in view = seen"; G382, "Like on screen"): a guard whose shadow falls in view animates
-  like an on-screen guard (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen.
+  like an on-screen guard (`animTierView.ts`; replaces G294's assumption). Built (J4, #438; `animShadow`).
 - Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
   shows them (light parity; `docs/systems/lighting.md`), and a player's cast shadow in a guard's view gives him a
   faint cue, a small rise in suspicion, never a sighting on its own (G379; planned in FOLDED-PLAN J16). Today guards
