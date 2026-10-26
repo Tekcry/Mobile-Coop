@@ -131,7 +131,9 @@ export const A6_PUMP_HOUSE_STATIONS: readonly StationDef[] = [
 export const A6_RETRY_LINES: readonly { id: string; text: string }[] = [
   { id: 'a6-rope', text: 'The attendant saw you. Back to the sump bay, behind the kerb.' },
   { id: 'a6-hangdown', text: "The attendant saw you on the bridge. Back to the bridge's north end." },
-  { id: 'a6-dropcatch', text: 'The attendant heard the landing. Back to the bridge; catch your partner.' },
+  // (fix 1) until `dropCatch` ships the way down is the stand-in ladder, so the line names it, not the catch (STATIONS section 6
+  // has "Back to the bridge; catch your partner."; it goes back to that when the move ships)
+  { id: 'a6-dropcatch', text: 'The attendant heard the landing. Back to the bridge; take the cage ladder down.' },
 ];
 
 /** The bay's objective lines on the re-plan: one per station (what and where), then the outfall line. */
@@ -152,12 +154,16 @@ export const A6_OBJECTIVES: readonly CourseObjective[] = [
     b: 'Hold the isolate key on the drive panel while he is away.',
     done: { flag: A6_DRIVE_FLAG },
   },
+  // (fix 1) station 16's stand-in: until `dropCatch` ships, the way down is the cage ladder (`g-a6-pit-ladder`) and there is no
+  // catch, so both go down it. When the move ships these go back to the drop and catch: text "One of you drops through the
+  // bridge opening into the drive pit; the other catches.", a "Step off the bridge through the opening over the pit.", b "Stand
+  // under the opening in the drive pit and catch your partner."
   {
     id: 'a6-drop',
     bay: 'A6',
-    text: 'One of you drops through the bridge opening into the drive pit; the other catches.',
-    a: 'Step off the bridge through the opening over the pit.',
-    b: 'Stand under the opening in the drive pit and catch your partner.',
+    text: 'Both of you down the cage ladder through the bridge opening into the drive pit.',
+    a: 'Climb down the cage ladder through the bridge opening into the drive pit.',
+    b: 'Down the cage ladder through the bridge opening; wait at its foot in the drive pit.',
     done: { flag: A6_PIT_FLAG },
   },
   { id: 'a6-lock', bay: 'A6', text: 'The interlock is green. Out through the outfall culvert from the pit to holding room six.' },

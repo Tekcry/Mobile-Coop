@@ -13,4 +13,6 @@ kind: minor
 - Every light works: the sump bay's high-bay and the two west gallery lamps are live, on a new switch on the sump bay's
   south wall by the holding room five door.
 - Seen by the attendant: both players go back to that step's start marks. Earlier steps stay done.
+- While the ladder stands in for the drop catch, the drop step's objective and its retry line tell you both to go down
+  the cage ladder through the bridge opening into the drive pit.
 - The built yard is unchanged.
