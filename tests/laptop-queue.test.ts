@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, placeFor, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -151,6 +151,112 @@ describe('pick: front, green smallest first', () => {
     const got = greenIds([ok, notGreen, stale, rerun, lrerun, spare, full], board);
     expect([...got]).toEqual([ok.id]);
     expect(greenIds([ok], new Map()).size).toBe(0);
+  });
+});
+
+describe('pick: fixes first, keep place (laptop-queue-8 slice A)', () => {
+  const pr = (min: number, tag: string, extra: Record<string, unknown> = {}) => ({ ...req(min, 'pr', tag, tag), pr: 1, sha: tag, ...extra });
+  const order = (fix: string[], green: string[] = [], wall: Record<string, number> = {}, extra: Record<string, unknown> = {}) => ({
+    fix: new Set(fix), green: new Set(green), wallS: wall, frontBranches: ['mixamo'], maxWaitMs: 30 * 60_000, ...extra,
+  });
+  const run = (requests: unknown[], o: unknown) => pick({ trains: [], requests, order: o }, NOW, slots(false, false))?.request;
+
+  it('prBoard reads the fix label', () => {
+    const b = prBoard([
+      { number: 1, headRefOid: 'a', labels: [{ name: 'train-ready' }, { name: 'fix' }] },
+      { number: 2, headRefOid: 'b', labels: [{ name: 'wontfix' }] },
+      { number: 3, headRefOid: 'c' },
+    ]);
+    expect(b.get(1).fix).toBe(true);
+    expect(b.get(2).fix).toBe(false);
+    expect(b.get(3).fix).toBe(false);
+  });
+  it('isFix: the --fix flag or the board label; never alone, spare, train or laptop reruns', () => {
+    const board = new Map([[7, { head: 'x', conflicting: false, green: false, fix: true }], [8, { head: 'y', conflicting: false, green: false, fix: false }]]);
+    expect(isFix({ ...pr(1, 'f'), pr: 8, fix: true }, board)).toBe(true);
+    expect(isFix({ ...pr(1, 'l'), pr: 7 }, board)).toBe(true);
+    expect(isFix({ ...req(1, 'full', 'fu'), pr: 7 }, board)).toBe(true);
+    expect(isFix({ ...pr(1, 'n'), pr: 8 }, board)).toBe(false);
+    expect(isFix({ ...pr(1, 'g'), pr: 7 }, new Map())).toBe(false); // a gh error empties the board: only --fix counts
+    expect(isFix({ ...req(1, 'alone', 'al'), pr: 7, fix: true }, board)).toBe(false);
+    expect(isFix({ ...pr(1, 'tr'), pr: 7, trainRerun: true, fix: true }, board)).toBe(false);
+    expect(isFix({ ...pr(1, 'lr'), pr: 7, laptopRerun: true }, board)).toBe(false);
+    expect(isFix({ ...spareReq(1, 'pr'), pr: 7, fix: true }, board)).toBe(false);
+  });
+  it('a fix beats a front (mixamo) request and a green one', () => {
+    const green = pr(30, 'green');
+    const mix = pr(20, 'mix', { branch: 'feature/mixamo-x' });
+    const fix = pr(1, 'fix');
+    expect(run([green, mix, fix], order([fix.id], [green.id], { [green.id]: 12 }))).toBe(fix);
+    expect(run([green, mix, fix], order([], [green.id], { [green.id]: 12 }))).toBe(mix);
+  });
+  it('two fixes: the smaller place first, no wait bound', () => {
+    const f1 = pr(5, 'f1');
+    const f2 = pr(3, 'f2', { place: idAt(60, 'old') });
+    const plain = pr(90, 'plain'); // waited past the 30 min bound: the fix tier still goes first
+    expect(run([plain, f1, f2], order([f1.id, f2.id]))).toBe(f2);
+    expect(run([plain, f1], order([f1.id]))).toBe(f1);
+  });
+  it('trains, train reruns and an aged alone still go before a fix', () => {
+    const fix = pr(5, 'fix');
+    const o = order([fix.id]);
+    expect(pick({ trains: [train], requests: [fix], order: o }, NOW, slots(false, false))).toEqual({ kind: 'train', train });
+    const rerun = { ...req(3, 'pr', 'rr', 'rr'), trainRerun: true };
+    expect(pick({ trains: [], requests: [fix, rerun], order: o }, NOW, slots(false, false))?.request).toBe(rerun);
+    const alone = req(50, 'alone');
+    expect(pick({ trains: [], requests: [fix, alone], order: o }, NOW, slots(false, false))).toEqual({ kind: 'alone', request: alone });
+    expect(pick({ trains: [], requests: [fix, alone], order: o }, NOW, slots(true, false))).toBeNull();
+  });
+  it('no order.fix (LQ_FIX_FIRST=0) gives the laptop-queue-7 result', () => {
+    const green = pr(30, 'green');
+    const mix = pr(20, 'mix', { branch: 'mixamo-a' });
+    const fix = pr(1, 'fix', { fix: true });
+    const o7 = { green: new Set([green.id]), wallS: { [green.id]: 12 }, frontBranches: ['mixamo'], maxWaitMs: 30 * 60_000 };
+    expect(run([green, mix, fix], o7)).toBe(mix);
+    expect(run([green, fix], o7)).toBe(green);
+    expect(run([green, mix, fix], { ...o7, fix: new Set() })).toBe(mix);
+  });
+  it('place: a newer request with an older place wins arrival over an older request of another requester', () => {
+    const other = pr(30, 'other');
+    const kept = pr(5, 'kept', { place: idAt(40, 'gone') });
+    expect(pick({ trains: [], requests: [other, kept] }, NOW, slots(false, false))?.request).toBe(kept);
+    expect(run([other, kept], order([]))).toBe(kept);
+    expect(placeKey(kept)).toBe(idAt(40, 'gone'));
+  });
+  it('a place above its own id (or not a string) is ignored', () => {
+    const other = pr(30, 'other');
+    const late = pr(5, 'late', { place: idAt(1, 'newer') });
+    const bad = pr(4, 'bad', { place: 12 });
+    expect(placeKey(late)).toBe(late.id);
+    expect(placeKey(bad)).toBe(bad.id);
+    expect(pick({ trains: [], requests: [late, bad, other] }, NOW, slots(false, false))?.request).toBe(other);
+  });
+  it('starvation uses the place time', () => {
+    const kept = pr(5, 'kept', { place: idAt(31, 'gone') });
+    const green = pr(3, 'green');
+    expect(run([kept, green], order([], [green.id], { [green.id]: 12 }))).toBe(kept);
+    const young = pr(5, 'young', { place: idAt(29, 'gone') });
+    expect(run([young, green], order([], [green.id], { [green.id]: 12 }))).toBe(green);
+  });
+  it('green ties go by place', () => {
+    const a = pr(10, 'a');
+    const b = pr(5, 'b', { place: idAt(20, 'gone') });
+    expect(run([a, b], order([], [a.id, b.id], { [a.id]: 12, [b.id]: 12 }))).toBe(b);
+  });
+  it('placeFor: a chain R1 -> R2 -> R3 gives R3 the place of R1; no entry when the survivor is oldest or not open', () => {
+    const r1 = pr(30, 'r1');
+    const r2 = pr(20, 'r2');
+    const r3 = pr(10, 'r3');
+    const sup = new Map([[r1.id, r3.id], [r2.id, r3.id]]);
+    expect([...placeFor(sup, [r1, r2, r3])]).toEqual([[r3.id, r1.id]]);
+    // r2 already carried r0's place from an earlier pass
+    const r2p = { ...r2, place: idAt(50, 'r0') };
+    expect(placeFor(new Map([[r2p.id, r3.id]]), [r2p, r3]).get(r3.id)).toBe(idAt(50, 'r0'));
+    // the survivor already holds a smaller place
+    const r3p = { ...r3, place: idAt(90, 'zz') };
+    expect(placeFor(new Map([[r1.id, r3p.id]]), [r1, r3p]).size).toBe(0);
+    // survivor not in the open list (claimed or running): no place
+    expect(placeFor(new Map([[r1.id, r3.id]]), [r1]).size).toBe(0);
   });
 });
 
@@ -1473,9 +1579,9 @@ describe('affected e2e on every PR head', () => {
       pr(7, { statusCheckRollup: undefined }),
       { headRefOid: SHA('9') },
     ]);
-    expect(b.get(1)).toEqual({ head: SHA('1'), conflicting: true, green: true });
-    expect(b.get(2)).toEqual({ head: SHA('2'), conflicting: false, green: true });
-    expect(b.get(3)).toEqual({ head: SHA('3'), conflicting: false, green: false });
+    expect(b.get(1)).toEqual({ head: SHA('1'), conflicting: true, green: true, fix: false });
+    expect(b.get(2)).toEqual({ head: SHA('2'), conflicting: false, green: true, fix: false });
+    expect(b.get(3)).toEqual({ head: SHA('3'), conflicting: false, green: false, fix: false });
     for (const n of [4, 5, 6, 7]) expect(b.get(n).green).toBe(false);
     expect(b.size).toBe(7);
     expect(prBoard(undefined).size).toBe(0);

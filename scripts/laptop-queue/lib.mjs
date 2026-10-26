@@ -13,6 +13,13 @@ export const ALONE_AGE_MIN = 30;
 
 const sortById = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
+/**
+ * A request's queue place (laptop-queue-8 A4): its `place` (the id of the older request a supersede retired, lib
+ * placeFor) when that is a string below its own id, else its id. pick sorts pr / full work by it.
+ */
+export const placeKey = (r) => (typeof r?.place === 'string' && r.place < r.id ? r.place : r?.id);
+const sortByPlace = (a, b) => { const x = placeKey(a); const y = placeKey(b); return x < y ? -1 : x > y ? 1 : sortById(a, b); };
+
 /** "20261023T191500-guard-ai-d7a3b887" -> epoch ms of its UTC time; NaN when the id has no time prefix. */
 export function idTime(id) {
   const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/.exec(String(id));
@@ -239,6 +246,16 @@ export function isFront(r, frontBranches = []) {
 }
 
 /**
+ * Fix tier of lib pick (laptop-queue-8 A2): a pr / full request with `fix: true` (request.mjs --fix) or whose PR carries
+ * the `fix` label on the board (lib prBoard, read live each pass). Never an alone, spare, train rerun or laptop rerun
+ * request (those sit above or apart).
+ */
+export function isFix(r, board) {
+  if (!r || (r.kind !== 'pr' && r.kind !== 'full') || r.trainRerun || r.laptopRerun || r.requester === SPARE_REQUESTER) return false;
+  return r.fix === true || board?.get(r.pr)?.fix === true;
+}
+
+/**
  * Ids of the requests that are green PR work: kind pr (not a train or laptop rerun, not spare) whose PR is on the board
  * at the request's own sha with a green check + checker (a stale sha is not green). board = lib prBoard Map; empty = none.
  */
@@ -276,6 +293,9 @@ export function greenIds(requests, board) {
  * (order.green, a Set of ids), smallest order.wallS first, unknown wall last, ties by id, skipped for this pick when the
  * oldest non-front request, green or not, has waited over order.maxWaitMs (the starvation bound); 3. the arrival rule over
  * the non-front requests. Trains, reruns and aged alone runs go before all of it; spare-only picks ignore it.
+ * laptop-queue-8: order.fix (a Set of ids, lib isFix) is tier 0, before the front tier: the smallest queue place first,
+ * no wait bound (A1, A3). pr / full work sorts by placeKey (a new head keeps its old request's place, A4) wherever it
+ * sorted by id: the front tier, the starvation check (the place's time), green ties and the arrival rule.
  */
 export function pick(queue, now, slots) {
   const all = [...queue.requests].sort(sortById);
@@ -306,18 +326,20 @@ function pickFrom(queue, now, slots) {
   const alone = reqs.filter((r) => r.kind === 'alone').sort((a, b) => Number(front.has(b.id)) - Number(front.has(a.id)));
   const aged = alone.find((r) => front.has(r.id)) ?? agedAlone(alone, now);
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
-  const nonAlone = reqs.filter((r) => r.kind !== 'alone');
+  const nonAlone = reqs.filter((r) => r.kind !== 'alone').sort(sortByPlace);
   const order = queue.order;
   if (order && idle[0]) {
+    const fix = nonAlone.find((r) => order.fix?.has(r.id)); // laptop-queue-8 tier 0: fixes, smallest place first
+    if (fix) return { kind: 'request', request: fix, slot: idle[0].port };
     const early = nonAlone.find((r) => isFront(r, order.frontBranches));
     const rest = nonAlone.filter((r) => r !== early && !isFront(r, order.frontBranches));
     let chosen = early;
     if (!chosen) {
-      const oldest = rest.find((r) => Number.isFinite(idTime(r.id)));
-      const starved = order.maxWaitMs > 0 && oldest && now - idTime(oldest.id) > order.maxWaitMs;
+      const oldest = rest.find((r) => Number.isFinite(idTime(placeKey(r))));
+      const starved = order.maxWaitMs > 0 && oldest && now - idTime(placeKey(oldest)) > order.maxWaitMs;
       if (!starved) {
         const wall = (r) => { const w = order.wallS?.[r.id]; return Number.isFinite(w) ? w : Infinity; };
-        chosen = rest.filter((r) => order.green?.has(r.id)).sort((a, b) => wall(a) - wall(b) || sortById(a, b))[0];
+        chosen = rest.filter((r) => order.green?.has(r.id)).sort((a, b) => wall(a) - wall(b) || sortByPlace(a, b))[0];
       }
     }
     if (chosen) return { kind: 'request', request: chosen, slot: idle[0].port };
@@ -326,7 +348,7 @@ function pickFrom(queue, now, slots) {
   return arrivalNext(nonAlone, alone, idle, bothIdle);
 }
 
-/** pickFrom's arrival rule over the non-alone requests (sorted by id): the longest-waiting requester, priority, oldest. */
+/** pickFrom's arrival rule over the non-alone requests (sorted by placeKey): the longest-waiting requester, priority, oldest. */
 function arrivalNext(nonAlone, alone, idle, bothIdle) {
   const first = nonAlone[0]; // the oldest request overall belongs to the requester who has waited longest
   const prio = (r) => (Number.isInteger(r.priority) ? r.priority : 0);
@@ -438,6 +460,26 @@ export function superseded(requests, isAncestor) {
       if (ok) { out.set(r.id, n.id); return; }
     }
   });
+  return out;
+}
+
+/**
+ * The queue places supersedes pass on (laptop-queue-8 A4): Map survivorId -> place for each survivor in `requests` (the
+ * open ones) that a retired request (sup: lib superseded's Map olderId -> newerId) had waited longer than. place = the
+ * smallest placeKey over the survivor and every request it retires (a chain R1 -> R2 -> R3 gives R3 R1's place); a
+ * survivor whose own placeKey is already the smallest gets no entry. Pure.
+ */
+export function placeFor(sup, requests) {
+  const byId = new Map((requests ?? []).map((r) => [r.id, r]));
+  const out = new Map();
+  for (const [oldId, newId] of sup ?? []) {
+    const n = byId.get(newId);
+    if (!n) continue;
+    const o = byId.get(oldId);
+    const best = out.get(newId) ?? placeKey(n);
+    const cand = o ? placeKey(o) : oldId;
+    if (cand < best) out.set(newId, cand);
+  }
   return out;
 }
 
@@ -870,8 +912,8 @@ export function readyHeads(prs, inTrain = () => false) {
 }
 
 /**
- * The open PR board (one `gh pr list` of number, headRefOid, mergeable, statusCheckRollup rows): Map pr number ->
- * { head, conflicting, green }. conflicting = mergeable CONFLICTING (UNKNOWN, MERGEABLE or missing is not); green = the
+ * The open PR board (one `gh pr list` of number, headRefOid, mergeable, statusCheckRollup, labels rows): Map pr number ->
+ * { head, conflicting, green, fix }; fix = the PR carries the `fix` label. conflicting = mergeable CONFLICTING (UNKNOWN, MERGEABLE or missing is not); green = the
  * `check` run concluded SUCCESS and the `checker` status context is SUCCESS. A row without a number or head is skipped.
  */
 export function prBoard(rows) {
@@ -886,6 +928,7 @@ export function prBoard(rows) {
       head,
       conflicting: String(p.mergeable ?? '').toUpperCase() === 'CONFLICTING',
       green: String(check?.conclusion ?? '').toUpperCase() === 'SUCCESS' && String(checker?.state ?? '').toUpperCase() === 'SUCCESS',
+      fix: (p.labels ?? []).some((l) => l?.name === 'fix'), // laptop-queue-8 A2: the fix tier (lib isFix)
     });
   }
   return out;

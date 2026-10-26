@@ -228,3 +228,5 @@ A + B (fixes first, keep place, stop the old run), PR 2 = C + D + E.
 - Stopping a run on an old head loses its result; the new head reruns the overlapping suites anyway.
 - Kept suites at `E2E_JOBS=1` only work for heads that carry the new run-e2e line (A10).
 - PR carry adds at most 20 gh status reads per new PR head with a docs-only tail, once per head per process.
+- affected-cap's `refileOverCap` rewrites a request from the copy it listed, so a `place` or `kept` field another pass
+  wrote in the same window may be dropped (cost: a lost place, or a rerun of the kept suites).

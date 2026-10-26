@@ -108,7 +108,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -156,6 +156,7 @@ const TRAIN_CARRY = process.env.LQ_TRAIN_CARRY !== '0'; // 0 = a moved train hea
 const TRAIN_CARRY_DEPTH = Number(process.env.LQ_TRAIN_CARRY_DEPTH ?? 20); // first-parent commits walked back to the version commit
 const RERUN_SHARD = process.env.LQ_RERUN_SHARD !== '0'; // 0 = a train rerun runs on one slot (lib pick queue.shardRerun; BRIEF A10)
 const ALONE_GAP = process.env.LQ_ALONE_GAP !== '0'; // 0 = the holds keep an aged alone back as before (lib aloneGapOpen; BRIEF A12)
+const FIX_FIRST = process.env.LQ_FIX_FIRST !== '0'; // laptop-queue-8 A3: 0 = no fix tier (lib pick queue.order.fix)
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
 const DRY = argv.includes('--dry-run');
@@ -359,8 +360,12 @@ function writeClaims(ids, mode, label) {
   } finally { fs.rmSync(tmpIndex, { force: true }); }
 }
 
-/** Adds or replaces one file (rel path) on the laptop-queue branch in one commit, writeClaims' plumbing; true when pushed. */
-function pushFile(rel, text, label) {
+/**
+ * Adds or replaces one file (rel path) on the laptop-queue branch in one commit, writeClaims' plumbing; true when pushed.
+ * mustExist (laptop-queue-8: a request rewrite, place or kept): false, nothing written, when the fresh parent no longer
+ * holds the file, so a rewrite never recreates a request withdrawn meanwhile.
+ */
+function pushFile(rel, text, label, { mustExist = false } = {}) {
   const tmpIndex = path.join(os.tmpdir(), `lq-file-${process.pid}`);
   const env = { GIT_INDEX_FILE: tmpIndex, ...gitIdEnv() };
   try {
@@ -368,6 +373,9 @@ function pushFile(rel, text, label) {
       git(['fetch', '-q', 'origin', `+refs/heads/laptop-queue:${QREF}`], { soft: true });
       const parent = git(['rev-parse', '--verify', '-q', QREF], { soft: true });
       if (!parent) return false;
+      if (mustExist) {
+        try { git(['cat-file', '-e', `${parent}:${rel}`]); } catch { log(`${rel} gone, not rewritten`); return false; }
+      }
       fs.rmSync(tmpIndex, { force: true });
       git(['read-tree', parent], { env });
       const blob = git(['hash-object', '-w', '--stdin'], { input: text });
@@ -600,7 +608,7 @@ let lastBoard = 0;
 function prBoardNow() {
   if (Date.now() - lastBoard < PR_BOARD_MS) return;
   lastBoard = Date.now();
-  try { board = prBoard(JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefOid,mergeable,statusCheckRollup']) || '[]')); }
+  try { board = prBoard(JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefOid,mergeable,statusCheckRollup,labels']) || '[]')); }
   catch (e) { board = new Map(); log(`pr board read failed: ${String(e.message).split('\n')[0]}`); }
 }
 
@@ -1634,7 +1642,29 @@ function applySupersedes(requests) {
     for (const s of supersedeStatuses(requests.find((r) => r.id === id), by, requests.find((r) => r.id === by))) postStatus(s.sha, s.state, s.context, s.description);
   }
   saveState();
-  return requests.filter((r) => !sup.has(r.id));
+  const places = keepPlaces(sup, requests);
+  return requests.filter((r) => !sup.has(r.id)).map((r) => places.get(r.id) ?? r);
+}
+
+/**
+ * laptop-queue-8 A4: a survivor of a supersede keeps the older request's queue place (lib placeFor). Rewrites each open
+ * survivor's request file once with `place` (mustExist; same id) and returns Map id -> the request with its place, for
+ * the ones pushed (dry run: logged only, applied this pass). A lost push is logged, not retried: the request queues by
+ * its id.
+ */
+function keepPlaces(sup, requests) {
+  const out = new Map();
+  for (const [id, place] of placeFor(sup, requests)) {
+    const r = requests.find((x) => x.id === id);
+    if (!r || r.place === place) continue;
+    const next = { ...r, place };
+    if (DRY) log(`dry-run: ${id}: would keep the place of ${place}`);
+    else if (!pushFile(`requests/${id}.json`, `${JSON.stringify(next, null, 2)}
+`, `place ${id}`, { mustExist: true })) { log(`${id}: place push failed, queues by its id`); continue; }
+    else log(`${id}: keeps the place of ${place}`);
+    out.set(id, next);
+  }
+  return out;
 }
 
 /**
@@ -1838,15 +1868,18 @@ async function pass() {
     if (key !== manualLogged) { manualLogged = key; for (const [p, line] of Object.entries(held)) log(`${p} under a manual lock, no new claims there: ${line}`); }
     for (const p of Object.keys(held)) virtual[p] = true;
   }
-  // front first, then green PR heads smallest wall first, then arrival (lib pick queue.order); built after every filter above
-  if (GREEN_FIRST) {
-    const green = greenIds(queue.requests, board);
+  // fixes first (laptop-queue-8 A1), then front, then green PR heads smallest wall first, then arrival (lib pick
+  // queue.order); built after every filter above
+  if (GREEN_FIRST || FIX_FIRST) {
+    const green = GREEN_FIRST ? greenIds(queue.requests, board) : new Set();
+    const fix = new Set(FIX_FIRST ? queue.requests.filter((r) => isFix(r, board)).map((r) => r.id) : []);
     const wallS = {};
     for (const r of queue.requests) if (green.has(r.id)) wallS[r.id] = expectedWallS(r.suites, times, r.jobs ?? (DESKTOP ? 1 : 2));
-    queue.order = { green, wallS, frontBranches: FRONT_BRANCHES, maxWaitMs: GREEN_MAX_WAIT_MS };
-    const frontIds = queue.requests.filter((r) => r.kind !== 'alone' && isFront(r, FRONT_BRANCHES)).map((r) => r.id);
-    const key = `${frontIds.join(',')}|${[...green].sort().join(',')}`;
-    if (key !== orderLogged) { orderLogged = key; if (frontIds.length || green.size) log(`order: front ${frontIds.length}, green ${green.size} (smallest first)`); }
+    const frontBranches = GREEN_FIRST ? FRONT_BRANCHES : [];
+    queue.order = { fix, green, wallS, frontBranches, maxWaitMs: GREEN_MAX_WAIT_MS };
+    const frontIds = GREEN_FIRST ? queue.requests.filter((r) => r.kind !== 'alone' && isFront(r, FRONT_BRANCHES)).map((r) => r.id) : [];
+    const key = `${[...fix].sort().join(',')}|${frontIds.join(',')}|${[...green].sort().join(',')}`;
+    if (key !== orderLogged) { orderLogged = key; if (fix.size || frontIds.length || green.size) log(`order: fix ${fix.size}, front ${frontIds.length}, green ${green.size} (smallest first)`); }
   }
   // laptop-queue-7 A10: an open train rerun whose suites expand to 2+ parts may shard across both slots (lib pick)
   if (!DESKTOP && RERUN_SHARD) queue.shardRerun = new Set(queue.requests.filter((r) => r.trainRerun && suiteParts(r.suites, times).length >= 2).map((r) => r.id));
