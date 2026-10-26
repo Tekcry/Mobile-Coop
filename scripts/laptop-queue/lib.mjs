@@ -1497,3 +1497,77 @@ export function slowSummary(list) {
   return ['Slow (passed past 75% of the kill limit, SLOW lines):', '| Suite | Times | Worst | Head |', '| --- | --- | --- | --- |',
     ...rows.map((r) => `| ${r.s} | ${r.n} | ${r.worst.sec}s of ${r.worst.limit}s | ${r.worst.sha} ${r.worst.ref} ${r.worst.date.slice(0, 16)} |`)].join('\n');
 }
+
+// ---------- laptop-queue-14 ----------
+
+/**
+ * F48: the automatic quarantine entries this worker keeps (its quarantine.json, read by run-e2e through
+ * E2E_QUARANTINE_FILE): the live ones on the laptop, none on the desktop. One automatic list (the laptop's): a desktop
+ * failure goes to a laptop rerun (laptopRerunRequest), where the laptop's list applies, so the desktop never forgives
+ * on a list the laptop does not have (#525: a desktop-only e2e-sectorops:6 entry forgave an affected run).
+ */
+export function ownQuarantine(list, now, desktop = false) {
+  if (desktop) return [];
+  return (Array.isArray(list) ? list : []).filter((q) => Date.parse(q?.expiry) > now);
+}
+
+/** gh: a failed call worth one retry (a TLS handshake timeout: nothing reached GitHub). e = the execFileSync error. */
+export function ghRetryable(e) {
+  const text = `${e?.stderr ?? ''}\n${e?.message ?? ''}`;
+  return /TLS handshake timeout|handshake (?:timed out|timeout)/i.test(text);
+}
+
+/**
+ * F46 + closed PRs: requests the claim gate reads the PR for: kind pr with a PR number, not pinned (an A/B or baseline
+ * run on an older commit; request.mjs fills pr from the branch), not a train rerun or spare work (a laptop rerun of a
+ * desktop failure is checked too).
+ */
+export const claimGated = (r) => r?.kind === 'pr' && Number.isInteger(Number(r.pr)) && Number(r.pr) > 0 && !r.pin && !r.trainRerun && r.requester !== SPARE_REQUESTER;
+
+/** The workflow whose `check` job is the PR's CI (.github/workflows/deploy.yml `name`; preview.yml has a `check` job too). */
+export const CI_WORKFLOW = 'Build and deploy to GitHub Pages';
+
+/**
+ * F46: CI `check` failed in a statusCheckRollup: a `check` of CI_WORKFLOW concluded FAILURE; rows without a
+ * workflowName: some `check` FAILURE and none SUCCESS.
+ */
+export function ciCheckFailed(roll) {
+  const checks = (Array.isArray(roll) ? roll : []).filter((x) => x?.name === 'check');
+  const fail = (x) => String(x?.conclusion ?? '').toUpperCase() === 'FAILURE';
+  if (checks.some((x) => x.workflowName)) return checks.some((x) => x.workflowName === CI_WORKFLOW && fail(x));
+  return checks.some(fail) && !checks.some((x) => String(x?.conclusion ?? '').toUpperCase() === 'SUCCESS');
+}
+
+/**
+ * F46 + closed PRs: why a gated request is withdrawn at claim time, '' to run it. pr = `gh pr view --json
+ * state,headRefOid,statusCheckRollup` (null or unreadable: run it, never act on a GitHub error). 'closed' / 'merged':
+ * the PR is no longer open; 'stale': the request's sha is no longer the PR head; 'red': CI `check` failed on the head.
+ */
+export function claimSkip(r, pr) {
+  if (!claimGated(r) || !pr || typeof pr !== 'object') return '';
+  const state = String(pr.state ?? '').toUpperCase();
+  if (state === 'MERGED') return 'merged';
+  if (state === 'CLOSED') return 'closed';
+  const head = String(pr.headRefOid ?? '');
+  if (head && head !== r.sha) return 'stale';
+  if (head && ciCheckFailed(pr.statusCheckRollup)) return 'red';
+  return '';
+}
+
+/**
+ * The statuses a request withdrawn by claimSkip posts (error: it never ran): its own context, plus affected-e2e for an
+ * auto affected request or one filed with set affected (conflictStatuses' contexts), with why in the description.
+ */
+export function claimSkipStatuses(r, why, head = '') {
+  if (!r || !why) return [];
+  const n = `PR #${r.pr}`;
+  const description = {
+    merged: `not run: ${n} is merged`,
+    closed: `not run: ${n} is closed`,
+    stale: `not run: ${String(r.sha).slice(0, 8)} is no longer ${n}'s head${head ? ` (${String(head).slice(0, 8)})` : ''}`,
+    red: `not run: ${n}'s CI check failed on this head (request again once it passes)`,
+  }[why] ?? `not run: ${why}`;
+  const out = [{ sha: r.sha, state: 'error', context: contextName(r.kind, r.set, r.suites ?? []), description }];
+  if (r.requester === AFFECTED_REQUESTER || r.set === 'affected') out.push({ sha: r.sha, state: 'error', context: AFFECTED_CTX, description });
+  return out;
+}
