@@ -1,7 +1,7 @@
 /**
  * Tallow Wharf GB0: the shell (`tallowWharf` MapDef, the kit, the stubs) and the shared helpers' own cases. The map is
  * registered but not listed; its bounds and section boxes are the graph's; the shell's masses and lane clip no graph space;
- * every stub section has an entry and an exit inside its box; the kit's duct, stand-in and screen build what they say; the
+ * every stub section has an entry and an exit inside its box; the kit's duct and screen build what they say; the
  * throw / pull / rope replicas pass a level layout and fail a bad one.
  */
 import { describe, expect, it } from 'vitest';
@@ -15,7 +15,12 @@ import { W1 } from '../../src/world/maps/tallowWharfW1';
 import { W2 } from '../../src/world/maps/tallowWharfW2';
 import { W3 } from '../../src/world/maps/tallowWharfW3';
 import { W4 } from '../../src/world/maps/tallowWharfW4';
-import { duct, DUCT, SECTION_BOX, SECTION_IDS, STANDIN_TAGS, standIn, screen, WHARF_BOUNDS } from '../../src/world/maps/tallowWharfKit';
+import { duct, DUCT, SECTION_BOX, SECTION_IDS, screen, WHARF_BOUNDS } from '../../src/world/maps/tallowWharfKit';
+import { shutterLightLeaves } from '../../src/world/shutterDoor';
+import { shutterSpecsOf } from '../../src/game/kit/shutter';
+import { bakedLights } from '../../src/world/lightBake';
+import { DOORS_PER_LAMP_ACCURATE, lampDoorLists, type FieldDoor } from '../../src/world/lightField';
+import { LAMP_STRIDE } from '../../src/voxel/lampBake';
 import { builtWharf, downHit, GRAPH, linksOf, pullCheck, ropeCheck, solidOf, space, spacesIn, throwCheck } from './helpers';
 
 const top = (p: BoxPiece): number => p.c[1] + p.s[1] / 2;
@@ -219,18 +224,38 @@ describe('the kit', () => {
     expect(() => duct(new LevelBuilder(), [[0, 0], [3, 3]], 0)).toThrow();
   });
 
-  it('a stand-in fills the shutter opening, records its tag, and is a plain box', () => {
-    const b = new LevelBuilder();
-    const a = standIn(b, { id: 'c2', x: 20, y: 0, z: 50, yaw: 0, width: 3, height: 3 });
-    const c = standIn(b, { id: 'c8', x: 90, y: 0, z: 20, yaw: Math.PI / 2, width: 3, height: 3 });
-    const tags = STANDIN_TAGS.get(b)!;
-    expect(tags.get(a)).toBe('shutter-standin:c2');
-    expect(tags.get(c)).toBe('shutter-standin:c8');
-    expect(b.boxes[a]!.s).toEqual([3, 3, 0.1]);
-    expect(b.boxes[a]!.c).toEqual([20, 1.5, 50]);
-    expect(b.boxes[c]!.s).toEqual([0.1, 3, 3]);
-    expect(b.boxes[a]!.collide && b.boxes[a]!.noLedge).toBe(true);
-    expect(solidOf(b)).toHaveLength(2);
+  it('the map places exactly the two section shutters (J9 S3)', () => {
+    const specs = shutterSpecsOf({ anchors: builtWharf().b.anchors });
+    expect(specs).toEqual([...W1.shutters, ...W4.shutters]);
+    expect(specs.map((sp) => sp.id)).toEqual(['w1-shutter', 'w4-shutter']);
+    expect(W2.shutters).toEqual([]);
+    expect(W3.shutters).toEqual([]);
+  });
+
+  it('every lamp that can reach a shutter lists its leaf among its door slots (A16)', () => {
+    const { b } = builtWharf();
+    // the doors as `World.lightDoors` builds them: the map's door anchors (open 0), then the shutters' leaves
+    const doors: FieldDoor[] = [...b.anchors.doors.map((anchor) => ({ anchor, open: 0 })), ...shutterLightLeaves({ anchors: b.anchors })];
+    const first = doors.length - shutterSpecsOf({ anchors: b.anchors }).length;
+    const { lights } = bakedLights(b.lights);
+    const lists = lampDoorLists(lights, doors, undefined, DOORS_PER_LAMP_ACCURATE);
+    const missing: string[] = [];
+    let reached = 0;
+    for (let i = 0; i < lights.length / LAMP_STRIDE; i++) {
+      const o = i * LAMP_STRIDE;
+      for (let k = first; k < doors.length; k++) {
+        const a = doors[k]!.anchor;
+        const dx = a.hinge.x + Math.sin(a.yaw) * a.width * 0.5 - lights[o]!;
+        const dy = a.hinge.y + a.height * 0.5 - lights[o + 1]!;
+        const dz = a.hinge.z + Math.cos(a.yaw) * a.width * 0.5 - lights[o + 2]!;
+        if (Math.sqrt(dx * dx + dy * dy + dz * dz) >= lights[o + 3]! + a.width) continue;
+        reached++;
+        const row = Array.from(lists.subarray(i * DOORS_PER_LAMP_ACCURATE, (i + 1) * DOORS_PER_LAMP_ACCURATE));
+        if (!row.includes(k)) missing.push(`lamp ${i} (${lights[o]}, ${lights[o + 1]}, ${lights[o + 2]}) drops shutter leaf ${k - first}`);
+      }
+    }
+    expect(reached).toBeGreaterThan(0);
+    expect(missing).toEqual([]);
   });
 
   it('a drop guard is a noLedge screen 2.2 high over the mantle, with no lip', () => {

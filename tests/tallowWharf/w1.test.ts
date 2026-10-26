@@ -1,7 +1,7 @@
 /**
  * Tallow Wharf W1, the night market (mission-framework GB1, `docs/missions/slices/GB-briefs.md` "GB1"): the sizes against the
  * graph, the two C1 boost lips, no solo jump onto them, only planned lips, no solo bypass of the bolted doors and the shutter
- * stand-in, the shutter reservation, and the lights.
+ * (shut on the guards' nav, A15), the placed shutter (J9 S3), and the lights.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -12,7 +12,9 @@ import { contribution, type LightDef } from '../../src/world/lights';
 import type { CoopTop } from '../helpers/soloJumpReach';
 import { CHEST_Y, HEAD_Y } from '../../src/world/lighting/levels';
 import { lampReach } from '../../src/world/lampMath';
-import { MASS_TOP, STANDIN_TAGS } from '../../src/world/maps/tallowWharfKit';
+import { MASS_TOP } from '../../src/world/maps/tallowWharfKit';
+import { closeShutterNav, SHUTTER_PIECE } from '../../src/world/shutterDoor';
+import { shutterSpecsOf } from '../../src/game/kit/shutter';
 import {
   anchorsOf,
   blockedAt,
@@ -109,15 +111,32 @@ describe('W1 has no solo bypass', () => {
     { at: [W1.doors['w1-conn-near']![0], W1.doors['w1-conn-near']![2]], y: 0, w: 1.2, alongX: false },
   ];
 
-  it('the way from the start to the passage end is shut with the bolted doors shut and the shutter a solid stand-in', () => {
+  it("the way from the start to the passage end is shut with the bolted doors shut and the shutter shut on the guards' nav (A15)", () => {
     const { nav, restore } = soloNav(b, 4, W1.navSeeds, shut);
     try {
+      closeShutterNav(nav, shutterSpecsOf({ anchors: b.anchors }));
       expect(nav.findPath([7, 10], [38, 60], 1e6, 0, 0)).toBeNull();
       // the start reaches the market and the hall (the nav is not simply empty)
       expect(nav.findPath([7, 10], [20, 28], 1e6, 0, 0)).not.toBeNull();
       expect(nav.findPath([7, 10], [20, 51], 1e6, 0, 0)).not.toBeNull();
     } finally {
       restore();
+    }
+  });
+
+  it('control: with the bolted doors shut and no shutter closure the opening is open floor; the closure is what blocks it', () => {
+    const open = soloNav(b, 4, W1.navSeeds, shut);
+    try {
+      expect(open.nav.findPath([20, 51], [22, 60], 1e6, 0, 0)).not.toBeNull();
+    } finally {
+      open.restore();
+    }
+    const closed = soloNav(b, 4, W1.navSeeds, shut);
+    try {
+      closeShutterNav(closed.nav, shutterSpecsOf({ anchors: b.anchors }));
+      expect(closed.nav.findPath([20, 51], [22, 60], 1e6, 0, 0)).toBeNull();
+    } finally {
+      closed.restore();
     }
   });
 
@@ -142,32 +161,41 @@ describe('W1 has no solo bypass', () => {
   });
 });
 
-describe('W1 shutter reservation (C2)', () => {
-  it('reserves one shutter spec and fills the opening with a closed stand-in', () => {
+describe('W1 shutter (C2, J9 S3)', () => {
+  // the three pieces placeShutter adds around the opening: the head box and the two guides (colour SHUTTER_PIECE.frame)
+  const frame = b.boxes.filter((p) => p.color === SHUTTER_PIECE.frame && Math.hypot(p.c[0] - 22, p.c[2] - 58) <= 2);
+
+  it('places the one shutter spec the section declares', () => {
     expect(W1.shutters).toEqual([{ id: 'w1-shutter', x: 22, y: 0, z: 58, yaw: 0, width: 3, height: 3 }]);
-    const tags = STANDIN_TAGS.get(b)!;
-    const hit = [...tags.entries()].filter(([, t]) => t === 'shutter-standin:w1-shutter');
-    expect(hit).toHaveLength(1);
-    const p = b.boxes[hit[0]![0]]!;
-    expect(p.collide).toBe(true);
-    expect(p.noLedge).toBe(true);
-    expect(p.s[0]).toBeCloseTo(3, 9);
-    expect(p.s[1]).toBeCloseTo(3, 9);
-    expect(p.c[0]).toBeCloseTo(22, 9);
-    expect(p.c[1] - p.s[1] / 2).toBeCloseTo(0, 9);
-    expect(p.c[2]).toBeCloseTo(58, 9);
+    expect(shutterSpecsOf({ anchors: b.anchors })).toEqual(expect.arrayContaining([...W1.shutters]));
   });
 
-  it('never calls placeShutter', () => {
+  it('calls placeShutter and no stand-in', () => {
     const src = readFileSync(new URL('../../src/world/maps/tallowWharfW1.ts', import.meta.url), 'utf8');
-    expect(src.includes('placeShutter(')).toBe(false);
+    expect(src.includes('placeShutter(b, SHUTTER)')).toBe(true);
+    expect(src.includes('stand' + 'In(')).toBe(false);
   });
 
-  it('keeps the crawl space clear: nothing but the wall and the stand-in below 3.0 m within z 57-59 at x 20.5-23.5', () => {
-    const tags = STANDIN_TAGS.get(b)!;
-    const stray = b.boxes.filter((p, i) => {
+  it('leaves the opening clear: no collide box in x 20.5-23.5, z 57.85-58.15, y 0.05-2.95', () => {
+    const stray = b.boxes.filter((p) => {
+      if (!p.collide) return false;
+      const y0 = p.c[1] - p.s[1] / 2;
+      const y1 = p.c[1] + p.s[1] / 2;
+      if (y1 <= 0.05 || y0 >= 2.95) return false;
+      return p.c[0] + p.s[0] / 2 > 20.5 && p.c[0] - p.s[0] / 2 < 23.5 && p.c[2] + p.s[2] / 2 > 57.85 && p.c[2] - p.s[2] / 2 < 58.15;
+    });
+    expect(stray.map((p) => `${p.c.join(',')} ${p.s.join(',')}`)).toEqual([]);
+  });
+
+  it('puts three frame pieces round the opening, every one noLedge', () => {
+    expect(frame).toHaveLength(3);
+    for (const p of frame) expect(p.noLedge).toBe(true);
+  });
+
+  it('keeps the crawl space clear: nothing but the wall and the frame below 3.0 m within z 57-59 at x 20.5-23.5', () => {
+    const stray = b.boxes.filter((p) => {
       // (the ground slab, top 0, is not in the way)
-      if (!p.collide || tags.has(i) || p.c[1] + p.s[1] / 2 <= 0.05) return false;
+      if (!p.collide || frame.includes(p) || p.c[1] + p.s[1] / 2 <= 0.05) return false;
       if (p.c[1] - p.s[1] / 2 >= 3 - 1e-6) return false;
       const x0 = p.c[0] - p.s[0] / 2;
       const x1 = p.c[0] + p.s[0] / 2;

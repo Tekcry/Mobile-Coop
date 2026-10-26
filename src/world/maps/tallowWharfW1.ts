@@ -2,8 +2,9 @@ import { Vector3 } from '../../core/babylon';
 import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import type { ShutterSpec } from '../../game/kit/shutter';
+import { placeShutter } from '../shutterDoor';
 import { stairSteps, type CoopLip } from './ctcourseGreybox';
-import { doorIn, duct, lamp, mass, standIn, T, wall, type WharfSection } from './tallowWharfKit';
+import { doorIn, duct, lamp, mass, T, wall, type WharfSection } from './tallowWharfKit';
 
 /**
  * Tallow Wharf section W1, the night market (mission-framework GB1; `docs/missions/slices/GB-briefs.md` "GB1"; graph
@@ -14,8 +15,8 @@ import { doorIn, duct, lamp, mass, standIn, T, wall, type WharfSection } from '.
  *
  * Forced co-op in W1: the gallery and the office are reached only by a boost (C1), the bolted warden's stair (GB5 bolts its foot
  * door) or the caged ladder (its anti-climb door at the foot is bolted from the cage side, `W1_BOLTS`: no solo bypass), and the fish
- * hall's north shutter (C2) is a closed stand-in until the shutter is wired (brief 0.2: no `placeShutter` here; the wiring slice
- * deletes the stand-in by its tag). The ice-melt drain is the secret crouch duct. No W1 stair is added (EGRESS section 3, pick 2).
+ * hall's north shutter (C2) is placed (`placeShutter`, J9 S3): the opening is shut on the guards' nav (A15) and the shutter stops
+ * lamp light (A16); the crew gets through it only once it is opened. The ice-melt drain is the secret crouch duct. No W1 stair is added (EGRESS section 3, pick 2).
  *
  * Lights (LIGHT.md section 2): 28 lamps in groups 60-67, every one working (no "lit by default" lamps): the market strings, the
  * fish hall pendants and facade brackets, the passage bulkheads and the canal and tea-stall lamps are lit to their bands, with
@@ -39,7 +40,7 @@ const WOOD = '#6b5a45';
 const ICE = '#8c989c';
 const CRATE = '#7b6d52';
 
-/** The C2 fish hall shutter, reserved as data (the plane's normal points +z, toward the passage). */
+/** The C2 fish hall shutter, placed by `placeShutter` in `build` (the plane's normal points +z, toward the passage). */
 const SHUTTER: ShutterSpec = { id: 'w1-shutter', x: 22, y: 0, z: 58, yaw: 0, width: 3, height: 3 };
 
 /** The two planned boost lips (C1): `y` is the lip top, `floor` the approach floor. */
@@ -194,9 +195,11 @@ function build(b: LevelBuilder): void {
   wall(b, false, 36, 44, 58, [], 0, 6);
   wall(b, false, 8, 44, 46, [], 0, 6);
   wall(b, false, 8, 54, 58, [], 0, 6);
-  // north wall z 58: the C2 shutter opening (x 20.5-23.5, 3.0 high; a closed stand-in fills it) and the back door at x 30
+  // north wall z 58: the C2 shutter opening (x 20.5-23.5, 3.0 high; it holds the C2 shutter, J9 S3) and the back door at x 30
   wall(b, true, 58, 8, 25, [[20.5, 23.5]], 0, 6, T, WALL, 3.0);
-  standIn(b, SHUTTER);
+  const iShutter = b.boxes.length;
+  placeShutter(b, SHUTTER);
+  b.mark(iShutter, { noLedge: true }); // the head box and guides: never a lip (only planned lips, A28)
   wall(b, true, 58, 25, 36, [[29.4, 30.6]], 0, 6);
   doorIn(b, true, 58, 30, 0);
   blk(b, 8, 44, 36, 58, 6.0, 6.3, WALL, true); // roof

@@ -55,7 +55,7 @@ export const GROUPS = {
 
 const WALL = '#8d887c';
 const MASS = '#2f3236';
-const STANDIN = '#6a6f74';
+const SCREEN_COLOR = '#6a6f74';
 const DUCT_COLOR = '#5a5f63';
 const WHITE: [number, number, number] = [1, 0.95, 0.88];
 
@@ -114,7 +114,7 @@ export interface WharfSection {
   pulls: readonly WharfPull[];
   ropes: readonly WharfRope[];
   throws: readonly WharfThrow[];
-  /** Reserved shutter openings, data only (brief 0.2): closed stand-ins are built, `placeShutter` is not called. */
+  /** The section's roller shutters (`placeShutter` in `build`, J9 S3); the world piece and the kit devices read them from the level. */
   shutters: readonly ShutterSpec[];
   dropGuards: readonly DropGuard[];
   /** Doors a later slice locks or bolts, by name: the centre [x, y, z]. */
@@ -237,21 +237,6 @@ export function mass(b: LevelBuilder, x0: number, z0: number, x1: number, z1: nu
   b.mark(i0, { noLedge: true });
 }
 
-/** Box index -> tag, per builder: the closed shutter stand-ins (`shutter-standin:<id>`). The wiring slice deletes them by tag and calls `placeShutter`. */
-export const STANDIN_TAGS = new WeakMap<LevelBuilder, Map<number, string>>();
-
-/** The closed stand-in panel of a reserved shutter: a collide `noLedge` box filling the opening, 0.1 thick. Returns its box index. */
-export function standIn(b: LevelBuilder, spec: ShutterSpec): number {
-  const alongX = Math.abs(Math.sin(spec.yaw)) < 0.5;
-  const i = b.boxes.length;
-  b.box(spec.x, spec.y + spec.height / 2, spec.z, alongX ? spec.width : 0.1, spec.height, alongX ? 0.1 : spec.width, STANDIN);
-  b.mark(i, { noLedge: true });
-  let tags = STANDIN_TAGS.get(b);
-  if (!tags) STANDIN_TAGS.set(b, (tags = new Map()));
-  tags.set(i, `shutter-standin:${spec.id}`);
-  return i;
-}
-
 const DUCT_WALL = 0.2;
 const HALF = DUCT.w / 2;
 const OFF = HALF + DUCT_WALL / 2;
@@ -334,9 +319,9 @@ export function screen(b: LevelBuilder, g: DropGuard): void {
   const cx = (g.a.x + g.b.x) / 2;
   const cz = (g.a.z + g.b.z) / 2;
   const cy = g.y + g.h / 2;
-  if (Math.abs(dz) < 1e-6) b.box(cx, cy, cz, len, g.h, 0.1, STANDIN);
-  else if (Math.abs(dx) < 1e-6) b.box(cx, cy, cz, 0.1, g.h, len, STANDIN);
-  else b.box(cx, cy, cz, 0.1, g.h, len, STANDIN, Math.atan2(dx, dz));
+  if (Math.abs(dz) < 1e-6) b.box(cx, cy, cz, len, g.h, 0.1, SCREEN_COLOR);
+  else if (Math.abs(dx) < 1e-6) b.box(cx, cy, cz, 0.1, g.h, len, SCREEN_COLOR);
+  else b.box(cx, cy, cz, 0.1, g.h, len, SCREEN_COLOR, Math.atan2(dx, dz));
   b.mark(i0, { noLedge: true });
 }
 

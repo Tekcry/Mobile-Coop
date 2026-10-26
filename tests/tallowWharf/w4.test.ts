@@ -15,7 +15,9 @@ import { PULL } from '../../src/game/kit/pullUp';
 import { contribution, type LightDef } from '../../src/world/lights';
 import { lampReach } from '../../src/world/lampMath';
 import { CHEST_Y, HEAD_Y } from '../../src/world/lighting/levels';
-import { SECTION_BOX, STANDIN_TAGS } from '../../src/world/maps/tallowWharfKit';
+import { SECTION_BOX } from '../../src/world/maps/tallowWharfKit';
+import { closeShutterNav, SHUTTER_PIECE } from '../../src/world/shutterDoor';
+import { shutterSpecsOf } from '../../src/game/kit/shutter';
 import { WHARF_SECTORS } from '../../src/world/maps/tallowWharfSectors';
 import { anchorsOf, blockedAt, builtWharf, climbRoom, COOP_BAND, downHit, GREY_KEEP_CLEAR, legUpTarget, onPlannedLip, pullCheck, roomForBoost, soloJumpThreats, soloNav, solidOf, space, spacesIn, type ShutDoor } from './helpers';
 import { W4, W4_CONDUITS, W4_DROP_GUARDS, W4_GUARD_GAPS, W4_LIP, W4_PULL, W4_SHUTTER } from '../../src/world/maps/tallowWharfW4';
@@ -193,9 +195,10 @@ describe('W4: no solo bypass', () => {
     { at: [72, 8] as [number, number], y: 0, w: 1.2, alongX: false },
     { at: [72, 19] as [number, number], y: 0, w: 1.2, alongX: false },
   ];
-  it('the lane cannot reach the jetty on foot with the gate and the shed three yard door shut (the shutter stand-in is solid)', () => {
+  it("the lane cannot reach the jetty on foot with the gate and the shed three yard door shut (the shutter shut on the guards' nav, A15)", () => {
     const { nav, restore } = soloNav(b, 4, W4.navSeeds, shut);
     try {
+      closeShutterNav(nav, shutterSpecsOf({ anchors: b.anchors }));
       expect(nav.findPath([90, 32], [88, 8], 1e6, 0, 0)).toBeNull();
       // controls: the lane reaches the yard (the open gate), and shed three reaches the jetty through the loading door
       expect(nav.findPath([90, 32], [58, 18], 1e6, 0, 0)).not.toBeNull();
@@ -205,18 +208,38 @@ describe('W4: no solo bypass', () => {
     }
   });
 
-  it('the bolted doors are the brief\'s, and the shutter is a closed stand-in (data only, no placeShutter in the file)', () => {
+  it('control: with the doors shut and no shutter closure the lane reaches shed two through the opening; the closure is what blocks it', () => {
+    const open = soloNav(b, 4, W4.navSeeds, shut);
+    try {
+      expect(open.nav.findPath([90, 32], [92, 24], 1e6, 0, 0)).not.toBeNull();
+    } finally {
+      open.restore();
+    }
+    const closed = soloNav(b, 4, W4.navSeeds, shut);
+    try {
+      closeShutterNav(closed.nav, shutterSpecsOf({ anchors: b.anchors }));
+      expect(closed.nav.findPath([90, 32], [92, 24], 1e6, 0, 0)).toBeNull();
+    } finally {
+      closed.restore();
+    }
+  });
+
+  it('the bolted doors are the brief\'s, and the shutter is placed (placeShutter, the opening clear, the frame noLedge)', () => {
     expect(W4.doors['w4-jetty-gate']).toEqual([72, 0, 8]);
     expect(W4.doors['w4-shed3-yard']).toEqual([72, 0, 19]);
     expect(W4.shutters).toEqual([{ id: 'w4-shutter', x: 92, y: 0, z: 28, yaw: 0, width: 3, height: 3 }]);
     expect(W4.shutters[0]).toEqual(W4_SHUTTER);
-    const tags = STANDIN_TAGS.get(b)!;
-    const i = [...tags.entries()].find(([, tag]) => tag === 'shutter-standin:w4-shutter')![0];
-    const p = b.boxes[i]!;
-    expect(p.collide).toBe(true);
-    expect(p.noLedge).toBe(true);
-    expect([p.s[0], p.s[1]]).toEqual([3, 3]);
-    expect(readFileSync(new URL('../../src/world/maps/tallowWharfW4.ts', import.meta.url), 'utf8')).not.toContain('placeShutter(');
+    expect(shutterSpecsOf({ anchors: b.anchors })).toEqual(expect.arrayContaining([...W4.shutters]));
+    const src = readFileSync(new URL('../../src/world/maps/tallowWharfW4.ts', import.meta.url), 'utf8');
+    expect(src).toContain('placeShutter(b, W4_SHUTTER)');
+    expect(src).not.toContain('stand' + 'In(');
+    // the opening (x 90.5-93.5 in the 0.6 thick wall at z 28) is clear: the stand-in filled exactly this
+    const stray = b.boxes.filter((p) => p.collide && top(p) > 0.05 && bottom(p) < 2.95 && inRect(p, 90.5, 93.5, 27.7, 28.3, 0));
+    expect(stray.map((p) => `${p.c.join(',')} ${p.s.join(',')}`)).toEqual([]);
+    // the frame: the head box and two guides within 2 m of (92, 28), every one noLedge
+    const frame = b.boxes.filter((p) => p.color === SHUTTER_PIECE.frame && hyp2(p.c[0] - 92, p.c[2] - 28) <= 2);
+    expect(frame).toHaveLength(3);
+    for (const p of frame) expect(p.noLedge).toBe(true);
     // the sliding loading door, the fire door and the canal door exist
     const doors = b.anchors.doors;
     const at = (x: number, z: number) => doors.find((d) => Math.abs(d.hinge.z - z) < 1e-6 && Math.abs(d.hinge.x - x) < 1e-6);
@@ -496,6 +519,8 @@ describe('W4: the jetty way back (A6, EGRESS E4)', () => {
   it('the bed does not reach the jetty with the gate and the yard door shut (the guards\' nav stops at y -2: the bed is off it)', () => {
     const { nav, restore } = soloNav(b, 4, W4.navSeeds, SHUT);
     try {
+      // (the bed's start cell snaps to the lane side: with the shutter placed the route runs through shed two, so the closure shuts it, A15)
+      closeShutterNav(nav, shutterSpecsOf({ anchors: b.anchors }));
       expect(nav.findPath([68, 4.5], [88, 8], 1e6, -4.4, 0)).toBeNull();
       // the runtime nav casts down to y -2 only (`navBuild.ts` buildNavGrid, the helper's twin): no cell on the canal bed, so
       // the walk from the bed cannot bite until the bed is on the nav; this pins that, and the drop is not a nav link
