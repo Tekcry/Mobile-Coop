@@ -691,6 +691,8 @@ describe('Marlow re-plan A5: the swing bar (station 12, marlow-kit-geo Q2)', () 
       expect(floorAt(x, S.z)).toBeCloseTo(0, 9);
     }
     for (const x of [S.x1 + r + 0.05, S.x1 + SWING.anchorReach, A5_PERIM.x0 - r - 0.05]) expect(blockedAt(x, S.z), `east strip x ${x.toFixed(2)}`).toEqual([]);
+    // (Player K4, PR #658) the anchor braces 0.6 m back and 0.55 m to either side of the line: a body stands at both
+    for (const dz of [-0.55, 0.55]) expect(blockedAt(S.x1 + 0.6, S.z + dz), `anchor brace z ${(S.z + dz).toFixed(2)}`).toEqual([]);
   });
 });
 
