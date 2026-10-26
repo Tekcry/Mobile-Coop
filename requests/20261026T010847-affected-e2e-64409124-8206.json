@@ -1,0 +1,17 @@
+{
+  "id": "20261026T010847-affected-e2e-64409124-8206",
+  "sha": "6440912459addcd0b24e569aae97566d2b0dfa3a",
+  "branch": "feature/player-hygiene-s2",
+  "pr": 519,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-menus",
+    "e2e-mouse",
+    "e2e-move",
+    "e2e-pad",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #519"
+}
