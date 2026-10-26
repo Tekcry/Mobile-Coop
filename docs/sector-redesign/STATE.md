@@ -350,44 +350,28 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~12:40 SAVE, orchestrator cap ~12:42).
-git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Desktop CPU ~100%
-(e2e overflow): no local builders until the orchestrator's under-80% word; builder slices go to cloud-queue briefs.
-tsc / vitest at BelowNormal. node_modules junctions only to C:/NightShift/Mobile-Coop-menu/node_modules. Checker
-reports: C:/NightShift/scratch/sector-ops-checks/. Auto mode blocks this session from posting `checker` statuses and
-re-targeting PR bases: the orchestrator posts them from the written reports (send it the report path).
-1. PRs: #503 campus P0 train-ready. #488 A28 and #457 (head e55d0e51, master 4.110.0 merged, v2 labels mirrored,
-   checker posted) wait on affected-e2e. #481 (head effa5958, base master, checker posted after Opus FIX -> fix ->
-   Opus PASS) waits on affected + e2e-coop/netmove (requested on 40cac98c; docs-only since). #489 base master.
-   #511 map-ready S1, #512 S9 (checker carried by the orchestrator), #513 S2 (includes S1). S10 (1977 counted incl.
-   S1 + S9) opens after #511 / #512 land. #518 light L0+L1 (big-pr): Opus PASS light-l1-check.md + Sonnet delta PASS
-   light-l1-delta-check.md; orchestrator posting checker.
-2. Michael 11:45 on L1: "Approve but only s1, let me walk it before doing any more". L2-S1/S2/S3 briefs (HOLD until
-   his S1 walk) by an Opus agent on feature/light-realism-l2 (worktree -light-realism-l2). No L2 builds.
-3. J16 char-shadow-meter: S2c (client partners, must-fix before switch-on) cloud brief open
-   (cloud-queue briefs/char-shadow-meter-s2c.md, base a2 effa5958). Order S3b -> S2c -> S4 (PLAN). Side finding for
-   Guard AI / coop4 (not ours): playerRefsInto (gameState.ts:1083) `out.length = 0` + push allocates ~150 B per call
-   every sim step; tell the orchestrator.
-4. J17 lane stacks: s1-a..c, s2-a..d pushed; s4-a WIP 44847fb7 (staged at the swap, unverified). Cloud briefs
-   campus-greybox-stack-s3/-s4/-s5 being written by an Opus agent (lanes delete carried coop4 minPlayers rows; TAG-<N>
-   adds the v2 extras, PLAN section 4). Guard counts answer sent to the orchestrator (v1 live, v2 signed 15/18/20/25/26).
-5. J21 map-ready: S14 done on cloud (763fc7bf) - Opus checker running (report map-ready-s14-check.md). S3 cloud brief
-   being written by an Opus agent (briefs/map-ready-S3.md). S15 needs laptop GPU per step; S5 after #317; S16 / A20.
-UPDATE 14:00 (new account; bypass mode since ~14:00: this session posts its own `checker` statuses from an independent
-report on that exact head, and retargets its stacked PRs to master itself, Orchestrator 14:00):
-- Checker posted: #518 (8caddb44), #489 (a0147ac4, delta csm-s3b-delta-check.md), #523-#529. #457 CI red = lightField
-  allocation flake, failed job rerun.
-- OPEN lane PRs (J17, dark): S1 #523 (master) -> #524 -> #525; S2 #526 (master) -> #527 -> #528 -> #529 (check
-  lane-s1-s2-check.md, lane checks s1-check.md / s2-check.md). `gh pr edit <n> --base master` as each parent lands.
-- S5 stack DONE: PRs #533 (master) -> #534 -> #535, checker posted (lane-s5-check.md), brief done on cloud-queue.
-- S3 stack DONE: PRs #539 (master) -> #540 -> #541 -> #542 -> #543 -> #544, checker posted (lane-s3-check.md; r1
-  re-checked s3-r1-check.md). S4 stack DONE: #545 (master) -> #546 -> #547 (lane-s4-check.md). Briefs done on cloud-queue.
-  All five sections are PRs; retarget each stacked PR to master as its parent lands.
-- Polish carried (not blocking): S1/S2 fragments `kind: minor`; s4-a fragment says CR8 sills climbable (fix 1 is in
-  s4-c); S3 r1 polish list in s3-r1-check.md (facing doors, plant room cap, gas-cage hide, dressing throws until S3-f).
-- map-ready S3 (Opus builder, worktree -map-ready-s3, branch feature/map-ready-s3 on S14): steps 1-4 pushed (0c8589ea);
-  still running at the SAVE. Finish from the brief (cloud-queue briefs/map-ready-S3.md, claimed by this session), then
-  two Opus checkers + Guard AI review of src/ai, PC runs from its report.
-- S14 763fc7bf: gate + alone requests open on the laptop queue (no PR yet; stacks on #513).
-Next: retarget stacked lane PRs as parents land; map-ready S3 finish + two Opus checkers; S14 PR after its runs; S10 PR after #511 / #512.
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~15:10, new account since ~14:21, bypass mode).
+git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. This session posts its
+own `checker` statuses from an independent written report on that exact head and retargets stacked PRs itself.
+Reports: C:/NightShift/scratch/sector-ops-checks/ (PR bodies in pr-bodies/). tsc / vitest at BelowNormal,
+--maxWorkers=2; node_modules junctions only to C:/NightShift/Mobile-Coop-menu/node_modules. Desktop CPU ~70% at 15:00.
+Landed in train 119/120: #481, #488, #489, #511, #512, #513.
+1. Waiting on laptop affected-e2e only (checker posted): #518 light L0+L1, #457 marks (master merged at e45be943, docs
+   conflict only; checker carried, marks-merge-e45be943.md), lane bases #523 / #526 / #533 / #539 / #545.
+   Lane stacks (J17, dark): S1 #523 -> #524 -> #525; S2 #526 -> #527 -> #528 -> #529; S3 #539 -> ... -> #544;
+   S4 #545 -> #546 -> #547; S5 #533 -> #534 -> #535. `gh pr edit <n> --base master` as each parent lands.
+2. J21 map-ready: #550 S14 retargeted to master (Opus PASS, gate 2/2). #551 S3 (on #550): Guard AI PASS
+   (map-ready-s3-guardai-review.md); two Opus checkers running -> map-ready-s3-check-a.md / -b.md; post checker when
+   both PASS (fix round from Opus if FIX); retarget to master when #550 lands. #556 S10 (master, Opus desk PASS
+   s10-check.md): gate e2e-coop/netmove/lightbake/desktop requested (set map-ready-s10-gate); post checker when green.
+   Next slices: S15 (laptop GPU per step), S5 after #317, S16 / A20 (docs/map-ready/PLAN.md).
+3. J16 char-shadow-meter: S2c done on cloud -> PR #557 (master). Two Opus checkers running (src/net) ->
+   csm-s2c-check-a.md / -b.md. Next: S4 (partner probe) brief. Side finding for Guard AI / coop4 (sent? check):
+   playerRefsInto (gameState.ts:1083) `out.length = 0` + push allocates per sim step.
+4. J10 light: Michael 11:45 "Approve but only s1, let me walk it before doing any more". L2-S1/S2/S3 briefs on HOLD
+   until his S1 walk (feature/light-realism-l2). No L2 builds.
+5. Polish carried (not blocking): S1/S2 lane fragments `kind: minor`; s4-a fragment wording; S3 r1 polish
+   (s3-r1-check.md); map-ready S3 Guard AI polish (stand-ins skip the thermal loop, warm dog off LIVE_DOGS).
+Next: post S3 / S2c checkers from their reports; S10 checker when its gate is green; retarget stacks as parents land;
+brief J16 S4 and map-ready S15.
 ```
