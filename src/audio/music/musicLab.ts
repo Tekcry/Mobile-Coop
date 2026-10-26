@@ -2,7 +2,7 @@
  * The music lab: a debug screen for Michael's ears (`?musiclab=1`, or Settings > Audio > Music lab with `?debug=1`).
  * V3 sketch picker: three contrasting 60 s loops, each as calm, caution and alert stems, crossfaded live while they play.
  * The stems are pre-rendered offline (`npm run music:render`) and bundled; nothing here is synthesised.
- * (piano-escape S5) A "Scene" list plays the nine Piano Escape scene tracks (`sceneTracks.ts`) one at a time, each through
+ * (piano-escape S5) A "Scene" list plays the twelve Piano Escape scene tracks (`sceneTracks.ts`) one at a time, each through
  * `ScenePiano` as the scene would (loop rule and cross-fade included), to A/B them by ear. Each file is fetched when picked.
  */
 import type { App } from '../../core/app';
@@ -107,7 +107,7 @@ export class MusicLabScreen extends Screen {
       section(
         'Scene',
         ...sceneList,
-        h('div', { class: 'row-note', text: 'Piano Escape scene music A/B (also ?pianomusic=pixabay|grohl|1|2|3|4|a|b|c in the scene). Each plays from 0 as the scene does, loops (from 41 s if long enough, else whole) with a 2 s cross-fade, and is fetched only when picked. The lightning keeps its 91.03 s timetable; none of them follows it.' }),
+        h('div', { class: 'row-note', text: 'Piano Escape scene music A/B (also ?pianomusic=pixabay|grohl|1|2|3|4|a|b|c|d|e|f in the scene). Each plays from 0 as the scene does, loops (from 41 s if long enough, else whole) with a 2 s cross-fade, and is fetched only when picked. The lightning keeps its 91.03 s timetable; none of them follows it.' }),
       ),
       section(
         'Threat',

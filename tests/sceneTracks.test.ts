@@ -23,8 +23,8 @@ import {
 const SCENE_DIR = fileURLToPath(new URL('../src/assets/music/scene/', import.meta.url));
 
 describe('scene tracks: ?pianomusic=', () => {
-  it('names nine tracks; the default is the Pixabay one (S3)', () => {
-    expect(SCENE_TRACKS.map((t) => t.id)).toEqual(['pixabay', 'grohl', '1', '2', '3', '4', 'a', 'b', 'c']);
+  it('names twelve tracks; the default is the Pixabay one (S3)', () => {
+    expect(SCENE_TRACKS.map((t) => t.id)).toEqual(['pixabay', 'grohl', '1', '2', '3', '4', 'a', 'b', 'c', 'd', 'e', 'f']);
     expect(DEFAULT_SCENE_TRACK).toBe('pixabay');
   });
 
@@ -32,11 +32,13 @@ describe('scene tracks: ?pianomusic=', () => {
     for (const t of SCENE_TRACKS) expect(sceneTrackFromSearch(`?pianomusic=${t.id}`)).toBe(t.id);
     expect(sceneTrackFromSearch('?x=1&pianomusic=grohl&y=2')).toBe('grohl');
     expect(sceneTrackFromSearch('?pianomusic=B')).toBe('b');
+    expect(sceneTrackFromSearch('?pianomusic=d')).toBe('d');
+    expect(sceneTrackFromSearch('?pianomusic=F')).toBe('f');
     expect(sceneTrackFromSearch('?pianomusic=%20PIXABAY%20')).toBe('pixabay');
   });
 
   it('no param, empty or unknown is the default', () => {
-    for (const s of ['', '?', '?other=1', '?pianomusic=', '?pianomusic=5', '?pianomusic=d', '?pianomusic=sketch-1']) {
+    for (const s of ['', '?', '?other=1', '?pianomusic=', '?pianomusic=5', '?pianomusic=g', '?pianomusic=sketch-1']) {
       expect(sceneTrackFromSearch(s)).toBe('pixabay');
     }
     expect(parseSceneTrack(null)).toBe('pixabay');
@@ -51,6 +53,9 @@ describe('scene tracks: ?pianomusic=', () => {
       'grohl-a-clockwork.mp3',
       'grohl-b-storm-piano.mp3',
       'grohl-c-heartbeat.mp3',
+      'grohl-d-hybrid-ops.mp3',
+      'grohl-e-last-stand.mp3',
+      'grohl-f-ghost-signal.mp3',
       'piano-escape.mp3',
       'sketch-1-held-breath.mp3',
       'sketch-2-thornbeck.mp3',
@@ -82,7 +87,7 @@ describe('scene tracks: loop rule', () => {
   });
 
   it('per track, from its measured length', () => {
-    const want: Record<SceneTrackId, number> = { pixabay: 41, grohl: 41, '1': 0, '2': 0, '3': 0, '4': 0, a: 41, b: 41, c: 41 };
+    const want: Record<SceneTrackId, number> = { pixabay: 41, grohl: 41, '1': 0, '2': 0, '3': 0, '4': 0, a: 41, b: 41, c: 41, d: 41, e: 41, f: 41 };
     for (const t of SCENE_TRACKS) expect(loopStartFor(t.length), t.id).toBe(want[t.id]);
   });
 });

@@ -70,3 +70,14 @@ third-party licence applies. Prototypes only (no tuning); the lightning keeps it
 | a "Clockwork" | original, `scripts/music/grohl-form.mjs` | `src/assets/music/scene/grohl-a-clockwork.mp3` | `a12a182b98acbd39ea12feee0161cde4a43320343e8efcc029c33e3e5992b278` |
 | b "Storm Piano" | original, `scripts/music/grohl-form.mjs` | `src/assets/music/scene/grohl-b-storm-piano.mp3` | `916450e57f2a0ecb8977c61f44837649b0d03a6cf8443b52ab877fb2015b2bc0` |
 | c "Heartbeat" | original, `scripts/music/grohl-form.mjs` | `src/assets/music/scene/grohl-c-heartbeat.mp3` | `456950d62916cb4f9326a01cddd22377bc2ee7a5cab36f2b7503944c9506240a` |
+
+Three more original prototypes in an epic hybrid orchestral style, on the same form as the "Suspense Thriller" track above
+(about 163 s, 192 kb/s MP3), made in this repo by `scripts/music/grohl-epic.mjs`: original notes and sounds, no samples,
+nothing taken from any track. No third-party licence applies. Prototypes only (no tuning); the lightning keeps its 91.03 s
+timetable and they do not follow it.
+
+| Prototype | Source | File | File SHA-256 |
+| --- | --- | --- | --- |
+| d "Hybrid Ops" | original, `scripts/music/grohl-epic.mjs` | `src/assets/music/scene/grohl-d-hybrid-ops.mp3` | `00a2ca4bc5e67f9ef51d6322d29c8a4503b75287f66d661d92df552278cbc070` |
+| e "Last Stand" | original, `scripts/music/grohl-epic.mjs` | `src/assets/music/scene/grohl-e-last-stand.mp3` | `6ee91ef55446c87babb4ec64e080e4cc332f7f0b6f8886a3a3bcfc96828a51e4` |
+| f "Ghost Signal" | original, `scripts/music/grohl-epic.mjs` | `src/assets/music/scene/grohl-f-ghost-signal.mp3` | `e1f888fd644bc45f283721e248081ab434258602fe3a62e9e111f4659e83dff4` |

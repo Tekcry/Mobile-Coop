@@ -1,13 +1,13 @@
 /**
- * (piano-escape S5) The scene music A/B: nine tracks under `src/assets/music/scene/`, one chosen by the dev param
- * `?pianomusic=pixabay|grohl|1|2|3|4|a|b|c` (default `pixabay`, S3's "Investigation Piano"; an unknown value is the default).
+ * (piano-escape S5) The scene music A/B: twelve tracks under `src/assets/music/scene/`, one chosen by the dev param
+ * `?pianomusic=pixabay|grohl|1|2|3|4|a|b|c|d|e|f` (default `pixabay`, S3's "Investigation Piano"; an unknown value is the default).
  * `scenePiano.ts` takes its URL and its loop start from here (the one seam). Credits: docs/audio-credits.md.
  *
  * Each file is reached by its own dynamic `import()` of its `?url`, so only the chosen one is ever fetched (none is at
  * page load, none is in the offline cache: `PRECACHE_IGNORES`). Nothing here touches the audio context.
  */
 
-export type SceneTrackId = 'pixabay' | 'grohl' | '1' | '2' | '3' | '4' | 'a' | 'b' | 'c';
+export type SceneTrackId = 'pixabay' | 'grohl' | '1' | '2' | '3' | '4' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f';
 
 export interface SceneTrack {
   id: SceneTrackId;
@@ -35,6 +35,9 @@ export const SCENE_TRACKS: readonly SceneTrack[] = [
   { id: 'a', name: 'A: Clockwork (Grohl form)', length: 163, url: async () => (await import('../../assets/music/scene/grohl-a-clockwork.mp3?url')).default },
   { id: 'b', name: 'B: Storm Piano (Grohl form)', length: 163, url: async () => (await import('../../assets/music/scene/grohl-b-storm-piano.mp3?url')).default },
   { id: 'c', name: 'C: Heartbeat (Grohl form)', length: 163, url: async () => (await import('../../assets/music/scene/grohl-c-heartbeat.mp3?url')).default },
+  { id: 'd', name: 'D: Hybrid Ops (epic hybrid orchestral)', length: 163, url: async () => (await import('../../assets/music/scene/grohl-d-hybrid-ops.mp3?url')).default },
+  { id: 'e', name: 'E: Last Stand (epic hybrid orchestral)', length: 163, url: async () => (await import('../../assets/music/scene/grohl-e-last-stand.mp3?url')).default },
+  { id: 'f', name: 'F: Ghost Signal (epic hybrid orchestral)', length: 163, url: async () => (await import('../../assets/music/scene/grohl-f-ghost-signal.mp3?url')).default },
 ];
 
 /** The track a `?pianomusic=` value names (case and spaces ignored); null, empty or unknown is the default. */
