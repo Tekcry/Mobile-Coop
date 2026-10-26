@@ -137,24 +137,27 @@ export function claimBlocks(claim, worker, now, maxMs) {
 /**
  * Desktop overflow lane gate: start new work only while the backlog is over minBacklog and CPU under maxCpu. cpu is the
  * gated load (gatedCpu: BelowNormal / Idle processes left out); total (optional, the whole machine) only goes into the
- * reason so the log explains a wait, e.g. "cpu 62% >= 50% (Normal+ priority; total 95%)".
+ * reason so the log explains a wait, e.g. "cpu 62% >= 50% (Normal+ priority; total 95%)". mode 'total'
+ * (LQ_DESKTOP_CPU_MODE=total, laptop-queue-8 A11: cpu is then the whole machine, lib gateCpu) says so in the reason.
  */
-export function desktopGate(backlog, cpu, minBacklog, maxCpu, total) {
+export function desktopGate(backlog, cpu, minBacklog, maxCpu, total, mode = 'normal') {
   if (!(backlog > minBacklog)) return `backlog ${backlog} <= ${minBacklog}`;
   if (!Number.isFinite(cpu)) return 'cpu unknown';
+  if (cpu >= maxCpu && mode === 'total') return `cpu ${cpu}% >= ${maxCpu}% (total mode: whole machine)`;
   if (cpu >= maxCpu) return `cpu ${cpu}% >= ${maxCpu}%${Number.isFinite(total) ? ` (Normal+ priority; total ${total}%)` : ''}`;
   return '';
 }
 
 /**
  * Per-slot desktop gate: '' when the slot may start, else why it waits. s = { lockName, lockHeld, dirOk, backlog, cpu,
- * cpuTotal?, minBacklog, maxCpu } (the slot's own lock file, worktree dir and max CPU; cpu the gated load, cpuTotal the
- * whole machine for the reason only); lock and dir are checked before desktopGate.
+ * cpuTotal?, minBacklog, maxCpu, cpuMode? } (the slot's own lock file, worktree dir and max CPU; cpu the load the gate
+ * reads (lib gateCpu), cpuTotal the whole machine for the reason only, cpuMode 'normal' | 'total'); lock and dir are
+ * checked before desktopGate.
  */
 export function desktopSlotGate(s) {
   if (s.lockHeld) return `${s.lockName} held`;
   if (!s.dirOk) return 'worktree missing';
-  return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu, s.cpuTotal);
+  return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu, s.cpuTotal, s.cpuMode);
 }
 
 /**
@@ -237,6 +240,23 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
   return Math.round(Math.min(100, Math.max(0, total - bg)));
 }
 
+/**
+ * The CPU % a desktop gate reads (laptop-queue-8 A11, LQ_DESKTOP_CPU_MODE): c = { gated, total } (service cpuGated);
+ * mode 'total' -> the whole machine, anything else ('normal', the default) -> the gated load (lib gatedCpu).
+ */
+export const gateCpu = (c, mode) => (mode === 'total' ? c?.total : c?.gated);
+
+/**
+ * The desktop leaves a request to the laptop when its expected wall at E2E_JOBS=1 is over maxS (laptop-queue-8 A9,
+ * LQ_DESKTOP_MAX_MIN 15): times = the seed merged with the desktop's times.json; unknown (NaN) is taken; maxS <= 0 = no
+ * limit.
+ */
+export function desktopTooLong(r, times, maxS) {
+  if (!(maxS > 0)) return false;
+  const w = expectedWallS(r?.suites ?? [], times, 1);
+  return Number.isFinite(w) && w > maxS;
+}
+
 /** Front tier of lib pick (laptop-queue-7): a branch naming a LQ_FRONT_BRANCHES entry (case-insensitive substring), or an early-id re-file (no id time, or before 2020). */
 export function isFront(r, frontBranches = []) {
   const t = idTime(r?.id);
@@ -296,6 +316,8 @@ export function greenIds(requests, board) {
  * laptop-queue-8: order.fix (a Set of ids, lib isFix) is tier 0, before the front tier: the smallest queue place first,
  * no wait bound (A1, A3). pr / full work sorts by placeKey (a new head keeps its old request's place, A4) wherever it
  * sorted by id: the front tier, the starvation check (the place's time), green ties and the arrival rule.
+ * order.smallest (the desktop, laptop-queue-8 A8) replaces the front / green / arrival tiers after the fix tier: the
+ * smallest order.wallS first (the service fills it for every request at E2E_JOBS=1), unknown wall last, ties by place.
  */
 export function pick(queue, now, slots) {
   const all = [...queue.requests].sort(sortById);
@@ -331,6 +353,11 @@ function pickFrom(queue, now, slots) {
   if (order && idle[0]) {
     const fix = nonAlone.find((r) => order.fix?.has(r.id)); // laptop-queue-8 tier 0: fixes, smallest place first
     if (fix) return { kind: 'request', request: fix, slot: idle[0].port };
+    if (order.smallest) { // laptop-queue-8 A8 (the desktop): smallest expected wall first, unknown last, ties by place
+      const wall = (r) => { const w = order.wallS?.[r.id]; return Number.isFinite(w) ? w : Infinity; };
+      const small = [...nonAlone].sort((a, b) => wall(a) - wall(b) || sortByPlace(a, b))[0];
+      return small ? { kind: 'request', request: small, slot: idle[0].port } : arrivalNext([], alone, idle, bothIdle);
+    }
     const early = nonAlone.find((r) => isFront(r, order.frontBranches));
     const rest = nonAlone.filter((r) => r !== early && !isFront(r, order.frontBranches));
     let chosen = early;

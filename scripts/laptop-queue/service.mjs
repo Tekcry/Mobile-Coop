@@ -108,7 +108,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -159,6 +159,8 @@ const ALONE_GAP = process.env.LQ_ALONE_GAP !== '0'; // 0 = the holds keep an age
 const FIX_FIRST = process.env.LQ_FIX_FIRST !== '0'; // laptop-queue-8 A3: 0 = no fix tier (lib pick queue.order.fix)
 const STOP_SUPERSEDED = process.env.LQ_STOP_SUPERSEDED !== '0'; // laptop-queue-8 A6: 0 = runs on old heads finish
 const KEEP_FINISHED = process.env.LQ_KEEP_FINISHED !== '0'; // laptop-queue-8 A10: 0 = a preempted run reruns all its suites
+const DESKTOP_MAX_S = Number(process.env.LQ_DESKTOP_MAX_MIN ?? 15) * 60; // laptop-queue-8 A9: longer runs are left to the laptop (0 = no limit)
+const CPU_MODE = process.env.LQ_DESKTOP_CPU_MODE === 'total' ? 'total' : 'normal'; // laptop-queue-8 A11: desktop gate load (lib gateCpu)
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
 const DRY = argv.includes('--dry-run');
@@ -599,6 +601,7 @@ const gapLogged = new Set(); // due alone ids whose "gap after train" line is lo
 let openTrainCount = -1; // open train/<n> PRs at the last listing (-1: unknown)
 let manualLogged = '';
 let orderLogged = ''; // the last "order:" log line's front / green ids
+const tooLongLogged = new Set(); // desktop: request ids already logged as left to the laptop (laptop-queue-8 A9)
 /** The open PR board (lib prBoard), read by prBoardNow every LQ_PR_BOARD_S s; empty after a GitHub error. */
 let board = new Map();
 let lastBoard = 0;
@@ -1887,6 +1890,12 @@ async function pass() {
     const backlog = queue.requests.length;
     // a train rerun and a laptop rerun of a desktop failure are the laptop's (the desktop failed them)
     queue.requests = queue.requests.filter((r) => r.kind === 'pr' && !r.trainRerun && !r.laptopRerun);
+    // laptop-queue-8 A9: a run estimated over LQ_DESKTOP_MAX_MIN at E2E_JOBS=1 is the laptop's (the backlog above counts it)
+    queue.requests = queue.requests.filter((r) => {
+      if (!desktopTooLong(r, times, DESKTOP_MAX_S)) return true;
+      if (!tooLongLogged.has(r.id)) { tooLongLogged.add(r.id); log(`${r.id}: ~${Math.round(expectedWallS(r.suites, times, 1) / 60)} min on the desktop, left to the laptop`); }
+      return false;
+    });
     const why = {};
     const train = queue.trains[0];
     if (train) {
@@ -1894,7 +1903,7 @@ async function pass() {
       // it blocks new requests meanwhile so busy slots drain (as pick does on the laptop)
       const cpu = lazyCpu();
       const ports = PORTS.filter((p) => fs.existsSync(SLOTS[p].dir));
-      for (const port of ports) why[port] = busy[port] ? 'busy' : desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: slotLockHeld(port), dirOk: true, backlog: Infinity, cpu: cpu().gated, cpuTotal: cpu().total, minBacklog: 0, maxCpu: DESKTOP_CPU[port] });
+      for (const port of ports) why[port] = busy[port] ? 'busy' : desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: slotLockHeld(port), dirOk: true, backlog: Infinity, cpu: gateCpu(cpu(), CPU_MODE), cpuTotal: cpu().total, cpuMode: CPU_MODE, minBacklog: 0, maxCpu: DESKTOP_CPU[port] });
       const waits = Object.entries(why).filter(([, w]) => w).map(([p, w]) => `${p} ${w}`);
       log(`queue: train ${train.n} ${train.sha.slice(0, 8)} (laptop silent or on another train), ${backlog} request(s)${ports.length === 0 ? '; no desktop worktree' : ''}${waits.length ? `; waiting: ${waits.join('; ')}` : ''}`);
       if (ports.length === 0 || waits.length) return;
@@ -1910,7 +1919,7 @@ async function pass() {
         if (busy[port]) continue;
         // no claims yet: the laptop runs an older service and its finished requests are not marked; never rerun them
         if (claimCount === 0) why[port] = 'no claims on the branch yet (laptop service not updated)';
-        else why[port] = desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: slotLockHeld(port), dirOk: fs.existsSync(SLOTS[port].dir), backlog, cpu: cpu().gated, cpuTotal: cpu().total, minBacklog: DESKTOP_BACKLOG, maxCpu: DESKTOP_CPU[port] });
+        else why[port] = desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: slotLockHeld(port), dirOk: fs.existsSync(SLOTS[port].dir), backlog, cpu: gateCpu(cpu(), CPU_MODE), cpuTotal: cpu().total, cpuMode: CPU_MODE, minBacklog: DESKTOP_BACKLOG, maxCpu: DESKTOP_CPU[port] });
         if (why[port]) desktopWait[port] = true;
       }
     }
@@ -1941,15 +1950,15 @@ async function pass() {
     for (const p of Object.keys(held)) virtual[p] = true;
   }
   // fixes first (laptop-queue-8 A1), then front, then green PR heads smallest wall first, then arrival (lib pick
-  // queue.order); built after every filter above
-  if (GREEN_FIRST || FIX_FIRST) {
-    const green = GREEN_FIRST ? greenIds(queue.requests, board) : new Set();
+  // queue.order); built after every filter above. The desktop (A8): fixes, then smallest expected wall at E2E_JOBS=1.
+  if (DESKTOP || GREEN_FIRST || FIX_FIRST) {
+    const green = GREEN_FIRST && !DESKTOP ? greenIds(queue.requests, board) : new Set();
     const fix = new Set(FIX_FIRST ? queue.requests.filter((r) => isFix(r, board)).map((r) => r.id) : []);
     const wallS = {};
-    for (const r of queue.requests) if (green.has(r.id)) wallS[r.id] = expectedWallS(r.suites, times, r.jobs ?? (DESKTOP ? 1 : 2));
-    const frontBranches = GREEN_FIRST ? FRONT_BRANCHES : [];
-    queue.order = { fix, green, wallS, frontBranches, maxWaitMs: GREEN_MAX_WAIT_MS };
-    const frontIds = GREEN_FIRST ? queue.requests.filter((r) => r.kind !== 'alone' && isFront(r, FRONT_BRANCHES)).map((r) => r.id) : [];
+    for (const r of queue.requests) if (DESKTOP || green.has(r.id)) wallS[r.id] = expectedWallS(r.suites, times, DESKTOP ? 1 : r.jobs ?? 2);
+    const frontBranches = GREEN_FIRST && !DESKTOP ? FRONT_BRANCHES : [];
+    queue.order = { fix, green, wallS, frontBranches, maxWaitMs: GREEN_MAX_WAIT_MS, smallest: DESKTOP };
+    const frontIds = frontBranches.length ? queue.requests.filter((r) => r.kind !== 'alone' && isFront(r, FRONT_BRANCHES)).map((r) => r.id) : [];
     const key = `${[...fix].sort().join(',')}|${frontIds.join(',')}|${[...green].sort().join(',')}`;
     if (key !== orderLogged) { orderLogged = key; if (fix.size || frontIds.length || green.size) log(`order: fix ${fix.size}, front ${frontIds.length}, green ${green.size} (smallest first)`); }
   }
