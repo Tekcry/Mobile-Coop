@@ -182,18 +182,8 @@ const W4_GUARDS: SectorGuard[] = [
   walker([[74, 12], [85, 12], [85, 26], [74, 26]], { zone: 'shed-three', role: 'foreman', reason: 'Foreman on his round of the shed, the dark side aisle included' }),
 ];
 
-/**
- * The guards the graph does not count (its per-section sums are W1 7, W2 6, W3 10, W4 12) and why: the brief adds them as
- * the talkers and decoys the missions need.
- */
-export const WHARF_GUARD_EXTRAS: readonly { id: string; why: string }[] = [
-  { id: 'W1:7', why: "tea-stall porter: Three Grey Coats' tgc-tea talker (overheard with his mate)" },
-  { id: 'W1:8', why: "tea-stall porter: Three Grey Coats' tgc-tea talker (overheard with his mate)" },
-  { id: 'W2:6', why: "Teale, Pell's courier: the interrogation target of tgc-3" },
-  { id: 'W2:7', why: 'Fenn, the first decoy of tgc-3' },
-  { id: 'W2:8', why: 'Garrow, the second decoy of tgc-3' },
-  { id: 'W2:9', why: "the night clerk: Two-Key Ledger's tkl-gate-code talker" },
-];
+/** The guards the graph does not count, and why: none since J8 D1: the graph counts every spawned guard, A10. */
+export const WHARF_GUARD_EXTRAS: readonly { id: string; why: string }[] = [];
 
 /**
  * Which guards each mission spawns (`MissionDef.guards` reads this): `'all'` = every guard of the section, a list = those

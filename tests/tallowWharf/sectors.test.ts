@@ -206,7 +206,7 @@ describe('tallowWharf missions: against the graph files', () => {
 });
 
 describe('tallowWharf guards', () => {
-  it('counts: W1 9, W2 10, W3 10, W4 12; the graph\'s sums plus the listed extras', () => {
+  it('counts: W1 9, W2 10, W3 10, W4 12; the graph\'s sums', () => {
     expect(WHARF_SECTORS.map((s) => s.guards.length)).toEqual([9, 10, 10, 12]);
     const sums: Record<string, number> = { W1: 0, W2: 0, W3: 0, W4: 0 };
     for (const sp of GRAPH.spaces) {
