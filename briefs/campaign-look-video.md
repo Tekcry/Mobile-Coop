@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-26T02:39:59Z
 
 # campaign look-video: a look-video recorder for map walk videos (Sonnet)
 Owner: Campaign Build. Lead: Night Shift | Campaign Build. Released 2026-10-26 ~13:45. Gate item of the PR C split
