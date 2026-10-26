@@ -94,7 +94,8 @@ import {
   A5_WICKET_GATE,
   FLOOR_HOLES,
 } from '../../../src/world/maps/ctcourseSets/replan/a5Substation';
-import { checkSetPart, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../../src/world/maps/ctcourseSets/types';
+import { checkSetPart, HOLD_H, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../../src/world/maps/ctcourseSets/types';
+import { GAL_FLOOR, GAL_TOP } from '../../../src/world/maps/ctcourseSets/facility';
 import { lastTimeAtOrOver, LEAP_APEX, MANTLE, SOLO_TOP_SPEED } from '../../helpers/soloJumpReach';
 
 const b = new LevelBuilder();
@@ -441,6 +442,31 @@ describe('Marlow re-plan A5: the perimeter wall, the 1.4 m gap and the wicket (s
     expect(A5_LADDER.z).toBeLessThanOrEqual(36);
     expect(blockedAt(l.base.x - 0.5, l.base.z)).toEqual([]);
   });
+
+  it("(marlow-kit-geo Q3) the chimney has a back to its top: over the gap (z 30.25-35.75) the east side is the set wall to the gallery floor (4.5 m, face x 69.75) and the gallery's glazing to 7.5 m (x 69.95-70.05), so nothing opens from the gap onto L4's lid (3.6 m) or the gallery; the shaft is 1.4 m to 4.5 m and 1.6 m above (the chimney band 1.2-1.6 m)", () => {
+    expect(GAL_FLOOR).toBe(4.5);
+    expect(GAL_TOP).toBeGreaterThan(A5_WALLTOP.y);
+    const at = (y: number, z: number): BoxPiece[] =>
+      solid.filter((p) => p.c[0] - p.s[0] / 2 <= 70.0 && p.c[0] + p.s[0] / 2 >= 70.0 && Math.abs(z - p.c[2]) <= p.s[2] / 2 + 1e-9 && bottom(p) <= y + 1e-9 && top(p) >= y - 1e-9);
+    for (let z = A5_GAP.z0 + 0.05; z < A5_GAP.z1; z += 0.1) {
+      for (let y = 2.3; y <= A5_WALLTOP.y + 1e-9; y += 0.1) {
+        const here = at(y, z);
+        expect(here.length, `east side open at y ${y.toFixed(2)}, z ${z.toFixed(2)}`).toBeGreaterThan(0);
+        const face = Math.min(...here.map((p) => p.c[0] - p.s[0] / 2));
+        const width = face - A5_GAP.x0;
+        expect(width, `shaft width at y ${y.toFixed(2)}, z ${z.toFixed(2)}`).toBeGreaterThanOrEqual(1.2 - 1e-9);
+        expect(width, `shaft width at y ${y.toFixed(2)}, z ${z.toFixed(2)}`).toBeLessThanOrEqual(1.6 + 1e-9);
+        if (y < GAL_FLOOR - 0.05) expect(face).toBeCloseTo(A5_GAP.x1, 9);
+      }
+    }
+    // L4's lid stands under the gallery floor, behind the set wall
+    expect(HOLD_H + 0.4).toBeLessThan(GAL_FLOOR);
+  });
+
+  // (marlow-kit-geo, a finding for K3) the gap is a split gap today: the set wall (4.5 m) and the perimeter wall face each other
+  // 1.4 m apart, so `findSplitGaps` finds a 4.5 m corridor along x 69.05 that reaches into the gap's south end (z 30.55-31.8).
+  // K3's `noSplit` (coop-kit PLAN "Chimney Pair") takes it out; no way on from 4.5 m (the wall top is 6 m, every top noLedge).
+  it.todo('the chimney shaft is no split gap (K3 noSplit from the chimney spot)');
 });
 
 describe('Marlow re-plan A5: the cable trench, the footbridge, the plates and the gantry (station 12)', () => {

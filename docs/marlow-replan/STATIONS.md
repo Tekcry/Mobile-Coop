@@ -395,7 +395,9 @@ rule (a heavy landing retries the station).
   on x 65.85-66.0, the bar at 2.6 m), its line z 43.0 clear to the west strip's wall (4.2 m of landing); on the
   gantry's line (z 44.6) its posts stood on both edges and the drums left 0.55 m of landing (band 0.75 m), so the gantry
   is dressing. The trench's 3.5 m is the band's top. Undo: drop A5-R10 (and the swing spot goes back to the gantry once
-  its posts and the drums move).
+  its posts and the drums move). (marlow-kit-geo Q3) The gap's east side is the set wall to the gallery floor (4.5 m)
+  and the gallery's glazing to 7.5 m, set back 0.2 m (shaft 1.4 m, then 1.6 m): the chimney has a back to its 6 m top
+  and L4's lid (3.6 m) is behind the wall, so no face is added (one would cover the gallery's glazing).
 - **SA11 New ids and kinds.** `g-a2-shutter` (hold, door `A2-shutter`); `g-a2-shutter-open` (egress latch on the roller door, station 4's stand-in: open for good once station 3 passes);
   `g-a2-walkway` (stand-in, door `A2-walkway`);
   `g-a3-fire` (bolt, door `A3-fire`, push bar on the corridor side); `g-a4-grille` (the deadweight grille, KS1's hookup)
