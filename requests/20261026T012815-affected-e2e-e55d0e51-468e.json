@@ -6,18 +6,10 @@
   "kind": "pr",
   "requester": "affected-e2e",
   "suites": [
-    "e2e-anchors",
     "e2e-coop",
     "e2e-ctcourse",
-    "e2e-gadgets",
-    "e2e-levels",
-    "e2e-netmove",
-    "e2e-park",
-    "e2e-sectorops",
-    "e2e-tactics",
-    "e2e-takedown",
-    "smoke"
+    "e2e-netmove"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #457"
+  "note": "auto affected-e2e, PR #457 (re-filed at cap 3)"
 }
