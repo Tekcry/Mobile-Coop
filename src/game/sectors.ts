@@ -131,7 +131,7 @@ export interface SectorDef {
   perStage: number;
   /**
    * (sector-redesign G20, M10) How many dogs the section may have (default 0: none). Every dog needs a `handler`.
-   * Sector Ops only (M10 "Include guard dogs"); G155 (no dogs) still holds for the co-op missions elsewhere.
+   * Sector Ops only (M10 "Include guard dogs"); G155 (no dogs) holds for the campaign: `checkSectors(..., 'campaign')` allows none.
    */
   dogs?: number;
   /** The ways to the objective and on to the exit (M8: at least 2). */
@@ -546,8 +546,9 @@ export function exitZone(def: SectorDef): SectorZone | null {
  * Problems with a run's data (empty when fine): every section but the last has a connector, the last an extraction.
  * (E5) With `nav` (the map's nav grid and doors), a stage lockdown that leaves no way through is rejected too.
  * (E6) With `security` (the map's security data), its desks are checked against the sections and cameras (`checkDesks`).
+ * `mode` 'campaign' also rejects every dog (G155): the campaign allows none (`checkSectorGuards`).
  */
-export function checkSectors(defs: readonly SectorDef[], nav?: StageNavCheck, security?: SecurityData): string[] {
+export function checkSectors(defs: readonly SectorDef[], nav?: StageNavCheck, security?: SecurityData, mode: 'sector' | 'campaign' = 'sector'): string[] {
   const out: string[] = [];
   for (let i = 0; i < defs.length; i++) {
     const d = defs[i]!;
@@ -563,7 +564,7 @@ export function checkSectors(defs: readonly SectorDef[], nav?: StageNavCheck, se
       if (g.a.at[0] === g.b.at[0] && g.a.at[1] === g.b.at[1]) out.push(`${d.id}: pair gate ${k} has both key switches in one place`);
       if (g.window !== undefined && !(g.window > 0)) out.push(`${d.id}: pair gate ${k} window is not positive`);
     });
-    out.push(...checkSectorGuards(d));
+    out.push(...checkSectorGuards(d, mode));
   }
   out.push(...checkSectorCodes(defs));
   out.push(...checkStageActions(defs, nav));
@@ -578,9 +579,10 @@ export const SECTOR_REINFORCE_KIND = 'grunt' as const;
 /**
  * (sector-redesign G3 / G20) A section's guard list against the Sector Ops rules (empty when fine): every human guard
  * carries a gun (M1 "they should all have weapons": no melee-only kinds such as the runner), no heavies (G155), at most
- * `dogs` dogs (default 0), and each dog names a handler: another guard of the section, armed and human.
+ * `dogs` dogs (default 0), and each dog names a handler: another guard of the section, armed and human. In `'campaign'`
+ * mode the campaign allows no dogs at all (G155): any quadruped and any `dogs > 0` is an error.
  */
-export function checkSectorGuards(d: SectorDef): string[] {
+export function checkSectorGuards(d: SectorDef, mode: 'sector' | 'campaign' = 'sector'): string[] {
   const out: string[] = [];
   let dogs = 0;
   d.guards.forEach((g, k) => {
@@ -588,6 +590,7 @@ export function checkSectorGuards(d: SectorDef): string[] {
     if (g.kind === 'heavy') out.push(`${d.id}: guard ${k} is a heavy (G155)`);
     if (def.quadruped) {
       dogs++;
+      if (mode === 'campaign') out.push(`${d.id}: guard ${k} is a dog (G155: no dogs in the campaign)`);
       const h = g.handler === undefined ? undefined : d.guards[g.handler];
       if (!h) out.push(`${d.id}: dog ${k} has no handler`);
       else if (g.handler === k || ENEMIES[h.kind].quadruped || !ENEMIES[h.kind].weapon) out.push(`${d.id}: dog ${k}'s handler ${g.handler} is not an armed human guard`);
@@ -596,6 +599,7 @@ export function checkSectorGuards(d: SectorDef): string[] {
     if (!def.weapon) out.push(`${d.id}: guard ${k} (${g.kind}) carries no gun (M1)`);
   });
   if (dogs > (d.dogs ?? 0)) out.push(`${d.id}: ${dogs} dogs, the section allows ${d.dogs ?? 0}`);
+  if (mode === 'campaign' && (d.dogs ?? 0) > 0) out.push(`${d.id}: dogs ${d.dogs} in a campaign section (G155)`);
   return out;
 }
 

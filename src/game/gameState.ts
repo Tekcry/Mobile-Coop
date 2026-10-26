@@ -187,6 +187,8 @@ export interface NetAttachment {
   onLocalDeath(): boolean;
   /** Host: the session ended (broadcast results). */
   onEnd?(won: boolean, subtitle: string): void;
+  /** (hud-guidance B4, HG8) Client: Field Terminal > Objectives rows; null: none (GameState shows its own). */
+  objectiveLines?(): ObjectiveLine[] | null;
   /** Host: revive every downed player (wave cleared). */
   reviveAll?(): void;
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: everyone; TDM: the same side). */
@@ -1253,6 +1255,8 @@ export class GameState implements AppState {
 
   /** The mission's objectives and their state for the pause menu (G108). */
   objectiveLines(): ObjectiveLine[] {
+    const own = this.mode?.objectiveLines?.() ?? this.net?.objectiveLines?.();
+    if (own) return own;
     const m = this.mode;
     if (m instanceof InfiltrationMode) {
       const c = m.chain;

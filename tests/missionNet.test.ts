@@ -8,6 +8,8 @@ import { MissionMirror } from '../src/net/missionMirror';
 import { CoopClient } from '../src/net/coopClient';
 import { CoopHost } from '../src/net/coopHost';
 import { MissionRunner } from '../src/game/mission/missionRunner';
+import { MissionFeed } from '../src/game/mission/missionFeed';
+import { stepLine } from '../src/game/mission/missionText';
 import { RuleTracker } from '../src/game/mission/ruleTracker';
 import { packMission, type MissionWire } from '../src/game/mission/missionWire';
 import type { MissionDef } from '../src/game/mission/missionDef';
@@ -116,6 +118,106 @@ describe('mission NET: ms on the sector message', () => {
     on(received({ ms: w }));
     expect(feed).toEqual([w.rl]);
     expect(c.mission.runner?.isDone(0)).toBe(true);
+  });
+
+  it("(R6 polish) the client path: a sector message whose ls opens the section's steps puts our mission step on the objective line over the host's snapshot line; the same message again changes nothing", () => {
+    const c = Object.create(CoopClient.prototype) as CoopClient;
+    const shown: string[] = [];
+    const hints: (string | null)[] = [];
+    Object.assign(c, {
+      g: {
+        world: { map: { missions: [op()], sectors: [{ id: 'S1' }, { id: 'S2' }] } },
+        hud: { feedItem: () => {}, setObjective: (t: string) => shown.push(t), setObjectiveHint: (t: string | null) => hints.push(t) },
+        app: { settings: { get: () => ({ gameplay: { hints: false } }) } },
+        opts: { mode: 'sector' },
+      },
+      mission: new MissionMirror(),
+      sawSector: true,
+      sec: null,
+      // the fields a bare client lacks (class initialisers do not run under Object.create): the feed, the lazily read
+      // viewer (R6 0cb3a4d6c: our slot from the session, read once per sector message), the host's snapshot line
+      missionFeed: new MissionFeed(),
+      viewerStale: true,
+      missionViewer: 'all',
+      s: { selfId: 'c1', players: new Map([['h', { id: 'h', host: true }], ['c1', { id: 'c1', host: false }]]) },
+      gotSnap: true,
+      hostObj: 'Hold at the gate',
+      obj: 'Hold at the gate',
+      // frameUpdate's other per-frame work, empty
+      card: null,
+      clock: { now: () => 0 },
+      avatars: new Map(),
+      puppets: new Map(),
+      heldPuppet: null,
+      targets: new Map(),
+      blockers: [],
+      puppetList: [],
+      torches: { update: () => {} },
+      dying: [],
+      helmetDrops: null,
+      kept: new Map(),
+      views: new Map(),
+    });
+    const on = (m: Extract<Msg, { t: 'sector' }>): void => (c as unknown as { onSector(m: unknown): void }).onSector(m);
+    const msg = received({ ms: hostWire(), ls: 0 });
+    on(msg);
+    const runner = c.mission.runner!;
+    expect(runner.section).toBe(runner.sectionIndex('S1'));
+    c.frameUpdate(1 / 60);
+    // slot 1 of two is Team B: roof and board done, its current step is the shared meet (open now that S1 is live)
+    const line = stepLine(op(), 2, false);
+    expect(line).toContain('Meet at the stair');
+    expect(shown).toEqual([line]);
+    expect((c as unknown as { obj: string }).obj).toBe(line);
+    // the host's own line (its download percent on another step) does not replace ours
+    expect((c as unknown as { missionObj(): string }).missionObj()).toBe(line);
+    // the host's line is our step plus its percent: ours shows the percent too (J7-PLAN 7 item 1)
+    (c as unknown as { hostObj: string }).hostObj = `${line} 45%`;
+    expect((c as unknown as { missionObj(): string }).missionObj()).toBe(`${line} 45%`);
+    (c as unknown as { hostObj: string }).hostObj = 'Hold at the gate';
+    // the same message again: the section and the steps are unchanged, so nothing is written
+    const v = runner.version;
+    on(msg);
+    c.frameUpdate(1 / 60);
+    expect(runner.version).toBe(v);
+    expect(shown).toEqual([line]);
+  });
+
+  it("(wharf e2e fix) the mirror enters the host's live section, so its steps open and the objective list has rows", () => {
+    const start = { id: 'testOp', st: [0, 0, 0], f: 0, rb: 0, rl: '', rk: [0, 0, 0] };
+    // no section: the runner stays at -1 and nothing opens (the old client: an empty objective list)
+    const none = new MissionMirror();
+    none.take([op()], start);
+    expect(none.runner!.section).toBe(-1);
+    expect(none.runner!.isOpen(0)).toBe(false);
+    // the live section S1: roof and board open, meet waits for both
+    const mm = new MissionMirror();
+    mm.take([op()], start, 'S1');
+    const r = mm.runner!;
+    expect(r.section).toBe(0);
+    expect([r.isOpen(0), r.isOpen(1), r.isOpen(2), r.isOpen(3)]).toEqual([true, true, false, false]);
+    // the host's done bits: meet opens; then the host moves on to S2
+    mm.take([op()], hostWire(), 'S1');
+    expect(r.isOpen(2)).toBe(true);
+    mm.take([op()], { ...hostWire(), st: [1, 2, 4] }, 'S2');
+    expect(r.section).toBe(1);
+    expect(r.isOpen(3)).toBe(true);
+  });
+
+  it('(wharf e2e fix) CoopClient.onSector passes the map sector of ls to the mirror', () => {
+    const c = Object.create(CoopClient.prototype) as CoopClient;
+    Object.assign(c, {
+      g: { world: { map: { missions: [op()], sectors: [{ id: 'S1' }, { id: 'S2' }] } }, hud: { feedItem: () => {} } },
+      mission: new MissionMirror(),
+      sawSector: false,
+      sec: null,
+    });
+    const on = (m: Extract<Msg, { t: 'sector' }>): void => (c as unknown as { onSector(m: unknown): void }).onSector(m);
+    on(received({ ms: { ...hostWire(), rb: 0, rl: '' } }));
+    expect(c.mission.runner?.section).toBe(0);
+    expect(c.mission.runner?.isOpen(2)).toBe(true);
+    on(received({ ls: 1, ms: { ...hostWire(), rb: 0, rl: '', st: [1, 2, 4] } }));
+    expect(c.mission.runner?.section).toBe(1);
   });
 });
 

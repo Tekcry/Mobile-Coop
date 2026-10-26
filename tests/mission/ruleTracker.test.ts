@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MissionDef, MissionRule } from '../../src/game/mission/missionDef';
-import { MissionRunner } from '../../src/game/mission/missionRunner';
-import { RULE_END, RULE_HOLD, RULE_OK, RULE_RESTART, RuleTracker, SCOPE_A, SCOPE_B, SCOPE_MISSION, TEAM_A_BIT, TEAM_B_BIT, TEAM_BOTH, ruleMark } from '../../src/game/mission/ruleTracker';
+import { breakLine, PROTECTED_LINE } from '../../src/game/mission/missionText';
+import { RULE_HOLD, RULE_OK, RULE_RESTART, RuleTracker, SCOPE_A, SCOPE_B, SCOPE_MISSION, TEAM_A_BIT, TEAM_B_BIT, TEAM_BOTH, ruleMark } from '../../src/game/mission/ruleTracker';
 import { NO_ALARMS, NO_KILLS, UNDETECTED, ALL_MARKS } from '../../src/game/rating/sectionRating';
 
 // (mission-framework EN1) rules read section-rating's marks per scope; attribution by slot, zone and track box (A8, A9)
@@ -33,7 +33,7 @@ describe('RuleTracker', () => {
     expect(ruleMark('ghost')).toBe(UNDETECTED);
     expect(ruleMark('noKills')).toBe(NO_KILLS);
     expect(ruleMark('noAlarms')).toBe(NO_ALARMS);
-    expect(ruleMark('window')).toBe(0);
+    expect(ruleMark('namedTarget')).toBe(0);
   });
 
   it('mission ghost breaks on a detection or a camera alarm: restart, line, counter; then latched', () => {
@@ -125,20 +125,6 @@ describe('RuleTracker', () => {
     expect(pt.update(0)).toBe(RULE_RESTART);
   });
 
-  it('window: the step not done within its seconds of opening restarts the section', () => {
-    const d = op([{ kind: 'window', scope: 'mission', step: 'roof', seconds: 30, text: 'Thirty seconds.' }]);
-    const r = new MissionRunner(d, 2);
-    const t = new RuleTracker(d, 2, r);
-    r.snapshot('S1', 10);
-    expect(t.update(40, r)).toBe(RULE_OK);
-    expect(t.update(40.5, r)).toBe(RULE_RESTART);
-    r.restore('S1', 50);
-    t.resetSection(50);
-    r.setFlag('roof');
-    r.update(60);
-    expect(t.update(100, r)).toBe(RULE_OK);
-  });
-
   it('per-team reset (M1): a team rule break resets and holds only that team; the other team and the mission keep counting', () => {
     const rules: MissionRule[] = [
       { kind: 'noKills', scope: 'a', text: 'Team A kills nobody.' },
@@ -192,21 +178,84 @@ describe('RuleTracker', () => {
     expect(solo.update(5)).toBe(RULE_OK);
   });
 
-  it('one chance ends the mission: on a failure, and any break while it is held', () => {
-    const t = new RuleTracker(op([{ kind: 'oneChance', scope: 'mission', text: 'One go.' }]), 2);
-    t.onFail();
-    expect(t.update(0)).toBe(RULE_END);
-    expect(t.ended).toBe(true);
-    expect(t.line).toBe('One chance broken. The mission is over.');
+  it('(mission-rules R1) no rule ends a mission: every break is a section restart with the checkpoint line', () => {
+    const t = new RuleTracker(op([ghost]), 2);
+    t.onDetections(1);
+    expect(t.update(0)).toBe(RULE_RESTART);
+    expect(t.outcome).toBe(RULE_RESTART);
+    expect(t.line).toBe(breakLine(ghost));
+    expect(t.line.endsWith('Back to the section checkpoint.')).toBe(true);
+  });
+
+  it('(mission-rules R1, A2 / A3) the protected restart: RULE_RESTART once, its own line, everyone, never a rule break', () => {
+    const rules: MissionRule[] = [
+      { kind: 'noKills', scope: 'a', text: 'Team A kills nobody.' },
+      { kind: 'namedTarget', scope: 'mission', step: 'ask', text: 'Only the officer.' },
+    ];
+    const t = new RuleTracker(op(rules), 2);
+    // a team rule's break first: its restart sends only that team back
+    t.onKill(0, false);
+    expect(t.update(0)).toBe(RULE_RESTART);
+    expect(t.restartTeam).toBe('a');
     t.resetSection(1, false);
-    expect(t.update(5)).toBe(RULE_OK);
-    const both = new RuleTracker(op([ghost, { kind: 'oneChance', scope: 'mission', text: 'One go.' }]), 2);
-    both.onDetections(1);
-    expect(both.update(0)).toBe(RULE_END);
-    const stepOnly = new RuleTracker(op([{ kind: 'oneChance', scope: 'mission', step: 'roof', text: 'One try at the roof.' }]), 2);
-    stepOnly.onFail(1);
-    expect(stepOnly.update(0)).toBe(RULE_OK);
-    stepOnly.onFail(0);
-    expect(stepOnly.update(1)).toBe(RULE_END);
+    const keptM = t.kept(SCOPE_MISSION);
+    const keptA = t.kept(SCOPE_A);
+    t.onProtected();
+    expect(t.update(1)).toBe(RULE_RESTART);
+    expect(t.outcome).toBe(RULE_RESTART);
+    expect(t.line).toBe(PROTECTED_LINE);
+    expect(t.lastRule).toBe(-1);
+    expect(t.restartTeam).toBeUndefined();
+    expect(t.breaks).toBe(1);
+    expect(t.protectedBreaks).toBe(1);
+    expect(t.kept(SCOPE_MISSION)).toBe(keptM);
+    expect(t.kept(SCOPE_A)).toBe(keptA);
+    expect(t.brokenCount(1)).toBe(0);
+    // latched until the reset
+    t.onProtected();
+    expect(t.update(1.1)).toBe(RULE_OK);
+    // ignored while the mission scope is held after the restart
+    t.resetSection(2);
+    t.onProtected();
+    expect(t.update(2 + RULE_HOLD / 2)).toBe(RULE_OK);
+    expect(t.update(2 + RULE_HOLD + 0.1)).toBe(RULE_OK);
+    // a pending one is dropped by a reset (a section begin)
+    t.onProtected();
+    t.resetSection(10, false);
+    expect(t.update(10)).toBe(RULE_OK);
+    expect(t.protectedBreaks).toBe(1);
+    expect(t.breaks).toBe(1);
+  });
+
+  it("(mission-rules R1) onTargetKilled breaks the step's named-target rule the normal way; held or another step: nothing", () => {
+    const d = op([{ kind: 'namedTarget', scope: 'mission', step: 'ask', text: 'Only the officer.' }]);
+    d.steps.push({ id: 'ask2', section: 'S1', team: 'all', kind: 'interrogate', target: 'boss', text: 'Question the boss' });
+    const t = new RuleTracker(d, 2);
+    // another step's target: the rule names 'ask' only
+    expect(t.onTargetKilled(3)).toBe(false);
+    expect(t.update(0)).toBe(RULE_OK);
+    expect(t.onTargetKilled(1)).toBe(true);
+    expect(t.update(0.1)).toBe(RULE_RESTART);
+    expect(t.line).toBe(breakLine(d.rules[0]!));
+    expect(t.lastRule).toBe(0);
+    expect(t.breaks).toBe(1);
+    expect(t.brokenCount(0)).toBe(1);
+    expect(t.kept(SCOPE_MISSION) & 1).toBe(0);
+    expect(t.protectedBreaks).toBe(0);
+    expect(t.restartTeam).toBeUndefined();
+    // held after the restart: nothing is hit
+    t.resetSection(1);
+    expect(t.onTargetKilled(1)).toBe(false);
+    expect(t.update(1.5)).toBe(RULE_OK);
+    expect(t.update(1 + RULE_HOLD + 0.1)).toBe(RULE_OK);
+    expect(t.onTargetKilled(1)).toBe(true);
+    expect(t.update(1 + RULE_HOLD + 0.2)).toBe(RULE_RESTART);
+    expect(t.breaks).toBe(2);
+    // a step-less named-target rule covers every interrogate step
+    const any = new RuleTracker(op([{ kind: 'namedTarget', scope: 'mission', text: 'Only the right man.' }]), 2);
+    expect(any.onTargetKilled(1)).toBe(true);
+    expect(any.update(0)).toBe(RULE_RESTART);
+    // no named-target rule at all: nothing to hit
+    expect(new RuleTracker(op([ghost]), 2).onTargetKilled(1)).toBe(false);
   });
 });
