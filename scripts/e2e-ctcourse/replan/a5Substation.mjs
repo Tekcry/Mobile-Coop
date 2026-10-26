@@ -210,10 +210,10 @@ export async function walk(t, n) {
     await tickedOn(P, 'a5-wall', `A5: the ${tag} sees the wall step ticked`);
     await stationLive(P, 12, `A5: station 12 is live on the ${tag} page`);
   }
-  // the ladder down: the host on the wall top at the ladder's head holds the traverse button, climbs down, and is on the floor again
+  // the ladder down: the host on the wall top at the ladder's head holds the traverse button (3, Y), climbs down, and is on the floor again
   await moveHost(WALLTOP[0], WALLTOP[1], 6.1, WEST);
   await padReady(A);
-  await holdUntil(A, 1, () => { const a = window.__app.current.traversal.attach.anchor; return window.__app.current.traversal.attached && a?.kind === 'ladder'; }, "A5: the host takes the wall's access ladder at its head", null, 20000);
+  await holdUntil(A, 3, () => { const a = window.__app.current.traversal.attach.anchor; return window.__app.current.traversal.attached && a?.kind === 'ladder'; }, "A5: the host takes the wall's access ladder at its head", null, 20000);
   await A.evaluate(() => window.__pad.axis(1, 1));
   try {
     await until(A, () => { const c = window.__app.current.player.controller; return !window.__app.current.traversal.attached && c.grounded && c.pos.y < 0.3; }, null, 60000, 'A5: the host climbs the ladder down to the apron');
