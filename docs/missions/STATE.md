@@ -1,6 +1,9 @@
 # mission-framework - STATE
 
 
+## FIRST: piano-escape (Michael ~19:40: main focus; Tallow below uses spare capacity only)
+Resume it from docs/piano-escape/STATE.md on origin/feature/piano-escape (worktree C:/NightShift/Mobile-Coop-piano-escape).
+
 ## RESUME 2026-10-26 ~19:35 (Night Shift | Campaign Build, after the ~19:05 swap; read this block first)
 Process as in the 18:35 block below (prototype mode; bypass: the lead posts `checker`; low.mjs; junctions only to
 Mobile-Coop-menu/node_modules). Notes: scratch/campaign/lead-notes.md "Session after the 19:05 swap".
