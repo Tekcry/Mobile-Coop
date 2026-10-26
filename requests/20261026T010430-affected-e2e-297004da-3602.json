@@ -1,0 +1,25 @@
+{
+  "id": "20261026T010430-affected-e2e-297004da-3602",
+  "sha": "297004daf33d33b2effddbaae6a3838a5598fab0",
+  "branch": "feature/campus-greybox-a28",
+  "pr": 488,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-gadgets",
+    "e2e-move",
+    "e2e-netmove",
+    "e2e-park",
+    "e2e-section-rating",
+    "e2e-sectorops",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #488"
+}
