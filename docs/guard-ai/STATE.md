@@ -1035,6 +1035,6 @@ Open (2026-10-26 ~23:00, new account; target: Michael walks the mill Tue 27 Oct 
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: #624 e910abee2 affected-e2e -> green: tell the orchestrator train-ready; red: Opus triage. #317: log its
-running verdict only; act after the orchestrator's resume.
+Next: #624 e910abee2 affected-e2e -> green: tell the orchestrator train-ready; red: Opus triage. #317: affected-e2e not run (conflicts with master
+again, ~23:30): after the ~03:52 resume, merge 10 in a temp worktree, then requeue the co-op group.
 ```
