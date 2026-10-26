@@ -67,12 +67,19 @@ export interface HuntDef { lines: readonly HuntLine[]; phases: readonly (readonl
   line target = its stop nearest the point, phase = the first row naming the point's room there (`landing` = 0), the
   other line's target = its new phase room's stop nearest (x, z); the clock restarts. No live position is read. A unit
   ahead of the front walks to it, then follows it: one reversal at most per run of the order, no back-and-forth.
-- Rank (FIX 2): a line's units ranked by line distance to the target (nearer first, ties: lower unit index; the unit
-  looping the target room first). Steps are granted in rank order each tick. Step to stop j: no higher-ranked unit's
+- Rank (FIX 2; check 2 item 1): a line's units ranked by line distance to the target (nearer first, ties: lower unit
+  index; the unit looping the target room first), except that every unit inside the target room ranks above every unit
+  outside it (so a unit already in the new target room never blocks the unit walking in, and moves on first). Steps are granted in rank order each tick. Step to stop j: no higher-ranked unit's
   current or next stop within `gap` of j's `pt` (lower-ranked units are not counted), and on entering a new room, the
   guards in it or walking into it plus this unit's size <= `roomCap`. Blocking runs only down the ranks and walking legs
   always end, so the first unit can always step until it is at the target: units queue, never deadlock.
-- Start spread (FIX 2): at build, before any step, a room over `roomCap` sends out its solo (else its lowest-ranked
+- Admission (check 2 item 2): the board is built empty (`spawnBeat` turns the dark on before the guards spawn,
+  `pianoScene.ts:652-655`) and `admit(e)` runs for every guard who joins: the spawn after the dark, a guard spawned later
+  because a player stood within 4 m (`sectorMode.ts:1036-1047`), and a guard rejoining from a fight. `admit` pairs him by
+  the map's pair data, puts his unit on its line at his nearest stop and applies the start-spread rule below to that
+  room at once (a later joiner into a full room is sent out the same way). H2's sims start from an empty board and
+  admit the guards in spawn order, plus a late joiner and a rejoin from combat.
+- Start spread (FIX 2): on admission, a room over `roomCap` sends out its solo (else its lowest-ranked
   unit) along the line away from the target (in the target room: towards the line's longer end) to the first stop
   whose room has space; a full room on the way first sends its own lowest-ranked unit one room on, in line order. 12
   set: G3 leaves the start bay for the aisle (with G4: 2). 16 set: G8 + G9 step to `craneEast`, then G10 to
@@ -102,8 +109,11 @@ export interface HuntDef { lines: readonly HuntLine[]; phases: readonly (readonl
 ## Reactions (H4): `src/ai/enemy.ts`, `src/ai/millHunt.ts`, `src/ai/enemyManager.ts`
 - Cue (FIX 3): `riseN` moves only on a rise into suspicious / investigating (`enemy.ts:2390-2393`), which a held
   `searching` guard never makes. New: `mhCueN`, `mhCueX/Z`, `mhCueCause`, set only while `mhOn` and `searching`: on
-  sight when his meter crosses `PERCEPTION.suspicious` upwards (the seen point), in `hear()` (`:1389`) when the sound's
-  suspicion is >= `PERCEPTION.suspicious` (the sound). The board compares `mhCueN` with its copy each tick.
+  sight on the sight path (`sawMoment`, not any meter rise: sounds lift the meter too) when it crosses
+  `PERCEPTION.suspicious` upwards (the seen point), and for sound in `Enemy.hearSearch` (`enemy.ts:1443`), the path a
+  searching mill guard hears through (`enemyManager.ts:3349-3352`; check 2 item 3: not `hear()`, which the mill never
+  calls), when the sound's suspicion is >= `PERCEPTION.suspicious` (the sound). The board compares `mhCueN` with its
+  copy each tick.
 - Check (A10, FIX 4): the noticing guard's own unit checks (cause and effect stay readable: "he saw it, he looks"). It
   walks its line to the stop nearest the spot under the room cap (`gap` waived), steps off to the spot only inside that
   stop's room, else looks in from the last stop it may reach (the room edge); `checkLook` s panning +-`checkPan`, then
@@ -111,6 +121,12 @@ export interface HuntDef { lines: readonly HuntLine[]; phases: readonly (readonl
 - Targets (A4): `setTarget` on a contact call that gets through (the caller's last known point), a body found by a hunt
   guard (its spot), a unit's fight ending (its last known point). Radio (A11): `radioDeliver` (`:3035`) `contact` with
   the hunt on: `e.tell(inc)` and `setTarget`, no `e.radio` (no combat). Voice, gunfire and sight work as built.
+
+Plan check 2 fold-ins (PLAN-CHECK.md "Check 2", builders carry them): a hall-facing aim on each gallery hold stop and
+the end state on the walk card (1); `HUNT.phaseMin`, a minimum phase time, so the order never runs ahead of a careful
+pair (2); Risks: "facing them" holds on the gallery only, the ground queue has its back to the players (3); the sight
+cue reads `sawMoment` (4, above); the e2e checks the hunt is back on after the checkpoint restart (5); the loop's walk
+back across a room clears aims, named on the walk card (6).
 
 ## Slices (each a PR; counted lines exclude docs)
 | # | What | Builder | Size | Files | PR |
@@ -138,7 +154,7 @@ export interface HuntDef { lines: readonly HuntLine[]; phases: readonly (readonl
   sight back to `searching`; a manager run (as `tests/pianoGuards.test.ts`), dark and flag on: every guard `searching`
   and `mhOn`, none swept, G1 + G2 hunt-driven after `blackoutSearchSlots` (fold-in 7); flag off: GA6 as built.
 - H4 tests (`tests/millHuntCue.test.ts`, a real `Enemy` held in `searching`): a glimpse past `PERCEPTION.suspicious` and
-  a loud `hear()` each bump `mhCueN` with the right x/z; the board puts his unit in `check` and back on its line; a
+  a loud noise sent through the manager's noise path (reaching `hearSearch`) each bump `mhCueN` with the right x/z; the board puts his unit in `check` and back on its line; a
   check into a room at the cap stops at the edge (positions never above 2); a contact call moves the targets, no
   receiver goes to combat; a body found moves them and the `SEARCH_BODY` guard stays on the hunt (fold-in 11).
 - e2e (`e2e-piano` owns the scene). H3: the start check "no guard past suspicious" (`scripts/e2e-piano.mjs:378-387`)
