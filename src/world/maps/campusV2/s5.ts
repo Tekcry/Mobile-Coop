@@ -9,6 +9,7 @@ import type { BoardDef } from '../../../game/isolators';
 import { makeCone } from '../../lights';
 import { hyp2 } from '../../../core/mathx';
 import type { CoopLip } from '../campusS1';
+import { buildEdgeCaps, type EdgeCap } from './edgeCaps';
 
 /**
  * Saltmarsh Park (`campusOps`) section 5 - the Old House and the extraction (`docs/sector-redesign/briefs/SLICE5.md`,
@@ -53,6 +54,22 @@ const L_TOP = 8.2;
 export const S5_BULKHEAD_TOP = 11.0;
 /** The service stair's floors: G, L1, the roof. */
 export const S5_FLOORS = [0, S5_L1, S5_ROOF] as const;
+/**
+ * (campus-fence-s2s5) The anti-climb caps (`buildEdgeCaps`). The roof kit boxes (top 9.39) stand against the main roof's
+ * 1.9 south parapet and the wing's (5.0 / 5.19) against its 1.9 south and east parapets: a mantle onto a box, then over
+ * the parapet, lands outside S5. Off the SW kit box a jump over the 1.1 west parapet clears the garden's 2.8 south wall.
+ * At the wing's NE corner the 0.2 gutter kerb (4.4) is a mantle onto the east parapet, and a jump off the low roof there
+ * clears the 2.8 estate wall. A sheet on the south line (the garden wall from 2.8, the parapets from their tops) up to
+ * 12.0 (over a kit box's mantle, 9.39 + 1.8), on the wing's east parapet from 6.1 and the estate wall's first 6 m from
+ * 2.8 up to 8.5 (over the low roof's jump and mantle). The rappels, the kerb's lips and the wing's north drop are untouched.
+ */
+export const S5_EDGE_CAPS: readonly EdgeCap[] = [
+  [-70, 18.1, -56, 18.1, 2.8, 12],
+  [-56, 18.1, -32, 18.1, 10.3, 12],
+  [-32, 18.1, -26, 18.1, 6.1, 12],
+  [-26.1, 18, -26.1, 44, 6.1, 8.5],
+  [-26, 44, -26, 50, 2.8, 8.5],
+];
 
 /** The lamp circuits of section 5 (brief "Lighting"); (P2, job PLAN section 2) the new circuits in S5's band 150-159. */
 export const S5_GROUPS = {
@@ -675,6 +692,8 @@ export function buildCampusS5(b: LevelBuilder): void {
 
   // ---- the estate wall (x -26, z 44..70): the east boundary of the grounds
   wall(b, false, -26, 44, 70, 0, 2.8, [], T);
+  // (campus-fence-s2s5) the anti-climb caps on the south line, the wing's east parapet and the estate wall's end (`S5_EDGE_CAPS`)
+  buildEdgeCaps(b, S5_EDGE_CAPS);
 
   // ---- slabs: L1 (the hall's void, the well, the shaft, the service stair's footprint left open), the roof (the well, the
   // stair and the archive rooflight)
