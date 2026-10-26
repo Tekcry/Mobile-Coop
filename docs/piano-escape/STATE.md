@@ -15,7 +15,8 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    GA4 GuardActor = PR #611 (feature/guard-ai-piano-actor; API in its docs/guard-ai/slices/PIANO-GA4-REPORT.md): S2 told
    to shape the stand-in seam to its API (TODO(#611)); swap in when #611 is on master (G1 + G2 need nav; start ~2 m back).
    S2 DONE ad72540cb (report S2-report.md: ~1,540 source lines; e2e-piano via DIRECT_COVERS only); Opus checker
-   running -> S2-check.md. PASS -> own PR to master (base feature/piano-escape until #606 lands).
+   Opus PASS (S2-check.md) + lead fix (e2e-piano counts electric lamps only) -> PR #616 (base feature/piano-escape,
+   big-pr; retarget to master after #606 lands; checker posted). Intro needs the map starts at (4.0, 4.6) / (4.0, 6.0).
    S5 RESUMED ~21:55 (steps 2-3 + addendum). Was: PAUSED after step 1 (3d7a874ab, assets + credits; S5-report.md says steps 2-3 left): resume when a slot frees.
    S5 also adds Michael's three Grohl-form prototypes (~21:15; grohl-a/b/c + grohl-form.mjs; brief addendum).
    And grohl-d/e/f + grohl-epic.mjs (Michael ~21:35; addendum 2): 12 tracks; no reference-game name outside BRIEF.
