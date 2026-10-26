@@ -78,7 +78,8 @@ playable pieces first, no fine-tuning passes, one test set per PR.
   graph kinds are not approved yet: a question to Michael (A12).
 - Areas touched and their unwalked count (ROADMAP "Waiting on Michael"): Player / animation 3, AT CAP (the row still
   lists the AF0-AF6 pass, which ~22:25 2026-10-25 dropped, so the real count is 2 until the orchestrator updates it);
-  Marlow Yard 3, AT CAP (its kit stations switch from stand-in to the real move through `kitMoveOn`, PLAN part 2). The
+  Marlow Yard 3, AT CAP (its kit stations switch from stand-in to the real move through `kitMoveOn`, which Marlow
+  wires from what part 2 sends it, A18). The
   cap holds switch-on in the live game only: building goes on, and `/preview/` shows every built move (~13:55). The
   Animation source toggle picks which clips play; it switches no move on. Live switch-on waits for Michael's walk
   (G288, G355).
@@ -148,9 +149,9 @@ playable pieces first, no fine-tuning passes, one test set per PR.
   and their band rows to the scale sheet changes the level standard, which changes only with Michael's approval
   (CLAUDE.md hard rules; Intake step 2). So the rows are a one-click question to Michael by day (below), asked when the
   detailed part 2 section is written with the numbers in hand; overnight they are assumed and logged (an A line sent
-  to the orchestrator for his next look) and the work carries on. Each part 2 PR carries its rows only once answered or
-  logged; Marlow's validator slice adds the kinds to `scripts/level-validate.mjs`. Undo: drop the doc lines; the moves
-  stay off maps.
+  to the orchestrator for his next look) and the work carries on. The rows and kinds go in one docs slice (PLAN KD)
+  only once he answers; until then the slices build on the starting bands (A17). Marlow's validator slice adds the
+  kinds to `scripts/level-validate.mjs`. Undo: drop the doc lines; the moves stay off maps.
 - A13: The game has no fall damage (`teamMoves.ts:294`), so Drop Catch's gain is the silent, roll-free landing from above
   the hard-landing band (the SIGNOFF row: "The landing is silent"). Undo: add fall harm in a separate job (a Michael
   question).
@@ -160,12 +161,37 @@ playable pieces first, no fine-tuning passes, one test set per PR.
   FBX without skin, 30 fps, In Place off). Every role is hand-made regardless; the downloads add the Mixamo option.
   Slices never wait for them: they use the folder as it is when they start and note each missing clip. No CMU takes are
   hunted per kit role (A9). Undo: withdraw the list; roles get Mixamo only from the 21 files.
+- A15, A16: in STATE's A-log (the orchestrator's, kept there).
+- A17 (2026-10-26 ~18:45, logged for the orchestrator): until Michael answers the A12 question, part 2 starts dark on
+  the starting bands in the question (each move file's constants; no scale-sheet row or 11.9 kind is written); the
+  slices do not wait. Undo: his numbers replace the constants (one line per move, slice KD) or, with "Not yet", KD is
+  dropped and the moves stay on Marlow Yard's spots only.
+- A18 (Marlow Build 2026-10-26 ~18:20, binding): Marlow owns `kitMoveOn` (`courseState.ts`) and every re-plan set file;
+  it rewires `kitMoveOn` to `flags.kitMoves` and wires each station (spot placed, stand-in off) from what each K slice
+  sends it: the id, the spot fields (`addKitSpot`) and the done call (`GameMode.onKitDone`). No Player slice edits those
+  files. Undo: K0 edits `kitMoveOn` itself (Marlow's agreement needed).
+- A19: one done API for every move: `GameMode.onKitDone(kind, spot, a, b)` on the host, once per completed move, keyed
+  by the spot id Marlow gives (its station id); spots go in through one `addKitSpot` (K0, `src/game/kit/kitApi.ts`).
+  Undo: a per-move event in `GameEvents` instead.
+- A20: prototype order (~16:05 "playable pieces", ~16:20): each move first ships as a mechanics slice with placeholder
+  poses (existing poses), in the order Michael meets the re-plan stations (A2 plank, A4 deadweight, A5 chimney and
+  swing, A6 drop catch); its hand-made plus Mixamo animation (A9) is a later KA slice after his playthrough, with the
+  bible 5.12.2 bar and the look video. Deadweight's grate is the map's own sliding door driven by the host (no new
+  grate piece). Undo: fold each KA slice into its K slice (one PR per move, as first planned).
 
 ## Questions for Michael (one click each, asked by day)
-- Part 2 bands (A12), asked when the detailed part 2 section is written: "Add the five new co-op moves' size bands to
-  the level standard?" listing each move's level-design 11.9 graph kind and scale-sheet band row (Deadweight chain and
-  grate, Drop Catch drop height, Chimney Pair shaft width, Swing Pass gap, Plank Bridge gap) with the numbers from the
-  research; options "Add them (Recommended)" / "Change a number" / "Not yet". Overnight: assumed and logged (A12).
+- Part 2 bands (A12; the orchestrator asks it by day, native multiple choice; meanwhile A17). Question: "The five new
+  co-op moves need sizes in the level rules so maps are built to fit them. Add these sizes?
+  - Deadweight: the chain hangs 2.2-2.6 m up (a jump to grab it), 1-3 m from the grate, one chain on each side.
+  - Drop Catch: a drop of 2.5-6.5 m into your partner's arms (the Pump House drop is 6 m).
+  - Chimney Pair: a shaft 1.2-1.6 m wide and 3-8 m tall (your 1.4 m at the Substation). The marked shaft cannot be
+    split-jumped alone.
+  - Swing Pass: a gap of 2-3.5 m, the pipe 2.2-2.8 m over the floor (the Substation trench is 3.5 m).
+  - Plank Bridge: a gap up to 3.3 m (a 3.9 m scaffold board resting 0.3 m on each side; the Carriage Shed pit is 3 m)."
+  Options: "Add these sizes (Recommended)": the five rows go into the scale sheet and the five move names into the
+  level rules (PLAN slice KD) | "Add them, I will change a number": the same, with the number he gives (one line per
+  move in code and docs) | "Not yet": the moves are still built and used at Marlow Yard's five spots; the level rules
+  stay as they are and no new map may plan on them. Every move is built in the meantime on these starting sizes (A17).
 - No download question: Michael pre-approved the Mixamo downloads (~00:20); the orchestrator fetches them (A14).
 
 ## Sign-off needed

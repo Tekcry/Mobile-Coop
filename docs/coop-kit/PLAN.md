@@ -200,8 +200,11 @@ save: none
 ```
 
 Shared with other open work (the orchestrator orders; recommendation below):
-Every plan `node scripts/claims-check.mjs` reports as an overlap (plan check 2, 57 overlaps), plus #498 (no claims
-block), with the files and the order note:
+Every plan `node scripts/claims-check.mjs` reports as an overlap (plan check 2, 57 overlaps; with part 2's claims
+2026-10-26 ~18:45, 58 overlaps, the same nine plans), plus #498 (no claims block), with the files and the order note.
+Part 2's new claims overlap only plans already listed: `src/game/kit/**`, `kitNet.ts`, `gameMode.ts`,
+`tuneMoveRows.ts`, `world.ts` with docs/missions/PLAN.md (#578 / #581 / #583, look-video-tallow); `world.ts` also with
+map-ready; `playerController.ts` (K2) with player-hygiene.
 - **PR #578** (feature/mission-b-sector, Campaign Build; docs/missions/PLAN.md: mission-engine, mission-d-wharf,
   look-video-tallow): `teamMoves.ts` (+107), `teamController.ts` (+210), `src/anim/clips/team.ts` (+107), `protocol.ts`
   (+55), `flags.ts` (+13, `coopKit`), `moveState.ts`, `gameState.ts`, `src/game/kit/{registry,pullUp,shutter}.ts`,
@@ -276,7 +279,7 @@ cut from an earlier slice's head shows only its own lines once that one has rele
 `courseState.ts`) that set is exactly the co-op group `e2e-coop` + `e2e-netmove` + `e2e-ctcourse`, which also covers
 the `src/game` / `src/player` checker gate; else it is `e2e-netmove`. No extra suites, no repeat proof runs: a red
 test gets one fix round and one rerun, then it is quarantined or noted and the work ships. Two fresh Opus checkers
-only where the PR edits `src/net` or changes what goes on the wire (A2, B1, B2, K0, K5a); one Opus checker otherwise.
+only where the PR edits `src/net` or changes what goes on the wire (A2, B1, B2, K0); one Opus checker otherwise.
 Bars: bible 5.12.2 (paired contact within 3 cm on host and client, `anim-audit` minimums) and the 1-2 min look video;
 no finer bars.
 
@@ -400,57 +403,368 @@ Order: A1 -> (A2 || B1) -> B2; A3 parked. Briefs for A2 and B1 are written while
 `docs/coop-kit/CLIP-LIST.md` to the orchestrator as soon as this PLAN passes, so the orchestrator's downloads can be in
 the folder before A2 starts (BRIEF A14).
 
-## Slices: part 2 (slice-brief depth)
+## Part 2 (detailed): Deadweight, Drop Catch, Chimney Pair, Swing Pass, Plank Bridge
 
-Gate: PR #578 (Campaign's KIT0 registry `src/game/kit/registry.ts`, NET kit wire kinds through `TEAM_KINDS`,
-`KIT_POSE_IDS` in `team.ts`) is on master; part 1 is merged. Then each move is one Opus slice (Plank Bridge two) in its
-own new files: `src/game/kit/<move>.ts` (rule, timing, device), `src/anim/clips/kit/<move>.ts` (both roles' poses, the
-SIGNOFF clips), `tests/kit/<move>.test.ts`, plus its id added to `KIT_BUILT` in `flags.ts`; one look video each. One
-test set per PR (Slices part 1 intro): `affected-e2e`, the co-op group where it touches `src/net` or a wire path (K0,
-K5a), else `e2e-netmove`; one Opus checker, two on K0 and K5a (wire / `src/net`). Every K slice gives each role
-hand-made plus Mixamo (Design "Animation" steps 1-4; CLIP-LIST rows K1-K5), each actor on its owner's source; the
-report lists each role as "hand-made + Mixamo <slug>" or "none, titles searched"; the mocap step's files as A2 (new
-slugs only, append-only rows in the shared Mixamo pipeline files). A detailed PART-2 section (file:line on that master)
-is written when the gate opens, with the band rows question to Michael (BRIEF A12, "Questions"), and it gets a fresh
-Opus plan checker (RULES "Intake" 4) before K0 starts.
+Written 2026-10-26 ~18:30 for Michael's ~18:05 pick (M1, SIGNOFF rows on origin/feature/mission-framework). Pointers:
+PR #578 head a8bac697b (kit registry, wire kinds), PR #581 head 752e106be (`src/net/kitNet.ts`, the host's kit
+branch), PR #574 head 61fa85fc8 (Marlow's re-plan sets); master 65411ea65. Each slice brief re-takes them from the
+master it is cut from. A fresh Opus plan checker passes this section before K0 starts (RULES "Intake" 4).
 
-**Marlow `kitMoveOn` seam (K0, then each K slice).** K0 replaces `kitMoveOn`'s body (`src/game/course/courseState.ts:151`
-on master; shared with marlow-replan, Marlow Build: the function only, the station data stays Marlow's) with
-`flags.kitMoves.has(kit)`, the host page's set (no allocation). Since an id outside `KIT_BUILT` is never in the set, K0
-changes no station; each K slice turns its station to the real move by adding its id to `KIT_BUILT` (on in `/preview/`
-at once, in the live game at switch-on). Each K slice's done line says which Marlow station uses the real move.
+### How the five moves plug in (on #578 / #581)
+- **Registry.** A move is one file `src/game/kit/<move>.ts` that calls `registerKitMove` at load (`registry.ts`;
+  `teamController.ts:19` loads `./kit/*.ts` eagerly). Its pose ids (`KIT_POSE_IDS`, `team.ts:42`) are its controller
+  states; role b (holder / offerer) rides wire mode `brace`, role a (partner) `boost`, each with the move's `KIT_SUB`
+  bit; a state ending in `Offer` is the waiting offer (pose k -1). Hooks: `check` (host rule, called from
+  `checkTeamRequest` `teamMoves.ts:89`), `idle`, `begin`, `step`, `ended`, `end`, `tick`, `wireS`, `setupDevices`
+  (the per-level kit devices, `KitDevices`). Flags: `paired`, `claimsPoint`, `busyOffer`, `times`.
+- **What is hard-wired to `pull` / `shutter` today** (K0 makes each generic, so K1-K5b touch only their own files):
+  `KitKind` / `KIT_KINDS` / `isKitKind` / `KIT_SUB` / `KIT_SUB_MASK` (`teamMoves.ts:20-37`); `teamPoseOfWire`'s kit
+  branches (`team.ts:498`, `:513-517`) and the TeamPoser placeholder chain (`:664`); `poseFromMoveState`'s boost kit
+  bits (`moveState.ts:454`); `teamRowOfWire` (`tuneMoveRows.ts:231`); the claimed point in `parseMessage`
+  (`protocol.ts:916`, `:940`); `newKitPair` / `kitEnd` (`kitNet.ts:37`, `:63-80`: the pull rule, else the shutter
+  rule); the host's kit start sends `target` -1 and `s` 0 (`coopHost.ts:1201`, `:1215`); the kit offers run only
+  behind `flags.coopKit` (`teamController.ts:806`).
+- **Ids are already shared.** `StationDef.kit` (`stationDef.ts:12`) uses exactly the five `kitMoves` ids (`deadweight`,
+  `dropCatch`, `chimneyPair`, `swingPass`, `plankBridge`), and K0 makes them the `KitKind` names too: one string per
+  move from the flag to the wire to Marlow's station.
 
-**K0 Kit ids (Sonnet, strict brief).** All five kinds in `KitKind` / `KIT_KINDS` / `KIT_SUB` (64 deadweight, 128
-dropCatch, 256 chimneyPair, 512 swingPass, 1024 plankBridge) in `teamMoves.ts`, their pose ids and placeholders in
-`KIT_POSE_IDS` (`team.ts`), `TEAM_MOVES` rows (`moveTune.ts`), `kitMoveOn` as above, so K1-K5 touch only their own
-files and run in parallel. Est. 160. Flag ids reserved in `kitMoves` (not in `KIT_BUILT`). K0 adds five wire kinds
-(`tmove` / `tstart` through `TEAM_KINDS`): two fresh Opus checkers (RULES "A job", `src/net` and wire), not a Sonnet
-check. Done looks like: the five kinds are on the wire with placeholder poses; `kitMoveOn` reads `flags.kitMoves`;
-every Marlow station still opens its stand-in (no part 2 id built yet).
+### The Marlow API (what each K slice sends Marlow Build)
+Marlow Build wires the stations (Marlow 2026-10-26 ~18:20, binding; BRIEF A18): it rewires `kitMoveOn` to
+`flags.kitMoves.has(kit)` and, per station, places the move and switches the stand-in off. Each K slice ends by sending
+Marlow (a message to Marlow Build, the text in its PR body) three things:
+1. **The id**: the `kitMoves` id = `StationDef.kit` value = `KitKind`. In `KIT_BUILT` from that slice on (on in
+   `/preview/`, off live until Michael's walk).
+2. **The spot**: `addKitSpot(b.anchors, spot)` (`src/game/kit/kitApi.ts`, K0), called in the set file at the station,
+   as `addShutterSpec` is (`shutter.ts:135`). `KitSpot = { id, kind, x, y, z, yaw, w?, h?, x2?, y2?, z2?, door? }`;
+   `id` is Marlow's (use the station id, e.g. `a4-deadweight`); the fields each move reads are in its Design below. A
+   spot is inert while its id is off (no offer, no device change), so Marlow places it unconditionally.
+3. **The done API**: `GameMode.onKitDone?(kind: KitKind, spot: string, a: string | undefined, b: string | undefined)`
+   (`src/game/modes/gameMode.ts`, beside `onTeamMove` `:90`; K0). Called on the host only, once per completed move,
+   with the spot id the move used (`''` for a free move away from any spot) and the two players (undefined = the host's
+   own player, as `onTeamMove`). Marlow's `courseMode` implements it (e.g. sets the station's done flag when `spot` is
+   its station id); the pass zones keep working as today. Who calls it: the host's kit pair end (K0, generic: the
+   move's `doneBy` side sends the success end `pull`), or the move's own host tick for Deadweight and Plank Bridge,
+   which have no pair at the moment of success (Design below). One helper, `kitDone(g, kind, spot, a, b)` in
+   `kitApi.ts`, does the call (a no-op on a client page).
+Marlow station lines (each K slice's done line): "Marlow station <n> `<id>` uses the real move when the id is on".
 
-| Slice | Move (SIGNOFF row) | Roles and clips (SIGNOFF table) | Rule and device | Hooks owned elsewhere | Size |
-| --- | --- | --- | --- | --- | --- |
-| K1 | Deadweight: one hangs on a chain so a counterweighted grate lifts for the other | holder: chainGrab, chainHang, chainDrop; partner: walks or crawls under (Campaign's `crawlUnder` when it exists, else the crouch walk) | a kit device (chain point, grate opening, as the shutter's `KitDevices`); the grate is up only while the holder's weight is on the chain; `src/world/counterweightGrate.ts` | Guard AI Build's "guards notice it" hook (a host `StealthSystems` kit-device notice beside `noticeOpenDoors` and J9's `noticeOpenShutters`, mission-engine J8-J9 PLAN S2 and :307): K1 exposes the grate's open state for it; the `deadweight` switch-on waits for the hook (Flags) | S (0.5 day), est. 700 |
-| K2 | Drop Catch: one drops from above a safe drop height into the partner's arms; silent landing | catcher: catchReady, catchTake; dropper: dropInto | catcher offers under an edge; the dropper's drop from above the hard-landing band (`registerLanding` / `landingKind`, `src/player/playerController.ts:357-362`; K2 edits this file: a caught landing skips the noise and the roll) lands with no landing noise and no roll (A13) | none | S (0.5 day), est. 600 |
-| K3 | Chimney Pair: back to back in a narrow shaft, climbing together | both: chimneyBrace, chimneyClimb | shaft found from two facing walls in a width band (real-world back-and-foot chimney width, researched); both braced, a shared climb speed, the top exits as a climb-up | this PR: the shaft band row and graph kind once Michael answers or it is logged (A12; Marlow reviews; J12 takes the kind with an INFO) | M (1-1.5 days), est. 1,100 |
-| K4 | Swing Pass: one braced on a pipe swings the partner across a shaft | anchor: swingAnchor; rider: swingRide, swingRelease | the anchor on a horizontal pipe (`pipeH`) facing the gap; the rider swings a pendulum arc and lands across within a gap band | this PR: the gap band row and graph kind once Michael answers or it is logged (A12; Marlow reviews; J12 takes the kind with an INFO) | M (1 day), est. 1,000 |
-| K5a | Plank Bridge, the carry: both lift and carry a scaffold board | both: plankLift, plankCarry | a plank prop and its pick-up points; the pair moves at the slower stick, host-authoritative plank pose on the wire (K5a edits `src/net/protocol.ts`, `src/net/coopHost.ts`, `src/net/coopClient.ts`, `src/net/remoteAvatar.ts`: claimed; two Opus checkers) | none | L part 1 (1 day), est. 1,200 |
-| K5b | Plank Bridge, the lay and the cross | both: plankLay | a laid plank becomes a walkable collider and a nav link over a gap shorter than the board less the bearing; guards notice it (`src/world/plankBridge.ts` exposes the laid plank for the hook) | Guard AI Build's "guards notice it" hook (as K1: a laid plank seen as a way left open, as G41 does for doors); the `plankBridge` switch-on waits for it (Flags); this PR: the gap band row once Michael answers or it is logged (A12; Marlow reviews) | L part 2 (1 day), est. 1,100 |
+### Design per move
+Shared by all five: offered only with a team-mate (single player: no mates, no offer, no state, the spot inert; the
+shared rule `teamController.ts:118-119`); each move's `idle` and `check` start with its own id
+(`flags.kitMoves.has(id)`, so the host refuses an id it has off); prompts name the move (G151) and refusals are polite
+(the throw's); hot paths allocate nothing (preallocated run data as `ShutterRun`); numbers are starting values (G10)
+and the bands in them are the A12 question's (BRIEF; until answered they are logged, A17). The placeholder pose is an
+existing pose by id (K0's `KIT_POSE_PLACEHOLDER` rows); the real poses are the later KA animation slices.
 
-Order: K0 -> K1-K4 and K5a in parallel (own files) -> K5b. Flag ids `deadweight`, `dropCatch`, `chimneyPair`,
-`swingPass`, `plankBridge`. The scale-sheet band rows and level-design 11.9 graph kinds change the level standard:
-they are the one-click question to Michael (BRIEF A12, asked by day when the PART-2 section is written; overnight
-assumed and logged to the orchestrator); each PR then carries its rows for Marlow Build's review, and J12 accepts the
-kinds with one INFO each (Marlow 2026-10-25).
+**Deadweight (K1; Marlow station 9 `a4-deadweight`).** SIGNOFF: "One hangs on a chain so a counterweighted grate lifts
+for the other." Real-world: a counterweighted lift gate, the operator's body weight on the chain (a jump-grab and a
+dead hang, arms long, feet together) balances the counterweight.
+- Spot: `kind 'deadweight'`, `door` = the grate's door id (a sliding course / map door, Marlow's `A4-grille`
+  `a4GoodsShed.ts:154`), (`x`, `y`, `z`) the near chain's grip point, (`x2`, `y2`, `z2`) the far chain's (one chain
+  each side: forced co-op both ways; whoever is through hangs for the other), `h` unused. Band: chain grip 2.2-2.6 m
+  over its floor, each chain 1.0-3.0 m from the door plane (the hanger cannot reach through).
+- Holder (role b, local entry, no request): standing within `DEADWEIGHT.reach` 0.8 m under a chain, Co-op ->
+  "Co-op: hang on the chain (deadweight)" -> `chainGrab` (0.6 s: jump, grip) -> `chainHang` (held; the chain pays out
+  `DEADWEIGHT.sag` 0.5 m so the body drops) -> B or Co-op -> `chainDrop` (0.5 s) -> free. Hit, downed or gone: drops.
+  Wire `brace` + `DEADWEIGHT_SUB` 64, `s` = spot index + 1.
+- The host's rule (the move's `tick` on the host page; `check` returns `notOffering`: no requests): a spot's door is
+  open while any player's MoveState is `brace` + 64 with that spot's `s` and stands within 1 m of one of its chains,
+  after `DEADWEIGHT.lift` 0.8 s (`world.doors.setOpen(d, true)`); with nobody hanging it shuts after
+  `DEADWEIGHT.drop` 0.4 s, never on a body in the doorway (`Doors.close`'s occupied test: the shutter's no-crush rule).
+  Clients follow the host's door state (snapshots, as course doors). So a client cannot open it without hanging.
+- Partner (role a): at the open grate, Co-op -> "Co-op: duck under the grate (deadweight)" -> `grateUnder` (1.0 s,
+  local, crouched kinematic path through the doorway, the shutter crawl's pattern) -> free on the far side. Wire
+  `boost` + 64, `s` = spot index + 1.
+- Done: the host sees a player leave `grateUnder` on the far side of the door plane while another hangs ->
+  `kitDone('deadweight', spot.id, passer, hanger)`. Two passes (one each way) = two calls.
+- Placeholders: `chainGrab` 'jump', `chainHang` 'hang' (the ledge hang), `chainDrop` 'drop', `grateUnder`
+  'crouchWalk'. Mixamo later (CLIP-LIST K1): `trav_hanging_idle` (folder), downloads 9 and 10.
+- Guards: the open door is a door left open; Guard AI's "guards notice it" hook owns the reaction (the `deadweight`
+  live switch-on waits for it, Flags). The device exposes `open`, `opens`, `noticed` as `ShutterDevice` does.
+- Marlow's wiring: with the id on, `A4-grille` belongs to the move (off both grille gates, `a4GoodsShed.ts:154-157`).
+- Marlow station 9 `a4-deadweight` uses the real move when the id `deadweight` is on.
 
-Marlow stations (marlow-replan `STATIONS.md`; the K slice's done line, through `kitMoveOn`):
-- K1: Marlow station 9 `a4-deadweight` (bay A4) uses the real move when the id `deadweight` is on.
-- K2: Marlow station 16 `a6-dropcatch` (bay A6) uses the real move when the id `dropCatch` is on.
-- K3: Marlow station 11 `a5-chimney` (bay A5) uses the real move when the id `chimneyPair` is on.
-- K4: Marlow station 12 `a5-swing` (bay A5) uses the real move when the id `swingPass` is on.
-- K5a: no station change (the carry alone; `plankBridge` stays out of `KIT_BUILT`).
-- K5b: Marlow station 5 `a2-plank` (bay A2) uses the real move when the id `plankBridge` is on (K5b adds it to `KIT_BUILT`).
-- Part 1 (`descent`, `stand`, `pull`, `shutter`): no Marlow station names them (`StationDef.kit` lists the five only).
+**Drop Catch (K2; Marlow station 16 `a6-dropcatch`).** SIGNOFF: "One drops from above a safe drop height into the
+partner's arms. The landing is silent." Real-world: a spotter's catch (feet apart, knees bent, arms up; takes the
+dropper round the thighs and hips and rides the load down with the legs); the dropper lowers from a hang first where
+the edge allows.
+- Free move (G151); an optional spot (`kind 'dropCatch'`, the drop point) only names it for `onKitDone`. Band: the
+  dropper's feet 2.5 m (`LANDING.roll`, `src/player/movement.ts:168`) to 6.5 m over the catcher's floor (A6's deck
+  4.4 -> pit -1.6 = 6.0 m), the catcher within 1.5 m of the point under the drop, a clear 1.0 x 1.0 m opening.
+- Catcher (role b): standing, a mate above within the band and 3 m horizontally, Co-op -> "Co-op: get ready to catch
+  (drop catch)" -> `catchOffer` (SIGNOFF clip catchReady; arms up, facing the drop point; weapons off). Wire `brace` +
+  `DROPCATCH_SUB` 128, `s` 0 (the host reads the catcher's height from its own view).
+- Dropper (role a): standing at an edge with a mate in `catchOffer` below in the band and a clear ray down,
+  "Co-op: drop to your partner (drop catch)" -> Co-op -> `tmove dropCatch` claiming the drop point (`lx`, `gy`, `lz`)
+  -> host rule (`check`): b offering with bit 128, a on the ground, `a.y - b.y` in the band, b within 1.5 m of the
+  claimed point, a within 1.0 m of it -> `tstart` (paired, `claimsPoint`) -> `dropInto` (step off, a kinematic fall
+  on the free-fall time `sqrt(2h / 9.81)` to the catcher's chest, then set down beside the catcher) and `catchTake`
+  (0.9 s: take the weight, knees bend, lower to the feet).
+- No noise, no roll: the dropper's path is kinematic; at the end K2 calls `controller.caughtLanding()` (new, K2 in
+  `playerController.ts` beside `registerLanding` `:357-362`: resets the fall's top so no landing band fires). A13: no
+  fall damage exists, the gain is the silence.
+- Done: the catcher's side sends `pull` at the end of `catchTake` (`doneBy 'b'`) -> host relays -> `kitDone`.
+- Placeholders: `catchOffer` 'brace', `catchTake` 'brace', `dropInto` 'drop'. Mixamo later (CLIP-LIST K2):
+  downloads 5 and 6.
+- Marlow's wiring: the cage ladder stays locked (`a6PumpHouse.ts:336-338`); an uncaught 6 m fall is a heavy landing
+  the attendant hears (the retry line `a6PumpHouse.ts:136`).
+- Marlow station 16 `a6-dropcatch` uses the real move when the id `dropCatch` is on.
+
+**Chimney Pair (K3; Marlow station 11 `a5-chimney`).** SIGNOFF: "Both brace back to back in a narrow shaft and climb it
+together." Real-world: two climbers back to back, each pushing the feet (and hands) on the wall in front, moving in
+turn (one pushes while the other shifts); slow.
+- Shaft: two parallel facing walls, found by chest-height rays front and back from the offerer, or a spot
+  (`kind 'chimneyPair'`: (`x`, `y`, `z`) the shaft floor's centre, `yaw` across it, `w` width, `h` its top over the
+  floor, the exit side by `x2`, `z2`). Band: width 1.2-1.6 m (Marlow's A5 gap 1.4 m, Michael ~20:40 "1.4 m
+  (Recommended)", #574 BRIEF A19), height 3-8 m, the top an exit onto a lip (A5: the wall top at 6 m).
+- Split jump: the split gap search finds walls 1.2-1.95 m apart and 3.6 m tall (scale sheet "Split-jump gap"), so a
+  chimney shaft is also a solo split gap. K3 takes every chimney spot's shaft out of the split-gap search
+  (`src/player/splitJump.ts`, a `noSplit` box list read from the level's kit spots), so the shaft has no solo way up
+  (SIGNOFF: no move gets a solo way round it). A free chimney away from a spot stays a split gap too (stated in the
+  A12 question).
+- Offer (role b): in the shaft, Co-op -> "Co-op: brace for a chimney climb (chimney pair)" -> `chimneyOffer` (back to
+  the shaft's centre line, facing a wall). Wire `brace` + `CHIMNEY_SUB` 256, `s` = the width.
+- Take (role a): in the same shaft within 1.5 m, Co-op -> `tmove chimneyPair` -> host rule: b offering with bit 256,
+  both on the ground, same floor +-0.4 m, within 1.5 m, b's `s` in the band -> `tstart` (paired) -> both
+  `chimneyBrace` (1.0 s: back to back on the centre line, feet up onto the own wall) -> `chimneyClimb` (held).
+- Climb: each page moves its own body on its stick (up `CHIMNEY.climb` 0.35 m/s, down the same), never more than
+  `CHIMNEY.lead` 0.15 m above the partner's height as last seen (wire `s` = height over the start floor while
+  climbing), so the pair rises at the slower stick with no new message. Down to the floor -> step off (end `drop`).
+  At the top (`h` reached) -> `chimneyTop` (1.2 s: climb out onto the exit lip, the rope's top-out path pattern
+  `ropeTopPath`) -> free. Either lets go (B), is hit or downed: both slide down (`ropeDown` speed) and stand (end
+  `drop`). Role a's ids mirror b's (`chimneyJoin`, `chimneyPush`, `chimneyRise`, `chimneyOut`).
+- Done: role a sends `pull` when both are out (`doneBy 'a'`) -> `kitDone('chimneyPair', spot, a, b)`.
+- Placeholders: brace states 'brace', climb states 'ladderClimb', top states 'climbUp'. Mixamo later (CLIP-LIST
+  K3): expected gap, hand-made only (download 2 for the leg push).
+- Marlow's wiring: the wicket `g-a5-wicket` stays shut (`a5Substation.ts:190`, `:309`); the inside ladder (`:193`)
+  stays as the way down from the wall top.
+- Marlow station 11 `a5-chimney` uses the real move when the id `chimneyPair` is on.
+
+**Swing Pass (K4; Marlow station 12 `a5-swing`).** SIGNOFF: "One, braced on a pipe, swings the partner across a
+shaft." Real-world: the anchor grips an overhead bar with one hand, braces the hips back over the edge and locks
+wrists with the partner (a wrist-to-wrist grip); the partner steps off and swings under the anchor's arm as a
+pendulum, letting go at the far end of the arc.
+- Spot (required: the bar is not a `pipeH` anchor, so nobody can hand-traverse it alone): `kind 'swingPass'`,
+  (`x`, `y`, `z`) the bar over the near edge (`y` the bar's height), `yaw` across the gap, `w` the gap, `y2` the far
+  floor. Band: gap 2.0-3.5 m (A5's trench 3.5 m, `a5Substation.ts:39`), bar 2.2-2.8 m over the near floor (A5
+  `A5_GANTRY_PIPE_Y` 2.6, which Marlow said K4 sets), far floor within +-0.4 m of the near floor, a far landing at
+  least 0.75 m deep.
+- Anchor (role b): within 0.8 m of the spot's near edge point, facing the gap, Co-op -> "Co-op: brace on the pipe
+  (swing pass)" -> `swingOffer` (SIGNOFF clip swingAnchor: jump-grab the bar one-handed, hips back). Wire `brace` +
+  `SWING_SUB` 512, `s` = spot index + 1.
+- Rider (role a): beside the anchor within 1.5 m, Co-op -> `tmove swingPass` (spot index in `target`, the claimed
+  landing `lx`, `gy`, `lz` = the spot's landing) -> host rule: b offering with 512 at that spot, a on the ground in
+  reach, same floor +-0.4 m, the landing within 0.75 m of the spot's landing point and its floor within 0.4 m of `y2`
+  -> `tstart` (paired, `claimsPoint`) -> rider `swingRide` (`SWING.ride` 1.6 s: grip, step off, a pendulum arc
+  `swingPath(t)` under the bar, kinematic, the throw arc's pattern) -> `swingRelease` (0.4 s: let go, land crouched on
+  the far edge) -> free. Anchor `swingHold` (the arm swinging, matched to the rider's clock on `TEAM_LINK`) -> back
+  to the floor -> free. A hit or downed anchor before the step-off ends it (no start); once off the edge the swing is
+  committed.
+- Done: the rider sends `pull` at the landing (`doneBy 'a'`) -> `kitDone('swingPass', spot, a, b)`.
+- Placeholders: `swingOffer` / `swingHold` 'hangOffer', `swingRide` 'vault' (the throw's), `swingRelease` 'vault'.
+  Mixamo later (CLIP-LIST K4): `trav_hanging_idle` (folder) for the rider's grip, downloads 11 and 4.
+- Marlow's wiring: the footbridge `g-a5-footbridge` stays shut (`a5Substation.ts:214-220`, `:310`); the gantry pipe
+  stays a visual (`:232-242`) at the spot's bar height; the swung player opens the plates bolt from the west for the
+  anchor (as Marlow's set already says).
+- Marlow station 12 `a5-swing` uses the real move when the id `swingPass` is on.
+
+**Plank Bridge (K5a carry, K5b lay and cross; Marlow station 5 `a2-plank`).** SIGNOFF: "Both carry a scaffold board
+and lay it over a gap. Guards notice it." Real-world: a 3.9 m scaffold board (225 x 38 mm, about 20-25 kg) carried
+end to end at the hip, laid by sliding it out over the gap from the near edge until it bears on the far side; at least
+0.3 m bearing each end (starting value).
+- Spot: `kind 'plankBridge'`, (`x`, `y`, `z`) the board stack's middle, `yaw` the boards' long axis, `w` the board
+  length (3.9; A2's dressing boards `a2CarriageShed.ts:240-247`). Band: gap 1.0-3.3 m (3.9 less 0.3 bearing each end;
+  A2's pit 3.0 m `a2CarriageShed.ts:38`), the two edges level within +-0.3 m, the stack within 15 m walk of the gap
+  on the same floor. One board per spot (the device: on the stack, carried, on the floor, laid).
+- Lift (K5a; role b first): at one end of the board (within 0.6 m of an end point), Co-op -> "Co-op: take an end of
+  the board (plank bridge)" -> `plankOffer` (crouched, hands on the board's end). Partner at the other end, Co-op ->
+  `tmove plankBridge` (spot index in `target`, `s` 1 = lift) -> host rule: b offering with `PLANK_SUB` 1024 at that
+  spot, the board not laid or carried, a within 0.6 m of the other end, same floor +-0.4 m -> `tstart` (paired) ->
+  both `plankLift` (1.2 s, a leg lift to the hip) -> `plankCarry` (held).
+- Carry (K5a): both steer; each page caps its own body to the board: the distance to the partner's seen end stays
+  within `PLANK.len` +-0.25 m (the velocity projected onto the allowed band) and the speed under `PLANK.carry` 1.2 m/s,
+  turn rate capped; hands busy (weapons off). The board's pose on every page is drawn between the two drawn bodies'
+  hand points (so contact holds on every screen with no board pose on the wire). B by either -> both `plankDrop`
+  (0.8 s, the board down where it is: on the floor, liftable again), end `drop`. Hit or downed: the same drop. Wire
+  `brace` / `boost` + 1024, `s` 1 carrying.
+- Lay (K5b): carrying, both within 1.0 m of a near edge, facing it, with a far floor found by a ray in the band ->
+  either presses Co-op -> `tmove plankBridge` (`s` 2 = lay, the claimed far end `lx`, `gy`, `lz`) -> host rule: the
+  pair carrying that spot's board, the claimed gap in the band, the far floor within 0.3 m of the near floor -> `tstart`
+  with `l` (the far end) and `s` 2 -> both `plankLay` (1.6 s: slide out, lower) -> the board is laid (device `laid`,
+  the pose from the near end and `l`; the same on both pages from the start message) -> free. A laid board can be
+  lifted again from either end (back to `plankOffer`), so a pair can carry it on.
+- The laid board (K5b, `src/world/plankBridge.ts`): a static collider 0.225 x 0.04 m on top of the edges' floor,
+  walkable at any pace (no balance mechanic in the prototype; a narrow-beam walk pose is the KA slice's); guards do not
+  path over it (no nav link: an engine item for Guard AI if a map needs it).
+- Done: the host sees a player step off a laid board on the far side -> `kitDone('plankBridge', spot.id, crosser,
+  layer)` (K5b's host tick).
+- Guards: the device exposes `laid`, `opens`, `noticed` for Guard AI's "guards notice it" hook (a laid plank as a way
+  left open, G41's door rule); the `plankBridge` live switch-on waits for it (Flags).
+- Section restart: K5a resets every board to its stack (`resetKit` pattern, `teamController.ts` J9 S1).
+- Placeholders: `plankOffer` 'brace', `plankLift` 'brace', `plankCarry` 'walk' (hands to the board by IK in KA5),
+  `plankDrop` / `plankLay` 'brace'. Mixamo later (CLIP-LIST K5): `lifting_heavy_object`, `kneel_down` (folder),
+  downloads 7 and 8.
+- Marlow's wiring: the walkway door `g-a2-walkway` stays shut (`a2CarriageShed.ts:231-237`); the stack's dressing
+  boards stay (the spot draws the one live board over them).
+- K5a: no station change (the carry alone; `plankBridge` stays out of `KIT_BUILT`). K5b: Marlow station 5 `a2-plank`
+  uses the real move when the id `plankBridge` is on.
+
+### Slices
+Prototype mode (ROADMAP ~16:05, ~16:20; the part 1 intro): starting values, no tuning or polish passes before
+Michael's playthrough; one closest test set per PR, one fix round and one rerun at most; two fresh Opus checkers only
+where the PR edits `src/net` or a wire path (a file `src/net/protocol.ts` imports: here K0 only), one Opus checker
+otherwise; bible 5.12.2 (paired contact within 3 cm on host and client, `anim-audit` minimums) and a 1-2 min look video
+only on the KA animation PRs. The test set: a wire PR runs the co-op group (`e2e-coop` + `e2e-netmove` +
+`e2e-ctcourse`); a non-wire K slice runs `affected-e2e` capped at 1 (its closest suite; expected `e2e-netmove`), which
+stands in for RULES' `src/game` checker-gate pair under prototype mode (ROADMAP ~16:05 item 4 "ONE closest test set",
+authority 1 over RULES; settles plan check 3's note). No K slice adds an e2e step: each proves its rule and both
+sides' paths headless in `tests/kit/<move>.test.ts` (two `TeamController`s on a stub host, as Campaign's
+`tests/kit/shutter.test.ts`), and the real move's walk is Marlow's station wiring PR (its re-plan e2e). Each slice adds
+its id to `KIT_BUILT` (`flags.ts`) in the PR that makes the move playable and ends by sending Marlow the id, the spot
+fields and `onKitDone` (above). Docs per slice: the move file's header (the design as above) and its row in K0's kit
+table in `docs/systems/coop.md`.
+
+**K0 Kit ids, spots and the done call (Opus, src/net).** Makes the kit generic so K1-K5b touch only their own files.
+- `teamMoves.ts`: `KitKind` + `deadweight | dropCatch | chimneyPair | swingPass | plankBridge`; `KIT_KINDS`;
+  `TEAM_KINDS`; `isKitKind` by a lookup (no `'pull' || 'shutter'`); `DEADWEIGHT_SUB` 64, `DROPCATCH_SUB` 128,
+  `CHIMNEY_SUB` 256, `SWING_SUB` 512, `PLANK_SUB` 1024 in `KIT_SUB`; `KIT_SUB_MASK` all seven; `TeamRequest.spot?`
+  (the host's device for the request's spot index: a structural `{ id, kind, x, y, z, yaw }`, no registry import).
+- `team.ts`: the five rows of `KIT_POSE_IDS` (ids above; `deadweight: { b: [chainGrab, chainHang, chainDrop], a:
+  [grateUnder] }`, `dropCatch: { b: [catchOffer, catchTake], a: [dropInto] }`, `chimneyPair: { b: [chimneyOffer,
+  chimneyBrace, chimneyClimb, chimneyTop], a: [chimneyJoin, chimneyPush, chimneyRise, chimneyOut] }`, `swingPass: { b:
+  [swingOffer, swingHold], a: [swingRide, swingRelease] }`, `plankBridge: { b: [plankOffer, plankLift, plankCarry,
+  plankDrop, plankLay], a: [plankJoin, plankLiftA, plankCarryA, plankDropA, plankLayA] }`) and their
+  `KIT_POSE_PLACEHOLDER` rows (the placeholder names in Design are intents: K0 maps each to the nearest existing
+  team state, clip or traverse on the master it is cut from); `teamPoseOfWire` maps any kit sub bit to its move by a bit table (both roles); the
+  TeamPoser plays a kit move's placeholder unless a pose file registered one (`KIT_POSERS`, filled by
+  `src/anim/clips/kit/<move>.ts`, loaded by `import.meta.glob('./kit/*.ts', { eager: true })` in `team.ts`: the KA
+  slices' hook).
+- `moveState.ts` `poseFromMoveState`: a `boost` with any part 2 kit bit plays its role-a placeholder traverse (a
+  table, not the leg-up's climb-up); `tuneMoveRows.ts` `teamRowOfWire`: kit bits -> `team.<move>.a` / `.b`;
+  `moveTune.ts`: the five in `TEAM_MOVES`, `TEAM_MOVE_LABEL`, `TEAM_ROLE_LABEL` (generic sliders; Michael tunes later).
+- `protocol.ts`: the claimed point (`lx`, `lz`; the start's `l`) parsed for any kit kind (`isKitKind`), not only
+  `pull` / `shutter` (`:916`, `:940`).
+- `kitApi.ts` (new): `KitSpot`, `addKitSpot(key, spot)`, `kitSpotsOf(level, kind)` (the shutter specs' WeakMap on the
+  builder's anchors); `KIT_PAIR: Partial<Record<KitKind, { pairS: number; doneBy: 'a' | 'b' }>>` (each move file
+  fills its row at load, as `KIT_CHECKS`); `kitDone(g, kind, spot, a, b)` (host only: `g.mode?.onKitDone?.(...)`).
+- `kitNet.ts`: `newKitPair` takes `until` from `KIT_PAIR[kind].pairS` (pull and shutter keep theirs); `kitEnd`'s
+  non-pull rule takes the success side from `doneBy` (shutter: `a`, as today); `KitPair.spot` (the spot id).
+- `coopHost.ts` kit branch (`:1197-1220`): the request's `target` is a spot index into `this.g.team.devices.list`
+  (bounded; -1 none) -> `TeamRequest.spot`; the start carries that `target` and the request's `s` (the phase: plank
+  lay 2) instead of -1 / 0; `kitHangEnd` (`:1255-1263`) calls `kitDone` when it relays the move's success end.
+- `gameMode.ts`: `onKitDone?(kind, spot, a, b)` beside `onTeamMove`.
+- `teamController.ts`: the kit offers run when `flags.coopKit` or any part 2 id is on (`:806`), and `kitIdle`
+  (`:378`) skips a move whose id is off (`pull` / `shutter` by `flags.coopKit` as today, the five by
+  `flags.kitMoves`), so `?kitmoves=deadweight` alone offers no pull-up.
+- Files: `src/game/teamMoves.ts`, `src/anim/clips/team.ts`, `src/player/moveState.ts`, `src/anim/tuneMoveRows.ts`,
+  `src/anim/moveTune.ts`, `src/net/protocol.ts`, `src/net/kitNet.ts`, `src/net/coopHost.ts`,
+  `src/game/kit/kitApi.ts` (new), `src/game/modes/gameMode.ts`, `src/game/teamController.ts`,
+  `tests/kit/kitApi.test.ts` (new: kinds and bits, the wire round trip of each kind with a spot and a claimed point
+  through `parseMessage`, the generic pair rule, `kitDone` on host only, the per-id gate), `tests/teamPose.test.ts`
+  (the wire bit table), `docs/systems/coop.md` (the kit table, one row per move), `changes/feature-coop-kit-k0.md`.
+  Est. 500.
+- Checks: `npx vitest run tests/kit tests/kitNet.test.ts tests/teamMoves.test.ts tests/teamPose.test.ts tests/net.test.ts
+  tests/shutterWiring.test.ts`; typecheck; one test set: the co-op group (wire and `src/net`). Two fresh Opus checkers.
+- Done looks like: the five kinds parse on the wire with a spot index and a claimed point; a remote in any of them
+  draws its placeholder on both pages; Campaign's pull-up and shutter tests pass unedited; `?kitmoves=deadweight`
+  offers no pull-up and `?coopkit=1` still does; `onKitDone` fires on the host only; no `KIT_BUILT` change, so every
+  Marlow station still opens its stand-in; Marlow gets `addKitSpot` / `KitSpot` / `onKitDone` (message to Marlow
+  Build). `PROTOCOL_VERSION` untouched (the train bumps).
+- Flag: none new (the five ids stay out of `KIT_BUILT`). Depends on: #578, #581 and A1 on master. Runs beside A2 /
+  B1 / B2 (B1 also edits `teamMoves.ts`; whichever lands second rebases).
+
+**K5a Plank Bridge, lift and carry (Opus).** Design "Plank Bridge" lift, carry, put down, restart reset.
+- Files: `src/game/kit/plankBridge.ts` (new), `src/world/plankBridge.ts` (new: `PlankBoards`, one board mesh per
+  plank device, drawn between the carriers' hand points while carried, on the stack or floor otherwise; no collider
+  yet), `src/world/world.ts` (builds `PlankBoards` when the level has plank spots, beside #578's `shutters`),
+  `tests/kit/plankBridge.test.ts` (new), `changes/feature-coop-kit-k5a.md`. Est. 1,000.
+- Checks: `npx vitest run tests/kit/plankBridge.test.ts tests/kit/kitApi.test.ts`; typecheck; one test set
+  (`affected-e2e`, cap 1). One Opus checker.
+- Done looks like: headless, two controllers lift a spot's board, carry it 10 m with the slower stick leading, turn,
+  put it down and lift it again; the gap between the two ends stays within 0.25 m of the board's length on both
+  pages; B or a hit drops it; a restart puts it back on its stack; `?kitmoves=0` offers nothing.
+- Flag: `plankBridge`, NOT added to `KIT_BUILT` (no station change: the lay is K5b). Depends on: K0.
+
+**K5b Plank Bridge, lay and cross (Opus).** Design "Plank Bridge" lay, the laid board, done, guards' exposure.
+- Files: `src/game/kit/plankBridge.ts`, `src/world/plankBridge.ts` (the laid board's static collider),
+  `src/core/flags.ts` (`plankBridge` into `KIT_BUILT`), `tests/kit/plankBridge.test.ts`,
+  `changes/feature-coop-kit-k5b.md`. Est. 800.
+- Checks: as K5a.
+- Done looks like: headless, the pair lays the board over a 3.0 m gap and both walk across; a 3.5 m gap and a far edge
+  0.5 m higher are refused politely; the host's `onKitDone('plankBridge', spot, ...)` fires on a crossing; the laid
+  board reads `laid` / `opens` for Guard AI; lifted again it carries on; Marlow gets the id, the spot fields and the
+  done call. Marlow station 5 `a2-plank` uses the real move when the id `plankBridge` is on.
+- Flag: `plankBridge`. Depends on: K5a.
+
+**K1 Deadweight (Opus).** Design "Deadweight".
+- Files: `src/game/kit/deadweight.ts` (new), `src/core/flags.ts` (`deadweight` into `KIT_BUILT`),
+  `tests/kit/deadweight.test.ts` (new: hang opens the spot's door after the lift time on the host, letting go shuts
+  it, never on a body in the doorway, a client cannot open it without hanging, the pass each way and its two
+  `onKitDone` calls, `?kitmoves=0`), `changes/feature-coop-kit-k1.md`. Est. 600.
+- Checks: `npx vitest run tests/kit/deadweight.test.ts tests/kit/kitApi.test.ts`; typecheck; one test set
+  (`affected-e2e`, cap 1). One Opus checker.
+- Done looks like: as the test list; Marlow gets the id, the spot fields (door, two chains) and the done call. Marlow
+  station 9 `a4-deadweight` uses the real move when the id `deadweight` is on.
+- Flag: `deadweight` (live switch-on also waits for Guard AI's notice hook). Depends on: K0. Parallel with K5a / K5b.
+
+**K3 Chimney Pair (Opus).** Design "Chimney Pair".
+- Files: `src/game/kit/chimneyPair.ts` (new), `src/player/splitJump.ts` (the chimney spots' `noSplit` boxes out of the
+  gap search), `src/core/flags.ts` (`chimneyPair` into `KIT_BUILT`), `tests/kit/chimneyPair.test.ts` (new: the shaft
+  test from rays and from a spot, the band refusals, the lead cap keeping the two within 0.15 m, the top-out, the
+  slide on a let-go, no split gap inside a spot's shaft), `changes/feature-coop-kit-k3.md`. Est. 1,000.
+- Checks: `npx vitest run tests/kit/chimneyPair.test.ts tests/kit/kitApi.test.ts` plus the split-jump tests the grep
+  of `tests/` finds; typecheck; one test set (`affected-e2e`, cap 1). One Opus checker.
+- Done looks like: as the test list; Marlow gets the id, the spot fields and the done call. Marlow station 11
+  `a5-chimney` uses the real move when the id `chimneyPair` is on.
+- Flag: `chimneyPair`. Depends on: K0. Parallel with K1 / K5a.
+
+**K4 Swing Pass (Opus).** Design "Swing Pass".
+- Files: `src/game/kit/swingPass.ts` (new), `src/core/flags.ts` (`swingPass` into `KIT_BUILT`),
+  `tests/kit/swingPass.test.ts` (new: the anchor offer at a spot only, the host's landing bounds, the arc lands on the
+  far edge for 2.0 and 3.5 m gaps, a 3.6 m gap or a far floor 0.5 m off refused, done on the landing),
+  `changes/feature-coop-kit-k4.md`. Est. 800.
+- Checks: as K1 with its test file.
+- Done looks like: as the test list; Marlow gets the id, the spot fields (bar point and height, gap, far floor) and the
+  done call. Marlow station 12 `a5-swing` uses the real move when the id `swingPass` is on.
+- Flag: `swingPass`. Depends on: K0.
+
+**K2 Drop Catch (Opus).** Design "Drop Catch".
+- Files: `src/game/kit/dropCatch.ts` (new), `src/player/playerController.ts` (`caughtLanding()`), `src/core/flags.ts`
+  (`dropCatch` into `KIT_BUILT`), `tests/kit/dropCatch.test.ts` (new: the band 2.5 / 6.0 / 6.6 m, the catcher's reach,
+  the caught landing registers no band and no noise, done from the catcher), `changes/feature-coop-kit-k2.md`.
+  Est. 550.
+- Checks: as K1 with its test file plus `tests/` files reading `registerLanding` / `landingKind` (grep).
+- Done looks like: as the test list; Marlow gets the id, the optional spot and the done call. Marlow station 16
+  `a6-dropcatch` uses the real move when the id `dropCatch` is on.
+- Flag: `dropCatch`. Depends on: K0.
+
+**KD Part 2 bands into the level standard (docs only; after A12 is answered).** When Michael answers the A12 question
+(or the overnight A-line stands), the lead adds the five graph kinds to level-design 11.9 (`deadweight`, `drop_catch`,
+`chimney_pair`, `swing_pass`, `plank_bridge`: Marlow's teach ids, `stationDef.ts:5` `lesson`) and five rows to scale
+sheet section 3 with the numbers he approved; reviewer Marlow Build (owner of both docs); Marlow's validator slice adds
+the kinds to `scripts/level-validate.mjs`. With "Change a number", the move file's constant changes in the same PR (one
+line per move). Files: `docs/level-design.md`, `docs/design/scale-sheet.md`, `changes/feature-coop-kit-kd.md`. Est. 40.
+Checks: CI `check` (docs only). Depends on: A12's answer; no K slice waits for it (A17).
+
+**KA1-KA5 Animation (Opus, later; one per move: KA1 deadweight, KA2 drop catch, KA3 chimney, KA4 swing, KA5 plank).**
+A2-style, each after its K slice and ranked by Michael's playthrough (prototype mode: playable first). Hand-made plus
+Mixamo per role (Design "Animation" steps 1-4; CLIP-LIST rows K1-K5), each actor on its owner's source (#498); the
+role poses in `src/anim/clips/kit/<move>.ts` registered through K0's `KIT_POSERS` and its role-a traverse table, a
+studio pair loop (`src/anim/studioPairs.ts`), tuner values on K0's rows; the mocap step's files as A2 (append-only
+rows in the shared Mixamo files). Files: `src/anim/clips/kit/<move>.ts` (new), `src/anim/studioPairs.ts`,
+`tests/teamPose.test.ts`, the mocap step's files, `changes/feature-coop-kit-ka<n>.md`. Est. 600-800 hand-written each.
+Checks: vitest on those files plus `tests/mixamoEmit.test.ts`; `node scripts/anim-audit.mjs` on the move's states;
+one test set (`affected-e2e`, cap 1; the co-op group only if a KA slice must touch `remoteAvatar.ts`); one Opus checker
+(two if it touches `src/net`); bible 5.12.2 (3 cm at contact on host and client) and a 1-2 min look video in the PR
+body. Done looks like: as A2 (each role "hand-made + Mixamo <slug>" or "none, titles searched"; host on Mixamo,
+client on Hand-made, both screens match). Flag: the move's id. Depends on: its K slice and #498 on master.
+
+### Order (by playability: the re-plan stations in the order Michael meets them)
+K0 -> K5a -> K5b (A2 st5 plank) -> K1 (A4 st9 deadweight) -> K3 and K4 (A5 st11 chimney, st12 swing) -> K2 (A6 st16
+drop catch); KD when A12 is answered; KA1-KA5 after Michael's playthrough. The order is the priority for builder
+slots; under full burn K1, K3, K4 and K2 run in parallel with K5a / K5b once K0 is on master (own files; one-line
+`KIT_BUILT` rebases). Marlow wires each station after the K slice that makes its move playable lands. Estimates: K0
+500, K5a 1,000, K5b 800, K1 600, K3 1,000, K4 800, K2 550, KD 40, KA1-KA5 600-800 each: all under ~1.5k.
 
 ## Flags (off live until accepted; built ids on in /preview/)
 Every id: off in the live game, on in `/preview/` once its slice adds it to `KIT_BUILT` (Michael ~13:55 "All on in
@@ -475,7 +789,10 @@ switch-on only; building goes on and `/preview/` shows it.
   down - accept when it reaches the lip, the rider's feet stay on the shoulders and both bodies match on both screens.
 - After the playthrough, only if A3 is built: `?kitmoves=ropeSteer`: the holder walks the rope a metre along the edge
   with the partner on it - accept when it reads as a held, moving rope.
-- Part 2: one item per move, with its look video, once built.
+- Part 2: one item per move at its Marlow station once Marlow has wired it (`?kitmoves=<id>` on both): A2 st5 lay the
+  board and cross, A4 st9 hang and pass both ways, A5 st11 climb the 1.4 m gap together, A5 st12 swing the trench, A6
+  st16 catch the 6 m drop silently - accept when the move works and reads as two operators doing it, both screens
+  (the look video comes with its KA animation slice).
 - The Marlow Yard spots above (A6 gallery rope, A1 wall) are today's; Marlow's J14 re-plan (origin/feature/marlow-replan
   stations) may move them. The orchestrator's walk card names the spot from master at switch-on time.
 
@@ -501,3 +818,14 @@ switch-on only; building goes on and `/preview/` shows it.
 - Settled (orchestrator ~18:25 2026-10-25, Campaign Build 2026-10-26 ~09:50): A1 folds `coopKit` into `kitMoves`
   (A8); the orchestrator fixes mission-engine PLAN row 106 (BRIEF A1).
 - Closed: the relay lip height (Michael ~20:20 2026-10-25, BRIEF M2; scale sheet line 56 already reworded on master).
+- Part 2: K0 needs #578 and #581 on master (both open, Campaign's engine stack); if they slip, K0 is cut on top of
+  #581 as A1 is on #578 (A16's pattern) and retargeted when they land.
+- Part 2: the spot index in a kit request assumes both pages list the kit devices in the same order (same level, same
+  registration order). K0's test pins it; a mismatch shows as a polite refusal, never a wrong start.
+- Part 2: Deadweight drives a course door from the host. Marlow's `courseMode` lock pass must leave `A4-grille` alone
+  while `deadweight` is on (Marlow's station wiring takes the door off both grille gates); until it does, the stand-in
+  stays (the id is off live).
+- Part 2: a chimney band shaft is also a solo split-jump gap (scale sheet "Split-jump gap" 1.2-1.95 m). K3 removes it
+  inside a chimney spot only; a free chimney elsewhere stays split-jumpable (A12 question says so).
+- Part 2: no K slice proves its move in-game alone (no e2e step, prototype mode): the first real two-player run is
+  Marlow's station wiring. A rule bug found there goes back to the K slice as a fix (G355 fixes allowed at the cap).
