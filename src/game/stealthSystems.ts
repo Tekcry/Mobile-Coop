@@ -542,7 +542,8 @@ export class StealthSystems implements LocalCarry {
   private onAlarm(e: Enemy, p: AlarmPanel | null): void {
     const g = this.g;
     const em = this.em;
-    g.hud.banner('ALARM', 'Reinforcements inbound', 2200);
+    // (guard-rules S5) a repeat alarm at the stage cap sends no one: the plain alarm line
+    g.hud.banner('ALARM', g.mode?.alarmQuiet?.() === true ? '' : 'Reinforcements inbound', 2200);
     g.events.emit('alarm', {});
     g.style.record('alarm', true);
     if (p) for (const q of this.panels) if (q.panel === p) this.ints.setIndicator(q.it, '#ff3b30');

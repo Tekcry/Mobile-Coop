@@ -1,5 +1,5 @@
 import type { ButtonAction } from './actions';
-import { detectPadStyle, GAME_BINDINGS, mapPad, type PadStyle } from './gamepadMapping';
+import { detectPadStyle, GAME_BINDINGS, mapPadInto, newPadFrame, type PadStyle } from './gamepadMapping';
 import { PAD_BUTTON_COUNT, padBindTable, type PadBinds } from './padBinds';
 import type { InputState } from './inputState';
 import { NavRepeater } from './navRepeat';
@@ -9,6 +9,16 @@ import type { Settings } from '../core/settings';
 export const CAPTURE_CANCEL_BTN = 9;
 const SRC = 'pad';
 const NAV_DIRS: ButtonAction[] = ['uiUp', 'uiDown', 'uiLeft', 'uiRight'];
+/** (player-hygiene S2) `pads()` when the Gamepad API is missing or throws (one shared empty list, never written). */
+const NO_PADS: readonly (Gamepad | null)[] = [];
+/** (player-hygiene S2) The actions the pad writes into the `InputState` each poll (a module constant, not a literal per
+ *  poll). (anim-rework S1; Michael 2026-10-20 14:55 "Interact always") A interacts in every weapon state (no reload on A:
+ *  the reload is X held). LT is the held aim (`ads`); X's tap / hold is read by the player (`Player.stance`). */
+const PAD_ACTIONS = [
+  'fire', 'ads', 'interact', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'pause', 'ping', 'coop', 'vision', 'draw', 'zoom',
+  'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'ctxUp', 'ctxDown', 'objective',
+  'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt', 'uiX', 'uiStart',
+] as const satisfies readonly ButtonAction[];
 /** Radians per second at sensitivity 1, full deflection. */
 const BASE_YAW_RATE = 3.6;
 const BASE_PITCH_RATE = 2.4;
@@ -28,9 +38,19 @@ export interface PadEvents {
  */
 export class GamepadSource {
   private known = new Map<number, string>();
+  /** (player-hygiene S2) `known`'s keys in insertion order (the order disconnects are reported in), and the scan stamp
+   *  per pad index (`seenAt[i] === scanN`: pad i was seen this scan): no Set or Map iterator per poll. */
+  private knownOrder: number[] = [];
+  private seenAt: number[] = [];
+  private scanN = 0;
   private activeIndex = -1;
   private repeaters = new Map<ButtonAction, NavRepeater>(NAV_DIRS.map((d) => [d, new NavRepeater()]));
-  private lastTimestamps = new Map<number, number>();
+  /** (player-hygiene S2) The newest input timestamp seen per pad index (0 before any). */
+  private lastTimestamps: number[] = [];
+  /** (player-hygiene S2) The poll's snapshot (button values refilled in place; `axes` is the pad's own array) and the
+   *  frame `mapPadInto` fills: reused every poll. */
+  private snap: { buttons: number[]; axes: readonly number[] } = { buttons: [], axes: [] };
+  private frame = newPadFrame();
   /** Look: the stick deflection through a 30 ms smoothing (a touch of rotation inertia that still
    *  responds on the first frame) and a gentle acceleration while held near full deflection. */
   private lookX = 0;
@@ -57,63 +77,78 @@ export class GamepadSource {
     private getSettings: () => Settings,
     private events: PadEvents,
   ) {
-    window.addEventListener('gamepadconnected', () => this.scan());
-    window.addEventListener('gamepaddisconnected', () => this.scan());
+    window.addEventListener('gamepadconnected', () => this.scan(this.pads()));
+    window.addEventListener('gamepaddisconnected', () => this.scan(this.pads()));
   }
 
   get connected(): boolean {
     return this.known.size > 0;
   }
 
-  private pads(): (Gamepad | null)[] {
+  /** The browser's pad list itself (read-only here: no copy; player-hygiene S2). */
+  private pads(): readonly (Gamepad | null)[] {
     try {
-      return navigator.getGamepads ? Array.from(navigator.getGamepads()) : [];
+      return navigator.getGamepads ? navigator.getGamepads() : NO_PADS;
     } catch {
-      return [];
+      return NO_PADS;
     }
   }
 
-  private scan(): void {
-    const seen = new Set<number>();
-    for (const p of this.pads()) {
+  private scan(pads: readonly (Gamepad | null)[]): void {
+    const n = ++this.scanN;
+    for (let k = 0; k < pads.length; k++) {
+      const p = pads[k];
       if (!p || !p.connected) continue;
-      seen.add(p.index);
+      this.seenAt[p.index] = n;
       if (!this.known.has(p.index)) {
         this.known.set(p.index, p.id);
+        this.knownOrder.push(p.index);
         this.style = detectPadStyle(p.id);
         this.events.onConnect(p.id, this.style);
       }
     }
-    for (const [i, id] of this.known) {
-      if (!seen.has(i)) {
-        this.known.delete(i);
-        if (i === this.activeIndex) {
-          this.activeIndex = -1;
-          this.state.releaseSource(SRC);
-          this.state.stick.x = this.state.stick.y = 0;
-        }
-        this.events.onDisconnect(id);
+    // the known pads not seen this scan, in the order they connected
+    const order = this.knownOrder;
+    for (let k = 0; k < order.length; k++) {
+      const i = order[k]!;
+      if (this.seenAt[i] === n) continue;
+      const id = this.known.get(i)!;
+      this.known.delete(i);
+      for (let j = k + 1; j < order.length; j++) order[j - 1] = order[j]!;
+      order.length--;
+      k--;
+      if (i === this.activeIndex) {
+        this.activeIndex = -1;
+        this.state.releaseSource(SRC);
+        this.state.stick.x = this.state.stick.y = 0;
       }
+      this.events.onDisconnect(id);
     }
   }
 
   poll(now: number, dt: number): void {
-    this.scan();
+    // one read of the pad list per poll (player-hygiene S2)
     const pads = this.pads();
+    this.scan(pads);
     // Choose the pad with the newest input timestamp.
-    for (const p of pads) {
+    for (let k = 0; k < pads.length; k++) {
+      const p = pads[k];
       if (!p || !p.connected) continue;
-      const last = this.lastTimestamps.get(p.index) ?? 0;
+      const last = this.lastTimestamps[p.index] ?? 0;
       if (p.timestamp > last) {
-        this.lastTimestamps.set(p.index, p.timestamp);
-        if (p.index !== this.activeIndex && p.buttons.some((b) => b.pressed)) {
+        this.lastTimestamps[p.index] = p.timestamp;
+        if (p.index !== this.activeIndex && anyPressed(p)) {
           this.activeIndex = p.index;
           this.style = detectPadStyle(p.id);
         }
       }
     }
     if (this.activeIndex < 0) {
-      const first = pads.find((p) => p?.connected);
+      let first: Gamepad | null = null;
+      for (let k = 0; k < pads.length && !first; k++) {
+        const p = pads[k];
+        if (p && p.connected) first = p;
+      }
       if (!first) return;
       this.activeIndex = first.index;
     }
@@ -134,21 +169,31 @@ export class GamepadSource {
       this.takenByHook(pad, now);
       return;
     }
-    const frame = mapPad({ buttons: pad.buttons.map((b) => b.value || (b.pressed ? 1 : 0)), axes: pad.axes }, s, this.table);
+    // the snapshot: button values (a pressed digital button reads 1) refilled in place, the pad's own axes
+    const snap = this.snap;
+    const pb = pad.buttons;
+    if (snap.buttons.length !== pb.length) {
+      // a pad with another button count (a pad change: cold)
+      const fresh: number[] = [];
+      for (let k = 0; k < pb.length; k++) fresh.push(0);
+      snap.buttons = fresh;
+    }
+    const vals = snap.buttons;
+    for (let k = 0; k < pb.length; k++) {
+      const b = pb[k]!;
+      vals[k] = b.value || (b.pressed ? 1 : 0);
+    }
+    snap.axes = pad.axes;
+    const frame = mapPadInto(snap, s, this.table, this.frame);
 
     if (frame.active) this.events.onActive();
 
-    // (anim-rework S1; Michael 2026-10-20 14:55 "Interact always") A interacts in every weapon state (no reload on A:
-    // the reload is X held). LT is the held aim (`ads`); X's tap / hold is read by the player (`Player.stance`)
-    for (const a of [
-      'fire', 'ads', 'interact', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'pause', 'ping', 'coop', 'vision', 'draw', 'zoom',
-      'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'ctxUp', 'ctxDown', 'objective',
-      'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt', 'uiX', 'uiStart',
-    ] as const) {
-      const on = frame.buttons[a] === true;
-      this.state.set(SRC, a, on);
+    for (let k = 0; k < PAD_ACTIONS.length; k++) {
+      const a = PAD_ACTIONS[k]!;
+      this.state.set(SRC, a, frame.buttons[a] === true);
     }
-    for (const d of NAV_DIRS) {
+    for (let k = 0; k < NAV_DIRS.length; k++) {
+      const d = NAV_DIRS[k]!;
       if (this.repeaters.get(d)!.update(frame.buttons[d] === true, now)) this.state.tap(d);
     }
     this.state.setMove(SRC, frame.move.x, frame.move.y);
@@ -256,4 +301,11 @@ export class GamepadSource {
       /* unsupported */
     }
   }
+}
+
+/** (player-hygiene S2) Any button of `p` pressed (an index loop: no closure per poll). */
+function anyPressed(p: Gamepad): boolean {
+  const btns = p.buttons;
+  for (let i = 0; i < btns.length; i++) if (btns[i]!.pressed) return true;
+  return false;
 }

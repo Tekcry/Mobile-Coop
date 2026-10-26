@@ -15,10 +15,11 @@
 // guards back on their fixed patrols, calm), checks the guards (A15), then takes its steps: `walk` (a dead stop when the
 // stuck clock fires: classed by a nav `findPath` probe, a screenshot, then the robot is placed past the link so the run
 // reports every stop), `link` (`walk` and `door` here; every other action through steps.mjs), `objective` (Sector Ops:
-// A at the section's objective until it is done), and logs the run (the R2 log shape, scripts/route-run/report.mjs).
+// A at the section's objective until it is done: tapped, or held down for a hold objective such as a hack), and logs
+// the run (the R2 log shape, scripts/route-run/report.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
-import { stepLimit } from './progress.mjs';
+import { stepLimit, TRAIL_M } from './progress.mjs';
 import { readCauses } from './causes.mjs';
 import { stepFor } from './steps.mjs';
 import * as course from './course.mjs';
@@ -45,7 +46,7 @@ export const DOOR_OPEN_AT = 0.6;
 export const LOCKED_NEAR_M = 1.5;
 /** A placement lands this far (m) past a link's point, toward the far space's centre. */
 export const PAST_M = 1.2;
-/** The objective's hold limit (s) when the mode gives none: `stepLimit('objective', OBJECTIVE_HOLD_S)`. */
+/** A download's hold (s; the page gives no length): its limit is `stepLimit('objective', null, OBJECTIVE_HOLD_S)`. */
 export const OBJECTIVE_HOLD_S = 30;
 /** The objective is tried this long (game s) from where the robot stands before it walks to the objective's point. */
 export const OBJECTIVE_TRY_S = 1;
@@ -61,6 +62,8 @@ export const NOISE_WINDOW_S = 1;
 export const NAV_EXPAND = 200000;
 /** A floor zone holds feet this near its floor (m; src/game/sectors.ts `ZONE_Y_TOL`). */
 export const ZONE_Y_M = 1.5;
+/** (follower) The host's avatar moving this far (m) between two polls jumped (a placement): the trail starts afresh. */
+export const TRAIL_JUMP_M = 3;
 
 // ---------------------------------------------------------------------------------------------------------------
 // The page side. `pageDriver` is serialised with `toString()` and run in the page: it may use only its arguments and
@@ -73,8 +76,10 @@ function pageDriver(P, o) {
   const pad = window.__pad;
   const BTN_A = 0;
   const BTN_B = 1;
-  // D-pad up: free in play (no action outside a held context menu), so a tap wakes the pad without doing anything
+  // D-pad up: free in play (no action outside a held context menu), so a tap wakes the pad without doing anything; in a
+  // held context menu up / down move the highlight (`ctxUp` / `ctxDown`)
   const BTN_UP = 12;
+  const BTN_DOWN = 13;
   const IDLE = 0;
   const WALK = 1;
   const HOLD = 2;
@@ -112,8 +117,35 @@ function pageDriver(P, o) {
   let walked = 0;
   let door = null;
   let objIndex = -1;
+  // a hold objective (a hack): its interactable, its hold time (s), A held down for it, when A went up, the last
+  // highlight move in the held context menu
+  let objItem = null;
+  let objHold = 0;
+  let objStarted = false;
+  let aHeld = false;
+  let aRelT = -1e9;
+  let navT = -1e9;
   let wrapped = null;
   let noHurt = false;
+  // (R4b pair) The leader (host) reads the guards; the follower (client) trails the host's avatar (R3 `Trail`, steered by
+  // R3 `Steer` on a two-point path rebuilt in place), its stuck clock on `lw` (the leader's walked path) minus its
+  // distance to the trail point. Its events never stop a tick: they are latched in `fev`.
+  const TRAIL = 5;
+  const leader = o.role !== 'follower';
+  const trail = leader ? null : new P.Trail();
+  const tPath = leader ? null : P.makePath([{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }]);
+  const tSteer = leader ? null : new P.Steer(tPath);
+  let trailOn = false;
+  let avatar = null;
+  let lw = 0;
+  let ax = 0;
+  let ay = 0;
+  let az = 0;
+  let fev = '';
+  let leaderIdle = true;
+  // host: the client's remote player (its feet for the rises), every remote (damage off each chunk)
+  let remote = null;
+  let remotes = [];
 
   const st = () => app.current;
 
@@ -136,6 +168,15 @@ function pageDriver(P, o) {
   }
   const now = () => app.current.time - t0;
 
+  /** Sector Ops: the live section's objective interactable (`<section id>-obj`), or null (allocates; once per use). */
+  function objectiveItem(m) {
+    const s = m.run.current;
+    const ints = st().interactables;
+    if (!s || !ints || !ints.items) return null;
+    const id = `${s.id}-obj`;
+    return ints.items.find((i) => i.id === id) ?? null;
+  }
+
   function tap(btn) {
     if (tapLeft > 0) pad.set(tapBtn, 0);
     tapBtn = btn;
@@ -146,6 +187,47 @@ function pageDriver(P, o) {
   function stopStick() {
     pad.axis(0, 0);
     pad.axis(1, 0);
+  }
+
+  /** A held down (a hold objective) or let go; a tap of A still pending is let go first. */
+  function holdA(on, t) {
+    if (tapLeft > 0 && tapBtn === BTN_A) {
+      pad.set(BTN_A, 0);
+      tapLeft = 0;
+      aRelT = t;
+    }
+    if (on === aHeld) return;
+    aHeld = on;
+    pad.set(BTN_A, on ? 1 : 0);
+    if (on) objTapT = t;
+    else aRelT = t;
+  }
+
+  /** A hold objective, each chunk: A stays down while the held context menu's highlight is on the item's row (a door set
+   *  or a guard row may list first: D-pad down / up moves it); with no list, or no item row in it, A goes up and is
+   *  pressed again a second later. The press waits one released step, so the game sees it go down. No allocation. */
+  function holdStep(g, t) {
+    if (!aHeld) {
+      if (t - aRelT >= o.chunk - 1e-9 && t - objTapT > 1) holdA(true, t);
+      return;
+    }
+    const cm = g.ctxMenu;
+    if (cm && cm.state === 'active') {
+      let row = -1;
+      for (let k = 0; k < cm.count; k++) {
+        if (cm.opts[k].kind === 'item') {
+          row = k;
+          break;
+        }
+      }
+      if (row < 0) holdA(false, t);
+      else if (cm.sel !== row && t - navT > 0.15) {
+        tap(cm.sel < row ? BTN_DOWN : BTN_UP);
+        navT = t;
+      }
+      return;
+    }
+    if (t - objTapT > 1) holdA(false, t);
   }
 
   /** (once per enemy manager) Noises into the ring. */
@@ -197,7 +279,9 @@ function pageDriver(P, o) {
       level,
       camera: e ? null : camera,
       guard,
-      robots: [{ x: p.x, y: p.y, z: p.z, crouched: !!c.crouched, speed: c.speed ?? 0, light: g.lightLevel ?? null }],
+      robots: remote
+        ? [{ x: p.x, y: p.y, z: p.z, crouched: !!c.crouched, speed: c.speed ?? 0, light: g.lightLevel ?? null }, { x: remote.feet.x, y: remote.feet.y, z: remote.feet.z, crouched: !!(remote.ref && remote.ref.crouched), speed: (remote.ref && remote.ref.speed) || 0, light: null }]
+        : [{ x: p.x, y: p.y, z: p.z, crouched: !!c.crouched, speed: c.speed ?? 0, light: g.lightLevel ?? null }],
       heard,
       told: null,
       body: null,
@@ -259,7 +343,8 @@ function pageDriver(P, o) {
    *  start the cycle or end the op, so the walk is over there), else ''. No allocation. */
   function exitAt(p) {
     const m = window.__sector;
-    if (!m) return '';
+    // (the leader's exit ends the run; the follower never ends it)
+    if (!m || !leader) return '';
     const r = m.run;
     const ph = r.phase;
     if (ph !== 'connector' && ph !== 'extract') return '';
@@ -271,6 +356,64 @@ function pageDriver(P, o) {
     const b = z.box;
     const inBox = p.x >= Math.min(b[0], b[2]) && p.x <= Math.max(b[0], b[2]) && p.z >= Math.min(b[1], b[3]) && p.z <= Math.max(b[1], b[3]);
     return inBox && Math.abs(p.y - (z.floorY ?? 0)) < o.zoneY ? ph : '';
+  }
+
+  /** Walking: the crouch tap, and A at a shut door the robot is stopped at (BRIEF: A near a shut door on the path). */
+  function stanceAndDoor(g, p, t) {
+    // (the toggle's intent, not the stance: a low ceiling may hold a stand back, and a tap would only flip it again)
+    const c = g.player.controller;
+    if ((c.crouchIntent ?? c.crouched) !== o.crouch && t - crouchTapT > 1) {
+      tap(BTN_B);
+      crouchTapT = t;
+    }
+    if (t - lastMoveT > o.doorStop && t - doorTapT > o.doorRetap) {
+      const d = g.world.doors ? g.world.doors.nearest(p.x, p.z, o.doorReach) : null;
+      if (d && d.open < 0.2 && !d.anchor.locked) {
+        tap(BTN_A);
+        doorTapT = t;
+      }
+    }
+  }
+
+  /** (follower) The host's avatar on this page (allocates an iterator; only while it is missing). */
+  function findAvatar(g) {
+    const av = g.net && g.net.avatars ? g.net.avatars.values().next().value : null;
+    return av || null;
+  }
+
+  function startTrail(g) {
+    mode = TRAIL;
+    watch.idle();
+    lastMoveT = g.time;
+    if (!avatar) avatar = findAvatar(g);
+  }
+
+  /** (follower, every poll) The avatar's feet into the trail (a jump over `o.jumpM`, a placement, starts it afresh), its
+   *  point `trailM` back, and the steer's two-point path from the follower's feet to it, rebuilt in place. */
+  function trailPoll(g) {
+    if (!avatar) avatar = findAvatar(g);
+    if (!avatar) return;
+    const ap = avatar.pos;
+    const d = trail.count > 0 ? P.hyp3(ap.x - ax, ap.y - ay, ap.z - az) : 0;
+    if (d > o.jumpM) trail.reset();
+    else if (d >= trail.spacing) lw += d;
+    if (trail.count === 0 || d >= trail.spacing) {
+      ax = ap.x;
+      ay = ap.y;
+      az = ap.z;
+    }
+    trail.push(ap.x, ap.y, ap.z);
+    trail.point(o.trailM, ap.x, ap.y, ap.z);
+    const p = g.player.position;
+    tPath.x[0] = p.x;
+    tPath.y[0] = p.y;
+    tPath.z[0] = p.z;
+    tPath.x[1] = trail.tx;
+    tPath.y[1] = trail.ty;
+    tPath.z[1] = trail.tz;
+    tPath.cum[1] = P.hyp3(trail.tx - p.x, trail.ty - p.y, trail.tz - p.z);
+    tPath.length = tPath.cum[1];
+    tSteer.reset();
   }
 
   /** Before a chunk: the stick, the stuck clock, the door and crouch taps. Returns an event ('' none). */
@@ -305,20 +448,44 @@ function pageDriver(P, o) {
       }
       pad.axis(0, steer.axisX);
       pad.axis(1, steer.axisY);
-      // (the toggle's intent, not the stance: a low ceiling may hold a stand back, and a tap would only flip it again)
-      const c = g.player.controller;
-      if ((c.crouchIntent ?? c.crouched) !== o.crouch && t - crouchTapT > 1) {
-        tap(BTN_B);
-        crouchTapT = t;
+      stanceAndDoor(g, p, t);
+      return '';
+    }
+    if (mode === TRAIL) {
+      // (R4b follower) idle while the leader is idle and it is near him; else steer to the trail point
+      const p = g.player.position;
+      const a = avatar;
+      if (!a) {
+        stopStick();
+        return '';
       }
-      // a shut door in the way: the robot is stopped at it, so open it with A (BRIEF: A near a shut door on the path)
-      if (t - lastMoveT > o.doorStop && t - doorTapT > o.doorRetap) {
-        const d = g.world.doors ? g.world.doors.nearest(p.x, p.z, o.doorReach) : null;
-        if (d && d.open < 0.2 && !d.anchor.locked) {
-          tap(BTN_A);
-          doorTapT = t;
-        }
+      if (leaderIdle && P.hyp3(p.x - a.pos.x, p.y - a.pos.y, p.z - a.pos.z) <= o.trailM + 1) {
+        stopStick();
+        if (watch.mode !== 'idle') watch.idle();
+        return '';
       }
+      const s = lw - P.hyp3(p.x - trail.tx, p.y - trail.ty, p.z - trail.tz);
+      if (watch.mode === 'idle') {
+        watch.walk(t - t0, s);
+        lastS = s;
+        lastMoveT = t;
+      }
+      if (s > lastS + 0.05) {
+        lastS = s;
+        lastMoveT = t;
+      }
+      if (watch.update(t - t0, s) === P.WATCH_STALL) {
+        stopStick();
+        mode = IDLE;
+        return 'stall';
+      }
+      tSteer.update(p.x, p.y, p.z, 0, g.player.cam.yaw, o.stick);
+      if (tSteer.done) stopStick();
+      else {
+        pad.axis(0, tSteer.axisX);
+        pad.axis(1, tSteer.axisY);
+      }
+      stanceAndDoor(g, p, t);
       return '';
     }
     if (mode === HOLD) {
@@ -352,19 +519,25 @@ function pageDriver(P, o) {
     if (mode === OBJECTIVE) {
       const m = window.__sector;
       if (!m || m.run.index !== objIndex || m.run.phase !== 'objective') {
+        holdA(false, t);
         mode = IDLE;
         return 'done';
       }
       if (watch.update(t - t0, 0) === P.WATCH_STEP_TIMEOUT) {
+        holdA(false, t);
         mode = IDLE;
         return 'timeout';
       }
+      // the use started: a download runs; a hold (a hack) fills its interactable's progress
+      if (!objStarted && (objHold > 0 ? objItem !== null && (objItem.progress > 0 || objItem.done === true) : m.run.downloading)) objStarted = true;
       // a try from where the robot stands: the use did not start here
-      if (!m.run.downloading && t >= objTryEnd - 1e-9) {
+      if (!objStarted && t >= objTryEnd - 1e-9) {
+        holdA(false, t);
         mode = IDLE;
         return 'nostart';
       }
-      if (!m.run.downloading && t - objTapT > 3) {
+      if (objHold > 0) holdStep(g, t);
+      else if (!m.run.downloading && t - objTapT > 3) {
         tap(BTN_A);
         objTapT = t;
       }
@@ -373,33 +546,51 @@ function pageDriver(P, o) {
     return '';
   }
 
-  /** After a chunk: the tap's release, the guard poll. */
+  /** After a chunk: the tap's release, the guard poll (the leader; guards are host-side) or the trail (the follower). */
   function post(g) {
     if (tapLeft > 0 && --tapLeft === 0) pad.set(tapBtn, 0);
     if (g.time >= pollT - 1e-9) {
       pollT = g.time + o.poll;
-      poll(g);
+      if (leader) poll(g);
+      else if (trailOn) trailPoll(g);
     }
   }
 
   return {
-    /** Run up to `maxS` game seconds, or until an event: `{ ev, t, x, y, z }` ('' when the time ran out first). */
-    tick(maxS) {
+    /** Run up to `maxS` game seconds, or until an event: `{ ev, t, dt, walking, x, y, z }` ('' when the time ran out
+     *  first; `dt` the game time stepped, `walking` the robot on a leg). The follower always steps all of `maxS` (Node
+     *  steps both pages the same time) and reports its latched event; `lIdle` says the leader is not walking. */
+    tick(maxS, lIdle) {
       const g = st();
       const loop = app.loop;
+      const start = g.time;
       const end = g.time + maxS;
       let ev = '';
+      if (!leader) leaderIdle = lIdle !== false;
       while (g.time < end - 1e-9) {
         ev = pre(g);
-        if (ev !== '') break;
+        if (ev !== '') {
+          if (leader) break;
+          // (a stall outranks a hold's or a walk's end; back to trailing after those, a stall waits for Node's placement)
+          if (fev === '' || ev === 'stall') fev = ev;
+          if (mode === IDLE && trailOn && ev !== 'stall') startTrail(g);
+          ev = '';
+        }
         // every chunk: the respawn's spawn protection turns damage back on by a real-time timer (2 real s), which
         // fires between evaluates
-        if (noHurt && g.target) g.target.damageMul = 0;
+        if (noHurt && g.target) {
+          g.target.damageMul = 0;
+          for (let i = 0; i < remotes.length; i++) remotes[i].damageMul = 0;
+        }
         loop.stepHeadless(o.chunk);
         post(g);
       }
+      if (!leader) {
+        ev = fev;
+        fev = '';
+      }
       const p = g.player.position;
-      return { ev, t: g.time - t0, x: p.x, y: p.y, z: p.z };
+      return { ev, t: g.time - t0, dt: g.time - start, walking: mode === WALK, x: p.x, y: p.y, z: p.z };
     },
 
     /** The run's start: the clock, the rise and noise logs, each guard's level now (a rise is counted from here). */
@@ -419,10 +610,21 @@ function pageDriver(P, o) {
       lastCamAlarms = window.__sector ? window.__sector.camAlarms : 0;
       pollT = g.time + o.poll;
       mode = IDLE;
+      // (pair) the host keeps the client's remote for the rises; the follower starts trailing a fresh trail
+      const rs = leader && g.net && g.net.remotes ? Array.from(g.net.remotes.values()) : [];
+      remote = rs.length ? rs[0] : null;
+      if (!leader) {
+        trailOn = true;
+        trail.reset();
+        lw = 0;
+        avatar = findAvatar(g);
+        startTrail(g);
+      }
       return t0;
     },
 
-    /** The section from its checkpoint (the guards back on their patrols), the pad live, the stick at rest. */
+    /** The section from its checkpoint (the guards back on their patrols), the pad live, the stick at rest. (The client's
+     *  `restartCheckpoint` is refused: the host's restart reaches it over the wire.) */
     restart() {
       const g = st();
       app.loop.manual = true;
@@ -432,8 +634,72 @@ function pageDriver(P, o) {
       t0 = g.time;
       holdEnd = g.time + o.settle;
       mode = HOLD;
+      trailOn = false;
       tap(BTN_UP);
       return ok;
+    },
+
+    /** (pair) Both pages stepped from Node from now on (no frame loop), the pad live. */
+    pairStart() {
+      app.loop.manual = true;
+      pad.connect();
+      tap(BTN_UP);
+      return true;
+    },
+
+    /** (pair) In the match: the host's remotes carry state; the client has the host's avatar. */
+    pairReady() {
+      const g = st();
+      if (!g || !g.net) return false;
+      if (leader) return g.net.remotes.size > 0 && Array.from(g.net.remotes.values()).every((r) => !!r.state);
+      return !!findAvatar(g);
+    },
+
+    /** (pair, follower) Trail the leader (`on`), or stand still; returns whether it was trailing. */
+    follow(on) {
+      const g = st();
+      const was = trailOn;
+      trailOn = !!on;
+      if (trailOn) {
+        trail.reset();
+        avatar = findAvatar(g);
+        startTrail(g);
+      } else if (mode === TRAIL) {
+        stopStick();
+        watch.idle();
+        mode = IDLE;
+      }
+      return was;
+    },
+
+    trailAt() {
+      return [trail.tx, trail.ty, trail.tz];
+    },
+
+    /** (pair, host) Let each remote jump for `s` (a placement of the client, as e2e-ctcourse `moveClient`). */
+    allowTeleport(s) {
+      for (const r of st().net.remotes.values()) r.allowTeleport(s);
+    },
+
+    /** (pair, host) The host sees the client's feet within `m` of (x, z). */
+    remoteNear(x, z, m) {
+      const r = remote ?? st().net.remotes.values().next().value;
+      return !!r && Math.sqrt((r.feet.x - x) ** 2 + (r.feet.z - z) ** 2) < m;
+    },
+
+    /** (pair, host) Sector Ops section setup: the live section's objective done through the run (as `advanceSector`),
+     *  then the live section index and its connector's checkpoint [x, y, z, yaw] (Node puts both robots there). */
+    sectorSkip() {
+      const m = window.__sector;
+      if (!m) return null;
+      if (m.run.phase === 'objective') {
+        if (m.run.current.objective.kind === 'download') {
+          m.run.downloading = true;
+          m.run.download(999);
+        } else m.run.objectiveDone();
+      }
+      const cp = st().world.map.sectors[m.run.index]?.connector?.checkpoint;
+      return { index: m.run.index, cp: cp ? [cp.x, cp.y, cp.z, cp.yaw] : null };
     },
 
     /** Sector Ops: the live section (its index and id; -1 / null in other modes). */
@@ -446,8 +712,12 @@ function pageDriver(P, o) {
 
     /** (after the settle) No damage: the robots never fight and cannot be hurt (from now on, re-set every chunk). */
     noDamage() {
+      const g = st();
       noHurt = true;
-      st().target.damageMul = 0;
+      if (g.target) g.target.damageMul = 0;
+      // (pair, host) the client too, as e2e-net-lib `startMode`
+      remotes = leader && g.net && g.net.remotes ? Array.from(g.net.remotes.values()) : [];
+      for (let i = 0; i < remotes.length; i++) remotes[i].damageMul = 0;
     },
 
     /** A15: every guard the mode spawned, alive and above y -5. */
@@ -523,23 +793,34 @@ function pageDriver(P, o) {
       return 'started';
     },
 
-    /** Sector Ops: the live section's objective point, or null. */
+    /** Sector Ops: the live section's objective point, its kind and its hold (s: the interactable's `holdTime`, e.g. a
+     *  hack's 3 s; 0 for a tap), or null. */
     objectivePoint() {
       const m = window.__sector;
       const ob = m && m.run.current ? m.run.current.objective : null;
-      return ob ? { x: ob.x, y: ob.y ?? 0, z: ob.z, kind: ob.kind ?? null } : null;
+      if (!ob) return null;
+      const it = objectiveItem(m);
+      return { x: ob.x, y: ob.y ?? 0, z: ob.z, kind: ob.kind ?? null, hold: it && it.holdTime > 0 ? it.holdTime : 0 };
     },
 
-    /** Use the objective (A, again every 3 s while it has not started) until the mode says it is done. With `tryS` > 0
-     *  a try: event 'nostart' when the use has not started within `tryS` game seconds. */
+    /** Use the objective until the mode says it is done: a tap of A (again every 3 s while it has not started), or for a
+     *  hold objective (a hack) A held down until the phase changes (`holdStep`). With `tryS` > 0 a try: event 'nostart'
+     *  when the use has not started within `tryS` game seconds (a download not running; a hold not filling its item). */
     objectiveStart(limit, tryS) {
       const g = st();
       const m = window.__sector;
       stopStick();
       if (!m || m.run.phase !== 'objective') return 'none';
       objIndex = m.run.index;
-      tap(BTN_A);
-      objTapT = g.time;
+      objItem = objectiveItem(m);
+      objHold = objItem && objItem.holdTime > 0 ? objItem.holdTime : 0;
+      objStarted = false;
+      if (objHold > 0) {
+        // pressed on the first chunk after at least one released step (`holdStep`)
+        holdA(false, g.time);
+        objTapT = -1e9;
+      } else tap(BTN_A);
+      if (objHold === 0) objTapT = g.time;
       objTryEnd = tryS > 0 ? g.time + tryS : Infinity;
       watch.step(g.time - t0, limit);
       mode = OBJECTIVE;
@@ -566,6 +847,8 @@ function pageDriver(P, o) {
         }
       }
       const V = g.player.position.constructor;
+      // (follower) out of any team move first, as e2e-ctcourse `moveClient`
+      if (!leader && g.team && typeof g.team.end === 'function') g.team.end(true);
       c.teleport(new V(px, py, pz), yaw ?? c.yaw ?? g.player.cam.yaw);
       holdEnd = g.time + o.placeSettle;
       watch.idle();
@@ -584,6 +867,11 @@ function pageDriver(P, o) {
       if (!nav) return 'could-not-follow';
       goalOf(nav, x, y, z);
       return nav.findPath([p.x, p.z], [goal[0], goal[2]], o.navExpand, p.y, goal[1]) ? 'could-not-follow' : 'no-nav-path';
+    },
+
+    pos() {
+      const p = st().player.position;
+      return [p.x, p.y, p.z];
     },
 
     /** The rises logged since index `since`. */
@@ -636,7 +924,8 @@ function pageDriver(P, o) {
     course() {
       const def = st()?.world?.layout?.course?.def;
       const s = window.__coop?.session;
-      return { bays: def ? def.bays.map((b) => b.id) : [], hostLobby: !!(s && s.isHost && s.phase === 'lobby') };
+      const dbg = window.__course && typeof window.__course.debug === 'function' ? window.__course.debug() : null;
+      return { bays: def ? def.bays.map((b) => b.id) : [], hostLobby: !!(s && s.isHost && s.phase === 'lobby'), bay: dbg && typeof dbg.bay === 'number' ? dbg.bay + 1 : 0 };
     },
   };
 }
@@ -644,16 +933,17 @@ function pageDriver(P, o) {
 /** The in-page script: R3's progress.mjs (its exports made local) and the driver, bound to `window.__rr`. */
 export function pageScript(opts) {
   const src = fs.readFileSync(new URL('./progress.mjs', import.meta.url), 'utf8').replace(/^export (?=(?:async )?(?:const|let|function|class) )/gm, '');
-  const names = ['PathProgress', 'StuckWatch', 'Steer', 'makePath', 'riseClass', 'RISE_DETECTION', 'WATCH_STALL', 'WATCH_STEP_TIMEOUT'];
+  const names = ['PathProgress', 'StuckWatch', 'Steer', 'Trail', 'makePath', 'hyp3', 'riseClass', 'RISE_DETECTION', 'WATCH_STALL', 'WATCH_STEP_TIMEOUT'];
   return `(() => {\n${src}\nconst P = { ${names.join(', ')} };\nwindow.__rr = (${pageDriver.toString()})(P, ${JSON.stringify(opts)});\nreturn true;\n})()`;
 }
 
-/** The page options from the run's settings (pace from R3 `paceFor`). */
-export function pageOptions({ pace, forgive }) {
+/** The page options from the run's settings (pace from R3 `paceFor`; `role` 'leader' (host, the default) or 'follower'). */
+export function pageOptions({ pace, forgive, role = 'leader' }) {
   return {
     chunk: CHUNK_S, poll: POLL_S, settle: SETTLE_S, placeSettle: PLACE_SETTLE_S, doorStop: DOOR_STOP_S, doorRetap: DOOR_RETAP_S,
     doorReach: DOOR_REACH_M, doorOpenAt: DOOR_OPEN_AT, lockedNear: LOCKED_NEAR_M, eye: EYE_M, noiseRing: NOISE_RING,
     noiseWindow: NOISE_WINDOW_S, navExpand: NAV_EXPAND, zoneY: ZONE_Y_M, stick: pace.stick, crouch: pace.crouched, forgive,
+    role, trailM: TRAIL_M, jumpM: TRAIL_JUMP_M,
   };
 }
 
@@ -679,13 +969,23 @@ export function spaceAt(points, x, y, z) {
   return best;
 }
 
-/** The page's robot, driven from Node. `page` is the host page; `hooks.onChunk()` runs after every evaluate. */
+/** The page's robot, driven from Node. `page` is the host page (the client's for `role: 'follower'`, R4b's pair.mjs);
+ *  `hooks.onChunk()` runs after every evaluate. */
 export class PageDriver {
-  constructor(page, { pace, forgive, points = null }) {
+  constructor(page, { pace, forgive, points = null, role = 'leader' }) {
     this.page = page;
-    this.opts = pageOptions({ pace, forgive });
+    this.opts = pageOptions({ pace, forgive, role });
     this.points = points;
     this.onChunk = async () => {};
+  }
+
+  /** (R4b: the steps context's clock advance) Let `s` game seconds pass, whatever the robot is doing. */
+  async advance(s) {
+    for (let left = s; left > 1e-9; ) {
+      const r = await this.call('tick', Math.min(EVAL_S, left));
+      left -= r.dt ?? Math.min(EVAL_S, left);
+      await this.onChunk();
+    }
   }
 
   async install() {
@@ -731,17 +1031,20 @@ export class PageDriver {
 const r2 = (v) => Math.round(v * 100) / 100;
 
 /**
- * One run on one page. `run` is a planned run (R1, or the code / selftest builders in route-run.mjs) with `steps` whose
- * link steps carry `past` (the placement past the link). `ctx`: `{ host, client, pads, driver, shots, players, notes }`.
- * Returns the run's log (R2's run shape plus `walkedLinks`, `links` (each link's outcome, for the selftest) and
- * `objectives`).
+ * One run on one page, or on the pair (R4b: `ctx.pair`, scripts/route-run/pair.mjs; `ctx.driver` is then the pair, whose
+ * calls go to the leader's page and whose waits step both pages). `run` is a planned run (R1, or the code / selftest
+ * builders in route-run.mjs) with `steps` whose link steps carry `past` (the placement past the link). `ctx`: `{ host,
+ * client, pads, driver, pair?, shots, players, notes }`. Returns the run's log (R2's run shape plus `walkedLinks`, `links`
+ * (each link's outcome, for the selftest), `objectives` and, for the pair, `robots` and `splits`).
  */
 export async function runOne(ctx, run) {
   const d = ctx.driver;
+  const pair = ctx.pair ?? null;
   const log = {
     id: run.id, section: run.section ?? null, kind: run.kind ?? null, ...(run.name ? { name: run.name } : {}), covers: run.covers ?? [],
     time_s: null, walked_m: 0, walkedLinks: 0, guards: { spawned: 0, alive: 0 }, deadStops: [], detections: [], notices: [],
     stubs: [], drills: [], restarts: [], objectives: [], links: [],
+    ...(pair ? { robots: ['leader', 'follower'], splits: [] } : {}),
   };
   if (run.unplannable) {
     log.unplannable = run.unplannable;
@@ -770,32 +1073,50 @@ export async function runOne(ctx, run) {
   await d.call('begin');
   ctx.pageUsed = true;
   d.onChunk = () => course.onPoll(ctx, log);
-  const steps = flatSteps(run.steps, ctx.notes);
-  const skip = new Set();
   let shot = 0;
-  const stop = async (cls, step, res) => {
+  // one robot is the host; the pair's are the leader and the follower (its picture from the client page)
+  const stop = async (cls, step, res, robot = pair ? 'leader' : 'host') => {
     const name = `${run.id}-${++shot}.png`.replace(/[^\w.-]/g, '_');
     let file = null;
-    if (ctx.shots) {
+    const page = robot === 'follower' ? ctx.client : ctx.host;
+    if (ctx.shots && page) {
       try {
         fs.mkdirSync(ctx.shots, { recursive: true });
-        await ctx.host.screenshot({ path: path.join(ctx.shots, name), timeout: 30000 });
+        await page.screenshot({ path: path.join(ctx.shots, name), timeout: 30000 });
         file = `shots/${name}`;
       } catch {
         file = null;
       }
     }
-    log.deadStops.push({ t: r2(res.t), robot: 'host', at: [r2(res.x), r2(res.y), r2(res.z)], space: spaceAt(d.points, res.x, res.y, res.z) ?? step.space ?? null, link: step.link ?? step.index ?? null, class: cls, shot: file, since: r2(res.since ?? res.t) });
+    log.deadStops.push({ t: r2(res.t), robot, at: [r2(res.x), r2(res.y), r2(res.z)], space: spaceAt(d.points, res.x, res.y, res.z) ?? step.space ?? null, link: step.link ?? step.index ?? null, class: cls, shot: file, since: r2(res.since ?? res.t) });
   };
-  let capped = false;
-  for (let i = 0; i < steps.length && !capped; i++) {
+  if (pair) pair.beginRun(log, stop);
+  await runSteps(ctx, log, pair ? run.steps ?? [] : flatSteps(run.steps, ctx.notes), stop);
+  log.time_s = r2(await d.call('time'));
+  log.walked_m = r2(await d.call('walked'));
+  const { lines } = await readCauses(ctx, 0);
+  // (pair) each line names the robot the guard rose on (pair.mjs `attributeRobot`)
+  if (pair) await pair.nameRobots(lines);
+  for (const l of lines) {
+    const { kind, ...line } = l;
+    (kind === 'detection' ? log.detections : log.notices).push(line);
+  }
+  return log;
+}
+
+/** The steps of a run or of one split leg (`ctx.robot` names the robot of a leg; its `driver` drives that robot only).
+ *  Returns 'exit' (the leader is in the section's open connector / extraction), 'cap' or ''. */
+async function runSteps(ctx, log, steps, stop) {
+  const d = ctx.driver;
+  const skip = new Set();
+  for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
     if (skip.has(i)) continue;
+    if (ctx.pair) ctx.pair.step = step;
     if ((await d.call('time')) > RUN_CAP_S) {
-      capped = true;
       const p = await d.call('tick', 0);
-      await stop('step-timeout', step, p);
-      break;
+      await stop('step-timeout', step, p, ctx.robot);
+      return 'cap';
     }
     if (step.type === 'walk') {
       const to = step.to;
@@ -806,15 +1127,15 @@ export async function runOne(ctx, run) {
       if (res.ev === 'connector' || res.ev === 'extract') {
         // in the section's open connector / extraction: the walk is done there (not a stop), before its hold fires
         log.exit = res.ev;
-        break;
+        return 'exit';
       }
       // a dead stop (A4): its class from a nav probe, then the recovery past the link (logged; the run goes on)
       res.since = await d.call('stallSince');
       const cls = res.ev === 'stall' ? await d.call('probe', to[0], to[1], to[2]) : 'step-timeout';
-      await stop(cls, step, res);
+      await stop(cls, step, res, ctx.robot);
       const next = steps[i + 1];
       if (step.link !== null && step.link !== undefined && next?.type === 'link' && next.index === step.link) {
-        log.links.push({ index: next.index, kind: next.kind, outcome: cls });
+        log.links.push({ index: next.index, kind: next.kind, outcome: cls, ...(ctx.robot ? { robot: ctx.robot } : {}) });
         skip.add(i + 1);
         await d.place(next.past ?? next.at);
       } else await d.place(to);
@@ -822,22 +1143,20 @@ export async function runOne(ctx, run) {
     }
     if (step.type === 'link') {
       const outcome = await linkStep(ctx, log, step, stop);
-      log.links.push({ index: step.index, kind: step.kind, outcome });
+      log.links.push({ index: step.index, kind: step.kind, outcome, ...(ctx.robot ? { robot: ctx.robot } : {}) });
       if (outcome === 'walked') log.walkedLinks++;
       continue;
     }
     if (step.type === 'objective') {
       await objectiveStep(ctx, log, step, stop);
+      continue;
+    }
+    if (step.type === 'split' && ctx.pair && !ctx.robot) {
+      // leader leg a, follower leg b at once; both wait at the rejoin (pair.mjs)
+      if ((await ctx.pair.split(ctx, log, step, (c, legSteps) => runSteps(c, log, legSteps, stop))) === 'exit') return 'exit';
     }
   }
-  log.time_s = r2(await d.call('time'));
-  log.walked_m = r2(await d.call('walked'));
-  const { lines } = await readCauses(ctx, 0);
-  for (const l of lines) {
-    const { kind, ...line } = l;
-    (kind === 'detection' ? log.detections : log.notices).push(line);
-  }
-  return log;
+  return '';
 }
 
 /** Top-level steps with each split's leader leg (leg a) inline; at one player leg b is not walked (noted). */
@@ -849,7 +1168,7 @@ function flatSteps(steps, notes) {
       continue;
     }
     out.push(...flatSteps(s.a, notes));
-    const msg = `split ${s.id}: leg b is not walked at one player (the robot pair is R4b)`;
+    const msg = `split ${s.id}: leg b is not walked at one player (the robot pair walks it: --players 2)`;
     if (notes && !notes.includes(msg)) notes.push(msg);
   }
   return out;
@@ -867,22 +1186,23 @@ async function linkStep(ctx, log, step, stop) {
     if (how === 'locked') {
       if (await course.onLockedDoor(ctx, log, step)) return 'walked';
       const p = await d.call('tick', 0);
-      await stop('locked', step, p);
+      await stop('locked', step, p, ctx.robot);
       await d.place(step.past ?? at);
       return 'locked';
     }
     const res = await d.until(limit + 2);
     if (res.ev === 'opened') return 'walked';
-    await stop('step-timeout', step, res);
+    await stop('step-timeout', step, res, ctx.robot);
     await d.place(step.past ?? at);
     return 'step-timeout';
   }
   const step_ = stepFor(step);
-  const r = await step_(ctx, step);
+  // (pair, both robots) the follower to its near-side spot beside the leader first; both placed past it (pair.mjs)
+  const r = ctx.pair && !ctx.robot ? await ctx.pair.linkStep(ctx, step, step_) : await step_(ctx, step);
   if (r.stub) log.stubs.push(r.stub);
   if (r.outcome !== 'walked' && r.outcome !== 'stub') {
     const p = await d.call('tick', 0);
-    await stop(r.outcome, step, p);
+    await stop(r.outcome, step, p, ctx.robot);
     await d.place(step.past ?? step.at);
   }
   return r.outcome;
@@ -896,7 +1216,10 @@ async function objectiveStep(ctx, log, step, stop) {
     log.objectives.push({ space: step.space, hold_s: 0, done: false, why: 'no objective hook for this mode (R4a: Sector Ops only)' });
     return;
   }
-  const limit = stepLimit('objective', OBJECTIVE_HOLD_S);
+  // the limit is the objective's own hold + A4's extra: a hold objective's `holdTime` (a hack's 3 s), a download the
+  // fallback hold (the page does not give its length), a tap none (R4a passed the hold as a length: a flat 5 s)
+  const hold = pt.hold > 0 ? pt.hold : pt.kind === 'download' ? OBJECTIVE_HOLD_S : 0;
+  const limit = stepLimit('objective', null, hold);
   // first from where the robot stands (a code route: its stand point pts[obj], e.g. S1's rear window); the walk to the
   // objective's own point only when the use does not start there
   let t0 = await d.call('time');

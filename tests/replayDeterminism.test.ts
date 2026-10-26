@@ -155,12 +155,8 @@ describe('replay determinism: patrol walkers and detections', () => {
 });
 
 describe('replay determinism: Math.random in src/ai (static count)', () => {
-  /** Allowlist: Guard AI owns the fixes (fix request J20 S6b, G143); it shrinks as they land. */
-  const ALLOW: Record<string, number> = {
-    'enemy.ts': 2, // :389 think-cadence start, :2336 think cadence
-    'enemyManager.ts': 2, // :650, :661 radio delays
-    'reconDrone.ts': 1, // :34 start angle
-  };
+  /** (guard-ai seed-random) none left: a new Math.random in src/ai fails. */
+  const ALLOW: Record<string, number> = {};
 
   function files(dir: string): string[] {
     return readdirSync(dir).flatMap((f) => {
@@ -179,5 +175,5 @@ describe('replay determinism: Math.random in src/ai (static count)', () => {
     expect(found).toEqual(ALLOW);
   });
 
-  it.todo('full guard replay once Guard AI seeds the think cadence and radio delays (fix request: J20 S6b)');
+  it.todo('full guard replay (an Enemy scene harness; the five draws are seeded since guard-ai seed-random)');
 });

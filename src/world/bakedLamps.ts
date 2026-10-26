@@ -266,6 +266,15 @@ export class BakedLamps implements CharShadowLamps {
   /** (section-bake) Tile slabs uploaded with `texSubImage3D` / whole-atlas fallbacks (tests, the build report). */
   tileUploads = 0;
   atlasReuploads = 0;
+  /** (map-ready S1) Lamps marked landed (`landed()`) and material re-scans in `frame()`: the load record's counters. */
+  landings = 0;
+  rescans = 0;
+
+  /** (map-ready S2) Atlas uploads still owed: the queued tiles, plus 1 while a whole re-upload is due (the load gate's
+   *  `bake-all` step waits for 0). Render side only. */
+  get tilesPending(): number {
+    return this.tileTail - this.tileHead + (this.atlasDue ? 1 : 0);
+  }
 
   constructor(
     private scene: Scene,
@@ -492,6 +501,7 @@ export class BakedLamps implements CharShadowLamps {
     if (this.matCount >= 0 && (this.matAdded || mats.length !== this.matCount)) {
       this.matAdded = false;
       this.matCount = mats.length;
+      this.rescans++;
       for (let i = 0; i < mats.length; i++) this.attach(mats[i]!);
     }
     if (this.version !== this.reg.version) this.update();
@@ -748,6 +758,7 @@ export class BakedLamps implements CharShadowLamps {
       const i = ls[j]!;
       if (i < 0 || i >= have.length || have[i]) continue;
       have[i] = 1;
+      this.landings++;
       any = true;
       lampDoorListInto(this.lampDoors, i, this.bakedL, this.doors, seen, this.doorSlots);
       this.writeLampDoors(i);

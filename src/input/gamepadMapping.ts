@@ -1,5 +1,5 @@
-import type { ButtonAction, Vec2 } from './actions';
-import { applyAxisDeadzone, applyCurve, applyRadialDeadzone, type CurveKind } from './stickMath';
+import { BUTTON_ACTIONS, type ButtonAction, type Vec2 } from './actions';
+import { applyAxisDeadzone, applyCurveTo, applyRadialDeadzoneTo, RADIAL_OUTER, type CurveKind } from './stickMath';
 
 /** W3C "standard" gamepad layout indices. */
 export const PAD = {
@@ -132,44 +132,130 @@ export const UI_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
 const STICK_NAV_THRESHOLD = 0.55;
 
 /** `table`: the active gameplay bindings (locomotion step 18: `padBindTable(settings.pad)`, rebuilt only when the
- *  bindings change); the defaults are GAME_BINDINGS. */
+ *  bindings change); the defaults are GAME_BINDINGS. A fresh frame per call (tests and cold callers); the pad poll
+ *  reuses one through `mapPadInto` (player-hygiene S2). */
 export function mapPad(p: PadSnapshot, t: PadTuning, table: ReadonlyArray<readonly [number, ButtonAction]> = GAME_BINDINGS): PadFrame {
-  const b = (i: number): number => p.buttons[i] ?? 0;
-  const ax = (i: number): number => p.axes[i] ?? 0;
-  const out: PadFrame['buttons'] = {};
+  const f = newPadFrame();
+  mapPadInto(p, t, table, f);
+  // only the actions that are down, in the order they were set (the record `mapPad` has always returned)
+  const buttons: PadFrame['buttons'] = {};
+  for (let k = 0; k < f.setCount; k++) buttons[f.setList[k]!] = true;
+  return { buttons, move: f.move, look: f.look, stick: f.stick, fireAnalog: f.fireAnalog, active: f.active };
+}
 
-  for (const [i, a] of table) if (b(i) > BTN_THRESHOLD) out[a] = true;
-  for (const [i, a] of UI_BINDINGS) if (b(i) > BTN_THRESHOLD) out[a] = true;
-  for (const [i, a] of CTX_BINDINGS) if (b(i) > BTN_THRESHOLD) out[a] = true;
+/**
+ * (player-hygiene S2) A reusable pad frame: `buttons` holds every action (false when up; `mapPadInto` clears only what
+ * the last call set, listed in `setList[0 .. setCount)`), plus the stick scratch the mapping writes through.
+ */
+export interface PadFrameBuf extends PadFrame {
+  readonly buttons: Record<ButtonAction, boolean>;
+  /** The actions set this frame, in the order they were set (capacity `BUTTON_ACTIONS.length`). */
+  readonly setList: ButtonAction[];
+  setCount: number;
+  /** Scratch: the left stick after its dead zone and curve, the right stick after its dead zone, and after its curve. */
+  readonly ls: Vec2;
+  readonly rsd: Vec2;
+  readonly rs: Vec2;
+}
 
-  const lt = applyAxisDeadzone(b(PAD.LT), t.triggerDeadzone);
-  const rt = applyAxisDeadzone(b(PAD.RT), t.triggerDeadzone);
-  if (rt > 0.35) out.fire = true;
-  // (anim-rework S1) LT is the aim, held
-  if (lt > 0.35) out.ads = true;
+export function newPadFrame(): PadFrameBuf {
+  const buttons = {} as Record<ButtonAction, boolean>;
+  for (let i = 0; i < BUTTON_ACTIONS.length; i++) buttons[BUTTON_ACTIONS[i]!] = false;
+  const setList: ButtonAction[] = [];
+  for (let i = 0; i < BUTTON_ACTIONS.length; i++) setList.push(BUTTON_ACTIONS[0]);
+  return {
+    buttons,
+    setList,
+    setCount: 0,
+    move: { x: 0, y: 0 },
+    look: { x: 0, y: 0 },
+    stick: { x: 0, y: 0 },
+    fireAnalog: 0,
+    active: false,
+    ls: { x: 0, y: 0 },
+    rsd: { x: 0, y: 0 },
+    rs: { x: 0, y: 0 },
+  };
+}
 
-  // Standard mapping: axis Y is +down. Our move.y is +forward.
-  const ls = applyCurve(applyRadialDeadzone(ax(0), ax(1), t.deadzoneLeft), 'linear');
-  const rsd = applyRadialDeadzone(ax(2), ax(3), t.deadzoneRight);
-  const rs = applyCurve(rsd, t.curve);
-  const move = { x: ls.x, y: -ls.y };
-  const look = { x: rs.x, y: t.invertY ? rs.y : -rs.y };
-  const stick = { x: rsd.x, y: -rsd.y };
+/** The three binding tables `mapPadInto` reads in order: the gameplay table (`table`), the menus, the context menu. */
+const TABLE_COUNT = 3;
 
-  // Left stick also navigates menus.
-  const rawLx = ax(0);
-  const rawLy = ax(1);
-  if (Math.abs(rawLx) > Math.abs(rawLy)) {
-    if (rawLx < -STICK_NAV_THRESHOLD) out.uiLeft = true;
-    if (rawLx > STICK_NAV_THRESHOLD) out.uiRight = true;
-  } else {
-    if (rawLy < -STICK_NAV_THRESHOLD) out.uiUp = true;
-    if (rawLy > STICK_NAV_THRESHOLD) out.uiDown = true;
+/**
+ * (player-hygiene S2) `mapPad` into a reused frame (the pad poll: no allocation); the same arithmetic in the same order.
+ * The actions the last call set are cleared first, so a rebinding between calls leaves nothing stale. An action is set
+ * once (`buttons[a]` true, appended to `setList`), written inline at its four places: V8 inlines the dead zone calls
+ * here only while the inlined total stays small (a double passed to or returned from a call it does not inline is boxed,
+ * 16 B), so the frame keeps no helper call of its own.
+ */
+export function mapPadInto(p: PadSnapshot, t: PadTuning, table: ReadonlyArray<readonly [number, ButtonAction]>, f: PadFrameBuf): PadFrameBuf {
+  const on = f.buttons;
+  const list = f.setList;
+  for (let k = 0; k < f.setCount; k++) on[list[k]!] = false;
+  f.setCount = 0;
+  // `p.buttons[i] ?? 0` / `p.axes[i] ?? 0`, read in bounds only: a read past the end makes V8 box every value it loads
+  // there (16 B each) once it has seen one
+  const btn = p.buttons;
+  const nb = btn.length;
+  const axes = p.axes;
+  const na = axes.length;
+  const ax0 = 0 < na ? (axes[0] ?? 0) : 0;
+  const ax1 = 1 < na ? (axes[1] ?? 0) : 0;
+  const ax2 = 2 < na ? (axes[2] ?? 0) : 0;
+  const ax3 = 3 < na ? (axes[3] ?? 0) : 0;
+
+  // the gameplay table, then UI_BINDINGS, then CTX_BINDINGS
+  for (let w = 0; w < TABLE_COUNT; w++) {
+    const tb = w === 0 ? table : w === 1 ? UI_BINDINGS : CTX_BINDINGS;
+    for (let k = 0; k < tb.length; k++) {
+      const e = tb[k]!;
+      const i = e[0];
+      const a = e[1];
+      if ((i < nb ? (btn[i] ?? 0) : 0) > BTN_THRESHOLD && on[a] !== true) {
+        on[a] = true;
+        list[f.setCount++] = a;
+      }
+    }
   }
 
-  const active =
-    Object.keys(out).length > 0 || move.x !== 0 || move.y !== 0 || look.x !== 0 || look.y !== 0 || lt > 0 || rt > 0;
-  return { buttons: out, move, look, stick, fireAnalog: rt, active };
+  const lt = applyAxisDeadzone(PAD.LT < nb ? (btn[PAD.LT] ?? 0) : 0, t.triggerDeadzone);
+  const rt = applyAxisDeadzone(PAD.RT < nb ? (btn[PAD.RT] ?? 0) : 0, t.triggerDeadzone);
+  if (rt > 0.35 && on.fire !== true) {
+    on.fire = true;
+    list[f.setCount++] = 'fire';
+  }
+  // (anim-rework S1) LT is the aim, held
+  if (lt > 0.35 && on.ads !== true) {
+    on.ads = true;
+    list[f.setCount++] = 'ads';
+  }
+
+  // Standard mapping: axis Y is +down. Our move.y is +forward.
+  const ls = applyCurveTo(applyRadialDeadzoneTo(ax0, ax1, t.deadzoneLeft, RADIAL_OUTER, f.ls), 'linear', f.ls);
+  const rsd = applyRadialDeadzoneTo(ax2, ax3, t.deadzoneRight, RADIAL_OUTER, f.rsd);
+  const rs = applyCurveTo(rsd, t.curve, f.rs);
+  f.move.x = ls.x;
+  f.move.y = -ls.y;
+  f.look.x = rs.x;
+  f.look.y = t.invertY ? rs.y : -rs.y;
+  f.stick.x = rsd.x;
+  f.stick.y = -rsd.y;
+
+  // Left stick also navigates menus (one direction at most: the larger axis past the threshold).
+  const rawLx = ax0;
+  const rawLy = ax1;
+  const nav: ButtonAction | null =
+    Math.abs(rawLx) > Math.abs(rawLy)
+      ? rawLx < -STICK_NAV_THRESHOLD ? 'uiLeft' : rawLx > STICK_NAV_THRESHOLD ? 'uiRight' : null
+      : rawLy < -STICK_NAV_THRESHOLD ? 'uiUp' : rawLy > STICK_NAV_THRESHOLD ? 'uiDown' : null;
+  if (nav !== null && on[nav] !== true) {
+    on[nav] = true;
+    list[f.setCount++] = nav;
+  }
+
+  f.fireAnalog = rt;
+  f.active = f.setCount > 0 || f.move.x !== 0 || f.move.y !== 0 || f.look.x !== 0 || f.look.y !== 0 || lt > 0 || rt > 0;
+  return f;
 }
 
 export type PadStyle = 'xbox' | 'playstation' | 'nintendo';

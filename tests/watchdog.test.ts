@@ -3,7 +3,7 @@ import {
   parseArgs, parseList, scratchFiles, alert, applySince, actionText, parseLockText, lockAlerts, findOrphans, orphanAlerts,
   normalizePr, labelReady, prAlerts, ownerMap, versionCommit, releaseAlerts, indexScript, previewLabel, pagesAlerts,
   autoTrainAlerts, nonTestFiles, laptopAlerts, parseLooseIso, parseBrief, cloudAlerts, reopenText, labelComment,
-  unlabelComment, redChecks, docsOnlyFiles, NS_CMD, E2E_CMD, LIMITS,
+  unlabelComment, redChecks, docsOnlyFiles, NS_CMD, E2E_CMD, LIMITS, requestAddTimes,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/watchdog.mjs';
 
@@ -236,6 +236,30 @@ describe('watchdog: PRs and the label convention', () => {
     expect(a.detail).toMatch(/Marlow Build/);
   });
 
+  it('a labelled draft is unlabelled (pr-label-draft, F34: #487 rode train 122 as a draft)', () => {
+    const green = [runNode('check', 'SUCCESS'), ctxNode('checker', 'SUCCESS'), ctxNode('affected-e2e', 'SUCCESS')];
+    const draft = normalizePr(prNode({ labels: ['train-ready'], isDraft: true, contexts: green }));
+    const r = pa([draft], { now: NOW, owner: () => 'Night Shift | Marlow Build' });
+    expect(r.alerts).toHaveLength(1);
+    expect(r.alerts[0]).toMatchObject({ kind: 'pr-label-draft', severity: 'warn', subject: '#7 feature/x' });
+    expect(r.alerts[0].detail).toMatch(/train-ready but the PR is a draft; owner Night Shift \| Marlow Build/);
+    expect(r.alerts[0].fix).toMatchObject({ check: 'prs', type: 'unlabel', pr: 7, head: SHA('a'), reason: 'the PR is a draft' });
+    expect(r.labelHeads).toEqual({ 7: SHA('a') });
+    // before the red and conflict checks: one alert, the draft one
+    const redDraft = normalizePr(prNode({ labels: ['train-ready'], isDraft: true, mergeable: 'CONFLICTING', contexts: [runNode('check', 'FAILURE')] }));
+    expect(pa([redDraft], { now: NOW }).alerts.map((a: { kind: string }) => a.kind)).toEqual(['pr-label-draft']);
+    expect(unlabelComment(SHA('a'), 'the PR is a draft')).toMatch(/^Watchdog: the PR is a draft, so `train-ready` was removed/);
+  });
+
+  it('labelReady refuses a draft (F34; an unlabelled green draft is never labelled)', () => {
+    const green = [runNode('check', 'SUCCESS'), ctxNode('checker', 'SUCCESS'), ctxNode('affected-e2e', 'SUCCESS')];
+    const draft = normalizePr(prNode({ isDraft: true, contexts: green }));
+    expect(draft.draft).toBe(true);
+    expect(labelReady(draft)).toEqual({ ready: false, why: 'draft', affectedMissing: false });
+    expect(prAlerts([draft], { now: NOW + 60 * MIN, labelFix: true }).alerts).toEqual([]);
+    expect(prAlerts([{ ...draft, draft: false }], { now: NOW, labelFix: true }).alerts[0]).toMatchObject({ kind: 'pr-label-ready' });
+  });
+
   it('flags commits after the label (by commit time or a moved head) unless the checker passed the new head', () => {
     const after = normalizePr(prNode({ labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', committedDate: '2026-10-24T09:45:00Z' }));
     const r = pa([after], { now: NOW });
@@ -387,6 +411,24 @@ describe('watchdog: laptop queue', () => {
     // a `beat` field in a claim counts as its heartbeat
     const beat = laptopAlerts({ ...q, claims: { '20261024T090000-a': { worker: 'laptop', at: iso(NOW - 20 * MIN), beat: iso(NOW - MIN), done: false } }, stale: {} });
     expect(beat.filter((x: { kind: string }) => x.kind.startsWith('lq-claim'))).toEqual([]);
+  });
+
+  it('ages a re-filed request by the commit that added it, not its id (F20)', () => {
+    // T000011 re-filed 10 min ago: the id reads as midnight, the add commit says 10 min
+    const id = '20261024T000011-x';
+    const q = { now: NOW, requests: [req(id)], claims: {}, trainHeads: new Set(), activity: {}, desktopBeat: 0, stale: {} };
+    expect(laptopAlerts({ ...q, addedAt: { [id]: NOW - 10 * MIN } })).toEqual([]);
+    expect(laptopAlerts(q).map((x: { id: string }) => x.id)).toEqual([`lq-request-old:${id}`]);
+    // still alerts when the add commit itself is old
+    expect(laptopAlerts({ ...q, addedAt: { [id]: NOW - 90 * MIN } }).map((x: { id: string }) => x.id)).toEqual([`lq-request-old:${id}`]);
+    // an id missing from addedAt falls back to the id time
+    expect(laptopAlerts({ ...q, addedAt: { other: NOW } }).map((x: { id: string }) => x.id)).toEqual([`lq-request-old:${id}`]);
+  });
+
+  it('requestAddTimes keeps the newest add per id', () => {
+    expect(requestAddTimes('@1729760000\nrequests/a.json\n\n@1729750000\nrequests/a.json\nrequests/b.json\n')).toEqual({ a: 1729760000000, b: 1729750000000 });
+    expect(requestAddTimes('')).toEqual({});
+    expect(requestAddTimes('requests/a.json\n@x\nclaims/c.json\n')).toEqual({});
   });
 });
 

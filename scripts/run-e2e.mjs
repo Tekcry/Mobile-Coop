@@ -1,6 +1,6 @@
 // Serves the existing dist/ with `vite preview` and runs the e2e suites, several at a time (one browser per suite).
 //
-//   node scripts/run-e2e.mjs [suite ...] [--legacy | --audio | --gpu] [--serial] [--jobs=N] [--quick [--since=<ref>]] [--affected <base-ref> [--wide]] [--list]
+//   node scripts/run-e2e.mjs [suite ...] [--legacy | --audio | --gpu] [--serial] [--jobs=N] [--quick [--since=<ref>]] [--affected <base-ref> [--wide] [--affected-max=N]] [--list]
 //
 //   (no flags)   the REQUIRED suites in parallel (`E2E_JOBS` or --jobs; default: min(5, cores / 3))
 //   --serial     one suite at a time with its output streamed live (debugging; same as --jobs=1)
@@ -11,17 +11,20 @@
 //   --gpu        the visual read-back suites, Michael's PC only with E2E_GPU=1 (`npm run e2e:gpu`)
 //   --affected <base-ref>  the suites a PR must pass: `git diff` of the merge-base with <base-ref> to HEAD (committed files only, so it
 //                works on a detached commit), the DIRECT tier (the suites that drive the changed area); `--wide` adds the cross-area
-//                readers (WIDE_COVERS); `--list` prints them one per line and exits (the laptop queue and leads use it); picked suites
-//                outside REQUIRED are REPORT ONLY, as in --quick; a change on the wire (src/net, or a file protocol.ts imports, read
-//                at HEAD) adds the co-op group (COOP: e2e-coop, e2e-netmove, e2e-ctcourse)
+//                readers (WIDE_COVERS); `--list` prints them one per line and exits (the laptop queue and leads use it); a change on
+//                the wire (src/net, or a file protocol.ts imports, read at HEAD) adds the co-op group (COOP: e2e-coop, e2e-netmove,
+//                e2e-ctcourse); GPU, LEGACY and AUDIO suites are gated out; then the cap (e2e-affected affectedPick): at most 3
+//                suites, the closest, the co-op group alone for a wire / src/net / src/save change; `--affected-max=N` (else
+//                E2E_AFFECTED_MAX) sets another cap, 0 = no cap; `--wide` is uncapped unless one is given; picked suites
+//                outside REQUIRED are REPORT ONLY, as in --quick
 //   E2E_REPORT   a space or comma list of suites (or parts) that run REPORT ONLY in any run (the laptop queue's report suites)
 // Which change runs what (the test tiers): docs/RULES.md "Test tiers" and docs/systems/testing-tools.md.
 // The slowest suites start first (scripts/e2e-times.json, refreshed by every full run), so the pool stays busy to the end.
 import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cpus } from 'node:os';
-import { selectSuites, suitesForFile, withWireSuites, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS, LEGACY, GPU, AUDIO } from './e2e-affected.mjs';
-import { classify, status, reportSet, isReport } from './e2e-verdict.mjs';
+import { selectSuites, suitesForFile, affectedPick, parseAffectedMax, QUICK_COVERS, LEGACY, GPU, AUDIO } from './e2e-affected.mjs';
+import { classify, status, reportSet, isReport, slowLine } from './e2e-verdict.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4179);
 // Windows: `localhost` can resolve to ::1, which a VPN adapter on the PC blocks (EACCES): bind and browse the IPv4 loopback there
@@ -44,9 +47,10 @@ const NEEDS_LEGACY_FLAG = new Set(['e2e-progression', 'e2e-cosmetics', 'e2e-clea
 const REPORT = ['anim-audit'];
 // A suite that is several independent sections (each its own browser) runs as one job per section: `e2e-desktop` =
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
-// (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages.
-// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6 (campusOps: S1-S3 greybox routes)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
+// (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages. (J14) Parts 5-8
+// are the same four pairs on the re-planned yard (map `ctcourseReplan`, `scripts/e2e-ctcourse/replan/`).
+// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6-9 (campusOps, solo: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5; split in F33 so no part nears the kill)
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9'] };
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
@@ -147,8 +151,11 @@ function affectedSuites() {
   } catch (e) {
     console.error(`affected: no src/net/protocol.ts at HEAD (${String(e.stderr || e.message).trim()}): the wire rule is skipped`);
   }
-  const suites = withWireSuites(selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS), files, protocolTs);
-  console.error(`affected${wide ? ' (wide)' : ''}: ${files.length} changed file(s) vs ${affectedBase}, ${suites.length} suite(s)`);
+  // (affected-cap) the pick the laptop queue requests: --affected-max=N, else E2E_AFFECTED_MAX, else 3; --wide with neither is uncapped
+  const given = opt('affected-max') ?? process.env.E2E_AFFECTED_MAX;
+  const max = wide && given === undefined ? undefined : parseAffectedMax(given);
+  const suites = affectedPick(files, { wide, max, protocolTs });
+  console.error(`affected${wide ? ' (wide)' : ''}: ${files.length} changed file(s) vs ${affectedBase}, ${suites.length} suite(s) (${max ? `cap ${max}` : 'no cap'})`);
   return orderPicked(new Set(suites));
 }
 
@@ -265,6 +272,8 @@ const wall = (Date.now() - t00) / 1000;
 const sum = results.reduce((a, r) => a + r.sec, 0);
 console.log(`\ntimes (${process.env.E2E_GPU === '1' ? 'GPU' : 'software GL'}, ${jobs} at a time):\n  ${results.sort((a, b) => b.sec - a.sec).map((r) => `${r.s} ${status(r, verdictOpts)} ${r.sec.toFixed(0)}s`).join('\n  ')}`);
 console.log(`\nwall ${wall.toFixed(0)}s, suites summed ${sum.toFixed(0)}s${jobs > 1 ? ` (x${(sum / wall).toFixed(1)})` : ''}`);
+// (F33-c) a part that passes but used over 75% of the kill limit is drifting toward KILLED: say so before it gets there
+for (const r of results) { const slow = slowLine(r, SUITE_TIMEOUT / 1000); if (slow) console.log(slow); }
 if (fullRun && !allFailed.length) {
   // keep the schedule current (the file is committed: a fresh checkout starts with a good order)
   for (const r of results) known[r.s] = Math.round(r.sec);
