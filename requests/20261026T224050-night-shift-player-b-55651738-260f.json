@@ -1,0 +1,14 @@
+{
+  "id": "20261026T224050-night-shift-player-b-55651738-260f",
+  "sha": "55651738a14789fff3d665fa13813939bf8b11d1",
+  "branch": "fix/knife-when-spotted",
+  "pr": 691,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-piano",
+    "e2e-coop"
+  ],
+  "set": "kws",
+  "fix": true
+}
