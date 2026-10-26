@@ -1,0 +1,15 @@
+{
+  "id": "20261026T065822-affected-e2e-308ae524-c330",
+  "sha": "308ae524e19aa473354487f1c1d1446837453574",
+  "branch": "feature/prebake-preview",
+  "pr": 582,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-move"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #582"
+}
