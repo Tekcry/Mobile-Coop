@@ -6,10 +6,8 @@
   "kind": "pr",
   "requester": "affected-e2e",
   "suites": [
-    "e2e-coop",
-    "e2e-ctcourse",
-    "e2e-netmove"
+    "e2e-coop"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #653"
+  "note": "auto affected-e2e, PR #653 (re-filed at cap 1)"
 }
