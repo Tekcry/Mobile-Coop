@@ -255,6 +255,11 @@ export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix
       const checked = statusOf(pr, CHECKER_CONTEXT) === 'success';
       const red = redChecks(pr);
       const unlabel = (reason) => ({ fix: { check: 'prs', type: 'unlabel', pr: pr.number, head: pr.head, branch: pr.branch, reason, desc: `remove ${LABEL} from #${pr.number} and comment` } });
+      if (pr.draft) { // F34: a draft never keeps train-ready (#487 rode train 122 as a draft)
+        heads[pr.number] = from ?? pr.head;
+        alerts.push(alert('pr-label-draft', subj, 'warn', `${LABEL} but the PR is a draft; owner ${who}`, unlabel('the PR is a draft')));
+        continue;
+      }
       if (red.length) {
         heads[pr.number] = from ?? pr.head;
         const reason = `${red.join(', ')} red on head ${short(pr.head)}`;
