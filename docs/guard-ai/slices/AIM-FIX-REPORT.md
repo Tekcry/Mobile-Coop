@@ -70,7 +70,7 @@ with no net change.
   than (away - 15 deg) / 110 deg/s, and every round leaves from a body within the cone. Plus the run to cover (no forced
   turn; fires only facing), a 60 deg/s sweep tracked with no held round, and zero allocation on the held path
   (`bytesPerCall`, <= 16 B).
-- Every case fails on 593b22c58 (the away / turn cases on behaviour: rounds out at once from a body 126 deg off).
+- All 27 fail on 593b22c58 (run with src/ai/enemy.ts stashed). There they first fail on the missing `FIRE_CONE` / `faceFor`; past that, the old `tryFire` has no facing check, so the away cases would see rounds at once from a body 126 deg off.
 - `tests/carryState.test.ts`: its `tryFire` stand-in stubs `facesAim` (as it stubs `armourBlocks`).
 - `npm run typecheck:fast`: clean. `npx vitest run` on the new file plus every test importing enemy.ts,
   enemyManager.ts, armourFire or weapon code (125 files): 1696 passed, 2 skipped, 0 failed.
