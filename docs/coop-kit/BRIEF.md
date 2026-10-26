@@ -58,8 +58,10 @@ both screens (Q39), each drawn with its owner's Animation source, and a look vid
 playable pieces first, no fine-tuning passes, one test set per PR.
 
 ## Limits
-- Out of scope: map placement of the moves (Tallow Wharf uses only the six approved moves; Marlow Yard's teaching sets
-  are Marlow's J14 re-plan); the level validator's code (`scripts/level-validate.mjs`, Marlow Build); the pull-up and
+- Out of scope: map placement of the moves (Marlow Yard's teaching sets are Marlow's J14 re-plan; Campaign Build
+  planned a Plank Bridge on Tallow Wharf C4, pie loft to clock loft, after Michael's ~20:45 "Mix of both", flag date
+  2026-10-27: Campaign is a second user of the same API (`addKitSpot`, `onKitDone`); whether Michael's ~18:47 "Not yet"
+  (M3: no new map plans on the five moves) stops it is the orchestrator's call, asked 2026-10-26 ~19:50); the level validator's code (`scripts/level-validate.mjs`, Marlow Build); the pull-up and
   shutter poses Player owes Marlow (resume-ct-core: pull and shutter clips): this job only names the files it shares
   with them; the ledge relay's reach (M2); guard reactions beyond naming the hooks Guard AI owns (Plank Bridge, a lifted
   grate).
@@ -168,7 +170,7 @@ playable pieces first, no fine-tuning passes, one test set per PR.
   Slices never wait for them: they use the folder as it is when they start and note each missing clip. No CMU takes are
   hunted per kit role (A9). Undo: withdraw the list; roles get Mixamo only from the 21 files.
 - A15, A16: in STATE's A-log (the orchestrator's, kept there).
-- A17 (2026-10-26 ~18:45, logged for the orchestrator): until Michael answers the A12 question, part 2 starts dark on
+- A17 (2026-10-26 ~18:45, logged for the orchestrator): (A12 answered "Not yet" ~18:47, M3: these stay the move constants) part 2 starts dark on
   the starting bands in the question (each move file's constants; no scale-sheet row or 11.9 kind is written); the
   slices do not wait. Undo: his numbers replace the constants (one line per move, slice KD) or, with "Not yet", KD is
   dropped and the moves stay on Marlow Yard's spots only.

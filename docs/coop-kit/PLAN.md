@@ -155,6 +155,7 @@ files:
   - src/game/ropeLine.ts
   - src/game/kit/{deadweight,dropCatch,chimneyPair,swingPass,plankBridge}.ts
   - src/game/kit/kitApi.ts  # K0 (new): kit spots, pair rules, the done call
+  - src/game/stealthSystems.ts  # K5b `noticeLaidPlanks` (shared with Campaign #578: `noticeOpenShutters`)
   - src/game/modes/gameMode.ts  # K0: the optional `onKitDone` hook only (implemented by Marlow's courseMode)
   - src/net/kitNet.ts  # SHARED with Campaign (#581): K0 makes the pair rule generic
   - src/anim/tuneMoveRows.ts  # K0: kit sub bits -> tuner rows
@@ -248,7 +249,7 @@ map-ready; `playerController.ts` (K2) with player-hygiene.
 - **light-realism** (docs/light-realism/PLAN.md, l0-l2): `docs/level-design.md`, `docs/design/scale-sheet.md`. Order:
   either; ours touch only scale sheet line 57 (A1) and level-design 12.1 / 12.2 / 12.3 / open item 1 (B1).
 - **guard-ai-mission-hooks** (docs/guard-ai-mission-hooks/PLAN.md, s1a1-s4): `flags.ts`. Order: either (own lines);
-  its "guards notice it" hook gates the `deadweight` and `plankBridge` live switch-on (Flags).
+  no part 2 move waits on it (K5b adds the plank notice in `stealthSystems.ts` itself; Deadweight has no notice in G403).
 - **route-runs** (origin/feature/route-runs-2, R8; open #564, #566): `docs/level-design.md` sections 14-15; B1 edits only
   12.1, 12.2, 12.3 and open item 1 (the file, not the lines).
 - The pull-up and shutter poses Player owes Marlow (resume-ct-core): `src/anim/clips/team.ts` (`KIT_POSE_IDS`,
@@ -479,8 +480,8 @@ dead hang, arms long, feet together) balances the counterweight.
   `kitDone('deadweight', spot.id, passer, hanger)`. Two passes (one each way) = two calls.
 - Placeholders: `chainGrab` 'jump', `chainHang` 'hang' (the ledge hang), `chainDrop` 'drop', `grateUnder`
   'crouchWalk'. Mixamo later (CLIP-LIST K1): `trav_hanging_idle` (folder), downloads 9 and 10.
-- Guards: the open door is a door left open; Guard AI's "guards notice it" hook owns the reaction (the `deadweight`
-  live switch-on waits for it, Flags). The device exposes `open`, `opens`, `noticed` as `ShutterDevice` does.
+- Guards: the open door is a door left open (the existing door rules); G403 names no notice for Deadweight, so its live
+  switch-on waits for no hook. The device exposes `open`, `opens`, `noticed` as `ShutterDevice` does.
 - Marlow's wiring: with the id on, `A4-grille` belongs to the move (off both grille gates, `a4GoodsShed.ts:154-157`).
 - Marlow station 9 `a4-deadweight` uses the real move when the id `deadweight` is on.
 
@@ -598,8 +599,9 @@ end to end at the hip, laid by sliding it out over the gap from the near edge un
   path over it (no nav link: an engine item for Guard AI if a map needs it).
 - Done: the host sees a player step off a laid board on the far side -> `kitDone('plankBridge', spot.id, crosser,
   layer)` (K5b's host tick).
-- Guards: the device exposes `laid`, `opens`, `noticed` for Guard AI's "guards notice it" hook (a laid plank as a way
-  left open, G41's door rule); the `plankBridge` live switch-on waits for it (Flags).
+- Guards ("Guards notice it", G403): K5b adds `noticeLaidPlanks(dt)` to `src/game/stealthSystems.ts` beside Campaign's
+  `noticeOpenShutters` (#578 :664, called at :712) and in its pattern: a guard who sees a laid board (a way left open,
+  G41's door rule) reacts as to an open shutter. The device exposes `laid`, `opens`, `noticed`. No Guard AI hook needed.
 - Section restart: K5a resets every board to its stack (`resetKit` pattern, `teamController.ts` J9 S1).
 - Placeholders: `plankOffer` 'brace', `plankLift` 'brace', `plankCarry` 'walk' (hands to the board by IK in KA5),
   `plankDrop` / `plankLay` 'brace'. Mixamo later (CLIP-LIST K5): `lifting_heavy_object`, `kneel_down` (folder),
@@ -678,8 +680,9 @@ table in `docs/systems/coop.md`.
   plank device, drawn between the carriers' hand points while carried, on the stack or floor otherwise; no collider
   yet), `src/world/world.ts` (builds `PlankBoards` when the level has plank spots, beside #578's `shutters`),
   `tests/kit/plankBridge.test.ts` (new), `changes/feature-coop-kit-k5a.md`. Est. 1,000.
-- Checks: `npx vitest run tests/kit/plankBridge.test.ts tests/kit/kitApi.test.ts`; typecheck; one test set
-  (`affected-e2e`, cap 1). One Opus checker.
+- Checks: `npx vitest run tests/kit/plankBridge.test.ts tests/kit/kitApi.test.ts`; typecheck; one test set:
+  `e2e-netmove` (the RULES co-op checker gate for `src/game`; the lead requests it with `request.mjs --suites
+  e2e-netmove`; the automatic `affected-e2e` pick would be a one-player suite). One Opus checker, PASS only with it green.
 - Done looks like: headless, two controllers lift a spot's board, carry it 10 m with the slower stick leading, turn,
   put it down and lift it again; the gap between the two ends stays within 0.25 m of the board's length on both
   pages; B or a hit drops it; a restart puts it back on its stack; `?kitmoves=0` offers nothing.
@@ -687,12 +690,12 @@ table in `docs/systems/coop.md`.
 
 **K5b Plank Bridge, lay and cross (Opus).** Design "Plank Bridge" lay, the laid board, done, guards' exposure.
 - Files: `src/game/kit/plankBridge.ts`, `src/world/plankBridge.ts` (the laid board's static collider),
-  `src/core/flags.ts` (`plankBridge` into `KIT_BUILT`), `tests/kit/plankBridge.test.ts`,
-  `changes/feature-coop-kit-k5b.md`. Est. 800.
+  `src/core/flags.ts` (`plankBridge` into `KIT_BUILT`), `src/game/stealthSystems.ts` (`noticeLaidPlanks`, beside
+  Campaign's `noticeOpenShutters`), `tests/kit/plankBridge.test.ts`, `changes/feature-coop-kit-k5b.md`. Est. 850.
 - Checks: as K5a.
 - Done looks like: headless, the pair lays the board over a 3.0 m gap and both walk across; a 3.5 m gap and a far edge
   0.5 m higher are refused politely; the host's `onKitDone('plankBridge', spot, ...)` fires on a crossing; the laid
-  board reads `laid` / `opens` for Guard AI; lifted again it carries on; Marlow gets the id, the spot fields and the
+  board reads `laid` / `opens` and a guard who sees it reacts as to an open shutter (`noticeLaidPlanks`); lifted again it carries on; Marlow gets the id, the spot fields and the
   done call. Marlow station 5 `a2-plank` uses the real move when the id `plankBridge` is on.
 - Flag: `plankBridge`. Depends on: K5a.
 
@@ -701,11 +704,12 @@ table in `docs/systems/coop.md`.
   `tests/kit/deadweight.test.ts` (new: hang opens the spot's door after the lift time on the host, letting go shuts
   it, never on a body in the doorway, a client cannot open it without hanging, the pass each way and its two
   `onKitDone` calls, `?kitmoves=0`), `changes/feature-coop-kit-k1.md`. Est. 600.
-- Checks: `npx vitest run tests/kit/deadweight.test.ts tests/kit/kitApi.test.ts`; typecheck; one test set
-  (`affected-e2e`, cap 1). One Opus checker.
+- Checks: `npx vitest run tests/kit/deadweight.test.ts tests/kit/kitApi.test.ts`; typecheck; one test set:
+  `e2e-netmove` (the RULES co-op checker gate for `src/game`; the lead requests it with `request.mjs --suites
+  e2e-netmove`; the automatic `affected-e2e` pick would be a one-player suite). One Opus checker, PASS only with it green.
 - Done looks like: as the test list; Marlow gets the id, the spot fields (door, two chains) and the done call. Marlow
   station 9 `a4-deadweight` uses the real move when the id `deadweight` is on.
-- Flag: `deadweight` (live switch-on also waits for Guard AI's notice hook). Depends on: K0. Parallel with K5a / K5b.
+- Flag: `deadweight`. Depends on: K0. Parallel with K5a / K5b.
 
 **K3 Chimney Pair (Opus).** Design "Chimney Pair".
 - Files: `src/game/kit/chimneyPair.ts` (new), `src/player/splitJump.ts` (the chimney spots' `noSplit` boxes out of the
@@ -713,7 +717,8 @@ table in `docs/systems/coop.md`.
   test from rays and from a spot, the band refusals, the lead cap keeping the two within 0.15 m, the top-out, the
   slide on a let-go, no split gap inside a spot's shaft), `changes/feature-coop-kit-k3.md`. Est. 1,000.
 - Checks: `npx vitest run tests/kit/chimneyPair.test.ts tests/kit/kitApi.test.ts` plus the split-jump tests the grep
-  of `tests/` finds; typecheck; one test set (`affected-e2e`, cap 1). One Opus checker.
+  of `tests/` finds; typecheck; one test set: `e2e-netmove` (requested by the
+  lead, as K5a). One Opus checker, PASS only with it green.
 - Done looks like: as the test list; Marlow gets the id, the spot fields and the done call. Marlow station 11
   `a5-chimney` uses the real move when the id `chimneyPair` is on.
 - Flag: `chimneyPair`. Depends on: K0. Parallel with K1 / K5a.
@@ -776,7 +781,7 @@ preview"; `readKitMoves` through `PREVIEW_ON`); `?kitmoves=0` / `none` turns all
 | `kitMoves` id `stand` | off live; on in /preview/ from B1 | Night Shift \| Player Build | target 2026-10-29 | B1 + B2 on master, walk item accepted |
 | `kitMoves` id `ropeSteer` | off everywhere (A3 parked) | Night Shift \| Player Build | after Michael's playthrough | A3 built after the playthrough, walk item accepted |
 | `kitMoves` ids `dropCatch`, `chimneyPair`, `swingPass` | off live; on in /preview/ from its K slice | Night Shift \| Player Build | 2-4 days after #578 lands | that move's slice on master, its walk item accepted |
-| `kitMoves` ids `deadweight`, `plankBridge` | off live; on in /preview/ from K1 / K5b | Night Shift \| Player Build | 2-4 days after #578 lands, and not before Guard AI Build's "guards notice it" hook is on master | that move's slice on master, Guard AI's notice hook on master (G403 "guards notice it"), its walk item accepted |
+| `kitMoves` ids `deadweight`, `plankBridge` | off live; on in /preview/ from K1 / K5b | Night Shift \| Player Build | 2-4 days after #578 lands | that move's slice on master (K5b with its plank notice, G403 "guards notice it"), its walk item accepted |
 | `kitMoves` ids `pull`, `shutter` (Campaign's `coopKit` folded in by A1) | off live; on in /preview/ (built on #578) | Night Shift \| Campaign Build | Campaign's (target 2026-10-28) | as #578 says |
 
 Switch-on adds the id to `KIT_MOVES_ON` (one line in `flags.ts`). The walk cap (Player / animation at 3) holds live
