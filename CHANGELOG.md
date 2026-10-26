@@ -1,5 +1,45 @@
 # Changelog
 
+## 4.123.3 - Train 145: Route-run course mode: drill gates and restarts (2026-10-27, PR #636; #566)
+
+### Route-run course mode: drill gates and restarts
+- Route-runs (J13 R4c, test tooling only): on Marlow Yard the robots now get through a locked course door the way the
+  course expects. At a door held by open drills they wait at the door for the drill hold, then the harness completes
+  each open drill for either player through the course's own hooks and lists it as a drill stub (never as walked); at a
+  holding room's far door both robots stand on the pad and the airlock cycles. A door still locked after that is a
+  `locked` stop as before. The robots also notice when the course sends them back (a set restart or a retry), name why
+  (seen by a guard or a camera, a timer that ran out, or neither) and log it: a seen restart is a detection, the second
+  from the same place turns that set's spotted rule off and pushes the pair past, the second timer restart on one step
+  completes its drills as stubs, and only a second unexplained restart from one place is a `restart-loop` stop. The
+  course selftest fixture covers sets A1 and A2. Wiring into the driver follows in the lead's seam slice.
+
+### Route-run link steps (ladders, drops, windows, ducts, rappels)
+- Route-runs (J13 R5, test tooling only): the robots now take the solo off-nav links with the pad instead of stubbing
+  them: ladders (up from the foot, down from the top), drops (walked off the edge, or a hang and let go where the edge
+  stops the walk), windows (the vault; a glazed one shatters), hatches, ducts (the grate unscrewed quietly, crawled
+  through) and rappels. With two robots the leader takes each link first, then the follower on its own page, both pages
+  stepped together on the host's clock; inside a split each robot takes its own leg's links. Each has its time limit (a
+  link whose move never shows is a step-timeout dead stop, logged for the robot that failed with the step's time and
+  limit, then that robot is placed past the link). Code-route climbs are matched to the ladder, window, duct or rappel
+  near them, else read as a drop when they go down. Ledges, pipes, wall jumps and split jumps stay stubs, listed in the
+  report, as do the co-op moves. `--dry-run --selftest <fixture>` prints the selftest's runs with each link's limit. New
+  selftest fixture `tests/fixtures/route-run/selftest-steps.graph.json`.
+- (F29) A link step's dead stop names the step's phase (before the move, mounting, climbing, at the edge, through and
+  so on), so a stall says where it stopped.
+- (F29) The steps selftest's walk points: the ladder's in the delivery yard in front of its foot (not the locked dock
+  door), the canopy drop's beside the hatch (not over it), the pavilion drop's and both windows' off their space edges.
+  The open rear window of the gatehouse is now expected to time out: the PC desk under its landing stops the game
+  offering the vault (a map item for Sector Ops). A new unit test keeps every selftest walk point inside its starting
+  space, off its edges, doors and openings, on a walkable floor.
+
+### Route-run course and points seams
+- Route-runs (J13, test tooling only): the hooks the course runs and the checked points table plug into. In course mode
+  the harness no longer calms a guard that saw a robot (the game's own restart or retry is the forgive there). The
+  course hook can interrupt a walk when the game restarts or retries a set: the robots stop, are placed where the hook
+  says and go on from the step it names (inside a split both legs end first). The hook also gets the graphs, the
+  selftest's expectations, the end of each run (after its detection lines) and its own selftest checks. `--points` is
+  read through the points loader (checked against the graphs; `--points auto` makes the table).
+
 ## 4.123.2 - Train 144: Route-runs: the points table check (2026-10-27, PR #635; #564)
 - Route-runs (tooling): a points table is checked against the map graph it plans before a run; a table made on
   another build of the map, with a different link count or with links in another order is refused with a plain
