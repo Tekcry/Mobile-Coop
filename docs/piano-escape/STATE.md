@@ -21,4 +21,8 @@ stealth / stalking / solo kills / paired co-op kills (~20:16). The approved open
 4. Others: Player knife feature/piano-knife (S1 building; told map id thornbeckMill, scene 'piano' gate unchanged).
    Sector Ops SO1 feature/piano-lights-so1, SO3 feature/piano-lights-so3 building; SO2 / SO4 wait for the greybox
    (tell them branch + head). Guard AI told by the orchestrator.
+5. S5 music experiment: the orchestrator rendered 3 original sketches (offline Node synth piano.mjs, no downloads) at
+   C:/NightShift/scratch/music/proto/ (sketch-1-held-breath, sketch-2-thornbeck, sketch-3-last-round; .wav + .mp3).
+   S5 starts from these (bundle the mp3s + piano.mjs as the in-repo source, dev A/B picker with the Pixabay track)
+   instead of composing from scratch: Sonnet, smaller. Michael picks favourites via the orchestrator.
 Next: finish the mill redraw -> re-check -> SIGNOFF to the orchestrator; S1 report -> S1 + S3 checker -> PR.
