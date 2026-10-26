@@ -350,26 +350,25 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~16:15 SAVE at 81%, PROTOTYPE MODE).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~17:20, PROTOTYPE MODE; booted ~17:05 after the swap).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu; ROADMAP Decided
-"PROTOTYPE MODE" (~16:05, e18f09d2f): finished fixes ship in one batch train, the freeze ends when it ships, every
-feature on in /preview/ (#560), lighter testing (ONE closest test set per change, no proof runs, flaky = quarantine),
-next goal Michael's playthrough. Build toward playable pieces, not polish or tooling.
-This session posts its own `checker` statuses from an independent written report on that exact head and retargets
-stacked PRs itself. Reports: C:/NightShift/scratch/sector-ops-checks/ (PR bodies in pr-bodies/). tsc / vitest at
-BelowNormal, --maxWorkers=2; node_modules junctions only to C:/NightShift/Mobile-Coop-menu/node_modules.
-1. Fix PRs in the batch train: #568 F33 (part-6 split, named slow-start error, SLOW line; head 5271043a, train-ready +
-   no-affected-e2e), #457 J5 marks (e45be943). F32 watch only (shadowCues S3b limit).
-2. F42 (S1 gatehouse PC desk campusS1.ts:210 blocks the open rear-window vault landing, traversal.ts ~:283 0.6 m):
-   Opus builder on feature/campus-s1-vault-fix (worktree -campus-s1-vault-fix), report f42-build.md; it also checks the
-   v2 gatehouse (#523). Then: one Opus checker, PR labelled fix, one closest test set.
-3. GOAL: Saltmarsh Park S1 playable end to end in /preview/. With #560 campusV2 on, preview plays the v2 S1
-   (#523 -> #524 -> #525, stacked, drafted; checker posted on each). Blockers sent to the orchestrator ~16:15: the S1
-   stack must land (collapse or land in order); #518's L1 lights are v1 campusS1.ts only, so v2 S1 needs an L1 port;
-   v2 lamps miss the shipped bake (PC bakes at load in preview).
-4. Drafted feature PRs go back to ready after the batch train (orchestrator): #518, lane stacks S1 #523-#525,
-   S2 #526-#529, S3 #539-#544, S4 #545-#547, S5 #533-#535, map-ready #550 #551 #556, J16 #557. Re-file ONE test
-   set per change only. #551 needs Guard AI's re-review of guardWarm.ts before train-ready.
-5. J10 light: L2 (S2-S5) HOLD until Michael's S1 walk. Polish carried: see the 16:00 list in git history of this file.
-Next: F42 PR; the S1 playthrough blockers (L1 port to v2 S1 when the orchestrator says); re-ready PRs after the train.
+"PROTOTYPE MODE" (~16:05) and "Prototype, not polish" (~16:20): playable over perfect, ONE closest test set per change,
+one fix + one rerun at most, no tuning passes before Michael plays.
+This session posts its own `checker` statuses (lone gh api command) from an independent written report on that exact
+head. Reports: C:/NightShift/scratch/sector-ops-checks/ (briefs/ for builder briefs). tsc / vitest at BelowNormal,
+--maxWorkers=2; node_modules junctions only to C:/NightShift/Mobile-Coop-menu/node_modules.
+1. Train 124 (4.114.0) shipped #568 F33, #457 J5, #560 preview flags (campusV2 on in /preview/). Freeze over.
+2. #573 F42 (feature/campus-s1-vault-fix @ 10b9433d): master conflict fixed (J5 label + F42 PC z -77.3), checker PASS
+   (merge-conflict-fix-check.md), fix + no-affected-e2e: auto-train takes it on green CI.
+3. #525 v2 S1 rebuild (feature/campus-greybox-s1-c @ 5b2c40bf, big-pr, ready): same conflict fixed, checker PASS;
+   waits on its one affected-e2e set. #523 / #524 closed (inside #525).
+4. GOAL: S1 playable end to end in /preview/. IN FLIGHT: Opus builder ports the L1 car-park lighting onto the v2 S1
+   layout on the #518 branch (worktree -light-realism-l1, brief scratch/sector-ops-checks/briefs/l1-v2s1-port.md, report
+   l1-v2s1-build.md; merges #525 in, one lux measure). Then ONE checker, post checker, `gh pr ready 518` (orchestrator
+   accepted ~17:15; #518 is draft until then), message the orchestrator. Rerun the builder from the brief if no report.
+   Known gap: v2 lamps miss the shipped bake (the PC bakes at load in preview).
+5. Other drafted feature PRs (S2-S5 lanes, map-ready #550 #551 #556, J16 #557) were un-drafted by the orchestrator;
+   re-file ONE test set per change only when asked. #551 needs Guard AI's re-review of guardWarm.ts before train-ready.
+6. J10 light: L2 (S2-S5) HOLD until Michael's S1 walk.
+Next: L1 port check, then #518 ready; watch #573 / #525 land; then the next S1 playthrough blocker from the orchestrator.
 ```
