@@ -2,7 +2,7 @@
 Owner: Night Shift | Player Build. Status: current.
 
 Job: the knife kill animations and the intro pose for the piano escape scene (ROADMAP Now row 20, main focus).
-Base: master 1b58989ed. Sibling job: `feature/piano-escape` (Campaign Build: scene, map `pianoWorks`, intro camera,
+Base: master 1b58989ed. Sibling job: `feature/piano-escape` (Campaign Build: scene, map `thornbeckMill`, intro camera,
 music, EMP, the `pianoEscape` flag, the scene switch in `src/game/pianoScene.ts`). Guard AI owns the scene guards,
 Sector Ops the scene lighting.
 
@@ -19,6 +19,8 @@ Sector Ops the scene lighting.
 - 2026-10-26 ~19:40, chat: "I want main focus to be on piano scene. Extra capacity can go towards the remaining tasks."
 - 2026-10-26 ~19:45, via the orchestrator: "Killing a guard should be a physical alteration between them both, 2
   character animation if possible."
+- 2026-10-26 ~20:05, via the orchestrator: "Palm strike knockout disabled, only knife kills, and no slashing, only
+  animations with the guard".
 - 2026-10-26 ~19:55, chat (Campaign's part, shapes the intro): "Also, right before giving the player control, once the
   player knows they are surrounded and getting shot at and they have no ammo, they should activate an EMP which knocks
   out all the lights, forcing all the guards to use flashlights and the mission will play in pure darkness."
@@ -40,7 +42,7 @@ Campaign's scene flag and scene switch.
 
 ## Assumed decisions (A)
 - A1 The gate. Knife kills exist only when all three hold: Campaign's flag `pianoEscape` is on, the running map is the
-  piano scene's (`MapDef.scene === 'piano'`, map id `pianoWorks`), and Campaign's scene switch is live (set by
+  piano scene's (`MapDef.scene === 'piano'`, map id `thornbeckMill`), and Campaign's scene switch is live (set by
   `src/game/pianoScene.ts` when play starts after the EMP, cleared when the scene ends; Campaign PB5). One pure
   function decides it (`knifeSceneOn(flagOn, scene, live)`); `pianoScene.ts` is its only caller, through
   `takedown.setKnifeScene(..)` at play start and `setKnifeScene(false)` at scene end. Every other map and mode, with or
@@ -69,9 +71,9 @@ Campaign's scene flag and scene switch.
   CLIP-LIST clips once downloaded. Undo: n/a.
 - A9 "Brutally" is the weight of the motion (a held grip, a close stab, a buckle and a collapse), with blood limited to
   what the game already draws (piano-escape A6). Undo: n/a.
-- A10 The RT close strike in the scene becomes a lethal knife slash (solo, host and client) in S3, which lands before
-  Michael walks the scene (Campaign S4 waits on it). Until S3 lands the RT strike in the scene is today's palm-strike
-  knockout: a known gap, logged to Michael by the orchestrator (STATE). Undo: leave the slash out of S3.
+- A10 (Michael ~20:05, no longer assumed) With the knife switch on, the palm-strike knockout (RT close strike and the
+  non-lethal takedown) is off from S1: every takedown in the scene is the paired knife kill; there is no knife slash
+  at all. Switch off: everything as today.
 - A11 The intro pose (Campaign PB6): standing back flat to the wall, the empty pistol low ready in both hands, slide
   locked back, slow calm breathing readable at chest close-up (about a 4 s cycle), the hero mesh for the close-up; the
   partner the same pose, mirrored or crouched, beside him. Offered as `introPose(on, variant)` that Campaign's intro
@@ -94,6 +96,10 @@ Campaign's scene flag and scene switch.
 - A15 Timing: the bible's 1.0-1.5 s takedown wins over Campaign's PB1-PB3 targets (contact 0.7-0.9 s, free by
   2.0-2.4 s). Starting values: approach 0.22 s, move 1.3 s, contact at about 0.8 s from the press, limp at about
   1.26 s, the attacker free at about 1.67 s. Sent to Campaign for their e2e timings. Undo: `seconds` per row.
+- A16 Hand contacts (lead 2026-10-26 ~21:05, prototype mode, Michael ~16:05 "Prototype mode"): a paired-kill contact
+  that misses the bible's 3 cm (5.12.2) after S2's one measuring run is accepted as a recorded `KNOWN_MISS` (ceiling
+  at most 10 cm) until Michael plays; no IK fix slice before then. Undo: an Opus IK fix on `knifePair.ts` (S2b) and
+  an empty `KNOWN_MISS`.
 
 ## Questions for Michael
 None for Player Build. The Mixamo sign-in (CLIP-LIST) is the orchestrator's ask; the map plan (G288) is Campaign's.
