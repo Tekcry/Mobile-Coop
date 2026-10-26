@@ -142,8 +142,9 @@ export const S1_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: -18, z: -46.6, yaw: PI, takedownSpot: [-18, -46.1], role: 'escort', zone: 'forecourt', squad: 2, reason: 'Meets the 03:00 courier at the drop-off' },
   // 15 (G5, D:253) the north-east fence patrol: 5 s stops, 42.3 s; dark at the NE corner
   { kind: 'grunt', x: 24, z: -54, yaw: 0, route: [[24, -54], [24, -38]], waits: [5, 5], takedownSpot: [24, -38], role: 'patrol', zone: 'perimeter', squad: 4, reason: 'East fence-line check' },
-  // 16 (G5, D:252) the second smoker, #6's talking pair: the shelter front <-> the ash bin, 12.5 s stops (A20), 30.3 s
-  { kind: 'officer', x: 7, z: -50.8, yaw: -PI / 2, route: [[7, -50.8], [4.5, -50.8]], waits: [12.5, 12.5], takedownSpot: [4.5, -50.8], role: 'smoker', zone: 'smoking', squad: 2, pair: 5, reason: 'On his break with the smoker' },
+  // 16 (G5, D:252) the second smoker, #6's talking pair: the shelter front <-> the ash bin, 12.5 s stops (A20), 30.3 s;
+  // a 3 m post round the shelter front (its route inside it) so the pair forms as a posted pair (Guard AI play pass)
+  { kind: 'officer', x: 7, z: -50.8, yaw: -PI / 2, route: [[7, -50.8], [4.5, -50.8]], waits: [12.5, 12.5], takedownSpot: [4.5, -50.8], post: { leash: 3, guards: 'smoking' }, role: 'smoker', zone: 'smoking', squad: 2, pair: 5, reason: 'On his break with the smoker' },
 ];
 
 /** Section 1's cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */
