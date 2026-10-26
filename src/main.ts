@@ -22,6 +22,8 @@ import { SettingsScreen } from './ui/screens/settingsScreen';
 import { GameState, type GameOptions, type SessionCallbacks } from './game/gameState';
 import { getMap } from './world/maps';
 import { setPianoLeave } from './game/pianoScene';
+import { mapBootAllowed, missionParam } from './game/mission/sectorMission';
+import { campaignStartBlock } from './game/mission/campaign';
 import { courseSoloFlag } from './game/modes/courseMode';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
@@ -470,20 +472,30 @@ async function boot(): Promise<void> {
   // dev solo flag (`&course=solo`) boots it single player instead
   // (sector-ops slice 3: Sector Ops the same way, `?net=local&autostart=warehouseOps&mode=sector`)
   const localMode = flags.mode === 'course' && !courseSoloFlag() ? 'course' : flags.mode === 'sector' ? 'sector' : null;
-  const localCourse = !!flags.autostart && !!localMode && flags.coop && flags.net === 'local';
+  // (FLG) a mission map (Tallow Wharf) boots by URL only with `?missions=1`; off: the menu, never plain Sector Ops
+  const autostart = flags.autostart && mapBootAllowed(getMap(flags.autostart)) ? flags.autostart : null;
+  const localCourse = !!autostart && !!localMode && flags.coop && flags.net === 'local';
   if (localCourse && localMode) {
     goToMenu();
-    const mapId = getMap(flags.autostart!).id;
+    const mapId = getMap(autostart!).id;
     void loadCoop()
       .then((m) => m.autoLocalCourse(app, coopApi, mapId, localMode))
       .catch((e: unknown) => {
         console.error(e);
         app.toasts.show('Co-op unavailable', 'warn');
       });
-  } else if (flags.autostart) {
-    // infiltration: the mission picks its map
-    const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === flags.autostart) ?? MISSIONS[0]! : null;
-    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+  } else if (autostart) {
+    // (mission-rules R2, G2 / G48, A9) a URL boot is one player: a campaign map or mission never starts solo (two tabs
+    // over `?net=local`, or Play > Co-op, walk it)
+    const block = flags.mode === 'sector' ? campaignStartBlock(getMap(autostart).missions, missionParam(), 1) : null;
+    if (block) {
+      goToMenu();
+      app.toasts.show(block, 'warn');
+    } else {
+      // infiltration: the mission picks its map
+      const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === autostart) ?? MISSIONS[0]! : null;
+      startGame({ map: getMap(mission ? mission.map : autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+    }
   }
   else goToMenu();
   editorWalk?.attach(app);

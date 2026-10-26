@@ -180,7 +180,8 @@ describe('the hook (the merge point with the mission engine, J7 R6)', () => {
 
   it('SectorMode and CoopClient have their objectiveLines() immediately above dispose()', () => {
     for (const p of ['game/modes/sectorMode.ts', 'net/coopClient.ts']) {
-      expect(src(p)).toMatch(/ {2}objectiveLines\(\): ObjectiveLine\[\] \| null \{\n[^\n]*\n {2}\}\n\n {2}dispose\(\): void \{/);
+      // (mission engine member b) the body may run over several lines (the bound mission's lines first)
+      expect(src(p)).toMatch(/ {2}objectiveLines\(\): ObjectiveLine\[\] \| null \{\n(?:[^\n]*\n)+? {2}\}\n\n {2}dispose\(\): void \{/);
     }
   });
 

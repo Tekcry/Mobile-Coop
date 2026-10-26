@@ -159,8 +159,9 @@ export function barkLine(b: number, n: number, u: number): string | null {
 
 /** Radio lines (a chirp plays with them). */
 export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport', 'command', 'shotsReport', 'missingReport', 'consoleCheck', 'spotCall']);
-/** Urgent lines cut through a speaker's cooldown. (guard-ai S14) `missed` too: it follows his own "Radio check." at once. */
-const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn', 'koFound', 'koReport', 'deadReport', 'command', 'missed', 'shots', 'shotsReport', 'missingReport']);
+/** Urgent lines cut through a speaker's cooldown. (guard-ai S14) `missed` too: it follows his own "Radio check." at once.
+ *  (guard-rules S7) `spotCall` too: the lookout's radio follows his own "Huh?". */
+const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn', 'koFound', 'koReport', 'deadReport', 'command', 'missed', 'shots', 'shotsReport', 'missingReport', 'spotCall']);
 
 export const BARK = {
   /** Seconds between one speaker's lines; on screen this long. */

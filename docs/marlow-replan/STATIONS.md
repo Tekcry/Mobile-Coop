@@ -145,10 +145,10 @@ const a8StrongroomStations: StationDef[] = [
     marks: [{ x: 135.0, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console'] },
   { n: 20, id: 'a8-isolate', lesson: 'timed_light_cut', retry: 'caught', doneFlag: 'a8-grille-in', drillS: 25,
-    marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
+    marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-night', 'g-a8-grille'] },
   { n: 21, id: 'a8-locks', lesson: 'synced_hack', retry: 'caught', doneFlag: 'a8-sync', drillS: 60,
-    marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
+    marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console', 'g-a8-vault', 'laser-a8'] },
 ];
 ```
@@ -259,9 +259,9 @@ geometry at G1 (A2 pit, A5 trench: SA9, SA10).
 | 18a | B | 107.5 | 65.5 | 0 | PI/2 | `a8-vestibule` | yes |
 | 18b | A | 135.0 | 76.5 | 4.4 | PI/2 | `a8-office` | yes |
 | 18b | B | 126.5 | 76.5 | 0 | 0 | `a8-board` | yes |
-| 18c | A | 141.5 | 73.5 | 4.4 | PI/2 | `a8-office` | yes |
+| 18c | A | 137.5 | 76.5 | 4.4 | PI/2 | `a8-office` | yes |
 | 18c | B | 126.5 | 76.5 | 0 | 0 | `a8-board` | yes |
-| 18d | A | 141.5 | 73.5 | 4.4 | PI/2 | `a8-office` | yes |
+| 18d | A | 137.5 | 76.5 | 4.4 | PI/2 | `a8-office` | yes |
 | 18d | B | 135.5 | 66.5 | 0 | PI/2 | `a8-lobby-outer` | yes |
 
 | Space | Box [minX, minZ, maxX, maxZ] | y | Source |
@@ -320,7 +320,7 @@ lesson that needs his eyes or ears (Q11). A1, A2 and A6 have no camera or beam. 
 | `cam-a3-hall` | A3 | IR ceiling camera at (96.6, 2.8, 10.75), facing west, range 14, armoured (`ARMOURED_FROM_SET`) | the office corridor to the east lift lobby | the landlord's out-of-hours CCTV on the floor's only corridor | the jam relay (5 s jam, 1.5 s reboot); the services crawl and the fire door sit past its 14 m | 6, 7 |
 | `cam-a4-c1` | A4 | wall camera (111.5, 39.8), facing 270, range 14, on the loop flag `a4-loop` | the main aisle's east half | warehouse CCTV down the main aisle | the 60 s console loop | 8 |
 | `cam-a4-c2` | A4 | mezzanine-face camera (96.75, 43.6), facing 180, range 14, `a4-loop` | the cross aisle | the one aisle between the rack runs | the loop; the grille and back aisle (z 24-27) are 16 m out, so station 9 is out of its range | 8 |
-| `cam-a4-c3` | A4 | camera over the wicket (76.4, 33.0), facing 90, range 14, `a4-loop` | the dock, the loaders' desk, the main aisle's west end | dock CCTV over the yard door | the loop; the crouch spots behind the pallet stacks (SA12) | 8, 10 |
+| `cam-a4-c3` | A4 | camera over the wicket (76.4, 33.0), facing 90, range 14, off for good on `a4-grille` (station 9 done; B2) | the dock, the loaders' desk, the main aisle's west end | dock CCTV over the yard door | off once the grille is passed; the crouch spots behind the pallet stacks (SA12) | none (off from 8 on) |
 | `laser-a5` | A5 | three IR beams at 0.35 / 0.9 / 1.45 m across the 6 m cable gateway (x 58, z 33-39) | the inner zone | a substation's perimeter detection at its vehicle gateway | the throw over them; switched off for good by the far-side release `sw-a5-release` | 13 |
 | `a7-cam1` | A7 | wall camera (86.5, 71.5), facing 195, range 12, short aim | the front aisle's north mouth, the cage's north apron | colocation CCTV on the client's cage | the technicians' rounds; the rack-light panel cut | 17 |
 | `a7-cam2` | A7 | camera at the corridor's east end (99.6, 54.0), sweep 220-320, range 14 | the plant corridor and the pod door | the plant corridor's CCTV | slip the sweep in the cooling units' lees | 17 |
@@ -393,12 +393,15 @@ rule (a heavy landing retries the station).
   `A5-wicket`, `A5-footbridge`); `g-a5-plates` (the trench plates, laid from the west side); `g-a6-edge` (the gallery's
   self-closing edge gate); `g-a6-pit-ladder` (stand-in: `anchorLock` on the cage ladder `a6-pit-ladder`); squads
   `a5-watcher`, `a7-tech2` (fallback `a6-listener`). Undo: rename in the set slice and here together.
-- **SA12 Station 10 and C3.** C3 watches the loaders' desk, so the takedown lands inside the loop. The marks are the
+- **SA12 Station 10 and C3.** C3 watches the loaders' desk. The marks are the
   crouch spots behind the two pallet stacks (`A4_SPOT_N` / `A4_SPOT_S` on the grid), about 40-48 degrees off C3's axis;
   C3 is fixed at facing 90 down the wicket line, so both marks sit outside its frame (lead call, PLAN A28). Undo: marks
-  at the main aisle's west end (85.5, 37.0 / 38.0).
+  at the main aisle's west end (85.5, 37.0 / 38.0). (marlow-play B2) C3's `offFlag` is `a4-grille`, not the loop flag:
+  it is off for the rest of the set once station 9 is done. On the loop flag it came back when the 60 s ran out and saw
+  every takedown at the desk (the attackers stand 27-29 degrees off its axis, 4 m out), and station 10's retry never
+  re-runs the loop, so the pair retried forever. Undo: back on `a4-loop` with station 10's retry re-pressing the loop.
 - **SA13 No-fail stations.** 1, 2, 11 and 12 have no guard, camera or drill, so they stay `retry: 'none'`. The cable
-  trench has step irons on its east face at both ends, so a fall is a walk back, never a soft-lock. A1 has one way out of
+  trench has step irons on its east face at both ends and between its two decks (marlow-play-2 C18), so a fall is a walk back, never a soft-lock. A1 has one way out of
   its own: a player who drops into the yard before the ladder is done (the wicket stays shut till both have been on the
   wall top) is retried after 5 s with nobody on or climbing the wall, cause `other`, both back at the live station's
   marks with its `:other` line (PLAN A26, Q5). Station 15: a hanger who lets go before the key drops into the pit and
