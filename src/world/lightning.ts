@@ -53,11 +53,11 @@ export interface LightningData {
  * (piano SO5b) An opening's flash light: a point `inset` m inside the opening, `up` x its height above its centre (near
  * the head), aimed inward and `tilt` rad down, a feathered spot cone of half-angle `cone` rad, authored radius `radius`
  * (reach x `PHOTO.reach`: 8 m), intensity `gain`. One tuning pass (SO5b) against PLAN 2b's "5-20 lux within about 6 m":
- * under the 20 lux cap one point light keeps 5 lux to about 3 m on a 2.4 m window's centre line (15-17 lux at 1-1.5 m);
- * it falls to about 1 lux at 6 m (inverse square). The opening's own frame and everything inside cast its shadows (it
- * is baked as any lamp).
+ * under the 20 lux cap one point light keeps 5 lux from 1 m to 3 m on a 2.4 m window's centre line (17.7 lux at 2 m)
+ * and falls to 1.5 lux at 4 m, 0.3 lux at 6 m (inverse square; `tests/lightningOpenings.test.ts`). The opening's own
+ * frame and everything inside cast its shadows (it is baked as any lamp).
  */
-export const OPENING_LIGHT = { inset: 0.3, up: 0.4, tilt: 0.4, cone: 1.4, radius: 5, gain: 0.62 } as const;
+export const OPENING_LIGHT = { inset: 0.3, up: 0.4, tilt: 0.4, cone: 1.4, radius: 5, gain: 0.65 } as const;
 /** (piano SO5b) The flash's colour on screen (rendering only): a cold blue-white. */
 export const OPENING_COLOR: readonly [number, number, number] = [0.82, 0.88, 1];
 
