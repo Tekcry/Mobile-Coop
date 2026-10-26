@@ -125,7 +125,7 @@ ERROR: s5-lowroof: dead end (one way out) not tagged reward or objective
 ERROR: section S3: 1 independent route(s) from entry 's3-c2' to exit 's3-dock' (need 2 edge-disjoint)
 ERROR: co-op links reach 6 of 25 encounter spaces (need at least half)
 ERROR: pacing: three high beats (4+) in a row: s5-ante, s5-strong, s5-hall
-ERROR: s1-carpark: measured sees_pct 0.25 below 0.7 (declared 0.7)
+ERROR: s1-carpark: measured sees_pct 0.27 below 0.7 (declared 0.7)
 ERROR: s1-forecourt: measured sees_pct 0.56 below 0.7 (declared 0.75)
 ERROR: s2-hall: measured sees_pct 0.66 below 0.7 (declared 0.7)
 ERROR: s2-l1-plan: measured sees_pct 0.28 below 0.7 (declared 0.3)
@@ -311,13 +311,12 @@ WARN:  link s5-arch -> s5-well (team_rope) has a solo twin: link s5-arch -> s5-w
 WARN:  pacing: no release (1-2) after the peak at s4-mantrap before s4-yard
 WARN:  pacing: no release (1-2) after the peak at s4-hall before s4-noc
 WARN:  pacing: no release (1-2) after the peak at s5-cage before s5-roof
-WARN:  s1-gatehouse: measured sees_pct 0.94 vs declared 0.4 (apart by more than 0.1; update the declared target)
-WARN:  s1-carpark: measured sees_pct 0.25 vs declared 0.7 (apart by more than 0.1; update the declared target)
-WARN:  s1-carpark: measured los_break_s 1.3 s vs declared 3 s (apart by more than 1.5 s; update the declared target)
+WARN:  s1-gatehouse: measured sees_pct 0.98 vs declared 0.4 (apart by more than 0.1; update the declared target)
+WARN:  s1-carpark: measured sees_pct 0.27 vs declared 0.7 (apart by more than 0.1; update the declared target)
 WARN:  s1-dyard: measured sees_pct 0.99 vs declared 0.8 (apart by more than 0.1; update the declared target)
 WARN:  s1-dyard: measured los_break_s 1.33 s vs declared 4 s (apart by more than 1.5 s; update the declared target)
 WARN:  s1-forecourt: measured sees_pct 0.56 vs declared 0.75 (apart by more than 0.1; update the declared target)
-WARN:  s1-forecourt: measured los_break_s 2.24 s vs declared 5 s (apart by more than 1.5 s; update the declared target)
+WARN:  s1-forecourt: measured los_break_s 2.3 s vs declared 5 s (apart by more than 1.5 s; update the declared target)
 WARN:  s2-l1-facilities: measured los_break_s 3.78 s vs declared 0.9 s (apart by more than 1.5 s; update the declared target)
 WARN:  s3-hall: measured sees_pct 0.3 vs declared 0.45 (apart by more than 0.1; update the declared target)
 WARN:  s3-hall: measured los_break_s 4.9 s vs declared 2.5 s (apart by more than 1.5 s; update the declared target)
@@ -359,8 +358,8 @@ INFO:  s5-lawn: shadow_pct 0.9 outside 0.4-0.6 (information; the light band is t
 INFO:  s5-arch: shadow_pct 1 outside 0.4-0.6 (information; the light band is the target)
 INFO:  s5-roof: shadow_pct 0.95 outside 0.4-0.6 (information; the light band is the target)
 INFO:  s1-gatehouse: measured shadow_pct 0 outside 0.4-0.6, declared 0 (information; the light band is the target)
-INFO:  s1-carpark: measured shadow_pct 0.39 outside 0.4-0.6, declared 0.2 (information; the light band is the target)
-INFO:  s1-carpark: measured shadow_pct 0.39 vs declared 0.2 (apart by more than 0.1; update the declared target)
+INFO:  s1-carpark: measured shadow_pct 0 outside 0.4-0.6, declared 0.2 (information; the light band is the target)
+INFO:  s1-carpark: measured shadow_pct 0 vs declared 0.2 (apart by more than 0.1; update the declared target)
 INFO:  s2-foyer: measured shadow_pct 0.56 vs declared 0.7 (apart by more than 0.1; update the declared target)
 INFO:  s2-l1-plan: measured shadow_pct 0.77 outside 0.4-0.6, declared 0.8 (information; the light band is the target)
 INFO:  s2-l1-wing: measured shadow_pct 0.87 outside 0.4-0.6, declared 0.95 (information; the light band is the target)
@@ -385,4 +384,4 @@ INFO:  s5-kitchen: measured shadow_pct 0 outside 0.4-0.6 (information; the light
 INFO:  s5-arch: measured shadow_pct 0.98 outside 0.4-0.6, declared 1 (information; the light band is the target)
 INFO:  s5-roof: measured shadow_pct 0.95 outside 0.4-0.6, declared 0.95 (information; the light band is the target)
 
-139 error(s), 200 warning(s).
+139 error(s), 199 warning(s).
