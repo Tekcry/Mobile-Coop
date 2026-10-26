@@ -1030,6 +1030,11 @@ PRIORITY (Michael ~19:40 via the orchestrator, ROADMAP Now row 20): the piano sc
 scene, an intro of guards firing and closing in slow motion on an operator back to the wall, then a quiet escape where
 every guard is knifed in the shadows (kills allowed in this scene only). Campaign Build plans it and names what it
 needs from Guard AI (scene guard behaviour, the slow-motion approach): those requests go first when they come.
+Michael ~19:55: an EMP kills every light just before the players get control; the escape is pure darkness and every
+guard switches to a flashlight (flashlight search, sight limited to the beam, reacting to the blackout). Already on
+master: torchRule (archetypes.ts:160-167, on only while looking and below TORCH_DARK), carriesTorch (dogs none),
+breaker.ts blackout knowledge (DARK_CUT per circuit). Gaps to build when Campaign asks: torch on for every state in a
+scene blackout, sight inside the beam cone only, one EMP reaction for all circuits at once.
 Next: land coop4 merge 7 + its one check, then #317 / #595 train-ready to the orchestrator; piano scene requests
 first as they arrive; J26 mission hooks with spare capacity.
 ```
