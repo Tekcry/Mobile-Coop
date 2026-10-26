@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-26T03:01:24Z
 
 # Brief: player-batch-j19 S5 - Forward lean, sprint anim paths, audit limits, compare flag (Player Build)
 
