@@ -1,0 +1,16 @@
+{
+  "id": "20261026T032337-affected-e2e-2fbfbd30-b259",
+  "sha": "2fbfbd303af097b15835960650cc8a87c62ad1dd",
+  "branch": "feature/laptop-queue-8b",
+  "pr": 552,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-move",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #552"
+}
