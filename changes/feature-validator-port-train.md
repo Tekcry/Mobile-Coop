@@ -15,10 +15,10 @@ kind: patch
   enemies), and then the campaign route rules run on it: three approaches of two kinds with shadow, high and loud, and
   routes that cross. A section whose only second way is a split needs neither.
 - `npm run validate:levels` (`scripts/level-graphs.mjs`) runs the level validator over every committed graph set in
-  `docs/level-validator/graph-sets.json` (the example and campus S1-S5) and exits 1 when a set's error or warning count
-  differs from the manifest; `--write` rewrites each saved run and the counts. `tests/levelGraphs.test.ts` pins the
-  same counts and checks each saved run says them. The campus saved run is refreshed to today's 127 errors and 174
-  warnings. Adds the `level-measure` script line (the tool lands in another slice).
+  `docs/level-validator/graph-sets.json` (the example, campus S1-S5 and Marlow Yard) and exits 1 when a set's error or
+  warning count differs from the manifest; `--write` rewrites each saved run and the counts. `tests/levelGraphs.test.ts`
+  pins the same counts and checks each saved run says them. Pinned today: campus 139 errors and 200 warnings, Marlow
+  Yard (with `--require-measured`) 37 errors and 83 warnings. Adds the `level-measure` script line.
 - Level validator (tooling, no game change): every map graph is checked for a perfect run. Each objective and the
   run's end (exfil on a campaign map, the last section's exit on Sector Ops and Marlow Yard) must be reachable without
   a link marked `requires_kill` (an error on every mode) and without a loud link (an error on campaign and Sector Ops,
@@ -43,3 +43,13 @@ kind: patch
   measured-value lines; `docs/level-design.md` names `taught_by`, the live measured exit gate and the new rule-index
   rows; `docs/systems/testing-tools.md` documents `--require-measured`, `npm run validate:levels` and
   `npm run level-measure`.
+- The Marlow Yard level graph (`docs/marlow-final/graph/ctcourse.json`, as built at 4.103) is on the training profile,
+  with `taught_by` A7 and eight teach elements from the course spec. It is measured with `level-measure --write`; its
+  validator run with `--require-measured` is saved beside it as `run.txt`, with a `REPORT.md` that maps each error to
+  the re-plan slice that fixes it.
+- The five campus graphs carry their measured positions and the values `level-measure` stored from the built campus. A
+  new test, `tests/levelMeasureCampus.test.ts`, re-measures the campus in CI and fails when a stored value has moved or
+  the stored geometry hash is stale; the saved validator run and report are in `docs/level-validator/campus-run/`.
+- Splits: a split leg may start with a co-op link from the fork (both partners stand at the fork for the boost, then
+  go on alone). At most one leg; the other still needs a solo entry from the same fork; the co-op link's time counts
+  for its leg and an INFO line names it. Two co-op entries, or a bolted link walked the wrong way, keep the error.
