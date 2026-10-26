@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-26T02:38:40Z
 
 # campaign NET3 gate: the client first-placement goes behind `missions` (Opus)
 Owner: Campaign Build. Lead: Night Shift | Campaign Build. Released 2026-10-26 ~13:25. Orchestrator call 12:55: "NET3
