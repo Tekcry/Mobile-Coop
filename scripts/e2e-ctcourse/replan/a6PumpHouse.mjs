@@ -62,10 +62,10 @@ export async function walk(t) {
   const hasFlag = (f) => GA((f) => window.__course.state.hasFlag(f), f);
   const station = () => GA(() => window.__course.station());
   const level = (P, x, y, z) => P.evaluate(([x, y, z]) => window.__app.current.world.lightField?.bodyLevel(x, y, z, 1.7) ?? -1, [x, y, z]);
-  const ladderId = await GA((name) => window.__app.current.world.layout.anchors?.[name] ?? -1, LADDER);
+  const ladderId = await GA((name) => window.__app.current.world.layout.course.anchors?.[name] ?? -1, LADDER);
   /** Is the stand-in ladder locked: on the host (the course state), on the client (the course wire's disabled anchors)? */
   const ladderLocked = async () => [await GA((name) => window.__course.state.anchorLocked(name), LADDER), await GB((id) => window.__course.wire.anchors.includes(id), ladderId)];
-  const lipId = await GA((name) => window.__app.current.world.layout.anchors?.[name] ?? -1, LIP);
+  const lipId = await GA((name) => window.__app.current.world.layout.course.anchors?.[name] ?? -1, LIP);
   /** Is the loading edge's lip locked: on the host, on the client? */
   const lipLocked = async () => [await GA((name) => window.__course.state.anchorLocked(name), LIP), await GB((id) => window.__course.wire.anchors.includes(id), lipId)];
   /** The attendant on the host (the one live guard in the set box): place, alert state, awareness meter, his route stop. */
