@@ -35,6 +35,7 @@ import {
   A8_NORTH,
   A8_OFFICE_DOOR,
   A8_OFFICER,
+  A8_OFFICER_POST,
   A8_PUBLIC_STAIR,
   A8_REPLAN_COLUMN_OUT,
   A8_RTE_AT,
@@ -240,10 +241,10 @@ describe('Marlow re-plan A8: the stations (STATIONS.md section 3)', () => {
       marks: [{ x: 135.0, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
       guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console'] },
     { n: 20, id: 'a8-isolate', lesson: 'timed_light_cut', retry: 'caught', doneFlag: 'a8-grille-in', drillS: 25,
-      marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
+      marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
       guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-night', 'g-a8-grille'] },
     { n: 21, id: 'a8-locks', lesson: 'synced_hack', retry: 'caught', doneFlag: 'a8-sync', drillS: 60,
-      marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
+      marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
       guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console', 'g-a8-vault', 'laser-a8'] },
   ];
   /** The graph spaces' boxes the marks sit in (STATIONS section 7). */
@@ -278,6 +279,12 @@ describe('Marlow re-plan A8: the stations (STATIONS.md section 3)', () => {
       });
     }
     for (const s of sheet.slice(1)) expect(s.marks[0].y).toBe(A8_H.gallery);
+    // (marlow-play-2 C13) 20 / 21's A mark by the office door, behind the seated officer (his back to the door) and well off him
+    for (const s of sheet.slice(2)) {
+      const m = s.marks[0];
+      expect(m.x).toBeLessThan(A8_OFFICER_POST.x);
+      expect(hyp2(m.x - A8_OFFICER_POST.x, m.z - A8_OFFICER_POST.z)).toBeGreaterThan(4);
+    }
     for (const s of sheet) expect(s.marks[1].y).toBe(0);
   });
 

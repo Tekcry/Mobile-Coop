@@ -41,8 +41,8 @@ const DOORS = { office: 'A8-office', grille: 'A8-grille' };
 /** Stations 18-21's marks (STATIONS section 3): A then B. */
 const ST18 = [[107.5, 64.0, 0, Math.PI / 2], [107.5, 65.5, 0, Math.PI / 2]];
 const ST19 = [[135.0, 76.5, 4.4, Math.PI / 2], [126.5, 76.5, 0, 0]];
-const ST20 = [[141.5, 73.5, 4.4, Math.PI / 2], [126.5, 76.5, 0, 0]];
-const ST21 = [[141.5, 73.5, 4.4, Math.PI / 2], [135.5, 66.5, 0, Math.PI / 2]];
+const ST20 = [[137.5, 76.5, 4.4, Math.PI / 2], [126.5, 76.5, 0, 0]];
+const ST21 = [[137.5, 76.5, 4.4, Math.PI / 2], [135.5, 66.5, 0, Math.PI / 2]];
 /** The jam spot behind the main counter and C2's lens, the pier, the office door's approach and the spot inside it, the console's standing point. */
 const JAM = [118.0, 67.2];
 const C2_LENS = [133.75, 7.4, 73.0];

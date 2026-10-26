@@ -145,10 +145,10 @@ const a8StrongroomStations: StationDef[] = [
     marks: [{ x: 135.0, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console'] },
   { n: 20, id: 'a8-isolate', lesson: 'timed_light_cut', retry: 'caught', doneFlag: 'a8-grille-in', drillS: 25,
-    marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
+    marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-night', 'g-a8-grille'] },
   { n: 21, id: 'a8-locks', lesson: 'synced_hack', retry: 'caught', doneFlag: 'a8-sync', drillS: 60,
-    marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
+    marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console', 'g-a8-vault', 'laser-a8'] },
 ];
 ```
@@ -259,9 +259,9 @@ geometry at G1 (A2 pit, A5 trench: SA9, SA10).
 | 18a | B | 107.5 | 65.5 | 0 | PI/2 | `a8-vestibule` | yes |
 | 18b | A | 135.0 | 76.5 | 4.4 | PI/2 | `a8-office` | yes |
 | 18b | B | 126.5 | 76.5 | 0 | 0 | `a8-board` | yes |
-| 18c | A | 141.5 | 73.5 | 4.4 | PI/2 | `a8-office` | yes |
+| 18c | A | 137.5 | 76.5 | 4.4 | PI/2 | `a8-office` | yes |
 | 18c | B | 126.5 | 76.5 | 0 | 0 | `a8-board` | yes |
-| 18d | A | 141.5 | 73.5 | 4.4 | PI/2 | `a8-office` | yes |
+| 18d | A | 137.5 | 76.5 | 4.4 | PI/2 | `a8-office` | yes |
 | 18d | B | 135.5 | 66.5 | 0 | PI/2 | `a8-lobby-outer` | yes |
 
 | Space | Box [minX, minZ, maxX, maxZ] | y | Source |
