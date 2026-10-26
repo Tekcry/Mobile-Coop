@@ -431,7 +431,7 @@ export function withWireSuites(suites, files, protocolTs) {
 // ---- affected-cap: an automatic affected run names at most AFFECTED_MAX suites, the closest to the change ----
 
 /** The automatic cap (the service's affected requests and re-file, run-e2e / request.mjs `--affected`); 0 = no cap. */
-export const AFFECTED_MAX = 3;
+export const AFFECTED_MAX = 1; // G421: one closest suite per PR (prototype mode); the co-op group stays whole
 
 /** `--affected-max` / `E2E_AFFECTED_MAX`: a whole number >= 0 (0 = no cap); anything else (unset, '', 'x', -1, 2.5) is AFFECTED_MAX. */
 export function parseAffectedMax(v) {

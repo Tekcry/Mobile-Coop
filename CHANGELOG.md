@@ -1,5 +1,29 @@
 # Changelog
 
+## 4.128.0 - Train 160: Affected e2e: one closest suite by default; Co-op kit: Chimney Pair; Thornbeck Mill pre-built lamp bake (piano SO2); e2e-netmove strike check fixed (F5) (2026-10-27, PR #668; #664, #663, #661, #656)
+
+### Affected e2e: one closest suite by default
+- `affected-e2e` now runs one suite per PR by default (`AFFECTED_MAX` 1, G421, prototype mode), the closest to the
+  change, matching RULES "Test tiers"; `src/net`, `src/save` and wire changes still run the whole co-op group. The
+  laptop already ran with `E2E_AFFECTED_MAX=1`; this makes the code default, `request.mjs --affected` and
+  `run-e2e --affected` agree.
+
+### Co-op kit: Chimney Pair
+- Co-op (on in /preview/, not yet in the live game): Chimney Pair is playable. In a narrow shaft one player braces with
+  the Co-op button and the partner joins; back to back, you climb together on your own sticks, never more than a hand's
+  width apart, and climb out at the top. Let go and you both slide down safely. At Marlow Yard this is station 11's way
+  up the gap. A marked shaft can no longer be split-jumped alone.
+
+### Thornbeck Mill pre-built lamp bake (piano SO2)
+- Lighting: the build's lamp prebake takes a list of maps (`SHIPPED_BAKE_MAPS`: Saltmarsh Park and Thornbeck Mill), one
+  cache folder and manifest per map, the same caps and prune; the game reads `bakes/<map>.json` for each (the mill ships
+  one file, it has no section split). The campus bake is unchanged (same key, same files).
+- Tests: Thornbeck Mill after the EMP: every baked lamp reads off in the picture, the light meter / guard sight and the
+  co-op client, under 1 lux at meter height everywhere.
+
+### e2e-netmove strike check fixed (F5)
+- Test only: the two-player movement test froze a missed strike after it had already ended (the strike recovery became longer in J19 S2), so it failed on every co-op change; it now freezes inside the miss, at the same moment as before.
+
 ## 4.127.0 - Train 156: Piano escape: knife kills, co-op, the storm and the full run (2026-10-27, PR #659; #631)
 
 ### Co-op kit: groundwork for five new moves

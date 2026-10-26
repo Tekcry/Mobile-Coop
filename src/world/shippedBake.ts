@@ -1,8 +1,8 @@
 /**
- * (map-ready S4, fix (2)) The campus lamps shipped pre-built (`docs/map-ready/briefs/S4.md`, BRIEF A15). `npm run build`
- * bakes campusOps' lamps in Node first (`scripts/prebake.mjs`, the same `bakeLamps` the workers run, one lamp per job)
- * and the build ships them as `bakes/campusOps.json` (the manifest) and gzip files of packed lamps
- * (`campusOps-<h>-s<k>.bin.gz`). A load that misses the IndexedDB cache reads them (`readShippedLamps`) only when the
+ * (map-ready S4, fix (2)) The campus lamps shipped pre-built (`docs/map-ready/briefs/S4.md`, BRIEF A15); (piano SO2)
+ * every map in `SHIPPED_BAKE_MAPS` the same way. `npm run build` bakes their lamps in Node first (`scripts/prebake.mjs`,
+ * the same `bakeLamps` the workers run, one lamp per job) and the build ships them as `bakes/<map>.json` (the manifest)
+ * and gzip files of packed lamps (`<map>-<h>-s<k>.bin.gz`). A load that misses the IndexedDB cache reads them (`readShippedLamps`) only when the
  * manifest's key is the game's own key (`lampKeyOf`): a stale file is never read (the PC bakes as today). The joined
  * result is the section baker's (`voxel/sectionJobs.ts` landing + `joinBounce`), byte for byte: the picture, the meter
  * and the guards read the same bytes (light parity).
@@ -38,6 +38,18 @@ export interface ShippedManifest {
   canonVersion: number;
   lamps: number;
   files: ShippedFile[];
+}
+
+/**
+ * (piano SO2) The maps whose lamps ship pre-built: `scripts/prebake/plan.ts` bakes exactly these and the game reads
+ * `bakes/<id>.json` for exactly these (`world/lightBake.ts`). A map with a section split (`sectionBakeFor`) ships one
+ * file per section, a map without (thornbeckMill) one file.
+ */
+export const SHIPPED_BAKE_MAPS: readonly string[] = ['campusOps', 'thornbeckMill'];
+
+/** Does the bake id `mapId` ship its lamps pre-built? (`?fullbright`'s own id never does.) */
+export function shipsBake(mapId: string): boolean {
+  return SHIPPED_BAKE_MAPS.includes(mapId);
 }
 
 /** `NSLB` */
