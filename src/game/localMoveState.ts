@@ -4,9 +4,11 @@
  * (`poseFromMoveState`, `AttachGrips`, `traversePath`). Built every fixed step a net session runs.
  */
 import { wrapPi } from '../anim/motion';
-import { packAttachSub, TAKEDOWN_SUB_BLOW, type ExitPose, type MoveMode, type MoveState } from '../player/moveState';
+import { knifeSub, packAttachSub, TAKEDOWN_SUB_BLOW, type ExitPose, type MoveMode, type MoveState } from '../player/moveState';
 import type { GameState } from './gameState';
 import { WALL_SUB } from '../player/wallController';
+import { KNIFE_KILLS } from './knifeKill';
+import { knifeSpan } from './knifePair';
 
 const EXIT_OF: Partial<Record<string, ExitPose>> = { climbUp: 'climbUp', mantle: 'mantle', ventDrop: 'ventDrop', drop: 'drop' };
 
@@ -40,6 +42,25 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     // (B5) the hang-down holder's depth (m, the head under the edge): the hanging partner follows it
     out.s = g.team.wireS;
     out.ph = pose.traverse === 'climbUp' || pose.traverse === 'vault' || pose.traverse === 'climb' ? pose.traverseT : 0;
+    delete out.c;
+    return out;
+  }
+  // (piano-knife S3) a knife kill, from the press until the attacker is free (the tail too, `active` null): the knife bit
+  // and the row in `sub`, the move's phase over `knifeSpan` in `ph`, the approach's progress in `s`; without a row (7)
+  // today's blow phase and bit
+  const tk = g.takedown;
+  if (tk.knifeOn) {
+    out.m = 'takedown';
+    out.tid = tk.knifeTid;
+    if (tk.kr >= 0) {
+      const R = KNIFE_KILLS[tk.kr]!;
+      out.sub = knifeSub(tk.kr);
+      out.ph = Math.max(0, Math.min(1, tk.kt / knifeSpan(R)));
+      out.s = tk.knifeApproach;
+    } else {
+      out.sub = knifeSub(-1) | (tk.blowPh >= 0 ? TAKEDOWN_SUB_BLOW : 0);
+      out.ph = Math.max(0, Math.min(1, tk.blowPh));
+    }
     delete out.c;
     return out;
   }

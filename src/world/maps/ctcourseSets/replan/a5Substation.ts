@@ -9,8 +9,9 @@
  *   access ladder on the wall's inside face; station 11's stand-in, the wicket `A5-wicket` (gate `g-a5-wicket`, a latching
  *   flag gate the base opens while `chimneyPair` is not playable);
  * - the open cable trench x 62.35-65.85 (3.5 m, floor -1.6; `FLOOR_HOLES`), its walls `noLedge` (no lip on either face),
- *   step irons on the east face at both ends (a fall is a walk back); the cable-tray gantry over it at z 44.6 (KS4's swing
- *   anchor: a steel frame and its pipe at `A5_GANTRY_PIPE_Y`); the trench plates z 39.0-42.0, hoarded, gated at the west end
+ *   step irons on the east face at both ends (a fall is a walk back); the cable-tray gantry over it at z 44.6 (dressing: a
+ *   steel frame and its pipe at `A5_GANTRY_PIPE_Y`); the swing bar on its east edge at z 42.4-43.6 (Swing Pass's anchor,
+ *   marlow-kit-geo Q2, `A5_SWING_BAR`); the trench plates z 39.0-42.0, hoarded, gated at the west end
  *   by `g-a5-plates` (bolted: the swung player opens it from the west side, then a way both ways); station 12's stand-in,
  *   the hoarded footbridge z 36.4-37.6, door `A5-footbridge` (gate `g-a5-footbridge`, latching like the wicket);
  * - the moved pieces: the drum stack on the west strip's north end (clear of the plates -> throw mark path, of `A5_HIDE` and
@@ -73,10 +74,19 @@ export const A5_PLATES = { z0: 39.0, z1: 42.0, door: [39.9, 41.1] } as const;
 /** A crossing's deck thickness (its top flush with the floor), the hoarding's height and thickness. */
 export const A5_DECK_T = 0.15;
 export const A5_HOARD = { h: 2.4, t: 0.1 } as const;
-/** The cable-tray gantry over the trench (the swing's anchor for KS4): two posts on the trench edges, a top beam. */
+/** The cable-tray gantry over the trench: two posts on the trench edges, a top beam (dressing since marlow-kit-geo Q2: its
+ *  posts stand on both edges of its line and the drums leave 0.55 m of landing there, so the swing moved to `A5_SWING_BAR`). */
 export const A5_GANTRY = { z: 44.6, xw: 62.2, xe: 66.0, post: 0.15, top: 3.4, beam: 0.2 } as const;
-/** The gantry pipe's height over the apron floor (m): KS4 sets it to K4's swing band. */
+/** The gantry pipe's and the swing bar's height over the apron floor (m): Swing Pass's band 2.2-2.8 m. */
 export const A5_GANTRY_PIPE_Y = 2.6;
+/**
+ * (marlow-kit-geo Q2) The swing bar, Swing Pass's anchor (station 12): a short bar along the trench's east edge on two posts
+ * (z 42.4 and 43.6, x 65.85-66.0), its pipe at `A5_GANTRY_PIPE_Y`, visual only (no anchor: nobody hand-traverses it alone).
+ * The swing line z 43.0 runs between the posts (1.05 m clear, a body's 0.6 m with 0.22 m each side) and lands on the west
+ * strip 0.9 m clear of the plates' hoarding (z 42.1) and of the drums (z 43.9): 4.2 m of landing to the west strip's wall
+ * (`A5_WALL.near` 58.15), the band's 0.75 m with room to spare.
+ */
+export const A5_SWING_BAR = { z: 43.0, posts: [42.4, 43.6], x0: 65.85, x1: 66.0, post: 0.15, top: 2.75 } as const;
 /** The drum stack moved to the west strip's north end: 4 m and more off the beam line (`BEAM_KEEP_CLEAR`), clear of the path
  *  from the plates to the throw mark and of `A5_HIDE`; two drums end to end, two rows side by side (as built). */
 export const A5_DRUMS_RP = { x0: 59.6, x1: 61.8, z0: 43.9, z1: 47.5, h: 1.8 } as const;
@@ -137,17 +147,17 @@ export const A5_RETRY_TIMER = 'The floodlight came back. Back behind the transfo
 
 /** The bay's objective lines on the re-plan: one per station (what and where), then the holding-room line. */
 export const A5_OBJECTIVES: readonly CourseObjective[] = [
-  { id: 'a5-wall', bay: 'A5', text: 'Through the wicket door in the wall onto the apron.', done: { flag: A5_APRON_E_FLAG } },
-  { id: 'a5-trench', bay: 'A5', text: "Cross the cable trench to the apron's west side: footbridge or plates.", done: { flag: A5_APRON_W_FLAG } },
+  { id: 'a5-wall', bay: 'A5', text: 'Go through the wicket onto the apron', done: { flag: A5_APRON_E_FLAG } },
+  { id: 'a5-trench', bay: 'A5', text: 'Cross the trench by footbridge or plates', done: { flag: A5_APRON_W_FLAG } },
   {
     id: 'a5-throw',
     bay: 'A5',
-    text: 'Throw one of you over the beams, jam the kiosk floodlight, key the release.',
-    a: 'Throw your partner from the mark, then jam the floodlight through the gateway.',
-    b: 'Land behind the transformer, cross under the jam and key the release at the kiosk.',
+    text: 'Get over the beams, jam the floodlight',
+    a: 'Throw your partner over the beams, then jam the kiosk floodlight.',
+    b: 'Cross under the jam and key the release at the kiosk.',
     done: { flag: A5_RELEASE_FLAG },
   },
-  { id: 'a5-lock', bay: 'A5', text: 'Beams are off. Both of you into holding room five.' },
+  { id: 'a5-lock', bay: 'A5', text: 'Beams are off, into holding room five' },
 ];
 
 const GREY = '#6a6f74';
@@ -231,7 +241,7 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
     p.doors[A5_PLATES_DOOR] = b.door(T.x0, 0, P.door[0], P.door[1] - P.door[0], 0, { height: A5_WICKET.h, swing: 1, locked: true, breachable: false }).id;
   });
   // ---- A5-R6: the cable-tray gantry (KS4's swing anchor) ----
-  tally(b, p.register, 'A5-R6', `Cable-tray gantry over the trench at z 44.6: two 0.15 m posts on the trench edges and a top beam at 3.2-3.4 m (noLedge), its pipe across at ${A5_GANTRY_PIPE_Y} m (visual, no anchor: KS4 sets its height to K4's band and makes it the swing's anchor)`, () => {
+  tally(b, p.register, 'A5-R6', `Cable-tray gantry over the trench at z 44.6: two 0.15 m posts on the trench edges and a top beam at 3.2-3.4 m (noLedge), its pipe across at ${A5_GANTRY_PIPE_Y} m (visual, no anchor; dressing: the swing's anchor is the swing bar, A5-R10)`, () => {
     const G = A5_GANTRY;
     const z0 = G.z - G.post / 2;
     const z1 = G.z + G.post / 2;
@@ -241,6 +251,14 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
     skin(G.xw + G.post, G.xe - G.post, A5_GANTRY_PIPE_Y - 0.022, A5_GANTRY_PIPE_Y + 0.022, G.z - 0.022, G.z + 0.022, LOOK.pipe);
     // two drop rods from the beam to the pipe's ends
     for (const x of [G.xw + G.post + 0.05, G.xe - G.post - 0.05]) skin(x - 0.015, x + 0.015, A5_GANTRY_PIPE_Y, G.top - G.beam, G.z - 0.015, G.z + 0.015, LOOK.steel);
+  });
+  // ---- A5-R10: the swing bar (station 12's Swing Pass anchor, marlow-kit-geo Q2) ----
+  tally(b, p.register, 'A5-R10', `(marlow-kit-geo Q2) Swing bar on the trench's east edge: two 0.15 m posts (x 65.85-66.0, z 42.4 and 43.6, 2.75 m, noLedge) and the bar between them along the edge at ${A5_GANTRY_PIPE_Y} m (visual, no anchor): Swing Pass's anchor, its line z 43.0 clear between the posts to the west strip`, () => {
+    const S = A5_SWING_BAR;
+    const h = S.post / 2;
+    for (const z of S.posts) solid(S.x0, S.x1, z - h, z + h, 0, S.top, STEEL);
+    const xm = (S.x0 + S.x1) / 2;
+    skin(xm - 0.022, xm + 0.022, A5_GANTRY_PIPE_Y - 0.022, A5_GANTRY_PIPE_Y + 0.022, S.posts[0] + h, S.posts[1] - h, LOOK.pipe);
   });
 
   // ---- A5-10: the drum stack, moved to the west strip; A5-R7 its dressing and the cable laid in ----

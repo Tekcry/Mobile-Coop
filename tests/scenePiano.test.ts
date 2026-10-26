@@ -1,13 +1,16 @@
 /**
- * (piano-escape S3) The scene's piano: the loop / cross-fade / seek maths, the same-origin check, and the lifecycle on a
- * fake audio context (nothing is fetched or decoded: the track arrives through the injected loader).
+ * (piano-escape S3, S5b) The scene's piano: the loop / cross-fade / seek / switch maths, the same-origin check, and the
+ * lifecycle (the intro track, then the mission track) on a fake audio context (nothing is fetched or decoded: the tracks
+ * arrive through the injected loaders).
  */
 import { describe, expect, it } from 'vitest';
 import { Music } from '../src/audio/music/music';
 import type { AudioEngine } from '../src/audio/audioEngine';
 import {
   CROSSFADE,
+  EMP_AT,
   LOOP_START,
+  MISSION_FADE,
   ScenePiano,
   SKIP_TO,
   TRACK_LENGTH,
@@ -18,7 +21,11 @@ import {
   isSameOrigin,
   legPlan,
   loopPeriod,
+  missionLoopPeriod,
+  missionPosition,
+  seekAction,
   trackPosition,
+  type SceneMusicSource,
 } from '../src/audio/music/scenePiano';
 
 describe('scene piano: maths', () => {
@@ -91,6 +98,37 @@ describe('scene piano: maths', () => {
     expect(trackPosition(0, -4)).toBe(0);
   });
 
+  it('the EMP press lands on S2s EMP_SEEK (41 s) and cross-fades over the loop cross-fade', () => {
+    expect(EMP_AT).toBe(41);
+    expect(MISSION_FADE).toBe(CROSSFADE);
+  });
+
+  it('the mission track loops whole: its period is its length less the cross-fade (Grohl 162.04 s -> 160.04 s)', () => {
+    expect(missionLoopPeriod(162.04)).toBeCloseTo(160.04, 9);
+    expect(missionLoopPeriod(83.78)).toBeCloseTo(81.78, 9);
+    // a mission leg from 0 starts its cross-fade one period in, into the next leg from 0
+    expect(legPlan(0, 162.04).fadeAt).toBeCloseTo(missionLoopPeriod(162.04), 9);
+    expect(missionPosition(0, 162.04)).toBe(0);
+    expect(missionPosition(10, 162.04)).toBe(10);
+    expect(missionPosition(160.04 + 3, 162.04)).toBeCloseTo(3, 9);
+    expect(missionPosition(-1, 162.04)).toBe(0);
+    expect(missionPosition(5, 1)).toBe(0);
+  });
+
+  it('the switch plan: the skip seeks, the press switches (or waits for the track), then nothing goes back', () => {
+    // with a mission track
+    expect(seekAction(SKIP_TO, true, false, false)).toBe('seek');
+    expect(seekAction(EMP_AT, true, true, false)).toBe('switch');
+    expect(seekAction(60, true, true, false)).toBe('switch');
+    expect(seekAction(EMP_AT, true, false, false)).toBe('wait');
+    expect(seekAction(EMP_AT, true, true, true)).toBe('ignore');
+    expect(seekAction(SKIP_TO, true, true, true)).toBe('ignore');
+    expect(seekAction(Number.NaN, true, true, false)).toBe('seek');
+    // none (?pianomusic=pixabay): every seek is a plain seek, as in S3
+    expect(seekAction(SKIP_TO, false, false, false)).toBe('seek');
+    expect(seekAction(EMP_AT, false, false, false)).toBe('seek');
+  });
+
   it('only a same-origin file is fetched', () => {
     const page = 'https://example.github.io/Mobile-Coop/index.html';
     expect(isSameOrigin('/Mobile-Coop/assets/piano-escape-Ab12.mp3', page)).toBe(true);
@@ -159,16 +197,19 @@ function fakeAudio(): { audio: AudioEngine; sources: FakeNode[]; outs: FakeNode[
   } as unknown as AudioEngine;
   return { audio, sources, outs };
 }
-const buffer = (): AudioBuffer => ({ duration: TRACK_LENGTH }) as AudioBuffer;
+const buffer = (duration: number = TRACK_LENGTH): AudioBuffer => ({ duration }) as AudioBuffer;
+type Load = () => Promise<AudioBuffer | null>;
+/** The scene's tracks for a test: the intro loader, and the mission loader (null: S3's behaviour, `?pianomusic=pixabay`). */
+const source = (intro: Load, mission: Load | null = null): SceneMusicSource => ({ intro, introLoop: LOOP_START, mission });
 
 describe('scene piano: lifecycle', () => {
   it('fetches nothing until start(), then plays from 0 s with the next leg already scheduled at the loop', async () => {
     const { audio, sources } = fakeAudio();
     let loads = 0;
-    const p = new ScenePiano(audio, () => {
+    const p = new ScenePiano(audio, source(() => {
       loads++;
       return Promise.resolve(buffer());
-    });
+    }));
     expect(loads).toBe(0);
     expect(p.active).toBe(false);
     await p.start();
@@ -182,7 +223,7 @@ describe('scene piano: lifecycle', () => {
 
   it('a seek before the track has loaded makes start() play from there; a second start() does nothing', async () => {
     const { audio, sources } = fakeAudio();
-    const p = new ScenePiano(audio, () => Promise.resolve(buffer()));
+    const p = new ScenePiano(audio, source(() => Promise.resolve(buffer())));
     const started = p.start();
     p.seek(SKIP_TO);
     await started;
@@ -193,7 +234,7 @@ describe('scene piano: lifecycle', () => {
 
   it('a seek while playing starts a new leg at that point and fades the old ones out', async () => {
     const { audio, sources } = fakeAudio();
-    const p = new ScenePiano(audio, () => Promise.resolve(buffer()));
+    const p = new ScenePiano(audio, source(() => Promise.resolve(buffer())));
     await p.start();
     p.seek(SKIP_TO);
     expect(sources.length).toBe(4);
@@ -204,7 +245,7 @@ describe('scene piano: lifecycle', () => {
 
   it('when a leg ends the leg after the next one is scheduled, one loop period on', async () => {
     const { audio, sources } = fakeAudio();
-    const p = new ScenePiano(audio, () => Promise.resolve(buffer()));
+    const p = new ScenePiano(audio, source(() => Promise.resolve(buffer())));
     await p.start();
     sources[0]!.onended?.();
     expect(sources.length).toBe(3);
@@ -214,7 +255,7 @@ describe('scene piano: lifecycle', () => {
 
   it('stop() silences everything; a stop while loading means nothing ever plays', async () => {
     const a = fakeAudio();
-    const p = new ScenePiano(a.audio, () => Promise.resolve(buffer()));
+    const p = new ScenePiano(a.audio, source(() => Promise.resolve(buffer())));
     await p.start();
     p.stop();
     expect(p.active).toBe(false);
@@ -222,7 +263,7 @@ describe('scene piano: lifecycle', () => {
     expect(a.outs[0]!.connected).toBe(false);
 
     const b = fakeAudio();
-    const q = new ScenePiano(b.audio, () => Promise.resolve(buffer()));
+    const q = new ScenePiano(b.audio, source(() => Promise.resolve(buffer())));
     const started = q.start();
     q.stop();
     await started;
@@ -232,10 +273,171 @@ describe('scene piano: lifecycle', () => {
 
   it('a failed load leaves it off', async () => {
     const { audio, sources } = fakeAudio();
-    const p = new ScenePiano(audio, () => Promise.resolve(null));
+    const p = new ScenePiano(audio, source(() => Promise.resolve(null)));
     await p.start();
     expect(p.active).toBe(false);
     expect(sources.length).toBe(0);
+  });
+});
+
+describe('scene piano: the intro track, then the mission track (S5b)', () => {
+  const GROHL = 162.04;
+  const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+  /** A mission loader the test resolves by hand, counting its calls. */
+  function pending(): { load: Load; resolve: (b: AudioBuffer | null) => void; calls: () => number } {
+    let calls = 0;
+    let resolve: (b: AudioBuffer | null) => void = () => {};
+    const load: Load = () => {
+      calls++;
+      return new Promise((r) => (resolve = r));
+    };
+    return { load, resolve: (b) => resolve(b), calls: () => calls };
+  }
+
+  it('the intro plays from 0 (looping from 41 s); the mission track is fetched only once the intro has started', async () => {
+    const { audio, sources } = fakeAudio();
+    const m = pending();
+    const p = new ScenePiano(audio, source(() => Promise.resolve(buffer()), m.load));
+    const started = p.start();
+    expect(m.calls()).toBe(0);
+    await started;
+    expect(m.calls()).toBe(1);
+    expect(sources.map((s) => s.starts[0]!.offset)).toEqual([0, LOOP_START]);
+    expect(p.onMissionTrack).toBe(false);
+  });
+
+  it('the press with the mission track ready cross-fades into it from 0, and it loops whole', async () => {
+    const { audio, sources } = fakeAudio();
+    const intro = buffer();
+    const mission = buffer(GROHL);
+    const p = new ScenePiano(audio, source(() => Promise.resolve(intro), () => Promise.resolve(mission)));
+    await p.start();
+    await flush();
+    p.seek(SKIP_TO); // the intro skip: a plain seek
+    expect(sources.length).toBe(4);
+    expect(p.onMissionTrack).toBe(false);
+    p.seek(EMP_AT); // the EMP press
+    expect(p.onMissionTrack).toBe(true);
+    expect(sources.length).toBe(6);
+    const [a, b] = [sources[4]!, sources[5]!];
+    expect(a.buffer).toBe(mission);
+    expect(a.starts[0]!.offset).toBe(0);
+    expect(b.buffer).toBe(mission);
+    expect(b.starts[0]!.offset).toBe(0);
+    expect(b.starts[0]!.at - a.starts[0]!.at).toBeCloseTo(missionLoopPeriod(GROHL), 9);
+    // the intro legs fade out under it (stopped after the cross-fade)
+    expect(sources[2]!.stops).toBe(1);
+    expect(sources[3]!.stops).toBe(1);
+    // the next leg after that: from 0 again, one period on
+    a.onended?.();
+    expect(sources.length).toBe(7);
+    expect(sources[6]!.buffer).toBe(mission);
+    expect(sources[6]!.starts[0]!.offset).toBe(0);
+    expect(sources[6]!.starts[0]!.at - b.starts[0]!.at).toBeCloseTo(missionLoopPeriod(GROHL), 9);
+  });
+
+  it('never goes back: a later seek (a second press, the skip) does nothing', async () => {
+    const { audio, sources } = fakeAudio();
+    const p = new ScenePiano(audio, source(() => Promise.resolve(buffer()), () => Promise.resolve(buffer(GROHL))));
+    await p.start();
+    await flush();
+    p.seek(EMP_AT);
+    const n = sources.length;
+    p.seek(EMP_AT);
+    p.seek(SKIP_TO);
+    p.seek(0);
+    expect(sources.length).toBe(n);
+    expect(p.onMissionTrack).toBe(true);
+  });
+
+  it('a press before the mission track is ready: the intro plays on, then it switches as soon as the track arrives', async () => {
+    const { audio, sources } = fakeAudio();
+    const m = pending();
+    const mission = buffer(GROHL);
+    const p = new ScenePiano(audio, source(() => Promise.resolve(buffer()), m.load));
+    await p.start();
+    p.seek(EMP_AT);
+    expect(sources.length).toBe(2); // no seek in the intro track: it plays on
+    expect(p.onMissionTrack).toBe(false);
+    m.resolve(mission);
+    await flush();
+    expect(p.onMissionTrack).toBe(true);
+    expect(sources.length).toBe(4);
+    expect(sources[2]!.buffer).toBe(mission);
+    expect(sources[2]!.starts[0]!.offset).toBe(0);
+    expect(sources[0]!.stops).toBe(1);
+  });
+
+  it('the mission track arriving during the fade-out or after stop() plays nothing', async () => {
+    const a = fakeAudio();
+    const m1 = pending();
+    const p = new ScenePiano(a.audio, source(() => Promise.resolve(buffer()), m1.load));
+    await p.start();
+    p.seek(EMP_AT);
+    p.fadeOut(1);
+    m1.resolve(buffer(GROHL));
+    await flush();
+    expect(a.sources.length).toBe(2);
+    expect(p.onMissionTrack).toBe(false);
+    p.stop();
+
+    const b = fakeAudio();
+    const m2 = pending();
+    const q = new ScenePiano(b.audio, source(() => Promise.resolve(buffer()), m2.load));
+    await q.start();
+    q.seek(EMP_AT);
+    q.stop();
+    m2.resolve(buffer(GROHL));
+    await flush();
+    expect(b.sources.length).toBe(2);
+    expect(q.active).toBe(false);
+  });
+
+  it('a failed mission load leaves the intro track playing', async () => {
+    const { audio, sources } = fakeAudio();
+    const p = new ScenePiano(audio, source(() => Promise.resolve(buffer()), () => Promise.reject(new Error('x'))));
+    await p.start();
+    await flush();
+    p.seek(EMP_AT);
+    expect(sources.length).toBe(2);
+    expect(p.active).toBe(true);
+    expect(p.onMissionTrack).toBe(false);
+  });
+
+  it('stop() frees both tracks: the next start() fetches both again and plays the intro from 0', async () => {
+    const { audio, sources } = fakeAudio();
+    let intros = 0;
+    let missions = 0;
+    const p = new ScenePiano(
+      audio,
+      source(
+        () => (intros++, Promise.resolve(buffer())),
+        () => (missions++, Promise.resolve(buffer(GROHL))),
+      ),
+    );
+    await p.start();
+    await flush();
+    p.seek(EMP_AT);
+    p.stop();
+    expect(p.onMissionTrack).toBe(false);
+    expect(sources.every((s) => s.stops >= 1)).toBe(true);
+    const before = sources.length;
+    await p.start();
+    await flush();
+    expect([intros, missions]).toEqual([2, 2]);
+    expect(sources[before]!.starts[0]!.offset).toBe(0);
+    expect(p.onMissionTrack).toBe(false);
+  });
+
+  it('?pianomusic=pixabay (no mission track): the press is S3s plain seek to 41 s in the intro track', async () => {
+    const { audio, sources } = fakeAudio();
+    const p = new ScenePiano(audio, source(() => Promise.resolve(buffer())));
+    await p.start();
+    p.seek(EMP_AT);
+    expect(sources.length).toBe(4);
+    expect(sources[2]!.starts[0]!.offset).toBe(41);
+    expect(sources[3]!.starts[0]!.offset).toBe(LOOP_START);
+    expect(p.onMissionTrack).toBe(false);
   });
 });
 

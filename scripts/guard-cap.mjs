@@ -528,7 +528,8 @@ const pct = (s, p) => (s.length ? s[Math.min(s.length - 1, Math.floor(p * s.leng
 const r3 = (x) => (x === null || x === undefined || !Number.isFinite(x) ? null : +x.toFixed(3));
 function summary(a) {
   const s = sorted(a);
-  return { med: r3(pct(s, 0.5)), p95: r3(pct(s, 0.95)), mean: r3(s.length ? s.reduce((x, y) => x + y, 0) / s.length : null), n: s.length };
+  // (piano SO3) p99: the 1% low frame time
+  return { med: r3(pct(s, 0.5)), p95: r3(pct(s, 0.95)), p99: r3(pct(s, 0.99)), mean: r3(s.length ? s.reduce((x, y) => x + y, 0) / s.length : null), n: s.length };
 }
 
 function simSummary(clean, inst) {
@@ -643,6 +644,8 @@ async function runPage(map, n, ctl) {
       try {
         Object.assign(rec, await withTimeout(fn(), CELL_TIMEOUT, `${map} x ${n} ${name}`));
         log(`${map} x ${n} ${name}: ${rec.sim ? `sim step med ${rec.sim.stepClean.med} p95 ${rec.sim.stepClean.p95} ms (ai ${rec.sim.buckets['ai.manager'].med}); ` : ''}frame med ${rec.render.frameMs.med} ms (${rec.render.fps} fps), cpu ${rec.render.frameCpuMs.med} (sim frames ${rec.render.frameCpuMsWithSim.med}, ${rec.render.cpuMsPerSimStep} per 1/60 s of sim), gpu ${rec.render.gpuMs?.med ?? 'n/a'}, draws ${rec.render.draws?.med}, shadow passes ${rec.render.shadowPasses?.med} / maps ${rec.render.shadowMapRenders?.med}`);
+        // (piano SO3) frame time avg / p95 / p99 (1% low) and GPU ms, torches on of slots: the torch-count table's row
+        log(`${map} x ${n} ${name} [${QUERY || '-'}]: frame avg ${rec.render.frameMs.mean} p95 ${rec.render.frameMs.p95} p99 ${rec.render.frameMs.p99} ms; gpu avg ${rec.render.gpuMs?.mean ?? 'n/a'} p95 ${rec.render.gpuMs?.p95 ?? 'n/a'} p99 ${rec.render.gpuMs?.p99 ?? 'n/a'} ms; torches on ${rec.render.state?.torchesOn ?? '-'} of ${rec.render.state?.torchSlots ?? '-'}`);
         // (T1-SHADOW) the anim tally (counted sample)
         const an = rec.render.anim;
         if (an) log(`${map} x ${n} ${name}: anim ${an.ms.mean} / ${an.ms.p95} ms per frame (mean / p95), solves ${an.solvesPerFrame}, off-screen ${an.offscreenPerFrame}, shadow-seen ${an.shadowSeenPerFrame} per frame; eval ${rec.render.evalMs?.mean} ms mean`);

@@ -3,6 +3,8 @@ import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import type { CamSpace } from '../camSpaces';
 import type { RoutePt, SectorBolt, SectorDef, SectorGuard } from '../../game/sectors';
+import type { LightningData } from '../lightning';
+import { mapWideNoise } from '../../ai/hearing';
 
 /**
  * Thornbeck Mill (piano-escape, `scene: 'piano'`): a storm grain mill in Hollowmere, the setting of the piano escape
@@ -94,14 +96,14 @@ const K = THORNBECK_KILL_SPOTS;
 const CREW = 'night crew of the security contractor holding the mill in the storm';
 
 /**
- * G4 + G5's lap (GA5 item 2): both walk at 0.7 m/s (the scene's pace, no turn time) and wait `waits` at each point, so a
- * lap = route length (out and back) / 0.7 + the waits = 40 s. G4: 20.4 m = 29.143 s + 6.857 + 4. G5: 13.6 m = 19.429 s +
- * 16.571 + 4 (the review's guess of 8 - 10 s left out the 4 s door check). `G5_START_WAIT`: G5 begins 4.857 s into its lap
- * (11.714 s left of its first pause), so both leave the office door at 25.43 s.
+ * G4 + G5's lap (GA5 item 2), tuned on GA6b's `sweepPeriod` (0.7 m/s legs plus the calm turns and the slack into each
+ * pan stop, plus the waits): equal laps of 50 s (Guard AI's values, checked with `sweepPlan`). 40 s does not fit: G4's
+ * lap without its end pause is 46.13 s. G4 a 3.87 s end pause, G5 15.10 s. `G5_START_WAIT`: G5 begins with 6.53 s left
+ * of his first pause, so both leave the office door (the 4 s check, K5) together, 23.56 s into the lap, every lap.
  */
-export const G4_WAIT = 6.8571;
-export const G5_WAIT = 16.5714;
-export const G5_START_WAIT = 11.7142;
+export const G4_WAIT = 3.87304378397434;
+export const G5_WAIT = 15.09876394543141;
+export const G5_START_WAIT = 6.53167578234229;
 
 /**
  * The 12 guards G1-G12 (PLAN section 3 table), in the guard list's order: slots 0-3 are the opening four, G1 and G2 (down
@@ -109,7 +111,7 @@ export const G5_START_WAIT = 11.7142;
  * is a two-point route on the same spot, panning by `faces`); a route's first point is where he starts or is next to it.
  * Out-and-back sweeps list the way back (the walker loops its points); `waits` 0 passes straight through. Pairs (`pair` =
  * the partner's index, both ways, GA5 item 1): G1 + G2, G8 + G9 and G11 + G12 walk side by side on parallel lanes 1.0 -
- * 1.1 m apart (the same `squad`; GA6 adds the pace and the torch aim); G4 + G5 each walk a 40 s lap (GA5 item 2: per-point
+ * 1.1 m apart (the same `squad`; GA6 adds the pace and the torch aim); G4 + G5 each walk a 50 s lap (GA5 item 2: per-point
  * `waits`, no `loop`, the scene derives the schedule at 0.7 m/s) and `start` puts their door stops together, 1.2 m apart,
  * every lap. `takedownSpot` is the plan's K spot for the stretch. Every start and route point is 0.5 m clear of a collider,
  * except the G1 + G2 lanes (0.3 m: GA5 item 5, PB4's 1 - 1.5 m for the paired kill).
@@ -120,9 +122,8 @@ export const THORNBECK_GUARDS: SectorGuard[] = [
   { kind: 'grunt', x: 8.3, z: 7.9, yaw: WEST, route: [[8.6, 7.9], [3.5, 7.9]], waits: [4, 4], pair: 0, takedownSpot: [...K.K1], squad: 1, zone: 'startBay', role: 'patrol', reason: CREW },
   // G3 (slot 2): came along the aisle; the aisle east to the mill bay, a 6 s pan in the roller mill's shadow, back
   { kind: 'grunt', x: 9.0, z: 2.0, yaw: EAST, route: [[9.5, 2.0], [20.5, 2.0], [20.5, 7.0], [22.8, 7.0], [20.5, 7.0], [20.5, 2.0]], waits: [4, 0, 0, 6, 0, 0], takedownSpot: [...K.K2], squad: 2, zone: 'aisle', role: 'patrol', reason: CREW },
-  // G4 (slot 3) + G5: the sack bay's two sweeps, one 40 s lap each (GA5 item 2: walk 0.7 m/s + the waits, no turn time;
-  // G4 20.4 m round = 29.14 s + 6.857 + 4 s, G5 13.6 m round = 19.43 s + 16.571 + 4 s); they meet at the office door for a
-  // 4 s check (K5): `start` puts G5 4.857 s into its lap so both leave the door together (GA5 item 3)
+  // G4 (slot 3) + G5: the sack bay's two sweeps, one 50 s lap each (`sweepPeriod`, see G4_WAIT); they meet at the office
+  // door for a 4 s check (K5): `start` sets G5's first pause so both leave the door together (GA5 item 3)
   { kind: 'grunt', x: 10.0, z: 3.4, yaw: 0.8, route: [[17, 10.2], [25.2, 10.2], [25.2, 12.2], [25.2, 10.2]], waits: [G4_WAIT, 0, 4, 0], faces: [EAST, 0, EAST, WEST], start: { idx: 0, wait: 0 }, pair: 4, takedownSpot: [...K.K5], squad: 3, zone: 'sackBay', role: 'patrol', reason: CREW },
   { kind: 'grunt', x: 20.8, z: 9.0, yaw: 0, route: [[20.8, 8.6], [20.8, 12.2], [24.0, 12.2], [20.8, 12.2]], waits: [G5_WAIT, 0, 4, 0], faces: [0, EAST, EAST, SOUTH], start: { idx: 0, wait: G5_START_WAIT }, pair: 3, takedownSpot: [...K.K5], squad: 3, zone: 'sackBay', role: 'patrol', reason: CREW },
   // G6: the office post at the desk; the torch pans the east window and the west door, 8 s each way
@@ -208,7 +209,8 @@ export const THORNBECK_SECTORS: readonly SectorDef[] = [
     extract: { label: 'Get out', box: [-2.4, 15.5, 0, 17.7], floorY: DECK_Y },
     guards: THORNBECK_GUARDS,
     reinforce: [],
-    // rain: see THORNBECK_RAIN (TODO(#603): noisy: [mapWideNoise('rain', 6)])
+    // rain on the roof over the whole mill (PLAN section 2b, THORNBECK_RAIN): 6 dB halves every guard's hearing reach
+    noisy: [mapWideNoise('rain', 6)],
     bolts: THORNBECK_BOLTS,
     perStage: 0,
     // the one directed path; the ladder leg (ladder foot -> deck) is a climb
@@ -253,7 +255,7 @@ export const THORNBECK_LAMPS: readonly (readonly [string, number, number, number
 /** The exit sign over the hoist door (a small green light; electric like the lamps). */
 export const THORNBECK_EXIT_SIGN = { x: 0.2, y: 6.5, z: 15.7 } as const;
 
-/** One lightning strike (the shape of `MapDef.lightning.flashes` in #604 / SO5): `t` s on the scene clock, `peak` 0..1, `len` s. */
+/** One lightning strike (`MapDef.lightning.flashes`, SO5's `Flash`): `t` s on the scene clock, `peak` 0..1, `len` s. */
 export interface ThornbeckFlash {
   t: number;
   peak: number;
@@ -309,21 +311,19 @@ export const THORNBECK_OPENINGS: readonly ThornbeckOpening[] = [
 
 /**
  * The storm's lightning timetable: t after the EMP press (the scene clock, `world.lightning.t0`), looping every mission-track loop (160.04 s),
- * and the openings it comes through (SO5b). The `lightning` field is not on this base (#604 / SO5 adds it with this exact shape).
+ * and the openings it comes through (SO5b). It is the map's `lightning` (SO5's `LightningData`; the light itself comes
+ * in through the bake's sky visibility, so the openings are data for the look check).
  */
-// TODO(#604): set as MapDef.lightning
-export const THORNBECK_LIGHTNING: { flashes: readonly ThornbeckFlash[]; period: number; openings: readonly ThornbeckOpening[] } = {
+export const THORNBECK_LIGHTNING: LightningData & { flashes: readonly ThornbeckFlash[]; period: number; openings: readonly ThornbeckOpening[] } = {
   flashes: lightningFlashes(),
   period: THORNBECK_LIGHTNING_PERIOD,
   openings: THORNBECK_OPENINGS,
 };
 
 /**
- * Rain on the roof: 6 dB of masking over the whole map halves every guard's hearing reach (PLAN section 2b). On the
- * section it is `noisy: [mapWideNoise('rain', 6)]` once #603 is on master (`mapWideNoise` is not on this base; its radius
- * is infinite, which this base's `validateGuardAi` would reject).
+ * Rain on the roof: 6 dB of masking over the whole map halves every guard's hearing reach (PLAN section 2b). The
+ * section carries it as `noisy: [mapWideNoise('rain', 6)]` (an infinite radius: map-wide, GA7).
  */
-// TODO(#603): noisy: [mapWideNoise('rain', 6)]
 export const THORNBECK_RAIN = { id: 'rain', db: 6, label: 'rain' } as const;
 
 /** Where a carried body can be hidden (PLAN section 3 "Hide spots"): [what, x, z, y]. One by every kill spot's stretch. */
@@ -530,6 +530,10 @@ export const thornbeckMill: MapDef = {
   modes: ['sector'],
   scene: 'piano',
   sectors: THORNBECK_SECTORS,
+  // (S4) the storm's strikes on the scene clock (t0 = the EMP press: `world.lightning.t0`, set by the scene)
+  lightning: THORNBECK_LIGHTNING,
+  // (piano SO3) every guard's torch drawn and lit: 16 lit hold on Low (laptop 1080p p95 6.0 ms); shadows on all (default)
+  torchSlots: 16,
   detail: false,
   navLayers: 5,
   theme: {

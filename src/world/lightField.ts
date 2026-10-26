@@ -19,11 +19,18 @@
  */
 import { AMBIENT_CELL } from './ambientGrid';
 import { BounceGrid } from './bounceGrid';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER, torchCut } from './lampMath';
+import { hyp3 } from '../core/mathx';
 import type { LightBake } from './lightBake';
-import { lightTerm, type LightRegistry, type Occluder } from './lights';
+import { lightTerm, type LightDef, type LightRegistry, type Occluder } from './lights';
 import { CHAR_LIGHT, type CharOccluders } from './charOccluders';
 import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, lampGridBase, type LampResult } from '../voxel/lampBake';
+
+/** (piano SO3) A `beamCut` torch's cut at a point: `torchCut` at its reach (capped at the radius), as the picture's
+ *  `writeTorchDraw` / torch loop cut it. Allocation-free. */
+function beamCutAt(l: LightDef, x: number, y: number, z: number): number {
+  return torchCut(hyp3(x - l.x, y - l.y, z - l.z), Math.min(l.reach ?? l.radius, l.radius));
+}
 
 /** A door leaf as the field needs it (`Doors.list` entries fit): shut for light when `open` is `DOOR_SHUT` or less. */
 export interface FieldDoor {
@@ -133,7 +140,7 @@ export class LightField {
   private readonly isBaked: Uint8Array;
   /** (char-shadow-meter) Registry id -> bake index (-1 not baked), for `sourceAt`. */
   private readonly bakeIdx: Int32Array;
-  private readonly grid: { data: Uint8Array; cols: number; rows: number } | null;
+  private readonly grid: { data: Uint16Array; cols: number; rows: number } | null;
   private readonly gx: number;
   private readonly gz: number;
   /** `lampDoorLists` for the baked lamps. */
@@ -788,7 +795,11 @@ export class LightField {
       // (LR16 fix) a fixed lamp photometric, a flashlight linear: `lights.lightTerm`, as `contribution`
       let t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
       if (t <= 0.01) continue;
-      if (occluded && occluded(l, x, y, z)) continue;
+      if (l.beamCut) {
+        // (piano SO3) a torch with no shadow map: the picture's own cut at the beam's reach, not the ray test
+        t *= beamCutAt(l, x, y, z);
+        if (t <= 0.01) continue;
+      } else if (occluded && occluded(l, x, y, z)) continue;
       if (this.doors.length && this.doorBlocks(l.x, l.y, l.z, x, y, z)) continue;
       // (char-shadow-meter) every non-baked light is in the set (a flashlight's holder is never its shadow: A5)
       if (ch !== null) {
@@ -821,9 +832,13 @@ export class LightField {
     const x = pt[0]!;
     const y = pt[1]!;
     const z = pt[2]!;
-    const t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
+    let t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
     if (t <= 0.01) return;
-    if (occluded && occluded(l, x, y, z)) return;
+    if (l.beamCut) {
+      // (piano SO3) as `dynamicInto`
+      t *= beamCutAt(l, x, y, z);
+      if (t <= 0.01) return;
+    } else if (occluded && occluded(l, x, y, z)) return;
     if (this.doors.length) {
       const sg = this.seg;
       sg[0] = l.x;

@@ -191,27 +191,27 @@ a guard or camera, a `timer` line for a drill window, an `other` line for A1's e
 
 | n | id | Seen / caught | Timer | Other |
 | --- | --- | --- | --- | --- |
-| 1 | `a1-boost` | (none: nothing can be seen) | - | Into the yard too soon. The wicket stays shut till you are both up. Back to the mark. |
-| 2 | `a1-ladder` | (none: nothing can be seen) | - | Into the yard too soon. The wicket stays shut till you are both up. Back to the wall. |
+| 1 | `a1-boost` | (none: nothing can be seen) | - | Into the yard too soon. Back to the striped mark. |
+| 2 | `a1-ladder` | (none: nothing can be seen) | - | Into the yard too soon. Back to the wall. |
 | 3 | `a2-shutter` | Seen at the roller door. Back to the stores bay. | - | - |
-| 4 | `a2-lights` | The shunter saw you in the neck. Back to the cabin and the lane. | Lights came back with you in the neck. Back to the cabin and the lane. | - |
-| 5 | `a2-plank` | The shunter saw the board. Back to the board stack at the east end. | - | - |
+| 4 | `a2-lights` | Seen in the neck. Back to the cabin and the lane. | Lights came back on you. Back to the cabin and the lane. | - |
+| 5 | `a2-plank` | Seen on the board. Back to the east end board stack. | - | - |
 | 6 | `a3-vent` | The camera had you. Back to the west lobby. | - | - |
-| 7 | `a3-jam` | The camera had you. Back to the corridor's west end; jam it again. | - | - |
+| 7 | `a3-jam` | The camera had you. Back to the corridor's west end. | - | - |
 | 9 | `a4-deadweight` | The duty officer saw you. Back to the security room door. | - | - |
-| 8 | `a4-camloop` | Seen on the shop floor. Back to the security room; loop it again. | The cameras came back. Back to the security room; loop it again. | - |
-| 10 | `a4-takedown` | The loaders saw you. Back behind the pallet stacks at the dock. | Both loaders at once, or the other one sees. Back behind the stacks. | - |
+| 8 | `a4-camloop` | Seen on the shop floor. Back to the security room. | The cameras came back. Back to the security room. | - |
+| 10 | `a4-takedown` | The loaders saw you. Back behind the pallet stacks at the dock. | Not together, so the other loader saw. Back behind the stacks. | - |
 | 11 | `a5-chimney` | (none: nothing can fail) | - | - |
 | 12 | `a5-swing` | (none: nothing can fail) | - | - |
 | 13 | `a5-throw` | Seen in the floodlight. Back behind the transformer. | The floodlight came back. Back behind the transformer. | - |
 | 14 | `a6-rope` | The attendant saw you. Back to the sump bay, behind the kerb. | - | - |
-| 15 | `a6-hangdown` | The attendant saw you on the bridge. Back to the bridge's north end. | - | - |
-| 16 | `a6-dropcatch` | The attendant heard the landing. Back to the bridge; catch your partner. | - | - |
+| 15 | `a6-hangdown` | Seen on the bridge. Back to the bridge's north end. | - | - |
+| 16 | `a6-dropcatch` | The attendant heard the landing. Back to the bridge. | - | - |
 | 17 | `a7-split` | Seen in the data hall. Back to the entry lobby. | - | - |
 | 18a | `a8-c2run` | Caught in the banking hall. Back to the vestibule. | - | - |
-| 18b | `a8-loopset` | Caught at the security office. Back to the office door and the board. | - | - |
+| 18b | `a8-loopset` | Caught at the security office. Back to the office door. | - | - |
 | 18c | `a8-isolate` | Caught at the lighting board. Back to the board. | The hall lights came back. Back to the lighting board. | - |
-| 18d | `a8-locks` | Caught in the vault lobby. Back to the office console and the lobby. | The cameras came back. Loop them again from the office console. | - |
+| 18d | `a8-locks` | Caught in the vault lobby. Back to the office console. | The cameras came back. Loop them again from the office console. | - |
 
 ## 7. Start marks and their space boxes
 Each mark is checked against its graph space's `area` box (G0, 7bc609ba2; rechecked at the D1 check, J14 wave 2). All 42
@@ -380,12 +380,24 @@ rule (a heavy landing retries the station).
   by the mode.
 - **SA9 A2 pit at x 66.0-69.0.** The drawing's 66.5-69.5 leaves 0.25 m before the L2 door's wall; at 66.0-69.0 (still
   3 m) the far landing is 0.75 m and `a2-across` fits. The near-side marks (x 65.5, in the road 2 / 3 van gap) fit
-  both. Undo: keep 66.5-69.5 and make `a2-across` the L2 door seal.
+  both. Undo: keep 66.5-69.5 and make `a2-across` the L2 door seal. (marlow-kit-geo Q1) Plank Bridge's board lands at
+  the barrier's board slot opposite the lane strip (z 12.7-13.7, `A2_BOARD_SLOT`, register A2-40): the panel there stands
+  0.25-1.1 m over the landing, so a laid 3.9 m board slides under it and bears 0.45 m each end, and the crosser climbs
+  the panel off the board's end; alone, the panel still stops the hop and the mantle. An open slot cannot work (a hop
+  reaches 3.2 m from the feet plus ~0.23 m past the edge, the board spans at most 3.3 m). Undo: drop A2-40 / A2-41 and
+  run the barrier's north piece from z 12.7 again.
 - **SA10 A5 gap and wall.** The gap is closed at z 30 and 36 (graph size 6 m) and 1.4 m clear (A19): the new wall x
   67.85-68.35 (east face 68.35). The 1.4 m gap left the apron's east strip only 0.85 m (G0, 82ea0134d), so the 3.5 m
   trench moves 1.15 m west to x 62.35-65.85 (lead, J14 wave 2): east strip x 65.85-67.85 (2 m), west strip x
   58.15-62.35; station 12's marks at x 67.0, 0.85 m off the wall face (graph `area` follows at G1). Undo: 1 m gap (A19's
-  undo) and the trench back at x 63.5-67; marks at x 69.0 still fit, 0.25 m off the wall.
+  undo) and the trench back at x 63.5-67; marks at x 69.0 still fit, 0.25 m off the wall. (marlow-kit-geo Q2) Swing
+  Pass's anchor is the swing bar on the trench's east edge (`A5_SWING_BAR`, register A5-R10: posts at z 42.4 and 43.6
+  on x 65.85-66.0, the bar at 2.6 m), its line z 43.0 clear to the west strip's wall (4.2 m of landing); on the
+  gantry's line (z 44.6) its posts stood on both edges and the drums left 0.55 m of landing (band 0.75 m), so the gantry
+  is dressing. The trench's 3.5 m is the band's top. Undo: drop A5-R10 (and the swing spot goes back to the gantry once
+  its posts and the drums move). (marlow-kit-geo Q3) The gap's east side is the set wall to the gallery floor (4.5 m)
+  and the gallery's glazing to 7.5 m, set back 0.2 m (shaft 1.4 m, then 1.6 m): the chimney has a back to its 6 m top
+  and L4's lid (3.6 m) is behind the wall, so no face is added (one would cover the gallery's glazing).
 - **SA11 New ids and kinds.** `g-a2-shutter` (hold, door `A2-shutter`); `g-a2-shutter-open` (egress latch on the roller door, station 4's stand-in: open for good once station 3 passes);
   `g-a2-walkway` (stand-in, door `A2-walkway`);
   `g-a3-fire` (bolt, door `A3-fire`, push bar on the corridor side); `g-a4-grille` (the deadweight grille, KS1's hookup)

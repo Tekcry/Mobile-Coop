@@ -74,6 +74,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   beside the host if that airlock is shut off), with A1-A2 done, the A3 doors as the host has them and the HUD on A3,
   never at the yard start. Same in Sector Ops in section 2 or 3.
 - [ ] (coop-carry) Co-op, two pages: the joiner knocks a guard out, walks to the body and picks it up (Pick up body): the 2 s lift, then it rides on the joiner's shoulder on both screens (the joiner bent, slow); the joiner hides it at a hiding spot (gone on both) or puts it down (a ragdoll on both, a guard nearby hears it). The host's own carry now shows on the joiner's screen too.
+- [ ] (coop-kit A1) Co-op, two pages with `?kitmoves=descent` (or /preview/): one player on a 2.2-6 m edge, standing facing the drop, presses Co-op (rope down); the other, standing beside them, sees "Co-op: rappel down the rope" and presses it: over the edge onto the rope, stick down to the bottom, stick held down steps off and the holder is free. Climbing back up tops out beside the holder. With `?kitmoves=0` no rappel offer; the climb from the bottom works as before.
 - [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
@@ -216,6 +217,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   before his first radio line: no alarm, nobody comes.
 - [ ] Barks by cause (guard-rules S4): let a guard glimpse you at the edge of a light: he says a seeing line ("Thought
   I saw something."); throw a bottle near another: he says a hearing line; neither ever says the other kind.
+- [ ] Lookouts (guard-rules S7 / S9, Sector Ops S5, `?lookouts=1`): throw a bottle near the roof marksman: he only
+  turns and edges within 1 m of his spot and someone else comes. Let him glimpse you lit: a startled line (e.g.
+  "Huh?"), then a radio line, and a calm guard nearby walks to where you stood while he stays put. A second glimpse
+  within 20 s: no second call.
+- [ ] Dog release (guard-rules S8, Sector Ops S4 / S5, `?dogrelease=1`): raise S4 to alarm stage 2: each free dog runs
+  to where you were last seen, searches, then goes back to its handler. A camera or laser alarm (no guard has seen
+  you): the dogs search round their handlers instead.
 - [ ] Squads and dogs (guard-ai S5b, Sector Ops): knock a guard out unseen and wait up to ~40 s: his squad's radio
   check misses him and two squad mates walk to where he went down and wake him. A dog stays with its handler; drop the
   handler and the dog stays by him and barks.

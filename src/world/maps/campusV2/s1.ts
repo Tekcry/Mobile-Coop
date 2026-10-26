@@ -22,6 +22,7 @@ const KERB = '#9a9d9f';
 const DESK = '#8a6a4c';
 const BIN = '#2f5a3c';
 const PLANTER = '#5d6b4a';
+const VAN = '#f2a31b';
 const CAR_COLOURS = ['#6f7b86', '#8c3b3b', '#d8d8d8', '#2e3b52', '#4a5d4a', '#a89a7a', '#3a3a3d'] as const;
 
 /** The lamp circuits (switch groups) of section 1 (the SPEC names them `s1-park-w` ... as ids; the registry's groups are numbers). */
@@ -36,7 +37,24 @@ export const S1_DOORS = {
   dock: [-33, -40] as [number, number],
   /** The gatehouse's north door. */
   gatehouse: [17, -72.5] as [number, number],
+  /** (S1 v3) The garden gate in the new z -58 fence (the pair-gate team door; the gap x 22.4..23.6). */
+  gardenGate: [23, -58] as [number, number],
 } as const;
+
+/** (campus-s1-fence) The top (m) of the perimeter's collision-only anti-climb cap: over the highest S1 launch near a
+ *  perimeter line (the plant-roof parapet 5.5 + the mantle 1.8) with room to spare. */
+export const S1_FENCE_CAP = 8;
+/** (campus-s1-fence) The perimeter lines the cap stands on: x0, z0, x1, z1 (one axis fixed) and the line's own top there
+ *  (the palisade 2.4; the plant-roof and pavilion roof screens 6.8). */
+export const S1_FENCE_CAP_LINES: readonly (readonly [number, number, number, number, number])[] = [
+  [-40, -80, 26, -80, 2.4], // south, the gate leaf and the cut panel included
+  [26, -80, 26, -34, 2.4], // east
+  [-40, -80, -40, -40, 2.4], // west palisade
+  [-40, -40, -40, -30, 6.8], // west, over the plant room wall and the roof screens
+  [4, -34, 26, -34, 2.4], // north-east
+  [3.7, -34, 3.7, -30, 6.8], // the pavilion top's east screen
+  [6, -58, 26, -58, 2.4], // (S1 v3) the garden-gate fence
+];
 
 /** The gap (x range) of the C1 doors in the z -34 and z -30 walls: 1.2 wide, on the 0.5 m nav lattice. */
 export const C1_GAP: readonly [number, number] = [-20.6, -19.4];
@@ -249,6 +267,8 @@ export interface S1Lights {
   gate: S1Lamp;
   /** (G2) The warm desk lamp on the CCTV desk (gate circuit). */
   deskLamp: S1Lamp;
+  /** (S1 v3) the garden gate's lamp, gatehouse circuit. */
+  gateLamp: S1Lamp;
   /** (G3) The carport's under-canopy downlights: [x, z, circuit] each (the car park's halves), one spec. */
   carport: { pts: readonly (readonly [number, number, number])[]; y: number; r: number; i: number; colour: S1Colour; cone: S1Cone | null; w: number };
   /** (G3) The bike shelter lamp (its own circuit). */
@@ -269,7 +289,7 @@ export function s1Lamps(L: S1Lights): S1Lamp[] {
   out.push(L.dock);
   const cp = L.carport;
   for (const [x, z, group] of cp.pts) out.push({ x, y: cp.y, z, r: cp.r, i: cp.i, colour: cp.colour, group, cone: cp.cone, w: cp.w });
-  out.push(L.bikes, L.smoke);
+  out.push(L.bikes, L.smoke, L.gateLamp);
   return out;
 }
 
@@ -325,10 +345,25 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   b.box(-40, 5.6, -37, 0.1, 2.4, 6, STEEL);
   b.box(-40, 5.6, -32, 0.1, 2.4, 4, STEEL);
   b.box(3.7, 5.6, -32, 0.1, 2.4, 4, STEEL);
+  // (S1 v3) the garden-gate fence: a 2.4 anti-climb fence across the verge and the lane end on z -58 (x 6..26) with a 1.2 gap at
+  // x 22.4..23.6 (the gate, below), closing the east side: the way past it is the gate (two players) or the lit lane (solo)
+  b.box(14.2, 1.2, -58, 16.4, 2.4, 0.1, STEEL); // x 6..22.4
+  b.box(24.8, 1.2, -58, 2.4, 2.4, 0.1, STEEL); // x 23.6..26
+  b.box(23, 2.25, -58, 1.2, 0.3, 0.1, STEEL); // the gate head
+  b.boxes[b.boxes.length - 1]!.overhead = true;
+  // (campus-s1-fence) the anti-climb cap: a collision-only sheet over every perimeter line up to `S1_FENCE_CAP` (not drawn,
+  // not baked, no cover, no ledges). The 2.4 palisade alone was a launch line: a leap off the gatehouse roof's open south
+  // corners or off the condenser, or a mantle off the yard bins, the bin screen or the plant-roof parapet carried a player
+  // over it (`tests/campusV2S1Fence.test.ts`)
+  for (const [x0, z0, x1, z1, y0] of S1_FENCE_CAP_LINES) {
+    b.box((x0 + x1) / 2, (y0 + S1_FENCE_CAP) / 2, (z0 + z1) / 2, x1 - x0 || 0.1, S1_FENCE_CAP - y0, z1 - z0 || 0.1, STEEL, 0, 0, true, false);
+  }
   b.mark(f0, { noLedge: true });
+  // (S1 v3) the garden gate: locked, unbreachable, opens south (clear of #15's lane-side walk); the pair gate (`pairGates`) opens it
+  b.door(22.4, 0, -58, 1.2, PI / 2, { swing: 1, locked: true, breachable: false });
 
   // ---- (G2, S1-detail C2) the gatehouse (13.5..20, -79..-72.5, clear 6.2 x 6.2): walls 3.0, roof 3.3, the door north
-  // (17, -72.5) opening out, a glazing band (the reception window W, the open rear pane E2 and a fixed rear pane E, a fixed
+  // (17, -72.5) opening out, a glazing band (the reception window W, the fixed rear panes E2 and E, a fixed
   // north pane), the roof's east edge the only ledge (the SE wall-jump corner by the condenser), a glazed smoke-vent hatch
   const g0 = b.boxes.length;
   b.wallX(-79, 13.5, 20, [], 3.0, WALL, T);
@@ -358,17 +393,16 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   b.box(20.4, 1.6, -78.4, 0.5, 0.8, 0.9, STEEL);
   b.door(16.4, 0, -72.5, 1.2, PI / 2, { swing: -1 });
   b.windowAt(13.5, 1.5, -76, 1.2, 1.2, PI / 2, { sill: 0.9, open: false, breakable: true });
-  // E2: the rear pane is open for the kettle steam
-  b.windowAt(20, 1.5, -76, 1.2, 1.2, PI / 2, { sill: 0.9, open: true, breakable: true });
+  // (S1 v3) E2: the rear pane is fixed glass now (Michael: no rear window)
+  b.windowAt(20, 1.5, -76, 1.2, 1.2, PI / 2, { sill: 0.9, open: false, breakable: false });
   // the fixed rear pane and the fixed north pane (A2: closed, not breakable)
   b.windowAt(20, 1.5, -73.8, 1.2, 1.2, PI / 2, { sill: 0.9, open: false, breakable: false });
   b.windowAt(19.2, 1.5, -72.5, 1.2, 1.2, 0, { sill: 0.9, open: false, breakable: false });
   // the CCTV desk flush to the north wall (A5), the PC desk by the rear window, the kettle counter. (F42) The PC desk stands
-  // on the east wall south of the open rear pane E2 (z -78.55..-76.95), not under it: a vault through E2 lands 0.9 m inside
-  // (x 19.1, z -76 +- 0.4, the 0.3 body round it), and a 0.75 desk there is 0.75 over the verge floor, past the vault's 0.6
-  // landing step (`Traversal.windowProbe`), so the declared vault could not be made either way. The kettle counter moved
-  // 0.35 m west to make room (x 17.25..18.85); the CCTV officer's kettle stop (18.4, -77.65) still faces it and his route
-  // line x 18.3-18.4 keeps its 0.5 m gap to the desk's west face (x 18.9). The CCTV desk and the fixed pane E are untouched.
+  // on the east wall south of the rear pane E2 (z -78.55..-76.95), clear of the vault landing it had when E2 was open. The
+  // kettle counter moved 0.35 m west to make room (x 17.25..18.85); the CCTV officer's kettle stop (18.4, -77.65) still faces it
+  // and his route line x 18.3-18.4 keeps its 0.5 m gap to the desk's west face (x 18.9). The CCTV desk and the fixed pane E
+  // are untouched.
   b.block(18.8, -73.0, 1.6, 0.75, 0.7, DESK);
   b.block(19.35, -77.75, 0.9, 0.75, 1.6, DESK);
   b.block(18.05, -78.55, 1.6, 0.9, 0.6, STEEL);
@@ -414,9 +448,17 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   for (const x of [-24, -18, -12, -6, 0]) b.pillar(x, -58.5, 0.15, 2.6, STEEL);
   const cp = L.carport;
   for (const [x, z, group] of cp.pts) lamp(b, { x, y: cp.y, z, r: cp.r, i: cp.i, colour: cp.colour, group, cone: cp.cone, w: cp.w });
-  // the courier's van at R3 bay 3 (bayX(3) = -26.2), z -63.25..-58.25: the bonnet 1.1 at the aisle end (A10), the body 2.4
-  b.box(-26.2, 0.55, -62.75, 2.0, 1.1, 1.0, '#e8e8e4');
-  b.box(-26.2, 1.2, -60.25, 2.0, 2.4, 4.0, '#e8e8e4');
+  // (S1 v3) the courier's van at R3 bay 3 (bayX(3) = -26.2), z -63.25..-58.25, the objective (a bright yellow-orange landmark): the
+  // bonnet 1.1 at the aisle end (A10), the cab 2.0, the box body 2.8 (z -61.45..-58.25, 1.1 m from the carport's west edge). The
+  // windscreen, the livery bands, the dark load space and the open rear doors are visual only (collide false)
+  b.box(-26.2, 0.55, -62.85, 2.0, 1.1, 0.8, VAN);
+  b.box(-26.2, 1.0, -61.95, 2.0, 2.0, 1.0, VAN);
+  b.box(-26.2, 1.4, -59.85, 2.2, 2.8, 3.2, VAN);
+  b.box(-26.2, 1.5, -62.47, 1.8, 0.6, 0.04, '#1c2228', 0, 0, false);
+  for (const x of [-27.32, -25.08]) b.box(x, 1.0, -59.85, 0.04, 0.3, 3.0, '#b8321a', 0, 0, false);
+  b.box(-26.2, 1.4, -58.28, 2.0, 2.5, 0.04, '#2a2a2a', 0, 0, false);
+  for (const x of [-27.3, -25.1]) b.box(x, 1.4, -57.75, 0.05, 2.5, 1.0, VAN, 0, 0, false);
+  b.block(-28.4, -56.4, 1.0, 1.2, 0.8, STEEL); // the courier's cage trolley by the open rear doors (dress skins it)
 
   // ---- (G4, C4) the service yard (-40..-26, -54..-40, 14 x 14): the bin store's walls are gone; the bins stand behind a 1.5
   // bin screen in the SW corner (open to the south, A12); the feeder pillar's board (E5)
@@ -537,6 +579,10 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
 
   // ---- the dock lamp over the goods door on the s1-fore circuit
   lamp(b, L.dock);
+
+  // ---- (S1 v3) the garden gate's lamp on the gatehouse circuit, 0.45 m south of the fence line (outside the cap: shootable from the verge)
+  b.box(23, 2.85, -58.25, 0.06, 0.06, 0.4, STEEL, 0, 0, false);
+  lamp(b, L.gateLamp);
 
   // ---- ambient (SPEC lighting rules, LR7): the whole section at the standby fill 0.14 (true dark with a circuit cut, the
   // verge, bin lane, bike shelter and the roofs by reason); C1 is a transit space at 0.30

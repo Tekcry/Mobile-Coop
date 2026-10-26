@@ -79,3 +79,21 @@ Not on the site: no "sprint" (the fastest named runs stand in), no back-to-wall,
 "peek" only hit a wall smash and peekaboo games: the sideways sneak and "Looking Around" stand in), no jogging strafe.
 Skipped: subject 77 "careful creeping" / "creeping walk" (captured at 60 fps; the pipeline reads 120 fps), 120 "Mickey
 sneaky walk" (cartoon style), 142_22 "Sneaky" (stylized walks), 83 sidesteps (single steps on and off a ledge).
+
+## Downloaded 2026-10-26 (piano-knife S2), not used
+The bounded CMU 18-23 check for a two-person grab-from-behind take (piano-knife S2-BRIEF item 6, BRIEF A14; G268).
+Subject pages read: 18 + 19 ("human interaction and communication"), 20 + 21 ("human interaction - at play,
+formations"), 22 + 23 ("human interaction"); the pairs are subjects A and B of one capture with matching take numbers
+(confirmed on the site; a shared lab frame confirmed: 22_01's hands meet within 1 cm). Shortlist: the 6 takes whose
+description names a pull or an attack between the two (none names a grab, choke, drag, fight or struggle); fetched one
+file at a time from http://mocap.cs.cmu.edu/subjects/<S>/ (a 2 s pause between files). 18.asf, 19.asf, 22.asf, 23.asf
+(7 KB each) + 12 AMC files. Every take parses (asfamc.mjs self-check OK). None fits a grab from behind (no take has
+one performer behind the other within 0.7 m); verdict table in the piano-knife S2 report.
+| Take | Site description | Size KB (A / B) |
+| --- | --- | --- |
+| 18_03 + 19_03 | A pulls B; B resists | 460 / 460 |
+| 18_04 + 19_04 | A pulls B; B resists | 315 / 310 |
+| 18_05 + 19_05 | A pulls B by the elbow; B resists | 340 / 338 |
+| 18_06 + 19_06 | A pulls B by the elbow; B resists | 315 / 315 |
+| 22_01 + 23_01 | B sits; A pulls up B | 608 / 608 |
+| 22_20 + 23_20 | violence - A picks up high stool, threatens to strike B | 291 / 292 |

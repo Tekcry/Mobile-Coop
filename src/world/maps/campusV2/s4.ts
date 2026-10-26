@@ -9,6 +9,7 @@ import type { LaserPanelDef } from '../../../game/laserPanels';
 import type { BoardDef } from '../../../game/isolators';
 import { makeCone, type LightCone } from '../../lights';
 import type { CoopLip } from '../campusS1';
+import { buildEdgeCaps, type EdgeCap } from './edgeCaps';
 
 /**
  * Saltmarsh Park (`campusOps`) section 4 - the data hall (`docs/sector-redesign/briefs/SLICE4.md`, slice 4). A greybox:
@@ -44,6 +45,21 @@ const WARM: [number, number, number] = [1, 0.72, 0.38];
 /** The roof slab's underside and top (the hall's clear height; the top is the plant deck). */
 export const S4_ROOF = 7.0;
 export const S4_DECK = 7.3;
+/**
+ * (campus-fence-s2s5) The anti-climb caps (`buildEdgeCaps`). The plant deck's 1.1 east parapet (8.4, the way down into
+ * the compound) meets the 2.0 screens (9.3) at the deck's NE and SE corners: off the parapet's ends a mantle onto a
+ * screen or a jump past the screen's end over the compound's 2.8 wall leaves the campus. In the compound, the tanks (2.0)
+ * and the generator (2.6), reached by dropping off the deck, stand 0.85 m from the 2.8 east wall: a mantle onto it and
+ * off. Sheets on the compound's three walls from 2.8 and on the screens' last 2.15 m from 9.3, all up to 10.5 (over the
+ * parapet top's jump, 8.4 + 0.87, and its mantle onto a screen).
+ */
+export const S4_EDGE_CAPS: readonly EdgeCap[] = [
+  [32, 48, 34.15, 48, 9.3, 10.5],
+  [34.15, 48, 40.15, 48, 2.8, 10.5],
+  [40, 15.85, 40, 48.15, 2.8, 10.5],
+  [34.15, 16, 40.15, 16, 2.8, 10.5],
+  [32, 16, 34.15, 16, 9.3, 10.5],
+];
 /** The NOC mezzanine's floor top (slab 3.4-3.6). */
 export const S4_NOC = 3.6;
 /** The cable baskets' top (boxes 4.0-4.4). */
@@ -692,6 +708,8 @@ export function buildCampusS4(b: LevelBuilder): void {
   bx(b, -10.15, -9.85, D, D + 2.0, 16.15, 47.85, WALL_DARK, { noLedge: true });
   bx(b, 33.85, 34.15, D, D + 1.1, 16.15, 22.4, STEEL, { noLedge: true });
   bx(b, 33.85, 34.15, D, D + 1.1, 23.6, 47.85, STEEL, { noLedge: true });
+  // (campus-fence-s2s5) the anti-climb caps on the compound's walls and the screens' east ends (`S4_EDGE_CAPS`)
+  buildEdgeCaps(b, S4_EDGE_CAPS);
   // (G4.5 C25, D:40) the four floodlight poles (the floods are in `S4_LIGHTS.deckFloods`, 5.0 over the deck)
   for (const [x, z] of S4_DECK_POLES) bx(b, x - 0.075, x + 0.075, D, D + 5.0, z - 0.075, z + 0.075, STEEL, { noLedge: true });
 

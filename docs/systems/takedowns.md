@@ -178,3 +178,61 @@ The close strike of G42 / G155; this is the build.
   follow-through plays (`TakedownController.killTail`). The wire keeps the raw phase; both sides warp.
 - Tests: `tests/elbowStrike.test.ts`, `tests/committedMoves.test.ts`; e2e-pad, e2e-mouse, e2e-takedown, e2e-netmove
   (`strike`, `denied`), e2e-coop; anim-audit scenario `strike`.
+
+## Knife kills (piano scene; piano-knife S1, S2, S3, `docs/piano-knife/`)
+- Gate (BRIEF A1): `knifeSceneOn(flagOn, scene, live)` in `src/game/knifeKill.ts` is true only with Campaign's
+  `pianoEscape` flag on, the map's `scene` `'piano'` and the scene switch live. Campaign's `pianoScene.ts` is the only
+  caller of `TakedownController.setKnifeScene(on)` (on: the clips start loading by dynamic import). Off (the default)
+  every takedown is exactly today's.
+- Switch on (A2; Michael ~20:05 "Palm strike knockout disabled, only knife kills"): every takedown on a guard on two
+  legs is a lethal knife kill on one press. No grab row (`takedownRow`), no tap / hold, no RT palm strike
+  (`gameState` passes no strike start). The knife (`PlayerWeapons.knife`) shows from the press until the attacker is free.
+- Rows (`KNIFE_KILLS`, wire order `behind`, `behindLow`, `corner`, `front`; `pickKnifeKill`): behind (crouched: the rise),
+  corner / overCover, front / side. Other kinds, a victim without `knifeVictim` (a co-op puppet until S3) or clips not
+  loaded yet: the -1 path (today's lethal move, knife shown). The pairs (S2, Michael's Mixamo downloads in
+  `src/anim/clips/mixamo/piano/`, loaded only from `setKnifeScene(true)`): behind `stabbing` + `falling_forward_death`,
+  behindLow and front `stabbing` + `dying`, corner `standing_melee_attack_downward` + `falling_back_death`. The move is
+  1.5 s (A15); the attacker clips are 2.1-2.6 s, so each row plays its clip's window (`attackerFrom` .. `attackerTo`)
+  around the stab at the clip's own speed. The rows' timing, windows, `victimTo`, `standoff` and `side` are measured
+  (`tests/knifePairFit.test.ts`, KP_FIT=1, one run on 2026-10-26; behindLow and front from one focused try after it).
+- Pairing (A14, `src/game/knifePair.ts`): from the grab (the approach's last `gripIn` share) the guard's root and facing
+  are set from the attacker's current root every fixed step (`victimRoot`) and again every render frame from her drawn
+  root (`TakedownController.frameLate`, after the player poses and before the enemies; `Enemy.frame` then leaves his
+  root). Both clips run on one clock through `KillDrive` (`src/anim/killDrive.ts`, `AnimGraph.kill`), the guard's with a
+  buckle on spine and chest from the stab. Hand IK: her left hand on his mouth (from behind) or shoulder, the knife
+  tip (`KnifeModel.tipWorld`) on kidney / neck / chest from the stab, his hands on her left forearm.
+- Contact rule (bible 5.12.2): grip, knife tip and his palms within 3 cm (`KNIFE.contactTol`) of their marks while in
+  contact, measured every frame by `tests/knifePair.test.ts` (the attacker walking and turning). The real pairs still
+  miss it on most rows: the test's `KNOWN_MISS` holds each at its measured maximum (5.5-9.7 cm, accepted until Michael
+  plays, BRIEF A16); the corner row's grip and the guard's left palm (about 17 cm) are over A16's 10 cm ceiling
+  (`OVER_CEILING`, the lead's call).
+- Noise and body (A5, A6): at the row's `limp` the guard dies (`applyDamage`, the ordinary body and ragdoll), noise
+  `KNIFE.noise` 1.2 m (S2: the -1 path too, every piano kill is quiet), the `takedown` events carry `knife: true`,
+  counted as `done.byKind.knife`. Damage to the
+  attacker before the stab aborts (both drives and hands off, the knife away); after it the kill finishes at once. The
+  attacker's clip window plays to its end and blends out before she is free (no offer meanwhile;
+  `TakedownController.busy` stays true, so `gameState` keeps her gun stowed and traversal off until then).
+- Studio: the `pair: knife <id>` rows play Wren and a guard through the same code (`studioStage.knifeFrame`).
+- Side kill (S3): the row by his facing (his back more towards her: behind / behindLow, else front), the grab eased from
+  his real facing (`kFromYaw = e.yaw`): at most a 90 degree turn.
+- Co-op (S3; Q39 / G400 "players must look exact in everyones games"):
+  - The host's gate (`CoopHost.onTakedown`): a client's `td` start with `kind: 'knife'` seizes only while the host's own
+    switch is on (the lethal struggle); with it on, any other start (assist included; a bluff is speech) is denied, and
+    `done` is always a kill (never a knockout) at `KNIFE.noise`. With the switch on the host also refuses every RT strike
+    (`cdeny` `busy`, no `strikes` entry) and the partner throw's knockout (`throwKnockOut`). So no guard is knocked out in
+    the scene.
+  - The wire (no new message or field): `td.kind` `'knife'` on start, done and abort from a client whose switch is on
+    (`tdOut`); MoveState `takedown` `sub` bit 2 `TAKEDOWN_SUB_KNIFE` (the knife shown) with the row in bits 4-16
+    (`knifeSub` / `knifeRowOfSub`; 7 `KNIFE_ROW_NONE`: the move without a row, today's blow bit and phase), `ph` the move's
+    phase over `knifeSpan` (the move and its tail), `s` the approach's progress (`localMoveState`, the tail too).
+  - The remote pair (`src/net/remoteKnife.ts`, one per `RemoteAvatar`): the attacker's clip window, the knife in her hand
+    and her hands on the guard as drawn on that screen; the guard (`EnemyPuppet.knifeVictim` on the client,
+    `Enemy.knifeVictim` on the host) attached to her drawn root with his clip, buckle and hands. On the host the victim
+    of a client's kill poses one frame behind (the enemies pose before `net.frameUpdate`), and its seized step `holdAt`s
+    him on the drawn pair (his body lies where he fell). Every pin clears on every end (done, abort, deny, release,
+    death, dispose, the wire leaving the knife state).
+  - The double: two ordinary knife kills inside `DUAL_WINDOW` raise the dual takedown as any two takedowns.
+- Tests: `tests/knifeKill.test.ts`, `tests/killDrive.test.ts`, `tests/knifePair.test.ts` (harness `tests/helpers/knifePairRun.ts`),
+  `tests/knifePairFit.test.ts`, `tests/knifeTakedown.test.ts`,
+  `tests/takedownAlloc.test.ts` (a knife run allocates nothing per step), `tests/grabMenu.test.ts`, `tests/knifeWire.test.ts`
+  (S3: the wire, the host's gate, the puppet, the double, remote parity).

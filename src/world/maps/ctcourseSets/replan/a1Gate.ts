@@ -36,8 +36,8 @@ export const A1_TOP_ZONE: [number, number, number, number] = [A1_WALL.near, 2.3,
 export const A1_WICKET_TOP_GATE = 'g-a1-wicket-top';
 /** (J14 A26) LANTERN's lines when an early drop into the yard puts the pair back (`a1Tick`, cause `other`). */
 export const A1_TRAP_LINES = {
-  'a1-boost': 'Into the yard too soon. The wicket stays shut till you are both up. Back to the mark.',
-  'a1-ladder': 'Into the yard too soon. The wicket stays shut till you are both up. Back to the wall.',
+  'a1-boost': 'Into the yard too soon. Back to the striped mark.',
+  'a1-ladder': 'Into the yard too soon. Back to the wall.',
 } as const;
 
 /** Stations 1 and 2 (STATIONS.md section 3, A1 block). */
@@ -69,27 +69,27 @@ export function replanA1Gate(_b: LevelBuilder, _kit: FacilityKit, part: SetPart)
     {
       id: 'a1-boost',
       bay: 'A1',
-      text: 'Boost at the striped mark: one of you onto the yard wall top.',
-      a: 'Crouch on the striped mark by the wall and boost your partner up.',
-      b: 'Take the boost from the striped mark and climb onto the wall top.',
+      text: 'Boost onto the yard wall',
+      a: 'Crouch at the striped mark and boost your partner up.',
+      b: 'Use the boost at the striped mark to climb the wall.',
       done: { flag: A1_TOP1_FLAG },
     },
     {
       id: 'a1-ladder',
       bay: 'A1',
-      text: 'Human ladder at the striped mark: the one on top hangs, the other climbs.',
-      a: "Climb your partner's legs from the striped mark onto the wall top.",
-      b: 'Hang down off the wall top over the striped mark for your partner.',
+      text: 'Both of you onto the wall top',
+      a: "Climb your partner's legs at the striped mark to the wall top.",
+      b: 'Hang down over the striped mark for your partner to climb.',
       done: { flag: A1_TOP_FLAG },
     },
-    { id: 'a1-lock', bay: 'A1', text: 'Drop into the yard. Both of you into holding room one.' },
+    { id: 'a1-lock', bay: 'A1', text: 'Drop down, both into holding room one' },
   );
   // the built two (the entry line asked B to open the gate for A; the other was keyed to the old step)
   part.bay.radio.length = 0;
   part.bay.radio.push(
-    { at: 'enter', text: 'Evening. Over the yard wall, both of you. The wicket stays shut till you are.' },
+    { at: 'enter', text: 'Evening. Both over the yard wall: the wicket stays shut till then.' },
     { at: 'a1-boost', text: 'Good. That is the boost.' },
-    { at: 'a1-ladder', text: 'Good. That is the ladder. You will use both all night.' },
+    { at: 'a1-ladder', text: 'Good, that is the ladder. You will use both all night.' },
     { at: retryKey('a1-boost', 'other'), text: A1_TRAP_LINES['a1-boost'] },
     { at: retryKey('a1-ladder', 'other'), text: A1_TRAP_LINES['a1-ladder'] },
   );

@@ -26,6 +26,13 @@ import { TUNE_WHO } from '../anim/tuneGuard';
 import type { WeaponModel } from '../weapons/weaponModel';
 import { loadStudioCaptures, stageLightKeep, stageLightMeshes } from '../anim/studio';
 import { LOD_NAMES } from '../operators/runtime/manifest';
+import { newKillDrive } from '../anim/killDrive'; // (piano-knife S1) the knife pairs
+import { attackerPhase, bucklePitchOf, buckleAt, KNIFE, KNIFE_KILLS, knifeClip, knifeClipsReady, loadKnifeClips, victimPhase } from './knifeKill';
+import { attackerHands, newPairTrack, pairHandsOff, resetPairTrack, victimHands, victimRoot, type RootOut } from './knifePair';
+import { KnifeModel } from '../weapons/knifeModel';
+import { WREN_HANDS } from '../operators/handFrame';
+import { ease } from './closeQuarters';
+import type { IntroVariant } from '../anim/introBreath';
 
 /** What the stage needs from the match (GameState). */
 export interface StudioHost {
@@ -51,7 +58,13 @@ export interface StudioHost {
    *  class in the loadout (no-op without one). */
   weaponClass(): string;
   switchWeapon(cls: string): void;
+  /** (piano-knife S4b) GameState.introPose. */
+  introPose(on: boolean, variant: IntroVariant): boolean;
 }
+
+/** (piano-knife S4b) The intro rows' spot: the climbing platform's south face (z 8, x 0-3, 3 m high:
+ *  `STUDIO_PROPS.platform`, the back-to-wall wall), facing away from it. */
+const STUDIO_INTRO = { x: 1.5, z: 7.55, yaw: Math.PI };
 
 /** The pairs' viewing spot: Wren (hidden) stands here, so the camera and the free view frame the team block. */
 const PAIR_VIEW = { x: PAIR_STATION.x, z: PAIR_STATION.z - 6.5, yaw: 0 };
@@ -90,6 +103,14 @@ export class StudioStage {
   private readonly drive = newStudioDrive();
   /** (anim-studio-2) The guard's drive in a hold pair. */
   private readonly gdrive = newStudioDrive();
+  /** (piano-knife S1) A knife pair: Wren's and the guard's kill drives, the hands' tracking, the root scratch, the knife
+   *  in Wren's hand (the Studio's own, made on first use) and the loop's last time (a wrap starts the hands afresh). */
+  private readonly kAD = newKillDrive();
+  private readonly kVD = newKillDrive();
+  private readonly kTrack = newPairTrack();
+  private readonly kRoot: RootOut = { x: 0, y: 0, z: 0, yaw: 0 };
+  private kKnife: KnifeModel | null = null;
+  private kLastT = 0;
   private target: CharacterRig | null = null;
   private guard: CharacterRig | null = null;
   private readonly guardPose: RigPose = { speed: 0, localX: 0, localZ: 1, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, stride: 'facing' };
@@ -122,6 +143,8 @@ export class StudioStage {
   private hidden = false;
   /** Wren is away from the middle (a pair or a loop moved her): back to it for a state or a clip. */
   private away = false;
+  /** (piano-knife S4b) An intro row holds the intro pose. */
+  private introOn = false;
   // (anim-studio-2) the traversal loop
   private readonly trav = newTravState();
   private readonly travOut = newTravOut();
@@ -329,7 +352,10 @@ export class StudioStage {
     if (d.clip || e.kind !== 'keyed') STUDIO.seekKey = -1;
     STUDIO.keyStep = 0;
     this.holdTravel(e);
-    if (this.guard) this.guardFrame(dt, e.kind === 'pair');
+    if (this.guard) {
+      if (e.knife !== undefined) this.knifeFrame(dt, e, e.knife);
+      else this.guardFrame(dt, e.kind === 'pair');
+    }
     if (this.puppet && e.gloop) this.puppetFrame(dt, e.gloop);
     if (e.team) this.pairFrame(dt, e);
     STUDIO.phase = e.kind === 'pair' ? this.pairPhase : d.clip ? d.phase : 0;
@@ -454,7 +480,7 @@ export class StudioStage {
   /** Apply a changed choice: the drive onto the right rig (Wren, or the guard for a guard clip while it is on); a hold
    *  pair's two drives; a team pair's puppets; a traversal loop's start. */
   private configure(e: StudioEntry): void {
-    const wantGuard = STUDIO.guard || (e.kind === 'pair' && !!e.guardClip);
+    const wantGuard = STUDIO.guard || (e.kind === 'pair' && (!!e.guardClip || e.knife !== undefined));
     if (e.id === this.cEntry && STUDIO.rootMotion === this.cRoot && STUDIO.mirror === this.cMirror && wantGuard === this.cGuard) return;
     const clipChanged = e.id !== this.cEntry;
     this.cEntry = e.id;
@@ -465,6 +491,11 @@ export class StudioStage {
     else if (!wantGuard && this.guard) this.dropGuard();
     this.detach();
     if (clipChanged) {
+      // (piano-knife S4b) an intro row's pose ends with the row
+      if (this.introOn) {
+        this.host.introPose(false, 'stand');
+        this.introOn = false;
+      }
       mixamoStudioEntry(e.id); // (mixamo-retarget I2) a traversal capture's loop plays that capture (else none)
       this.pairPhase = 0;
       this.holdTr.n = 0;
@@ -485,7 +516,21 @@ export class StudioStage {
         this.host.teleport(STUDIO_MID, 0, STUDIO_MID, 0);
         this.away = false;
       }
+      // (piano-knife S4b) an intro row: Wren's back to the platform face, the intro pose on
+      if (e.intro) {
+        this.host.teleport(STUDIO_INTRO.x, 0, STUDIO_INTRO.z, STUDIO_INTRO.yaw);
+        this.away = true;
+        this.introOn = this.host.introPose(true, e.intro);
+      }
     }
+    // (piano-knife S1) a knife pair: the clips (loaded once), the knife in her hand
+    if (e.knife !== undefined) {
+      void loadKnifeClips();
+      resetPairTrack(this.kTrack);
+      this.kLastT = 0;
+      if (!this.kKnife) this.kKnife = new KnifeModel(this.host.scene, this.host.player.rig, WREN_HANDS.R, (m) => this.host.world.addShadowCaster(m));
+    }
+    this.kKnife?.show(e.knife !== undefined);
     // a team pair: the puppets, Wren hidden at the viewing spot
     this.showPuppets(!!e.team);
     // (item 24, track A) a guard loop: the guard puppet stands where she stands (she is hidden, the camera stays on her)
@@ -607,6 +652,7 @@ export class StudioStage {
   }
 
   private detach(): void {
+    this.knifeOff(); // (piano-knife S1)
     const t = this.target;
     if (t) {
       t.graph.drive = null;
@@ -665,6 +711,60 @@ export class StudioStage {
     g.root.position.set(r.position.x + s * f + c * sd, r.position.y, r.position.z + c * f - s * sd);
     g.root.rotation.y = yaw;
     g.animate(dt, this.guardPose);
+  }
+
+  /**
+   * (piano-knife S1) A knife pair's frame, the game's code on one clock (the pair phase x the cycle, s): Wren's clip on her
+   * graph through the kill drive (in over `blendIn`, out over `blendOut` into the rest), the guard's on his with the
+   * buckle from the stab (after `limp` his clip runs on to its end: the collapse the ragdoll takes in play), his root
+   * at the row's spot off her rendered root (`victimRoot`), her grip and knife hands (`attackerHands`) and his on her
+   * forearm (`victimHands`). Before the clips resolve: the plain guard frame.
+   */
+  private knifeFrame(dt: number, e: StudioEntry, k: number): void {
+    const g = this.guard!;
+    const ar = this.host.player.rig;
+    if (!knifeClipsReady()) {
+      this.guardFrame(dt, false);
+      return;
+    }
+    const R = KNIFE_KILLS[k]!;
+    const t = this.pairPhase * e.cycle;
+    if (t < this.kLastT) resetPairTrack(this.kTrack);
+    this.kLastT = t;
+    const ph = Math.min(1, t / R.seconds);
+    const limpT = R.limp * R.seconds;
+    const since = t - R.contact * R.seconds;
+    const a = this.kAD;
+    a.clip = knifeClip(k, false);
+    a.phase = attackerPhase(R, t / R.seconds); // (piano-knife S2) the clip window at its own speed, on through the blend-out
+    a.w = t < R.seconds ? Math.min(1, t / KNIFE.blendIn) : Math.max(0, 1 - (t - R.seconds) / KNIFE.blendOut);
+    ar.graph.kill = a;
+    const v = this.kVD;
+    const vl = victimPhase(R, R.limp);
+    v.clip = knifeClip(k, true);
+    v.phase = ph < R.limp ? victimPhase(R, ph) : vl + ((1 - vl) * (ph - R.limp)) / (1 - R.limp);
+    v.w = 1;
+    v.buckle = buckleAt(since);
+    v.bucklePitch = bucklePitchOf(R);
+    g.graph.kill = v;
+    const r = ar.root;
+    const p = victimRoot(R, r.position.x, r.position.y, r.position.z, r.rotation.y, 1, 0, 0, 0, this.kRoot);
+    g.root.position.set(p.x, p.y, p.z);
+    g.root.rotation.y = p.yaw;
+    const wGrip = t < limpT ? ease(t / KNIFE.blendIn) : 1 - ease((t - limpT) / KNIFE.release);
+    attackerHands(R, ph, since, ar, g, this.kKnife, wGrip, this.kTrack);
+    victimHands(R, since, ar, g, this.kTrack);
+    g.animate(dt, this.guardPose);
+  }
+
+  /** (piano-knife S1) A knife pair's drives and hands off both rigs, the knife away. */
+  private knifeOff(): void {
+    const ar = this.host.player.rig;
+    if (ar.graph.kill === this.kAD) ar.graph.kill = null;
+    const g = this.guard;
+    if (g && g.graph.kill === this.kVD) g.graph.kill = null;
+    if (this.kAD.clip || this.kVD.clip) pairHandsOff(ar, g);
+    this.kAD.clip = this.kVD.clip = null;
   }
 
   // ---- (anim-studio-2) the team pairs ----
@@ -804,9 +904,17 @@ export class StudioStage {
 
   dispose(): void {
     mixamoStudioEntry(''); // (mixamo-retarget I2) the Studio's capture pick ends with the Studio
+    // (piano-knife S1) the knife pair's drives and the Studio's knife
+    this.knifeOff();
+    if (this.kKnife) {
+      this.kKnife.show(false);
+      this.kKnife.dispose();
+      this.kKnife = null;
+    }
     for (const p of this.stageLights) p.dispose();
     this.stageLights.length = 0;
     delete (window as unknown as { __studioStage?: unknown }).__studioStage;
+    if (this.introOn) this.host.introPose(false, 'stand'); // (piano-knife S4b)
     this.detach();
     this.dropGuard();
     this.dropPuppet();

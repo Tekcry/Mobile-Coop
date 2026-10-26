@@ -120,6 +120,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
 import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal } from './lib.mjs';
+import { REPEAT_DAYS, markReport, perfStep, parityLine, trainBins, trainParity } from './lib.mjs'; // J20 S3b, S3a, S7
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 import { overCapAffected } from './lib.mjs';
 import { mergeRecheck, recordMergeable, withMergeable } from './lib.mjs'; // laptop-queue-15 (F51)
@@ -223,6 +224,8 @@ state.flakes ??= [];
 state.suiteRuns ??= {}; // { day: { suite: runs } }, the flake budget's denominator (lib countRuns)
 state.quarantineStarts ??= {}; // { suite: ISO } of its last automatic quarantine (lib flakeBudget starts)
 state.aloneDue ??= {}; // { id: ms } aged / preempted alone requests a hold kept back (lib aloneDue; BRIEF A12)
+state.knownFlaky ??= []; // { suite, sha, date } of each KNOWN FLAKY failure in the budget window (flake-budget.md, T10)
+state.blocking ??= {}; // { suite: { since, owner, last, reason, alerted } }: over budget again within REPEAT_DAYS (Q30)
 // times.json (refreshed from real runs) over the repo's scripts/e2e-times.json as the seed
 let seed = {};
 try { seed = JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-times.json'), 'utf8')); } catch { /* no seed */ }
@@ -392,6 +395,18 @@ const realOpenNow = (listed = openListed) => realWaiting(DESKTOP ? listed.filter
 // ---------- claims (laptop-queue branch) ----------
 
 const QREF = 'refs/remotes/origin/laptop-queue';
+
+// Light parity on every train (J20 S7, Q27): the run-time switch config/train-parity.json on the laptop-queue branch
+// (no release needed; LQ_TRAIN_PARITY=off overrides per worker), read once per train after its fetch (lib trainParity).
+let parityLogged = '';
+/** Refetches the laptop-queue branch, reads the parity switch, logs it when it changed. Returns lib trainParity. */
+function readParity() {
+  git(['fetch', '-q', 'origin', `+refs/heads/laptop-queue:${QREF}`], { soft: true });
+  const p = trainParity(git(['show', `${QREF}:config/train-parity.json`], { soft: true }), process.env.LQ_TRAIN_PARITY);
+  const line = parityLine(p);
+  if (line !== parityLogged) { log(line); parityLogged = line; }
+  return p;
+}
 const gitIdEnv = () => (git(['config', 'user.email'], { soft: true }) ? {} : { GIT_AUTHOR_NAME: 'laptop-queue', GIT_AUTHOR_EMAIL: 'laptop-queue@localhost', GIT_COMMITTER_NAME: 'laptop-queue', GIT_COMMITTER_EMAIL: 'laptop-queue@localhost' });
 
 /**
@@ -611,11 +626,12 @@ function affectedPass() {
         if (!affectedLogged.has(n.sha)) { affectedLogged.add(n.sha); log(`affected: #${n.pr} ${n.sha.slice(0, 8)}: CONFLICTING, not run`); }
         continue;
       }
-      const r = affectedRequest({ now: Date.now(), ...n, suites: got.suites, suffix: randomBytes(2).toString('hex') });
-      if (DRY) { log(`dry-run: ${tag}: would enqueue ${r.id}: ${got.files.length} file(s), ${got.suites.join(' ')}`); continue; }
+      const r = affectedRequest({ now: Date.now(), ...n, suites: got.suites, report: got.report, suffix: randomBytes(2).toString('hex') });
+      const rep = got.report.length ? ` (report only: ${got.report.join(' ')})` : ''; // J20 T4
+      if (DRY) { log(`dry-run: ${tag}: would enqueue ${r.id}: ${got.files.length} file(s), ${got.suites.join(' ')}${rep}`); continue; }
       if (!pushFile(`requests/${r.id}.json`, `${JSON.stringify(r, null, 2)}\n`, `request ${r.id}`)) { log(`${tag}: request push failed, retried next affected pass`); continue; }
       affectedSeen.add(n.sha);
-      log(`${tag}: enqueued ${r.id}: ${got.files.length} file(s), ${got.suites.join(' ')}`);
+      log(`${tag}: enqueued ${r.id}: ${got.files.length} file(s), ${got.suites.join(' ')}${rep}`);
       postStatus(n.sha, 'pending', AFFECTED_CTX, `queued: ${got.suites.length} suite(s), laptop-e2e/affected`);
     }
   } catch (e) { log(`affected pass failed: ${String(e.message).split('\n')[0]}`); }
@@ -1349,15 +1365,33 @@ function failureComment(job, result, runDir) {
   return parts.join('\n');
 }
 
+/** Pushes alerts/<ts>-<worker>-fixjob-<suite>.json for a blocking suite (Q30; the orchestrator's cron opens the fix job). */
+function pushFixJob(suite, entry) {
+  const at = new Date().toISOString();
+  const rel = `alerts/${at.replace(/[-:]/g, '').replace(/\.\d+/, '')}-${WORKER}-fixjob-${suite.replace(/[^\w.-]/g, '_')}.json`; // no ':' in a path (e2e-sectorops:6)
+  if (DRY) { log(`dry-run: would push ${rel}`); return true; }
+  const body = `${JSON.stringify({ suite, owner: entry.owner, last: entry.last, since: entry.since, reason: entry.reason, worker: WORKER }, null, 2)}
+`;
+  if (pushFile(rel, body, `fix job for ${suite}`)) { log(`blocking: alert pushed ${rel}`); return true; }
+  log(`blocking: alert push failed for ${suite}, retried at the next budget update`);
+  return false;
+}
+
 /**
- * Counts this result's suite runs, prunes state.flakes to the budget window, quarantines over-budget suites for 48 h in
- * quarantine.json (run-e2e reads it through E2E_QUARANTINE_FILE), writes flake-budget.md, and returns the summary of the
- * suites this result flaked or failed as KNOWN FLAKY ('' when none) for the PR comment, and whether it recorded a new flake.
+ * Counts this result's suite runs, prunes state.flakes and state.knownFlaky to the budget window, quarantines
+ * over-budget suites for 48 h in quarantine.json (run-e2e reads it through E2E_QUARANTINE_FILE) or, over budget again
+ * within REPEAT_DAYS of the last auto quarantine, marks them blocking and pushes a fix-job alert (Q30), writes
+ * flake-budget.md, and returns the summary of the suites this result flaked or failed as KNOWN FLAKY plus any new
+ * BLOCKING lines ('' when none) for the PR comment, and whether it recorded a new flake.
  */
-function updateBudget(result) {
+function updateBudget(result, sha = '') {
   const now = Date.now();
   state.suiteRuns = countRuns(state.suiteRuns, result.suites.filter((x) => !x.report && !x.kept).map((x) => x.s), now);
   state.flakes = state.flakes.filter((f) => now - Date.parse(f.date) < FLAKE_BUDGET_DAYS * 86400_000);
+  const inWindow = (x) => now - Date.parse(x.date) < FLAKE_BUDGET_DAYS * 86400_000;
+  for (const x of result.suites) if (!x.ok && x.flaky) state.knownFlaky.push({ suite: x.s, sha, date: new Date(now).toISOString() });
+  state.knownFlaky = state.knownFlaky.filter(inWindow);
+  for (const [s, b] of Object.entries(state.blocking)) if (!(now - Date.parse(b?.since) < REPEAT_DAYS * 86400_000)) delete state.blocking[s];
   let repo = { owners: {}, quarantine: [] };
   try {
     const j = JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-quarantine.json'), 'utf8'));
@@ -1365,19 +1399,30 @@ function updateBudget(result) {
   } catch { /* no file or unreadable: nothing committed */ }
   const read = readJson('quarantine.json', []);
   const own = ownQuarantine(read, now, DESKTOP); // F48: the desktop keeps no automatic list (lib ownQuarantine)
-  const rows = flakeBudget(state.flakes, state.suiteRuns, now, undefined, undefined, state.quarantineStarts);
-  const added = DESKTOP ? [] : autoQuarantine(rows, [repo.quarantine, own], repo.owners, now);
+  const budgetRows = (quarantine) => flakeBudget(state.flakes, state.suiteRuns, now, undefined, undefined, state.quarantineStarts, { known: state.knownFlaky, quarantine, blocking: Object.keys(state.blocking) });
+  const { added, blocking } = DESKTOP ? { added: [], blocking: [] } : autoQuarantine(budgetRows([...repo.quarantine, ...own]), [repo.quarantine, own], repo.owners, now, undefined, state.quarantineStarts);
   for (const q of added) state.quarantineStarts[q.suite] = new Date(now).toISOString();
   for (const q of added) log(`quarantine ${q.suite} until ${q.expiry} (owner ${q.owner}): ${q.reason}`);
+  const fresh = [];
+  for (const x of blocking) {
+    if (state.blocking[x.suite]) continue; // once per suite per REPEAT_DAYS (expired entries were dropped above)
+    state.blocking[x.suite] = { since: new Date(now).toISOString(), owner: x.owner, last: x.last, reason: x.reason, alerted: false };
+    log(`blocking ${x.suite} (owner ${x.owner}): ${x.reason}`);
+    fresh.push(`BLOCKING: ${x.suite} needs a fix job (owner ${x.owner})`);
+  }
+  for (const [s, b] of Object.entries(state.blocking)) if (!b.alerted) b.alerted = pushFixJob(s, b);
   const quarantine = [...repo.quarantine, ...own, ...added];
+  const rows = budgetRows(quarantine);
+  const extra = { blocking: state.blocking, suiteRuns: state.suiteRuns };
   writeJson('quarantine.json', [...own, ...added]);
-  if (!DRY) { try { fs.writeFileSync(file('flake-budget.md'), `${[flakeSummary(rows, quarantine, repo.owners, now) || 'No flakes in the window.', slowSummary(state.slow)].filter(Boolean).join('\n\n')}
+  if (!DRY) { try { fs.writeFileSync(file('flake-budget.md'), `${[flakeSummary(rows, quarantine, repo.owners, now, extra) || 'No flakes in the window.', slowSummary(state.slow)].filter(Boolean).join('\n\n')}
 `); } catch { /* summary only */ } }
   saveState();
   const touched = new Set([...(result.flakes ?? []), ...result.suites.filter((x) => !x.ok && x.flaky).map((x) => x.s)]);
   const mine = rows.filter((r) => touched.has(r.suite));
-  for (const s of touched) if (!mine.some((r) => r.suite === s) && quarantined(quarantine, s, now)) mine.push({ suite: s, runs: 0, flakes: 0, rate: 0, over: false });
-  return { summary: flakeSummary(mine, quarantine, repo.owners, now), fresh: (result.flakes ?? []).length > 0 };
+  for (const s of touched) if (!mine.some((r) => r.suite === s) && quarantined(quarantine, s, now)) mine.push({ suite: s, runs: 0, flakes: 0, known: 0, rate: 0, over: false });
+  const summary = [fresh.join('\n'), flakeSummary(mine, quarantine, repo.owners, now, extra)].filter(Boolean).join('\n\n');
+  return { summary, fresh: (result.flakes ?? []).length > 0 };
 }
 
 /**
@@ -1417,7 +1462,7 @@ function finish(job, ctx, result, runDir, prNumber, { handedOff = '' } = {}) {
   result.posted = true;
   result.desc = late ? handedOff : desc;
   for (const c of [ctx].flat()) if (!postStatus(job.sha, ok ? 'success' : late ? 'pending' : 'failure', c, late ? handedOff : desc)) result.posted = false; // an affected request: also affected-e2e
-  const { summary: budget, fresh } = updateBudget(result);
+  const { summary: budget, fresh } = updateBudget(result, job.sha);
   if (late) { /* the laptop rerun comments its own failure */ } else if (!ok && prNumber && !DRY) postComment(prNumber, failureComment(job, result, runDir) + (budget ? `
 
 ${budget}` : ''));
@@ -1547,13 +1592,14 @@ async function runTrain(train, ports = PORTS) {
       trainVerdict(train, nosha ? 'error' : 'failure', nosha ? 'sha not found' : 'build failed', { result: nosha ? 'nosha' : 'build' });
       return;
     }
+    const parity = readParity();
     const list = cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[ports[0]].dir }).split('\n').map((x) => x.trim()).filter(Boolean);
-    const bins = shard(list, times, ports.length);
+    const bins = trainBins(list, parity, times, ports.length);
     bins.forEach((b, i) => log(`bin ${ports[i]}: ${b.suites.length} suites, weight ${Math.round(b.weight)} s`));
     // the expected e2e wall (heaviest shard at TRAIN_JOBS) restamps the pending status: auto-train polls every 30 s
     // once this status is older than it (laptop-queue-3; auto-train's laptopLate)
     const expS = Math.max(...bins.filter((b) => b.suites.length).map((b) => expectedWallS(b.suites, times, TRAIN_JOBS)));
-    if (Number.isFinite(expS)) postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}${ports.length > 1 ? 'sharded' : 'unsharded on'} ${ports.join('+')}, expect ~${Math.round(expS)} s`);
+    if (Number.isFinite(expS) || parity.off) postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}${ports.length > 1 ? 'sharded' : 'unsharded on'} ${ports.join('+')}${Number.isFinite(expS) ? `, expect ~${Math.round(expS)} s` : ''}${parity.off ? '; parity off' : ''}`);
     const t0 = Date.now();
     const runs = await settleAll(ports.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`), ctls[p])), Object.values(ctls));
     if (voided) return closedEnd();
@@ -1825,7 +1871,10 @@ async function runRequest(r, port, pair = null) {
           yieldedSteps = true;
           return;
         }
-        const line = step.startsWith('serve ') ? `node scripts/laptop-queue/serve.mjs ${step.slice(6)}` : step;
+        // (J20 T14 S) a perf step enforces its budgets unless it says --no-budget (lib perfStep)
+        const raw = step.startsWith('serve ') ? `node scripts/laptop-queue/serve.mjs ${step.slice(6)}` : step;
+        const line = perfStep(raw);
+        if (line !== raw) log(`${r.id}: step ${i + 1} runs as: ${line}`);
         freePort(ports[0]);
         const code = await sh(line, { cwd: SLOTS[ports[0]].dir, env: { ...r.env, E2E_PORT: ports[0], E2E_GPU: '1' }, logFile: path.join(runDir, `step${i + 1}.log`), ctl });
         if (code === 0) okSteps++;
@@ -1842,7 +1891,10 @@ async function runRequest(r, port, pair = null) {
     }
     keptNow = plan.kept;
     if (keptNow.length) log(`${r.id}: ${keptNow.length} suite(s) kept from a preempted run, runs ${plan.rest.length}`);
-    const list = r.kind === 'full' ? cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[port].dir }).split('\n').map((x) => x.trim()).filter(Boolean) : plan.rest;
+    const gate = r.kind === 'full' ? cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[port].dir }).split('\n').map((x) => x.trim()).filter(Boolean) : plan.rest;
+    // (J20 T4) an affected request's LEGACY / AUDIO suites run after the gate ones, REPORT ONLY (E2E_REPORT)
+    const report = r.kind === 'pr' && Array.isArray(r.report) ? r.report.filter((s) => typeof s === 'string' && s && !gate.includes(s)) : [];
+    const list = [...gate, ...report];
     // a train rerun: E2E_JOBS=1 per slot; split over both slots when pick gave it both (laptop-queue-7 A10), else one
     const jobs = DESKTOP || r.trainRerun ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2);
     const split = ports.length > 1;
@@ -1852,7 +1904,7 @@ async function runRequest(r, port, pair = null) {
     started = true;
     progress = () => runProgress(list, times, jobs, Date.now() - t0);
     // every suite kept: no e2e call, the verdict comes from the kept passes
-    const runs = list.length ? await settleAll(ports.map((p, i) => e2e(p, bins[i].suites, jobs, path.join(runDir, `${p}.log`), split ? ctls[p] : ctl)), Object.values(ctls)) : [];
+    const runs = list.length ? await settleAll(ports.map((p, i) => e2e(p, bins[i].suites, jobs, path.join(runDir, `${p}.log`), split ? ctls[p] : ctl, { env: report.length ? { E2E_REPORT: report.join(' ') } : {} })), Object.values(ctls)) : [];
     if (ctl.why) return cutEnd();
     // same completeness rule as a train shard, per slot; at least the listed suites (a named suite may expand into parts)
     const broken = list.length ? ports.findIndex((p, i) => !runComplete(runs[i], bins[i].suites.length)) : -1;
@@ -1867,7 +1919,8 @@ async function runRequest(r, port, pair = null) {
     const slotOf = {};
     if (split) runs.forEach((x, i) => x.suites.forEach((s) => { slotOf[s.s] = ports[i]; }));
     const keptRows = keptNow.map((k) => ({ s: k.s, ok: true, flaky: false, report: false, sec: k.sec, kept: true }));
-    const result = { suites: [...keptRows, ...runs.flatMap((x) => x.suites)], wall: 0, flakes: [], kept: keptRows.length };
+    // (J20 T4, BRIEF A2) report rows never fail the request, also for an affected request queued before J20 (lib markReport)
+    const result = { suites: [...keptRows, ...markReport(r, runs.flatMap((x) => x.suites))], wall: 0, flakes: [], kept: keptRows.length };
     // a request reruns on its own locked slot(s) and worktree (its sha): a sharded rerun's suite on the slot that ran it
     result.flakes = await rerunFlakes(result, slotOf, job, runDir, port, ctl);
     if (ctl.why) return cutEnd();
@@ -1882,7 +1935,9 @@ async function runRequest(r, port, pair = null) {
     if (lr?.rerun) {
       const rr = laptopRerunRequest(r, bad, { now: Date.now(), suffix: randomBytes(2).toString('hex') });
       const desc = desktopFailDesc(bad, median(cpuSamples));
-      if (DRY) log(`dry-run: ${r.id}: would queue the laptop rerun ${rr.id} (${bad.join(' ')}): ${desc}`);
+      // null: no gate suite left to rerun (J20 item a; markReport already made report-only rows pass, so this is a guard)
+      if (!rr) log(`${r.id}: no gate suite left to rerun on the laptop (${bad.join(' ')}), the desktop failure stands`);
+      else if (DRY) log(`dry-run: ${r.id}: would queue the laptop rerun ${rr.id} (${bad.join(' ')}): ${desc}`);
       else if (pushFile(`requests/${rr.id}.json`, `${JSON.stringify(rr, null, 2)}\n`, `request ${rr.id}`)) {
         handedOff = desc;
         rerunId = rr.id;
@@ -1954,11 +2009,13 @@ function dispatch(p) {
 let previewed = false;
 function planTrain(sha = '<train sha>', ports = PORTS) {
   previewed = true;
+  const parity = readParity();
   const list = cmd('node', ['scripts/run-e2e.mjs', '--list'], { soft: true }).split('\n').map((x) => x.trim()).filter(Boolean);
-  const bins = shard(list, times, ports.length);
+  const bins = trainBins(list, parity, times, ports.length);
+  const all = bins.flatMap((b) => b.suites);
   bins.forEach((b, i) => log(`dry-run: bin ${ports[i]} (weight ${Math.round(b.weight)} s): ${b.suites.map((s) => `${s}=${Math.round(times[s] ?? 0) || 'median'}`).join(' ')}`));
-  postStatus(sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}sharded ${ports.join('+')}`);
-  postStatus(sha, 'success', 'laptop-e2e', `${list.length}/${list.length} pass, <wall> s`);
+  postStatus(sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}sharded ${ports.join('+')}${parity.off ? '; parity off' : ''}`);
+  postStatus(sha, 'success', 'laptop-e2e', `${all.length}/${all.length} pass, <wall> s`);
   log(DESKTOP ? 'dry-run: visual-gate would post error "skipped: desktop lane (laptop GPU only)"' : `dry-run: then e2e-visual on ${ports[0]} when laptop-e2e passes and the head has scripts/e2e-visual.mjs (env ${JSON.stringify(visualEnv({ n: '<n>', sha }))}), status visual-gate`);
   return Promise.resolve();
 }

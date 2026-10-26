@@ -34,6 +34,17 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
 - 2026-10-26 ~20:40 (relayed by the orchestrator, not verbatim): Michael supplied a second Pixabay track for the picker,
   "Suspense Thriller" by Alex Grohl (id 552495, Pixabay Content License), at
   C:/NightShift/scratch/music/alexgrohl-suspense-thriller-552495.mp3.
+- 2026-10-26 ~21:15 (via the orchestrator): "heres the suspense music breakdown. can you make a few prototypes for it?"
+  (the orchestrator made grohl-a / b / c on the Grohl track's form; S5 bundles them).
+- 2026-10-26 ~21:35 (via the orchestrator): "use call of duty 4 as inspiration for the music prototypes, i dont know
+  what instruments or effects they use, hard to explain. sounds very epic" (grohl-d / e / f; style only, original notes;
+  the reference name stays only in this quote, G6 / G114).
+- 2026-10-26 ~21:50 (native multiple choice, via the orchestrator; ROADMAP Decided feature/menu 2a78554bb): "investigation
+  piano for the intro, suspense thriller once in the mission."; he liked "1 Held Breath"; prototypes A-C: "none. they
+  all dont sound realistic, like they are part of a 2 bit game or something"; D-F: "none". (S5b; the lightning re-times
+  to the mission track: assumed, logged in Decided, undo by his word.)
+- 2026-10-26 ~21:55 (via the orchestrator): "music isnt settled, i still want more prototypes. can you provide more
+  realistic versions of both songs." (the intro / mission wiring stays as the working choice; the picker stays open.)
 - 2026-10-26 ~20:15 (relayed by the orchestrator): the bunker felt too close to one of CT's final missions; replaced.
 
 ## Michael picked
@@ -130,6 +141,10 @@ every guard must be taken down with a knife in the shadows before the exit opens
   (light parity: the meter and guard sight read the flash); rain on the roof masks sound; the flashes follow a fixed,
   readable timing tied to the music (VISION rule 8). Undo: a steady storm with no flashes. No radio story beyond one or two subtitle lines, written so they can be voiced later (G82).
 - A9: No rating, no score screen: the scene ends on a short fade out after both players reach the exit.
+- A18 (lead, ~22:05, assume and log): ladder L1 (the lobby ladder up through the deck hatch, stretch 6) is drawn on the
+  plan Michael approved (~20:55) but the sign-off's rule-skip list did not name the level-design rules it bends (16.2.1
+  not in a plant space, 16.2.3 a second way up beside the stair, 16.2.7 two staircases). Read as approved with the
+  plan, for this scene only; logged for Michael's next look. Undo: replace L1 with a second flight of the main stair.
 
 ## Questions for Michael (one click each, asked by day)
 - Q1 (G288): the one-page to-scale map plan and the 5-line intent check (from the PLAN, after the plan checker) -
