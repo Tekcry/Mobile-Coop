@@ -69,6 +69,7 @@ import { KEYED_CROUCH_IDLE } from './clips/keyed/crouch_idle';
 import { WALL_KEYS, WallKeyed } from './wallKeyed';
 import { DRAW_BEAT, DRAW_CUR, drawEnter, drawRelease } from './drawMotion';
 import { BodyRecoil, RECOIL_SIGHT_ARM } from './recoil';
+import { MOCAP_RAW } from './mocap'; // (J19 S5) ?mocapraw=1: the crouch walk capture as recorded (own line: #498 rewrites :48)
 
 
 export const FADE = 0.2;
@@ -2494,7 +2495,8 @@ export class AnimGraph {
     let l0: { duty: number; lift: number } = L.sneak;
     let l1: { duty: number; lift: number } = L.walk;
     const P = KEYED_CROUCH_POSE;
-    let p0: { lean: number; leanD: number; drop: number; back: number } = mc !== null ? MOCAP_CROUCH_POSE : P.sneak;
+    const mcp: { lean: number; leanD: number; drop: number; back: number; sway: number } = MOCAP_RAW.on ? MOCAP_CROUCH_RAW : MOCAP_CROUCH_POSE;
+    let p0: { lean: number; leanD: number; drop: number; back: number } = mc !== null ? mcp : P.sneak;
     let p1: { lean: number; leanD: number; drop: number; back: number } = P.walk;
     let t = wWalk;
     if (wRun > 0) {
@@ -2512,7 +2514,7 @@ export class AnimGraph {
         // the sneak's amplitude by pace, the set's layer scales; the sway centred on the planner's track (the clip's root sits
         // under the pelvis at phase 0, 3.7 cm off its mean)
         sampleKeyed(mc, ph, C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1), out, this.mS.layers);
-        out.pel[0] = (out.pel[0]! - mc.meanPel[0]!) * MOCAP_CROUCH_POSE.sway;
+        out.pel[0] = (out.pel[0]! - mc.meanPel[0]!) * mcp.sway;
       } else sampleKeyed(c0, ph, c0 === KEYED_SNEAK ? C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1) : 1, out);
       scaleKeyedArms(out.arm, c0.meanArm, this.armGain(c0)); // (anim-natural-n2 step 3) KEY_MOTION's arm gain per clip
       if (t > 0) {
@@ -3451,6 +3453,9 @@ export const KEYED_CROUCH_POSE = {
  * pelvis sway kept (8.4 cm p2p over the keyed sneak's narrow feet: now 4.2 cm).
  */
 const MOCAP_CROUCH_POSE = { lean: -0.19, leanD: -0.19, drop: 0.05, back: 0.1, sway: 0.5 } as const;
+/** (J19 S5, R27, `?mocapraw=1` only: MOCAP_RAW) The mocap crouch walk as captured, as before AF3: no lean, drop or
+ *  hips-back, the whole lateral sway (the Q37 option video; removed with the flag). */
+const MOCAP_CROUCH_RAW = { lean: 0, leanD: 0, drop: 0, back: 0, sway: 1 } as const;
 /**
  * (afp AF3) The crouched hips-back offset (`back` above) fades out while turning: gone by `rate` (rad/s of yaw), eased
  * over `tau` (s). With the hips behind the root a crouched landing in a turn hit the leg joints' rate limit

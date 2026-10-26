@@ -9,11 +9,12 @@
  * capture's own swing (AF2-REPORT.md).
  */
 import { appendFileSync } from 'node:fs';
-import { afterAll, describe, expect, it } from 'vitest';
-import { bankRoll, elbowOutRate, runGait, trunkPitch, wristJerk, type Run } from './helpers/afpMeasure';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
+import { bankRoll, elbowOutRate, pelvisLateral, runGait, trunkPitch, wristJerk, type Run } from './helpers/afpMeasure';
 import { pops, type Rec } from './helpers/mocapMeasure';
 import type { Target } from './helpers/mocapPlayer';
-import { MOCAP_LAYERS, MOCAP_RUN_POSE } from '../src/anim/mocap';
+import { MOCAP_LAYERS, MOCAP_RAW, MOCAP_RUN_POSE, setMocapRaw } from '../src/anim/mocap';
+import { flags } from '../src/core/flags';
 import { MOVEMENT } from '../src/config/movement';
 
 // AFP_BEFORE=1: the four AF2 layers at 1 (exactly the code before AF2) to print the before rows (the asserts then fail)
@@ -178,4 +179,50 @@ describe.skipIf(!!process.env.AFP_BEFORE)('(J19 S5, R25, G217) no forward lean b
     expect(MOCAP_RUN_POSE.from).toBe(2.0);
     expect(MOCAP_RUN_POSE.to).toBe(2.6);
   });
+});
+
+describe.skipIf(!!process.env.AFP_BEFORE)('(J19 S5, R27) ?mocapraw=1: the capture as recorded', () => {
+  afterEach(() => setMocapRaw(false));
+
+  it('off by default: the AF2 corrections on', () => {
+    expect(flags.mocapRaw).toBe(false);
+    expect(MOCAP_RAW.on).toBe(false);
+    expect([MOCAP_LAYERS.pelHeight, MOCAP_LAYERS.trunkMean, MOCAP_LAYERS.bankWipe, MOCAP_LAYERS.armSmooth]).toEqual([0, 0, 0, 0]);
+  });
+
+  it('setMocapRaw: the four AF2 layers at 1, the rest untouched; off restores every entry', () => {
+    const before = { ...MOCAP_LAYERS };
+    setMocapRaw(true);
+    expect(MOCAP_RAW.on).toBe(true);
+    expect(MOCAP_LAYERS).toEqual({ ...before, pelHeight: 1, trunkMean: 1, bankWipe: 1, armSmooth: 1 });
+    setMocapRaw(false);
+    expect(MOCAP_LAYERS).toEqual(before);
+    expect(MOCAP_RAW.on).toBe(false);
+  });
+
+  it('headless: the run as captured, the crouch walk not re-posed', async () => {
+    const run = (await gait(4, 0)).R;
+    const crouch = (await runGait(0.85, 0, { crouch: true })).R;
+    let rawRun: Run['R'];
+    let rawCrouch: Run['R'];
+    try {
+      setMocapRaw(true);
+      rawRun = (await runGait(4, 0)).R;
+      rawCrouch = (await runGait(0.85, 0, { crouch: true })).R;
+    } finally {
+      setMocapRaw(false);
+    }
+    const roll = [pelvisRollMean(run), pelvisRollMean(rawRun)];
+    const hipY = [trunkPitch(run).hipY, trunkPitch(rawRun).hipY];
+    const jerk = [wristJerk(run).max, wristJerk(rawRun).max];
+    const lean = [trunkPitch(crouch).mean, trunkPitch(rawCrouch).mean];
+    const sway = [pelvisLateral(crouch).p2p, pelvisLateral(rawCrouch).p2p];
+    log(`(J19 S5) mocapraw run: pelvis roll mean ${roll[0]!.toFixed(2)} -> ${roll[1]!.toFixed(2)} deg; hipY ${(hipY[0]! * 100).toFixed(1)} -> ${(hipY[1]! * 100).toFixed(1)} cm; wrist jerk max ${jerk[0]!.toFixed(2)} -> ${jerk[1]!.toFixed(2)} cm`);
+    log(`(J19 S5) mocapraw crouch walk 0.85: trunk ${lean[0]!.toFixed(1)} -> ${lean[1]!.toFixed(1)} deg; pelvis sway p2p ${(sway[0]! * 100).toFixed(1)} -> ${(sway[1]! * 100).toFixed(1)} cm`);
+    expect.soft(Math.abs(roll[1]!)).toBeGreaterThanOrEqual(Math.abs(roll[0]!) + 2);
+    expect.soft(hipY[1]!).toBeLessThanOrEqual(hipY[0]! - 0.04);
+    expect.soft(jerk[1]!).toBeGreaterThan(jerk[0]!);
+    expect.soft(lean[1]!).toBeGreaterThanOrEqual(lean[0]! + 6);
+    expect.soft(sway[1]!).toBeGreaterThanOrEqual(1.5 * sway[0]!);
+  }, 600000);
 });

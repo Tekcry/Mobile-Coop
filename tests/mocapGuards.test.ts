@@ -9,7 +9,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
-import { LOCO, setMocapLocomotion } from '../src/anim/mocap';
+import { LOCO, setMocapLocomotion, setMocapRaw } from '../src/anim/mocap';
 import type { CharacterRig, RigPose } from '../src/player/characterRig';
 import { runGuardIdentity, type GuardFixture } from './helpers/animSkeletonGuardIdentity';
 
@@ -145,6 +145,29 @@ describe('mt2-guardgate: guards keep the hand-keyed set with the mocap switch on
     expect(on.clipFeet).toBeGreaterThan(0);
     expect(diff(off.vals, on.vals).max).toBeGreaterThan(0.05);
   }, 900_000);
+
+  it('(J19 S5) ?mocapraw=1 leaves a guard bit-identical, switch on', async () => {
+    const cases: [string, [Sc, number]][] = [
+      ['jog 3.0 then stop', SCENARIOS['jog 3.0 then stop']!],
+      ['run 5.0 then stop', SCENARIOS['run 5.0 then stop']!],
+      ['crouched sneak 0.85', [(_k, p) => { facing(p, 0.85); p.crouch = 1; return 0; }, 180]],
+    ];
+    for (const kind of ['grunt', 'heavy']) {
+      for (const [name, [sc, n]] of cases) {
+        const base = await drive(kind, sc, n, 'on');
+        let raw: Awaited<ReturnType<typeof drive>>;
+        try {
+          setMocapRaw(true);
+          raw = await drive(kind, sc, n, 'on');
+        } finally {
+          setMocapRaw(false);
+        }
+        const d = diff(base.vals, raw.vals);
+        expect(raw.vals.length, `${kind} ${name}`).toBe(base.vals.length);
+        expect(d.n, `${kind} ${name}: max ${d.max}`).toBe(0);
+      }
+    }
+  }, 600_000);
 });
 
 /**

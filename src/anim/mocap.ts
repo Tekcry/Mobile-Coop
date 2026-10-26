@@ -34,6 +34,7 @@ import { MOCAP_SPRINT } from './clips/mocap/sprint';
 import { MOCAP_STRAFE_L } from './clips/mocap/strafe_l';
 import { MOCAP_STRAFE_R } from './clips/mocap/strafe_r';
 import { noteMoveSources } from './nowPlaying';
+import { flags } from '../core/flags'; // (J19 S5) ?mocapraw=1
 
 /**
  * Per-layer scales for the mocap set (one table; the job lead tunes them once the real clips land). Each scales a
@@ -126,6 +127,31 @@ export const MOCAP_RUN_POSE = { from: 2.0, to: 2.6, tau: 0.25, bob: 0.35, lift: 
 // (the sampler reads the three it owns through the keyed format's own interface)
 const _LAYERS_FIT: KeyedLayerScale = MOCAP_LAYERS;
 void _LAYERS_FIT;
+
+/**
+ * (J19 S5, R26 / R27, Q37) The capture as recorded, for the option video only (`?mocapraw=1`, `flags.mocapRaw`; dev
+ * compare, default off, owner Night Shift | Player Build; removed at the Q37 walk 2026-10-29 with the option Michael
+ * picks): the AF2 corrections off (MOCAP_LAYERS pelHeight / trunkMean / bankWipe / armSmooth at 1, as captured: the
+ * R25 chest pitch goes with trunkMean) and the AF3 crouch walk re-pose off (animGraph `crouchSet`: no lean, drop or
+ * hips-back, the whole sway). Every source's mocap set shares MOCAP_LAYERS. `on` is read by the graph every frame.
+ */
+export const MOCAP_RAW = { on: false };
+/** The four AF2 corrections as shipped (read once, at load), put back when the compare goes off. */
+const AF2_SHIPPED = {
+  pelHeight: MOCAP_LAYERS.pelHeight,
+  trunkMean: MOCAP_LAYERS.trunkMean,
+  bankWipe: MOCAP_LAYERS.bankWipe,
+  armSmooth: MOCAP_LAYERS.armSmooth,
+};
+/** (J19 S5) The `?mocapraw=1` compare on / off (at load from the flag; tests). Once per change, never per frame. */
+export function setMocapRaw(on: boolean): void {
+  MOCAP_RAW.on = on;
+  MOCAP_LAYERS.pelHeight = on ? 1 : AF2_SHIPPED.pelHeight;
+  MOCAP_LAYERS.trunkMean = on ? 1 : AF2_SHIPPED.trunkMean;
+  MOCAP_LAYERS.bankWipe = on ? 1 : AF2_SHIPPED.bankWipe;
+  MOCAP_LAYERS.armSmooth = on ? 1 : AF2_SHIPPED.armSmooth;
+}
+if (flags.mocapRaw) setMocapRaw(true);
 
 /** A locomotion clip set: the standing holstered speed blend and the optional slots (null: not filled). */
 export interface LocoClipSet {
