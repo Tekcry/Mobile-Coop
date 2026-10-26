@@ -1,0 +1,15 @@
+{
+  "id": "20261026T072051-affected-e2e-752e106b-4bfa",
+  "sha": "752e106beb2607447f4d166a22494db8c94189a9",
+  "branch": "feature/mission-c-net",
+  "pr": 581,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #581"
+}
