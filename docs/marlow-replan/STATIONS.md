@@ -380,7 +380,12 @@ rule (a heavy landing retries the station).
   by the mode.
 - **SA9 A2 pit at x 66.0-69.0.** The drawing's 66.5-69.5 leaves 0.25 m before the L2 door's wall; at 66.0-69.0 (still
   3 m) the far landing is 0.75 m and `a2-across` fits. The near-side marks (x 65.5, in the road 2 / 3 van gap) fit
-  both. Undo: keep 66.5-69.5 and make `a2-across` the L2 door seal.
+  both. Undo: keep 66.5-69.5 and make `a2-across` the L2 door seal. (marlow-kit-geo Q1) Plank Bridge's board lands at
+  the barrier's board slot opposite the lane strip (z 12.7-13.7, `A2_BOARD_SLOT`, register A2-40): the panel there stands
+  0.25-1.1 m over the landing, so a laid 3.9 m board slides under it and bears 0.45 m each end, and the crosser climbs
+  the panel off the board's end; alone, the panel still stops the hop and the mantle. An open slot cannot work (a hop
+  reaches 3.2 m from the feet plus ~0.23 m past the edge, the board spans at most 3.3 m). Undo: drop A2-40 / A2-41 and
+  run the barrier's north piece from z 12.7 again.
 - **SA10 A5 gap and wall.** The gap is closed at z 30 and 36 (graph size 6 m) and 1.4 m clear (A19): the new wall x
   67.85-68.35 (east face 68.35). The 1.4 m gap left the apron's east strip only 0.85 m (G0, 82ea0134d), so the 3.5 m
   trench moves 1.15 m west to x 62.35-65.85 (lead, J14 wave 2): east strip x 65.85-67.85 (2 m), west strip x

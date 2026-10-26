@@ -19,7 +19,8 @@
  *   (`FLOOR_HOLES` cuts the site slab); step irons on the near face only; on the far edge a 1.1 m site barrier (the engine's
  *   mantle reaches 1.8 m and a running hop 3.2 m, so a noLedge edge alone would stop neither); the stand-in is a hoarded
  *   maintenance walkway over the pit (door `A2-walkway`, flag gate `g-a2-walkway`, opened by `CourseState`'s stand-in rule
- *   while `plankBridge` is off); a stack of scaffold boards at the east end (dressing);
+ *   while `plankBridge` is off); a stack of scaffold boards at the east end (dressing); (marlow-kit-geo Q1) the barrier's
+ *   board slot opposite the lane strip (`A2_BOARD_SLOT`), where a laid board bears on the far landing under a raised panel;
  * - the stations (STATIONS section 3, verbatim), the pass zones `a2-lane` and `a2-across`, LANTERN's retry lines, the
  *   objective lines (what and where), the coat corner's wall lamp on circuit 22 (the re-plan table's second lamp).
  * Value imports only from the set file and `../types` (the facility imports nothing from here: no cycle).
@@ -46,6 +47,19 @@ const PIT_FLOOR_T = 0.3;
  *  body's 2 x (radius 0.3 + keepDistance 0.04) = 0.68 m (at 0.1 m it was 0.65 m). It still runs wall to wall: stopping it short
  *  of the door would let the pit be mantled out onto the landing. */
 export const A2_PIT_BARRIER = { x0: 69.0, x1: 69.04, h: 1.1 } as const;
+/**
+ * (marlow-kit-geo Q1) The board slot: the barrier's panel opposite the lane strip (z 12.7-13.7, between the walkway's north
+ * hoarding board and the road 3 van's south face) stands on raised feet, its bottom rail `y0` over the landing, so a laid
+ * 3.9 m board slides under it and bears on the far landing (pit 3.0 m: 0.45 m bearing each end, the band 1.0-3.3 m).
+ * The panel still stops a player alone: it covers the running hop's clear line (0.9 m over the feet,
+ * `src/player/traversal.ts:224`) and the mantle's top-clear line (0.5 m over the landing, `traversal.ts:261`), and nothing
+ * passes the 0.25 m slot. An open slot cannot do both: the board spans at most 3.3 m, a running hop reaches 3.2 m from the
+ * feet (`traversal.ts:220`) plus up to 0.23 m of body past the edge (the 50 deg support slope, `playerController.ts:232`).
+ * The crosser climbs the panel off the board's end: its face stands out over the pit (`x0`) so it is 0.19 m deep, enough
+ * for the climb probe's top sample 0.12 m past the face (`traversal.ts:239`), and its back is the barrier's (`x1`), so the
+ * strip behind it keeps 0.71 m.
+ */
+export const A2_BOARD_SLOT = { x0: 68.85, x1: 69.04, z0: 12.7, z1: 13.7, y0: 0.25, h: 1.1 } as const;
 /** (marlow-play B3) The L2 wall's face on the far landing. */
 export const A2_L2_FACE_X = 69.75;
 /** The step irons (ladders on the near face, base on the pit floor): one each side of the walkway. */
@@ -235,9 +249,13 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     for (const z of A2_STEP_IRONS_Z) b.ladder(A2_STEP_IRONS_X, z, yb, 0, -Math.PI / 2, STEEL, 0.5);
   });
   const w = A2_WALKWAY;
-  tally(b, p.register, 'A2-35', "Far edge site barrier (1.1 m, noLedge, on the far landing x 69.0-69.04) wall to wall but for the walkway's landing: no mantle out of the pit and no running hop over it onto the far side", () => {
+  tally(b, p.register, 'A2-35', "Far edge site barrier (1.1 m, noLedge, on the far landing x 69.0-69.04) wall to wall but for the walkway's landing and the board slot's raised panel (A2-40): no mantle out of the pit and no running hop over it onto the far side", () => {
     slab(A2_PIT_BARRIER.x0, A2_PIT_BARRIER.x1, pz0, w.z0 - w.board, 0, A2_PIT_BARRIER.h, BARRIER_C);
-    slab(A2_PIT_BARRIER.x0, A2_PIT_BARRIER.x1, w.z1 + w.board, pz1, 0, A2_PIT_BARRIER.h, BARRIER_C);
+    slab(A2_PIT_BARRIER.x0, A2_PIT_BARRIER.x1, A2_BOARD_SLOT.z1, pz1, 0, A2_PIT_BARRIER.h, BARRIER_C);
+  });
+  const bs = A2_BOARD_SLOT;
+  tally(b, p.register, 'A2-40', "(marlow-kit-geo Q1) The barrier's board slot opposite the lane strip (z 12.7-13.7): its panel on raised feet, 0.25-1.1 m over the landing (noLedge), face out over the pit at x 68.85, back on the barrier's line (x 69.04): a laid board slides under it and bears on the far landing; the crosser climbs it off the board's end; a player alone can neither hop nor mantle past it", () => {
+    slab(bs.x0, bs.x1, bs.z0, bs.z1, bs.y0, bs.h, BARRIER_C);
   });
   tally(b, p.register, 'A2-36', 'Plank stand-in: a hoarded maintenance walkway over the pit (deck x 66-69, z 11.4-12.6, top flush at y 0; hoarding boards 2.2 m from the pit floor on both sides, all noLedge, so the space under the deck is shut), its door A2-walkway at the near end on the flag gate g-a2-walkway', () => {
     slab(px0, px1, w.z0, w.z1, -w.deck, 0, HOARD_C);
@@ -259,6 +277,10 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     }
     for (const z of [w.z0 - w.board - 0.01, w.z1 + w.board]) skin(px0, px1, 0.9, 1.0, z, z + 0.01, BARRIER_C);
     skin(A2_PIT_BARRIER.x0 - 0.01, A2_PIT_BARRIER.x0, A2_PIT_BARRIER.h - 0.1, A2_PIT_BARRIER.h, pz0, pz1, BLACK);
+  });
+  tally(b, p.register, 'A2-41', "(marlow-kit-geo Q1) Board slot dressing (visual skins, no collision): the hazard band on the panel's face and its two feet down to the landing", () => {
+    skin(bs.x0 - 0.01, bs.x0, bs.h - 0.1, bs.h, bs.z0, bs.z1, BLACK);
+    for (const z of [bs.z0 + 0.1, bs.z1 - 0.14]) skin(bs.x1 - 0.04, bs.x1, 0, bs.y0, z, z + 0.04, STEEL);
   });
 
   // ---- the lamp: the coat corner (Q2 every light works), circuit 22 with the cabin panel ----
