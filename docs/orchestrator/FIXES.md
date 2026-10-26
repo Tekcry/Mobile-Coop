@@ -30,6 +30,9 @@ out and staying on top of them constantly to ensure issues dont re-occur unncess
   the renamed request still runs and posts the verdict.
 - No lead takes heavy.lock / heavy2.lock for a one-off while fix requests wait (15:33 audit: 4191 lost 6.5 min to a
   triage lock); desktop over 90%: the orchestrator trims the heaviest session.
+- At the end, before any drafted PR gets train-ready again: Guard AI re-reviews #551 guardWarm.ts (Sector Ops ask,
+  15:15); the orchestrator posts the checker marks Guard AI reported for #317 (2ec31a28, MERGE3*.md) and #558
+  (ae3d37a7) after reading those reports.
 - Each cron run: parks any new non-fix request (a desktop failure rerun of a draft is still filed: #518 at 15:31, F34),
   fronts fix requests, checks every open row for a builder, and ends the freeze when no open row is
   left without a shipped version (rows on watch do not hold it).
