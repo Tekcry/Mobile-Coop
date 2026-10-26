@@ -432,6 +432,11 @@ Answers to its "Needs from Campaign" (section 6, from the lead), updated for the
 | PB5 | **Knife S1, `takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, true))`.** Every takedown offer in the scene is the lethal knife kill on one press; off the scene nothing changes. | All takedowns | S | S4 |
 | PB6 | **Knife S4a (slide lock) + S4b (`introPose(on)`).** Back to the bins, empty pistol low-ready, slide locked back, slow breathing readable at chest close-up. | Intro 3-38 s | S | none (S2 placeholder) |
 
+Measured (knife S2, PR #620 on #614, Player Build ~22:40), the same for all four rows, from the press: approach 0.22 s,
+contact 1.05 s (later than the rows above: the bible's 1.0-1.5 s move wins), guard limp 1.57 s, operator free 1.87 s.
+With the switch on every kill is 1.2 m quiet and the player is busy (no weapon, no climb) until 1.87 s. S4's e2e waits
+use these numbers.
+
 Files both plans touch: `gameState.ts` (knife: menu rows :1518-1525; here: S2's render-override seam), `coopHost.ts`
 (knife S3: the wire; here: S4's revive cap line), `coopClient.ts` (knife S3; here S4 only if needed), `flags.ts` (here
 S1 adds `pianoEscape`; knife reads it), `takedownController.ts` (knife only), `pianoScene.ts` (here only).

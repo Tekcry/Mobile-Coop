@@ -26,7 +26,8 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    the head for SO2 / SO4 ~22:35. Polish: thin rails may allow an angled mantle (walk note). Flag-ON-only test lines
    (campusS1 registered list, detailPass map count, rooms default map) wait for the switch-on. Ladder L1 = BRIEF A18 (logged).
    Knife: Player's piano-knife S1 = PR #614 (knifeSceneOn(flagOn, map.scene, live) + setKnifeScene; stab timing
-   stand-in, real 0.68-0.94 s after the press coming in its S2); S4 waits for it.
+   stand-in); knife S2 real clips = PR #620 on #614: contact 1.05 s, limp 1.57 s, free 1.87 s
+   (PLAN Player asks); S4 e2e waits from these. S4 waits for #614 / #620.
 4. PR #606 (S1 + S3): was CONFLICTING (CI never ran); master merged in ~22:45 at 6f89eec17 (keep both: main.ts imports,
    sectorOps unlisted + scene), tsc + 47 tests, checker re-posted; CI + affected follow. Docs pushes re-post checker.
 4b. MUSIC PICK (Michael ~21:50): intro = Investigation Piano, mission = Suspense Thriller from the EMP press, loop whole;
