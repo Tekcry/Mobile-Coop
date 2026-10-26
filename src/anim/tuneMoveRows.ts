@@ -217,6 +217,19 @@ export function tuneRowFollow(p: TuneRowPick): number {
 /** The wire's team sub bits (game/teamMoves ROPE_SUB, HANG_SUB, THROW_SUB; player/moveState ATTACH_SUB.relay). A test keeps them equal. */
 export const TEAM_WIRE_BITS = { rope: 4, hang: 2, throw: 1, relay: 1024 } as const;
 
+/** (coop-kit K0) The part 2 kit moves' sub bits on `brace` / `boost` (game/teamMoves `KIT_SUB`; a test keeps them
+ *  equal) and their tuner rows (`team.<move>.a` / `.b`, moveTune `KIT_TUNE_MOVES`). The relay's 1024 is a `ledge` bit,
+ *  never read on `brace` / `boost`. */
+export const KIT_WIRE_ROWS: readonly { readonly bit: number; readonly a: string; readonly b: string }[] = (
+  [
+    [64, 'deadweight'],
+    [128, 'dropCatch'],
+    [256, 'chimneyPair'],
+    [512, 'swingPass'],
+    [1024, 'plankBridge'],
+  ] as const
+).map(([bit, m]) => ({ bit, a: `team.${m}.a`, b: `team.${m}.b` }));
+
 /**
  * The team role row of a partner from its movement mode and sub on the wire ('' none): `brace` is role B (the rope, the
  * hang-down, the throw by their sub bit, else the leg-up), `boost` role A (the same bits, else the leg-up: the relay
@@ -229,6 +242,11 @@ export function teamRowOfWire(mode: string, sub: number): string {
     const r = mode === 'brace' ? 'b' : 'a';
     // (mission NET) a kit move (PULL_SUB 8, SHUTTER_SUB 16) has no tuner row yet: never the leg-up's
     if ((sub & 24) !== 0) return '';
+    // (coop-kit K0) a part 2 kit move: its own section's role row (moveTune `KIT_TUNE_MOVES`)
+    for (let i = 0; i < KIT_WIRE_ROWS.length; i++) {
+      const k = KIT_WIRE_ROWS[i]!;
+      if ((sub & k.bit) !== 0) return r === 'a' ? k.a : k.b;
+    }
     if ((sub & B.rope) !== 0) return r === 'a' ? 'team.rope.a' : 'team.rope.b';
     if ((sub & B.hang) !== 0) return r === 'a' ? 'team.hang.a' : 'team.hang.b';
     if ((sub & B.throw) !== 0) return r === 'a' ? 'team.throw.a' : 'team.throw.b';

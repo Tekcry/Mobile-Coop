@@ -1298,7 +1298,7 @@ export class CourseMode implements GameMode {
     const em = this.g.enemyMgr;
     if (!em) return;
     const g = this.g;
-    if (g.takedown.active) g.takedown.reset();
+    if (g.takedown.busy) g.takedown.reset();
     g.net?.releaseHolds?.();
     this.noteDowns();
     const redo: string[] = [];
@@ -1350,7 +1350,7 @@ export class CourseMode implements GameMode {
       if (!held) {
         held = true;
         const g = this.g;
-        if (g.takedown.active) g.takedown.reset();
+        if (g.takedown.busy) g.takedown.reset();
         g.net?.releaseHolds?.();
       }
       const k = this.slotOfGuard(e);
@@ -1526,7 +1526,7 @@ export class CourseMode implements GameMode {
     if (!em) return;
     const g = this.g;
     if (this.squad.length || full) {
-      if (g.takedown.active) g.takedown.reset();
+      if (g.takedown.busy) g.takedown.reset();
       g.net?.releaseHolds?.();
     }
     if (full) em.resetMemory();

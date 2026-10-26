@@ -6,7 +6,7 @@ import { TEAM } from '../config/movement';
 import { findJumpTarget, anchorLength, type JumpTarget } from '../world/anchors';
 import { attachPose, GAMEPLAY_HEIGHT } from '../player/attach';
 import { ATTACH_SUB } from '../player/moveState';
-import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwDistAt, throwLanding, throwRoom, setThrowSites, clearThrowSites, THROW_SUB, HANG_SUB, HANG_HEAD, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangRootY, ROPE_SUB, ropeClimb, ropeEndOf, ropeFromTop, ropeOverPath, ropeStepOff, ROPE_DESCENT_ARM,ropeRoom, ropeSlide, ropeTopY, findRopeLip, ropeClimbPull, newRopeLip, ropeClimbGripW, ropeLipHands, ropeTopGripW, ropeTopPath, ROPE_TOP_HANDS, ROPE_TOP_PATH, KIT_SUB_MASK, isKitKind, type KitKind, type TeamKind, type TeamMoveKind } from './teamMoves';
+import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwDistAt, throwLanding, throwRoom, setThrowSites, clearThrowSites, THROW_SUB, HANG_SUB, HANG_HEAD, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangRootY, ROPE_SUB, ropeClimb, ropeEndOf, ropeFromTop, ropeOverPath, ropeStepOff, ROPE_DESCENT_ARM,ropeRoom, ropeSlide, ropeTopY, findRopeLip, ropeClimbPull, newRopeLip, ropeClimbGripW, ropeLipHands, ropeTopGripW, ropeTopPath, ROPE_TOP_HANDS, ROPE_TOP_PATH, KIT_SUB_MASK, isKitKind, kitIdOn, anyPart2KitOn, type KitKind, type TeamKind, type TeamMoveKind } from './teamMoves';
 import { clearGripAxis } from '../player/attachGrips';
 import type { GameState } from './gameState';
 import type { ThrowSite } from '../world/mapDef';
@@ -385,7 +385,8 @@ export class TeamController implements KitHost {
     this.kitSync();
     for (let i = 0; i < ms.length; i++) {
       const m = ms[i]!;
-      if (!m.idle) continue;
+      // (coop-kit K0) a move whose id is off offers nothing (`?kitmoves=deadweight` alone: no pull-up)
+      if (!m.idle || !kitIdOn(m.kind)) continue;
       const took = m.idle(this, this.kitRunOf(m), coopPressed, free, near);
       if (took !== null) {
         this.kitPose(m);
@@ -857,13 +858,14 @@ export class TeamController implements KitHost {
     const c = g.player.controller;
     this.offer = null;
     const mates = this.mates();
-    if (!mates.length || g.takedown.active || g.strike.active) return false;
+    if (!mates.length || g.takedown.busy || g.strike.active) return false;
     const free = !g.traversal.committed && !g.traversal.attached && c.grounded && !c.override;
     let near = Infinity;
     for (const m of mates) near = Math.min(near, hyp2(m.pos.x - c.pos.x, m.pos.z - c.pos.z));
     // (mission KIT0) the co-op kit's moves first: one that applies here takes the press. (FLG) Only with `?coopkit=1`
     // (`flags.coopKit`): off, no kit offer anywhere (Marlow Yard's 4.3-4.5 m lips keep the leg-up, M1)
-    const kit = flags.coopKit ? this.kitIdle(coopPressed, free, near) : null;
+    // (coop-kit K0) or any part 2 kit id on (`?kitmoves=<id>`); `kitIdle` skips each move whose own id is off
+    const kit = flags.coopKit || anyPart2KitOn() ? this.kitIdle(coopPressed, free, near) : null;
     if (kit !== null) return kit;
     if (free) {
       // a mate crouched in reach (a leg-up) or hanging right over us (the relay)

@@ -13,7 +13,7 @@ import { CLIENT_VERBS, RH_HI, RH_MAX, type ClientVerb, type CourseWire } from '.
 import type { AirlockPhase, PackedCourse, RetryCause } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
-import { TEAM_KINDS, type TeamKind } from '../game/teamMoves';
+import { isKitKind, TEAM_KINDS, type TeamKind } from '../game/teamMoves';
 import { parseMissionWire } from '../game/mission/missionWire';
 import type { GadgetId } from '../game/gadgets';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
@@ -21,7 +21,7 @@ import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 77;
+export const PROTOCOL_VERSION = 78;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -306,7 +306,8 @@ export type Msg =
   /** (optic-coop, CHECK-M B1) Client OPEN TRAP: open the trap panel over optic gap `g` (index bound `OPTIC_POINT_MAX`);
    *  the host checks the gap has a closed trap and the client is in reach, opens it, and its snapshots' `trp` carry it. */
   | { t: 'panel'; g: number }
-  /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
+  /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. `kind`: a course kind on `done`,
+   *  `'assist'`, `'bluff'`, and (piano-knife S3) `'knife'` on every phase of a knife kill (the client's switch on). */
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
    *  grip at `gy`), or ends the human ladder. */
@@ -699,8 +700,14 @@ function sectorExtra(raw: Record<string, unknown>): Partial<SectorNetExtra> {
   // (mission NET) the running mission (`missionWire.ts`; malformed: dropped)
   const ms = parseMissionWire(raw.ms);
   if (ms) out.ms = ms;
+  // (piano-escape S4, inside the train's protocol) the scene's EMP press on the host's sim clock; malformed: dropped
+  const ep = num(raw.ep, 0, EP_MAX);
+  if (ep !== null) out.ep = ep;
   return out;
 }
+
+/** (piano-escape S4) The `sector` message's `ep` (the EMP press, host sim seconds): 0..this (about 115 days). */
+export const EP_MAX = 1e7;
 
 /** (34) Rating counts on the wire: whole numbers 0..RT_COUNT (synced takedowns, grant parts). */
 export const RT_COUNT = 99;
@@ -913,8 +920,9 @@ export function parseMessage(raw: unknown): Msg | null {
         if (lx === null || lz === null) return null;
         out.lx = lx;
         out.lz = lz;
-      } else if (kind === 'pull' || kind === 'shutter') {
-        // (mission NET) a kit request's claimed point is optional here (the move's host rule needs it or not)
+      } else if (isKitKind(kind)) {
+        // (mission NET) a kit request's claimed point is optional here (the move's host rule needs it or not); (coop-kit
+        // K0) any kit kind (`isKitKind`): a part 2 request's `target` is its spot index (-1 none), `s` its phase
         const lx = num(raw.lx, -WORLD, WORLD);
         const lz = num(raw.lz, -WORLD, WORLD);
         if (lx !== null && lz !== null) {
@@ -937,8 +945,9 @@ export function parseMessage(raw: unknown): Msg | null {
         const lz = la ? num(la[2], -WORLD, WORLD) : null;
         if (lx === null || ly === null || lz === null) return null;
         out.l = [lx, ly, lz];
-      } else if ((kind === 'pull' || kind === 'shutter') && raw.l !== undefined) {
-        // (mission NET) a kit start carries `l` when its request claimed a point (the pull-up's catch point)
+      } else if (isKitKind(kind) && raw.l !== undefined) {
+        // (mission NET) a kit start carries `l` when its request claimed a point (the pull-up's catch point); (coop-kit K0)
+        // any kit kind, its `target` the spot index and `s` the request's phase
         const la = Array.isArray(raw.l) && raw.l.length === 3 ? (raw.l as unknown[]) : null;
         const lx = la ? num(la[0], -WORLD, WORLD) : null;
         const ly = la ? num(la[1], -50, 100) : null;

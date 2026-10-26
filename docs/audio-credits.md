@@ -29,3 +29,32 @@ in code (no recording).
 
 Size: about 1.06 MB (90 s mono MP3, 96 kbps). Audio in all: score 5.9 MB, foley 0.23 MB, weapons 1.06 MB (about 7.2 MB;
 no audio size limit, G59).
+
+## Piano Escape scene music (`src/assets/music/scene/piano-escape.mp3`)
+The scene's only score (docs/piano-escape/PLAN.md S3). The file is the download as is (134.03 s, 44.1 kHz stereo, 256 kb/s,
+4.29 MB). It is loaded only when the scene starts and is kept out of the offline cache (`PRECACHE_IGNORES`). Licence:
+Pixabay Content License (commercial use allowed, no attribution required; credited anyway).
+
+| Track | Artist | Page | Pixabay id | File SHA-256 |
+| --- | --- | --- | --- | --- |
+| "Investigation Piano" | leberch | https://pixabay.com/music/search/investigation%20piano/ (search URL: no other Pixabay row exists to copy the track page form from, and the page slug was not confirmed) | 611639 | `f4926dfd5294f26335de986f4c10298a15c1a93c3fd992cd41e418d75c81918d` |
+
+### Scene music: the mission track (piano-escape S5; dev picker `?pianomusic=` and the Music Lab "Scene" list)
+Two more files in `src/assets/music/scene/`. The intro always plays "Investigation Piano" above; the EMP press cross-fades
+into the mission track, "Suspense Thriller" by default, "Held Breath" as a dev alternative (`?pianomusic=1`). Same
+handling as the row above: loaded only when the scene starts, out of the offline cache.
+
+One more Pixabay track, the download as is (162.04 s, 44.1 kHz stereo, 256 kb/s, 5.19 MB). Licence: Pixabay Content
+License (commercial use allowed, no attribution required; credited anyway).
+
+| Track | Artist | Page | Pixabay id | File | File SHA-256 |
+| --- | --- | --- | --- | --- | --- |
+| "Suspense Thriller" | Alex Grohl | https://pixabay.com/music/search/suspense%20thriller/ (search URL: the page slug was not confirmed) | 552495 | `src/assets/music/scene/alexgrohl-suspense-thriller-552495.mp3` | `b7b1df7d44176d6b9ab794d65a9fa574f1fa57ac3a6433cfce702826953fafe2` |
+
+One original sketch, made in this repo by `scripts/music/piano.mjs` (a Node synth): original notes, synthesised, no
+samples and no downloads. Rendered to WAV by the script, encoded to MP3 (160 kb/s, 44.1 kHz stereo) with
+`scripts/music/encode-mp3.ps1`. No third-party licence applies.
+
+| Sketch | Source | Length | File | File SHA-256 |
+| --- | --- | --- | --- | --- |
+| 1 "Held Breath" (D minor, 54 bpm) | original, `scripts/music/piano.mjs` | 83.78 s | `src/assets/music/scene/sketch-1-held-breath.mp3` | `d732f1b64f91cdacb9e5ecf31e420d81253f7502c3e73f935ab9678afa761179` |
