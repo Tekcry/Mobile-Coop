@@ -46,8 +46,11 @@ export class RemoteKnife {
   private fromSet = false;
 
   /** The newest state: true while it is a knife kill (the knife shown). A new move (another guard or row, or the clock
-   *  stepping back) starts the pair afresh. Rows wait for the clips (loaded here on first sight: row 7 until then). */
-  read(mv: MoveState | null): boolean {
+   *  stepping back) starts the pair afresh. Rows wait for the clips (loaded here on first sight: row 7 until then).
+   *  `from` / `to` / `k`: the two states around the render time and the way between them (checker B FIX 1): the move's
+   *  phase and the approach eased between them when both are this kill (the same guard and row, the clock not going
+   *  back), as the strike's `ph` (remoteAvatar), so the pair plays smoothly, not at the 15-20 Hz send rate. */
+  read(mv: MoveState | null, from: MoveState | null = null, to: MoveState | null = null, k = 1): boolean {
     let r = mv && mv.m === 'takedown' ? knifeRowOfSub(mv.sub) : -1;
     if (!mv || r < 0) {
       this.row = -1;
@@ -61,7 +64,14 @@ export class RemoteKnife {
       }
     }
     const R = r < KNIFE_ROW_NONE ? KNIFE_KILLS[r]! : null;
-    const kt = R ? mv.ph * knifeSpan(R) : 0;
+    let ph = mv.ph;
+    let ap = mv.s;
+    if (from && to && from.m === 'takedown' && to.m === 'takedown' && from.tid === to.tid && from.sub === to.sub && to.ph >= from.ph) {
+      const u = k < 0 ? 0 : k > 1 ? 1 : k;
+      ph = from.ph + (to.ph - from.ph) * u;
+      ap = from.s + (to.s - from.s) * u;
+    }
+    const kt = R ? ph * knifeSpan(R) : 0;
     if (mv.tid !== this.tid || r !== this.row || kt < this.kt - RESTART) {
       resetPairTrack(this.track);
       this.fromSet = false;
@@ -71,7 +81,7 @@ export class RemoteKnife {
     this.row = r;
     if (R) {
       this.kt = kt;
-      this.ap = mv.s;
+      this.ap = ap;
     } else {
       this.kt = 0;
       this.ap = 0;

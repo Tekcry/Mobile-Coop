@@ -825,7 +825,7 @@ export class RemoteAvatar {
     };
     // (piano-knife S3) a knife kill: the knife in hand (the gun hand hold steps aside: `holdingKnife`; the weapon is
     // holstered from the owner's `dw`), her clip and hands on the guard as drawn here (`RemoteKnife`)
-    const kOn = !!mv && !rp && !this.dead && this.knife.read(mv);
+    const kOn = !!mv && !rp && !this.dead && this.knife.read(mv, s.from.mv ?? null, s.to.mv ?? null, s.k);
     if (kOn) {
       let km = this.knifeModel;
       if (!km) km = this.knifeModel = new KnifeModel(this.world.scene, this.rig, WREN_HANDS.R, (m) => this.world.addShadowCaster(m));

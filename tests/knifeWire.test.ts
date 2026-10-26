@@ -572,6 +572,23 @@ describe('piano-knife S3: the remote pair looks as the owner\'s (G400)', () => {
     }, 120_000);
   }
 
+  it('read eases the move and the approach between the two states around the render time (checker B FIX 1)', async () => {
+    await loadKnifeClips();
+    const R = KNIFE_KILLS[0]!;
+    const span = knifeSpan(R);
+    const a: MoveState = { ...emptyMoveState(), m: 'takedown', tid: 'g1', sub: knifeSub(0), ph: 0.2, s: 0.4 };
+    const b: MoveState = { ...a, ph: 0.3, s: 0.8 };
+    const rk = new RemoteKnife();
+    expect(rk.read(a, a, b, 0.5)).toBe(true);
+    expect(rk.kt).toBeCloseTo(0.25 * span, 6);
+    expect(rk.ap).toBeCloseTo(0.6, 6);
+    // another guard (or row) in the newer state, or its clock going back: no easing, the sampled state as is
+    rk.read(a, a, { ...b, tid: 'g2' }, 0.5);
+    expect(rk.kt).toBeCloseTo(0.2 * span, 6);
+    rk.read(a, a, { ...b, ph: 0.1 }, 0.5);
+    expect(rk.kt).toBeCloseTo(0.2 * span, 6);
+  });
+
   it("RemoteKnife.attacker and victim allocate nothing of their own per call (knifePair's hand helpers measured apart)", async () => {
     const { attackerHands, victimHands, newPairTrack } = await import('../src/game/knifePair');
     const { ar, vr, knife, dispose } = await knifeRigs();
