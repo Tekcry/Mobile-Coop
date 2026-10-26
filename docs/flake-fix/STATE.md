@@ -14,7 +14,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - walkfix3 logs (PR #610) pushed to origin/laptop-queue logs/marlow-walkfix3/ for Marlow's triage.
 - #604 / #605 netmove laptop reruns starved ~2 h (laptop reruns outside the fix / green tiers, older-place front work
   ahead): hand fix = place 20261026T080000-... on both request files (laptop-queue e7a83aa04). Real fix F52: PR #638
-  (feature/laptop-queue-16, head 4b1d9932, label fix, Job-done), Opus checker PASS posted; Orchestrator told.
+  (feature/laptop-queue-16, label fix, Job-done), Opus checker PASS posted; Orchestrator told. F55 (no-affected-e2e
+  waives an error / never-run affected-e2e; watchdog unlabelled #623 / #624) added on the same PR: head 4856b0ce, fresh
+  Opus checker PASS posted.
 - Next: watch trains and #638; triage any train failure (Opus) and tell the Orchestrator; undo the piano front after
   the walk.
 
