@@ -1,5 +1,5 @@
 import { hyp3 } from '../core/mathx';
-import { FLICKER_FIRE, FLICKER_NONE, FLICKER_OUT, FLICKER_STEP_HZ, FLICKER_T, flickerAt, lampSeed } from './lampFlicker';
+import { FLICKER_FIRE, FLICKER_FLASH, FLICKER_NONE, FLICKER_OUT, FLICKER_STEP_HZ, FLICKER_T, flickerAt, lampSeed } from './lampFlicker';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampReach, lampTerm, photoTerm, SPOT_EXP } from './lampMath';
 import type { SwaySet } from './lampSway';
 /**
@@ -59,6 +59,9 @@ export interface LightDef {
   swx: number;
   swy: number;
   swz: number;
+  /** (piano SO5b) A lightning opening's light (`lightning.ts` `addOpeningLights`): lit only by the flash (its `flicker`
+   *  is the flash now, 0 between strikes: `LightRegistry.setSkyFlash`), no bulb, no bounce. False for every other light. */
+  flash: boolean;
 }
 
 /** (sector-fixes L) The LED fitting family (`fixtureModels.ts`): a flush ceiling panel, a hung linear strip, a wall bulkhead. */
@@ -181,6 +184,34 @@ export class LightRegistry {
   private rippleN = 0;
   private rippleK = 0;
   private rippleT = 0;
+  /** (piano SO5b) The lightning openings' lights (`LightDef.flash`), in add order. */
+  private readonly flashIds: number[] = [];
+
+  /** (piano SO5b) How many lightning opening lights the map has. */
+  get flashCount(): number {
+    return this.flashIds.length;
+  }
+
+  /**
+   * (piano SO5b) The lightning openings' lights at this step's flash (`Lightning.flashAt`, 0..1; `World.setFlash` passes
+   * the light field's own level / `FLASH_GAIN`): each one's `flicker` = the flash, so its level is intensity (the map's
+   * opening gain) x the flash in the field, the baked lamps' data texture and the shadow picks alike. Bumps
+   * `flickerVersion` when it moved (never `version`). A map without openings returns at once. No allocation.
+   */
+  setSkyFlash(v: number): void {
+    const ids = this.flashIds;
+    if (!ids.length) return;
+    const f = v > 0 ? v : 0;
+    let moved = false;
+    for (let k = 0; k < ids.length; k++) {
+      const l = this.lights[ids[k]!]!;
+      if (l.flicker !== f) {
+        l.flicker = f;
+        moved = true;
+      }
+    }
+    if (moved) this.flickerVersion++;
+  }
 
   add(init: LightInit): LightDef {
     const l: LightDef = {
@@ -204,11 +235,19 @@ export class LightRegistry {
       swx: 0,
       swy: 0,
       swz: 0,
+      flash: init.flash === true,
     };
     this.lights.push(l);
     this.version++;
     // (LR16-5) a fire flickers wherever it is
     if (l.kind === 'fire') this.setFlicker(l.id, FLICKER_FIRE);
+    // (piano SO5b) an opening's flash light: dark until a strike, listed with the flickering lights (the renderers'
+    // flicker path re-writes it), driven by `setSkyFlash`
+    if (l.flash) {
+      l.flicker = 0;
+      this.flashIds.push(l.id);
+      this.setFlicker(l.id, FLICKER_FLASH);
+    }
     return l;
   }
 
@@ -294,6 +333,8 @@ export class LightRegistry {
     for (let k = 0; k < ids.length; k++) {
       const id = ids[k]!;
       const l = this.lights[id]!;
+      // (piano SO5b) an opening's flash light: `setSkyFlash` drives it
+      if (this.flickModes[k] === FLICKER_FLASH) continue;
       flickerAt(this.flickModes[k]!, lampSeed(this.flickerSeed, id));
       const v = FLICKER_OUT[0]!;
       if (v !== l.flicker) {

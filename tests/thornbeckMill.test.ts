@@ -39,7 +39,6 @@ import { MAPS } from '../src/world/maps';
 import { flags } from '../src/core/flags';
 import { checkSectorGuards, checkSectors, exitZone, inZone, type SectorDef, type SectorGuard } from '../src/game/sectors';
 import { NOISY_LIMITS, validateGuardAi } from '../src/ai/guardAiData';
-import { loopPeriod } from '../src/audio/music/scenePiano';
 import { LightRegistry } from '../src/world/lights';
 import { FLASHLIGHTS, addTorchSlots } from '../src/world/torches';
 import { camSpaceAt } from '../src/world/camSpaces';
@@ -143,9 +142,9 @@ describe('Thornbeck Mill: guards (PLAN section 3)', () => {
 
   it('guard-list slots 0-3 are G1, G2, G3, G4, in that order (the intro actors), at the plan starts', () => {
     const starts = THORNBECK_GUARDS.slice(0, 4).map((g) => [g.x, g.z]);
-    expect(starts).toEqual([[7.5, 8.7], [8.3, 8.0], [9.0, 2.0], [10.0, 3.4]]);
+    expect(starts).toEqual([[7.5, 8.9], [8.3, 7.9], [9.0, 2.0], [10.0, 3.4]]);
     const rest = THORNBECK_GUARDS.slice(4).map((g) => [g.x, g.z, g.y ?? 0]);
-    expect(rest).toEqual([[20.8, 9.0, 0], [29.0, 9.9, 0], [28.8, 16.2, DECK_Y], [12.5, 15.7, DECK_Y], [12.5, 16.5, DECK_Y], [8.8, 16.2, DECK_Y], [1.5, 16.1, DECK_Y], [1.5, 16.9, DECK_Y]]);
+    expect(rest).toEqual([[20.8, 9.0, 0], [29.0, 9.9, 0], [28.8, 16.2, DECK_Y], [12.5, 15.6, DECK_Y], [12.5, 16.6, DECK_Y], [8.8, 16.2, DECK_Y], [1.5, 15.9, DECK_Y], [1.5, 17.0, DECK_Y]]);
   });
 
   it('every guard (12 + 4) has a takedown spot and a fixed route of patrol points', () => {
@@ -173,15 +172,18 @@ describe('Thornbeck Mill: guards (PLAN section 3)', () => {
     expect([spot(10), spot(11)]).toEqual([[1.6, 16.5], [1.6, 16.5]]); // G11 + G12: K10
   });
 
-  it('every start, route point, takedown spot and player start is 0.5 m clear of a collider', () => {
+  it('every start, route point, takedown spot and player start is 0.5 m clear of a collider (G1 + G2 lanes: 0.3 m)', () => {
     const bad: string[] = [];
-    const check = (what: string, x: number, z: number, y: number): void => {
+    const check = (what: string, x: number, z: number, y: number, min = 0.5): void => {
       const c = clearance(x, z, y);
-      if (c < 0.5 - 1e-6) bad.push(`${what} (${x}, ${z}) y ${y}: ${c.toFixed(3)} m`);
+      if (c < min - 1e-6) bad.push(`${what} (${x}, ${z}) y ${y}: ${c.toFixed(3)} m`);
     };
     for (const { tag, g } of all) {
-      check(`${tag} start`, g.x, g.z, g.y ?? 0);
-      g.route!.forEach(([x, z], i) => check(`${tag} route ${i}`, x, z, g.y ?? 0));
+      // GA5 item 5 and PB4 (1 - 1.5 m for the paired kill): G1 + G2 walk lanes z 7.9 / 8.9 (1.0 m apart) between W1's north
+      // face (z 7.5) and the sack wall (z 9.2), so their starts and route points are cleared to 0.3 m, these two lanes only
+      const min = tag === 'G1' || tag === 'G2' ? 0.3 : 0.5;
+      check(`${tag} start`, g.x, g.z, g.y ?? 0, min);
+      g.route!.forEach(([x, z], i) => check(`${tag} route ${i}`, x, z, g.y ?? 0, min));
       check(`${tag} takedown spot`, g.takedownSpot[0], g.takedownSpot[1], g.y ?? 0);
     }
     for (const s of lay.playerSpawns) check('player start', s.pos.x, s.pos.z, s.pos.y);
@@ -200,42 +202,79 @@ describe('Thornbeck Mill: guards (PLAN section 3)', () => {
     }
   });
 
-  it('the pairs walk side by side: partners start 0.7 - 1.2 m apart on parallel lanes', () => {
+  it('the pairs walk side by side: partners name each other, start 1.0 - 1.1 m apart on parallel lanes', () => {
+    // GA5 item 1: `pair` both ways (G15 + G16 by their index in THORNBECK_GUARDS_16)
+    const pairs: readonly (readonly [number, number])[] = [[0, 1], [3, 4], [7, 8], [10, 11], [14, 15]];
+    for (const [i, j] of pairs) {
+      expect(THORNBECK_GUARDS_16[i]!.pair, `slot ${i} names ${j}`).toBe(j);
+      expect(THORNBECK_GUARDS_16[j]!.pair, `slot ${j} names ${i}`).toBe(i);
+    }
+    expect(THORNBECK_GUARDS_16.map((g, i) => (g.pair === undefined ? -1 : i))).toEqual([0, 1, -1, 3, 4, -1, -1, 7, 8, -1, 10, 11, -1, -1, 14, 15]);
+    // GA5 item 4: the lanes
+    expect([7, 8, 10, 11].map((i) => THORNBECK_GUARDS[i]!.z)).toEqual([15.6, 16.6, 15.9, 17.0]);
+    expect([0, 1].map((i) => THORNBECK_GUARDS[i]!.z)).toEqual([8.9, 7.9]);
     for (const [i, j] of [[0, 1], [7, 8], [10, 11]] as const) {
       const a = THORNBECK_GUARDS[i]!;
       const c = THORNBECK_GUARDS[j]!;
-      expect(hyp2(a.x - c.x, a.z - c.z), `pair ${i}/${j} apart`).toBeGreaterThanOrEqual(0.7);
-      expect(hyp2(a.x - c.x, a.z - c.z)).toBeLessThanOrEqual(1.2);
+      // the lanes are 1.0 - 1.1 m apart (G1 + G2 start staggered in x as well, so the starts are up to 1.3 m apart)
+      expect(Math.abs(a.z - c.z), `pair ${i}/${j} lanes`).toBeGreaterThanOrEqual(1.0 - 1e-9);
+      expect(Math.abs(a.z - c.z)).toBeLessThanOrEqual(1.1 + 1e-9);
+      expect(hyp2(a.x - c.x, a.z - c.z), `pair ${i}/${j} apart`).toBeGreaterThanOrEqual(1.0 - 1e-9);
+      expect(hyp2(a.x - c.x, a.z - c.z)).toBeLessThanOrEqual(1.3);
       expect(a.squad).toBe(c.squad);
       expect(a.y ?? 0).toBe(c.y ?? 0);
-      // the lanes run the same way: the same x ends, the same pauses
+      // the lanes run the same way: the same x ends, the same pauses, each lane at its own z
       expect(a.route!.map((p) => p[0])).toEqual(c.route!.map((p) => p[0]));
+      expect(a.route!.every((p) => p[1] === a.z)).toBe(true);
+      expect(c.route!.every((p) => p[1] === c.z)).toBe(true);
       expect(a.waits).toEqual(c.waits);
     }
-    // G4 + G5: a timed pair (guard pairs, G335): they name each other, share one 40 s loop and stop 1.2 m apart at the door
+    // G4 + G5 (GA5 items 2 and 3): per-point waits, no `loop` / `wait`, faces kept, 1.2 m apart at the door, one 40 s lap each
     const g4 = THORNBECK_GUARDS[3]!;
     const g5 = THORNBECK_GUARDS[4]!;
     expect([g4.pair, g5.pair]).toEqual([4, 3]);
     expect([g4.route!.length, g5.route!.length]).toEqual([4, 4]);
-    expect(g4.loop!.period).toBe(40);
-    expect(g5.loop!.period).toBe(40);
+    for (const g of [g4, g5]) {
+      expect(g.loop).toBeUndefined();
+      expect(g.wait).toBeUndefined();
+      expect(g.waits).toHaveLength(4);
+      expect(g.waits!.slice(1)).toEqual([0, 4, 0]);
+      expect(g.faces).toHaveLength(4);
+      expect(g.start).toBeDefined();
+    }
     const door4 = g4.route![2]!;
     const door5 = g5.route![2]!;
     expect(hyp2(door4[0] - door5[0], door4[1] - door5[1])).toBeCloseTo(1.2, 6);
-    // both walk their loop at the scene's slow pace (0.7 m/s) inside their planned departures, and are at the door together >= 3.5 s
+    // our own lap formula (GA6a's sweepPeriod is not on this base): the route out and back at 0.7 m/s (no turn time) plus the waits
     const PACE = 0.7;
-    const arrive = (g: SectorGuard, i: number): number => {
+    const lap = (g: SectorGuard): number => {
       const r = g.route!;
-      const lv = g.loop!.leave;
-      const prev = (i + r.length - 1) % r.length;
-      // leaving the previous point at its planned time (the last point's departure belongs to the lap before)
-      const depart = lv[prev]! - (i === 0 ? g.loop!.period : 0);
-      return depart + hyp2(r[i]![0] - r[prev]![0], r[i]![1] - r[prev]![1]) / PACE;
+      let len = 0;
+      for (let i = 0; i < r.length; i++) {
+        const q = r[(i + 1) % r.length]!;
+        len += hyp2(q[0] - r[i]![0], q[1] - r[i]![1]);
+      }
+      return len / PACE + g.waits!.reduce((t, w) => t + w, 0);
     };
-    for (const g of [g4, g5]) g.route!.forEach((_, i) => expect(arrive(g, i), 'reached by its planned departure').toBeLessThanOrEqual(g.loop!.leave[i]! + 1e-9));
-    const at4: [number, number] = [arrive(g4, 2), g4.loop!.leave[2]!];
-    const at5: [number, number] = [arrive(g5, 2), g5.loop!.leave[2]!];
-    expect(Math.min(at4[1], at5[1]) - Math.max(at4[0], at5[0])).toBeGreaterThanOrEqual(3.5);
+    expect(lap(g4)).toBeCloseTo(lap(g5), 3);
+    expect(lap(g4)).toBeCloseTo(40, 3);
+    // TODO(GA6a): assert sweepPeriod(route, waits) === 40
+    // the time (s into the lap) the guard leaves point k, from the start phase: pausing `wait` s more at point `idx` at t = 0 (wait 0: the full pause there)
+    const leaveAt = (g: SectorGuard, k: number): number => {
+      const r = g.route!;
+      const st = g.start!;
+      let t = st.wait > 0 ? st.wait : g.waits![st.idx]!;
+      let i = st.idx;
+      while (i !== k) {
+        const q = r[(i + 1) % r.length]!;
+        t += hyp2(q[0] - r[i]![0], q[1] - r[i]![1]) / PACE + g.waits![(i + 1) % r.length]!;
+        i = (i + 1) % r.length;
+      }
+      return t % lap(g);
+    };
+    // the door stops (point 2) coincide: they leave it together every lap, after a 4 s stop
+    expect(leaveAt(g4, 2)).toBeCloseTo(leaveAt(g5, 2), 2);
+    expect(leaveAt(g4, 2)).toBeCloseTo(25.43, 2);
   });
 
   it('validateGuardAi is clean on all 16 slots', () => {
@@ -297,42 +336,53 @@ describe('Thornbeck Mill: light (PLAN section 2b and "Spaces, levels and lamps")
     expect(FLASHLIGHTS).toBeGreaterThan(0);
   });
 
-  it('the lightning timetable is the plan\'s: 11 times a loop, 4 doubles, 15 entries', () => {
-    const times = [6, 18, 30, 37, 44, 51, 58, 65, 73, 81, 88];
-    const doubles = [37, 51, 65, 81];
+  it("the lightning timetable is the mission track's: 18 times a loop, 6 doubles on its section changes, 24 entries", () => {
+    const times = [6, 18, 28, 36.68, 43, 49.48, 58, 64, 71.88, 80, 89, 97.48, 104, 110.28, 116, 123.08, 131, 148];
+    const doubles = [36.68, 49.48, 71.88, 97.48, 110.28, 123.08];
     expect(THORNBECK_FLASH_TIMES.map(([t]) => t)).toEqual(times);
     expect(THORNBECK_FLASH_TIMES.filter(([, d]) => d).map(([t]) => t)).toEqual(doubles);
     const f = THORNBECK_LIGHTNING.flashes;
-    expect(f).toHaveLength(15);
+    expect(f).toHaveLength(24);
     // written out in full: a single is { t, 1, 0.6 }, a double adds { t + 0.45, 0.8, 0.5 }
-    expect(f).toEqual([
-      { t: 6, peak: 1, len: 0.6 },
-      { t: 18, peak: 1, len: 0.6 },
-      { t: 30, peak: 1, len: 0.6 },
-      { t: 37, peak: 1, len: 0.6 },
-      { t: 37.45, peak: 0.8, len: 0.5 },
-      { t: 44, peak: 1, len: 0.6 },
-      { t: 51, peak: 1, len: 0.6 },
-      { t: 51.45, peak: 0.8, len: 0.5 },
-      { t: 58, peak: 1, len: 0.6 },
-      { t: 65, peak: 1, len: 0.6 },
-      { t: 65.45, peak: 0.8, len: 0.5 },
-      { t: 73, peak: 1, len: 0.6 },
-      { t: 81, peak: 1, len: 0.6 },
-      { t: 81.45, peak: 0.8, len: 0.5 },
-      { t: 88, peak: 1, len: 0.6 },
-    ]);
-    // sorted, inside the loop; the quiet first third is every 12 s, then every 7 - 8 s; the seam gap (88 -> 97.03) is about 9 s
+    const expected: { t: number; peak: number; len: number }[] = [];
+    for (const t of times) {
+      expected.push({ t, peak: 1, len: 0.6 });
+      if (doubles.includes(t)) expected.push({ t: t + 0.45, peak: 0.8, len: 0.5 });
+    }
+    expect(expected).toHaveLength(24);
+    f.forEach((x, i) => {
+      expect(x.t, `entry ${i} t`).toBeCloseTo(expected[i]!.t, 9);
+      expect(x.peak, `entry ${i} peak`).toBe(expected[i]!.peak);
+      expect(x.len, `entry ${i} len`).toBe(expected[i]!.len);
+    });
+    // sorted, inside the loop; the last flash and its length leave a gap over the seam (148.6 -> 6 + 160.04)
     for (let i = 1; i < f.length; i++) expect(f[i]!.t).toBeGreaterThan(f[i - 1]!.t);
     const P = THORNBECK_LIGHTNING.period;
     for (const x of f) expect(x.t + x.len).toBeLessThan(P);
-    expect(times[0]! + P - times[times.length - 1]!).toBeCloseTo(9.03, 6);
+    const last = f[f.length - 1]!;
+    expect(f[0]!.t + P - (last.t + last.len)).toBeGreaterThan(10);
   });
 
-  it('the lightning period is one music loop: loopPeriod() of the piano track', () => {
+  it('the lightning openings (SO5b): the ten windows and board gap, on the walls, facing in; not the hoist doorway', () => {
+    const o = THORNBECK_LIGHTNING.openings;
+    expect(o).toHaveLength(10);
+    for (const p of o) {
+      expect(Math.abs(p.nx) + Math.abs(p.nz)).toBe(1);
+      // on a wall's inner face, facing into the hall
+      if (p.nz === 1) expect(p.z).toBe(0);
+      if (p.nz === -1) expect(p.z).toBe(18);
+      if (p.nx === 1) expect(p.x).toBe(0);
+      if (p.nx === -1) expect(p.x).toBe(32);
+      expect(p.w).toBeGreaterThan(0);
+      expect(p.h).toBeGreaterThan(0);
+      // the hoist doorway (west gable z 15.8-17.4) is not one
+      expect(p.nx === 1 && p.z > 15).toBe(false);
+    }
+  });
+
+  it("the lightning period is the mission track's loop: 162.04 s whole less the 2 s cross-fade", () => {
     expect(THORNBECK_LIGHTNING.period).toBe(THORNBECK_LIGHTNING_PERIOD);
-    expect(THORNBECK_LIGHTNING.period).toBeCloseTo(loopPeriod(), 9);
-    expect(THORNBECK_LIGHTNING.period).toBeCloseTo(91.03, 9);
+    expect(THORNBECK_LIGHTNING.period).toBeCloseTo(160.04, 9);
   });
 
   it('the rain source is present, inside the noisy-source limits (6 dB halves a guard\'s hearing reach)', () => {

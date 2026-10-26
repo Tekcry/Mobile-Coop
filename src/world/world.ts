@@ -48,7 +48,7 @@ import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField } from './lightField';
 import { moonLight } from './lampMath';
 import { LEVEL_TO_RENDER } from './darkCurve';
-import { DEMO_LIGHTNING, Lightning } from './lightning';
+import { addOpeningLights, DEMO_LIGHTNING, FLASH_GAIN, Lightning } from './lightning';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 import { KitRender } from './kit/kitRender';
 import { PropRender } from './props/propRender';
@@ -189,6 +189,9 @@ export class World {
     const f = this.lightField;
     f.setFlash(level);
     const v = f.flashLevel;
+    // (piano SO5b) the openings' flash lights: intensity x the flash (the field's level / FLASH_GAIN), the same value
+    // for the field and the baked lamps' texels (`flickering`); a map without openings returns at once
+    this.level.lights.setSkyFlash(v / FLASH_GAIN);
     if (this.lamps) this.lamps.skyFlash = v;
     this.sun.intensity = this.sunBase + v * this.sunPerLevel;
   }
@@ -206,6 +209,8 @@ export class World {
     const layout = map.build(b, opts.seed);
     // (LR16-5) the map's flicker seed and its stutter tube (fires enrolled themselves)
     applyMapFlicker(b.lights, map.id, opts.seed);
+    // (piano SO5b) one baked flash light per lightning opening (none without `lightning.openings`)
+    addOpeningLights(b.lights, map.lightning);
     // (LR16-5b) Marlow Yard's swinging pendants: before the build, so the hangers they claim (now drawn by the light
     // rig, with the swing) never mesh
     applyMapSway(b, map.id);
