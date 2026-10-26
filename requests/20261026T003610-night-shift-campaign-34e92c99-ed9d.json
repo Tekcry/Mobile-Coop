@@ -1,0 +1,16 @@
+{
+  "id": "20261026T003610-night-shift-campaign-34e92c99-ed9d",
+  "sha": "34e92c991e88bf2003f4d22f7146372233a08096",
+  "branch": "feature/tallow-throw",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-sectorops:wharf-tgc",
+    "e2e-sectorops:wharf-tkl"
+  ],
+  "set": "tallow-prt"
+}
