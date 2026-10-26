@@ -24,10 +24,13 @@ Older audit findings: `BOTTLENECKS.md` (history; new findings go here, not there
 | F10 | Kill a queue run when no suite finishes in ~15 min | #317 hung 4192 65 min | Test Runner | 2026-10-25 20:58 | laptop-queue-8 slice H (LQ_SUITE_IDLE_MIN) |
 | F11 | A desktop failure queues the laptop rerun at once | #445 held 4191 45 min | Test Runner | 2026-10-25 21:28 | laptop-queue-8 slice H |
 | F12 | auto-train: "nothing new" is idle, not an error; retry gh once inside a tick | train 102 7 min late; HTTP 499 error tick 2026-10-26 13:50 | Test Runner | 2026-10-25 13:35 | laptop-queue-9 (Opus planning) |
-| F14 | Runs over ~8 suites stay off the desktop overflow | #447 held 4191 64 min | Test Runner | 2026-10-25 23:05 | partly: slice D by time; slice H adds 8-suite cap + fallback estimate |
+| F14 | Desktop overflow caps runs by expected time from times.json (~15 min at 1 job), not suite count | #447 held 4191 64 min; tallow-prg1 "7 suites" = ~17 parts, ~60 min on 4191 from 13:22 (10-26) | Test Runner | 2026-10-25 23:05 | reopened 14:10: slice H must cap by time |
 | F15 | Renaming a request to an earlier id is a move, not a withdrawal | Mixamo lost its place | Test Runner | 2026-10-25 22:40 | laptop-queue-8 slice H |
 | F16 | auto-train reads check + checker + affected-e2e itself (no label wait) | #460 missed train 103 | Test Runner | 2026-10-25 21:57 | laptop-queue-9 |
 | F18 | merge-train release leaves the deploy watch to later ticks | ~6 min per train | Test Runner | 2026-10-25 13:35 | laptop-queue-9 |
 | F19 | Pacing counts only laptop claims; then restore --min-interval | pacing OFF since 10-25 15:35 | Test Runner | 2026-10-25 15:35 | laptop-queue-9 |
 | F20 | Watchdog reads re-filed T000001 ids correctly | misread as old | Test Runner | 2026-10-25 20:58 | laptop-queue-9 |
 | F21 | Runner guard armed (G298), not melee | Inbox 2026-10-26 12:40 (Player J19 S4 brief) | Guard AI Build (#531) | 2026-10-26 12:41 | PR open, checker PASS, laptop runner-armed |
+| F22 | Queue ranks master-based PRs ahead of stacked ones (base = a feature branch) | 7 stacked requests, ~51 suites ahead of trainable PRs (10-26 14:00) | Test Runner | 2026-10-26 14:10 | new |
+| F23 | auto-train re-reads candidates when the build starts | #521 missed train 119 by 27 s | Test Runner (with F16) | 2026-10-26 14:10 | new |
+| F24 | Desktop worker logs the CPU reading at each start (verify the 80% gate) | starts at 13:41 / 13:49 / 13:56 with CPU reported 100% | Test Runner | 2026-10-26 14:10 | new |
