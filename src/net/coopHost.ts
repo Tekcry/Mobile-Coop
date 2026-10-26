@@ -455,7 +455,8 @@ export class CoopHost implements NetAttachment {
     joinSpawn(
       {
         sectioned: mode?.id === 'course' || mode?.id === 'sector',
-        checkpoint: mode?.checkpointSpawns?.() ?? [],
+        // (marlow-play-2 C9) Course: the live station's marks (`CourseMode.joinSpawns`), not the holding room
+        checkpoint: (mode as { joinSpawns?(): SlotPoint[] } | null | undefined)?.joinSpawns?.() ?? mode?.checkpointSpawns?.() ?? [],
         reachable: (from) => canWalk(g, from, host),
         host,
         others,

@@ -454,6 +454,43 @@ describe('flags a retry drops (fix 5)', () => {
   });
 });
 
+describe('(marlow-play-2 C9) a lone player after a drop', () => {
+  it('a (re)joiner goes to the live station\'s marks by the roles; with no station live, the checkpoint\'s slots', () => {
+    const r = rig(def());
+    r.st.setFlag('s1-done');
+    r.step(30);
+    expect(r.st.station()).toBe(2);
+    expect(r.mode.joinSpawns()).toEqual([
+      { x: 20, y: 0, z: 5, yaw: 0 },
+      { x: 21, y: 0, z: 5, yaw: Math.PI },
+    ]);
+    // the respawn points stay the checkpoint's (a downed restart never lands on a mark)
+    expect(r.mode.checkpointSpawns()[0]).toMatchObject({ x: -5, z: 0 });
+    r.st.setFlag('s2-done');
+    expect(r.st.station()).toBe(0);
+    expect(r.mode.joinSpawns()).toEqual(r.mode.checkpointSpawns());
+    const n = rig(def({}, null));
+    expect(n.mode.joinSpawns()).toEqual(n.mode.checkpointSpawns());
+  });
+  it('the co-op host alone (partner held or not in) is partnerAway; back, solo or no net: not', () => {
+    const r = rig(def());
+    const g = (r.mode as unknown as { g: { net: unknown; remotePlayers: () => unknown[] } }).g;
+    expect(r.mode.partnerAway).toBe(false);
+    g.net = {};
+    const rem = g.remotePlayers();
+    g.remotePlayers = () => [];
+    r.step();
+    expect(r.mode.partnerAway).toBe(true);
+    r.st.solo = true;
+    r.step();
+    expect(r.mode.partnerAway).toBe(false);
+    r.st.solo = false;
+    g.remotePlayers = () => rem;
+    r.step();
+    expect(r.mode.partnerAway).toBe(false);
+  });
+});
+
 describe('(marlow-play-2 C17) a new set clears the guards\' shared memory', () => {
   it('each bayStarted clears the calls, the incident board, the alarm and the last-known positions', () => {
     const r = rig(def());

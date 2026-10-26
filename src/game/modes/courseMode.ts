@@ -252,6 +252,8 @@ export class CourseMode implements GameMode {
   private detSeen = 0;
   private startBay = 0;
   private remoteId = '';
+  /** (marlow-play-2 C9) Co-op host: no partner in the course's player list (dropped and held, or not yet in). */
+  partnerAway = false;
   private remoteMode = '';
   private offs: (() => void)[] = [];
   private refusal = '';
@@ -766,6 +768,9 @@ export class CourseMode implements GameMode {
       this.remoteId = r.id;
       st.setPlayer(1, r.feet.x, r.feet.y, r.feet.z, !r.target.alive);
     }
+    // (marlow-play-2 C9) a co-op host alone (the partner dropped and held, or not yet in): the step line says why the
+    // two-player step waits (never solo: no net, or the dev solo flag)
+    this.partnerAway = !r && g.net != null && !st.solo && !st.over;
     // the host's own verbs (drillDetect, the single place verbs are derived; A18)
     if (this.feed) {
       const out = this.feed.step();
@@ -1481,6 +1486,17 @@ export class CourseMode implements GameMode {
     return st ? courseSlotPoints(this.g, st.checkpoint) : [];
   }
 
+  /**
+   * (marlow-play-2 C9) Co-op host: where a client that joins or reconnects mid-run goes (`CoopHost.joinSpot`): the live
+   * station's marks by the bay's roles (slot 1 on its own role's mark, by the partner who waited), so a rejoiner never
+   * lands in a holding room past the set's guards (A8: L7); with no station live, `checkpointSpawns`. Not per tick.
+   */
+  joinSpawns(): SlotPoint[] {
+    const st = this.state;
+    const s = this.placing() ?? st?.liveStation() ?? null;
+    return st && s ? stationSlots(s, st.roleA(st.bay)) : this.checkpointSpawns();
+  }
+
   /** (J14 R1) The station whose marks are the respawn points now, or null. */
   private placing(): StationDef | null {
     return this.placeT > 0 ? this.placeSt : null;
@@ -1717,6 +1733,7 @@ export class CourseMode implements GameMode {
     this.card?.update(dt);
     const st = this.state;
     if (!st || !this.hud) return;
+    this.hud.setAway(this.partnerAway);
     this.hud.update(st, 0);
     this.hud.setStatus(st.airlockStatus());
     drawMarker(this.g, st, this.layout!, 0);

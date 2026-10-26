@@ -47,6 +47,8 @@ export class CourseHud {
   private seenSt = -1;
   /** The step timer's whole seconds last written (0: none). */
   private seenSecs = 0;
+  /** (marlow-play-2 C9) Co-op host: the partner is away (dropped and held, or not yet in): the step line says so. */
+  private away = false;
 
   constructor(parent: HTMLElement) {
     this.bayEl = h('div', { class: 'ch-bay' });
@@ -122,6 +124,7 @@ export class CourseHud {
     this.seenSecs = secs;
     let text: string;
     if (st.over) text = 'Course complete.';
+    else if (this.away) text = PARTNER_AWAY_LINE;
     else if (next) text = next.text;
     else if (step) {
       text = st.stepLine(step, me);
@@ -139,6 +142,13 @@ export class CourseHud {
       for (let j = 0; j < gates.length; j++) if (gates[j]!.id === id) return gates[j];
     }
     return undefined;
+  }
+
+  /** (marlow-play-2 C9) Per frame: the partner away or back (the step line rewritten only on a change). */
+  setAway(on: boolean): void {
+    if (on === this.away) return;
+    this.away = on;
+    this.seenGen = -1;
   }
 
   /** The airlock status line (cached string compare: DOM written only on a change). */
@@ -161,6 +171,9 @@ export class CourseHud {
 // ------------------------------------------------------------------------------------------ (J14 R2) signposting
 
 const NO_STATIONS: readonly StationDef[] = [];
+
+/** (marlow-play-2 C9) The step line while the co-op partner is away (dropped and held, or not yet in). */
+export const PARTNER_AWAY_LINE = 'Waiting for your partner - this step needs you both.';
 const BADGE_18 = ['a', 'b', 'c', 'd'] as const;
 
 /** The badges the player sees: 1-17 and 18 (A8's 18 is four steps, 18a-18d). */
