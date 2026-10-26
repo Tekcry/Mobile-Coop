@@ -179,7 +179,7 @@ describe('pick: fixes first, keep place (laptop-queue-8 slice A)', () => {
     expect(b.get(2).fix).toBe(false);
     expect(b.get(3).fix).toBe(false);
   });
-  it('isFix: the --fix flag or the board label; never alone, spare, train or laptop reruns', () => {
+  it('isFix: the --fix flag, the board label or a laptop rerun; never alone, spare or train reruns', () => {
     const board = new Map([[7, { head: 'x', conflicting: false, green: false, fix: true }], [8, { head: 'y', conflicting: false, green: false, fix: false }]]);
     expect(isFix({ ...pr(1, 'f'), pr: 8, fix: true }, board)).toBe(true);
     expect(isFix({ ...pr(1, 'l'), pr: 7 }, board)).toBe(true);
@@ -188,7 +188,8 @@ describe('pick: fixes first, keep place (laptop-queue-8 slice A)', () => {
     expect(isFix({ ...pr(1, 'g'), pr: 7 }, new Map())).toBe(false); // a gh error empties the board: only --fix counts
     expect(isFix({ ...req(1, 'alone', 'al'), pr: 7, fix: true }, board)).toBe(false);
     expect(isFix({ ...pr(1, 'tr'), pr: 7, trainRerun: true, fix: true }, board)).toBe(false);
-    expect(isFix({ ...pr(1, 'lr'), pr: 7, laptopRerun: true }, board)).toBe(false);
+    expect(isFix({ ...pr(1, 'lr'), pr: 8, laptopRerun: true }, board)).toBe(true); // F52: no label or --fix needed
+    expect(isFix({ ...pr(1, 'ln'), pr: null, laptopRerun: true }, new Map())).toBe(true);
     expect(isFix({ ...spareReq(1, 'pr'), pr: 7, fix: true }, board)).toBe(false);
   });
   it('a fix beats a front (mixamo) request and a green one', () => {
@@ -197,6 +198,14 @@ describe('pick: fixes first, keep place (laptop-queue-8 slice A)', () => {
     const fix = pr(1, 'fix');
     expect(run([green, mix, fix], order([fix.id], [green.id], { [green.id]: 12 }))).toBe(fix);
     expect(run([green, mix, fix], order([], [green.id], { [green.id]: 12 }))).toBe(mix);
+  });
+  it('F52: a laptop rerun of a desktop failure beats a front request with an older place and a green one', () => {
+    const lr = { ...pr(40, 'lr', { branch: 'feature/piano-lights-so5' }), laptopRerun: true };
+    const front = pr(10, 'front', { branch: 'feature/mixamo-x', place: idAt(120, 'old') });
+    const green = pr(30, 'green');
+    const fixIds = [lr, front, green].filter((r) => isFix(r, new Map())).map((r) => r.id);
+    expect(fixIds).toEqual([lr.id]);
+    expect(run([front, green, lr], order(fixIds, [green.id], { [green.id]: 12 }))).toBe(lr);
   });
   it('two fixes: the smaller place first, no wait bound', () => {
     const f1 = pr(5, 'f1');

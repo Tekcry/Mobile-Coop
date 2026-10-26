@@ -835,7 +835,7 @@ export function loopGroups(entry: string, out: LoopGroups = { body: '', clip: ''
     if (name.startsWith('hold_')) {
       out.body = 'hold';
       out.clip = name;
-    } else out.team = `team.${name}.a`;
+    } else if (!name.startsWith('knife_')) out.team = `team.${name}.a`; // (piano-knife S1) a knife pair: no tuner groups
   } else if (kind === 'trav') {
     // (mixamo-retarget M5) a capture's loop `trav:<loop>/<slug>` plays through its prop's loop's groups
     const t = TRAV_LOOP[name.includes('/') ? name.slice(0, name.indexOf('/')) : name];

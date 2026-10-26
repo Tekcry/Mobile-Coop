@@ -8,6 +8,8 @@ map that is already greyboxed (campus) the graph describes the map AS BUILT and 
 - Worked example: `docs/level-validator/example.graph.json` (two campaign sections, each with a forced co-op gate, one
   spine link, one split with an overwatch and an assist; V1's CLI smoke fixture, 0 errors; it also shows the V6
   fields `area`, `vantage.at` and a link `at`, see "Schema additions").
+- Graph sets: every committed graph set is listed in `docs/level-validator/graph-sets.json` and run by
+  `npm run validate:levels`, which fails when a set's error or warning count changes (`docs/systems/testing-tools.md`).
 - Rules: `docs/level-design.md` (its rule index names the check for each rule; the job's history is in
   `docs/archive/level-validator/`); numbers: `docs/design/metrics.json`, generated from
   `docs/design/scale-sheet.md` sections 1, 3, 7 (room sizes by type) and 8 (validator numbers). No number in this
@@ -38,6 +40,7 @@ map that is already greyboxed (campus) the graph describes the map AS BUILT and 
 | `mode` | string | yes | `campaign`, `sector` (Sector Ops) or `training` (Marlow Yard): the profile below. Arena / deniable ops is parked (no rules) | every profile check |
 | `players` | int[] | yes | Player counts the map supports: `[2]` for campaign and training maps (G2, G50, G308); Sector Ops lists its counts within 1-4, `[1, 2, 3, 4]` (coop4 #317, G308), with guard counts per player count ("Keep scaling", 2026-10-25) | checkStructure, guard keys |
 | `sections` | string[] | yes | Section ids in spine order (`["S1", "S2", ...]`) | checkSpine, checkRedundancy, pacing, early / late |
+| `taught_by` | string | `training` only | The section where the last co-op kit move is taught on its own (level-design "Training profile", G363, G388); one of `sections` | checkTraining: ERR missing or not in `meta.sections` on a `training` map; ERR present on any other mode |
 
 ### Mode profiles (`docs/level-design.md` "Modes and tags")
 
@@ -47,15 +50,20 @@ map that is already greyboxed (campus) the graph describes the map AS BUILT and 
 | Exfil | ERR none | - | - |
 | Routes per encounter (3 approaches, 2 kinds, shadow / high / loud, secret share), routes cross, 2 routes per section | as below | as below | skipped (one route, G292) |
 | Forced co-op gate per section | ERR a section whose exit solo links reach from its entry | - | - |
-| Co-op coverage | ERR | ERR | - (G392; the code still checks it) |
+| Co-op coverage | ERR | ERR | - (G392) |
 | Gate reach (a way back over each co-op link) | ERR none; ERR over `reach_max_s` | - | - |
 | No softlock | - | ERR | - |
-| Solo twins | ERR | WARN | WARN |
+| Solo twins | ERR | WARN | INFO (A7) |
 | Guard bands | WARN below | WARN below | INFO below |
 | Alive ceiling (the campaign runs on the Sector Ops runtime) | ERR a section over `sector_alive_max` | ERR a section over `sector_alive_max` at a player count | - |
 | Unavoidable guard (`unavoidable` tag) | WARN a tagged space with a way round | WARN none tagged; WARN a way round | WARN a way round |
 | Timed drill (`drill_s`) | ERR | ERR | allowed |
 | Shadow share | INFO | INFO | INFO |
+| Training checks (`taught_by`, `teach`, side routes; "How the checks read the graph") | ERR `taught_by` present | ERR `taught_by` present | ERR `taught_by` missing or unknown; up to and including it ERR 2+ routes, a `split:` tag, no teach element, a teach element a path avoids; after it ERR 2+ routes with no guarded encounter space, and the campaign route rules on such a section |
+| No-kill path (no `requires_kill` link) from `start` to every `objective` and on to the run's end | ERR | ERR | ERR |
+| Ghost path (also no `loud` link) | ERR | ERR | INFO |
+| Markers (`mark`) | ERR each | ERR each | INFO count |
+| Nav floor (an encounter or guarded space below `nav_floor_depth_m`) | WARN | WARN | WARN |
 
 ## `spaces[]`
 
@@ -80,6 +88,7 @@ surface above a floor (a gantry, a roof walk, a cable basket run, a ledge run) t
 | `vantage` | `{ "from": id, "sees_pct": 0-1, "at"?: [x, y, z] }` | encounter | The observation point (a space id) and the share of the space it sees; it must also see every guard within one cycle, out of view (level-design 3.1: design doc). `at` is the optional V6 feet point ("Schema additions") | ERR missing or unknown `from`; ERR `sees_pct` < 0.7 (M4) |
 | `guards` | `{ "<players>": n }` | encounter | Guards in the space by player count, dogs included (`{ "2": 4 }`); a guard present only from N players counts only in the `"N"` key and above | WARN below the `guards_early` / `guards_late` band (training: INFO), no upper limit (level-design 4.9); `sector` and `campaign`: ERR when a section's spaces sum to more than `sector_alive_max` at one player count; ERR a count lower than a smaller player count's |
 | `phase` | `early` / `late` | no | Overrides A3 (first half of the spine by section index = early, second half = late) | guard bands |
+| `mark` | any | no | A guidance marker on the space (any value; Marlow Yard keeps its guidance marks, G292; the campaign and Sector Ops have none, G290, G339) | checkPerfect: ERR per marked space on `campaign` and `sector`; INFO count on `training` |
 | `note` | string | no | What was not measured or is estimated, and from where (V5 writes one on every guessed value) | ignored by the validator |
 | `measured` | object | no | Greybox measurement (V6): measured values beside the targets; never written by hand. See "Schema additions" | `checkMeasured`: ERR when a measurement misses its target (what it checks: "How the checks read the graph") |
 
@@ -102,9 +111,22 @@ spaces are two links. Links are two-way unless `one_way` is set or the kind is `
 | `one_way` | bool | no | Passable only `from` -> `to` | reach, redundancy, approaches (counted only at `to`), dead ends (a way out only at `from`) |
 | `bolted` | bool | no | Bolted on its `to` side: one player opens it only from there (a door the partner unbolts after a co-op move, such as a throw; the vent has its own kind, `vent_unlock`). Two players: a normal way. Unbolted, it stays open both ways | ERR not a bool; forced gate and solo twins: one player uses it only `to` -> `from`; gate reach: open both ways |
 | `assist` | split id | no | On the link of one leg that the other leg's action opens, darkens or disables; `reason` names the action and where it is done | checkCoop: ERR a split with no assist |
+| `teach` | string | no | The kit move this link teaches (free text from the map's teach list; a move with no link kind uses the `teach:<move>` space tag instead) | checkTraining, `training` only: ERR not text; a teach element of its section when both ends are in it |
+| `requires_kill` | bool | no | A perfect run cannot pass this link without a kill | checkPerfect: ERR any value but true or false (every mode); the no-kill and ghost paths skip a `true` link |
+| `mark` | any | no | As on spaces | checkPerfect, as on spaces |
+| `exception` | string | no | The approved exception to a size row that this one link uses. Only value: `"long_throw"`, only on a `team_throw` | ERR any other value; ERR on any other kind; the `long_throw` rules are below the table |
 | `reason` | string | no (expected on every link) | One-line real-world reason (level-design 16.9 element register) | not checked; the register row lives in the design doc |
 | `at` | `[x, y, z]` | no | The opening point the link passes, for the greybox measurement (V6). See "Schema additions" | measurement only |
 | `note`, `measured` | | no | As on spaces | |
+
+`exception: "long_throw"` (A27; Michael ~20:45, "Mix of both") lets one `team_throw` span a gap up to
+`sizes.throw_long.max` instead of the throw gap row. The scale sheet owns it (section 3, "Long throw (named spots
+only)"), with the spots it approves, each `<meta.map>:<from>><to>`; a new spot is a sheet change with Michael's
+approval and the field alone approves nothing. At a listed spot the gap passes up to the max with an INFO line naming
+the spot, and a wider gap is an ERR. At an unlisted spot (the same space ids on another map too) it is an ERR "not an
+approved long-throw spot". With no `exception` the throw gap row applies, listed spots included. A metrics file with
+no `sizes.throw_long` (or one that is not `{ max, spots }`) prints one WARN and the throw falls back to the throw gap
+row.
 
 ## Link kinds
 
@@ -131,7 +153,7 @@ walking speed (climbs, crawls, co-op moves) carry `time_s` on any split leg or r
 | `coop_boost` | **yes** | lip `level_change` 4.3-4.5 (`TEAM.boostMax` 4.5) |
 | `human_ladder` | **yes** | lip `level_change` 4.3-4.5 (ladder grab 4.1 until G57) |
 | `pair_gate` | **yes** | a team door (pair gate / pair bolt, CR5 / CR6): `door` sizes; opens only with both players (lead decision 1); once passed it stays open (its own way back); judged both ways for a solo twin |
-| `team_throw` | **yes** | throw over a gap (kit, G293): `width` = the gap (required), ERR above 2.7 m (sheet "Throw gap"); needs `time_s` |
+| `team_throw` | **yes** | throw over a gap (kit, G293): `width` = the gap (required), ERR above 2.7 m (sheet "Throw gap"), or above `sizes.throw_long` with `exception: "long_throw"` at a listed spot (sheet section 3, "Long throw (named spots only)"; Michael ~20:45, "Mix of both"); needs `time_s` |
 | `team_hang` | **yes** | hang-down relay (climb the hanging partner): `level_change` = the lip; ERR above 4.6, WARN under 4.3 (sheet "Relay lip"); needs `time_s` |
 | `team_pull` | **yes** | pull-up: catch a jumping partner at a lip and haul: `level_change` = the lip; ERR above 4.5, WARN under 4.3 (sheet "Pull-up lip"); needs `time_s` |
 | `shutter` | **yes** | hold a shutter or door: one lifts and holds, the other crawls under: `width` required, ERR below the door minimum; `height` (the held gap, optional) ERR under 0.9 (sheet "Held shutter"); stays open once passed; judged both ways for a solo twin, like `pair_gate` |
@@ -176,6 +198,7 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
 | `entry`, `exit` | space | The section's first and last space (one each per section) | checkRedundancy: ERR fewer than 2 edge-disjoint routes entry -> exit inside the section (M3); the `spine` link joins one section's `exit` to the next section's `entry` |
 | `split:<id>:a`, `split:<id>:b` | space | The spaces of leg a / leg b of split `<id>`, in walking order (file order) | checkCoop |
 | `overwatch:<id>` | space | The spot from which one partner sees and covers the other's leg (may be a leg space) | ERR a split with none |
+| `teach:<move>` | space | The move this space teaches (free text from the map's teach list, so a move with no link kind counts: the jam relay, the console loop) | checkTraining, `training` only: a teach element, counted for the space's own section only |
 | `sync_pair` | space | A guard pair for a synced takedown (two ordinary takedowns timed together) lives here | co-op coverage evidence (design doc) |
 | `unavoidable` | space | A guarded encounter space the players cannot go round on the way to the section's exit or objective (G303) | WARN when the section's exit and objectives are reached around it; `sector`: WARN when no space has it |
 
@@ -199,29 +222,34 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   room entered only from this space is no approach). `campaign` and `sector`: ERR fewer than 3 approaches or fewer than
   2 route kinds; ERR missing any of `shadow`, `high`, `loud`; WARN `secret` in fewer than half of the guarded spaces.
   Routes cross: in each section the route kinds used between entry and exit share at least one space (ERR). `training`
-  skips these and the two-routes-per-section check (one route, G292).
+  skips these and the two-routes-per-section check (one route, G292); a late section that keeps a side route runs the
+  route rules on itself (Training, below).
 - **Dead ends.** A space with at most one way out (not `start` / `exfil`) is ERR unless it is tagged `reward` or
   `objective` (or typed so) and `size[1]` <= 15 m (level-design 3.4, 16.6.3). Ways out are links, not neighbours: two
   ladders to one hall are a loop; a one-way link is a way out only at its `from` end (a drop in is none).
 - **Splits (checkCoop).** A leg's time = the link into its first tagged space + the links between its tagged spaces +
   the fastest non-co-op link out of its last tagged space to the rejoin space (the first space both legs reach), each
-  as `time_s`, else `length` / 1.3. ERR a leg over 90 s; ERR legs more than 20% apart (M4: time, not room length);
+  as `time_s`, else `length` / 1.3. The link into the first space comes from the fork, the first space that leads into
+  both legs by non-co-op links; failing one, the first space that leads into one leg by a non-co-op link and into the
+  other only by a co-op link (walked from its `from` end, never a `bolted` one): that co-op link is the other leg's
+  entry, its time counts for that leg and an INFO names it (A28: both partners are at the fork for the boost; never
+  both legs by co-op links). ERR a leg over 90 s; ERR legs more than 20% apart (M4: time, not room length);
   ERR no `overwatch:<id>`; ERR no `assist: "<id>"`. Partner reach: the shortest path over non-co-op links from any
   space of leg a to any of leg b, `time_s` else `length` / 3.0, ERR above 15 s. It is measured from every space of one
   leg to the nearest space of the other leg (the worst such space counts), not to every point of the other leg as
   level-design 11.6 could be read: legs up to 117 m long cannot all lie within 45 m of each other.
 - **Co-op coverage.** A co-op link (`coop_boost`, `human_ladder`, `pair_gate`, `team_rope`, `team_throw`, `team_hang`,
   `team_pull`, `shutter`, `vent_unlock`, `plank_bridge`, `deadweight`, `chimney_pair`, `swing_pass`, `drop_catch`)
-  touches at least half of the encounter spaces (ERR) and at least one space in every section (ERR). Not on
-  `training`: each Marlow exercise forces the move it teaches (G392); until the validator is changed it still reports
-  there.
+  touches at least half of the encounter spaces (ERR) and at least one space in every section (ERR). Not checked on
+  `training`: each Marlow exercise forces the move it teaches (G392).
 - **Solo twins (checkCoop).** A co-op link is a solo twin when one player can make the same move: a solo link from its
   `from` to its `to`, or a solo path there that does not pass the target, on the co-op link's own `route` and no
   longer than its `length` (a longer solo route, or one on another route kind, is the no-softlock alternative; a direct
   solo link with no `length`, or beside a co-op link with none, counts). The move runs `from` -> `to` (a climb's foot
   to its top); a two-way gate (`pair_gate`, `shutter`, `plank_bridge`, `deadweight`) is judged both ways; a `bolted`
-  link or a `vent_unlock` twins only from its `to` end. ERR on a `campaign` map (two players only, G2); WARN on Sector Ops (G185: solo completes; G280: team doors
-  stay two-player) and on `training`. The message names both links (campus CR7: the `team_rope` beside the `drop`).
+  link or a `vent_unlock` twins only from its `to` end. ERR on a `campaign` map (two players only, G2); WARN on Sector
+  Ops (G185: solo completes; G280: team doors stay two-player); INFO on `training` (A7). The message names both links
+  (campus CR7: the `team_rope` beside the `drop`).
 - **Pacing (checkPacing).** Over the spine order of spaces; see `tension`.
 - **Dimensions (checkDimensions).** Every `size`, `width`, `height`, `length` on the 0.5 m grid (WARN); class and kind
   rules above, the co-op kit bands included (scale-sheet section 3); ERR any `level_change` over 0.40 up to 0.45 (the
@@ -234,12 +262,43 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
 - **Unavoidable guards (checkEncounters).** A space tagged `unavoidable` must stand on every way (two players, all
   links) from its section's `entry` to the section's `exit` or objectives; WARN when they are reached around it, or when
   it is not a guarded encounter space. `sector`: WARN when no space is tagged (G303).
-
+- **Training (checkTraining, `training` only).** `meta.taught_by` is ERR on a map of any other mode. A teach element is
+  a link `teach` field or a `teach:<move>` space tag (a `teach` that is not text: ERR). Routes are counted per section
+  on its interior (`sectionRoutes`): the section's spaces and the links with both ends in it, no `spine` link; each
+  split's leg spaces merged into one node; a link is a step both ways unless it is one-way, and steps between the same
+  two nodes in the same direction count once; routes are the simple paths from the section's `entry` to its `exit`
+  (no space entered twice), counted up to 10 ("10+"); a section without exactly one `entry` and one `exit` has none.
+  Up to and including the `taught_by` section each section is one guided route. ERR 2+ routes (a side route); ERR a
+  `split:` tag; ERR no teach element; ERR a teach element that some entry-to-exit path avoids (take it away and the
+  `exit` is still reached; a teach on the `entry` or `exit` space cannot be avoided). After it, a section with 2+
+  routes needs a guarded encounter space (an encounter space with guards at some player count; ERR), and then the
+  campaign route rules run on that section alone as ERR: 3+ approaches, 2+ route kinds, `shadow`, `high` and `loud`
+  approaches, routes cross. A section whose only second way is a split has one route and needs neither. Two known
+  limits: a teach on a link between two sections counts for neither section (interior only); the route rules of a late
+  section run on a one-section subgraph without the links that enter the section, so an entry space whose only interior
+  link leads into a guarded encounter space is not counted as an approach there (the full-graph rule would count it;
+  no graph hits this today).
+- **Perfect run (checkPerfect).** Two players, every link kind. The no-kill path (no `requires_kill` link) and the
+  ghost path (also no `loud` link: the loud route is the nearest graph fact to "no alarms", G146) must run from `start`
+  to every `objective` and on to the run's end: the `exfil` spaces on a `campaign` map, the last section's `exit` on
+  Sector Ops and `training`. A missing no-kill path is ERR in every mode; a missing ghost path is ERR on `campaign` and
+  `sector`, INFO on `training` (every section is one route, so a forced section cannot route round a `loud` link). A
+  target with no no-kill path is reported once, by the no-kill line. `requires_kill` must be true or false (ERR). A
+  `mark` on a space or link: ERR each on `campaign` and `sector`; on `training` one INFO count (G290, G339, G292). One
+  known limit: each objective's reach from `start` and its way on to the end are checked separately, not as one tour, so
+  two objectives in separate one-way branches both pass (two players can split).
+- **Engine facts (checkEngine).** A space more than `rules.nav_floor_depth_m` below storey 0 that is an encounter space
+  or has guards is a WARN: the guards' nav grid does not reach that deep (level-design 12.1). The key is read only when
+  such a space exists; a missing key prints one WARN and skips the check. An `exception` on any link kind but
+  `team_throw` is ERR here (the `team_throw` check of `checkDimensions` judges the value).
 - **Measured values (checkMeasured).** The `measured` values `level-measure` writes ("Schema additions") are held to
   the same limits as the declared targets (numbers: scale-sheet section 8, `docs/design/metrics.json`). Shadow share is
-  information only, in every mode (G329, BRIEF A4); every other measured miss is an ERR (G285 (d)). A `null` is "not
-  measured": a move the nav grid does not model, which the design doc must justify (WARN), with the declared time still
-  checked by the core (lead answer L2). Presence is a gate: without `--require-measured` a missing value is INFO or
+  information only, in every mode (G329, BRIEF A4); a measured value over its limit (vantage, LOS break, split legs,
+  reach, way back) is an ERR (G285 (d)), and one apart from its declared target is a WARN or INFO, as the table says. A
+  `null` is "not measured": it prints a WARN only for a split's `reach_s` and a way back's `back_s` (a move the nav grid
+  does not model, which the design doc must justify, with the declared time still checked by the core, lead answer L2);
+  any other `null` prints nothing, and under `--require-measured` a `null` `a_s`, `b_s` or way back counts as missing.
+  Presence is a gate: without `--require-measured` a missing value is INFO or
   nothing, with it (the greybox exit gate, level-design 14) a missing value is an ERR (BRIEF A5, V2).
 
   | Check | Severity |
@@ -257,6 +316,8 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   | Declared split with no `meta.measured.splits.<id>`, or no `a_s`, `b_s` or `reach_s` | ERR under `--require-measured` |
   | `meta.measured.splits.<id>` naming no split | WARN |
   | Campaign co-op link with no matching `ways_back` entry (from / to / kind) | ERR under `--require-measured` |
+  | Campaign way back with no `back_s` on a link that is not a two-way gate | ERR under `--require-measured` |
+  | `meta.measured.ways_back` that is not a list, or an entry in it that is not an object (campaign) | ERR |
   | Way back `back_s` over `reach_max_s` | ERR (not on a two-way gate: a passed `pair_gate`, `shutter`, `plank_bridge`, `deadweight` or `vent_unlock` is its own way back, as in the core gate reach) |
   | Way back `back_s` null | WARN with its `why` (not on a two-way gate, which only needs its entry); the core's declared way back still runs |
   | `ways_back` entry naming no co-op link | WARN |
@@ -269,7 +330,7 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
 The graph is written before any geometry, so `sees_pct` and `los_break_s` (and the optional `shadow_pct`) are the
 designer's declared targets, not measurements. Write the number you are designing for, and say in the design doc how
 the layout delivers it. V6 (greybox measurement) samples the light bake, the nav grid and nav-grid path times and
-writes `measured` beside each target (`scripts/level-measure.mjs`; it reaches master with validator-port PR B2);
+writes `measured` beside each target (`scripts/level-measure.mjs`; `npm run level-measure`);
 `checkMeasured` fails the map if a measurement misses its target ("Schema additions", "How the checks read the graph").
 
 - **`shadow_pct`.** Sketch the lit pools: each working fixture lights roughly a circle of radius 1.5 x its mount height;
@@ -288,8 +349,8 @@ writes `measured` beside each target (`scripts/level-measure.mjs`; it reaches ma
 Source: V6 (`docs/archive/level-validator/V6-PLAN.md`, "Schema additions" and "Measurement definitions"). Every field
 here is OPTIONAL: a graph without them stays valid. An encounter space with no `measured` prints "pending V6" until the
 greybox exit gate (`--require-measured`, level-design 14) asks for it. Coordinates are world metres `[x, y, z]`, y up; a
-box is `[minX, minZ, maxX, maxZ]`. `measured` is written by `scripts/level-measure.mjs` (it reaches master with
-validator-port PR B2), never by hand. What the validator checks in it: "How the checks read the graph".
+box is `[minX, minZ, maxX, maxZ]`. `measured` is written by `scripts/level-measure.mjs` (`npm run level-measure`), never
+by hand. What the validator checks in it: "How the checks read the graph".
 
 | Field | On | Type | Meaning |
 | --- | --- | --- | --- |
@@ -343,6 +404,8 @@ Measurement definitions (one line each; full text in V6-PLAN.md; numbers from `d
 | Patrol loops | design doc / guard sheets (not in the graph) | | Beat pacing | `tension`, spine order |
 | Guards per space | `guards`, `phase` | | Shadow (INFO), light band | `shadow_pct` (+ V6 `measured`); band: scale sheet 9 |
 | Observation point | `vantage` (every guard in one cycle: design doc) | | LOS break | `los_break_s` (+ V6 `measured`) |
+| Taught by, teach elements | `meta.taught_by`, link `teach`, space tag `teach:<move>` | | Perfect run | `requires_kill`, `route: loud` |
+| Markers | `mark` | | Long throw | `exception`, `width` |
 
 ## Campus conventions
 

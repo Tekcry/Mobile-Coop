@@ -21,6 +21,8 @@ import { spreadDir } from '../weapons/ballistics';
 import { sampleSpread } from '../weapons/weaponStats';
 import { wrapAngle } from '../player/playerController';
 import { emptyMotionInput, MotionDriver } from '../anim/motion';
+import { newKillDrive, type KillDriveState } from '../anim/killDrive'; // (piano-knife S1)
+import type { KeyedClip } from '../anim/keyed';
 import { ENEMY_CALM_MOTION, ENEMY_MOTION } from '../config/movement';
 import type { RigPose } from '../player/characterRig';
 import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
@@ -29,6 +31,7 @@ import { EYE_STAND, instantDetect, losClear, noiseSuspicion, PERCEPTION, seenAt,
 import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
 import { COMBAT_HEAR, HEARING } from './hearing';
 import { PatrolWalker, PATROL, type PatrolRoute } from './patrol';
+import { SCENE_SWEEP, sweepPlan, type SweepPlan } from './sceneSweep';
 import { ARMOUR_FIRE, ArmourGate } from './armourFire';
 import { PACE, paceSpeed, ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec, urgentKind } from './response';
 import { SEARCH_AREA } from './searchArea';
@@ -916,6 +919,36 @@ export class Enemy implements Damageable {
     this.hitboxes.setSolid(on);
   }
 
+  /** (piano-knife S1) The paired knife kill's drive on his graph (allocated on first use) and whether the takedown
+   *  places his drawn root itself (`frame` then leaves it: the attacker's rendered frame, `knifePair.victimRoot`). */
+  private killDrv: KillDriveState | null = null;
+  private knifePinned = false;
+
+  /**
+   * (piano-knife S1) His side of a paired knife kill (`TakedownController`, solo / host): `clip` played at `ph` (0..1) on
+   * his graph through the kill drive (full weight; it plays on a guard rig, `keyedOk` is not read), `buckle` the fold
+   * of his spine and chest (rad, + forward); his struggle pose off while it plays, his drawn root the takedown's. A null
+   * `clip` clears it (an abort). `die` clears it once the ragdoll has taken the pose. No allocation after the first.
+   */
+  knifeVictim(clip: KeyedClip | null, ph: number, buckle: number): void {
+    const g = this.rig.graph;
+    if (!clip) {
+      if (this.killDrv && g.kill === this.killDrv) g.kill = null;
+      this.knifePinned = false;
+      this.rig.reachL.w = this.rig.reachR.w = 0;
+      return;
+    }
+    const d = this.killDrv ?? (this.killDrv = newKillDrive());
+    d.clip = clip;
+    d.phase = ph;
+    d.w = 1;
+    d.buckle = 1;
+    d.bucklePitch = buckle;
+    g.kill = d;
+    this.knifePinned = true;
+    if (this.rig.emote === this.cqEmote) this.rig.emote = null;
+  }
+
   /** Place the seized body (fixed step, 60 Hz). (G7) His velocity follows (eased), so a hostage walks with the hero
    *  (the gait from his speed) instead of sliding on planted feet. */
   holdAt(x: number, y: number, z: number, yaw: number): void {
@@ -1080,6 +1113,7 @@ export class Enemy implements Damageable {
   /** Walk a route while unaware (null = stand post at the spawn point). */
   setPatrol(route: PatrolRoute | null): void {
     this.walker = new PatrolWalker(route, this.post[0], this.post[1], this.yaw, this.num);
+    this.sweepCache = null;
     this.setCaution(this.caution);
   }
 
@@ -1211,6 +1245,10 @@ export class Enemy implements Damageable {
     this.handlerSlot = o.handlerSlot;
     this.handler = o.handler;
     this.walker = o.walker;
+    // (GA6b) his sweep (the walker carries it), its plan, side and partner
+    this.sweepCache = o.sweepCache;
+    this.sweepSide = o.sweepSide;
+    this.sweepMate = o.sweepMate;
     this.walker.tick(downFor);
     this.rejoinHome();
     this.setCaution(0);
@@ -1835,6 +1873,54 @@ export class Enemy implements Damageable {
   pairFace = Number.NaN;
   readonly pairPt: P2 = [0, 0];
   private readonly pairGoal: Goal = { point: null, speed: 0, face: null };
+  /** (guard-ai piano GA6b) His scene sweep partner (his `pair` on the scene; `EnemyManager.sweepify` sets both sides):
+   *  the soft push skips him while this guard sweeps calm (the 0.65 m floor stays). Null: none. */
+  sweepMate: Enemy | null = null;
+  /** (GA6b) His pan side on the sweep: +1 left first (the lower slot of a pair), -1 right first. */
+  sweepSide = 1;
+  /** (GA6b) His sweep plan, built once at the first `startSweep` (allocates); `setPatrol` drops it. */
+  private sweepCache: SweepPlan | null = null;
+  /** (GA6b, N6) Sent by his partner's glimpse (`followGlimpse`): the send's line was his one; his rise says nothing. */
+  private quietRise = false;
+
+  /**
+   * (guard-ai piano GA6b) On his scene sweep (`sceneSweep.ts`): the plan (his route, or his post at `postYaw`; built
+   * once), pan `side`, loop time = the plan's phase + the scene's sweep clock `clock`. Not standing on the start stop: he
+   * rejoins (the soonest pan stop, then in step). Load time / the EMP only.
+   */
+  startSweep(clock: number, side: number): void {
+    const w = this.walker;
+    let plan = this.sweepCache;
+    if (!plan) plan = this.sweepCache = sweepPlan(w.route, this.post[0], this.post[1], this.postYaw);
+    this.sweepSide = side < 0 ? -1 : 1;
+    w.setSweep(plan, this.sweepSide, plan.phase + clock);
+    const p = plan.pts[plan.startIdx]!;
+    if (hyp2(p[0] - this.pos.x, p[1] - this.pos.z) >= PATROL.arrive) w.rejoin(this.pos.x, this.pos.z);
+  }
+
+  /** (GA6b, N4) Off the sweep: his authored route rules again, rejoined as built; no partner skip. */
+  stopSweep(): void {
+    this.sweepMate = null;
+    this.quietRise = false;
+    if (!this.walker.sweeping) return;
+    this.walker.clearSweep();
+    this.walker.rejoin(this.pos.x, this.pos.z);
+  }
+
+  /** (GA6b) On a scene sweep. */
+  get sweeping(): boolean {
+    return this.walker.sweeping;
+  }
+
+  /**
+   * (GA7, the PLAN's "a player seen in a flash") His sweep partner saw something at (x, z): he goes to look with him, a
+   * calm `sendTo` (incident -1: no board task; cooldown, then back on his sweep). One line: the send's `checking` (N6).
+   */
+  followGlimpse(x: number, z: number): void {
+    if (!this.sendable) return;
+    this.sendTo(x, z, -1, true);
+    this.quietRise = true;
+  }
 
   // (guard-ai S10) his patrol route: `get patrolRoute()` (CT Core spare 9, after `setPatrol`)
 
@@ -1855,6 +1941,13 @@ export class Enemy implements Damageable {
   /** (guard-ai S10) Calm enough to stand and talk: unaware, not cautious, not on a board task, not held. */
   get pairCalm(): boolean {
     return this.aware.level === 'unaware' && this.caution === 0 && this.incident < 0 && !this.taken && this.camBody === null;
+  }
+
+  /** (GA6 fix round, check A FIX 1) Walking his scene sweep, for a sweep pair's watch: up, not held, unaware or in
+   *  cooldown, no board task. Caution is not tested: a cautious sweeping guard still notices his partner gone. */
+  get sweepCalm(): boolean {
+    const lv = this.aware.level;
+    return (lv === 'unaware' || lv === 'cooldown') && this.incident < 0 && !this.taken && this.camBody === null && this.alive;
   }
 
   /** (guard-ai S21, A120) In a calm area (`calmArea`): calm himself, no alarm, not a high-security post, not on a
@@ -2238,9 +2331,16 @@ export class Enemy implements Damageable {
       this.riseCause = this.sawMoment ? RISE_SIGHT : this.heardMoment ? RISE_SOUND : RISE_NONE;
       this.riseN++;
     }
-    if (to === 'suspicious') this.bark('suspicious');
+    // (GA6b, N6) a partner's glimpse follow: the send's `checking` was his line, the rise says nothing more
+    const hush = this.quietRise;
+    if (to !== 'suspicious') this.quietRise = false;
+    if (to === 'suspicious') {
+      if (!hush) this.bark('suspicious');
+    }
     // (S4 fix) the line follows the cause: sight lines only for sight, neutral ones for none
-    else if (to === 'investigating') this.bark(this.riseCause === RISE_SOUND ? 'heard' : this.riseCause === RISE_SIGHT ? 'saw' : 'investigate');
+    else if (to === 'investigating') {
+      if (!hush) this.bark(this.riseCause === RISE_SOUND ? 'heard' : this.riseCause === RISE_SIGHT ? 'saw' : 'investigate');
+    }
     // (guard-ai S3) told by a shout or the radio: he answers, he did not see anyone
     else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
@@ -2461,6 +2561,8 @@ export class Enemy implements Damageable {
     imp.y += h.kind === 'explosion' ? 25 : 3;
     // the rig stays in the world as a body (ragdoll when one can be spared)
     this.ctx.addBody(this, this.rig, imp, lethal);
+    // (piano-knife S1) the ragdoll has his last pose: the knife kill's drive and hands off
+    if (this.knifePinned || (this.killDrv && this.rig.graph.kill === this.killDrv)) this.knifeVictim(null, 0, 0);
     this.ctx.onKilled(this, h);
   }
 
@@ -3012,8 +3114,13 @@ export class Enemy implements Damageable {
             return this.goal(this.goTo(this.spot, dt, 0.3), far > 3 ? def.runSpeed * 0.6 : def.walkSpeed * PATROL_PACE * 1.2, null);
           }
         }
-        // (guard-ai play A, P2-2) off his home storey he is not at his post, even straight under it
-        const g = this.walker.step(dt, this.pos.x, this.pos.z, Math.abs(this.pos.y - this.homeY) >= 1.2);
+        // (GA6b) on the scene sweep his body yaw gates the pan (N2: the pan starts once he faces it); (guard-ai play A,
+        // P2-2) off his home storey he is not at his post, even straight under it ((GA6 fix round, check A FIX 2) on the
+        // sweep too: a deck guard sent to the floor walks back up to his stop)
+        const away = Math.abs(this.pos.y - this.homeY) >= 1.2;
+        const g = this.walker.sweeping
+          ? this.walker.step(dt, this.pos.x, this.pos.z, this.motion.yaw, away)
+          : this.walker.step(dt, this.pos.x, this.pos.z, Number.NaN, away);
         // (guard-ai S10) his talking pair is meeting: on to his meet point, then stand there facing his partner. The
         // walker still steps (its clock and schedule run on): he walks on late after the talk and the timed loop's
         // next stop takes the delay back
@@ -3036,9 +3143,16 @@ export class Enemy implements Damageable {
         }
         const ly = this.walker.lookYaw;
         // (walls in the way: along an A* path; the walker's own arrival radius decides when it is there)
-        const wp = g ? this.homeStep(g, dt) : null;
-        // (guard-ai S4, A9) cautious: a slower, watchful patrol (a timed loop keeps its schedule's pace)
-        return this.goal(wp, def.walkSpeed * (this.walker.route?.loop ? 1 : this.caution > 0 ? PACE.cautious : PATROL_PACE), g || Number.isNaN(ly) ? null : ly);
+        // (GA6 x play A, merge) on the scene sweep the plain walk (its legs are clear straight lines, GA5; the home walk's
+        // give-up would drop him off his schedule), on his home storey (GA6 fix round, check A FIX 2); off it the home walk
+        // (play A: sliced long plan, give-up)
+        const wp = g ? (this.walker.sweeping ? (this.goTo(g, dt, 0.05, this.homeY) ?? g) : this.homeStep(g, dt)) : null;
+        // (guard-ai S4, A9) cautious: a slower, watchful patrol (a timed loop keeps its schedule's pace); (GA6b) the scene
+        // sweep at its own slow pace, capped at his walk
+        const sp = this.walker.sweeping
+          ? Math.min(SCENE_SWEEP.pace, def.walkSpeed)
+          : def.walkSpeed * (this.walker.route?.loop ? 1 : this.caution > 0 ? PACE.cautious : PATROL_PACE);
+        return this.goal(wp, sp, g || Number.isNaN(ly) ? null : ly);
       }
       case 'suspicious': {
         // (guard-ai S5) the lure's own suspicion: keep at it (a glimpse of something stops him to look)
@@ -3186,12 +3300,20 @@ export class Enemy implements Damageable {
           } else this.searchK++;
           this.spotSet = false;
         }
-        // (guard-ai S19) hurrying to it: a jog (`paceSpeed`), else his calm pace
+        // (guard-ai S19) hurrying to it: a jog (`paceSpeed`), else his calm pace; (GA6b, A9) on the scene sweep a calm
+        // investigation walks at the sweep pace (a rush and the search pace as built)
+        if (lvl === 'investigating' && !this.rush && this.walker.sweeping) return this.goal(wp, Math.min(SCENE_SWEEP.pace, def.walkSpeed), null);
         return this.goal(wp, paceSpeed(this.rush, lvl === 'searching' ? this.searchPace : this.investigatePace, def.walkSpeed, def.runSpeed), null);
       }
       default:
         return this.goal(null, 0, null);
     }
+  }
+
+  /** (GA6b) The partner the soft push skips: his sweep mate while he sweeps calm (unaware / cooldown), else null. */
+  private sweepSkip(): Enemy | null {
+    const lv = this.aware.level;
+    return this.walker.sweeping && (lv === 'unaware' || lv === 'cooldown') ? this.sweepMate : null;
   }
 
   /** (guard-ai S2) Coordinated (the incident board) or the parked modes' old rules. */
@@ -4166,7 +4288,9 @@ export class Enemy implements Damageable {
     // the soft push only, as before S20
     const hard = !(this.sepFree > 0);
     if (!hard) this.sepFree -= dt;
-    steerFrom(this, gl > 1e-4 ? desired.x / gl : 0, gl > 1e-4 ? desired.z / gl : 0, hard ? gl : 0, others, sep);
+    // (GA6b) sweeping calm: his sweep partner walks a lane beside him (0.7 m on the scene): no soft push from him
+    const mate = this.sweepMate ? this.sweepSkip() : null;
+    steerFrom(this, gl > 1e-4 ? desired.x / gl : 0, gl > 1e-4 ? desired.z / gl : 0, hard ? gl : 0, others, sep, mate);
     desired.x += sep.x;
     desired.z += sep.z;
     this.sepHit = hard && hyp2(sep.x, sep.z) > 0.05;
@@ -4433,8 +4557,11 @@ export class Enemy implements Damageable {
       return;
     }
     const r = this.rig.root;
-    Vector3.LerpToRef(this.prevPos, this.pos, alpha, r.position);
-    r.rotation.y = this.prevYaw + wrapAngle(this.yaw - this.prevYaw) * alpha;
+    // (piano-knife S1) in a knife kill the takedown placed his drawn root from the attacker's (`knifePair.victimRoot`)
+    if (!this.knifePinned) {
+      Vector3.LerpToRef(this.prevPos, this.pos, alpha, r.position);
+      r.rotation.y = this.prevYaw + wrapAngle(this.yaw - this.prevYaw) * alpha;
+    }
     const sp = hyp2(this.vel.x, this.vel.z);
     const s = Math.sin(this.yaw);
     const c = Math.cos(this.yaw);
@@ -4475,7 +4602,7 @@ export class Enemy implements Damageable {
     rp.velZ = this.vel.z;
     rp.goalYaw = this.taken ? this.yaw : m.goalYaw;
     // (A1.2) not aiming and walking forward: the stride runs along the facing (no strafe / back clip on a patrol turn)
-    rp.stride = !rp.wall && aiming < 0.5 && rp.localZ > 0.5 ? 'facing' : 'velocity';
+    rp.stride = this.knifePinned || (!rp.wall && aiming < 0.5 && rp.localZ > 0.5) ? 'facing' : 'velocity';
     rp.traverse = this.climbing ? 'climb' : 'none';
     rp.traverseT = this.climbT;
     if (this.climbing) rp.aim = 0;
