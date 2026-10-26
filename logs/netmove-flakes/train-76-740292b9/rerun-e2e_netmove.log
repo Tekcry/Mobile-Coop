@@ -1,0 +1,107 @@
+
+$ node scripts/run-e2e.mjs e2e-netmove
+
+=== e2e-netmove ===
+host opens a room, client joins
+  ok - the client's move state reaches the host ({"m":"ground","a":-1,"s":0,"sub":0,"ph":0,"tid":"","g":4,"r":0,"ay":0,"dw":0,"rd":0})
+attached states
+  ladder: worst joint 0.2 cm (limit 10 cm)
+  ok - ladder: host mode ladder, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0.002})
+  ladder after a climb: worst joint 0.0 cm (limit 10 cm)
+  ok - ladder after a climb: host mode ladder, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0})
+  drainpipe: worst joint 0.1 cm (limit 10 cm)
+  ok - drainpipe: host mode pipeV, joints within 10 cm ({"wristL":0.001,"wristR":0,"ankleL":0.001,"ankleR":0.001,"headNode":0})
+  horizontal pipe: worst joint 0.0 cm (limit 10 cm)
+  ok - horizontal pipe: host mode pipeH, joints within 10 cm ({"wristL":0,"wristR":0,"headNode":0})
+  ledge hang: worst joint 1.1 cm (limit 10 cm)
+  ok - ledge hang: host mode ledge, joints within 10 cm ({"wristL":0,"wristR":0.004,"headNode":0.011})
+  duct crawl: worst joint 0.0 cm (limit 10 cm)
+  ok - duct crawl: host mode duct, joints within 10 cm ({"wristL":0,"wristR":0,"headNode":0})
+  ok - zipline mode mirrored
+3.2.0 phase 2: split, wall jump, pipe legs up / inverted
+  split: worst joint 0.2 cm (limit 10 cm)
+  ok - split: host mode split, joints within 10 cm ({"wristL":0.001,"wristR":0.001,"ankleL":0,"ankleR":0,"headNode":0.002})
+  aiming from the split: worst joint 0.3 cm (limit 10 cm)
+  ok - aiming from the split: host mode split, joints within 10 cm ({"wristR":0.002,"headNode":0.003,"ankleL":0,"ankleR":0})
+  ok - wall jump mode mirrored
+  (client never settled) {"sp":0,"axes":[0,0,0,0],"ov":true}
+  hanging after the wall jump: worst joint 1.0 cm (limit 10 cm)
+  ok - hanging after the wall jump: host mode ledge, joints within 10 cm ({"wristL":0,"wristR":0.006,"headNode":0.01})
+  pipe legs up: worst joint 0.0 cm (limit 10 cm)
+  ok - pipe legs up: host mode pipeH, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0})
+  pipe inverted: worst joint 0.0 cm (limit 10 cm)
+  ok - pipe inverted: host mode pipeH, joints within 10 cm ({"ankleL":0,"ankleR":0,"headNode":0})
+  ok - the host poses the client upside down (head 1.42 m, hips 2.11 m)
+3.2.0 phase 3: rappel, fence
+  rappel: worst joint 0.0 cm (limit 10 cm)
+  ok - rappel: host mode rappel, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0})
+  ok - the host draws the client's rope (1)
+  fence: worst joint 0.0 cm (limit 10 cm)
+  ok - fence: host mode fence, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0})
+drawn state (step 09): aim draws (weapon in hand on the host), release holsters
+  drawn: worst joint 0.4 cm (limit 10 cm)
+  ok - drawn: host mode ground, joints within 10 cm ({"wristL":0.003,"wristR":0.003,"ankleL":0.004,"ankleR":0.002,"headNode":0.003})
+    holster: client sim 1000 ms (wall 983 ms), host receipt to stow 6 ms (host frame 12 ms, receipt 6 ms after an update, stowed on update 1)
+  ok - the host's copy stows within 0.1 s + one frame of receiving dw 0 (6 ms)
+  ok - holstered: client holster + host receipt to stow 1006 ms <= 1133 ms (1 s holster + one sim step + 0.1 s + one frame)
+  holstered: worst joint 0.7 cm (limit 10 cm)
+  ok - holstered: host mode ground, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0.007,"headNode":0})
+committed moves: a forward roll
+  ok - host replays the roll
+team moves (B2): leg-up (host climbs), ledge relay (client climbs the hanging host), denials
+  ok - the offerer sees a prompt naming the move
+  ok - the partner's avatar takes a base row set on the host (team.boost.b elbowR: 88.2 deg)
+  ok - the partner prompt names the leg-up
+  ok - the leg-up puts the host on the 4.2 m lip (4.2)
+  ok - the partner prompt names the relay
+  ok - the host is still hanging and pulls up next
+  ok - ledge relay: the client climbs the hanging host to the same ledge
+  ok - the partner stood down mid-request: denied (notBraced)
+  ok - a relay without a hanging partner is denied (notOffering)
+back to a wall
+  ok - a free high wall on Proving (20)
+  wall: worst joint 3.3 cm (limit 10 cm)
+  ok - wall: host mode wall, joints within 10 cm ({"wristL":0.002,"wristR":0.002,"ankleL":0.033,"ankleR":0.001,"headNode":0.003})
+  ok - the host's copy is at s 2.000 (client 2.000), within 5 cm
+  wall crouch: worst joint 0.0 cm (limit 10 cm)
+  ok - wall crouch: host mode wall, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0})
+  ok - crouched: the host's copy at s 2.000 (client 2.000)
+  ok - stacked on one wall: centres 0.63 m apart along it, 0.63 m apart (>= 0.6, no capsule overlap)
+wall edge: peek
+  ok - the Proving doorway ({"i":69,"end":1,"len":6.450000000000003})
+  ok - edge stop: pushed past the end the client stays on the wall at the end (true), host's copy at s 6.230 (client 6.230, <= 10 cm)
+  wall peek: worst joint 0.7 cm (limit 10 cm)
+  ok - wall peek: host mode wall, joints within 10 cm ({"wristL":0.001,"wristR":0.001,"ankleL":0.007,"ankleR":0,"headNode":0.001})
+  peek head samples: local 0.425 m out, host 0.425 m out, apart 0.000 m (local sim head 0.158 m from its rig head)
+  ok - the host samples the peeking client's light and head at its sim body head, within 5 cm of the client's own ({"pl":{"px":-0.35,"pz":0,"h":[-27.156320571899414,1.5449999570846558,8.35200023651123],"ref":true,"hd":0.42494645814129967},"plL":{"h":[-27.15632112284701,1.545,8.35200000065029],"hd":0.4249470555257456,"rig":0.158},"pd":6.008455409933529e-7})
+elbow strike
+  ok - the client strikes while holstered (a whiff)
+  strike: worst joint 1.7 cm (limit 10 cm)
+  ok - strike: host mode strike, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0.017,"ankleR":0,"headNode":0})
+  ok - denied (noTarget): no hit, back to ground in 0.13 s
+doorPeek
+  ok - Proving has a door
+  doorPeek: worst joint 0.1 cm (limit 10 cm)
+  ok - doorPeek: host mode doorPeek, joints within 10 cm ({"wristL":0.001,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0.001})
+  ok - host leaf at the crack (host 0.120, client 0.120, {"ajar":0.12,"target":0,"open":0,"body":true})
+optic cable
+  ok - client starts the optic cable at the door ()
+  ok - host copy: door 0, cable fed out, kneeling ({"mv":{"m":"optic","a":0,"s":0,"sub":0,"ph":1,"tid":"","g":5,"r":0,"ay":0,"dw":0,"rd":2},"crouch":1})
+role-swapped team move: the client leads the leg-up, the host braces
+  ok - swapped: the offering host sees a prompt naming the move
+  host brace (offer): worst joint 7.6 cm (limit 10 cm)
+  ok - host brace (offer): client copy mode brace, joints within 10 cm ({"wristL":0.007,"wristR":0.009,"ankleL":0.035,"ankleR":0.076,"headNode":0.029})
+  ok - swapped: the partner prompt names the leg-up
+  ok - swapped: the leg-up puts the client on the 4.2 m lip (4.2)
+  client hang after the swapped leg-up: worst joint 0.9 cm (limit 10 cm)
+  ok - client hang after the swapped leg-up: host mode ledge, joints within 10 cm ({"wristL":0.002,"wristR":0,"headNode":0.009})
+  ok - no console errors ()
+  (netmove-compare) max joint error 7.6 cm (host brace (offer)) over 22 compares; drawn 0.4 cm
+e2e-netmove OK
+
+times (GPU, 1 at a time):
+  e2e-netmove ok 170s
+
+wall 170s, suites summed 170s
+
+all e2e suites passed
