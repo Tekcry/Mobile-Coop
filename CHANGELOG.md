@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.126.1 - Train 154: Docs: the 2026-10-26 / 27 decisions folded (G408-G434); Guard torch slots per map (piano SO3) (2026-10-27, PR #654; #650, #605)
+
+### Docs: the 2026-10-26 / 27 decisions folded (G408-G434)
+- Docs: ROADMAP "Decided" of 2026-10-26 and early 2026-10-27 folded into `docs/DECISIONS.md` as G408-G434 (Mixamo and
+  the Hand-made / CMU / Mixamo toggle, fixes first, preview flags, prototype mode, pacing to the 5-hour reset, the piano
+  escape experiment, Saltmarsh S1 v3, the S1 light approval, the new guards on). The bible, VISION, RULES, CLAUDE.md
+  and the Tallow Wharf map spec are rewritten in place; replaced wording joins `docs/stale-terms.json`.
+- RULES "Machines": a laptop rerun of a desktop red ranks with fixes in the laptop queue (F52, #638).
+
+### Guard torch slots per map (piano SO3)
+- Lighting: a map can ask for 8, 12 or 16 guard torch slots (`MapDef.torchSlots`, default 4) and cap how many cast
+  shadows (`MapDef.torchShadows`); unshadowed torches stop at their beam's reach in the picture, the meter and guard
+  sight alike. Dark: no map sets it yet; other maps are unchanged.
+
 ## 4.126.0 - Train 152: Saltmarsh Park S1: the courier's van (2026-10-27, PR #648; #634)
 - Sector Ops (v2 layout, section 1, flag `?campusv2=1`): the job moves to the middle of the car park. Clone the courier's
   badge at his bright yellow-orange van, west end of the solar carport, about 55 m from the start (it was the gatehouse
