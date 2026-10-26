@@ -59,7 +59,7 @@ export async function walk(t, n) {
   console.log('  A1 (re-plan): the lounge, station 1, the checker');
   await moveHost(2, 10, 0.1, Math.PI / 2);
   await moveClient(2, 12, 0.1, Math.PI / 2);
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /Boost at the striped mark/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A1: the ${tag} sees the boost step`);
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /Boost onto the yard wall/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A1: the ${tag} sees the boost step`);
   assert((await station()) === 1, 'A1: station 1 is live');
   const checker = await GA(() => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return e ? { passive: !!e.passive, x: e.pos.x, z: e.pos.z } : null; });
   assert(!!checker && checker.passive && Math.hypot(checker.x - 9.0, checker.z - 16.5) < 0.6, `A1: the checker is passive at his desk (${JSON.stringify(checker)})`);
@@ -78,7 +78,7 @@ export async function walk(t, n) {
   // ---- 3. station 1: the boost ----
   console.log('  A1 (re-plan): station 1, the boost');
   await moveClient(MARK[0], MARK[1]);
-  await sees(B, /Crouch on the striped mark/, 'A1: the client on the mark reads the booster line');
+  await sees(B, /Crouch at the striped mark/, 'A1: the client on the mark reads the booster line');
   await legUp(MARK[0], MARK[1], 'A1 boost');
   await pullUp(A, 'A1 boost host');
   await until(A, () => window.__course.state.hasFlag('a1-top1'), null, 10000, 'A1: one player on the wall top sets a1-top1');

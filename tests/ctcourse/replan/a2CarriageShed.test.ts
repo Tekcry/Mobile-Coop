@@ -273,9 +273,9 @@ describe('A2 re-plan: stations 3-5, the marks, the flags, the lines', () => {
   it("LANTERN's retry lines: 'retry:a2-shutter', 'retry:a2-lights', 'retry:a2-lights:timer', 'retry:a2-plank' (verbatim), none says failed, all fit COURSE_TEXT_MAX; the built staging line is gone", () => {
     const line = (at: string): string | undefined => part.bay.radio.find((r) => r.at === at)?.text;
     expect(line('retry:a2-shutter')).toBe('Seen at the roller door. Back to the stores bay.');
-    expect(line('retry:a2-lights')).toBe('The shunter saw you in the neck. Back to the cabin and the lane.');
-    expect(line('retry:a2-lights:timer')).toBe('Lights came back with you in the neck. Back to the cabin and the lane.');
-    expect(line('retry:a2-plank')).toBe('The shunter saw the board. Back to the board stack at the east end.');
+    expect(line('retry:a2-lights')).toBe('Seen in the neck. Back to the cabin and the lane.');
+    expect(line('retry:a2-lights:timer')).toBe('Lights came back on you. Back to the cabin and the lane.');
+    expect(line('retry:a2-plank')).toBe('Seen on the board. Back to the east end board stack.');
     expect(A2_RETRY_LINES.map((r) => r.at)).toEqual(['retry:a2-shutter', 'retry:a2-lights', 'retry:a2-lights:timer', 'retry:a2-plank']);
     for (const r of part.bay.radio) {
       expect(r.text.length, r.text).toBeLessThanOrEqual(COURSE_TEXT_MAX);
@@ -318,18 +318,19 @@ describe('A2 re-plan: stations 3-5, the marks, the flags, the lines', () => {
     expect(part.objectives[1]!.timer).toBe(A2_GATE);
     const text = part.objectives.map((o) => o.text.toLowerCase());
     expect(text[0]).toMatch(/roller door/);
-    expect(text[0]).toMatch(/stores bay/);
+    expect(text[0]).toMatch(/both through/);
     // (marlow-play C6) holding only unlocks the roller door: the lines say the one going under opens it, the holder follows
     const s3 = part.objectives[0]!;
     expect(s3.a).toMatch(/roller door/);
-    expect(s3.a).toMatch(/opens it/);
+    expect(s3.a).toMatch(/south jamb/);
     expect(s3.a).toMatch(/[Ff]ollow/);
     expect(s3.b).toMatch(/roller door/);
     expect(s3.b).toMatch(/^Open the roller door/);
     expect(text[1]).toMatch(/neck/);
-    expect(text[1]).toMatch(/cabinet/);
+    expect(part.objectives[1]!.a).toMatch(/cabinet one/);
+    expect(part.objectives[1]!.b).toMatch(/cabinet two/);
     expect(text[2]).toMatch(/pit/);
-    expect(text[2]).toMatch(/l2 door/);
+    expect(text[2]).toMatch(/east vans/);
     expect(text[3]).toMatch(/holding room two/);
   });
 });

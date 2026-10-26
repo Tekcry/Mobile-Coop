@@ -170,7 +170,7 @@ export async function walk(t) {
   await moveHost(53, 55.5, 0.1, 0);
   await moveClient(52, 55.5, 0.1, 0);
   await GA(() => { window.__app.current.target.damageMul = 0; });
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /onto the motor gallery at the west end/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A6: the ${tag} sees the gallery step`);
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /Both of you onto the motor gallery/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A6: the ${tag} sees the gallery step`);
   assert((await station()) === 14, 'A6: station 14 is live');
   const g0 = await attendant();
   assert(!!g0 && !g0.passive && !g0.alerted, `A6: the attendant is alive, armed and calm (${JSON.stringify(g0)})`);
@@ -208,7 +208,7 @@ export async function walk(t) {
   await until(A, ([ax, az, bx, bz]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - ax, f[2] - az) < 0.8 && Math.hypot(f[3] - bx, f[5] - bz) < 0.8; }, [...MARK15_A, ...MARK15_B], 15000, "A6 retry: both land on station 15's marks at the bridge's north end");
   assert((await feetNear(0, MARK15_A)) && (await feetNear(1, MARK15_B)), 'A6 retry: the host (A) at (50.5, 68.5), the client (B) at (52.5, 68.5)');
   for (const P of [A, B]) assert((await P.evaluate(() => window.__app.current.player.controller.pos.y)) > 4.2, 'A6 retry: both on the bridge deck');
-  for (const P of [A, B]) await sees(P, /saw you on the bridge|Lower one of you/, 'A6 retry: the retry line, then the hang step');
+  for (const P of [A, B]) await sees(P, /Seen on the bridge|Lower one through the gland plate|Hold your partner over the drive cabinet|Hold the key on the drive panel/, 'A6 retry: the retry line, then the hang step');
   assert((await station()) === 15, 'A6 retry: station 15 is still live');
   assert(await hasFlag(GAL), 'A6 retry: station 14 stays done (a6-gal set)');
   assert((await lipLocked())[0], "A6 retry: the loading edge lip stays locked (station 15's retry does not list the edge gate)");
@@ -236,7 +236,7 @@ export async function walk(t) {
   await moveHost(OPENING_FOOT[0], OPENING_FOOT[1], PIT_Y + 0.1, Math.PI);
   await until(A, (f) => window.__course.state.hasFlag(f), PIT, 10000, 'A6: both in the drive pit set a6-pit');
   await until(A, () => window.__course.station() === 0, null, 8000, 'A6: no station live after station 16');
-  for (const P of [A, B]) await sees(P, /outfall culvert/, 'A6: the closing line names the outfall culvert');
+  for (const P of [A, B]) await sees(P, /Through the culvert to holding room six/, 'A6: the closing line names the culvert');
   assert(await lockedOnClient(CAGE_DOOR), 'A6: the cage door stays locked (the pit leaves by the outfall)');
 
   // ---- 6. out through the outfall culvert to the L6 door ----

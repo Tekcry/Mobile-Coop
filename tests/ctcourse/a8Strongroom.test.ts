@@ -1268,7 +1268,7 @@ describe('A8 the Strongroom: the steps, the claim, the pass zones, the radio', (
       expect(o.a).not.toBe(o.b);
     }
     expect(steps.filter((o) => o.done === undefined)).toHaveLength(1);
-    expect(steps[5]!.text).toBe('The vault is open. Both of you out to the cash dock.');
+    expect(steps[5]!.text).toBe('Both out to the cash dock');
     expect(() => validateCourse(def, layoutKnownIds(course))).not.toThrow();
     for (const o of steps) {
       for (const t of [o.text, o.a, o.b]) {
@@ -1280,10 +1280,10 @@ describe('A8 the Strongroom: the steps, the claim, the pass zones, the radio', (
       expect(o.id.length).toBeLessThanOrEqual(OBJECTIVE_ID_MAX);
     }
     // the doc's shared, A and B lines word for word
-    expect(splitStep.text).toBe('Split up: one onto the gallery, one stays on the floor.');
+    expect(splitStep.text).toBe('Split up: gallery and floor');
     expect(splitStep.a).toBe('Take the boost to the gallery at the dark west end.');
     expect(splitStep.b).toBe('Boost your partner up, then keep to the counters.');
-    expect(stepOf('a8-grille').b).toBe('Isolate the hall lights at the board, then slip through the grille.');
+    expect(stepOf('a8-grille').b).toBe('Cut the hall lights at the board, then slip through the grille.');
     expect(stepOf('a8-beams').a).toBe('Throw your partner over the beams.');
     expect(stepOf('a8-sync').b).toBe("Hack time lock two on your partner's count.");
     expect(part.externalFlags).toEqual([A8_GAL_FLAG, A8_LOBBY_FLAG, A8_INNER_FLAG, A8_SYNC_FLAG]);
@@ -1291,7 +1291,7 @@ describe('A8 the Strongroom: the steps, the claim, the pass zones, the radio', (
 
   it('the radio: the entry line, (joint-interrogation) the officer teach on a8-split, "Lights back in five." and "Grille\'s locking again." on the night gate\'s warning, "Cameras back in five." on the console\'s, the vault line on a8-sync; each at most 90 characters', () => {
     expect(part.bay.radio.map((r) => r.at)).toEqual(['enter', 'a8-split', `warn:${A8_NIGHT_GATE}`, `warn:${A8_NIGHT_GATE}`, `warn:${A8_CONSOLE_GATE}`, 'a8-sync']);
-    expect(part.bay.radio.map((r) => r.text)).toEqual(["Last one. Everything you've done tonight, in one room. Take your time.", 'The duty officer clams up with one of you. Two of you, he might say more.', 'Lights back in five.', "Grille's locking again.", 'Cameras back in five.', 'Vault open. Well done, both of you.']);
+    expect(part.bay.radio.map((r) => r.text)).toEqual(['Last one: everything from tonight in one room. Take your time.', 'The duty officer clams up with one of you. Two of you, he might say more.', 'Lights back in five.', "Grille's locking again.", 'Cameras back in five.', 'Vault open. Well done, both of you.']);
     for (const r of part.bay.radio) {
       expect(r.text.length, r.text).toBeLessThanOrEqual(COURSE_TEXT_MAX);
       expect(/[–—]/.test(r.text), r.text).toBe(false);
