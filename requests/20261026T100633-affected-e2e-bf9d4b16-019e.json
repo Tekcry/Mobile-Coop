@@ -1,0 +1,13 @@
+{
+  "id": "20261026T100633-affected-e2e-bf9d4b16-019e",
+  "sha": "bf9d4b162e5351403264aa83e42ad69461c7d4b6",
+  "branch": "feature/validator-port-c2",
+  "pr": 530,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-combat"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #530"
+}
