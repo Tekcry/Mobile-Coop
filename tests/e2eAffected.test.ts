@@ -90,7 +90,7 @@ const masterPick = (f: string): string[] => MASTER_QUICK.find(([p]) => f.startsW
 const OPTIC_CABLE = ['TESTING.md', 'changes/feature-optic-cable.md', 'docs/optic-cable/CHECK.md', 'docs/systems/ct-toolkit.md', 'docs/systems/testing-tools.md', 'scripts/e2e-stealth-ai.mjs', 'src/config/tools.ts', 'src/game/doorMenu.ts', 'src/game/gameState.ts', 'src/game/opticSystem.ts', 'src/player/opticCable.ts', 'src/world/anchors.ts', 'tests/opticCable.test.ts'];
 const GUARD_CARRY_FIX = ['changes/feature-guard-ai-carry-fix.md', 'docs/guard-ai/slices/CARRY-FIX-CHECK.md', 'docs/systems/testing-tools.md', 'docs/systems/world-and-characters.md', 'scripts/e2e-guard-carry.mjs', 'scripts/run-e2e.mjs', 'src/core/babylon.ts', 'src/player/bodyEffectRecovery.ts', 'src/player/smoothBody.ts', 'tests/bodyEffectRecovery.test.ts'];
 // jobs on the laptop: a suite in parts is one job per part (run-e2e.mjs PARTS)
-const PARTS: Record<string, number> = { 'e2e-desktop': 3, 'e2e-ctcourse': 4, 'e2e-sectorops': 9 };
+const PARTS: Record<string, number> = { 'e2e-desktop': 3, 'e2e-ctcourse': 8, 'e2e-sectorops': 9 };
 const jobs = (suites: string[]): number => suites.reduce((n, s) => n + (PARTS[s] ?? 1), 0);
 
 describe('--quick keeps master picks', () => {
@@ -253,7 +253,7 @@ describe('--affected --wide: the cross-area readers', () => {
       const w = select(files, wide);
       for (const s of select(files)) expect(w, s).toContain(s);
     }
-    expect(jobs(select(OPTIC_CABLE, wide))).toBe(33); // e2e-ctcourse is 4 parts since marlow-final 0d, e2e-sectorops 9 since F33
+    expect(jobs(select(OPTIC_CABLE, wide))).toBe(37); // e2e-ctcourse is 8 parts (marlow-final 0d + the J14 re-plan parts 5-8), e2e-sectorops 9 since F33
     expect(jobs(select(GUARD_CARRY_FIX, wide))).toBe(15);
   });
 
