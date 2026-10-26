@@ -1,5 +1,6 @@
 import type { Scene } from '../core/babylon';
-import { STAGE_LIGHT_RANGE, STUDIO, STUDIO_ENTRIES, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_SPEED, STUDIO_WEAPONS, TURN_RATES, stageLightScale, studioEntry, studioKey, type StudioSnap, type StudioWeapon } from '../anim/studio';
+import { STUDIO_SET_LABEL, STUDIO_SETS, studioEntriesOf, type StudioSet } from '../anim/studio'; // (mixamo-retarget Toggle)
+import { STAGE_LIGHT_RANGE, STUDIO, STUDIO_ENTRIES, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_SPEED, STUDIO_WEAPONS, TURN_RATES, loadStudioCaptures, stageLightScale, studioCapturesLoaded, studioEntry, studioKey, whenStudioCaptures, type StudioSnap, type StudioWeapon } from '../anim/studio';
 import { keyClip, keyFrame, keyRank, keyReadout } from '../anim/keyTimeline';
 import { FREE_VIEW, type FreeMode } from '../player/freeView';
 import { StudioOverlay } from './studioOverlay';
@@ -24,6 +25,9 @@ export interface StudioPanelApi {
   picked(id: string): void;
   /** (marlow-bays item 14) Save the tuner's own settings (the stage light goes with them). */
   saveUi(): void;
+  /** (mixamo-retarget Toggle) The game's Animation source (Options > Gameplay; saved with the settings), null: no host. */
+  animSource(): string | null;
+  setAnimSource(s: string): void;
 }
 
 /** (marlow-bays T1a) The pad's and the keys' names for the playback bar (the hint and the button titles). */
@@ -68,8 +72,13 @@ export class StudioPanel {
   private stageVal: HTMLSpanElement;
   /** (marlow-bays item 11) "Keyed": the loop's state as its keyed clip (ticked) or procedural. */
   private keyedBox: HTMLInputElement;
+  /** (mixamo-retarget Toggle) The Loop list's set filter and the game's Animation source. */
+  private setSel: HTMLSelectElement;
+  private srcSel: HTMLSelectElement;
   private readonly keyedOut: LoopKeyed = { on: false, other: '' };
   private shown = false;
+  /** (I9 fix round) The lazy captures were asked for (the Loop list refills once they land; cleared after a failed load). */
+  private capWait = false;
   private nextRead = 0;
   /** (tuner-clarity S4) The Now playing line (the panel sets its text: one computation, shown in both places). */
   private readonly playingEl: HTMLDivElement;
@@ -95,6 +104,16 @@ export class StudioPanel {
     // (marlow-bays item 11) the state's keyed clip or its procedural loop, one tick (no hunting the list)
     this.keyedBox = kit.check(b1, 'Keyed', false, (v) => this.setKeyed(v), 'st:keyed', 'studio-keyed');
     this.keyedBox.title = 'Ticked: this state plays its keyed clip. Clear: the procedural state.';
+    // (mixamo-retarget Toggle) the animation-set filter on the Loop list (Hand-made / CMU / Mixamo / All), and the game's
+    // Animation source (the same setting as Options > Gameplay): compare one move across the three sets
+    const b0 = kit.bar();
+    this.setSel = kit.sel(b0, 'Set', STUDIO_SETS, (v) => this.setSet(v as StudioSet), 'st:set', 'studio-set');
+    for (const o of Array.from(this.setSel.options)) o.textContent = STUDIO_SET_LABEL[o.value as StudioSet];
+    this.setSel.value = 'all';
+    this.srcSel = kit.sel(b0, 'Animation source', ['hand', 'cmu', 'mixamo'], (v) => this.api.setAnimSource(v), 'st:source', 'studio-source');
+    for (const o of Array.from(this.srcSel.options)) o.textContent = STUDIO_SET_LABEL[o.value as StudioSet];
+    this.srcSel.value = this.api.animSource() ?? 'cmu';
+    this.srcSel.disabled = this.api.animSource() === null;
     // --- (T1a, item 16) the playback bar: every tab
     const bar = (this.bar = document.createElement('div'));
     bar.className = 'anim-tune-playbar';
@@ -201,11 +220,18 @@ export class StudioPanel {
       l.append('Stage light', r, this.stageVal);
       b7.append(l);
     }
-    el.append(h, note, playing, b1, b4, b5, b7);
+    el.append(h, note, playing, b0, b1, b4, b5, b7);
     // (test hook) e2e and the console drive the studio through this
     (window as unknown as { __studio: unknown }).__studio = {
       state: () => ({ ...STUDIO }),
       entries: () => STUDIO_ENTRIES.map((e) => e.id),
+      // (mixamo-retarget I9 fix round) batch 2's lazy captures: in yet, and a wait for them (the loop count after)
+      capturesLoaded: () => studioCapturesLoaded(),
+      loadCaptures: () =>
+        loadStudioCaptures().then(() => {
+          if (studioCapturesLoaded()) this.refreshEntries();
+          return STUDIO_ENTRIES.length;
+        }),
       pick: (id: string) => this.setEntry(id),
       play: () => this.api.freeze(false),
       pause: () => this.api.freeze(true),
@@ -249,6 +275,13 @@ export class StudioPanel {
     };
   }
 
+  /** (I9 fix round) The Loop list's options from `STUDIO_ENTRIES` again (after the lazy captures joined it), under the
+   *  Set filter (Toggle) so a picked set keeps showing only its loops. */
+  private refreshEntries(): void {
+    this.setSet(this.setSel.value as StudioSet);
+    if (studioEntriesOf(this.setSel.value as StudioSet).includes(STUDIO.entry)) this.entrySel.value = STUDIO.entry;
+  }
+
   /** (tuner-clarity S4) The Now playing text (the panel's one computation). */
   setPlaying(text: string): void {
     if (this.playingEl.textContent !== text) this.playingEl.textContent = text;
@@ -264,6 +297,14 @@ export class StudioPanel {
       this.overlay.clear();
       return;
     }
+    // (mixamo-retarget I9 fix round; I9 polish) batch 2's captures load once as the Studio opens: the Loop list refills
+    // when they land, also when they landed before this first sync; after a failed load the next sync asks again
+    if (!this.capWait) {
+      this.capWait = true;
+      void whenStudioCaptures(() => this.refreshEntries(), () => {
+        this.capWait = false;
+      });
+    }
     if (this.entrySel.value !== STUDIO.entry) this.entrySel.value = STUDIO.entry;
     this.mirrorBox.checked = STUDIO.mirror;
     this.turnBox.checked = STUDIO.turntable;
@@ -272,6 +313,10 @@ export class StudioPanel {
     this.aidBoxes[1]!.checked = STUDIO.feet;
     this.aidBoxes[2]!.checked = STUDIO.onion;
     this.weaponSel.value = STUDIO.weapon;
+    // (mixamo-retarget Toggle) the game's Animation source (App sets the host after the panel is built)
+    const src = this.api.animSource();
+    this.srcSel.disabled = src === null;
+    if (src !== null && this.srcSel.value !== src) this.srcSel.value = src;
     this.showStage();
     this.showKeyed();
     this.nextRead = 0;
@@ -368,6 +413,20 @@ export class StudioPanel {
   private showStage(): void {
     if (!this.api.busy(this.stageIn)) this.stageIn.value = String(STUDIO_LIGHT.scale);
     this.stageVal.textContent = `${Number(STUDIO_LIGHT.scale.toFixed(2))}×`;
+  }
+
+  /** (Toggle) Show only one animation set's loops in the Loop list ('all': the whole list); the loop playing stays. */
+  private setSet(set: StudioSet): void {
+    const ids = studioEntriesOf(set);
+    const cur = this.entrySel.value;
+    this.entrySel.replaceChildren();
+    for (const id of ids) {
+      const o = document.createElement('option');
+      o.value = id;
+      o.textContent = plainLoop(id, studioEntry(id).label);
+      this.entrySel.append(o);
+    }
+    if (ids.includes(cur)) this.entrySel.value = cur;
   }
 
   /** (marlow-bays item 13) Play a loop picked elsewhere (a state picked in a tab's list); the list follows. */

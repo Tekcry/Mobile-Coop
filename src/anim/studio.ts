@@ -210,17 +210,35 @@ function base(id: string): StudioEntry {
  * (mixamo-retarget M5) Every capture's clip by name: the modules of `clips/mocap` (CMU) and `clips/mixamo` (Mixamo, as M3
  * / M4 generate them), found by file (`import.meta.glob`, as `tuneKeys.ts` finds the keyed clips), so a new module needs
  * only its row in `mocapSources.ts` to show in the loop list. Keyed clips only (a channel clip plays through its prop).
+ * (mixamo-retarget I9 fix round) Batch 1, I4 and I6 load eagerly (the game imports them by path); batch 2's modules,
+ * which no game code names, come in one lazy chunk when the Studio opens (`loadStudioCaptures`, `studioCapturesLazy.ts`).
  */
 const CAPTURE_CLIPS = new Map<string, KeyedClip>();
-for (const mod of [
-  ...Object.values(import.meta.glob('./clips/mocap/*.ts', { eager: true })),
-  ...Object.values(import.meta.glob('./clips/mixamo/*.ts', { eager: true })),
-] as Record<string, unknown>[]) {
-  for (const v of Object.values(mod)) {
-    const c = v as Partial<KeyedClip> | null;
-    if (c && typeof c === 'object' && typeof c.name === 'string' && c.pel instanceof Float32Array) CAPTURE_CLIPS.set(c.name, c as KeyedClip);
+function addCaptures(mods: readonly Record<string, unknown>[]): void {
+  for (const mod of mods) {
+    for (const v of Object.values(mod)) {
+      const c = v as Partial<KeyedClip> | null;
+      if (c && typeof c === 'object' && typeof c.name === 'string' && c.pel instanceof Float32Array) CAPTURE_CLIPS.set(c.name, c as KeyedClip);
+    }
   }
 }
+const MOCAP_MODS = import.meta.glob('./clips/mocap/*.ts', { eager: true });
+// the lazy set's file names negated (studioCapturesLazy.ts holds the same list)
+const MIXAMO_EAGER_MODS = import.meta.glob(
+  [
+    './clips/mixamo/*.ts',
+    '!./clips/mixamo/pistol_*.ts',
+    '!./clips/mixamo/rifle_*.ts',
+    '!./clips/mixamo/aa_*.ts',
+    '!./clips/mixamo/cover_idle.ts',
+    '!./clips/mixamo/stand_cover_to_look.ts',
+    '!./clips/mixamo/crouch_look_around_corner.ts',
+  ],
+  { eager: true },
+);
+/** (I9 fix round) The eager Mixamo modules' paths (batch 1, I4, I6; relative to `src/anim`). */
+export const EAGER_MIXAMO_FILES: readonly string[] = Object.keys(MIXAMO_EAGER_MODS);
+addCaptures([...Object.values(MOCAP_MODS), ...Object.values(MIXAMO_EAGER_MODS)] as Record<string, unknown>[]);
 
 /** (M5) A capture's clip by its name (null: no keyed module of that name). */
 export function captureClip(name: string): KeyedClip | null {
@@ -286,6 +304,52 @@ function captureEntries(): StudioEntry[] {
   return out;
 }
 const CAPTURE_ENTRIES: readonly StudioEntry[] = captureEntries();
+/** (I9 fix round) How many capture loops `STUDIO_ENTRIES` holds now (they sit right after `BASE_ENTRIES`). */
+let captureCount = CAPTURE_ENTRIES.length;
+let lazyCaptures: Promise<void> | null = null;
+let lazyLoaded = false;
+
+/** (I9 fix round) The lazy captures are in (`loadStudioCaptures` finished). */
+export function studioCapturesLoaded(): boolean {
+  return lazyLoaded;
+}
+
+/**
+ * (mixamo-retarget I9 fix round) Loads the captures no game code names (batch 2: `studioCapturesLazy.ts`) as one chunk,
+ * once, then refills the loop list's motion-capture group in table order (an entry already listed keeps its object).
+ * Called when the Studio opens (the stage and the panel); off the frame loop: the fill runs once, in the import's
+ * callback. Later calls return the same promise, unless the load failed (the next call tries again). The promise always
+ * resolves; `studioCapturesLoaded()` says whether the captures are in.
+ */
+export function loadStudioCaptures(): Promise<void> {
+  if (!lazyCaptures) {
+    lazyCaptures = import('./studioCapturesLazy').then((m) => {
+      addCaptures(m.LAZY_CAPTURE_MODULES);
+      const had = new Map<string, StudioEntry>();
+      for (let i = 0; i < captureCount; i++) {
+        const e = ENTRIES[BASE_ENTRIES.length + i]!;
+        had.set(e.id, e);
+      }
+      const next = captureEntries().map((e) => had.get(e.id) ?? e);
+      ENTRIES.splice(BASE_ENTRIES.length, captureCount, ...next);
+      captureCount = next.length;
+      lazyLoaded = true;
+    }, (e: unknown) => {
+      // (I9 polish) a failed chunk is not cached: the next Studio open asks again
+      lazyCaptures = null;
+      console.warn(`Anim Studio: the batch 2 captures did not load (${e instanceof Error ? e.message : String(e)}); opening the Studio again retries`);
+    });
+  }
+  return lazyCaptures;
+}
+
+/**
+ * (I9 polish) Calls `refill` once the lazy captures are in, also when they already are (the panel's first Studio sync
+ * always refills, so a chunk that landed before it is never missed), or `failed` when the load failed.
+ */
+export function whenStudioCaptures(refill: () => void, failed: () => void): Promise<void> {
+  return loadStudioCaptures().then(() => (lazyLoaded ? refill() : failed()));
+}
 
 /** (item 24, track A) The guard puppet's paces (m/s): the grunt's walk x the patrol / investigate paces, its run. */
 export const GUARD_PACE = { patrol: 0.99, alert: 1.08, run: 3.2 } as const;
@@ -294,8 +358,9 @@ export const GUARD_PACE = { patrol: 0.99, alert: 1.08, run: 3.2 } as const;
  * The loop player's list: off, the procedural states, every keyed clip, (mixamo-retarget M5) the motion captures (CMU and
  * Mixamo, the source in each label), then (anim-studio-2) the pairs (each co-op team move with both operators, the holds
  * with the guard) and the traversal loops on the props.
+ * (I9 fix round) The lazy captures join the motion-capture group in place when they load (`loadStudioCaptures`).
  */
-export const STUDIO_ENTRIES: readonly StudioEntry[] = [
+const ENTRIES: StudioEntry[] = [
   ...BASE_ENTRIES,
   ...CAPTURE_ENTRIES,
   ...TEAM_MOVES.map(teamPair),
@@ -313,6 +378,7 @@ export const STUDIO_ENTRIES: readonly StudioEntry[] = [
   guardLoop('crouchAim', 'crouched aim', { speed: 0, aim: 1, crouch: true, wall: false, dash: false }),
   guardLoop('cover', 'wall cover', { speed: 0, aim: 1, crouch: false, wall: true, dash: false }),
 ];
+export const STUDIO_ENTRIES: readonly StudioEntry[] = ENTRIES;
 
 /** (item 24, track A) A guard puppet's loop: on the guard rig, on the spot (no key table: frames 0). Wren gets no input
  *  (she stands by, hidden): the loop's own stance is in `gloop`. */
@@ -706,4 +772,28 @@ export function stageLightKeep<T extends object>(list: readonly T[], out: T[]): 
     else out.push(m);
   }
   return dropped;
+}
+
+/**
+ * (mixamo-retarget Toggle, Michael 00:20: "an animation set toggle so i can sort through only those animations") The Loop
+ * list's animation-set filter: `all` (the whole list), `hand` (every loop that is not a capture), `cmu` / `mixamo`
+ * (the captures of that source: `mocapSources.ts`). Separate from the in-game Animation source (`animSource.ts`).
+ */
+export type StudioSet = 'all' | 'hand' | 'cmu' | 'mixamo';
+export const STUDIO_SETS: readonly StudioSet[] = ['all', 'hand', 'cmu', 'mixamo'];
+export const STUDIO_SET_LABEL: Readonly<Record<StudioSet, string>> = { all: 'All', hand: 'Hand-made', cmu: 'CMU', mixamo: 'Mixamo' };
+
+/** A loop's set: a keyed capture (`keyed:mocap_<x>`) or a traversal capture (`trav:<loop>/<slug>`) by its source row, else hand-made. */
+export function studioEntrySet(id: string): Exclude<StudioSet, 'all'> {
+  const m = /^keyed:(mocap_.+)$/.exec(id) ?? /^trav:[^/]+\/(.+)$/.exec(id);
+  if (!m) return 'hand';
+  const r = mocapSource(m[1]!.startsWith('mocap_') ? m[1]! : `mocap_${m[1]!}`);
+  return r ? r.source : 'hand';
+}
+
+/** The Loop list's ids in a set (list order). */
+export function studioEntriesOf(set: StudioSet): string[] {
+  const out: string[] = [];
+  for (const e of STUDIO_ENTRIES) if (set === 'all' || studioEntrySet(e.id) === set) out.push(e.id);
+  return out;
 }

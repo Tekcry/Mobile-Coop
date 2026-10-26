@@ -14,7 +14,7 @@ import { SWAY } from '../world/lampSway';
 import { lampReachProbe, lightOnRay, type LightDef } from '../world/lights';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
-import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
+import { Interactables, KIND_COLOR, drawsExitBeacon, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
 import { BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
@@ -22,6 +22,7 @@ import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
+import { CharMates, mateOrderInto } from './charMates';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { EnemyPuppet } from './enemyPuppet';
 import { infoAtSpawn } from '../ai/guardInfo';
@@ -58,6 +59,7 @@ import { DESK_LOOP_END_LINE, DESK_LOOP_LINE, DESK_NONE, DESK_OFF_LINE, deskItemI
 import { JOINT_BLUFF_FEED } from '../game/jointInterrogation';
 import type { FieldNotes } from '../game/fieldNotes';
 import { placeSlot, startSlotPoints } from '../game/spawnPlace';
+import { practiceFromRh } from '../game/sectorStart';
 import type { SlotPoint } from '../game/spawnSlots';
 import { SectorListMirror } from '../game/sectorObjectives';
 import type { ObjectiveLine } from '../ui/screens/pauseScreen';
@@ -74,6 +76,10 @@ const INTERP_DELAY = CLIENT_INTERP_DELAY;
  */
 export class CoopClient implements NetAttachment {
   private avatars = new Map<string, RemoteAvatar>();
+  /** (char-shadow-meter S2c) Our partners in the character contract (`GameState.charMatesInto`, flag on), in the host's
+   *  player order, self skipped; `mateOrder` is the kept list `relistMates` refills. */
+  private readonly mates = new CharMates();
+  private readonly mateOrder: RemoteAvatar[] = [];
   /** (G7 fix) The puppet the partner holds (posed from its MoveState). */
   private heldPuppet: EnemyPuppet | null = null;
   private puppets = new Map<string, EnemyPuppet>();
@@ -145,6 +151,8 @@ export class CoopClient implements NetAttachment {
   };
   /** (integration) A sector message has arrived since this client connected (the first one's rating is history). */
   private sawSector = false;
+  /** (campus-greybox A28) The host's run never rated section 1 (its `?sectorStart` link): practice, no star. */
+  private practice = false;
   /** (integration) Sector Ops: the section rating card on our HUD (null elsewhere). */
   private card: RatingCard | null = null;
   /** (coop-torches) The guards' flashlights: the world's slots lit and placed from the snapshot's torch bits. */
@@ -178,7 +186,18 @@ export class CoopClient implements NetAttachment {
     this.carry = new ClientCarry(g, () => this.ints, (id) => this.s.toHost({ t: 'use', id }), () => this.canRagdoll());
     // (G135) the goggle colours follow the host's player order (host green, us cyan as the partner)
     this.recolour();
-    this.offs.push(s.events.on('lobby', () => this.recolour()));
+    this.offs.push(
+      s.events.on('lobby', () => {
+        this.recolour();
+        this.relistMates();
+      }),
+    );
+    // (char-shadow-meter S2c) with the contract on, our partners fill the player slots after ours (one closure, made once)
+    if (g.charOccluders) {
+      const prev = g.charMatesInto;
+      g.charMatesInto = (p, f, m) => this.mates.into(p, f, m);
+      this.offs.push(() => (g.charMatesInto = prev));
+    }
     // (coop-rejoin, walk item 4) our own slot of the start area (the map's slot point, else a safe spot beside the
     // host's), before our first `pstate` (the host takes a first state anywhere): a course bay-N start's entry airlock
     // (D20), Sector Ops' first section, else the map's spawns. A late join or rejoin is then placed by the host.
@@ -251,7 +270,7 @@ export class CoopClient implements NetAttachment {
     const own = g.interactables;
     if (own) for (const it of own.items.filter((x) => x.kind === 'medkitWall')) own.remove(it);
     if (g.opts.mode !== 'sandbox' || !own) {
-      this.ints = new Interactables(g.scene, g.world.parts);
+      this.ints = new Interactables(g.scene, g.world.parts, drawsExitBeacon(g.opts.mode));
       (g as { interactables: Interactables | null }).interactables = this.ints;
     } else this.ints = own;
     // (free roam mirrors only the host's wall medkits)
@@ -392,8 +411,17 @@ export class CoopClient implements NetAttachment {
         t.setSolid(false);
       }
       this.blockers.push({ id: st.id, a, b: new PartnerBlocker(g.scene, st.id) });
+      this.relistMates();
     }
     return a;
+  }
+
+  /** (char-shadow-meter S2c) The contract's partner list: the other players in the host's lobby order (`s.players`),
+   *  self skipped, a held (away) partner skipped as the host's `hold` takes it out of `remoteRefs` (fix round 1), those
+   *  with an avatar (`mateOrderInto`). Not hot (a join, a drop, a lobby change). Nothing with the flag off. */
+  private relistMates(): void {
+    if (!this.g.charOccluders) return;
+    this.mates.set(mateOrderInto(this.s.players.values(), this.s.selfId, this.avatars, this.mateOrder));
   }
 
   /** (coop-rejoin) Our player slot: 1 + our place among the joiners in the host's lobby order (the host is slot 0). */
@@ -443,6 +471,7 @@ export class CoopClient implements NetAttachment {
       this.blockers[i]!.b.dispose();
       this.blockers.splice(i, 1);
     }
+    this.relistMates();
   }
 
   private onSnap(m: Extract<Msg, { t: 'snap' }>): void {
@@ -992,6 +1021,8 @@ export class CoopClient implements NetAttachment {
         }
       }
     } else if (msg.rt && msg.rt.sec !== this.ratedSec) this.takeRating(msg.rt);
+    // (campus-greybox A28) a run that never rated section 1 began later (the host's start-at-section link): practice
+    if (msg.rh) this.practice = practiceFromRh(msg.rh);
     // (sector-restart, M9) a later section went live (the connector loaded it): our loadout now is the one a restart of
     // it gives back (the host records its own as the section begins)
     if (msg.ls !== undefined && msg.ls > this.kitSection) {
@@ -1068,8 +1099,9 @@ export class CoopClient implements NetAttachment {
     this.ended = true;
     const end = clampEnd(raw, this.time);
     // (sector-ops step 3, M7) a completed op fills this player's star too (no best time: the host keeps the clock)
-    if (this.g.opts.mode === 'sector' && end.won) void markCompleted(this.g.world.map.id, this.g.opts.difficulty ?? 'normal', 0);
+    if (this.g.opts.mode === 'sector' && end.won && !this.practice) void markCompleted(this.g.world.map.id, this.g.opts.difficulty ?? 'normal', 0);
     Object.assign(this.g.stats, coopSessionStats(this.g.stats, end, this.s.selfId));
+    if (this.practice) this.g.stats.practice = true;
     if (this.inCourse) this.g.stats.course = clientCourseSummary(this.g) ?? undefined;
     this.g.endSession(end.won, end.subtitle);
   }

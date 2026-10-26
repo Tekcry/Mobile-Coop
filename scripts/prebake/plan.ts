@@ -14,12 +14,16 @@ import { bakedLights, lampKeyOf } from '../../src/world/lightBake';
 import { fnv } from '../../src/voxel/lightShapes';
 import { bakeLamps, LAMP_STRIDE, type LampResult } from '../../src/voxel/lampBake';
 import { packLamps, unpackLamps } from '../../src/world/shippedBake';
+import { PREVIEW_ON } from '../../src/core/flags';
 
 export const MAP_ID = 'campusOps';
 /** The seed the prebake builds with (A16: the key and the bytes are the same for every seed). */
 export const PREBAKE_SEED = 1;
 /** Shard files (`shard-<i>.prebake.ts`): lamp j goes to shard j % SHARDS. */
 export const SHARDS = 8;
+/** (prebake-preview) The build variant this prebake is for: the /preview/ build (`PREVIEW_ON`, from the `define` in
+ *  `vitest.prebake.config.ts`) bakes its own campus layout; `scripts/prebake.mjs` keeps one cache folder per variant. */
+export const VARIANT: 'live' | 'preview' = PREVIEW_ON ? 'preview' : 'live';
 
 /** The repo root (the vitest root) and the cache folder (gitignored; CI keeps it with `actions/cache`). */
 export const ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -37,6 +41,8 @@ export interface Campus {
 
 export interface Plan {
   map: string;
+  /** (prebake-preview) `VARIANT`. */
+  variant: 'live' | 'preview';
   key: string;
   h: string;
   lamps: number;
@@ -76,7 +82,7 @@ export function writePlan(): Plan {
       cached = false;
     }
   }
-  const plan: Plan = { map: MAP_ID, key: c.key, h: c.h, lamps: c.lights.length / LAMP_STRIDE, lo: c.lo, hi: c.hi, cached };
+  const plan: Plan = { map: MAP_ID, variant: VARIANT, key: c.key, h: c.h, lamps: c.lights.length / LAMP_STRIDE, lo: c.lo, hi: c.hi, cached };
   mkdirSync(CACHE, { recursive: true });
   writeFileSync(join(CACHE, 'plan.json'), JSON.stringify(plan, null, 2));
   return plan;

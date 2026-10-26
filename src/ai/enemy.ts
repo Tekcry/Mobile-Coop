@@ -44,7 +44,7 @@ import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_DEVICE, MODE_HELP, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import { BREAKER_WALK } from './breaker';
 import { isConsoleGroup } from './consoleFault';
-import { closeFromCover, P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, SQUAD, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
+import { closeFromCover, combatSeed, P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, SEED_SENSE, SQUAD, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
 import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
@@ -270,6 +270,12 @@ export const COVER_DETOUR = { k: 1.5, add: 3, flankK: 2.5 };
 /** (polish A2, A167) The best this many covers are tried in order (one a mate holds, no path or a detour: the next).
  *  Undo: 1. */
 export const COVER_TRIES = 3;
+/** (guard-rules S4, A8) Why his last rise into suspicious / investigating happened (`Enemy.riseCause`): none (a board
+ *  task, a light, a body, a search call, or a turn sound: `hearTurn` sets no `heard`), sight (`seenAt` this calm
+ *  moment) or sound (a heard noise, no sight). Rule and the moment's end: ai.md "Rise cause". */
+export const RISE_NONE = 0;
+export const RISE_SIGHT = 1;
+export const RISE_SOUND = 2;
 /** (polish A2, A167) The open wait's failed cover pick is tried again once per `SQUAD.openWait`, and while the group
  *  holds him (`roleMoving` false) it never lands on his own role cover. Undo: false (one try, any cover). */
 const COVER_RETRY = true;
@@ -381,9 +387,13 @@ export class Enemy implements Damageable {
   readonly num = nextId++;
   /** (guard-ai S8, A7) Seeded combat dice (bursts, strafes, cover-first, spread, grenade timing; mulberry32): seeded
    *  by `num` at spawn, reseeded per guard per engagement when he goes to combat (`AiContext.combatSeed`). Declared
-   *  first: the field initialisers below draw from it. The think cadence (`thinkT`) stays on `Math.random`: it is
-   *  perception, not combat. */
+   *  first: the field initialisers below draw from it. The think cadence draws from `senseRng`: perception, not
+   *  combat. */
   readonly rng = new Rng(Math.imul(this.num, 2654435761));
+  /** (guard-ai seed-random) Perception dice (the think cadence only), apart from the combat `rng` so a think never
+   *  shifts a combat sequence; seeded by `num` at spawn, as `rng` is. Hard rule 8: the same spawn order gives the same
+   *  cadence. Declared before `thinkT`, which draws from it. `0x5eed`: `EnemyManager.matchSeed`'s default. */
+  private readonly senseRng = new Rng(combatSeed(0x5eed, SEED_SENSE, this.num));
   readonly id = `e${this.num}`;
   /** (guard-models G6n, M3) His 7-bit look seed (0-127, `guardLook.ts`): set once by `EnemyManager` at spawn from his
    *  spawn slot (never from `num`), so a section restart gives the slot the same look; a woken guard keeps it
@@ -425,7 +435,7 @@ export class Enemy implements Damageable {
   raysThink = 0;
   /** (coop4 AI2) Sight rays cast since the manager last read it (`EnemyManager.raysThisStep` sums and zeroes it). */
   raysStep = 0;
-  private thinkT = Math.random() * 0.25;
+  private thinkT = this.senseRng.next() * 0.25;
   /** Light level on the target at the last think (0 dark .. 1 lit). */
   targetLight = 1;
   private path: Waypoint[] = [];
@@ -499,6 +509,23 @@ export class Enemy implements Damageable {
   private stimulus: P2 = [0, 0];
   private hasStimulus = false;
   private heard = false;
+  /** (guard-rules S4, A8) Since he was last calm with nothing on his meter: a sight above the leak (`seenAt`) / a heard
+   *  noise. Cleared on a calm transition and each step he is calm with the meter at 0 (`updateAwareness`). */
+  private sawMoment = false;
+  private heardMoment = false;
+  /** (guard-rules S4, A8) Why his last rise into suspicious / investigating happened (`RISE_*`); kept after calm.
+   *  Readers: S7's lookout radio, J13's cause log. */
+  riseCause = RISE_NONE;
+  /** (guard-rules S4, A8) Bumped on every rise into suspicious / investigating (S7 compares it with its last copy;
+   *  J13's cause log). */
+  riseN = 0;
+  /** (guard-rules S4, A8) Where his last stimulus came from (x / z; read-only, no copy). */
+  get stimX(): number {
+    return this.stimulus[0];
+  }
+  get stimZ(): number {
+    return this.stimulus[1];
+  }
   /** (guard-ai S1) Seconds left looking towards a sound he was not sent to (`hearTurn`): stands and faces it. */
   private turnT = 0;
   /** (guard-ai S2) The incident this guard was sent to by the board (its id), -1 none; cleared when he is back
@@ -1291,7 +1318,7 @@ export class Enemy implements Damageable {
     this.heardT = 0;
     if (!mayBark || this.hearBarkT < COMBAT_HEAR.bark) return false;
     this.hearBarkT = 0;
-    this.bark('investigate');
+    this.bark('heard');
     return true;
   }
 
@@ -2115,8 +2142,14 @@ export class Enemy implements Damageable {
     // (polish A1) a device responder calm again goes back to the device's search (below); (polish2 A191) then quietly
     const resume = RESPONDER_RESUME && this.responder && from === 'investigating' && (to === 'cooldown' || to === 'unaware') && this.alive && !this.taken;
     const quiet = RESUME_QUIET && resume;
+    // (guard-rules S4, A8) the rise's cause: a seen player never "heard" (the bark below follows it)
+    if (to === 'suspicious' || to === 'investigating') {
+      this.riseCause = this.sawMoment ? RISE_SIGHT : this.heardMoment ? RISE_SOUND : RISE_NONE;
+      this.riseN++;
+    }
     if (to === 'suspicious') this.bark('suspicious');
-    else if (to === 'investigating') this.bark('investigate');
+    // (S4 fix) the line follows the cause: sight lines only for sight, neutral ones for none
+    else if (to === 'investigating') this.bark(this.riseCause === RISE_SOUND ? 'heard' : this.riseCause === RISE_SIGHT ? 'saw' : 'investigate');
     // (guard-ai S3) told by a shout or the radio: he answers, he did not see anyone
     else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
@@ -2142,6 +2175,9 @@ export class Enemy implements Damageable {
       this.hunt = -1;
       this.pendingHunt = -1;
       this.calledMask = 0;
+      // (guard-rules S4, A8) the next calm moment starts clean (`riseCause` / `riseN` kept)
+      this.sawMoment = false;
+      this.heardMoment = false;
     }
     if (to === 'alert') {
       // (guard-ai S24, A146) his intruder: the one he sees (his own sight wins; reported now, so his contact call carries
@@ -2409,7 +2445,7 @@ export class Enemy implements Damageable {
     this.strafeT -= dt;
     this.thinkT -= dt;
     if (this.thinkT <= 0) {
-      this.thinkT = 0.22 + Math.random() * 0.08;
+      this.thinkT = 0.22 + this.senseRng.next() * 0.08;
       this.perceive();
     }
     if (this.los) this.losT += dt;
@@ -2680,6 +2716,17 @@ export class Enemy implements Damageable {
     i.searchFor = searchSpec(this.searchKind).time;
     // (guard-ai walk 4.82 item 2) moving up on the last known position: he keeps the fight until he gets there
     i.closing = this.closingIn && this.alerted && !this.los;
+    // (guard-rules S4, A8) what this calm moment rests on: sight (the game's `seenAt`) wins over a sound
+    // (S4 fix) calm with nothing on his meter: the moment is over (a glimpse that drained, a noise long gone). After
+    // `stepMeter` and before the sets, so this step's sight (meter > 0) and a noise / board send (`heard`) still count
+    if (this.aware.calmNow && this.meter <= 0) {
+      this.sawMoment = false;
+      this.heardMoment = false;
+    }
+    if (!this.alerted) {
+      if (seen) this.sawMoment = true;
+      if (this.heard) this.heardMoment = true;
+    }
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
     // in combat without sight: arriving at the last known position with nothing there starts the search
@@ -3257,7 +3304,7 @@ export class Enemy implements Damageable {
     // (his intruder's last known position to go to: none, and today's rules hold)
     const closer = !this.los && !outside && this.coordinated && this.ctx.stealth() && this.huntPos() !== null;
 
-    // ---- melee (runner) ----
+    // ---- melee (the dog; every human kind is armed, G298) ----
     if (def.melee) {
       if (this.dist <= def.melee.range && this.meleeCd === 0) {
         this.meleeCd = def.melee.cooldown;
@@ -3358,7 +3405,11 @@ export class Enemy implements Damageable {
           return this.goal(this.chasePoint(dt, tp, false), this.tacticsProfile === P_AGGRESSIVE ? def.runSpeed * AGGRESSIVE_JOG : def.walkSpeed * ADVANCE_PACE, null);
         }
         this.closingIn = closer;
-        return this.goal(this.chasePoint(dt, tp, false), this.los ? def.walkSpeed : def.runSpeed, null);
+        // (guard-ai runner-armed) the runner weaves on his run in (ARCHETYPE.runner.weave); (A15) as his melee charge did,
+        // his straight line must end on the storey of the spot he runs to (`known.y`), so across storeys he takes the
+        // ladder, not a line to the floor under it
+        const runner = def.kind === 'runner';
+        return this.goal(this.chasePoint(dt, tp, runner && ARCHETYPE.runner.weave, runner ? known.y : Number.NaN), this.los ? def.walkSpeed : def.runSpeed, null);
       }
       case 'attack': {
         // lost sight a moment ago: keep their head down with suppressive fire at the last position
@@ -3379,7 +3430,9 @@ export class Enemy implements Damageable {
           this.strafeT = this.rng.range(2, 4);
           this.strafe = this.rng.next() < 0.5 ? 1 : -1;
         }
-        const away = this.dist < def.engageMin ? -1 : this.tacticsProfile === P_AGGRESSIVE && this.dist > def.engageMin + 3 ? 1 : 0;
+        // (guard-ai runner-armed) the runner presses in like an aggressive guard (ARCHETYPE.runner.pressIn)
+        const press = this.tacticsProfile === P_AGGRESSIVE || (def.kind === 'runner' && ARCHETYPE.runner.pressIn);
+        const away = this.dist < def.engageMin ? -1 : press && this.dist > def.engageMin + 3 ? 1 : 0;
         const dx = t.feet.x - this.pos.x;
         const dz = t.feet.z - this.pos.z;
         const len = hyp2(dx, dz) || 1;
@@ -3563,7 +3616,8 @@ export class Enemy implements Damageable {
     return Math.atan2(t.feet.x - this.pos.x, t.feet.z - this.pos.z);
   }
 
-  /** Direct line if clear, else follow the shared flow field. Runners zigzag. (polish A3, A165) In stealth with no
+  /** Direct line if clear, else follow the shared flow field. `zig`: a lateral weave beyond 5 m (the dog's charge; the
+   *  runner's run in, `ARCHETYPE.runner.weave`). (polish A3, A165) In stealth with no
    *  intruder: an A* walk to `tp` (his own known spot), never along the freshest intruder's field (G139). */
   private chasePoint(dt: number, tp: P2, zig: boolean, ty = Number.NaN): Waypoint | null {
     const nav = this.ctx.nav;

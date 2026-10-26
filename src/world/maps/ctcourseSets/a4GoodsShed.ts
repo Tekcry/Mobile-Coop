@@ -212,7 +212,8 @@ const LAMP = {
   mezz: { radius: 5.5, intensity: 0.33 },
 } as const;
 
-export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit): SetPart {
+/** (J14) `opts.replan`: the re-planned yard (`ctcourseReplan`); the pieces the re-plan removes are guarded, the rest is in `replan/a4GoodsShed.ts`. */
+export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit, opts: { replan?: boolean } = {}): SetPart {
   const p = emptyPart('a4GoodsShed');
   /** A box from x0 to x1, z0 to z1, y0 to y1; `noLedge` unless told otherwise. */
   const slab = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, color: string, opts: { overhead?: boolean; noLedge?: boolean } = {}): void => {
@@ -305,9 +306,12 @@ export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit): SetPart {
     // the door: hinge on the west jamb, the leaf along +x
     p.doors[A4_OFFICE_DOOR] = b.door(A4_OFFICE_DOOR_X[0], 0, of.z0, A4_OFFICE_DOOR_X[1] - A4_OFFICE_DOOR_X[0], Math.PI / 2, { height: 2.1 }).id;
   });
-  tally(b, p.register, 'A4-10', "The kettle: a 0.9 m counter on the office's west wall (x 76.25-76.6, z 39.0-40.2); D2 stops at (76.95, 39.5) facing it", () => {
-    slab(A4_FLOOR.x0, 76.6, 39.0, 40.2, 0, 0.9, DESK);
-  });
+  // (J14) the re-plan removes the kettle loop (PLAN section 2): no counter, D2 stays at the desk
+  if (!opts.replan) {
+    tally(b, p.register, 'A4-10', "The kettle: a 0.9 m counter on the office's west wall (x 76.25-76.6, z 39.0-40.2); D2 stops at (76.95, 39.5) facing it", () => {
+      slab(A4_FLOOR.x0, 76.6, 39.0, 40.2, 0, 0.9, DESK);
+    });
+  }
 
   // ---- A4-11 / A4-12 / A4-13: the dock's stacks, desk and shutter ----
   tally(b, p.register, 'A4-11', "Pallet stacks 1.2 m at the dock (tonight's dispatch waiting): N x 79.8-81, z 35.1-35.9 behind D1, S x 79-80.2, z 30.1-30.9 behind D2; low cover, each 0.7 m behind its man so a crouched body against its far face is inside the over-cover takedown reach", () => {

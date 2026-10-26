@@ -45,9 +45,11 @@ import { HelmetDrops } from './helmetDrops';
 import { MODE_BREAKER } from './incidents';
 import { BREAKER, LATE } from './gear';
 import { BREAKER_WALK, CIRCUIT_KEY, DARK_SHOT, DarkList, LATE_SCAN, type BreakerHost } from './breaker';
-import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
+import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SEED_RADIO, seeded01, SQUAD } from './squadRoles';
 // (guard-ai S10) talking pairs
-import { PairMeet, PAIRS, pickMeet, type MeetPick, type PairGuard } from './pairs';
+import { PairMeet, PAIRS, pickMeet, postedDef, type MeetPick, type PairGuard } from './pairs';
+// (guard-rules S6) posted pairs and the walking-together check, read at load time only (`buildPair`)
+import { flags } from '../core/flags';
 // (guard-ai S14) section alert: missed check-ins and loud shots
 import { MISSING, SHOTS } from './gear';
 // (guard-ai S17, Michael's walk of 4.72 G1) a tripped device is an incident at the device, never the player
@@ -672,7 +674,8 @@ export class EnemyManager {
           const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
           const d = Vector3.Distance(o.pos, e.pos);
-          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + Math.random() * 0.3) * this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1), e.hunt);
+          // (guard-ai seed-random) replayable jitter per listener per engagement (hard rule 8)
+          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + seeded01(this.matchSeed, SEED_RADIO ^ Math.imul(this.engagement, 2654435761), o.num) * 0.3) *this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1), e.hunt);
         }
       },
       shout: (e) => {
@@ -685,7 +688,8 @@ export class EnemyManager {
         for (let i = 0; i < list.length; i++) {
           const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
-          if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + Math.random() * 0.3, e.hunt);
+          // (guard-ai seed-random) replayable jitter (hard rule 8)
+          if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + seeded01(this.matchSeed, SEED_RADIO ^ Math.imul(this.engagement, 2654435761), o.num) * 0.3, e.hunt);
         }
       },
       radioCall: (e, inc, kind) => {
@@ -2198,6 +2202,9 @@ export class EnemyManager {
    * overlap, at the slower walker's speed: a timed loop walks at `walkSpeed`). The two walkers' loop times now line the
    * clocks up (they may have been placed at different moments). No window (no timed loop, periods differ, no overlap):
    * logged (`pairSkips`, a console warning) and skipped. Load time only.
+   * (guard-rules S6, A10, A11; `flags.guardPairs`, read here only) A timed-loop pair also gets the walking-together
+   * check (`PairDef.watch`); two standing guards (`postedWhyNot`) whose posts are within `PAIRS.meetMax` become a posted
+   * pair (`postedDef`: meet points at the posts, a fixed clock). Flag off: today's path, nothing new read.
    */
   private buildPair(e: Enemy, index: number): void {
     const sg = this.slotGuard;
@@ -2231,7 +2238,18 @@ export class EnemyManager {
     const id = e.section * 100 + lo;
     const why = this.pairWhyNot(A, B);
     if (why) {
-      const msg = `section ${e.section} slots ${lo} + ${hi}: ${why}`;
+      let pw = '';
+      if (flags.guardPairs) {
+        pw = this.postedWhyNot(A, B);
+        if (!pw) {
+          const pa = A.postPoint;
+          const pb = B.postPoint;
+          const pm = new PairMeet(postedDef(id, [pa[0], pa[1]], [pb[0], pb[1]]));
+          this.pairs.push({ pm, sa: lo, sb: hi });
+          return;
+        }
+      }
+      const msg = pw ? `section ${e.section} slots ${lo} + ${hi}: ${why} (posted pair: ${pw})` : `section ${e.section} slots ${lo} + ${hi}: ${why}`;
       this.pairSkips.push(msg);
       console.warn(`guard-ai pairs: ${msg}`);
       return;
@@ -2252,7 +2270,7 @@ export class EnemyManager {
     }
     const pa = ra.points[m.stopA]!;
     const pb = rb.points[m.stopB]!;
-    const pm = new PairMeet({ id, period: ra.loop!.period, t0: ta, open: m.open, close: m.close, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]] });
+    const pm = new PairMeet({ id, period: ra.loop!.period, t0: ta, open: m.open, close: m.close, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]], watch: flags.guardPairs });
     this.pairs.push({ pm, sa: lo, sb: hi });
   }
 
@@ -2263,6 +2281,24 @@ export class EnemyManager {
     const rb = B.patrolRoute;
     if (!ra || !ra.loop || !rb || !rb.loop) return 'not both on a timed loop';
     if (Math.abs(ra.loop.period - rb.loop.period) > 1e-6) return `loop periods differ (${ra.loop.period} / ${rb.loop.period} s)`;
+    return '';
+  }
+
+  /**
+   * (guard-rules S6, A11, S6-a) Why two guards cannot be a posted pair ('' when they can): each stands (no route at all,
+   * or a post with an untimed route) and their posts are within `PAIRS.meetMax`. Load time only (`flags.guardPairs`).
+   */
+  private postedWhyNot(A: Enemy, B: Enemy): string {
+    if (A.dog || B.dog) return 'a dog does not talk';
+    const ra = A.patrolRoute;
+    const rb = B.patrolRoute;
+    const standA = ra === null || (A.postDef !== null && !ra.loop);
+    const standB = rb === null || (B.postDef !== null && !rb.loop);
+    if (!standA || !standB) return 'not both standing a post';
+    const pa = A.postPoint;
+    const pb = B.postPoint;
+    const d = hyp2(pa[0] - pb[0], pa[1] - pb[1]);
+    if (d > PAIRS.meetMax) return `posts ${d.toFixed(1)} m apart (over ${PAIRS.meetMax} m)`;
     return '';
   }
 

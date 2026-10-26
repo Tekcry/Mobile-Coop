@@ -1,7 +1,7 @@
 import { runningOnWindows, type HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
-import { flags } from '../../core/flags';
-import { defaultSettings, setAuto, setGfx, setPreset, type Settings } from '../../core/settings';
+import { flags, PREVIEW_ON } from '../../core/flags';
+import { defaultSettings, setAuto, setGfx, setPreset, settingAnimSource, type Settings } from '../../core/settings';
 import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode,type ShadowQuality, type TierQuality } from '../../core/quality';
 import { BENCH } from '../../game/benchmark';
 import type { CurveKind } from '../../input/stickMath';
@@ -14,6 +14,12 @@ import { BrightnessScreen } from './brightnessScreen';
 import { toggleFullscreen } from '../../pwa/pwa';
 import { currentResolution, ResolutionPicker } from './resolutionPicker';
 
+/** (mixamo-retarget Toggle) Options > Gameplay > "Animation source" (`src/anim/animSource.ts` `ANIM_SOURCE_LABEL`). */
+const ANIM_SOURCE_OPTS: { value: 'hand' | 'cmu' | 'mixamo'; label: string }[] = [
+  { value: 'hand', label: 'Hand-made' },
+  { value: 'cmu', label: 'CMU' },
+  { value: 'mixamo', label: 'Mixamo' },
+];
 const CURVE_OPTS: { value: CurveKind; label: string }[] = [
   { value: 'linear', label: 'Linear' },
   { value: 'classic', label: 'Classic' },
@@ -154,6 +160,11 @@ export class SettingsScreen extends MenuScreen {
         build: () =>
           rowList(
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
+            // (mixamo-retarget Toggle) the Animation source: a look choice (gameplay unchanged); the Anim Studio has the same switch
+            desc(choice('Animation source', ANIM_SOURCE_OPTS, () => settingAnimSource(s().gameplay, PREVIEW_ON), (v) => upd((d) => {
+              d.gameplay.animSource = v;
+              d.gameplay.animSourceSet = true; // (F45) picked: /preview/ stops defaulting to Mixamo
+            })), 'Which animation set Wren moves with. CMU is the game as it ships; Hand-made the original keyed clips; Mixamo the CMU set with the Mixamo captures on top (hang, shimmy, ladder top-out).'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
             // (anim-fix-pass AF5, BRIEF A1) no "Mocap locomotion" row: mocap is the only player path (app.ts; `?mocap=0`
             // or the tuner box turn it off for one page); (LR16a) no Lamp falloff row: one photometric light model
@@ -212,6 +223,8 @@ export class SettingsScreen extends MenuScreen {
       fromDefaults((d, def) => {
         d.gameplay.courseMarkers = def.gameplay.courseMarkers;
         d.gameplay.slowBeat = def.gameplay.slowBeat;
+        d.gameplay.animSource = def.gameplay.animSource;
+        d.gameplay.animSourceSet = def.gameplay.animSourceSet;
       }),
     );
     this.resets.set('video', () => st.reset('video'));

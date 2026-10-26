@@ -4,7 +4,7 @@
 // checkpoint (M7); and the nav check (M8): every route leg is walkable for the guards' nav grid, and a section is
 // reached only through its connector. `?sectorGuards=4` keeps software GL quick (4 guards per section).
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until, hostAndJoin, waitSim, teamLog } from './e2e-net-lib.mjs';
+import { until, hostAndJoin, waitSim, teamLog, LOAD_MS } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const PARAMS = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
@@ -12,7 +12,10 @@ const PARAMS = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
 // sections, alarms, restarts, nav and the co-op mirror (the suite before slice R); 2 solo: the co-op lips out of reach
 // alone, the engine links the routes rely on (pipe jumps, crouch-walk, climb-ups), the ways down alone, every team door;
 // 3-5 two pages: section 1, 2, 3's co-op routes walked by host and client (leg-up, relay / rope) and its team door
-// unbolted by the client for both pages, re-bolted by a restart. Named alone the suite runs every part in sequence.
+// unbolted by the client for both pages, re-bolted by a restart. 6-9 are solo Saltmarsh Park (campusOps), split so no
+// job runs past the runner's kill (F33-b): 6 S1/S2 + the feeder + the CR1/CR2 probes; 7 S3 + H8 (guards on their floors);
+// 8 S4 + CR4 + S16 (guards hold fire at armour); 9 S5 (the Old House, the jetty).
+// Named alone the suite runs every part in sequence.
 const PART = Number(process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? 0);
 const want = (n) => PART === 0 || PART === n;
 let failed = false;
@@ -90,6 +93,9 @@ await run(PARAMS, async ({ page, G, sim }) => {
     await sim(0.3);
     const ph = await G(() => window.__sector.debug());
     assert(ph.phase === (last ? 'extract' : 'connector'), `section ${i + 1} (${s.id}): the ${s.kind} opens the connector or the extraction (${ph.phase})`);
+    // (sector-marks, G290) no exit beacon: the exit item is there (its zone) with nothing drawn
+    const ex = await G((id) => { const it = window.__app.current.interactables.items.find((x) => x.id === `${id}-exit`); return it ? { parts: it.parts.length, light: it.light !== null } : null; }, s.id);
+    assert(ex !== null && ex.parts === 0 && !ex.light, `section ${i + 1} (${s.id}): the exit has no beacon (${JSON.stringify(ex)})`);
     if (i === 0) {
       // (G343, hud-guidance B1) the objective popup: the exit line fades in when section 1's objective is done, is gone
       // after the hold (real time: the popup reads performance.now(), not the sim) with its text kept, and O brings it
@@ -221,6 +227,115 @@ await run(PARAMS, async ({ page, G, sim }) => {
   assert(r.obj, 'the objective is open again');
   assert(r.n === 4 && !r.ids.some((id) => startIds.includes(id)), `the section's guards are reset to its set (${r.n})`);
 });
+
+// (campus-greybox A28) the start-at-section link: `?sectorStart=3` starts the run at section 3 as its connectors leave
+// it (C2's checkpoint, the earlier far doors open, section 3's guards in); a down restarts it there; the extraction ends
+// a practice run: PRACTICE on the line, no badge, no star and no best rating saved.
+console.log('sector ops: a start-at-section link (practice)');
+await run(`${PARAMS}&sectorStart=3`, async ({ page, G, sim }) => {
+  await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+  await sim(0.5);
+  const S = await sections(G);
+  const kv = (key) => G((k) => new Promise((ok) => {
+    const r = indexedDB.open('shoulder-strike');
+    r.onsuccess = () => {
+      try {
+        const q = r.result.transaction('kv').objectStore('kv').get(k);
+        q.onsuccess = () => ok(JSON.stringify(q.result ?? null));
+        q.onerror = () => ok('error');
+      } catch {
+        ok('none');
+      }
+    };
+    r.onerror = () => ok('error');
+  }), key);
+  const rec0 = [await kv('sector:ops'), await kv('rating:sections')];
+  const d = await G(() => { const g = window.__app.current; return { d: window.__sector.debug(), from: window.__sector.practiceFrom, n: g.enemyMgr.alive, at: [g.player.position.x, g.player.position.z] }; });
+  assert(d.from === 3 && d.d.index === 2 && d.d.phase === 'objective' && d.d.live === 2 && d.d.stage === 0, `the run starts on section 3's objective, its devices live (${JSON.stringify(d.d)})`);
+  assert(Math.abs(d.d.checkpoint.x - S[1].cp.x) < 0.01 && Math.abs(d.d.checkpoint.z - S[1].cp.z) < 0.01 && Math.hypot(d.at[0] - S[1].cp.x, d.at[1] - S[1].cp.z) < 1.5, `the player starts at C2's checkpoint (${d.at})`);
+  assert(d.d.doors[0].near === true && d.d.doors[0].far === false && d.d.doors[1].near === true && d.d.doors[1].far === false && d.d.doors[1].seal.every((x) => x === false), `the connectors are as their cycles leave them (${JSON.stringify(d.d.doors)})`);
+  assert(d.n === 4, `section 3's guards are in (${d.n})`);
+  await G(() => { const g = window.__app.current; g.target.damageMul = 1; g.target.applyDamage({ amount: 99999, point: g.player.position.clone(), dir: new g.player.position.constructor(0, 0, 1), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'test', sourcePos: g.player.position.clone(), impulse: 1 }); });
+  await sim(4);
+  const r = await G(() => { const g = window.__app.current; return { d: window.__sector.debug(), alive: g.target.alive, at: [g.player.position.x, g.player.position.z] }; });
+  assert(r.alive && r.d.restarts === 1 && r.d.index === 2 && Math.hypot(r.at[0] - S[1].cp.x, r.at[1] - S[1].cp.z) < 1.5, `a down restarts section 3 at C2's checkpoint (${JSON.stringify(r.d)}, ${r.at})`);
+  await G(() => { window.__app.current.target.damageMul = 0; const m = window.__sector; m.objectiveDone(m.run.current); });
+  await sim(0.3);
+  const s = S[2];
+  await tp(G, (s.exit[0] + s.exit[2]) / 2, 0, (s.exit[1] + s.exit[3]) / 2);
+  await sim(1);
+  assert((await G(() => window.__sector.debug().phase)) === 'done', 'the extraction ends the practice run');
+  await sim(6);
+  await page.waitForSelector('.results-screen', { timeout: 15000 });
+  const res = await G(() => ({ t: document.querySelector('.results-title')?.textContent, s: document.querySelector('.results-sub')?.textContent ?? '', p: window.__app.current.stats.practice }));
+  assert(res.t === 'VICTORY' && /PRACTICE from section 3/.test(res.s) && !/GHOST|PERFECT/.test(res.s) && res.p === true, `the result says practice, no badge (${JSON.stringify(res)})`);
+  await new Promise((ok) => setTimeout(ok, 1500));
+  const rec1 = [await kv('sector:ops'), await kv('rating:sections')];
+  assert(rec1[0] === rec0[0] && rec1[1] === rec0[1], `a practice run saves no star and no best rating (${JSON.stringify([rec0, rec1])})`);
+});
+
+// (campus-greybox A28) co-op: only the host opened the link; the client starts where the menu puts it (section 1) and
+// the host puts it at its checkpoint (`firstPlace`, the `restore` event); it mirrors section 2. No wire change.
+// (A28 fix 1) the client enters first: the host's loaded match is held out of `enter` until the client's states have
+// reached it, so they are judged before `start()` moves the run (`CoopHost.placeEarly` on the host's first step).
+console.log('sector ops: a start-at-section link in co-op (the host\'s wins)');
+{
+  const { browser, A, B, errors: [eA, eB] } = await hostAndJoin(url, 2, { params: 'net=local&sectorGuards=4&sectorStart=2' });
+  let pumping = false;
+  const pump = setInterval(async () => {
+    if (pumping) return;
+    pumping = true;
+    try {
+      await A.evaluate(() => {
+        if (window.__raf === undefined) {
+          window.__raf = 0;
+          const f = () => { window.__raf++; requestAnimationFrame(f); };
+          requestAnimationFrame(f);
+        }
+        const now = performance.now();
+        const last = window.__pumpT ?? now;
+        const idle = window.__pumpRaf === window.__raf;
+        window.__pumpT = now;
+        window.__pumpRaf = window.__raf;
+        if (idle && window.__app.current) window.__app.loop.stepHeadless(Math.min(0.1, Math.max(1 / 60, (now - last) / 1000)));
+      });
+    } catch {}
+    pumping = false;
+  }, 40);
+  try {
+    // the host's `app.setState` (main.ts, after `GameState.create`) holds the loaded Sector Ops match until released
+    await A.evaluate(() => {
+      const app = window.__app;
+      const enter = app.setState.bind(app);
+      app.setState = (st) => {
+        if (st.opts?.mode !== 'sector') return enter(st);
+        window.__held = st;
+        window.__release = () => enter(st);
+      };
+    });
+    await A.evaluate(() => window.__coop.session.setSettings('sector', 'warehouseOps', 'normal', ''));
+    await B.evaluate(() => window.__coop.session.setReady(true));
+    await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
+    await A.evaluate(() => window.__coop.session.startMatch());
+    await until(B, () => window.__app.current?.opts?.mode === 'sector' && !!window.__app.current.net, null, LOAD_MS, 'the client is in its match');
+    await until(A, () => !!window.__held?.net && [...window.__held.net.remotes.values()].every((r) => r.state), null, LOAD_MS, 'the client\'s states reach the held host');
+    assert(await A.evaluate(() => window.__app.current !== window.__held), 'the host has not entered its match before the client\'s states');
+    await A.evaluate(() => window.__release());
+    await until(A, () => window.__app.current === window.__held && !!window.__sector, null, 15000, 'the host enters its match');
+    await A.evaluate(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+    const h = await A.evaluate(() => ({ d: window.__sector.debug(), from: window.__sector.practiceFrom, cps: window.__sector.checkpointSpawns() }));
+    assert(h.from === 2 && h.d.index === 1, `the host starts at section 2 (${JSON.stringify(h.d)})`);
+    await until(B, (cps) => { const p = window.__app.current.player.position; return cps.some((c) => Math.hypot(p.x - c.x, p.z - c.z) < 5); }, h.cps, 15000, 'the client is put at the host\'s checkpoint');
+    await until(B, () => window.__ctdev?.debug().live === 1, null, 15000, 'the client mirrors section 2');
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    clearInterval(pump);
+    all.push(...eA, ...eB);
+    await browser.close();
+  }
+}
 
 // (fix round, checker item 1) the AI on in section 2: a guard forced alerted runs to the live section's alarm panel (the
 // only one working) and the stage rises through the panel (not a direct onAlarm call); after a restart the panel and
@@ -1992,6 +2107,8 @@ if (want(5)) {
 // opens C2's card door, (d) the reception panel board (LR16-4, untimed) cuts s2-atrium and #1 walks to it; in the probe run (c) the CR2 nose is never held
 // alone (cafe floor, cafe table, feature stair, a wall jump off the hall's east wall). Skipped: the co-op leg-up + human ladder at CR2 (this
 // part has no co-op helper), the balustrade probe (the balustrade is on L1: a solo up there is already on the slab).
+// (F33-b) campus parts: `want(6)` S1/S2 + feeder + CR1/CR2 probes (3 launches), `want(7)` S3 + H8 (2), `want(8)` S4 + CR4 + S16 (3),
+// `want(9)` S5 (1): each is a separate job, one browser per launch.
 const CAMPUS = 'autostart=campusOps&mode=sector';
 
 if (want(6)) {
@@ -2318,7 +2435,7 @@ if (want(6)) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// (sector-redesign slice 3, `--part=6`) Saltmarsh Park, section 3: the lab block (docs/sector-redesign/SPEC.md "S3",
+// (sector-redesign slice 3, `--part=7`) Saltmarsh Park, section 3: the lab block (docs/sector-redesign/SPEC.md "S3",
 // PLAN slice 3). A self-contained block, run only when the page's section 3 is the built one (16 guards): S1 and the S2
 // stub are told done and their connectors cycled, then (a) 16 guards, cam-view / cam-dock and both lasers with their
 // panels are live; (b) the high-bay switch bank cuts `s3-hb-1` and draws #16 (the crane-bay sentry) towards it; (c) the
@@ -2486,15 +2603,15 @@ async function campusS3Part(page) {
   assert(s4.index === 3 && s4.id === 's4' && s4.phase === 'objective', `the S4 stub loads behind C3 (${JSON.stringify([s4.index, s4.id, s4.phase])})`);
 }
 
-if (want(6)) {
+if (want(7)) {
   console.log('campus ops (S3): the lab block - the switch-bank lure, the jammed store beams, the stealth grab, C3');
   await run(CAMPUS, async ({ page }) => campusS3Part(page));
 }
 
 // (test-runner-j20 S6c, H8) every guard the mode spawns is alive: campus sections 2-5 (S1 is the boot check in the first
-// part-6 block). `loadSection` / `unloadSection` are TS-private on SectorMode, callable from the page (BRIEF A10). The
+// part-6 block (`--part=6`)). `loadSection` / `unloadSection` are TS-private on SectorMode, callable from the page (BRIEF A10). The
 // guards stay put (enemyMgr.update off); each alive guard must stand within 2 m of its slot's floor (none fell through).
-if (want(6)) {
+if (want(7)) {
   console.log('campus ops (H8): every guard of sections 2-5 is alive after its load, none fell through the floor');
   const t0 = Date.now();
   await run(CAMPUS, async ({ G, sim }) => {
@@ -2799,6 +2916,26 @@ if (want(1)) {
   });
 }
 
+/** (guard-ai S10; guard-rules S6 shares it) Two clear lanes 9 m east, 1.2 m apart, nearest `o` (x, y, z) first, on its
+ *  storey: `{ at: [x, y, z] }` (the south lane's west end), or `{ at: null, cells }`. */
+const pairLanes = (G, o) =>
+  G((o) => {
+    const nav = window.__app.current.enemyMgr.nav;
+    const cells = [];
+    for (let c = 0; c < nav.walk.length; c++) {
+      if (!nav.walk[c]) continue;
+      const [x, z] = nav.center(c);
+      const y = nav.height[c];
+      if (Math.abs(y - o[1]) > 1.5) continue;
+      cells.push([Math.hypot(x - o[0], z - o[2]), x, y, z]);
+    }
+    cells.sort((a, b) => a[0] - b[0]);
+    for (const [, x, y, z] of cells) {
+      if (nav.lineClear([x, z], [x + 9, z], y, y) && nav.lineClear([x, z + 1.2], [x + 9, z + 1.2], y, y) && nav.lineClear([x + 5, z], [x + 5, z + 1.2], y, y)) return { at: [x, y, z] };
+    }
+    return { at: null, cells: cells.length };
+  }, o);
+
 // (guard-ai S10, GA2, the `pair` tag) Talking pairs, on guards built with the test hook (spawn + a timed loop + placeSlot
 // with a stand-in section list naming each other as `pair`; no map data edited). Two lanes 1.2 m apart (z and z + 1.2):
 // A walks the south lane from x + 3.2, B the north lane from x; both stop at x + 5 (their meet stops, 1.2 m apart) on a
@@ -2812,22 +2949,7 @@ if (want(1)) {
     await sim(0.5);
     const S = await sections(G);
     // two clear lanes 9 m east, 1.2 m apart, nearest section 1's objective first
-    const site = await G((o) => {
-      const nav = window.__app.current.enemyMgr.nav;
-      const cells = [];
-      for (let c = 0; c < nav.walk.length; c++) {
-        if (!nav.walk[c]) continue;
-        const [x, z] = nav.center(c);
-        const y = nav.height[c];
-        if (Math.abs(y - o[1]) > 1.5) continue;
-        cells.push([Math.hypot(x - o[0], z - o[2]), x, y, z]);
-      }
-      cells.sort((a, b) => a[0] - b[0]);
-      for (const [, x, y, z] of cells) {
-        if (nav.lineClear([x, z], [x + 9, z], y, y) && nav.lineClear([x, z + 1.2], [x + 9, z + 1.2], y, y) && nav.lineClear([x + 5, z], [x + 5, z + 1.2], y, y)) return { at: [x, y, z] };
-      }
-      return { at: null, cells: cells.length };
-    }, S[0].obj);
+    const site = await pairLanes(G, S[0].obj);
     assert(site.at !== null, `talking pairs: two open lanes on section 1's storey (${site.cells} cells)`);
     const r = await G(([cx, cy, cz]) => {
       const g = window.__app.current;
@@ -2931,6 +3053,173 @@ if (want(1)) {
     // (stack-tip fix) found by sight within the game's find range, not only inside BODY.close (see the sector tags block;
     // the laptop run found him at 4.44 m). `lines` 0 above is right: part (b) has no meeting (B is down before the window)
     assert(r.b.close < r.b.reach + 0.5 && r.b.found, `talking pairs: he searches at his partner's stop and finds him (${f2(r.b.close)} m, find range ${f2(r.b.reach)} m, found ${r.b.found})`);
+  });
+}
+
+// (guard-rules S6, A10, A11) Pair checks and posted pairs, behind `?guardpairs=1` (the talking pairs block above stays on
+// the flag-off page: the flag-off proof). The same stand-ins (spawn + placeSlot with a stand-in list, no map data edited),
+// one page per part (part (c)'s missing call turns the section cautious, and a cautious guard does not talk).
+// (c) The (a) / (b) pair, walking together (A 3.4 m from B): B knocked out at 0.5 s behind A's back -> A notices within
+// `notice` (3 s) + one 0.2 s pair step, long before the window's `grace`, on a `missing` incident, and finds him.
+// (d) A posted pair: two standing guards (no route) back to back, tagged as a pair -> built as a posted pair, they meet
+// at once and say two lines, one each; once both are back on their post yaw (>= 2 s after the talk), B knocked out ->
+// the request `notice` s later. The posts are 3.4 m apart, not 1.2 m: within `BODY.close` (2.5 m) a body is found
+// whatever the facing (the body path, no missing request); 3.4 m is still within `togetherR` (4 m).
+// The first pair step after a knock-out counts a whole 0.2 s step (as the window's grace), so the request lands
+// 2.8 .. 3.0 s after it, read up to 0.1 s later: the bounds are 2.75 .. 4.0 s.
+/** (guard-rules S6) One part's page: no player damage, cameras off, the lanes found (as the talking pairs block). */
+const pairStage = async (G, sim, label) => {
+  await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+  await sim(0.5);
+  const S = await sections(G);
+  const site = await pairLanes(G, S[0].obj);
+  assert(site.at !== null, `${label}: two open lanes on section 1's storey (${site.cells} cells)`);
+  return site.at;
+};
+if (want(1)) {
+  console.log('pair checks (guard-rules S6): a pair walking together notices a missing partner; a posted pair talks and checks');
+  const f2 = (v) => v.toFixed(2);
+  // (c) walking together
+  await run(PARAMS + '&guardpairs=1', async ({ G, sim }) => {
+    const at = await pairStage(G, sim, 'pair checks (c)');
+    const r = await G(([cx, cy, cz]) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      for (const e of [...em.enemies]) em.despawn(e);
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(cx - 40, cy, cz - 40), 0);
+      em['radioT'] = 1e9;
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      const hit = (e) => ({ amount: 9999, point: e.pos.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 1 });
+      const slots = [
+        { kind: 'grunt', x: cx + 3.2, z: cz, yaw: Math.PI / 2, pair: 1, route: [[cx + 3.2, cz], [cx + 5, cz], [cx + 8, cz]], loop: { period: 40, leave: [3, 18, 30], t0: 0 } },
+        { kind: 'grunt', x: cx, z: cz + 1.2, yaw: Math.PI / 2, pair: 0, route: [[cx, cz + 1.2], [cx + 5, cz + 1.2], [cx + 8.5, cz + 1.2]], loop: { period: 40, leave: [1, 18, 30], t0: 0 } },
+      ];
+      const sk0 = em.pairSkips.length;
+      const m0 = em.pairMisses;
+      const l0 = em.pairLines;
+      const [A, B] = slots.map((s, i) => {
+        const e = em.spawn(s.kind, new V(s.x, cy, s.z), false, s.yaw);
+        e.setPatrol({ points: s.route, loop: s.loop });
+        em.placeSlot(e, s, 0, slots, i);
+        return e;
+      });
+      const p = em.pairs[0];
+      const out = { built: { n: em.pairs.length, skips: em.pairSkips.slice(sk0), watch: p ? p.pm.def.watch === true : false, open: p ? p.pm.def.open : -1 } };
+      step(0.5);
+      const gap = Math.hypot(A.pos.x - B.pos.x, A.pos.z - B.pos.z);
+      B.knockOut(hit(B));
+      const bx = B.pos.x;
+      const bz = B.pos.z;
+      let sentT = -1;
+      let kind = null;
+      let close = 99;
+      let found = false;
+      let light = 0;
+      for (let k = 0; k < 500 && !found; k++) {
+        step(0.1);
+        // seconds since the knock-out
+        const t = (k + 1) * 0.1;
+        if (sentT < 0 && em.pairMisses > m0) {
+          sentT = t;
+          kind = A.incident >= 0 ? em.board.kindOf(A.incident) : null;
+        }
+        if (sentT >= 0) close = Math.min(close, Math.hypot(A.pos.x - bx, A.pos.z - bz));
+        const b = em.bodies.find((q) => q.enemyId === B.id);
+        if (b) light = b.light;
+        found = !b || b.found;
+      }
+      out.c = { gap, sentT, kind, close, found, light, reach: em.bodyNoticeRange(light), misses: em.pairMisses - m0, lines: em.pairLines - l0, witnessed: em.lastWitnesses };
+      for (const e of [...em.enemies]) em.despawn(e);
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      return out;
+    }, at);
+    console.log(`  (c) built ${JSON.stringify(r.built)}; A-B ${f2(r.c.gap)} m at the knock-out; sent ${f2(r.c.sentT)} s after it (${r.c.kind}), misses ${r.c.misses}, closest ${f2(r.c.close)} m (find range ${f2(r.c.reach)} m at light ${f2(r.c.light)}), found ${r.c.found}, lines ${r.c.lines}, witnessed ${r.c.witnessed}`);
+    assert(r.built.n === 1 && r.built.skips.length === 0 && r.built.watch, `pair checks (c): the pair is built with the walking-together check (${JSON.stringify(r.built)})`);
+    assert(r.c.gap < 4 && r.c.witnessed === 0, `pair checks (c): walking together (${f2(r.c.gap)} m), the knock-out unseen (${r.c.witnessed} witnesses)`);
+    assert(r.c.misses === 1 && r.c.sentT >= 2.75 && r.c.sentT <= 4, `pair checks (c): one missing request 3 s (+ a pair step) after the knock-out (${r.c.misses}, ${f2(r.c.sentT)} s)`);
+    assert(r.c.sentT + 0.5 < r.built.open + 6 - 1, `pair checks (c): well before the window's grace (sent ${f2(r.c.sentT + 0.5)} s, window opens ${f2(r.built.open)} s + 6 s)`);
+    assert(r.c.kind === 'missing', `pair checks (c): the other is sent on a missing incident (${r.c.kind})`);
+    assert(r.c.close < r.c.reach + 0.5 && r.c.found, `pair checks (c): he searches at his partner's spot and finds him (${f2(r.c.close)} m, find range ${f2(r.c.reach)} m, found ${r.c.found})`);
+  });
+  // (d) a posted pair
+  await run(PARAMS + '&guardpairs=1', async ({ G, sim }) => {
+    const at = await pairStage(G, sim, 'pair checks (d)');
+    const r = await G(([cx, cy, cz]) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      for (const e of [...em.enemies]) em.despawn(e);
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(cx - 40, cy, cz - 40), 0);
+      em['radioT'] = 1e9;
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+      const hit = (e) => ({ amount: 9999, point: e.pos.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 1 });
+      const said = [];
+      const prevBark = em.onBark;
+      em.onBark = (e, line, radio) => {
+        prevBark?.(e, line, radio);
+        said.push({ id: e.id, line, radio });
+      };
+      // back to back on the south lane: A faces -X, B faces +X, 3.4 m apart
+      const slots = [
+        { kind: 'grunt', x: cx + 2.6, z: cz, yaw: -Math.PI / 2, pair: 1 },
+        { kind: 'grunt', x: cx + 6, z: cz, yaw: Math.PI / 2, pair: 0 },
+      ];
+      const sk0 = em.pairSkips.length;
+      const m0 = em.pairMisses;
+      const l0 = em.pairLines;
+      const [A, B] = slots.map((s, i) => {
+        const e = em.spawn(s.kind, new V(s.x, cy, s.z), false, s.yaw);
+        em.placeSlot(e, s, 0, slots, i);
+        return e;
+      });
+      const p = em.pairs[0];
+      const out = { built: { n: em.pairs.length, skips: em.pairSkips.slice(sk0), posted: p ? p.pm.def.posted === true : false, watch: p ? p.pm.def.watch === true : false, gap: Math.hypot(A.pos.x - B.pos.x, A.pos.z - B.pos.z) } };
+      let met = -1;
+      let doneT = -1;
+      let backT = -1;
+      for (let k = 0; k < 300 && backT < 0; k++) {
+        step(0.1);
+        const t = (k + 1) * 0.1;
+        const st = p ? p.pm.state : null;
+        if (met < 0 && st === 'meeting') met = t;
+        if (met >= 0 && doneT < 0 && st === 'done') doneT = t;
+        // back on his post yaw (a post glance turns him up to 0.6 rad)
+        if (doneT >= 0 && t >= doneT + 2 && Math.abs(wrap(A.yaw + Math.PI / 2)) < 0.7 && Math.abs(wrap(B.yaw - Math.PI / 2)) < 0.7) backT = t;
+      }
+      out.d = { met, doneT, backT, lines: em.pairLines - l0, said: said.filter((s) => s.id === A.id || s.id === B.id), levels: [A.level, B.level], yaws: [A.yaw, B.yaw] };
+      let sentT = -1;
+      let kind = null;
+      if (backT >= 0) {
+        B.knockOut(hit(B));
+        for (let k = 0; k < 80 && sentT < 0; k++) {
+          step(0.1);
+          if (em.pairMisses > m0) {
+            sentT = (k + 1) * 0.1;
+            kind = A.incident >= 0 ? em.board.kindOf(A.incident) : null;
+          }
+        }
+      }
+      out.d.sentT = sentT;
+      out.d.kind = kind;
+      out.d.misses = em.pairMisses - m0;
+      out.d.witnessed = em.lastWitnesses;
+      for (const e of [...em.enemies]) em.despawn(e);
+      em.onBark = prevBark;
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      return out;
+    }, at);
+    console.log(`  (d) built ${JSON.stringify(r.built)}; met at ${f2(r.d.met)} s, lines ${r.d.lines} ${JSON.stringify(r.d.said.map((s) => s.line))}, done ${f2(r.d.doneT)} s, back on post yaw ${f2(r.d.backT)} s (${r.d.yaws.map(f2)}); sent ${f2(r.d.sentT)} s after the knock-out (${r.d.kind}), misses ${r.d.misses}, witnessed ${r.d.witnessed}`);
+    assert(r.built.n === 1 && r.built.skips.length === 0 && r.built.posted && r.built.watch, `pair checks (d): the posted pair is built (${JSON.stringify(r.built)})`);
+    assert(r.d.met > 0 && r.d.met < 12, `pair checks (d): they meet inside the first 12 s (${f2(r.d.met)} s)`);
+    assert(r.d.lines === 2 && r.d.said.length === 2 && r.d.said[0].id !== r.d.said[1].id && r.d.said.every((s) => !s.radio), `pair checks (d): two spoken lines, one each (${r.d.lines}, ${JSON.stringify(r.d.said)})`);
+    assert(r.d.levels.every((l) => l === 'unaware'), `pair checks (d): calm throughout the talk (${r.d.levels})`);
+    assert(r.d.backT >= 0, `pair checks (d): both turn back to their post yaw after the talk (done ${f2(r.d.doneT)} s, yaws ${r.d.yaws.map(f2)})`);
+    assert(r.d.witnessed === 0 && r.d.misses === 1 && r.d.sentT >= 2.75 && r.d.sentT <= 4, `pair checks (d): one missing request 3 s (+ a pair step) after the unseen knock-out (${r.d.misses}, ${f2(r.d.sentT)} s, ${r.d.witnessed} witnesses)`);
+    assert(r.d.kind === 'missing', `pair checks (d): the other is sent on a missing incident (${r.d.kind})`);
   });
 }
 
@@ -3062,7 +3351,7 @@ await run(PARAMS, async ({ G, sim }) => {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// (sector-redesign slice 4, `--part=6`) Saltmarsh Park, section 4: the data hall (docs/sector-redesign/briefs/SLICE4.md).
+// (sector-redesign slice 4, `--part=8`) Saltmarsh Park, section 4: the data hall (docs/sector-redesign/briefs/SLICE4.md).
 // Written, not run (the build sheet lists it). Run only when the page's section 4 is the built one (20 guards): S1-S3 are
 // told done and their connectors cycled, then (a) 20 guards, the three cameras and las-tray with its panel are live, (b) the
 // dock board gives the codes and both keypads open, (c) every walked route leg has a path on the real grid, (d) the desk
@@ -3222,7 +3511,7 @@ async function campusS4Part(page) {
   assert(s5.index === 4 && s5.id === 's5', `section 5 loads behind C4 (${JSON.stringify([s5.index, s5.id])})`);
 }
 
-if (want(6)) {
+if (want(8)) {
   console.log('campus ops (S4): the data hall - the dock board codes, the desk, the pair gate, the hall panel lure, the cage download, C4');
   await run(CAMPUS, async ({ page }) => campusS4Part(page));
 
@@ -3321,13 +3610,13 @@ if (want(6)) {
   });
 }
 
-// (guard-ai S16, `--part=6`) guards hold fire at armour: written, not run (the slice brief). The NOC pair (S4 #14-15, on
+// (guard-ai S16, `--part=8`) guards hold fire at armour: written, not run (the slice brief). The NOC pair (S4 #14-15, on
 // the mezzanine at z 43, y 3.6) watch the hall through arm-noc, the armoured clear window (x -3.5..7.5, z 42, sill 4.6).
 // Seeded Math.random, sim-time steps. The player stands on the hall floor in front of the window, the pair are told
 // straight to combat: one of them sees him through the pane (sight is MASK.SIGHT, which clear armour passes), the fire
 // gate casts and finds the pane, and neither fires a round while he stands in the NOC over 10 s; each then repositions
 // (leaves the NOC by the stairs, or a cover spot with a clear line) or holds there (a leash), still alerted.
-if (want(6)) {
+if (want(8)) {
   console.log('campus ops (S4, guard-ai S16): guards hold fire at armour (the NOC pair, arm-noc)');
   await run(CAMPUS, async ({ G, sim }) => {
     const S = await sections(G);
@@ -3425,7 +3714,7 @@ if (want(6)) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// (sector-redesign slice 5, `--part=6`) Saltmarsh Park, section 5: the Old House and the extraction
+// (sector-redesign slice 5, `--part=9`) Saltmarsh Park, section 5: the Old House and the extraction
 // (docs/sector-redesign/briefs/SLICE5.md). A self-contained block, run only when the page's section 5 is the built one (24
 // guards): sections 1-4 are told done and their connectors cycled, then (a) index 4, 24 guards, the three cameras, las-shaft
 // with its panel, the item cap; (b) the keyholders stand at their posts; (c) the rota board gives the archive code and
@@ -3546,7 +3835,7 @@ async function campusS5Part(page) {
   assert(end.phase === 'done', `standing on the jetty ends the run (${end.phase})`);
 }
 
-if (want(6)) {
+if (want(9)) {
   console.log('campus ops (S5): the Old House - the rota board, the garden board, the stealth grab, the jetty');
   await run(CAMPUS, async ({ page }) => campusS5Part(page));
 }
