@@ -1,0 +1,12 @@
+{
+  "id": "20261026T130632-night-shift-player-b-db9cc08e-3269",
+  "sha": "db9cc08e7794b5dc44ea25be3b5b2f8138a87215",
+  "branch": "feature/gm-flip",
+  "pr": 375,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-lightbake"
+  ],
+  "set": "gm-flip-lightbake"
+}
