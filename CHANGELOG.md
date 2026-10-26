@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.123.2 - Train 144: Route-runs: the points table check (2026-10-27, PR #635; #564)
+- Route-runs (tooling): a points table is checked against the map graph it plans before a run; a table made on
+  another build of the map, with a different link count or with links in another order is refused with a plain
+  message, and runs that will be unplannable are noted up front. The table can also be made on the spot with
+  level-measure (`scripts/route-run/points.mjs`, unit tests).
+
 ## 4.123.1 - Train 143: Saltmarsh Park S1 fence leak (2026-10-27, PR #633; #629)
 - Sector Ops (v2 layout, section 1): you can no longer get over the perimeter fence and out of the play area. The fence
   could be cleared by jumping off the gatehouse roof corners or the condenser, by climbing from the yard bins, the bin
