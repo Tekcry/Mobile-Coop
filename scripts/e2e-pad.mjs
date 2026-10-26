@@ -7,8 +7,11 @@ const { browser, page, errors } = await launch({ url });
 // (player-flake-fix) a later navigation of the main page is printed when it happens (only src/pwa reloads a page: a
 // waiting update applied at the main menu). One desktop run (68c15083, 2026-10-25) died "Execution context was
 // destroyed" right after the quit to the main menu; the next one names itself
+let navigations = 0;
 page.on('framenavigated', (f) => {
-  if (f === page.mainFrame()) console.log(`  (main page navigated: ${f.url()})`);
+  if (f !== page.mainFrame()) return;
+  navigations++;
+  console.log(`  (main page navigated: ${f.url()})`);
 });
 const q = (sel) => page.evaluate((s) => !!document.querySelector(s), sel);
 const settings = () => page.evaluate(() => window.__app.settings.get());
@@ -509,9 +512,19 @@ try {
   assert(/Stay/.test(await focusedText(page)), 'dialog opens on the safe option (Stay)');
   await press(page, BTN.RIGHT);
   assert(/Quit/.test(await focusedText(page)), 'right moves to Quit');
+  // (player-flake-fix r2) the quit can apply a waiting update: src/pwa reloads the page at the main menu (laptop run
+  // flake-fix-1 died here, "Execution context was destroyed", 2026-10-26). The check waits across the reload
+  // (waitForSelector survives a navigation, page.evaluate does not) and a reloaded page gets its fake pad back
+  const navBefore = navigations;
   await press(page, BTN.A);
   await page.waitForTimeout(400);
-  assert(await q('.main-menu'), 'quit returns to main menu');
+  const home = await page.waitForSelector('.main-menu', { timeout: 15000 }).then(() => true, () => false);
+  assert(home, `quit returns to main menu${navigations > navBefore ? ' (the page reloaded: a waiting update applied)' : ''}`);
+  if (navigations > navBefore) {
+    await page.evaluate(() => window.__pad.connect());
+    await press(page, BTN.LB); // harmless on the main menu; reveals the pad, as the first connect
+    await page.waitForFunction(() => document.body.classList.contains('input-gamepad'), null, { timeout: 8000 }).catch(() => {});
+  }
 
   // (process audit, 2026-10-19) the gameplay sections that each opened their own match (palm strike, back to a wall,
   // door menu, wall edge verb) are gone: the pad verb table below checks every button's action, and the behaviour is
