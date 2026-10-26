@@ -2270,12 +2270,13 @@ characters, guards, weapons and compiled shaders are kept between maps and only 
 first-ever load still takes seconds (shaders compile per GPU); repeat loads are near-instant. (Extends G394.)
 
 **G406. Mixamo motion capture is allowed beside CMU.** (Extended by G407, 2026-10-25: any free asset whose licence
-allows commercial sale.) Michael asked "will mixamo rigging help us streamline animations,
-or only for mixamo animations"; he picked "Yes, allow it now". Mixamo clips become an approved motion-capture source
-beside the CMU takes, retargeted onto the game's own rigs (wren-rig-game and the guard rigs; the Mixamo skeleton is
-never used in game). Same handling as CMU: converted clips bundled, raw Mixamo files not committed, credited in
-`docs/art-credits.md`. Michael downloads the clips himself (Adobe sign-in) into `C:/NightShift/scratch/mixamo/clips/`
-(FBX, without skin). Owner: Player Build. (Extends G264; narrows G268's "CMU only".)
+allows commercial sale.) (Extended by G409, 2026-10-26: Mixamo clips for every CMU move, the Anim Studio set filter.)
+Michael asked "will mixamo rigging help us streamline animations, or only for mixamo animations"; he picked "Yes, allow
+it now". Mixamo clips become an approved motion-capture source beside the CMU takes, retargeted onto the game's own rigs
+(wren-rig-game and the guard rigs; the Mixamo skeleton is never used in game). Same handling as CMU: converted clips
+bundled, raw Mixamo files not committed, credited in `docs/art-credits.md`. Michael downloads the clips himself (Adobe
+sign-in) into `C:/NightShift/scratch/mixamo/clips/` (FBX, without skin). Owner: Player Build. (Extends G264; narrows
+G268's "CMU only".)
 
 **G407. Free assets of any kind are allowed when the licence allows commercial sale.** Michael: "update rules. im happy
 to use any free animations/sounds and anything else, so long as they are allowed to be sold commercially. no
@@ -2297,25 +2298,25 @@ unless marked.
 **G408. Every Mixamo clip goes in the game; Michael tunes afterwards.** (Default-on replaced by G410, ~00:25: a toggle,
 not the default.) Michael (~00:15): "add all mixamo animations in game, i will fine tune as needed. make this priority
 overnight". Every Mixamo clip with an in-game use (the 21 in the Anim Studio plus any Player Build asks for) goes into
-the game; Michael tunes afterwards in the Anim Studio instead of walking first, so the walk cap and the walk before
-switch-on do not hold Mixamo (his current instruction, G86 step 1). Mixamo PRs keep the normal gates (CI, checker,
-laptop e2e) and went first that night for laptop requests, desktop CPU and orchestrator attention. Assumed (undo by
-Michael's word): where a Mixamo clip and a hand-made clip cover the same move, Mixamo wins unless it is visibly broken
-(the I2 crawl chest spin keeps the hand-made crawl until fixed). The orchestrator records the licence sentence in
-`docs/art-credits.md` from the Mixamo FAQ; Michael gets a walk card with the menu path. (Narrows G355's walk before
-switch-on for Mixamo.)
+the game and is switched on, not left dark; Michael tunes afterwards in the Anim Studio instead of walking first, so the
+walk cap and the walk before switch-on do not hold Mixamo (his current instruction, G86 step 1). Mixamo PRs keep the
+normal gates (CI, checker, laptop e2e) and went first that night for laptop requests, desktop CPU and orchestrator
+attention. Assumed (undo: set the `mixamo` flag default back to off): where a Mixamo clip and a hand-made clip cover the
+same move, Mixamo wins unless it is visibly broken (the I2 crawl chest spin keeps the hand-made crawl until fixed). The
+orchestrator records the licence sentence in `docs/art-credits.md` from the Mixamo FAQ; Michael gets a walk card with
+the menu path. (Narrows G355's walk before switch-on for Mixamo.)
 
 **G409. Three animation sets, switchable in game and in the Anim Studio.** Michael (~00:20): "does mixamo have versions
 to replace those that cmu covers? i approve downloading any additional mixamo animations and implemeting into the game,
 i want to be able to switch between all 3 animation sets in game and animation dev to test. in anim dev i would prefer
 an animation set toggle so i can sort through only those animations as needed instead of finding them in a big list."
-(1) Mixamo clips are downloaded for every move the CMU set covers (walk, jog, run, starts, stops, turns, crouched sneak,
-aimed strafes) and any other animated move with a Mixamo fit; Michael pre-approves every such download and its use (the
-orchestrator downloads them as Player Build lists them: FBX without skin, 30 fps, In Place off, mixamo-retarget A3 /
-A4). (2) One toggle covers all three sets, Hand-made / CMU / Mixamo, in game and in the Anim Studio (G410). (3) The Anim
-Studio gets an animation-set filter: pick a set and the Loop list shows only its animations. Assumed (undo: one mixed
-list with a sort): the filter also has "All" (today's list), and the Studio filter and the in-game toggle are separate
-settings. (Extends G406.)
+(1) Mixamo clips are downloaded for every move the CMU set covers (walk, jog, run, sprint, starts, stops, turns,
+crouched sneak, aimed strafes) and any other animated move with a Mixamo fit; Michael pre-approves every such download
+and its use (the orchestrator downloads them as Player Build lists them: FBX without skin, 30 fps, In Place off,
+mixamo-retarget A3 / A4). (2) One toggle covers all three sets, Hand-made / CMU / Mixamo, in game and in the Anim Studio
+(G410). (3) The Anim Studio gets an animation-set filter: pick a set and the Loop list shows only its animations.
+Assumed (undo: one mixed list with a sort): the filter also has "All" (today's list), and the Studio filter and the
+in-game toggle are separate settings. (Extends G406.)
 
 **G410. Mixamo is a toggle, not the default.** Michael (~00:25): "update - dont set mixamo moves as default in game,
 allow toggle between hand made, cmu, and mixamo". The game keeps today's moves by default; a menu toggle picks the

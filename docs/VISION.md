@@ -46,7 +46,7 @@ Normal: alarm stages only (G350).
 - Co-op traversal kit: boost, gap throw, human ladder / pull-up, shutter or door hold, rope brace / descent, vent unlock,
   Deadweight, Drop Catch, Chimney Pair, Swing Pass, Plank Bridge (G293, G403).
 - Objectives: short, plain, what and where; shown on update or a tap of View / O (G343, G351).
-- Animation sets Hand-made / CMU / Mixamo on one toggle, each player drawn with his own (G410, G411); detail art (G309).
+- One Hand-made / CMU / Mixamo animation toggle, each player drawn with his own (G410, G411); full detail art (G309).
 
 ## 4. Ten hard rules (the tie-breakers)
 1. Light parity: picture, meter and guard perception agree, character shadows included; a cast shadow is a faint cue

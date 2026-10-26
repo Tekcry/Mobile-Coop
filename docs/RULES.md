@@ -70,7 +70,7 @@ that area is switched on until Michael walks some, while signed-off builds go on
 shipped features (rule fixes such as G339's compass / blip) are allowed (G355). Every release gets a 10-minute walk card
 from the orchestrator: risk-ranked, one acceptance line per item, look videos for animation and lighting (each such PR
 carries a 1-2 min video path in its body). A flagged feature is switched on when Michael accepts it, or when he says so
-(4-player Sector Ops G381, Mixamo G408). The cap binds the live game only: on `/preview/` every dark feature flag
+(4-player Sector Ops G381; the Mixamo toggle G408, G410). The cap binds the live game only: on `/preview/` every dark feature flag
 defaults on, a URL `=0` turns one off (G416). A lead with no PLAN slice left starts the next roadmap feature in its area
 with an Opus plan; the orchestrator assigns it (G283).
 

@@ -1180,11 +1180,10 @@ definition of done) and `docs/systems/session-method.md` (the job lead's loop). 
 - **Jobs:** `docs/ROADMAP.md` (owned by the orchestrator) lists what runs now and what waits on Michael (G90 in its
   current form); each job keeps BRIEF, PLAN and STATE in `docs/<job>/`.
 - **Models and pace:** Opus plans, briefs, checks and writes tricky engine / AI / animation code; Sonnet builds from
-  strict briefs; Haiku does chores (G302, replaces G88 and G158); each 5-hour window is paced to reach ~100% close to
-  its reset, with at most 2 builders per lead and briefs one slice ahead (G424, G431); lean messaging and batch
-  checkers (G305); two checkers on AI and `src/net`, cloud builders, high effort for leads (G319). Fixes come first,
-  each with a repeat guard (G417, G418), and no session waits on another (G420). The session layout (a lead per area,
-  the orchestrator starting the desktop leads at each swap) is in `docs/RULES.md` "Sessions" (G364).
+  strict briefs; Haiku does chores (G302, replaces G88 and G158); pacing: `docs/RULES.md` "A job" (G424, G431); lean
+  messaging and batch checkers (G305); two checkers on AI and `src/net`, cloud builders, high effort for leads (G319).
+  Fixes come first, each with a repeat guard (G417, G418), and no session waits on another (G420). The session layout (a
+  lead per area, the orchestrator starting the desktop leads at each swap) is in `docs/RULES.md` "Sessions" (G364).
 - **Overnight loosenings:** the rule is in `docs/RULES.md` (Intake, step 2; G301, G358).
 - **Pipeline:** the laptop queue, fixed swap prompts, automatic suite selection and fully automatic rolling trains; no
   e2e on the desktop except the overflow lane (G318, G321, G322); release-speed (G317); the watchdog adds

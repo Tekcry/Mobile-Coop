@@ -259,7 +259,7 @@
     },
     {
       "id": "mocap-no-switch",
-      "regex": "[Mm]ocap only[^.\\n]{0,40}no switch|only player locomotion, with no switch",
+      "regex": "[Mm]ocap only,?\\s+(with\\s+)?no\\s+(player-facing\\s+)?switch|only player locomotion, with no switch",
       "why": "the animation set is a Hand-made / CMU / Mixamo toggle (G409, G410)",
       "replacement": "one Hand-made / CMU / Mixamo toggle (G410)"
     },
@@ -268,6 +268,12 @@
       "regex": "Current goal: Marlow Yard, Saltmarsh Park and Tallow Wharf in parallel",
       "why": "prototype mode: Michael's playthrough decides what is built next (G421)",
       "replacement": "a playable prototype; Michael's /preview/ playthrough decides what comes next (G421)"
+    },
+    {
+      "id": "affected-cap-3",
+      "regex": "at most 3 suites|1-3 closest",
+      "why": "prototype mode: affected-e2e runs the one closest suite (G421; replaces G413's cap of 3)",
+      "replacement": "one suite, the closest (docs/RULES.md \"Test tiers\")"
     }
   ],
   "resumeScope": [
