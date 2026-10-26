@@ -62,6 +62,9 @@ export const S1_LIGHTS: S1Lights = {
   bikes: { x: -7, y: 2.2, z: -52, r: 3, i: 0.5, colour: SODIUM, group: S1_GROUPS.bikes, cone: null, w: 0.2 },
   // (G5, D:133) the smoking shelter's warm lamp, its own circuit (colour and intensity A6)
   smoke: { x: 8, y: 2.2, z: -48.5, r: 3, i: 0.5, colour: SODIUM, group: S1_GROUPS.smoke, cone: null, w: 0.2 },
+  // (S1 v3) the garden gate's lamp, 0.45 m south of the fence line (outside the cap: shootable from the verge), cut with the
+  // gatehouse switch (the gate circuit)
+  gateLamp: { x: 23, y: 2.8, z: -58.45, r: 4.5, i: 0.8, colour: WHITE, group: S1_GROUPS.gate, cone: [0, -1, 0, 1.2], w: 0.3 },
 };
 /** The lists `s1.ts` re-exports (the dress and the tests read them by these names). */
 export const PARK_COLUMNS_W = S1_LIGHTS.columnsW;
@@ -136,12 +139,14 @@ export const S1_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: -12, z: -66, yaw: PI / 2, route: [[-12, -66], [4, -66]], waits: [4, 4], takedownSpot: [4, -66], role: 'patrol', zone: 'carpark', squad: 1, reason: 'Walks the rows by the gate where the courier parks' },
   // 12 (G4, D:247) the storeman: the goods door <-> the bin screen mouth, 6 s stops, 25.4 s; alone at the bin mouth
   { kind: 'grunt', x: -31, z: -42.6, yaw: PI, route: [[-31, -42.6], [-34, -48.5]], waits: [6, 6], takedownSpot: [-34, -48.5], role: 'patrol', zone: 'dock', squad: 3, reason: 'Storeman: stages the cage trolley for the 03:00 courier' },
-  // 13 (G5, D:249) the walkway patrol: the drop-off walkway, 4 s stops, 40.3 s; dark at the east end by the lockers
-  { kind: 'grunt', x: -24, z: -43, yaw: PI / 2, route: [[-24, -43], [-8, -43]], waits: [4, 4], takedownSpot: [-8, -43], role: 'patrol', zone: 'forecourt', squad: 2, reason: 'Walks the drop-off walkway' },
+  // 13 (G5, D:249; S1 v3) the walkway patrol: the drop-off walkway x -22..-2 (6 m further east than v2, so the planters by the door
+  // are timed too), 2 s stops, 44.4 s; dark at the east end by the lockers
+  { kind: 'grunt', x: -22, z: -43, yaw: PI / 2, route: [[-22, -43], [-2, -43]], waits: [2, 2], takedownSpot: [-2, -43], role: 'patrol', zone: 'forecourt', squad: 2, reason: 'Walks the drop-off walkway' },
   // 14 (G5, D:250) the courier escort: posted at the kerb facing the car park; his takedown spot 0.5 m behind him (A7)
   { kind: 'officer', x: -18, z: -46.6, yaw: PI, takedownSpot: [-18, -46.1], role: 'escort', zone: 'forecourt', squad: 2, reason: 'Meets the 03:00 courier at the drop-off' },
-  // 15 (G5, D:253) the north-east fence patrol: 5 s stops, 42.3 s; dark at the NE corner
-  { kind: 'grunt', x: 24, z: -54, yaw: 0, route: [[24, -54], [24, -38]], waits: [5, 5], takedownSpot: [24, -38], role: 'patrol', zone: 'perimeter', squad: 4, reason: 'East fence-line check' },
+  // 15 (G5, D:253; S1 v3) the garden-gate fence patrol: the inside of the new z -58 fence, from the lane end (x 12) to the gate (22.8),
+  // 9.5 s stops, 40.8 s; the west stop faces the lane end, the east stop the gate, his takedown spot at the gate stop
+  { kind: 'grunt', x: 12, z: -56.5, yaw: -PI / 2, route: [[12, -56.5], [22.8, -57]], waits: [9.5, 9.5], faces: [-PI / 2, PI], takedownSpot: [22.8, -57], role: 'patrol', zone: 'perimeter', squad: 4, reason: 'Walks the new garden-gate fence: the lane end is shut at night' },
   // 16 (G5, D:252) the second smoker, #6's talking pair: the shelter front <-> the ash bin, 12.5 s stops (A20), 30.3 s;
   // a 3 m post round the shelter front (its route inside it) so the pair forms as a posted pair (Guard AI play pass)
   { kind: 'officer', x: 7, z: -50.8, yaw: -PI / 2, route: [[7, -50.8], [4.5, -50.8]], waits: [12.5, 12.5], takedownSpot: [4.5, -50.8], post: { leash: 3, guards: 'smoking' }, role: 'smoker', zone: 'smoking', squad: 2, pair: 5, reason: 'On his break with the smoker' },
@@ -155,7 +160,7 @@ export const S1_GUARDS: SectorGuard[] = [
 
 /** Section 1's cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */
 export const S1_CAMERAS: SecurityData['devices'] = [
-  // fixed, faces south down the lane: the verge and the rear window are behind it
+  // fixed, faces south down the lane: the verge and the gatehouse's rear wall are behind it
   { id: 'cam-gate', kind: 'camera', level: 'ground', at: [11, -77.9], y: 3.0, aim: 6, range: 10, facing: 180, reason: 'S1: the barrier and the gatehouse door (the insurer asks for an ANPR / tailgating camera)', section: 0 },
   // under the canopy soffit: sweeps 40 degrees south-west to south, 8 m out; cannot see the canopy top
   { id: 'cam-walk', kind: 'camera', level: 'ground', at: [-17, -34.5], y: 3.4, aim: 8, range: 10, facing: 205, sweep: [185, 225], reason: 'S1: the walkway from the car park to the staff door', section: 0 },
@@ -167,19 +172,17 @@ export const S1_DESKS: SecurityDesk[] = [{ id: 'desk-gate', section: 0, at: [18.
 /** Section 1's alarm panel: the gatehouse's, by its door, facing into the room (G2, D:61). */
 export const S1_ALARMS: CampusAlarm[] = [{ at: [15.0, -72.8], yaw: PI, section: 0 }];
 
-/** Section 1's sector: the gatehouse PC download, C1 into the staff entrance. */
+/** Section 1's sector: (S1 v3) the courier's badge cloned at his van in the car park, C1 into the staff entrance. */
 export const S1_SECTOR: SectorDef = {
   id: 's1',
   name: 'Gatehouse and car park',
   start: { x: 24, y: 0, z: -79, yaw: 0 },
   // weapons crate (E9): the verge east fence, strip to the lane
   crate: { at: [25, 0, -78], yaw: -PI / 2 },
-  // download (10 s, within 4 m) at the gatehouse PC, through the open rear window from the dark verge: opens C1 (the cloned courier badge).
-  // (builder L2) The SPEC's (18.5, -76) is 1.95 m from where a player stands at the window (the wall face x 20.15 + the 0.3 body):
-  // the default interact reach is 1.8 (`Interactables.nearest`), so the download could not be started from the verge. The PC sits
-  // on its desk at x 19.3 (0.8 m east, 1.15 m from the window). (F42) The desk moved south of the window, off the vault's
-  // landing: the PC sits on its north end at z -77.3 (the terminal z -77.65..-76.95), 1.74 m from the player at the window.
-  objective: { kind: 'download', label: "Download tonight's visitor list in the gatehouse", x: 19.3, y: 0, z: -77.3, yaw: PI / 2 },
+  // (S1 v3) download (10 s, within 4 m): the courier's badge cloned at his van's open rear doors, west end of the solar carport,
+  // 54.6 m from the start (Michael: the objective was too close to the spawn). The clone point is the van's rear doors; if the
+  // 10 s clone proves too tight against the pair's loop, the lead moves it west.
+  objective: { kind: 'download', label: "Clone the courier's badge at his van, west end of the solar carport", x: -26.2, y: 0, z: -57.8, yaw: 0 },
   connector: {
     label: 'Into the staff entrance',
     box: [C1_BOX[0], C1_BOX[1], C1_BOX[2], C1_BOX[3]],
@@ -194,27 +197,28 @@ export const S1_SECTOR: SectorDef = {
   reinforce: [[11, -79], [-33, -41]],
   perStage: 2,
   dogs: 0,
-  // (G6, D:147, SVG:537-544) the three polylines, each from the start through the objective (within 4 m) into C1
+  // (S1 v3) the garden gate: a pair gate in the z -58 fence (two keys on the verge side, turned within 1 s by two players)
+  pairGates: [{ door: [S1_DOORS.gardenGate[0], S1_DOORS.gardenGate[1]], a: { at: [22.2, -58.7], yaw: PI, label: 'Hold the gate' }, b: { at: [23.8, -58.7], yaw: PI, label: 'Draw the bolt' } }],
+  // (S1 v3) the three polylines, each from the start through the van (within 4 m) into C1: the dark south and west fences, the
+  // lit lane and the aisle, and the garden gate (two players) over the bike shelter and the carport roof
   routes: [
     {
-      // track B (SVG:537): the verge, the rear window, the dark east fence, behind the smoking shelter, the facade planters, the doorman from the east
-      name: 'The verge, the rear window and the east side',
-      pts: [[24, -79], [21, -76], [23, -70], [23, -55], [22, -46], [12, -45.6], [4, -45.8], [0, -37.2], [-12, -37.2], [-18.6, -35.3], [-20, -34], [-20, -32]],
-      obj: 1,
+      name: 'The lane under the floodlight, the aisle and the carport',
+      pts: [[24, -79], [22, -73], [21, -67], [12, -67.5], [0, -67.5], [-16, -67], [-24, -64.2], [-28.8, -61.5], [-27, -56.8], [-26, -54.5], [-22, -49], [-24.5, -41.2], [-23.2, -36.5], [-21.6, -35.1], [-20, -34], [-20, -32]],
+      obj: 8,
     },
     {
-      // shadow (SVG:538, then the as-built tail SEC:340): the south footway, the west margin, the yard board, the doorman from the west
-      name: 'The south footway, the west margin and the yard board',
-      pts: [[24, -79], [21, -76], [22, -73], [10, -79], [-10, -79.2], [-38.6, -78], [-38.6, -55], [-37, -51], [-33, -46], [-29.5, -41.2], [-24.5, -41.2], [-23.2, -36.5], [-21.6, -35.1], [-20, -34], [-20, -32]],
-      obj: 1,
+      name: 'The south footway, the west fence and the plant roof',
+      pts: [[24, -79], [22, -73], [10, -79], [-10, -79.2], [-38.6, -78], [-38.6, -62], [-29.8, -58.4], [-28.5, -50.5], [-26.8, -44], [-29.5, -41.2], [-38, -41.3], [-38, -39.2, 4.4], [-33, -37, 4.4], [-20, -37.5, 4.4], [-20, -35.9], [-20, -34], [-20, -32]],
+      obj: 6,
+      // the caged ladder (leg 10) and the hatch drop (leg 13, A65)
+      climbs: [10, 13],
     },
     {
-      // track A (the as-built lead-in SEC:346, then SVG:539): the caged ladder, the plant roof, the canopy hatch drop behind the doorman
-      name: 'The caged ladder, the plant roof and the canopy hatch',
-      pts: [[24, -79], [21, -76], [21, -70], [21, -64.5], [-30, -64.5], [-28.5, -50.5], [-26.8, -44], [-29.5, -41.2], [-38, -41.3], [-38, -39.2, 4.4], [-33, -37, 4.4], [-20, -37.5, 4.4], [-20, -35.9], [-20, -34], [-20, -32]],
-      obj: 1,
-      // the caged ladder (leg 8) and the hatch drop (leg 11, A65)
-      climbs: [8, 11],
+      name: 'The garden gate, the bike shelter and the carport roof',
+      pts: [[24, -79], [23, -70], [23, -59.3], [23, -56.7], [21, -50], [12, -45.6], [4, -45.8], [-7, -48.4], [-7, -52, 2.4], [-10, -56, 3.0], [-23.4, -56.6, 3.0], [-25.4, -56.8], [-23.5, -60, 3.0], [-1, -55, 3.0], [-1, -53], [-1, -46], [-3, -37.2], [-12, -37.2], [-18.6, -35.3], [-20, -34], [-20, -32]],
+      obj: 11,
+      climbs: [7, 8, 10, 11, 13],
     },
   ],
 };
