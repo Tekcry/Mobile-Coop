@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.118.0 - Train 134: Marlow Yard re-plan walks: fix the three quarantined steps (test only); Missions: Sector Ops missions and the co-op kit (2026-10-26, PR #607; #596, #578)
+
+### Marlow Yard re-plan walks: fix the three quarantined steps (test only)
+- Marlow Yard re-plan walks: fix the three quarantined steps (test only) (#596)
+
+### Missions: Sector Ops missions and the co-op kit
+- Sector Ops can run a mission on top of a map's sections: a briefing, steps (copy intel, hack, get out), a rule such
+  as "no kills" (breaking it restarts the section) and the objective line and Field Terminal list that follow it. The
+  Saltmarsh Park test mission runs this way in /preview/ (`?autostart=campusOps&mode=sector&mission=campusMissionTest`).
+- New co-op moves for later maps: the pull-up (one player crouches at a ledge, the other jumps and is hauled up) and the
+  roller shutter (one player holds it open while the other crawls under). Guards notice an open shutter. They need the
+  co-op part and the Tallow Wharf map, which come in the next missions updates.
+- All of this is behind the `missions` and `coopKit` flags: off in the live game, on in /preview/. Nothing changes in
+  the live game.
+
 ## 4.117.0 - Train 133: Queue fixes: CI-length train hold, early conflict retire; Marlow Yard re-plan: clearer steps for the first two-player walk; Marlow Yard re-plan: fixes for the first two-player walk; +6 more (2026-10-26, PR #600; #597, #594, #587, #552, #548, #522, #518)
 
 ### Campus greybox S1-a (v2, dark): perimeter and gatehouse

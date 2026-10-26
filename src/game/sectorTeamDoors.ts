@@ -86,11 +86,20 @@ export class SectorTeamDoors {
     this.gates = new SectorPairGates(defs);
   }
 
-  /** At the mode's start: lock every team door, shut its nav closure and put down its items. */
-  build(): void {
+  /**
+   * At the mode's start: lock every team door, shut its nav closure and put down its items. `missionId`: the bound
+   * mission's `MissionDef.id` (none: no mission). (J8 A30) A bolt with `missions` is fitted only when they name
+   * `missionId`; an unfitted bolt is a plain door (`SectorBolts.unfit`: no lock, no nav closure, no item, so `reset`
+   * and `boltInfo` never see it).
+   */
+  build(missionId?: string): void {
     const h = this.host;
     this.defs.forEach((s, sec) => {
       s.bolts?.forEach((b, k) => {
+        if (b.missions && (missionId === undefined || !b.missions.includes(missionId))) {
+          this.bolts.unfit(sec, k);
+          return;
+        }
         const door = h.doors.nearest(b.at[0], b.at[1], DOOR_FIND);
         if (!door) console.warn(`[sector] ${s.id}: no door at bolt ${k} (${b.at[0]}, ${b.at[1]})`);
         const nav = this.closeDoor(door, b.at);
