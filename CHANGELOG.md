@@ -1,5 +1,151 @@
 # Changelog
 
+## 4.115.0 - Train 128: Campus greybox S1-a (v2, dark): perimeter and gatehouse; Campus greybox S1-b (v2, dark): car park, service yard and plant room; +11 more (2026-10-26, PR #584; #579, #573, #562, #561, #552, #550, #530, #525, #516, #514)
+
+### Campus greybox S1-a (v2, dark): perimeter and gatehouse
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G1 perimeter: an anti-climb steel palisade (2.4 m, no handholds) closes the whole section, with the sliding gate leaf
+    shut and the anglers' cut panel re-hung; anti-climb screens on the gatehouse, plant room and pavilion roof edges; the
+    bin store's west wall is gone. Every section 1 lamp now comes from one provisional light table (today's values, to be
+    calibrated to real-world levels).
+  - G2 gatehouse: rebuilt 6.5 x 6.5 with a glazing band (open rear pane, two fixed panes, the reception window), the door
+    north at (17, -72.5), a roof whose only ledge is the east edge (a wall-jump corner by the A/C condenser), a glazed
+    smoke-vent hatch, a warm desk lamp beside the ceiling tube on the gate circuit, the CCTV desk as a security desk run
+    by the CCTV officer, and a third officer (the night supervisor).
+
+### Campus greybox S1-b (v2, dark): car park, service yard and plant room
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G3 car park: the rows 2 m south, ten lamp columns plus four downlights under a new solar carport (a roof route at 3.0
+    m, reached off the courier's van or the bike shelter), the bike shelter moved against the carport with cycle lockers
+    and its lamp now lit on its own switch, the car-park pair's loop moved with the rows and a new east-rows patrol.
+  - G4 service yard and plant room: the bin store opens into one 14 x 14 service yard with a low bin screen, a roll cage
+    beside the cage trolley and a new storeman; the plant room is deeper, its goods door is unlocked, and a fixed ladder
+    climbs to a roof hatch; the canopy breaker sits on the yard board beside the forecourt switch; a new co-op leg-up
+    (CR1-yard) at the plant roof's hoist bay.
+
+### Campus greybox S1-c (v2, dark): forecourt, lawn, pavilion, rooms, routes and graph
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G5 forecourt, lawn and pavilion: the forecourt gets grit bins and a walkway patrol plus a courier escort at the kerb;
+    the lawn gets two trees, a lit smoking shelter on its own switch, a second smoker and a north-east fence patrol; the
+    pavilion top is a closed roof walk whose east half carries a new co-op leg-up (CR1-east). Section 1 now has 15 guards.
+  - G6 rooms, routes and graph: fourteen room tags (the roof walks, the carport, the plant room and the lawn get their own,
+    the bin, bike and smoking shelter rooms go), three solo routes redrawn for the new layout (the verge and east side, the
+    south footway and yard board, the caged ladder and canopy hatch), the fence patrol's takedown spot moves to his
+    south stop, and the plan graph reads as built (the forecourt is tagged as the section's unavoidable guard).
+
+### Saltmarsh Park gatehouse window vault
+- Saltmarsh Park, section 1: you can now vault through the gatehouse's open rear window both ways. The PC desk stood
+  right under the window, so the jump in landed on the desk and the game refused it. The desk now stands against the
+  same wall just south of the window, the PC sits on its end nearest the window and can still be downloaded from the
+  verge, and the kettle counter moved a little west to make room.
+- A new test checks every vaultable window on the campus: the landing on the far side must be clear and close to the
+  floor height you jump from.
+
+### Laptop queue: fixes first, a new head keeps its place
+- Fixes (PR label `fix` or `request.mjs --fix`) are tested before new features, on the laptop and the desktop.
+- A new head of a PR keeps its request's place in the queue and stops the run on the old head.
+- The desktop takes the smallest request, skips any estimated over 15 minutes, and has a CPU mode knob
+  (`LQ_DESKTOP_CPU_MODE`).
+- A train preempt keeps the suites that already passed, so only the rest rerun.
+- A docs-only commit on a PR head carries the earlier affected-e2e verdict.
+- A train verdict or done claim lost in a GitHub outage is retried on later passes, so a green train no longer holds
+  every alone request; both workers heartbeat their claims, a silent claim frees after 20 minutes, and a run whose
+  claim was taken stops.
+
+### Map load: shader compile log and parallel compile
+- Load timing: each map load now logs every shader it compiles (what kind, how long, how many at once), shown in the
+  feedback note and read by the measure script, which can now run cold loads only and compare compile orders.
+- Behind the map-ready loading screen (off by default): the shader compile groups (your body and weapons, the level,
+  the guards, the rest) now start together in priority order instead of one after another, so the browser can compile
+  them at the same time. `?compileorder=serial` keeps the old order for comparison.
+
+### Mixamo batch 2 in the Anim Studio: the pistol, rifle, shooter and action-adventure packs (108 clips)
+- The Anim Studio lists 108 more Mixamo captures ("Motion capture (Mixamo): rifle walk forward" ...): the Pistol/Handgun
+  Locomotion, Pro Rifle, Shooter and Action Adventure packs plus five cover and look-around clips. Each plays on Wren and
+  follows its tuner rows.
+- The new captures load when the Anim Studio opens (one download), so the game itself starts no slower.
+- Matches do not use them yet (the drawn-weapon and wall sets come in later steps); with the default source (CMU)
+  nothing changes.
+
+### Takedown search and body pick-up make no per-step garbage
+- No behaviour change: the takedown offer scan reuses one plan and one offer and the shorter sight check, and a started
+  takedown keeps its own copy of the plan; the pick-up of a knocked-out body no longer builds a closure every step.
+
+### Selection wheel ring updated in place
+- No behaviour change: the open selection wheel updates its slots (ammo, gadget counts) in place instead of rebuilding
+  the ring every step (rebuilt only when its shape changes); a stale "time slows" comment corrected (G181).
+
+### Palm strike recovery
+- The palm strike recovers in about 1.4 s after the hit (was 0.6 s): the hit lands as fast as before, then the arm
+  follows through and settles back into the stance before you are free to move on.
+
+### Look videos for the walk cards
+- A developer tool records 1-2 minute videos of scripted scenes (walks, takedowns, camera views) without opening a
+  window, for Michael's walk cards. Nothing in the game changes.
+
+### Preview plays the Mixamo animations
+- The preview build now starts with the Mixamo animation set, as every other new feature there. Once you pick an
+  animation set yourself (Options > Gameplay > Animation source, or the Anim Studio's switch) your pick is kept. The
+  live game is unchanged (CMU until you pick). (F45)
+
+### Level validator: training, perfect-run and engine checks, graph sets
+- Level validator, training maps (`scripts/level-checks/training.mjs`): a new `meta.taught_by` names the section where
+  the last co-op kit move is taught on its own (an error when missing or not one of `meta.sections` on a training map,
+  and on any other mode). Up to and including that section each section is one guided route: an error for a side route
+  (2+ routes), for a `split:` tag, for no teach element, and for a teach element some entry-to-exit path avoids.
+- Teach elements: a link field `teach: "<move>"` or a space tag `teach:<move>` (free text from the map's teach list, so
+  moves with no link kind, such as the jam relay or the console loop, count).
+- Routes are counted on the section's own spaces and links (no spine link), entry to exit, never entering a space
+  twice; links between the same two spaces in the same direction are one step, and a split's legs are one route. So a
+  drop back beside a boost, or an objective loop that returns to its space, is still one route. Exported as
+  `sectionRoutes(graph, section)` -> `{ count, paths }` (count stops at 10; a merged split is `split:<id>` in `paths`)
+  for the route-run harness.
+- After `taught_by`, a section with 2+ routes needs a guarded encounter space (a side route only when training against
+  enemies), and then the campaign route rules run on it: three approaches of two kinds with shadow, high and loud, and
+  routes that cross. A section whose only second way is a split needs neither.
+- `npm run validate:levels` (`scripts/level-graphs.mjs`) runs the level validator over every committed graph set in
+  `docs/level-validator/graph-sets.json` (the example, campus S1-S5 and Marlow Yard) and exits 1 when a set's error or
+  warning count differs from the manifest; `--write` rewrites each saved run and the counts. `tests/levelGraphs.test.ts`
+  pins the same counts and checks each saved run says them. Pinned today: campus 139 errors and 200 warnings, Marlow
+  Yard (with `--require-measured`) 37 errors and 83 warnings. Adds the `level-measure` script line.
+- Level validator (tooling, no game change): every map graph is checked for a perfect run. Each objective and the
+  run's end (exfil on a campaign map, the last section's exit on Sector Ops and Marlow Yard) must be reachable without
+  a link marked `requires_kill` (an error on every mode) and without a loud link (an error on campaign and Sector Ops,
+  information on Marlow Yard). `requires_kill` must be true or false, and a `mark` on a space or link is an error on
+  campaign and Sector Ops and an information count on Marlow Yard.
+- New test: no mission forces a kill. Every Sector Ops objective is a hack, grab or download, and every Marlow Yard
+  objective step is completed by a player action (a zone, a scanner pair, a switch or a door), never by a guard's death.
+- Validator output on the worked example and the campus graphs is unchanged.
+- Level validator, engine facts (`scripts/level-checks/engine.mjs`): a space more than `rules.nav_floor_depth_m`
+  (scale sheet section 8, 1.5 m) below storey 0 that is an encounter space or has guards prints a WARN: the guards'
+  nav grid does not reach that deep (level-design 12.1). The row is read only when such a space exists below storey 0;
+  a missing row prints one WARN and the check is skipped. Ropes still go both ways (a `team_rope` down from an upper
+  storey inside the `rope_span` band is fine) and the validator has no human-ladder row of its own: a `human_ladder`
+  lip is judged by the co-op lip band (`sizes.coop_lip`) as before.
+- Level validator, throw gaps (`scripts/level-validate.mjs`, the `team_throw` check): a throw marked as an approved
+  long throw is judged against the scale sheet's "Long throw (named spots only)" row (`sizes.throw_long`, gap at most
+  4.9 m at the listed spots) instead of the 2.7 m throw gap row. Every other throw keeps the 2.7 m row.
+- New optional link field `exception` (only `"long_throw"`, only on a `team_throw`; an error on any other value or
+  kind): documented in `docs/level-validator/graph-schema.md`.
+- Docs: `docs/level-validator/graph-schema.md` gains `meta.taught_by`, `teach`, `requires_kill`, `mark` and
+  `exception`, the training, perfect-run and engine checks, the graph sets, and corrects the coverage, solo-twin and
+  measured-value lines; `docs/level-design.md` names `taught_by`, the live measured exit gate and the new rule-index
+  rows; `docs/systems/testing-tools.md` documents `--require-measured`, `npm run validate:levels` and
+  `npm run level-measure`.
+- The Marlow Yard level graph (`docs/marlow-final/graph/ctcourse.json`, as built at 4.103) is on the training profile,
+  with `taught_by` A7 and eight teach elements from the course spec. It is measured with `level-measure --write`; its
+  validator run with `--require-measured` is saved beside it as `run.txt`, with a `REPORT.md` that maps each error to
+  the re-plan slice that fixes it.
+- The five campus graphs carry their measured positions and the values `level-measure` stored from the built campus. A
+  new test, `tests/levelMeasureCampus.test.ts`, re-measures the campus in CI and fails when a stored value has moved or
+  the stored geometry hash is stale; the saved validator run and report are in `docs/level-validator/campus-run/`.
+- Splits: a split leg may start with a co-op link from the fork (both partners stand at the fork for the boost, then
+  go on alone). At most one leg; the other still needs a solo entry from the same fork; the co-op link's time counts
+  for its leg and an INFO line names it. Two co-op entries, or a bolted link walked the wrong way, keep the error.
+
 ## 4.114.1 - Train 126: Training course and bunker test fixes; Marlow Yard test fixes (2026-10-26, PR #577; #567)
 
 ### Marlow Yard test fixes
