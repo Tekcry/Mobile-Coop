@@ -1035,15 +1035,15 @@ Open (2026-10-27 ~04:10, new 5-hour window to ~08:50, up to 2 agents; target: Mi
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: piano guard work all on master (#624, #644); walk-card lines sent 04:00. #317 merge 13 be9b56d80 (merge 12's
-run lost to a new conflict; this one: campusOps-S1.json = master's v3 note + coop4's TAG-1 counts carpark 3p/4p 4,
-forecourt 4p 4; checker carried): co-op group queued -> green: tell orch (missions switch on today).
+Next: piano guard work all on master (#624, #644); walk-card lines sent 04:00. #317 merge 14 e3fa3909f (4th run lost to a conflict; flags.ts both kept; coop4's
+protocol note moved onto the MAX_PLAYERS line so version bumps stop conflicting; checker carried): asked the orchestrator
+for no-affected-e2e + train-ready or a front; background wait on affected-e2e.
 J16 Guard AI half (row 13): BRIEF + PLAN 14b5e11e8 on feature/guard-ai-j16 (worktree -guard-ai-j16):
 G1 shapes + G2 notice rule (start now, parallel) -> G3 src/ai wiring = PR 1 (~1.0k); G4a / G4b (waits on Sector Ops
 S3b-2: GameState.shadowCues) / G5 e2e / G6 docs = PR 2. Cue: calm guard, moving shadow in focused cone -> meter 0.35,
 2.4 s look, never escalates alone (A1-A11 in BRIEF). Plan check 1 PASS ef5889a44 (PLAN-CHECK.md: 7 fold-ins; items 1, 2, 3, 6 go into the G3 brief, 7 into G5; 4 in
-G2; 5 = carried-body shadow hand-off to Player, sent to the orchestrator). Opus builder RUNNING on G1 + G2 ->
-slices/G1-G2-REPORT.md; then one Opus checker, then G3 (after the piano escape lands).
+G2; 5 = carried-body shadow hand-off to Player, sent to the orchestrator). G1 + G2 built af4146d7c
+(slices/G1-G2-REPORT.md); Opus checker RUNNING -> slices/G1-G2-CHECK.md; then G3 (after the piano escape lands).
 Orchestrator 04:15: G3 after the piano escape lands; S3b-2 sequenced by it after Sector Ops' lamp-id fix; G4b not
 held (prototype mode: on in /preview/, the walk cap limits live switch-on only).
 ```
