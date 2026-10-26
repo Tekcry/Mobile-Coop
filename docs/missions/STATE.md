@@ -9,9 +9,9 @@ Mobile-Coop-menu/node_modules only). Newest: scratch/campaign/lead-notes.md "Ses
 3. (a) #522 feature/mission-c2-rules 17e8738ba: master merged in (settings: Hints + Animation source kept; tsc +
    settings tests green); checker status posted; train-ready returns via the watchdog after CI + affected-e2e.
 4. (b) PR #578 feature/mission-b-sector 8d4feb8ec (base (a), big-pr): Opus PASS (member-b-check.md), status posted,
-   laptop set mb 20261026T061605 + affected. Retarget to master after #522 lands (A27). Polish: the check report.
+   the automatic affected run only (set mb withdrawn: one set per change). Retarget to master after #522 lands (A27). Polish: the check report.
 5. (c) net + (d) Tallow cut by Opus -> scratch/campaign/member-cd-cut-report.md (feature/mission-c-net on (b),
-   feature/mission-d-wharf on (c)). Then a checker each ((c): two Opus src/net checkers), PRs, one set each.
+   feature/mission-d-wharf on (c)). Then a checker each ((c): two Opus src/net checkers), PRs, the automatic affected run only.
 6. G5 after (d) (A30); #549 look-video merged (master).
 Next: #578 / #522 verdicts; (c)/(d) cut report -> checkers; Tallow W1 in /preview/ when (d) lands.
 
