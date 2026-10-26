@@ -785,7 +785,7 @@ export class SectorMode implements GameMode {
   /** The current section unloads: a held guard is let go, then every guard and body goes, and its devices go off. */
   private unloadSection(): void {
     const g = this.g;
-    if (g.takedown.active) g.takedown.reset();
+    if (g.takedown.busy) g.takedown.reset();
     // co-op: guards a client holds (grab, hostage) are let go and the client told, before they despawn
     g.net?.releaseHolds?.();
     this.pending.length = 0;

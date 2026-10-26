@@ -1429,7 +1429,7 @@ export class GameState implements AppState {
     const inputS = this.app.input.state;
     const pressI = inputS.pressed('interact') && !this.ctxOwnsA;
     // a takedown on offer / running takes the button; (G7) so does a body being lifted or put down
-    if (this.takedown.offer || this.takedown.active || this.carrier?.busy) {
+    if (this.takedown.offer || this.takedown.busy || this.carrier?.busy) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = null;
       this.hud.setInteract(null);
@@ -3705,7 +3705,7 @@ export class GameState implements AppState {
     const hp = this.target.health.hp;
     const hurt = hp < this.openHp;
     this.openHp = hp;
-    const end = !d || !pl.alive || hurt || this.takedown.active !== null || this.traversal.attached || !!this.traversal.committed || (!!c.override && c.override !== this.openOv);
+    const end = !d || !pl.alive || hurt || this.takedown.busy || this.traversal.attached || !!this.traversal.committed || (!!c.override && c.override !== this.openOv);
     const ang = d ? leafFraction(d) * DOOR.openAngle : 0;
     const act = o.update(dt, ang, !!d && d.target === 1, end);
     if (act === OPEN_ACT.open) this.openUse?.();
