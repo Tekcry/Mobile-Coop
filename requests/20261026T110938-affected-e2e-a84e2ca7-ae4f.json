@@ -1,0 +1,14 @@
+{
+  "id": "20261026T110938-affected-e2e-a84e2ca7-ae4f",
+  "sha": "a84e2ca78c714319aa1cd163bb064fe84d9f63d0",
+  "branch": "feature/mission-d-wharf",
+  "pr": 583,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T092422-affected-e2e-a84e2ca7-d6a7, rerun on the laptop"
+}
