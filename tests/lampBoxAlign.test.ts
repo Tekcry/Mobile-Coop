@@ -215,6 +215,11 @@ const ON_ITS_POST: Record<string, string> = {
  */
 const KNOWN_EMBEDDED: Record<string, string> = {
   'campusOps:16': 'S1 bike shelter fitting (-5, 2.2, -48) flush with the roof underside at 2.2 (campusS1.ts:254); tagged out (radius 0, off): bakes nothing',
+  // (mission-engine member d, Campaign Build, prototype mode: note and ship) Tallow Wharf: most are the conduit runs
+  // (LIGHT.md rule 6, tallowWharfW*.ts) ending at the light point, so the conservative occupancy finds the conduit under
+  // the lamp; 92, 109 and 110 (gas jet, crane aviation lamp, launch lamp) sit on their own mounts. A light-pass item:
+  // end each run at the fitting's top, then move the mounted ones to ON_ITS_POST.
+  ...Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 58, 59, 60, 61, 62, 92, 109, 110].map((k) => [`tallowWharf:${k}`, 'Tallow conduit run or mount at the light point (light-pass item)'])),
 };
 
 describe('every map: no lamp embedded in its own mount', () => {
