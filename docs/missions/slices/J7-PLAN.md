@@ -513,8 +513,8 @@ for word; nothing else in the BRIEF changes):
 - The kill branch must break the rule once, not every tick he lies dead: after the hit, `tracker.update` trips in the
   same tick and `tick()` returns early during the pending restart (the `pendT` branch); while the rule's scope is held
   (the 2 s hold after a restart) `onTargetKilled` returns false, `spookStep` is not set, and the check retries next tick.
-  Unit tests cover both. The kill is told from a knock-out by `!e.alive` (checked first), so a knocked-out Teale who is
-  then killed in the same tick takes the kill branch.
+  Unit tests cover both. The kill is told from a knock-out by `!e.alive && !e.ko` (a knock-out is `!alive` too), so a knocked-out
+  Teale who is then killed in the same tick takes the protected branch, not the kill branch.
 - The spook fact adds one bit after the `gives` facts: missions without a bolt keep their bit order; the train bumps
   PROTOCOL_VERSION, so an old client never reads the new bit.
 - PR C's size and its master conflicts (HG3's blips gate, J3 / J3b hunks) are the engine plan's; J7 adds small hunks
