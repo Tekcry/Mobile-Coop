@@ -33,6 +33,8 @@ const MAPS = {
   ops: 'autostart=warehouseOps&mode=sector&sectorGuards=4',
   marlow: 'autostart=ctcourse&mode=course',
   warehouse: 'autostart=warehouse&mode=sandbox',
+  // (lamp-id-shot, F56) Saltmarsh Park with every section on the v2 layout (260 lamps: ids 255-259 are the S5 service stair's)
+  campus5: 'autostart=campusOps&mode=sector&campusv2=1,2,3,4,5&sectorStart=5&sectorGuards=0',
 };
 const WIDTH = 960;
 
@@ -67,6 +69,12 @@ const ROWS = [
   // cameras inside the yard (the perimeter south wall is z -27 to -26) and east of the container (x 6-12)
   ['wh-floods-dock', [-23, 0, -25.2], [-22, 2.2, -25], [-13, 2.5, -19], 'warehouse'],
   ['wh-flood-workshop', [19, 0, -24.8], [17, 2.4, -25], [11.5, 2.2, -19.5], 'warehouse'],
+  // (lamp-id-shot, F56) S5 service stair (circuit 156, campusV2/s5.ts S5_LIGHTS.stair): five lamps at x -35, (y, z) =
+  // (2.4, 38.8) (4.5, 43.4) (6.6, 38.8) (8.7, 43.4) (10.6, 38.8); interior x -36.3..-33.7, z 38.2..43.8, ground landing z 38.2-39.4
+  // the stair foot (feet on the ground landing, so the HUD meter reads there), looking up the flights to the far lamps
+  ['s5-stair-foot', [-35, 0, 38.8], [-35, 1.6, 38.6], [-35, 4.2, 43.4], 'campus5'],
+  // the L1 landing (y 4.2) looking up at the upper lamps (6.6 / 8.7 / 10.6)
+  ['s5-stair-up', [-35, 4.2, 38.8], [-35, 5.8, 38.6], [-35, 8.8, 42.5], 'campus5'],
 ];
 
 /** Draw a PNG buffer into a canvas in `page` and return a webp buffer `w` px wide. */
@@ -193,7 +201,7 @@ for (const map of [...new Set(picked.map((r) => r[4] ?? 'ops'))]) {
       if (PROBE) {
         // the light field (what the meter and the guards read) under each lit ceiling light within 9 m of the player,
         // beside what the volumetric pass scatters for it this frame
-        const probe = await page.evaluate(([p]) => {
+        const probe = await page.evaluate(([p, minY]) => {
           const g = globalThis.__app.current;
           const st = g.stack;
           const f = g.world.lightField;
@@ -203,12 +211,12 @@ for (const map of [...new Set(picked.map((r) => r[4] ?? 'ops'))]) {
             out.push(`  vol[${i}] pos,r ${q('lPos')} dir,cosOuter ${q('lDir')} col ${q('lCol')}`);
           }
           for (const l of st.opts.lights.lights) {
-            if (!l.on || l.kind === 'flashlight' || l.y < 3 || Math.sqrt((l.x - p[0]) ** 2 + (l.z - p[2]) ** 2) > 9) continue;
+            if (!l.on || l.kind === 'flashlight' || l.y < minY || Math.sqrt((l.x - p[0]) ** 2 + (l.z - p[2]) ** 2) > 9) continue;
             const lv = (x, y, z) => f.levelAt(x, y, z).toFixed(2);
             out.push(`  ${l.kind} ${l.fixture?.model ?? 'box'} (${l.x}, ${l.y}, ${l.z}) r ${l.radius} i ${l.intensity} cosOuter ${l.cone ? l.cone.cosOuter.toFixed(3) : '-'}: field under it y0.05 ${lv(l.x, 0.05, l.z)} y1 ${lv(l.x, 1, l.z)} y1.7 ${lv(l.x, 1.7, l.z)} y3 ${lv(l.x, 3, l.z)} y4.5 ${lv(l.x, 4.5, l.z)}; 2 m off at y1 ${lv(l.x + 2, 1, l.z)}, 3.5 m off ${lv(l.x + 3.5, 1, l.z)}`);
           }
           return out.join('\n');
-        }, [p]);
+        }, [p, map === 'campus5' ? 0 : 3]);
         console.log(probe);
       }
     }
