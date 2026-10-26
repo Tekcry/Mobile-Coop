@@ -1,0 +1,24 @@
+{
+  "id": "20261026T024857-night-shift-campaign-b2df51d9-4c01",
+  "sha": "b2df51d9a0dc558652108cf86c7c94e67ebd30b2",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops",
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-takedown",
+    "e2e-gadgets",
+    "e2e-tactics",
+    "e2e-park",
+    "e2e-lightbake",
+    "e2e-guard-carry",
+    "e2e-levels",
+    "e2e-anchors"
+  ],
+  "set": "tallow-prs-a",
+  "note": "PR S step S-a (S1, S2, S1-late, S1-polish); no GitHub PR (stacked into the engine)"
+}
