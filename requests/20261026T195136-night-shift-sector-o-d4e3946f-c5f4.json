@@ -10,5 +10,6 @@
     "e2e-netmove"
   ],
   "set": "coopgate",
-  "fix": true
+  "fix": true,
+  "place": "20261026T193152-night-shift-sector-o-4f7c7c4d-462a"
 }
