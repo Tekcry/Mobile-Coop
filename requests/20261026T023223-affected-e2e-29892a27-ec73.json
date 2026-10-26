@@ -6,19 +6,10 @@
   "kind": "pr",
   "requester": "affected-e2e",
   "suites": [
-    "e2e-anim",
-    "e2e-combat",
-    "e2e-desktop",
-    "e2e-feedback",
     "e2e-gadgets",
-    "e2e-menus",
-    "e2e-move",
-    "e2e-pad",
     "e2e-park",
-    "e2e-tactics",
-    "e2e-takedown",
-    "smoke"
+    "e2e-takedown"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #522"
+  "note": "auto affected-e2e, PR #522 (re-filed at cap 3)"
 }
