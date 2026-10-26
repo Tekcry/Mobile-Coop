@@ -76,6 +76,21 @@ export const KIT_A_BITS: readonly number[] = [64, 128, 256, 512, 1024];
 /** (pose-parity, protocol 36) `takedown` `sub` bit: the blow is running (`ph` its phase); clear = a choke or the lethal
  *  approach (the owner's `blowPh` -1: no arc). */
 export const TAKEDOWN_SUB_BLOW = 1;
+/** (piano-knife S3) takedown sub bit: a knife kill (the knife in hand); bits 4-16 its row (KNIFE_KILLS index, 7 =
+ *  KNIFE_ROW_NONE: the switch-on move without a row); ph the move's phase over knifeSpan, s the approach's progress. */
+export const TAKEDOWN_SUB_KNIFE = 2;
+export const KNIFE_ROW_NONE = 7;
+
+/** (piano-knife S3) A knife kill's `takedown` sub: the knife bit and the row (0-6 a `KNIFE_KILLS` index; anything else
+ *  `KNIFE_ROW_NONE`) in bits 4-16. */
+export function knifeSub(row: number): number {
+  return TAKEDOWN_SUB_KNIFE | ((row >= 0 && row < KNIFE_ROW_NONE ? row : KNIFE_ROW_NONE) << 2);
+}
+
+/** (piano-knife S3) The knife row of a `takedown` sub: -1 without the knife bit, else 0-7 (`KNIFE_ROW_NONE`: no row). */
+export function knifeRowOfSub(sub: number): number {
+  return (sub & TAKEDOWN_SUB_KNIFE) === 0 ? -1 : (sub >> 2) & 7;
+}
 
 export const isAttachedMode = (m: MoveMode): boolean => ATTACHED_MODES.includes(m);
 export const isCommittedMode = (m: MoveMode): boolean => COMMITTED_MODES.includes(m);
