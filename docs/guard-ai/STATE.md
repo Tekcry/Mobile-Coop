@@ -1051,13 +1051,17 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    + sectors.test.ts; asked Player Build 13:35 to revert it (S4 keeps R17); if S4 lands first: brief A1 undo.
    BUILT fa53d2515 (tsc / eslint clean, vitest 24 files 445 pass; A12-A15 in its report: alarmRaised in 2 e2e, 8 s run,
    chase keeps known.y for the runner; ai.md lines incl. A15 to fold; polish P4 known.y for every kind). Laptop
-   runner-armed (e2e-enemies e2e-modes e2e-levels) filed on fa53d2515; checks A + B running 13:50. Then PR (kind patch).
+   checks A + B PASS (checks/RUNNER-ARMED-CHECK-A/B.md). PR #531 head 442458ff7, checker posted, laptop runner-armed
+   refiled on the head; orchestrator told (fix tracker). Polish (check B P-a..P-f): stale melee-runner comments
+   (sectors.ts:588, enemyManager.ts:2866, guardHead.ts:59, guardHeadParity.test:18, harness:20), runner in ARMED refit
+   (P1), in-sight jog beyond engageMax?, perf.mjs:104 trend step, melee fakes kind 'runner'.
 8. J20 S6b seed-random: brief 994e636d2 on feature/guard-ai-seed-random (worktree -seed-random off master 29f03b6c0,
    slices/SEED-RANDOM-BRIEF.md; 5 Math.random sites -> senseRng / seeded01; allowlist -> {}). Builder starts AFTER the
-   runner-armed builder pushes (both edit src/ai/enemy.ts). Builder STARTED 13:50. Laptop set seed-random (e2e-stealth-ai e2e-sectorops e2e-enemies).
-Laptop queue STALLED since 01:01Z (0 trains / 0 requests every pass, ~40 open requests, train 118 open): told Test
+   runner-armed builder pushes (both edit src/ai/enemy.ts). BUILT bcc705955 (vitest 10 files 128 pass, no A4+; merges clean on master 99fbd37fd); laptop seed-random filed; checks A + B running 14:15. Laptop set seed-random (e2e-stealth-ai e2e-sectorops e2e-enemies).
+FIXES FIRST (Michael ~14:00; tracker docs/orchestrator/FIXES.md on feature/menu): tell the orchestrator when a fix opens.
+   Own flakes: e2e-stealth-ai 1/66, e2e-guard-carry 1/63 (under budget). Laptop queue was STALLED 01:01Z-~02:40Z (0 trains / 0 requests every pass, ~40 open requests, train 118 open): told Test
    Runner 13:32 (its area). #317 affected + mh-s4 wait on it.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
    coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); J26 PRs open after J15 PR4 merges; runner-armed checks A + B -> post checker -> PR + orchestrator; seed-random report -> 2 checkers -> laptop -> PR.
+Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); J26 PRs open after J15 PR4 merges; #531 laptop + affected -> label train-ready; seed-random checks A + B -> checker -> PR (fix) -> orchestrator.
 ```
