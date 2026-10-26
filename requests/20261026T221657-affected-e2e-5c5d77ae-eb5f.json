@@ -1,0 +1,13 @@
+{
+  "id": "20261026T221657-affected-e2e-5c5d77ae-eb5f",
+  "sha": "5c5d77aed153c1369de32aa6763abffb54c67515",
+  "branch": "fix/knife-attack-button",
+  "pr": 682,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-park"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #682"
+}
