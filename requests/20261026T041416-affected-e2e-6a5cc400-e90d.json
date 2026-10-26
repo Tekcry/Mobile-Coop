@@ -1,0 +1,15 @@
+{
+  "id": "20261026T041416-affected-e2e-6a5cc400-e90d",
+  "sha": "6a5cc40076aa93b9a0314c27b22f7ea8cd9d6a50",
+  "branch": "feature/player-j19-s5",
+  "pr": 563,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-move"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #563"
+}
