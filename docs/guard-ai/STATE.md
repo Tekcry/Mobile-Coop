@@ -1035,18 +1035,16 @@ Open (2026-10-27 ~04:10, new 5-hour window to ~08:50, up to 2 agents; target: Mi
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: piano guard work all on master (#624, #644); walk-card lines sent 04:00. #317 merge 14 e3fa3909f (4th run lost to a conflict; flags.ts both kept; coop4's
-protocol note moved onto the MAX_PLAYERS line so version bumps stop conflicting; checker carried): asked the orchestrator
-for no-affected-e2e: YES after #631 (storm mill walk build) releases. 05:30: conflicts again (real code: sectorMode, teamMoves,
-coopClient, coopHost; master got piano-knife S3 co-op knife kills + coop-kit K0). When #631 merges: merge 15 (Opus
-builder + one checker), then tell the orchestrator to label no-affected-e2e + train-ready.
+Next: piano guard work all on master (#624, #644); walk-card lines sent 04:00. #317 merge 15 7b12a71ea (#631 piano S4, knife S3, kit K0; MERGE15-CHECK.md PASS after
+its FIX 1: a scene map's room holds 2, b5fbf0322, lead-reviewed; checker posted): orchestrator labels no-affected-e2e +
+train-ready. Then watch its train.
 J16 Guard AI half (row 13): BRIEF + PLAN 14b5e11e8 on feature/guard-ai-j16 (worktree -guard-ai-j16):
 G1 shapes + G2 notice rule (start now, parallel) -> G3 src/ai wiring = PR 1 (~1.0k); G4a / G4b (waits on Sector Ops
 S3b-2: GameState.shadowCues) / G5 e2e / G6 docs = PR 2. Cue: calm guard, moving shadow in focused cone -> meter 0.35,
 2.4 s look, never escalates alone (A1-A11 in BRIEF). Plan check 1 PASS ef5889a44 (PLAN-CHECK.md: 7 fold-ins; items 1, 2, 3, 6 go into the G3 brief, 7 into G5; 4 in
 G2; 5 = carried-body shadow hand-off to Player, sent to the orchestrator). G1 + G2 built af4146d7c, check PASS a6f54fa04
-(slices/G1-G2-CHECK.md; polish 1-6, item 4 = 16-bit owner keys into the G3 brief). Next: G3 (src/ai wiring; brief
-folds plan-check items 1, 2, 3, 6 + check polish 4, 6) once #631 (piano escape S4) merges; background wait on it.
+(slices/G1-G2-CHECK.md; polish 1-6, item 4 = 16-bit owner keys into the G3 brief). G3 (src/ai wiring) Opus builder RUNNING (06:10) -> slices/G3-REPORT.md;
+then two Opus checkers (one at a time), PR 1 = G1 + G2 + G3 (dark).
 Orchestrator 04:15: G3 after the piano escape lands; S3b-2 sequenced by it after Sector Ops' lamp-id fix; G4b not
 held (prototype mode: on in /preview/, the walk cap limits live switch-on only).
 ```
