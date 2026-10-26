@@ -1,5 +1,5 @@
 {
-  "id": "20261026T045058-affected-e2e-852e2832-a0e1",
+  "id": "20191231T045058-affected-e2e-852e2832-a0e1",
   "sha": "852e28327dd8ef85f8a467bd5640cd932e12b141",
   "branch": "feature/player-flake-fix",
   "pr": 548,
@@ -10,5 +10,5 @@
     "e2e-pad"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #548"
+  "note": "auto affected-e2e, PR #548; fronted by the orchestrator: fix PR (freeze)"
 }
