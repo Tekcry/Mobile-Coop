@@ -1,0 +1,132 @@
+
+$ node scripts/run-e2e.mjs e2e-pad
+
+=== e2e-pad ===
+hot-plug + iOS first-press detection
+  ok - connect toast ("Ready to play offline|Controller connected: Xbox Wireless Controller")
+  ok - mode = gamepad
+main menu
+  ok - initial focus "Sector Ops☆☆☆☆"
+  ok - d-pad reaches Settings
+  ok - A opens settings
+  ok - Controls tab first, Remap focused (Controls, "Remap controls")
+  ok - focus on Look sensitivity (horizontal)
+  ok - d-pad right raises slider (1 -> 1.1)
+  ok - left stick moves focus down
+  ok - RB: the Gameplay tab
+  ok - LB back to Controls restores its focus ("Look sensitivity (vertical)1.00x")
+  ok - LB wraps tabs backwards
+  ok - the Feedback tab
+  ok - Accessibility tab
+  ok - first focus on the locked Subtitles row ("SubtitlesAlways on")
+  ok - the locked row toasts its reason
+  ok - focus HUD size
+  ok - d-pad right enlarges the HUD
+  ok - back on Controls
+  ok - A opens the Controls screen
+  ok - controls per input type (Controller -> Keyboard and mouse)
+  ok - B returns to Settings
+  ok - B closes settings
+  ok - focus restored to Settings
+issued kit (slice 4, D-11; G76 CT kit): the pad reads the kit, nothing is selectable
+  ok - focus Loadout
+  ok - A opens the issued kit
+  ok - focus starts on Primary
+  ok - the kit: Heron Carbine + Hush 9 SD (Heron Carbine / Hush 9 SD)
+  ok - the d-pad walks the three issued items (primary,secondary,gadget)
+  ok - A on an issued item changes nothing
+  ok - B backs out to the main menu
+play setup + in-game pause flow
+  ok - menu wraps / reaches Sector Ops
+  ok - A on Sector Ops opens the op list
+  ok - A on the op opens its briefing
+  ok - the briefing opens on Start
+  ok - the pad reaches the Difficulty row (Difficulty◀Normal▶)
+  ok - d-pad right picks Realistic; no custom sliders ({"choice":"Difficulty◀Realistic▶","sliders":0})
+  ok - B returns to the op list
+  ok - B returns to the main menu
+  ok - the match runs Realistic ({"p":1.3,"l":"Realistic","m":null})
+  ok - d-pad up / down no longer step a speed (anim-rework S1: no gears) (4 -> 4 -> 4)
+  ok - LB tap switches weapon and leaves the wheel shut (0 -> 1 of 2)
+  ok - LB held opens the selection wheel, released closes it (true / false)
+  ok - (sector-fixes W) the stick right lights a slot (2); let go, the wheel is back on the vision slot (0)
+  ok - the wheel: no time slow (1), opens on the selected mode (night / night), no stick = vision slot, A x2 steps to electro ({"seg":0,"mode":"electro","dom":true,"tiles":9,"label":"Electro vision"}), no context menu (none), release picks electro (electro)
+  ok - D-pad left toggles the vision picked on the wheel, on then off (off -> electro -> off)
+  ok - View tap shows the objective, goggles untouched (G343) (was shown: false, shown after: true, vision off -> off)
+  ok - picking another mode while on switches live, never a flip ({"mode":"thermal","change":"switch"})
+  ok - cycle x3 more: electro (vk 2) -> night (vk 0) -> off (vk 0) ([{"mode":"electro","shown":"electro","vk":2},{"mode":"night","shown":"night","vk":0},{"mode":"off","shown":"off","vk":0}])
+  ok - A at low ready does not reload (Michael: "Interact always")
+  ok - RT while holstered: carry.raise and aiming unchanged (0.000 -> max 0.000, aiming false)
+  ok - X (holster) mid-reload: the reload finishes (1.53 s, full true, stayed drawn true), then holsters (0.92 s)
+  ok - reload while holstered (R): draws to low ready (0.77 s, state low ready true), reloads (1.78 s, full true), stays at low ready (true), never fires (1 -> 1)
+  ok - RT while holstered with no guard in reach: no strike (F1b: no swing at nothing)
+  ok - RT while holstered: shot tally unchanged (0 -> 0)
+  ok - X draws to low ready within 0.75 s, no aim (anim-rework S1, M1; N3) (0.72 s, pistol, lowReady)
+  ok - low ready: RT fires nothing (A3) (0 -> 0)
+  ok - LT held aims and RT fires (aiming, 0 -> 1)
+  ok - LT let go: low ready, the gun stays out ({"st":"lowReady","dw":2,"ads":false})
+  ok - X again holsters within 0.9 s (N3) (0.90 s)
+  ok - X held 0.4 s with the gun out reloads (A2) and stays drawn (0.43 s, full true)
+  ok - X held with nothing to reload holsters
+  ok - LT from holstered: the sling draw straight to the aim, slower (M2: 1.20 s vs X 0.72 s); let go: low ready (true)
+  ok - pad play: no on-screen pause button
+  ok - Start opens pause
+  ok - B resumes
+  ok - Start opens pause again
+  ok - the pad walks the field menu in order, ending on Quit (resume, objectives, notes, settings, report-feedback, anim-tuner, quit)
+  ok - confirm dialog
+  ok - dialog opens on the safe option (Stay)
+  ok - right moves to Quit
+  ok - quit returns to main menu
+analogue speed (anim-rework S1), the internal cap, rumble, pad verbs (step 17)
+{"capKept":true,"a50":{"g":2,"v":1.21},"a80":{"g":3,"v":2.02},"a100":{"g":5,"v":3.95},"sprint":{"g":5},"max3":3,"cap":{"g":3,"v":2.08},"crouch":true,"stand":true,"rb":true,"lb":true,"r3":true,"leftHand":true,"gadgetAim":true,"land":["0.15/0.25/60"],"shotDbg":{"dw":2,"ads":true,"cam":1,"raise":0.9961749594530123,"cls":"pistol","mag":15,"tr":"none"},"shot":["0.12/0.20/45"],"elbow":["0.50/0.30/90"],"tdOffer":"behind","tdViaPad":true,"takedown":["0.60/0.40/150"],"tdDone":true}
+  ok - D-pad up / down leave the speed alone (anim-rework S1: no rocker)
+  ok - stick 50 / 80 / 100% -> sneak / walk / run (2 / 3 / 5)
+  ok - speed follows the stick (1.21 / 2.02 / 3.95 m/s)
+  ok - a full stick: no sprint, the run ({"g":5})
+  ok - the internal cap 3 (tests) holds the full stick at the walk (3, {"g":3,"v":2.08})
+  ok - B crouches and stands
+  ok - L3 swaps the shoulder while aiming (LT held), not otherwise
+  ok - the weapon goes to the left hand on the left shoulder
+  ok - D-pad right held aims the gadget
+  ok - rumble on landing (0.15/0.25/60)
+  ok - rumble on a shot (0.12/0.20/45)
+  ok - rumble on an elbow hit (0.50/0.30/90)
+  ok - rumble on a takedown (true, offer behind, pad true, 0.60/0.40/150)
+  ok - every pad verb raises its action (missed: none)
+vent by pad (vent-kick M1: the pad matches the keyboard): Y held then A held unscrews, a Y tap kicks
+{"at1":{"prompt":"duct","closed":true},"yHeld":{"vent":true,"open":false},"unscrew":{"p":0.2083333333333334,"noise":0,"open":false,"att":false},"stop":{"vent":false,"att":false,"open":false},"at2":{"prompt":"duct","closed":true},"kick":{"att":true,"open":true,"t":0.05,"noise":10}}
+  ok - at the duct mouth: the vent is offered, its grate closed ({"prompt":"duct","closed":true})
+  ok - Y held 100 ms: the vent is open, no kick ({"vent":true,"open":false})
+  ok - Y then A held unscrews: progress, quiet, no kick ({"p":0.2083333333333334,"noise":0,"open":false,"att":false})
+  ok - A let go part way stops the unscrew, no kick ({"vent":false,"att":false,"open":false})
+  ok - the grate is still closed before the kick ({"prompt":"duct","closed":true})
+  ok - a Y tap kicks the grate in: quick, loud ({"att":true,"open":true,"t":0.05,"noise":10})
+remap (step 18, D7): Controls > Controller by pad: clear R3, draw X -> R3, play; onto B warns; reset; crouch and wall hold / toggle
+  ok - the Controller tab first (Controller)
+  ok - the defaults show no conflict (Zoom / Ping on R3 allowed; "")
+  ok - X clears the focused slot (R3 off Zoom)
+  ok - X clears the focused slot (R3 off Ping)
+  ok - A then R3 rebinds draw (R3, conflicts "")
+  ok - Start cancels the capture; the overlay showed the 5 s countdown (5 or 4 on a slow frame) ({"tab":"Controller","rows":"","sum":"","cap":false,"screen":true,"ov":{"o":true,"n":"5"},"ovGone":true,"polled":true})
+  ok - in play R3 draws, X does not ({"x":false,"r3":true,"t1":true,"t2":false,"h1":true,"h2":false,"pad":[11]})
+  ok - crouch toggle (B, B) and hold (held, released) ({"x":false,"r3":true,"t1":true,"t2":false,"h1":true,"h2":false,"pad":[11]})
+  ok - back to wall (L3) hold / toggle ({"hold":["on","off"],"toggle":["on","on"]})
+  ok - after the play page the remap page is still on the Controls screen ({"mark":true,"screen":true,"top":"screen controls-screen menu-screen"})
+  ok - A then B binds B (G22), warned on both rows ({"tab":"Controller","rows":"crouch,draw","sum":"1 conflict: Crouch and Holster / draw (tap); reload (hold, gun out) share B. Saved anyway; both fire together.","cap":false,"screen":true,"polled":true})
+  ok - Y Reset all asks first, Cancel focused ({"d":true,"f":"btn safe focused","t":"Cancel","cap":false,"mode":"gamepad"})
+  ok - reset restores the controller defaults ([2], conflicts "")
+title press by pad (menu-notes slice 4c, M3 / A3): A strikes the goggle with no menu, a second A skips to the lit menu
+  ok - A on the title starts the strike, no menu yet, the press is not a skip ({"top":"title-screen","seq":"seq","menu":true})
+  ok - a second A skips to the lit main menu, nothing selected ({"top":"main-menu","phase":"done","lit":1,"f":"sectorops","depth":1})
+disconnect
+  ok - disconnect toast
+  ok - mode reverts to keyboard and mouse
+no console errors
+
+times (GPU, 1 at a time):
+  e2e-pad ok 46s
+
+wall 46s, suites summed 46s
+
+all e2e suites passed

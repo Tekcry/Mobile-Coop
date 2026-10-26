@@ -1,0 +1,190 @@
+
+$ node scripts/run-e2e.mjs e2e-pad e2e-netmove
+[start] e2e-netmove
+[start] e2e-pad
+
+=== e2e-pad (FAIL, 18s) ===
+hot-plug + iOS first-press detection
+  ok - connect toast ("Ready to play offline|Controller connected: Xbox Wireless Controller")
+  ok - mode = gamepad
+main menu
+  ok - initial focus "Sector Ops☆☆☆☆"
+  ok - d-pad reaches Settings
+  ok - A opens settings
+  ok - Controls tab first, Remap focused (Controls, "Remap controls")
+  ok - focus on Look sensitivity (horizontal)
+  ok - d-pad right raises slider (1 -> 1.1)
+  ok - left stick moves focus down
+  ok - RB: the Gameplay tab
+  ok - LB back to Controls restores its focus ("Look sensitivity (vertical)1.00x")
+  ok - LB wraps tabs backwards
+  ok - the Feedback tab
+  ok - Accessibility tab
+  ok - first focus on the locked Subtitles row ("SubtitlesAlways on")
+  ok - the locked row toasts its reason
+  ok - focus HUD size
+  ok - d-pad right enlarges the HUD
+  ok - back on Controls
+  ok - A opens the Controls screen
+  ok - controls per input type (Controller -> Keyboard and mouse)
+  ok - B returns to Settings
+  ok - B closes settings
+  ok - focus restored to Settings
+issued kit (slice 4, D-11; G76 CT kit): the pad reads the kit, nothing is selectable
+  ok - focus Loadout
+  ok - A opens the issued kit
+  ok - focus starts on Primary
+  ok - the kit: Heron Carbine + Hush 9 SD (Heron Carbine / Hush 9 SD)
+  ok - the d-pad walks the three issued items (primary,secondary,gadget)
+  ok - A on an issued item changes nothing
+  ok - B backs out to the main menu
+play setup + in-game pause flow
+  ok - menu wraps / reaches Sector Ops
+  ok - A on Sector Ops opens the op list
+  ok - A on the op opens its briefing
+  ok - the briefing opens on Start
+  ok - the pad reaches the Difficulty row (Difficulty◀Normal▶)
+  ok - d-pad right picks Realistic; no custom sliders ({"choice":"Difficulty◀Realistic▶","sliders":0})
+  ok - B returns to the op list
+  ok - B returns to the main menu
+  ok - the match runs Realistic ({"p":1.3,"l":"Realistic","m":null})
+  ok - d-pad up / down no longer step a speed (anim-rework S1: no gears) (4 -> 4 -> 4)
+  ok - LB tap switches weapon and leaves the wheel shut (0 -> 1 of 2)
+  ok - LB held opens the selection wheel, released closes it (true / false)
+  ok - (sector-fixes W) the stick right lights a slot (2); let go, the wheel is back on the vision slot (0)
+  ok - the wheel: no time slow (1), opens on the selected mode (night / night), no stick = vision slot, A x2 steps to electro ({"seg":0,"mode":"electro","dom":true,"tiles":9,"label":"Electro vision"}), no context menu (none), release picks electro (electro)
+  ok - D-pad left toggles the vision picked on the wheel, on then off (off -> electro -> off)
+  ok - View tap shows the objective, goggles untouched (G343) (was shown: false, shown after: true, vision off -> off)
+  ok - picking another mode while on switches live, never a flip ({"mode":"thermal","change":"switch"})
+  ok - cycle x3 more: electro (vk 2) -> night (vk 0) -> off (vk 0) ([{"mode":"electro","shown":"electro","vk":2},{"mode":"night","shown":"night","vk":0},{"mode":"off","shown":"off","vk":0}])
+  ok - A at low ready does not reload (Michael: "Interact always")
+  ok - RT while holstered: carry.raise and aiming unchanged (0.000 -> max 0.000, aiming false)
+  ok - X (holster) mid-reload: the reload finishes (1.53 s, full true, stayed drawn true), then holsters (0.92 s)
+  ok - reload while holstered (R): draws to low ready (0.77 s, state low ready true), reloads (1.78 s, full true), stays at low ready (true), never fires (1 -> 1)
+  ok - RT while holstered with no guard in reach: no strike (F1b: no swing at nothing)
+  ok - RT while holstered: shot tally unchanged (0 -> 0)
+  ok - X draws to low ready within 0.75 s, no aim (anim-rework S1, M1; N3) (0.72 s, pistol, lowReady)
+  ok - low ready: RT fires nothing (A3) (0 -> 0)
+  ok - LT held aims and RT fires (aiming, 0 -> 1)
+  ok - LT let go: low ready, the gun stays out ({"st":"lowReady","dw":2,"ads":false})
+  ok - X again holsters within 0.9 s (N3) (0.90 s)
+  ok - X held 0.4 s with the gun out reloads (A2) and stays drawn (0.43 s, full true)
+  ok - X held with nothing to reload holsters
+  ok - LT from holstered: the sling draw straight to the aim, slower (M2: 1.20 s vs X 0.72 s); let go: low ready (true)
+  ok - pad play: no on-screen pause button
+  ok - Start opens pause
+  ok - B resumes
+  ok - Start opens pause again
+  ok - the pad walks the field menu in order, ending on Quit (resume, objectives, notes, settings, report-feedback, anim-tuner, quit)
+  ok - confirm dialog
+  ok - dialog opens on the safe option (Stay)
+  ok - right moves to Quit
+Error: page.evaluate: Execution context was destroyed, most likely because of a navigation.
+no console errors
+
+=== e2e-netmove (ok, 165s) ===
+host opens a room, client joins
+  ok - the client's move state reaches the host ({"m":"ground","a":-1,"s":0,"sub":0,"ph":0,"tid":"","g":4,"r":0,"ay":0,"dw":0,"rd":0})
+attached states
+  ladder: worst joint 0.1 cm (limit 10 cm)
+  ok - ladder: host mode ladder, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0.001})
+  ladder after a climb: worst joint 0.0 cm (limit 10 cm)
+  ok - ladder after a climb: host mode ladder, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0})
+  drainpipe: worst joint 0.1 cm (limit 10 cm)
+  ok - drainpipe: host mode pipeV, joints within 10 cm ({"wristL":0.001,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0})
+  horizontal pipe: worst joint 0.0 cm (limit 10 cm)
+  ok - horizontal pipe: host mode pipeH, joints within 10 cm ({"wristL":0,"wristR":0,"headNode":0})
+  ledge hang: worst joint 1.0 cm (limit 10 cm)
+  ok - ledge hang: host mode ledge, joints within 10 cm ({"wristL":0.001,"wristR":0,"headNode":0.01})
+  duct crawl: worst joint 0.0 cm (limit 10 cm)
+  ok - duct crawl: host mode duct, joints within 10 cm ({"wristL":0,"wristR":0,"headNode":0})
+  ok - zipline mode mirrored
+3.2.0 phase 2: split, wall jump, pipe legs up / inverted
+  split: worst joint 0.2 cm (limit 10 cm)
+  ok - split: host mode split, joints within 10 cm ({"wristL":0.001,"wristR":0.001,"ankleL":0,"ankleR":0,"headNode":0.002})
+  aiming from the split: worst joint 0.3 cm (limit 10 cm)
+  ok - aiming from the split: host mode split, joints within 10 cm ({"wristR":0.002,"headNode":0.003,"ankleL":0,"ankleR":0})
+  ok - wall jump mode mirrored
+  hanging after the wall jump: worst joint 0.9 cm (limit 10 cm)
+  ok - hanging after the wall jump: host mode ledge, joints within 10 cm ({"wristL":0.001,"wristR":0,"headNode":0.009})
+  pipe legs up: worst joint 0.0 cm (limit 10 cm)
+  ok - pipe legs up: host mode pipeH, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0})
+  pipe inverted: worst joint 0.0 cm (limit 10 cm)
+  ok - pipe inverted: host mode pipeH, joints within 10 cm ({"ankleL":0,"ankleR":0,"headNode":0})
+  ok - the host poses the client upside down (head 1.42 m, hips 2.11 m)
+3.2.0 phase 3: rappel, fence
+  rappel: worst joint 0.0 cm (limit 10 cm)
+  ok - rappel: host mode rappel, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0})
+  ok - the host draws the client's rope (1)
+  fence: worst joint 0.0 cm (limit 10 cm)
+  ok - fence: host mode fence, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0})
+drawn state (step 09): aim draws (weapon in hand on the host), release holsters
+  drawn: worst joint 0.4 cm (limit 10 cm)
+  ok - drawn: host mode ground, joints within 10 cm ({"wristL":0.003,"wristR":0.003,"ankleL":0.004,"ankleR":0.003,"headNode":0.003})
+    holster: client sim 1000 ms (wall 987 ms), host receipt to stow 12 ms (host frame 16 ms, receipt 4 ms after an update, stowed on update 1)
+  ok - the host's copy stows within 0.1 s + one frame of receiving dw 0 (12 ms)
+  ok - holstered: client holster + host receipt to stow 1012 ms <= 1133 ms (1 s holster + one sim step + 0.1 s + one frame)
+  holstered: worst joint 2.7 cm (limit 10 cm)
+  ok - holstered: host mode ground, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0.027,"ankleR":0,"headNode":0})
+committed moves: a forward roll
+  ok - host replays the roll
+team moves (B2): leg-up (host climbs), ledge relay (client climbs the hanging host), denials
+  ok - the offerer sees a prompt naming the move
+  ok - the partner's avatar takes a base row set on the host (team.boost.b elbowR: 77.0 deg)
+  ok - the partner prompt names the leg-up
+  ok - the leg-up puts the host on the 4.2 m lip (4.2)
+  ok - the partner prompt names the relay
+  (host sees the client climbing the hanging body: on the host step at 93.017 s)
+  ok - the host is still hanging and pulls up next
+  ok - ledge relay: the client climbs the hanging host to the same ledge
+  ok - the partner stood down mid-request: denied (notBraced)
+  ok - a relay without a hanging partner is denied (notOffering)
+back to a wall
+  ok - a free high wall on Proving (20)
+  wall: worst joint 3.5 cm (limit 10 cm)
+  ok - wall: host mode wall, joints within 10 cm ({"wristL":0.003,"wristR":0.003,"ankleL":0.035,"ankleR":0.001,"headNode":0.003})
+  ok - the host's copy is at s 2.000 (client 2.000), within 5 cm
+  wall crouch: worst joint 3.4 cm (limit 10 cm)
+  ok - wall crouch: host mode wall, joints within 10 cm ({"wristL":0.021,"wristR":0,"ankleL":0.034,"ankleR":0,"headNode":0})
+  ok - crouched: the host's copy at s 2.000 (client 2.000)
+  ok - stacked on one wall: centres 0.62 m apart along it, 0.62 m apart (>= 0.6, no capsule overlap)
+wall edge: peek
+  ok - the Proving doorway ({"i":69,"end":1,"len":6.450000000000003})
+  ok - edge stop: pushed past the end the client stays on the wall at the end (true), host's copy at s 6.230 (client 6.230, <= 10 cm)
+  wall peek: worst joint 0.5 cm (limit 10 cm)
+  ok - wall peek: host mode wall, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0.005,"ankleR":0,"headNode":0})
+  peek head samples: local 0.425 m out, host 0.425 m out, apart 0.000 m (local sim head 0.157 m from its rig head)
+  ok - the host samples the peeking client's light and head at its sim body head, within 5 cm of the client's own ({"pl":{"px":-0.35,"pz":0,"h":[-27.156000000467625,1.545,8.360394479702244],"ref":true,"hd":0.4249470555257456},"plL":{"h":[-27.156000000467625,1.545,8.360394479702244],"hd":0.4249470555257456,"rig":0.157},"pd":0})
+elbow strike
+  ok - the client strikes while holstered (a whiff)
+  strike: worst joint 5.5 cm (limit 10 cm)
+  ok - strike: host mode strike, joints within 10 cm ({"wristL":0,"wristR":0,"ankleL":0.055,"ankleR":0.02,"headNode":0})
+  ok - denied (noTarget): no hit, back to ground in 0.13 s
+doorPeek
+  ok - Proving has a door
+  doorPeek: worst joint 0.1 cm (limit 10 cm)
+  ok - doorPeek: host mode doorPeek, joints within 10 cm ({"wristL":0.001,"wristR":0,"ankleL":0,"ankleR":0,"headNode":0.001})
+  ok - host leaf at the crack (host 0.120, client 0.120, {"ajar":0.12,"target":0,"open":0,"body":true})
+optic cable
+  ok - client starts the optic cable at the door ()
+  ok - host copy: door 0, cable fed out, kneeling ({"mv":{"m":"optic","a":0,"s":0,"sub":0,"ph":1,"tid":"","g":5,"r":0,"ay":0,"dw":0,"rd":2},"crouch":1})
+role-swapped team move: the client leads the leg-up, the host braces
+  ok - swapped: the offering host sees a prompt naming the move
+  host brace (offer): worst joint 7.6 cm (limit 10 cm)
+  ok - host brace (offer): client copy mode brace, joints within 10 cm ({"wristL":0.007,"wristR":0.009,"ankleL":0.035,"ankleR":0.076,"headNode":0.029})
+  ok - swapped: the partner prompt names the leg-up
+  ok - swapped: the leg-up puts the client on the 4.2 m lip (4.2)
+  (client never settled) {"sp":0,"axes":[0,0,0,0],"ov":true}
+  client hang after the swapped leg-up: worst joint 1.0 cm (limit 10 cm)
+  ok - client hang after the swapped leg-up: host mode ledge, joints within 10 cm ({"wristL":0,"wristR":0.001,"headNode":0.01})
+  ok - no console errors ()
+  (netmove-compare) max joint error 7.6 cm (host brace (offer)) over 22 compares; drawn 0.4 cm
+e2e-netmove OK
+
+times (GPU, 2 at a time):
+  e2e-netmove ok 165s
+  e2e-pad FAIL 18s
+
+wall 165s, suites summed 183s (x1.1)
+
+1 suite(s) failed: e2e-pad
