@@ -1,12 +1,13 @@
-// Look videos (player-batch-j19 S8a, R31): records 1-2 minute videos of scripted scenes for Michael's walk cards. Serves
+// Animation look videos (player-batch-j19 S8a, R31; map fly-throughs: scripts/look-video.mjs): records 1-2 minute
+// videos of scripted scenes for Michael's walk cards. Serves
 // dist/ with `vite preview` (or records from `--url`), launches ONE headless browser per scene list with Playwright's own
 // `recordVideo`, drives the fake pad through each scene on the match clock and writes <out>/<list name>.webm. The game
 // runs live (no manual loop): the video holds real frames, the page's boot and load before the first scene included, and
 // a scene whose params differ from the page's reloads the page (that boot is in the video too).
-// Usage: node scripts/look-video.mjs --scenes <list>[,<list>...] --out <dir> [--gfx <preset>] [--size <W>x<H>]
+// Usage: node scripts/anim-video.mjs --scenes <list>[,<list>...] --out <dir> [--gfx <preset>] [--size <W>x<H>]
 //          [--url <base>] [--port <n>] [--help]
 // Never headed; output outside git; needs a prior `npm run build` unless `--url`. Look videos run on the laptop look tier:
-//   npm run build && E2E_GPU=1 E2E_PORT=4189 node scripts/look-video.mjs --scenes smoke --out C:/NightShift/scratch/look/<job>
+//   npm run build && E2E_GPU=1 E2E_PORT=4189 node scripts/anim-video.mjs --scenes smoke --out C:/NightShift/scratch/look/<job>
 // Scene list (JSON; or the built-in name `smoke`), one .webm per list:
 //   { "name": "walk-gears", "params": "autostart=proving", "hud": false,
 //     "scenes": [ { "name": "Walk, gear 3, side view", "params": "autostart=proving&gear=3", "seconds": 8, "view": "side",
@@ -33,7 +34,7 @@ const PRESS_S = 0.1;
 const MAX_TOTAL = 120;
 const SHORT_TOTAL = 60;
 
-const USAGE = `Usage: node scripts/look-video.mjs --scenes <list>[,<list>...] --out <dir> [--gfx <preset>] [--size <W>x<H>] [--url <base>] [--port <n>] [--help]
+const USAGE = `Usage: node scripts/anim-video.mjs --scenes <list>[,<list>...] --out <dir> [--gfx <preset>] [--size <W>x<H>] [--url <base>] [--port <n>] [--help]
   --scenes  scene-list JSON files or the built-in name smoke; comma-separated, the flag may repeat. One .webm per list.
   --out     output folder outside the repository (created if missing): <out>/<list name>.webm
   --gfx     ${GFX.join(' ')} (default high)
@@ -41,7 +42,7 @@ const USAGE = `Usage: node scripts/look-video.mjs --scenes <list>[,<list>...] --
   --url     record from this running server (no vite preview started, no dist check)
   --port    the vite preview port when no --url (default E2E_PORT, else 4189)
 Never headed (E2E_HEADED=1 is an error); needs a prior \`npm run build\` unless --url. Scene-list format: the header of
-scripts/look-video.mjs. Exit 0 done, 1 run failure, 2 usage or list error.
+scripts/anim-video.mjs. Exit 0 done, 1 run failure, 2 usage or list error.
 `;
 
 /** The built-in lists, in the raw JSON form (parsed by `parseSceneList` like a file). */
@@ -326,7 +327,7 @@ async function playScene(page, list, i, sc) {
           else if (e.kind === 'button') pad.set(e.i, e.v);
           else new Function('a', 'g', e.code)(a, g);
         } catch (err) {
-          console.error(`look-video js step: ${err?.message ?? err}`);
+          console.error(`anim-video js step: ${err?.message ?? err}`);
         }
       }
       if (el < seconds) requestAnimationFrame(tick);
@@ -339,7 +340,7 @@ async function playScene(page, list, i, sc) {
     const el = await page.evaluate(() => window.__app.current.time - window.__lookT0);
     if (el >= sc.seconds) break;
     if (Date.now() - wall0 > cap) {
-      console.warn(`look-video: ${list.name} scene ${i} "${sc.name}" ran slow: ${el.toFixed(1)} s of match time in ${((Date.now() - wall0) / 1000).toFixed(0)} s wall; moving on`);
+      console.warn(`anim-video: ${list.name} scene ${i} "${sc.name}" ran slow: ${el.toFixed(1)} s of match time in ${((Date.now() - wall0) / 1000).toFixed(0)} s wall; moving on`);
       break;
     }
     await new Promise((r) => setTimeout(r, 250));
@@ -354,7 +355,7 @@ async function playScene(page, list, i, sc) {
 /** One list -> <out>/<name>.webm. */
 async function recordList(lib, list, opts, base) {
   const wall0 = Date.now();
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'look-video-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'anim-video-'));
   let browser = null;
   try {
     let current = pageParams(list.scenes[0].params, opts.gfx);
@@ -383,7 +384,7 @@ async function recordList(lib, list, opts, base) {
     await browser.close();
     browser = null;
     const total = list.scenes.reduce((s, sc) => s + sc.seconds, 0);
-    console.info(`look-video: ${list.name} -> ${file} (${total} s of scenes, ${Math.round((Date.now() - wall0) / 1000)} s wall)`);
+    console.info(`anim-video: ${list.name} -> ${file} (${total} s of scenes, ${Math.round((Date.now() - wall0) / 1000)} s wall)`);
     // as scripts/anim-sheet.mjs:370-371: printed, not a failure
     const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
     if (real.length) console.info(real.join('\n'));
@@ -442,7 +443,7 @@ async function main() {
     }
     for (const arg of opts.lists) lists.push(loadList(arg));
   } catch (e) {
-    console.error(`look-video: ${e.message}`);
+    console.error(`anim-video: ${e.message}`);
     process.exit(2);
   }
   for (const l of lists) {
@@ -456,7 +457,7 @@ async function main() {
     const lib = await import('./e2e-lib.mjs');
     for (const l of lists) await recordList(lib, l, opts, base);
   } catch (e) {
-    console.error(`look-video: ${e instanceof RunFailure ? e.message : `run failed: ${e?.stack ?? e}`}`);
+    console.error(`anim-video: ${e instanceof RunFailure ? e.message : `run failed: ${e?.stack ?? e}`}`);
     process.exit(1);
   }
   process.exit(0);

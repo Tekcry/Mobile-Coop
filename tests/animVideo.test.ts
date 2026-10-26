@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
 // @ts-expect-error plain .mjs process script without types
-import { BUILTIN_LISTS, outsideRepo, padEvents, pageParams, parseArgs, parseSceneList } from '../scripts/look-video.mjs';
+import { BUILTIN_LISTS, outsideRepo, padEvents, pageParams, parseArgs, parseSceneList } from '../scripts/anim-video.mjs';
 
-// The look-video recorder's pure parts (player-batch-j19 S8a): the command line, the scene lists, the page query and the
+// The anim-video recorder's pure parts (player-batch-j19 S8a): the command line, the scene lists, the page query and the
 // pad timeline. The recording itself needs a browser and a GPU: a PC run on the laptop look tier, never here.
 const root = path.resolve(__dirname, '..');
 const outside = path.resolve(root, '..', 'look-out');
@@ -39,7 +39,7 @@ const EXAMPLE = {
 /** A valid one-scene list with this scene merged in (and the list fields `list`). */
 const one = (scene: object, list: object = {}): object => ({ name: 'x', params: 'autostart=proving', scenes: [{ name: 's', seconds: 10, ...scene }], ...list });
 
-describe('look-video parseArgs', () => {
+describe('anim-video parseArgs', () => {
   it('a full valid line', () => {
     const o = parseArgs(['--scenes', 'a.json', '--out', outside, '--gfx', 'epic', '--size', '1920x1080', '--url', 'http://127.0.0.1:4189/', '--port', '4190'], {});
     expect(o).toEqual({ lists: ['a.json'], out: outside, gfx: 'epic', size: { width: 1920, height: 1080 }, url: 'http://127.0.0.1:4189/', port: 4190, help: false });
@@ -68,7 +68,7 @@ describe('look-video parseArgs', () => {
   });
 });
 
-describe('look-video outsideRepo', () => {
+describe('anim-video outsideRepo', () => {
   it('the repo and folders in it are inside; a sibling folder is outside', () => {
     expect(outsideRepo(root, root)).toBe(false);
     expect(outsideRepo(path.join(root, 'build', 'look'), root)).toBe(false);
@@ -77,7 +77,7 @@ describe('look-video outsideRepo', () => {
   });
 });
 
-describe('look-video parseSceneList', () => {
+describe('anim-video parseSceneList', () => {
   it('the built-in smoke list parses and totals 18 s', () => {
     const l = parse(BUILTIN_LISTS.smoke, 'smoke');
     expect(l.name).toBe('smoke');
@@ -127,14 +127,14 @@ describe('look-video parseSceneList', () => {
   });
 });
 
-describe('look-video pageParams', () => {
+describe('anim-video pageParams', () => {
   it('adds the preset and gear=none unless the query names them', () => {
     expect(pageParams('autostart=proving', 'high')).toBe('autostart=proving&gfx=high&gear=none');
     expect(pageParams('autostart=proving&gfx=epic&gear=3', 'high')).toBe('autostart=proving&gfx=epic&gear=3');
   });
 });
 
-describe('look-video padEvents', () => {
+describe('anim-video padEvents', () => {
   const ev = (steps: object[]): Ev[] => padEvents(steps) as Ev[];
   it('a press is held 0.1 s', () => {
     expect(ev([{ t: 1, press: 'A' }])).toEqual([{ t: 1, kind: 'button', i: 0, v: 1 }, { t: 1.1, kind: 'button', i: 0, v: 0 }]);
