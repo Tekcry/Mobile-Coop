@@ -1,0 +1,18 @@
+{
+  "id": "20261026T004059-night-shift-campaign-c648c5d8-2edf",
+  "sha": "c648c5d85176b305b8aae6a1b730a8c351bd100e",
+  "branch": "feature/tallow-fixes",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops",
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-levels",
+    "e2e-anchors",
+    "e2e-lightbake"
+  ],
+  "set": "tallow-prg1"
+}
