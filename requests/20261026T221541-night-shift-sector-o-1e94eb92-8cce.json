@@ -1,0 +1,13 @@
+{
+  "id": "20261026T221541-night-shift-sector-o-1e94eb92-8cce",
+  "sha": "1e94eb928a0e54e1d0acad12f25aa026933d5462",
+  "branch": "feature/thermal-read",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-darkness"
+  ],
+  "set": "thermal-gpu",
+  "fix": true
+}
