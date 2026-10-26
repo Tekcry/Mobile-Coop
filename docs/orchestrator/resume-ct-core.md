@@ -1,19 +1,13 @@
-# Resume - Night Shift | Player Build (2026-10-26 ~10:40 SAVE at the cap; older log: history at the end)
-At resume: all agents die at the cap; nothing below is running. Restart each from its branch head + its STATE "At the save" line.
-- 10:40 at the cap: (a) I9 fix round DONE 761075de (lazy chunk, entry 5.5 -> 4.1 MB); Opus recheck was running (verdict -> scratch/ctcore/i9-fix-CHECK.md; restart if missing) -> PR B (base feature/mixamo-i7-pack) -> laptop e2e-studio + anim-audit. (b) #506 I2b checker PASS, laptop 20261025T233845-...-382bc321-8454 (set mixamo-i2b). (c) #494 test fix 41e847735 (label fix): asked the orchestrator for carried checker. #493 check green, waits affected-e2e.
-- Older (10:25): (a) I9 fix round, worktree -m5, feature/mixamo-i9 (7692c580+): merge I6 ba01d0f7, ONE lazy glob for the 24 unwired game-slot modules + clips/mixamo/studio/ (batch 1 / I4 / I6 stay eager), 108 rows after the lazy fill, build entry-chunk size before / after under heavy.lock, polish (stale "5 gaits", toe-first item in I10) -> short Opus recheck -> PR B (base feature/mixamo-i7-pack) -> laptop e2e-studio + anim-audit. (b) I2b DONE, PR #506 OPEN (feature/mixamo-i2b 382bc321, base master): every row ON (braced wrists 2.8 vs 3.0; freehang trunk 8.9 / 3.07 vs 9.6 / 3.1 via MIXAMO_STAND yaw 0.15 slow 0.45). Fresh Opus checker running (verdict -> scratch/ctcore/i2b-CHECK.md; restart one if none). After PASS: request e2e-traverse e2e-coop e2e-netmove (--pr 506), orchestrator posts checker when green.
-- PRs: #493 I5 (2c8db6887) and #494 toggle (4e60272b1): train 115 left them out (conflict with #496 I6 in STATE / mixamo.ts); fixed by merging master + origin/feature/mixamo-i6, both sides kept; I5 tsc + 26/26 mixamo tests. Asked the orchestrator for carried checker success on both heads; re-add `train-ready` once CI check is green (gh pr edit --add-label train-ready). #494 also waits its e2e-studio laptop rerun. -mixamo-on has no node_modules (junction to C:/NightShift/Mobile-Coop-menu/node_modules if needed).
-- #496 I6 rides train 115 (4.108.0). #485 shipped in train 114 (4.107.0).
-- #505 J6 S1 OPEN (bb4590ab): Opus checker PASS (scratch/ctcore/j6-s1-CHECK.md, polish in the PR body); laptop co-op gate 20261025T232337-...-bb4590ab-f1cd (set hygiene-s1-coop: e2e-coop e2e-netmove); orchestrator posts checker success when green. affected-e2e runs by itself.
-- #498 wire (68c15083, base feature/mixamo-on): both Opus checkers PASS; the duplicate co-op request was withdrawn, the gate reads its affected-e2e (16 suites incl. the co-op group); then the orchestrator posts checker. Retarget to master after #494 ships.
-- #501 I7 pack (9f5847d0, base feature/mixamo-i6): waits affected-e2e; retarget to master after #496 ships.
-- Cloud briefs open on cloud-queue: player-hygiene-s2 (pad poll, base master 2a937eb6) and player-hygiene-s1b (claimed by Cloud Builder 3, base bb4590ab). S1b's optional commit 3 edits src/anim/motion.ts = a wire path (PROTOCOL bump + co-op group): lead call at review, lean drop. Take done branches within 1 h -> Opus checker -> laptop.
-- Agreed with Campaign (09:50): Tallow S1 / S4 land on Campaign's `coopKit`; J24 A1 folds it into `kitMoves` (coop-kit PLAN updated 9e65a58d).
-- New rule (Michael ~10:12): `fix` label on any fix PR (fix rounds, train-failure fixes, fixes to shipped features / backlog bugs).
-- Checker statuses: auto mode blocks my `gh api .../statuses`; the orchestrator posts them (RULES "Getting to master").
-- Disk: 33 merged Player worktrees removed (C: 5 -> 64 GB free); 10 merged-but-dirty kept (scratch/ctcore/wt-audit.txt).
-- Look videos: no recorder exists (no script on master); anim PRs say pending, Michael tunes in Anim Studio.
-- Next after the above: I8 lazy in-game sets (on the wire), then I10-I14 per BATCH2-PLAN.md; J6 S2 / S1b reviews; J19 / J24 builds when Mixamo lands.
+# Resume - Night Shift | Player Build (2026-10-26 ~13:40 after the ~13:00 swap; older log: history at the end)
+At resume: agents die at a swap. Restart each from its branch head + the line below. All worktrees clean and pushed.
+- Cloud briefs: player-j19-s4 DONE 92a14fac (Opus checker running -> scratch/ctcore/j19-s4-CHECK.md; restart if missing) -> PR -> laptop affected + e2e-coop e2e-netmove; player-j19-s8a claimed by Cloud Builder 1 (laptop smoke: E2E_GPU=1 E2E_PORT=4189 node scripts/look-video.mjs --scenes smoke --out C:/NightShift/scratch/look/j19-s8a); mixamo-i9-polish open. J19 S2 / S5 briefs being written (scratch/ctcore/briefs/player-j19-s2.md, -s5.md) -> push to cloud-queue. Add tests/sectors.test.ts (S4) and tests/lookVideo.test.ts (S8a) to J19 PLAN claims. R16 runner melee (enemy.ts:3250): Guard AI's.
+- PRs (watcher scratch/ctcore/watch-lq.sh sha:context ...):
+  #516 J6 S3+S4 67c3698d: CI failed on master's new tests/dogTakedown.test.ts (mock lacked hitDistance); merged master + mock fix; Opus merge checker running (-> j6-s3s4-merge-CHECK.md, posts checker); laptop 20261026T022723-...-67c3698d-bc16 (set hygiene-s3s4-coop) + affected.
+  #498 wire df214492: checker posted (carried, docs-only head); laptop-e2e/mixamo-wire green on 7f851b27; affected queued. Base feature/mixamo-on until #494 ships.
+  #494 toggle 9a326d4e: affected desktop FAIL e2e-studio, laptop rerun queued (final verdict). #506 I2b, #514 I9, #519 J6 S2: checker posted, affected queued.
+  #505 J6 S1, #501 I7: train-ready. #493 I5, #485 I4: merged. #514 retarget to master when #501 ships.
+- Desktop CPU 94% at 13:30 (other leads' builders): new builds go to cloud-queue, local only tsc / vitest via low.mjs.
+- Next: S4 PR on PASS; push S2 / S5 briefs; when #498 lands: I8 lazy in-game sets (BATCH2-PLAN I8), then I10-I14; J19 S1 after #516 is on master; gm-look rebake when the orchestrator allows Blender.
 
 Rules: docs/RULES.md on origin/master: "A job." (Full burn bullet), "Machines.", "Swaps and context.". Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (scripts/laptop-queue/request.mjs from origin/master, run in C:/NightShift/Mobile-Coop; old scratch/ctcore/lq copy lacks splitSuites; --sha <full>
@@ -81,3 +75,5 @@ master". e2e always E2E_GPU=1.
 
 ## History
 - Full log before 2026-10-24 ~19:45: git history of this file on feature/menu (and scratch/ctcore/resume-history-2026-10-24.md on the desktop).
+
+- 2026-10-26 10:40 save block (replaced 11:50): - 10:40 at the cap: (a) I9 fix round DONE 761075de (lazy chunk, entry 5.5 -> 4.1 MB); Opus recheck was running (verdict -> scratch/ctcore/i9-fix-CHECK.md; restart if missing) -> PR B (base feature/mixamo-i7-pack) -> laptop e2e-studio + anim-audit. (b) #506 I2b checker PASS, laptop 20261025T233845-...-382bc321-8454 (set mixamo-i2b). (c) #494 test fix 41e847735 (label fix): asked the orchestrator for carried checker. #493 check green, waits affected-e2e. - Older (10:25): (a) I9 fix round, worktree -m5, feature/mixamo-i9 (7692c580+): merge I6 ba01d0f7, ONE lazy glob for the 24 unwired game-slot m
