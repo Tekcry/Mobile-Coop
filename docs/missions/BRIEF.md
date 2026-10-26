@@ -111,3 +111,12 @@ These override the brief where they differ (decision 3's "Marlow's stripes go" i
   train never pulls unreviewed base commits. Undo: none needed (train rule).
 - A28 NET3 `firstPlace` (a joining client placed at the checkpoint in a Sector Ops co-op match) ships dark behind
   `missions`; if Sector Ops wants it live as a fix, Sector Ops brings it to the orchestrator. Undo: drop the gate.
+
+## Orchestrator calls (prototype mode, 2026-10-26 ~16:20; ROADMAP Decided ~16:05)
+- A29 The engine reaches master as 4 members, each `big-pr` with one closest test set, replacing A25-A26's 16 members:
+  (a) C1 + C2 core and rules (~2.9k), first, so `missions` / `coopKit` can go on in /preview/ through #560's darkFlag;
+  (b) C3-C6 sector, kit, pull-up, shutter AI (~5.9k); (c) C7-C8 net (~2.1k; two Opus src/net checkers and the co-op
+  set); (d) C9-C16 Tallow Wharf map, tests and wharf e2e (~8k, mostly tests). Members still follow A27 (retargeted to
+  master just before `train-ready`). Undo: back to the 16 members of `docs/missions/slices/PRC-split.md`.
+- A30 G5 (the TGC split fix, `docs/tallow-fixes/G5-plan.md`) builds after (d), unless it is small enough to ride in
+  it; Tallow W1 joins Michael's playthrough when (d) lands, the uneven split noted. Undo: build G5 before (d).
