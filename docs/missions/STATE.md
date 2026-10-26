@@ -31,7 +31,7 @@ C:/NightShift/Mobile-Coop-f28-course-bunker, stacked on #553 (feature/ctcourse-f
 7. PR #549 feature/look-video 8a67136d3 (tool to master; PASS + status). First run: alone 20261026T031806 on run branch
    feature/look-video-tallow dc7bb9342 (engine + 2 script files; webm on the laptop C:/NightShift/scratch/look-video/).
    The W1-W4 videos gate C9 / C10 bodies.
-Next: F28 PR #567 (checker f28-check.md, laptop set f28; retarget to master after #553); after the freeze: tallow-prg2-a / -b verdicts -> G2 into the engine, then S; cut C3; D1 pickup.
+Next: F28 PR #567 (base master, rides with #553; checker PASS; laptop set f28 + affected); after the freeze: tallow-prg2-a / -b verdicts -> G2 into the engine, then S; cut C3; D1 pickup.
 
 ## OLD RESUME 2026-10-26 ~14:30 (Night Shift | Campaign Build)
 Superseded by the block above (G1 rerun dropped; G2 carries it).
