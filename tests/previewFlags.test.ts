@@ -45,6 +45,10 @@ describe('live defaults under tests (no preview constants)', () => {
     expect(flags.charShadowLight).toBe(false);
     expect(flags.mapReady).toBe(false);
     expect(flags.marlowReplan).toBe(false);
+    // (guard-rules F0) the three guard flags (PR3) keep their off defaults too
+    expect(flags.guardPairs).toBe(false);
+    expect(flags.lookouts).toBe(false);
+    expect(flags.dogRelease).toBe(false);
     expect(flags.campusV2).toEqual(CAMPUS_V2_ON);
   });
 });
@@ -58,6 +62,9 @@ describe('source guard', () => {
     expect(body).toMatch(/charShadowLight: darkFlag\(params\.get\('charlight'\), PREVIEW_ON\)/);
     expect(body).toMatch(/mapReady: darkFlag\(params\.get\('mapready'\), PREVIEW_ON\)/);
     expect(body).toMatch(/marlowReplan: darkFlag\(params\.get\('marlowreplan'\), PREVIEW_ON\)/);
+    expect(body).toMatch(/guardPairs: darkFlag\(params\.get\('guardpairs'\), PREVIEW_ON\)/);
+    expect(body).toMatch(/lookouts: darkFlag\(params\.get\('lookouts'\), PREVIEW_ON\)/);
+    expect(body).toMatch(/dogRelease: darkFlag\(params\.get\('dogrelease'\), PREVIEW_ON\)/);
     expect(body).toMatch(/campusV2: readCampusV2\(params\.get\('campusv2'\), PREVIEW_ON\)/);
   });
 

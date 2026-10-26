@@ -10,7 +10,11 @@
 //   (b) shard-0..7.prebake: lamp j baked alone (as the workers do) in shard j % 8 -> <h>/shard-<i>.bin;
 //   (c) join.prebake: one gzip file per section + the manifest <h>/campusOps.json.
 // Then here: the caps (16 MB a file, 48 MB the map, compressed: over -> every size printed, exit 1),
-// .prebake-cache/current.json ({ h, files }, what the build emits) and the prune (only folder <h> stays).
+// .prebake-cache/current.json ({ h, files }, what the build emits) and the prune (only folder <h> stays, and the
+// other build variant's folder: `variants.json`).
+// (prebake-preview) The /preview/ build (`VITE_PREVIEW=1`) bakes the preview's own campus layout: the prebake's vitest
+// config defines `__PREVIEW__` / `__PREVIEW_ID__` from the same env as vite.config.ts, so `flags` (campusV2 every
+// section) and the lamp key match what /preview/ computes. The live game and the named slots (/ct/) bake the live layout.
 import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -68,9 +72,21 @@ if (over || total > MAP_CAP) {
 }
 const files = [`${MAP}.json`, ...man.files.map((f) => f.name)];
 writeFileSync(join(CACHE, 'current.json'), JSON.stringify({ h: plan.h, files }, null, 2));
+// (prebake-preview) one folder per build variant (`variants.json`: { live: h, preview: h }), so a live and a /preview/
+// build on one machine never prune each other's bake
+const VARIANTS = join(CACHE, 'variants.json');
+let variants = {};
+try {
+  variants = JSON.parse(readFileSync(VARIANTS, 'utf8'));
+} catch {
+  variants = {};
+}
+variants[plan.variant ?? 'live'] = plan.h;
+writeFileSync(VARIANTS, JSON.stringify(variants, null, 2));
+const keep = new Set(Object.values(variants));
 for (const e of readdirSync(CACHE, { withFileTypes: true })) {
-  if (e.isDirectory() && e.name !== plan.h) rmSync(join(CACHE, e.name), { recursive: true, force: true });
+  if (e.isDirectory() && !keep.has(e.name)) rmSync(join(CACHE, e.name), { recursive: true, force: true });
 }
 for (const s of sizes) console.log(`  ${s}`);
 const s = ((Date.now() - t0) / 1000).toFixed(1);
-console.log(`prebake ${MAP}: ${man.lamps} lamps, ${man.files.length} files, ${(total / 1048576).toFixed(2)} MB gz, ${s} s${plan.cached ? ' (cached)' : ''}`);
+console.log(`prebake ${MAP} (${plan.variant ?? 'live'}): ${man.lamps} lamps, ${man.files.length} files, ${(total / 1048576).toFixed(2)} MB gz, ${s} s${plan.cached ? ' (cached)' : ''}`);

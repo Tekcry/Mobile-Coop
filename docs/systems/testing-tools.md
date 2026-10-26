@@ -687,7 +687,7 @@ The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; repl
   that table to its PR comment (a passing run comments only when it recorded a new flake). Only flakes after a suite's
   last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. The desktop worker
   keeps its own list (`laptop-queue-desktop/`). Commits cut before this change ignore `E2E_QUARANTINE_FILE` and keep
-  their hardcoded e2e-pad.
+  their hardcoded e2e-pad. Its Slow table holds 7 days of `SLOW:` lines (F35), each also on its status as "; slow:".
 - Hard-rule checks (vitest): `tests/noRouteTimer.test.ts` (rule 6, G334; allowlist `pairGates[].window`, SECTOR hold
   keys); `tests/importBoundary.test.ts` (rule 10: `core/quality`, `qualityManager` and the governor fenced; allowlist
   `benchmark.ts`, `core/display` readers); `tests/replayDeterminism.test.ts` (rule 8, G143: patrols and detection
