@@ -791,6 +791,8 @@ export class GameState implements AppState {
       // (guard-ai-j16 G4a) the guard-side light reads take the contract (null with the flag off: today's), set together
       // with `fillChars`' switch to `fillOccluders`: both key guards and bodies by number, so neither shades itself
       w.enemyMgr.chars = this.charOccluders;
+      // (guard-ai-j16 G4b) the players' shadow cues for the faint cue (null with the flag off; a client has no manager)
+      w.enemyMgr.cues = this.shadowCues;
       w.enemyMgr.onKilled = (e, h) => {
         // own kills only (coop teammates are credited by the net layer); barrels count for whoever is local
         if (h.attackerId === 'local' || h.attackerId === '') {

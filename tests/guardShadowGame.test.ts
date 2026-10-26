@@ -174,9 +174,10 @@ describe('G4a / G4b: the constructor hands the contract and the cues to the mana
 
   it('right after `new EnemyManager(`: chars = the contract, cues = shadowCues (built before it; null flag off / client)', () => {
     const gs = code('src/game/gameState.ts');
-    expect(gs).toMatch(/\n {6}w\.enemyMgr = new EnemyManager\([^\n]*\);\n {6}w\.enemyMgr\.chars = this\.charOccluders;\n/);
-    // one set, nowhere else
+    expect(gs).toMatch(/\n {6}w\.enemyMgr = new EnemyManager\([^\n]*\);\n {6}w\.enemyMgr\.chars = this\.charOccluders;\n {6}w\.enemyMgr\.cues = this\.shadowCues;\n/);
+    // one set each, nowhere else
     expect(gs.match(/\.chars = /g)?.length).toBe(1);
+    expect(gs.match(/\.cues = /g)?.length).toBe(1);
     // shadowCues exists before the manager does (the constructor builds it after `puppet`)
     expect(gs.indexOf('this.shadowCues = shadowCuesFor(')).toBeGreaterThan(0);
     expect(gs.indexOf('this.shadowCues = shadowCuesFor(')).toBeLessThan(gs.indexOf('w.enemyMgr = new EnemyManager('));

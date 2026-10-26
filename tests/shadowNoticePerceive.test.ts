@@ -309,6 +309,25 @@ describe('G3: the cue in perceive', () => {
     expect(p.rate).toBe(0);
   });
 
+  it('G4b debug accessor: cueLook is true only while the cue\'s own look runs (a hearTurn takes it; no cues: false)', () => {
+    const { p, e } = scene();
+    expect(e.cueLook).toBe(false);
+    p.perceive();
+    expect(e.cueLook).toBe(true);
+    e.hearTurn(6, 2);
+    expect(e.cueLook).toBe(false);
+    expect(p.turnT).toBe(ALERT.hearLook);
+    const off = scene({ cues: null });
+    off.p.perceive();
+    expect(off.e.cueLook).toBe(false);
+    // the look runs out
+    const b = scene();
+    b.p.perceive();
+    expect(b.e.cueLook).toBe(true);
+    b.p.turnT = 0;
+    expect(b.e.cueLook).toBe(false);
+  });
+
   it('he goes suspicious silently (A5: the white arc only), cause none', () => {
     const { p } = scene();
     p.perceive();

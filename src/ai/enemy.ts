@@ -1480,6 +1480,12 @@ export class Enemy implements Damageable {
     return this.turnT > 0;
   }
 
+  /** (guard-ai-j16 G4b, tests / debug only; read-only) His look in progress is the shadow cue's (`shadowLook` set it;
+   *  a `hearTurn` or an ack clears it), towards (`cueX`, `cueZ`). Never read by the AI. */
+  get cueLook(): boolean {
+    return this.turnT > 0 && this.cueTurn;
+  }
+
   /** (guard-ai S2) May the board's command reach him (alive, calm enough, a brain)? */
   private get sendable(): boolean {
     return this.alive && !this.alerted && !this.passive && !this.taken;
