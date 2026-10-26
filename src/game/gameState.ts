@@ -119,7 +119,7 @@ import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, se
 import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
 import type { SeenBody } from '../security/securitySystem';
 import { hyp2 } from '../core/mathx';
-import { FILL, FILL_IN, fillPlayers, fillVictims, pictureInto } from './charOccluderFill';
+import { FILL, FILL_IN, fillPlayers, fillVictims, pictureInto, slotInto } from './charOccluderFill';
 import { GadgetSystem } from './gadgetSystem';
 import { OpticSystem } from './opticSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
@@ -295,6 +295,8 @@ export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTM
 /** A play session on one map: world, player, combat systems, HUD. Modes plug in on top. */
 /** Solo: no remote players (one shared array, so the per-step accessor never allocates). */
 const NO_REMOTES: readonly PlayerRef[] = Object.freeze([]);
+/** (char-shadow-meter S2c) Solo and host: no client partner slots (`charMatesInto`). */
+const NO_MATES = (): number => 0;
 /** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
  *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
 /** (LR16-5b) Head points a pendant-bump pass takes (the players and the live guards). */
@@ -473,6 +475,9 @@ export class GameState implements AppState {
   private readonly grabInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
   remotePlayers: () => readonly PlayerRef[] = () => NO_REMOTES;
+  /** (char-shadow-meter S2c) Co-op client: writes its partners' slot inputs (`slotInto`) into `pin` slots from..max-1
+   *  and returns how many. Set by `CoopClient` with the flag on. Solo and host: none. Read only by `fillChars`. */
+  charMatesInto: (pin: Float64Array, from: number, max: number) => number = NO_MATES;
   /** (locomotion step 11) Back-to-wall (pure core; built on the first step from the level's cover segments). */
   wallCore: WallCore | null = null;
   private wallIn = emptyWallInput();
@@ -1706,10 +1711,11 @@ export class GameState implements AppState {
       for (let s = 0; s < this.charN; s++) {
         const o = s * FILL_IN;
         const v = f.bodyLevel(L[o]!, L[o + 1]!, L[o + 2]!, L[o + 3]!, this.lightOccluder, L[o + 4]!, L[o + 5]!, occ, this.charKeys[s]);
+        // (S2c) a client's partner slots sit past `charRefs`: their light is not kept (the host's sample drives guards)
         if (s === 0) {
           this.lightLevel = v;
           this.localRef.light = v;
-        } else this.charRefs[s]!.light = v;
+        } else if (s < this.charRefs.length) this.charRefs[s]!.light = v;
       }
       if (flags.debug) {
         this.charMs = performance.now() - t0;
@@ -1768,35 +1774,19 @@ export class GameState implements AppState {
   /**
    * (char-shadow-meter S2) The character contract from the sim, every step before `updateLight` (not inside it: the
    * stealth-AI e2e pins the meter by replacing `updateLight`, and the picture keeps its capsules): the players in
-   * `playerRefsInto` order (slot 0 local: the meter's own sample), then the living guards near them (a client's
-   * puppets through the same `takedownVictims`). Nothing with the flag off.
+   * `playerRefsInto` order (slot 0 local: the meter's own sample; S2c: then a co-op client's partners, `charMatesInto`),
+   * then the living guards near them (a client's puppets through the same `takedownVictims`). Nothing with the flag off.
    */
   private fillChars(): void {
     const occ = this.charOccluders;
     if (!occ) return;
     const refs = this.playerRefsInto(this.charRefs);
-    const n = refs.length < FILL.players ? refs.length : FILL.players;
-    this.charN = n;
+    const nr = refs.length < FILL.players ? refs.length : FILL.players;
     this.localSampleInto(0);
     const L = this.lightIn;
-    for (let s = 1; s < n; s++) {
-      const r = refs[s]!;
-      const o = s * FILL_IN;
-      L[o] = r.feet.x;
-      L[o + 1] = r.feet.y;
-      L[o + 2] = r.feet.z;
-      const rh = r.head;
-      if (rh) {
-        const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
-        L[o + 3] = hs.h;
-        L[o + 4] = hs.ox;
-        L[o + 5] = hs.oz;
-      } else {
-        L[o + 3] = lightSampleHeight(r.height ?? STANDARD_BODY, r.crouched ? 1 : 0);
-        L[o + 4] = r.peekX ?? 0;
-        L[o + 5] = r.peekZ ?? 0;
-      }
-    }
+    for (let s = 1; s < nr; s++) slotInto(L, s, refs[s]!);
+    const n = nr + this.charMatesInto(L, nr, FILL.players);
+    this.charN = n;
     fillPlayers(occ, L, n, this.charKeys);
     this.charFull = fillVictims(occ, this.takedownVictims(), L, n);
   }
