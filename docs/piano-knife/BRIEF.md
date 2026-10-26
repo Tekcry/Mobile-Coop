@@ -96,6 +96,10 @@ Campaign's scene flag and scene switch.
 - A15 Timing: the bible's 1.0-1.5 s takedown wins over Campaign's PB1-PB3 targets (contact 0.7-0.9 s, free by
   2.0-2.4 s). Starting values: approach 0.22 s, move 1.3 s, contact at about 0.8 s from the press, limp at about
   1.26 s, the attacker free at about 1.67 s. Sent to Campaign for their e2e timings. Undo: `seconds` per row.
+- A16 Hand contacts (lead 2026-10-26 ~21:05, prototype mode, Michael ~16:05 "Prototype mode"): a paired-kill contact
+  that misses the bible's 3 cm (5.12.2) after S2's one measuring run is accepted as a recorded `KNOWN_MISS` (ceiling
+  at most 10 cm) until Michael plays; no IK fix slice before then. Undo: an Opus IK fix on `knifePair.ts` (S2b) and
+  an empty `KNOWN_MISS`.
 
 ## Questions for Michael
 None for Player Build. The Mixamo sign-in (CLIP-LIST) is the orchestrator's ask; the map plan (G288) is Campaign's.

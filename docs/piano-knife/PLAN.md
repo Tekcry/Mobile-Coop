@@ -165,7 +165,7 @@ Files (Player Build; files of other owners get one-line hooks only):
 - New: `src/game/knifeKill.ts` (S1 writes; afterwards S2 only edits it, S3 reads), `src/game/knifePair.ts` (S1, S3),
   `src/anim/killDrive.ts`, `tests/knifeKill.test.ts`, `tests/killDrive.test.ts`, `tests/knifePair.test.ts`,
   `tests/knifeTakedown.test.ts` (S1), `tests/knifeWire.test.ts` (S3), `tests/introPose.test.ts` (S4b),
-  `scripts/mocap/knifePairs.mjs` (S2), `src/anim/clips/mixamo/knife/*.ts` (S2, generated), `docs/piano-knife/*`.
+  `scripts/mocap/knifePairs.mjs` (S2), `src/anim/clips/mixamo/piano/*.ts` (S2, generated), `docs/piano-knife/*`.
 - Edited: `src/game/takedownController.ts`, `src/game/gameState.ts` (menu rows :1518-1525 and the strike start
   :2191-2192, S1), `src/ai/enemy.ts`
   (`knifeVictim` beside `beginTakedown`; Guard AI told), `src/anim/animGraph.ts` (the `kill` field and one hook line),
@@ -206,7 +206,7 @@ block Campaign S4, so S1 then S3 go first.
 - S2 Knife clips (Opus, ~450): when Michael has signed in to Mixamo and the CLIP-LIST clips are downloaded. Owns
   `knifeKill.ts` edits (table only). Also checks CMU two-person subjects 18-23 for a grab-from-behind / struggle take
   (both sides from one capture, retargeted onto Wren and the guard rig, G406; credited); if one fits it replaces the
-  `behind` pair. The CLIP-LIST rows through `mixamoEmit.mjs` into `clips/mixamo/knife/`, rows in `mocapSources.ts` and
+  `behind` pair. The CLIP-LIST rows through `mixamoEmit.mjs` into `clips/mixamo/piano/`, rows in `mocapSources.ts` and
   `art-credits.md`, `KNIFE_KILLS` pointed at them; `scripts/mocap/knifePairs.mjs` measures each pair headless with
   `contactErrors` and writes `standoff` / `contact` / `victimFrom`. Tests: `tests/knifeKill.test.ts`,
   `tests/knifePair.test.ts` (3 cm at every sample per row), `tests/mocapSources.test.ts`. Laptop: `affected-e2e`, and

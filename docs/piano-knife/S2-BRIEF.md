@@ -149,13 +149,11 @@ second measure run or tuning pass. No `flags.ts` or `pianoScene.ts` edit (Campai
      value nearer S1's. Writes `build/mocap/knife-fit.json` and prints a table (row, numbers, four maxima).
    - The builder copies the winning numbers into `KNIFE_KILLS` by hand once. No second run.
    - If contacts miss: a contact whose fitted maximum is over 3 cm (`KNIFE.contactTol`) is not tuned further in S2. The
-     builder commits and pushes, then stops and sends the lead the fit table plus a trace of the worst row
-     (`KP_TRACE=1`). Until the lead answers, the miss is listed in `tests/knifePair.test.ts` as
-     `KNOWN_MISS: { row, contact, maxM }` (rounded up to the next cm). Every other contact keeps the 3 cm assertion.
-     The checker FAILs any `KNOWN_MISS` entry the lead has not approved. The lead's two outcomes:
-     (a) the orchestrator accepts the measured ceilings until Michael plays (prototype), so the entries stay and the PR
-     names them as an open item;
-     (b) an Opus IK fix on `knifePair.ts` (S1's file) runs first as S2b, and S2 then empties `KNOWN_MISS`.
+     miss is listed in `tests/knifePair.test.ts` as `KNOWN_MISS: { row, contact, maxM }` (rounded up to the next cm)
+     and the builder carries on; the report gives the fit table plus a trace of the worst row (`KP_TRACE=1`). Every
+     other contact keeps the 3 cm assertion. DECIDED (lead, BRIEF A16, prototype mode): measured ceilings are accepted
+     until Michael plays; the PR names each `KNOWN_MISS` as an open item. The checker FAILs only a miss that is not
+     in the report or a ceiling over 10 cm (that is broken, not a miss).
 
 9. `docs/art-credits.md`, Mixamo table, one row per new module (7 cells; repo path
    `src/anim/clips/mixamo/piano/<slug>.ts`, title "<Title> (`<File>.fbx`)", clip name, https://www.mixamo.com/, the
@@ -247,9 +245,9 @@ second measure run or tuning pass. No `flags.ts` or `pianoScene.ts` edit (Campai
 - The report has the CMU 18-23 verdict table and the measured timings for Campaign.
 
 ## Doubts
-1. Contacts may still miss 3 cm on the real clips, as on the stand-ins (S1's open problem). Item 8 stops for the lead:
-   accept the measured ceilings until Michael plays, or an IK fix (S2b) first. This needs the orchestrator's answer.
-   The bible's 3 cm rule (5.12.2) is not loosened inside S2.
+1. Contacts may still miss 3 cm on the real clips, as on the stand-ins (S1's open problem). Decided (BRIEF A16): measured
+   ceilings are accepted until Michael plays; no S2b IK fix before then. The bible's 3 cm rule (5.12.2) stays the
+   target.
 2. `behindLow` loses the crouched rise: Stabbing starts standing, and the drive blends from the crouched pose over
    `KNIFE.blendIn` 0.12 s, so it will pop. S2 cannot add a per-row blend without a controller edit. Polish list item:
    a `crouch_to_stand` lead-in after Michael plays.
