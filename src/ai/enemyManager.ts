@@ -3708,6 +3708,8 @@ export class EnemyManager {
     this.raysThisStep = 0;
     // (guard-ai play A, check B) one long plan (`GIVE_UP.homeExpand` A*) per frame across the guards
     this.longPlanFree = true;
+    // (check FIX 1) the sliced long plan's idle count is in frames
+    this.nav.sliceTick();
     this.sightT += dt;
     this.intruders.step(dt);
     // (guard-ai S20) the door gate, built once (the door list is fixed for the map)

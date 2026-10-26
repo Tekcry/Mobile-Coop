@@ -84,8 +84,9 @@ const NB_MAX = 16;
 /** A height within this of a surface picks it (m). */
 const LAYER_PICK = 1.2;
 
-/** (guard-ai play A, train 132 fix) Asks by others before an idle owner's sliced search is taken over (`sliceFree`). */
-const SLICE_IDLE = 8;
+/** (guard-ai play A, train 132 fix; check FIX 1) Frames (`sliceTick`) an owner may skip his slice before another guard
+ *  may take the search over (`sliceFree`): 1 s at 30 Hz. */
+const SLICE_IDLE = 30;
 
 /** (guard-ai play A, train 132 fix) One A* spread over several calls (`NavGrid.sliceStart` / `sliceStep`): the owner,
  *  the ends, the expansions so far, the nav version it started under and its own buffers. */
@@ -736,12 +737,22 @@ export class NavGrid {
   }
 
   /** (guard-ai play A, train 132 fix) Whether `owner` may run the sliced search now: it is free, his, or left idle by
-   *  its owner over `SLICE_IDLE` asks by others (a guard that stopped walking home mid-search: dead, in a fight). */
+   *  its owner over `SLICE_IDLE` frames (a guard that stopped walking home mid-search: dead, in a fight). A pure read
+   *  (check FIX 1: the frames are counted by `sliceTick`, not by asks). */
   sliceFree(owner: object): boolean {
     const sl = this.slice;
-    if (!sl || sl.by === null || sl.by === owner) return true;
-    return ++sl.idle > SLICE_IDLE;
+    return !sl || sl.by === null || sl.by === owner || sl.idle > SLICE_IDLE;
   }
+
+  /** (check FIX 1) One frame passed (`EnemyManager.update`): a running search's idle count goes up (`sliceStep` zeroes it). */
+  sliceTick(): void {
+    const sl = this.slice;
+    if (sl && sl.by !== null) sl.idle++;
+  }
+
+  /** (check FIX 1) The last `sliceStep` returned null because the search was not his any more (taken over, or a closure
+   *  changed the grid): not "no path", the caller may start again. */
+  sliceLost = false;
 
   /**
    * (guard-ai play A, train 132 fix) Starts one A* from `from` to `to` that runs over several `sliceStep` calls on its
@@ -783,15 +794,20 @@ export class NavGrid {
 
   /**
    * (guard-ai play A, train 132 fix) Up to `budget` more expansions of `owner`'s sliced search: its path (as
-   * `findPath`'s), null when it ends without one (unreachable, `cap` expansions in all, a closure changed, or another
-   * owner took it), undefined while it still runs. A finished search frees the slot.
+   * `findPath`'s), null when it ends without one (unreachable, `cap` expansions in all; or, with `sliceLost`, a closure
+   * changed or another owner took it), undefined while it still runs. A finished search frees the slot.
    */
   sliceStep(owner: object, budget: number, cap: number): Waypoint[] | null | undefined {
     const sl = this.slice;
-    if (!sl || sl.by !== owner) return null;
+    this.sliceLost = false;
+    if (!sl || sl.by !== owner) {
+      this.sliceLost = true;
+      return null;
+    }
     sl.idle = 0;
     if (sl.ver !== this.version) {
       sl.by = null;
+      this.sliceLost = true;
       return null;
     }
     if (sl.s === sl.g) {

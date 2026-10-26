@@ -201,11 +201,14 @@ describe('Saltmarsh Park S1 (campusV2): guards get back to their posts after a s
   // Each start: no clear line home and no path within goTo's A* budget (3000 expansions), a path with a large one.
   // Before the fix: the 34-38 m gate starts already got home (the straight fallback slid round); the two "stuck" starts
   // pressed a wall for good (the gate officer at (16.6, -33.5), the badge-door officer at (10.5, -29.5)).
-  const cases: { guard: number; role: string; at: readonly [number, number]; within: number; note: string }[] = [
+  const cases: { guard: number; role: string; at: readonly [number, number]; within: number; note: string; far?: boolean }[] = [
     { guard: 0, role: 'gate', at: [50, -76], within: 60, note: 'beyond the gatehouse, east' },
     { guard: 0, role: 'gate', at: [-18, -60], within: 60, note: 'beyond the gatehouse, west' },
     { guard: 0, role: 'gate', at: [20, -32], within: 90, note: 'north of the fence (was stuck)' },
     { guard: 4, role: 'posted', at: [12, -19], within: 120, note: 'east of C1 (was stuck)' },
+    // (check FIX 2) on S1 v2-c the worst start near the gate (~77000 expansions, past the old 60000 cap); on the older
+    // layout only the walk home is checked (`far`: the start conditions above are not asserted)
+    { guard: 0, role: 'gate', at: [60, -36], within: 60, note: 'north-east, the longest plan (v2-c)', far: true },
   ];
 
   it('the gate officer ~35 m out beyond the gatehouse within 60 s; the stuck starts get home too', async () => {
@@ -225,17 +228,20 @@ describe('Saltmarsh Park S1 (campusV2): guards get back to their posts after a s
       const at = c.at;
       const d = hyp2(at[0] - post[0], at[1] - post[1]);
       expect(d).toBeGreaterThan(30);
-      expect(nav.lineClear([at[0], at[1]], post)).toBe(false);
-      expect(nav.findPath([at[0], at[1]], post, 3000)).toBeNull();
-      expect(nav.findPath([at[0], at[1]], post, 60000)).not.toBeNull();
+      if (!c.far) {
+        expect(nav.lineClear([at[0], at[1]], post)).toBe(false);
+        expect(nav.findPath([at[0], at[1]], post, 3000)).toBeNull();
+        expect(nav.findPath([at[0], at[1]], post, 60000)).not.toBeNull();
+      }
       // (train 132 fix) S1 v2-c rebuilt the gatehouse round the gate post: from the east the only way in is round the
       // site (~250 m). The limit is `within` or the walk of the shortest path at his calm pace with a 1.5 margin,
       // whichever is longer: the case proves he never presses a wall, not that the map is compact
-      const way = nav.findPath([at[0], at[1]], post, 200000)!;
+      const way = nav.findPath([at[0], at[1]], post, 200000);
+      expect(way).not.toBeNull();
       let len = 0;
       let px = at[0];
       let pz = at[1];
-      for (const w of way) {
+      for (const w of way!) {
         len += hyp2(w[0] - px, w[1] - pz);
         px = w[0];
         pz = w[1];
@@ -376,6 +382,46 @@ describe('one long plan per frame across the guards (check B: AiContext.longPlan
     a.calmDecide(dt);
     b.calmDecide(dt);
     expect(longs).toBe(2);
+  });
+
+  it('(check FIX 1) plans that need many slices: one slice per frame, the running one is never starved, both get a path', async () => {
+    const { EnemyManager } = await import('../src/ai/enemyManager');
+    const wall: NavBlocker = { cx: 0, cz: -2, hx: 0.1, hz: 8, yaw: 0, bottom: 0, top: 3 };
+    const nav = new NavGrid({
+      minX: -6, maxX: 6, minZ: -10, maxZ: 10, cell: 0.25,
+      sample: () => ({ h: 0, ok: true }),
+      blockers: [wall],
+      agentRadius: 0.32, stepHeight: 0.45, seed: [-5, -5],
+    });
+    const find = nav.findPath.bind(nav);
+    vi.spyOn(nav, 'findPath').mockImplementation((p, q, _budget, ya, yb) => find(p, q, 3, ya, yb, true));
+    // a small slice budget: each plan takes many frames
+    const step = nav.sliceStep.bind(nav);
+    let perFrame = 0;
+    let most = 0;
+    const ends = new Map<object, string>();
+    vi.spyOn(nav, 'sliceStep').mockImplementation((o, _budget, cap) => {
+      perFrame++;
+      const r = step(o, 40, cap);
+      if (r !== undefined) ends.set(o, r ? 'path' : nav.sliceLost ? 'lost' : 'none');
+      return r;
+    });
+    const world = { level: { lights: { lights: [], setOn: vi.fn() }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] }, addShadowCaster: vi.fn() };
+    const em = new EnemyManager({} as Scene, world as unknown as World, nav, {} as DamageRegistry, { clear: () => true } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
+    const longPlan = (em as unknown as { ctx: { longPlan(): boolean } }).ctx.longPlan;
+    // a is first in the list every frame, b second: b must not lose a running plan to a's asks
+    const a = await calmGuard(nav, [-3, 2, 0], [3, 2], 0, null, { longPlan });
+    const b = await calmGuard(nav, [-3, -2, 0], [3, -2], 0, null, { longPlan });
+    const dt = 1 / 30;
+    for (let f = 0; f < 600 && ends.size < 2; f++) {
+      perFrame = 0;
+      em.update(dt);
+      a.calmDecide(dt);
+      b.calmDecide(dt);
+      most = Math.max(most, perFrame);
+    }
+    expect(most).toBe(1);
+    expect([...ends.values()]).toEqual(['path', 'path']);
   });
 });
 

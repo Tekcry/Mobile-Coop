@@ -265,10 +265,11 @@ const ENTRY_MAX = 30;
  *  guards: `AiContext.longPlan`; 10000 is ~2.4 ms p50, 3.2 ms max on S1 campus, 20000 was ~4 / 6 ms); no
  *  progress again and a route walker moves on to his next point, a post guard stands where he is (this calm spell). (train
  *  132 fix) The long plan is one A* sliced over frames (`NavGrid.sliceStep`): `homeExpand` per frame, up to `homeCap` in
- *  all (S1 v2: the gate officer from the east needs ~45000, past one frame's 10000; never a straight press). The run
+ *  all (S1 v2-c: the gate officer from the east needs ~45000, the worst start ~77000, past one frame's 10000; never a
+ *  straight press). The run
  *  to an alarm panel and the walk to a body to wake end when he cannot get there: no path, or under `homeMove` m moved in
  *  `homeT` s (`walkStalled`; check A: not on time, a long way round is still walked). */
-export const GIVE_UP = { homeT: 5, homeMove: 0.2, homeExpand: 10000, homeCap: 60000 } as const;
+export const GIVE_UP = { homeT: 5, homeMove: 0.2, homeExpand: 10000, homeCap: 120000 } as const;
 /** Body sample heights for exposure (fractions of the target's height above the feet, then the head). */
 const EXPOSE_HIPS = 0.52;
 
@@ -2815,12 +2816,13 @@ export class Enemy implements Damageable {
     // long plan first (a partial end can be a dead end). One per frame across the guards (`AiContext.longPlan`): denied,
     // he walks the partial path and asks again next frame
     const part = this.routePart && this.routeGoal[0] === g[0] && this.routeGoal[1] === g[1];
-    if (part && !this.homeLong && this.longPlanFree()) return this.homeLongPlan(g) ?? wp;
+    // (check FIX 1) the slot first: a guard who cannot use it leaves the frame's token to the one whose slice runs
+    if (part && !this.homeLong && this.ctx.nav.sliceFree(this) && this.longPlanFree()) return this.homeLongPlan(g) ?? wp;
     this.homeT += dt;
     if (this.homeT < GIVE_UP.homeT) return wp;
     const moved = hyp2(this.pos.x - this.homeX, this.pos.z - this.homeZ);
     // stuck with the long plan untried and the frame's taken: the window stays over, he asks again next frame
-    if (moved < GIVE_UP.homeMove && !this.homeLong && !this.longPlanFree()) return wp;
+    if (moved < GIVE_UP.homeMove && !this.homeLong && (!this.ctx.nav.sliceFree(this) || !this.longPlanFree())) return wp;
     this.homeT = 0;
     this.homeX = this.pos.x;
     this.homeZ = this.pos.z;
@@ -2881,6 +2883,8 @@ export class Enemy implements Damageable {
     const path = nav.sliceStep(this, GIVE_UP.homeExpand, GIVE_UP.homeCap);
     if (path === undefined) return null;
     this.homeSlicing = false;
+    // (check FIX 1) lost (taken over, or the grid changed): not "no path", he plans again later
+    if (path === null && nav.sliceLost) return null;
     this.homeLong = true;
     if (!path || path.length === 0) return null;
     this.routePath = path;

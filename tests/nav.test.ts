@@ -280,21 +280,35 @@ describe('NavGrid sliced search (guard-ai play A, train 132 fix)', () => {
     expect(g.sliceFree({})).toBe(true);
   });
 
-  it('ends with null past its cap; another owner waits, then takes an idle search over', () => {
+  it('ends with null past its cap; another owner waits, then takes an idle search over (frames, not asks)', () => {
     const g = wallGrid();
     const me = {};
     const other = {};
     g.sliceStart(me, A, B);
     expect(g.sliceStep(me, 20, 1000)).toBeUndefined();
-    let asks = 0;
-    while (!g.sliceFree(other)) asks++;
-    expect(asks).toBeGreaterThan(0);
+    // asking is a pure read: any number of asks in one frame leaves the owner his search
+    for (let i = 0; i < 100; i++) expect(g.sliceFree(other)).toBe(false);
+    // a step by the owner each frame keeps it his
+    for (let f = 0; f < 100; f++) {
+      g.sliceTick();
+      expect(g.sliceStep(me, 1, 100000)).toBeUndefined();
+    }
+    expect(g.sliceFree(other)).toBe(false);
+    let frames = 0;
+    while (!g.sliceFree(other)) {
+      g.sliceTick();
+      frames++;
+    }
+    expect(frames).toBeGreaterThan(1);
     g.sliceStart(other, A, B);
-    // the first owner lost it
+    // the first owner lost it: null with `sliceLost` (not "no path")
     expect(g.sliceStep(me, 20, 1000)).toBeNull();
+    expect(g.sliceLost).toBe(true);
     let r: ReturnType<NavGrid['sliceStep']>;
     do r = g.sliceStep(other, 20, 100);
     while (r === undefined);
     expect(r).toBeNull();
+    // past its cap: a real end, not lost
+    expect(g.sliceLost).toBe(false);
   });
 });
