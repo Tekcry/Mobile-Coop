@@ -14,3 +14,14 @@ export async function onPoll(_ctx, _run) {}
 export async function onLockedDoor(_ctx, _run, _step) {
   return false;
 }
+
+/** (seam SR3) After a wait ended by a course interrupt: `{ resume, place: { leader, follower } | null }`, or null (no
+ *  action queued: the driver takes the same step again). R4a queues none. */
+export async function onRestart(_ctx, _run, _steps, _i) {
+  return null;
+}
+
+/** (seam SR5) A selftest run's `course` block against its log: the problems ([] = pass). R4a checks none. */
+export function checkCourseExpect(_block, _log) {
+  return [];
+}
