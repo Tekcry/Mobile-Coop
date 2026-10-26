@@ -12,7 +12,7 @@ Owner: Night Shift | Campaign Build. Status: current.
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" font-family="Arial, Helvetica, sans-serif" font-size="11">
   <title>Aldgrave Piano Works - piano escape map plan (1 m = 20 px)</title>
   <rect x="0" y="0" width="960" height="560" fill="#ffffff"/>
-  <text x="40" y="24" font-size="15" font-weight="bold" fill="#222">Aldgrave Piano Works (pianoWorks) - one storey, 40 x 19 m, north up, 1 m = 20 px</text>
+  <text x="40" y="24" font-size="15" font-weight="bold" fill="#222">Aldgrave Piano Works - one storey, 40 x 19 m, north up, 1 m = 20 px</text>
 
   <!-- rooms -->
   <g fill="#f3efe6" stroke="#333" stroke-width="3">
@@ -85,7 +85,7 @@ Owner: Night Shift | Campaign Build. Status: current.
 
   <!-- intro wall W1 -->
   <rect x="157" y="280" width="6" height="80" fill="#7a2e12"/>
-  <text x="52" y="296" fill="#7a2e12" font-weight="bold">W1 intro wall (3 m)</text>
+  <text x="52" y="311" fill="#7a2e12" font-weight="bold">W1 intro wall (3 m)</text>
 
   <!-- lamps: all electric, all die at the EMP -->
   <g fill="#ffd54a" stroke="#a07800" stroke-width="1">
@@ -113,13 +113,23 @@ Owner: Night Shift | Campaign Build. Status: current.
   </g>
   <!-- guard posts (start at the EMP) -->
   <g fill="#c62828">
-    <circle cx="220" cy="340" r="6"/><circle cx="230" cy="290" r="6"/><circle cx="260" cy="360" r="6"/><circle cx="260" cy="280" r="6"/>
+    <circle cx="220" cy="372" r="6"/><circle cx="230" cy="170" r="6"/><circle cx="260" cy="320" r="6"/><circle cx="260" cy="140" r="6"/>
     <circle cx="300" cy="110" r="6"/><circle cx="300" cy="122" r="6"/><circle cx="720" cy="300" r="6"/><circle cx="664" cy="256" r="6"/>
   </g>
   <g fill="#c62828" font-weight="bold">
-    <text x="208" y="331">G1</text><text x="236" y="294">G2</text><text x="240" y="378">G3</text><text x="266" y="276">G4</text>
+    <text x="204" y="366">G1</text><text x="212" y="166">G2</text><text x="240" y="314">G3</text><text x="242" y="136">G4</text>
     <text x="304" y="104">G5+G6 pair</text><text x="706" y="318">G7 post</text><text x="668" y="250">G8</text>
   </g>
+
+  <!-- intro: guards close in from two sides (hall door, corridor door), slow motion -->
+  <g stroke="#e65100" stroke-width="2" stroke-dasharray="2 3" fill="none">
+    <polyline points="330,316 284,318 262,320"/>
+    <polyline points="330,330 284,330 222,370"/>
+    <polyline points="330,116 284,116 262,138"/>
+    <polyline points="330,116 284,118 232,168"/>
+  </g>
+  <text x="126" y="186" fill="#e65100" font-size="10">intro: guards close in</text>
+  <text x="126" y="197" fill="#e65100" font-size="10">from two doors</text>
 
   <!-- players and intro camera -->
   <g fill="#2e7d32"><circle cx="152" cy="336" r="6"/><circle cx="152" cy="308" r="6"/></g>
@@ -141,7 +151,7 @@ Owner: Night Shift | Campaign Build. Status: current.
     <text x="700" y="272">SHOWROOM (4.5 m)</text>
   </g>
   <g fill="#555" font-size="10">
-    <text x="62" y="196">crates</text><text x="400" y="406">timber rack</text><text x="562" y="372">bench</text>
+    <text x="88" y="288">C1</text><text x="168" y="238">C2</text><text x="68" y="219">C3</text><text x="400" y="406">timber rack</text><text x="562" y="372">bench</text>
     <text x="744" y="364">spray booth</text><text x="330" y="200">frames (1.0 m) x 12</text><text x="676" y="138">grand pianos</text>
     <text x="300" y="154" fill="#1e63d6">clerestory windows (high, moonlight)</text>
   </g>
@@ -160,7 +170,7 @@ Owner: Night Shift | Campaign Build. Status: current.
   <!-- legend -->
   <g font-size="11">
     <circle cx="290" cy="468" r="5" fill="#ffd54a" stroke="#a07800"/><text x="300" y="472">lamp (electric: all die at the EMP), 22 + exit sign</text>
-    <line x1="284" y1="490" x2="300" y2="490" stroke="#1e63d6" stroke-width="5"/><text x="306" y="494">window: faint moon / city glow (under the dark band)</text>
+    <line x1="284" y1="490" x2="300" y2="490" stroke="#1e63d6" stroke-width="5"/><text x="306" y="494">window (pale blue: faint glow, night vision only)</text>
     <circle cx="290" cy="512" r="6" fill="#c62828"/><text x="300" y="516">guard start at the EMP (8)</text>
     <line x1="460" y1="512" x2="490" y2="512" stroke="#c62828" stroke-width="1.6" stroke-dasharray="6 4"/><text x="496" y="516">fixed patrol</text>
     <rect x="284" y="526" width="14" height="10" fill="#b9a27c" stroke="#6d5a3a"/><text x="304" y="535">tall cover (1.8-2.5 m)</text>
@@ -168,7 +178,7 @@ Owner: Night Shift | Campaign Build. Status: current.
     <circle cx="620" cy="468" r="6" fill="#2e7d32"/><text x="630" y="472">players' start / checkpoint</text>
     <line x1="612" y1="490" x2="632" y2="490" stroke="#2e7d32" stroke-width="6"/><text x="638" y="494">exit door (opens from inside)</text>
     <line x1="612" y1="512" x2="632" y2="512" stroke="#6a1b9a" stroke-width="2" stroke-dasharray="3 3"/><text x="638" y="516">intro camera path</text>
-    <text x="612" y="535" fill="#555">Fallback if 8 torches fail the GPU check: G1, G4, G5, G6 only.</text>
+    <text x="612" y="535" fill="#555">If 8 torches fail the graphics test: G1, G4, G5, G6 only.</text>
   </g>
 </svg>
 
@@ -177,32 +187,43 @@ Owner: Night Shift | Campaign Build. Status: current.
 **What the plan shows.** A small 1920s piano works on one floor, 40 by 19 metres: loading dock, assembly hall,
 corridor with a tea room, varnish room, showroom with the front door. The two operators start with their backs to the
 dock's brick wall (W1). 8 guards (red) on fixed rounds; the corridor pair is the one to take together. 22 lamps
-(yellow) all die at the EMP; after that the only light is a faint moon and city glow through the windows (blue) and
-the guards' torches. Two ways to the front door: the corridor or the hall and varnish room.
+(yellow) all die at the EMP; after that the only light is the guards' torches and a very faint moon and city glow
+through the windows (blue), seen only through night vision. Two ways to the front door: the corridor, or the hall and
+varnish room.
 
 **The opening (against the 2 min 14 s piano track).** 0-3 s black. 3-9 s fade in on the chest, empty pistol, calm
-breathing. 16-30 s the camera slowly pulls back: the wall, the partner, bullets flying past in slow motion. 30-38 s on
-the music's first swell: four guards closing in slow motion. 38 s: one button press sets off the EMP, every light dies,
-torches click on, and you have control. Hold Back to skip to the EMP; no replay after a restart.
+breathing; a dry click of the empty gun. 16-30 s the camera slowly pulls back: the wall, the partner, bullets flying
+past from two sides in slow motion. 30-38 s on the music's first swell: surrounded, four guards closing in slow motion
+from two doors. 38 s: one button press sets off the EMP, every light dies, torches click on, and you have control.
+Hold Back to skip to the EMP; no replay after a restart.
 
 **If 8 torches are too heavy for the graphics card** (one test decides): the same map with 4 guards (G1, G4 and the
 corridor pair), never a guard without a torch.
 
+## Rules this scene skips (your click approves these, for this scene only)
+- No layout checker or test-bot runs: your walk replaces them.
+- Two ways to the exit, not three plus a secret.
+- Guard numbers per room are not graded.
+- No pacing chart, teach-then-test beats or extra things to play with in each room.
+- No security devices (cameras, lasers, keypads) and no security sheet.
+- One player may play it (the standard says exactly two).
+- The corridor pair is the only must-do teamwork moment; no forced climbing or boosting together.
+- No extra design sheets beyond this plan.
+
 ## Intent check (5 lines)
-1. Michael said: "a black screen, slowly fading in to the characters upper chest ... taking down all enemies with a
-   knife ... coop ... brutally taking down guards in the shadows" (2026-10-26 ~19:20), and "they should activate an
-   EMP which knocks out all the lights ... the mission will play in pure darkness" (~19:55).
+1. Michael said: "a black screen, slowly fading in to the characters upper chest ... holding an empty pistol ...
+   very tense and quiet, with them brutally taking down guards in the shadows" (2026-10-26 ~19:20), and "they should
+   activate an EMP which knocks out all the lights ... the mission will play in pure darkness" (~19:55).
 2. What this is: a one-off co-op scene in a small dark piano works, with its own piano music and opening shot.
 3. What changes for the player: watch the slow opening, press the EMP, then knife every guard in the dark and walk out
    the front door together.
 4. What it does not do: no score, no saves, no change to the campaign, Sector Ops or Marlow Yard; knife kills are
    allowed only here.
-5. What it costs: 4 build pieces (about 2 days of builders) plus asks to 3 other teams (knife moves, guard torches,
+5. What it costs: 4 build pieces (about 2 days of builders) plus work from 3 other teams (knife moves, guard torches,
    the blackout lighting); it stays hidden behind its own switch and shows in the preview.
 
 ## The decision
-Q: Build the piano escape to this plan? (It also approves the short-map rule skips listed in the PLAN, for this scene
-only.)
+Q: Build the piano escape to this plan, with the rule skips above (this scene only)?
 - "Approve, build it (Recommended)"
 - "Change it first"
 
