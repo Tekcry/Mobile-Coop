@@ -289,6 +289,53 @@ describe('stuck: the calm walk home gives the point up after GIVE_UP.homeT s wit
   });
 });
 
+describe('one long plan per frame across the guards (check B: AiContext.longPlan)', () => {
+  it('two guards calming in the same frame run one long plan between them; the other runs his the next frame', async () => {
+    const { GIVE_UP } = await import('../src/ai/enemy');
+    const { EnemyManager } = await import('../src/ai/enemyManager');
+    // a wall along x = 0 with a gap at its north end (z 6..10): no clear line home, a path round
+    const wall: NavBlocker = { cx: 0, cz: -2, hx: 0.1, hz: 8, yaw: 0, bottom: 0, top: 3 };
+    const nav = new NavGrid({
+      minX: -6, maxX: 6, minZ: -10, maxZ: 10, cell: 0.25,
+      sample: () => ({ h: 0, ok: true }),
+      blockers: [wall],
+      agentRadius: 0.32, stepHeight: 0.45, seed: [-5, -5],
+    });
+    // goTo's 3000 plan is made partial (as past its budget on a large map); the long plans are counted
+    const find = nav.findPath.bind(nav);
+    let longs = 0;
+    vi.spyOn(nav, 'findPath').mockImplementation((a, b, budget, ya, yb, partial) => {
+      if (budget === GIVE_UP.homeExpand) {
+        longs++;
+        return find(a, b, budget, ya, yb, partial);
+      }
+      return find(a, b, 3, ya, yb, true);
+    });
+    const world = { level: { lights: { lights: [], setOn: vi.fn() }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] }, addShadowCaster: vi.fn() };
+    const em = new EnemyManager({} as Scene, world as unknown as World, nav, {} as DamageRegistry, { clear: () => true } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
+    const longPlan = (em as unknown as { ctx: { longPlan(): boolean } }).ctx.longPlan;
+    const a = await calmGuard(nav, [-3, 2, 0], [3, 2], 0, null, { longPlan });
+    const b = await calmGuard(nav, [-3, -2, 0], [3, -2], 0, null, { longPlan });
+    const dt = 1 / 30;
+    em.update(dt);
+    a.calmDecide(dt);
+    b.calmDecide(dt);
+    expect(longs).toBe(1);
+    // the same frame again (a second think): still taken
+    b.calmDecide(dt);
+    expect(longs).toBe(1);
+    em.update(dt);
+    a.calmDecide(dt);
+    b.calmDecide(dt);
+    expect(longs).toBe(2);
+    // both have theirs: no more
+    em.update(dt);
+    a.calmDecide(dt);
+    b.calmDecide(dt);
+    expect(longs).toBe(2);
+  });
+});
+
 describe('the alarm runner with no way to the panel drops the run (P2-1)', () => {
   const panel = (x: number, z: number): AlarmPanel => ({ id: 'p1', x, y: 0, z, yaw: 0, disabled: false });
 
