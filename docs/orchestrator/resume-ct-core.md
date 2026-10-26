@@ -1,15 +1,13 @@
-# Resume - Night Shift | Player Build (2026-10-26 ~12:35 SAVE at the orchestrator's call; older log: history at the end)
+# Resume - Night Shift | Player Build (2026-10-26 ~13:40 after the ~13:00 swap; older log: history at the end)
 At resume: agents die at a swap. Restart each from its branch head + the line below. All worktrees clean and pushed.
-- Cloud briefs OPEN on cloud-queue 89b2cdff: player-j19-s4, player-j19-s8a (laptop smoke: E2E_GPU=1 E2E_PORT=4189 node scripts/look-video.mjs --scenes smoke --out C:/NightShift/scratch/look/j19-s8a), mixamo-i9-polish. Add tests/sectors.test.ts (S4) and tests/lookVideo.test.ts (S8a) to J19 PLAN claims. R16 runner armed on data only (enemy.ts:3250 melee branch): sent to the orchestrator for Guard AI. Take done branches within 1 h -> Opus checker -> PR -> laptop.
-- PRs waiting only on laptop + orchestrator's checker post (message it when green; watcher script scratch/ctcore/watch-lq.sh sha:context ...):
-  #498 wire df214492 (code = 7f851b27; two Opus checkers PASS wire-CHECK-A2/B2.md; laptop-e2e/mixamo-wire on 7f851b27 + affected; base feature/mixamo-on until #494 ships).
-  #506 I2b 539560f4 (merge-only since PASS on 382bc321; laptop-e2e/mixamo-i2b + affected).
-  #516 J6 S3+S4 2d3ab5a8 (PASS j6-s3s4-CHECK.md; laptop-e2e/hygiene-s3s4-coop + affected).
-  #519 J6 S2 64409124 (recheck PASS j6-s2-fix-CHECK.md; affected only; CI on Node 22 confirms the fixture fix).
-  #505 J6 S1 bb4590ab (affected green; laptop-e2e/hygiene-s1-coop pending).
-  #494 toggle 9a326d4e (carried checker posted; CI + affected). #501 I7 9f5847d0 (PASS i7-pack-CHECK.md; asked for checker post).
-  #514 I9 761075de (checker posted; base feature/mixamo-i7-pack -> retarget to master when #501 ships). #493 I5 in train 117.
-- Next: when #498 lands: I8 lazy in-game sets (BATCH2-PLAN I8, on the wire + I9), then I10-I14; J19 S2 / S5 (Opus, W1, ungated) when desktop CPU < 80% or as cloud briefs; J19 S1 after J6 S3 (#516) is on master; gm-look rebake when the orchestrator allows Blender.
+- Cloud briefs: player-j19-s4 DONE 92a14fac (Opus checker running -> scratch/ctcore/j19-s4-CHECK.md; restart if missing) -> PR -> laptop affected + e2e-coop e2e-netmove; player-j19-s8a claimed by Cloud Builder 1 (laptop smoke: E2E_GPU=1 E2E_PORT=4189 node scripts/look-video.mjs --scenes smoke --out C:/NightShift/scratch/look/j19-s8a); mixamo-i9-polish open. J19 S2 / S5 briefs being written (scratch/ctcore/briefs/player-j19-s2.md, -s5.md) -> push to cloud-queue. Add tests/sectors.test.ts (S4) and tests/lookVideo.test.ts (S8a) to J19 PLAN claims. R16 runner melee (enemy.ts:3250): Guard AI's.
+- PRs (watcher scratch/ctcore/watch-lq.sh sha:context ...):
+  #516 J6 S3+S4 67c3698d: CI failed on master's new tests/dogTakedown.test.ts (mock lacked hitDistance); merged master + mock fix; Opus merge checker running (-> j6-s3s4-merge-CHECK.md, posts checker); laptop 20261026T022723-...-67c3698d-bc16 (set hygiene-s3s4-coop) + affected.
+  #498 wire df214492: checker posted (carried, docs-only head); laptop-e2e/mixamo-wire green on 7f851b27; affected queued. Base feature/mixamo-on until #494 ships.
+  #494 toggle 9a326d4e: affected desktop FAIL e2e-studio, laptop rerun queued (final verdict). #506 I2b, #514 I9, #519 J6 S2: checker posted, affected queued.
+  #505 J6 S1, #501 I7: train-ready. #493 I5, #485 I4: merged. #514 retarget to master when #501 ships.
+- Desktop CPU 94% at 13:30 (other leads' builders): new builds go to cloud-queue, local only tsc / vitest via low.mjs.
+- Next: S4 PR on PASS; push S2 / S5 briefs; when #498 lands: I8 lazy in-game sets (BATCH2-PLAN I8), then I10-I14; J19 S1 after #516 is on master; gm-look rebake when the orchestrator allows Blender.
 
 Rules: docs/RULES.md on origin/master: "A job." (Full burn bullet), "Machines.", "Swaps and context.". Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (scripts/laptop-queue/request.mjs from origin/master, run in C:/NightShift/Mobile-Coop; old scratch/ctcore/lq copy lacks splitSuites; --sha <full>
