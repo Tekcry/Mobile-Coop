@@ -405,6 +405,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   | Chimney Pair (K3) | `chimneyPair` | 256 | chimneyOffer, chimneyBrace, chimneyClimb, chimneyTop | chimneyJoin, chimneyPush, chimneyRise, chimneyOut | ladder climb / climb | a (when both are out) | 11 `a5-chimney` |
   | Swing Pass (K4) | `swingPass` | 512 | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
   | Plank Bridge (K5a, K5b) | `plankBridge` | 1024 | plankOffer, plankLift, plankCarry, plankDrop, plankLay | plankJoin, plankLiftA, plankCarryA, plankDropA, plankLayA | brace / walk | host tick (a crossing) | 5 `a2-plank` |
+
   Chimney Pair (K3): marked spots only (no free shaft until the walk); wire `s` is -width while offering, the height
   over the start floor while climbing (each page caps its own climb 0.15 m either side of the partner's), `h` while
   topping out. With the id on, a spot's shaft is no solo split jump (`splitJump.ts` `setNoSplit`).
