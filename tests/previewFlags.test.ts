@@ -39,11 +39,12 @@ describe('readCampusV2 with the preview default', () => {
 });
 
 describe('live defaults under tests (no preview constants)', () => {
-  it('PREVIEW_ON is false and the four feature flags keep their off defaults', () => {
+  it('PREVIEW_ON is false and the five feature flags keep their off defaults', () => {
     expect(PREVIEW_ON).toBe(false);
     expect(flags.guardModels).toBe(false);
     expect(flags.charShadowLight).toBe(false);
     expect(flags.mapReady).toBe(false);
+    expect(flags.marlowReplan).toBe(false);
     expect(flags.campusV2).toEqual(CAMPUS_V2_ON);
   });
 });
@@ -52,10 +53,11 @@ describe('source guard', () => {
   const src = readFileSync(resolve(__dirname, '../src/core/flags.ts'), 'utf8');
   const body = src.slice(src.indexOf('export const flags'));
 
-  it('the four feature flags read through the preview default', () => {
+  it('the five feature flags read through the preview default', () => {
     expect(body).toMatch(/guardModels: darkFlag\(params\.get\('guardmodels'\), PREVIEW_ON\)/);
     expect(body).toMatch(/charShadowLight: darkFlag\(params\.get\('charlight'\), PREVIEW_ON\)/);
     expect(body).toMatch(/mapReady: darkFlag\(params\.get\('mapready'\), PREVIEW_ON\)/);
+    expect(body).toMatch(/marlowReplan: darkFlag\(params\.get\('marlowreplan'\), PREVIEW_ON\)/);
     expect(body).toMatch(/campusV2: readCampusV2\(params\.get\('campusv2'\), PREVIEW_ON\)/);
   });
 
