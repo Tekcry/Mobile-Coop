@@ -26,24 +26,44 @@ import { registerTuneSection, TUNE_BASE_HOOKS, TUNE_FLAGS, TUNE_STATE_BAG, type 
 export const TEAM_MOVES = ['boost', 'relay', 'throw', 'hang', 'rope', 'revive'] as const;
 export type TeamMoveId = (typeof TEAM_MOVES)[number];
 export type TeamRole = 'a' | 'b';
+/**
+ * (coop-kit K0) The part 2 kit moves' tuner sections (game/teamMoves `PART2_KIT_KINDS`; a test keeps them equal):
+ * the same generic role and contact sliders, live for the local player's role (`teamRoleGroup` of its kit state) and
+ * the partner's base values from the wire (`teamRowOfWire`). Kept out of `TEAM_MOVES` (the studio's pair list and the
+ * Joints / IK rows) until each move's KA animation slice adds its studio pair.
+ */
+export const KIT_TUNE_MOVES = ['deadweight', 'dropCatch', 'chimneyPair', 'swingPass', 'plankBridge'] as const;
+export type KitTuneMove = (typeof KIT_TUNE_MOVES)[number];
+/** Every move with a tuner section. */
+export type TeamTuneId = TeamMoveId | KitTuneMove;
 
-export const TEAM_MOVE_LABEL: Record<TeamMoveId, string> = {
+export const TEAM_MOVE_LABEL: Record<TeamTuneId, string> = {
   boost: 'Co-op: leg-up',
   relay: 'Co-op: ledge relay',
   throw: 'Co-op: partner throw',
   hang: 'Co-op: hang-down',
   rope: 'Co-op: two-person rope',
   revive: 'Co-op: revive',
+  deadweight: 'Co-op: deadweight',
+  dropCatch: 'Co-op: drop catch',
+  chimneyPair: 'Co-op: chimney pair',
+  swingPass: 'Co-op: swing pass',
+  plankBridge: 'Co-op: plank bridge',
 };
 
 /** Who is who: role A is the one who climbs / is thrown / is lowered / revives; role B offers, holds or lies downed. */
-export const TEAM_ROLE_LABEL: Record<TeamMoveId, readonly [string, string]> = {
+export const TEAM_ROLE_LABEL: Record<TeamTuneId, readonly [string, string]> = {
   boost: ['A climber', 'B booster'],
   relay: ['A climber', 'B hanger'],
   throw: ['A runner', 'B thrower'],
   hang: ['A hanging', 'B holder'],
   rope: ['A climber', 'B holder'],
   revive: ['A reviver', 'B downed'],
+  deadweight: ['A passer', 'B hanger'],
+  dropCatch: ['A dropper', 'B catcher'],
+  chimneyPair: ['A joiner', 'B offerer'],
+  swingPass: ['A rider', 'B anchor'],
+  plankBridge: ['A second end', 'B first end'],
 };
 
 /** The section note for every co-op section (Michael's rule, anim-studio-2 item 3). */
@@ -51,7 +71,7 @@ export const TEAM_TUNE_NOTE =
   'Live in real play for YOUR role only. Your partner always plays the shared defaults (export, then fold into the code); your live values never reach them. Nothing goes on the wire. Visual only: the paths and timing of the move itself are unchanged.';
 
 /** Group ids: `team.<move>.a`, `team.<move>.b`, `team.<move>.contact`. */
-export function teamGroup(move: TeamMoveId, part: TeamRole | 'contact'): string {
+export function teamGroup(move: TeamTuneId, part: TeamRole | 'contact'): string {
   return `team.${move}.${part}`;
 }
 
@@ -88,7 +108,7 @@ function roleSliders(groups: readonly string[], timed: readonly string[]): TuneT
 const CONTACT_HOOK = 'moveTuneRoot: role A moved in its own frame x the contact window (teamContactK)';
 
 /** One registry section per team move: groups A, B and contact. */
-function teamSection(move: TeamMoveId): TuneSection {
+function teamSection(move: TeamTuneId): TuneSection {
   const a = teamGroup(move, 'a');
   const b = teamGroup(move, 'b');
   const c = teamGroup(move, 'contact');
@@ -111,13 +131,19 @@ function teamSection(move: TeamMoveId): TuneSection {
 }
 
 /** What the contact sliders move, per move (the panel's grey line). */
-const CONTACT_NOTE: Record<TeamMoveId, string> = {
+const CONTACT_NOTE: Record<TeamTuneId, string> = {
   boost: 'the climber\'s foot in the booster\'s cupped hands (the step-in and toss)',
   relay: 'the climber against the hanging body (the climb up it)',
   throw: 'the runner at the thrower\'s hands (the launch)',
   hang: 'the hanging partner\'s ankles in the holder\'s hands (while hanging)',
   rope: 'the climber off the rope line (while climbing)',
   revive: 'the reviver\'s hands on the downed body',
+  // (coop-kit K0) no contact window yet (placeholder poses): the sliders are there for the KA slices
+  deadweight: 'the passer against the grate (no contact window yet)',
+  dropCatch: 'the dropper in the catcher\'s arms (no contact window yet)',
+  chimneyPair: 'the two backs together (no contact window yet)',
+  swingPass: 'the rider\'s wrist in the anchor\'s hand (no contact window yet)',
+  plankBridge: 'the board between the two pairs of hands (no contact window yet)',
 };
 
 export const TEAM_SECTIONS: Record<TeamMoveId, TuneSection> = {} as Record<TeamMoveId, TuneSection>;
@@ -131,6 +157,10 @@ export const TRAV_SECTION = registerTuneSection({
   tunables: roleSliders(TRAV_GROUPS, TRAV_GROUPS.filter((_g, i) => TRAV_ONE_SHOT.includes(TRAV_KINDS[i]!))),
   select: (s) => s.trav || null,
 });
+
+/** (coop-kit K0) The part 2 kit moves' sections (after the Traversal moves: the earlier sections keep their order). */
+export const KIT_TUNE_SECTIONS: Record<KitTuneMove, TuneSection> = {} as Record<KitTuneMove, TuneSection>;
+for (const m of KIT_TUNE_MOVES) KIT_TUNE_SECTIONS[m] = teamSection(m);
 
 TUNE_STATE_BAG.team = '';
 TUNE_STATE_BAG.trav = '';
@@ -164,6 +194,21 @@ const ROLE_OF_STATE: Record<string, string> = {
   ropeHold: teamGroup('rope', 'b'),
   revive: teamGroup('revive', 'a'),
 };
+
+/** (coop-kit K0) The part 2 kit states by move and role (anim/clips/team `KIT_POSE_IDS`; a test keeps them equal: no
+ *  runtime import of team.ts here). */
+const KIT_TUNE_STATES: Readonly<Record<KitTuneMove, { readonly b: readonly string[]; readonly a: readonly string[] }>> = {
+  deadweight: { b: ['chainGrab', 'chainHang', 'chainDrop'], a: ['grateUnder'] },
+  dropCatch: { b: ['catchOffer', 'catchTake'], a: ['dropInto'] },
+  chimneyPair: { b: ['chimneyOffer', 'chimneyBrace', 'chimneyClimb', 'chimneyTop'], a: ['chimneyJoin', 'chimneyPush', 'chimneyRise', 'chimneyOut'] },
+  swingPass: { b: ['swingOffer', 'swingHold'], a: ['swingRide', 'swingRelease'] },
+  plankBridge: { b: ['plankOffer', 'plankLift', 'plankCarry', 'plankDrop', 'plankLay'], a: ['plankJoin', 'plankLiftA', 'plankCarryA', 'plankDropA', 'plankLayA'] },
+};
+for (const m of KIT_TUNE_MOVES) {
+  for (const s of KIT_TUNE_STATES[m].b) ROLE_OF_STATE[s] = teamGroup(m, 'b');
+  for (const s of KIT_TUNE_STATES[m].a) ROLE_OF_STATE[s] = teamGroup(m, 'a');
+}
+export { KIT_TUNE_STATES };
 
 /** The tuner group of a team-controller state (`TeamState`, or 'revive' while holding a partner's revive), '' = none. */
 export function teamRoleGroup(state: string): string {
@@ -234,8 +279,9 @@ interface GroupRef {
 const REFS = new Map<string, GroupRef>();
 const BASE_REFS = new Map<string, GroupRef>();
 const BASE_OF = new Map<GroupRef, TuneSection>();
-for (const m of TEAM_MOVES) {
-  const sec = TEAM_SECTIONS[m];
+for (const m of [...TEAM_MOVES, ...KIT_TUNE_MOVES]) {
+  // ((coop-kit K0) the part 2 kit sections too)
+  const sec = m in TEAM_SECTIONS ? TEAM_SECTIONS[m as TeamMoveId] : KIT_TUNE_SECTIONS[m as KitTuneMove];
   const c = teamGroup(m, 'contact');
   const a = teamGroup(m, 'a');
   const b = teamGroup(m, 'b');

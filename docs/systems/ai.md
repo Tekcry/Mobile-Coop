@@ -52,7 +52,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   overlooks the vent run or its exit, not in the vent (G378). Built: talking pairs on a timed loop that meet, and search
   when the partner is missing at the meeting (guard-ai S10, "Talking pairs" below), plus the squad radio checks. Built
   dark behind `guardPairs` (guard-rules S6, J15): a partner check while the pair walks between meetings, and posted
-  (static) pairs that talk and check. Lookouts: guard-rules S7 (PR4, `lookouts`).
+  (static) pairs that talk and check. Lookouts: built dark behind `lookouts`
+  (guard-rules S7, A9; Posts below).
 - Decided (G327, "Yes, shadow in view = seen"; G382, "Like on screen"): a guard whose shadow falls in view animates
   like an on-screen guard (`animTierView.ts`; replaces G294's assumption). Built (J4, #438; `animShadow`).
 - Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
@@ -182,11 +183,24 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   and gives only a turn's meter floor. A search (a body, a radio check, after combat) and his investigate spot are
   clamped into the leash; he wakes no knocked-out guard outside it; in combat `chasePoint` / strafe points are clamped,
   cover outside the leash is skipped, and a target outside it (+1.5 m) is held from the post (the `hold` rule); he
-  never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`). The sector tags: next
-  entry (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and `SectorDef.noisy` /
-  `entries`; `EnemyManager.mapNoisy` loads the map's noisy things as the masking, Sector Ops swaps in the live
-  section's (`setNoisy` on load). Checks: `validateGuardAi` / `validatePosts` run on load in dev (console warnings via
-  `reportGuardAi`, never a throw) and in `tests/postsWiring.test.ts` over every live map's sectors.
+  never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`).
+  A lookout (guard-rules S7, A3, A9; flag `lookouts`, `?lookouts=1`): `PostDef.lookout`, a perch with a leash of at most
+  `POST.lookoutLeash` 1 m, never `free`. Flag on, `placeSlot` gives him a high-security copy of the post (`slotPost`,
+  load time; the slot's own object is untouched), so every rule above holds him: never sent, never leaves, a lure only
+  turns him. Flag off it is no post (today's guard). A dog is never a lookout. When he grows suspicious by sight (a rise
+  into suspicious or investigating with `riseCause` `RISE_SIGHT`) he radios it: `EnemyManager.lookoutStep` barks
+  `spotCall` (urgent, so it follows his own "Huh?") and reports a `noise` incident at his stimulus (`stimX` / `stimZ`,
+  the floor the lowest walkable layer under it) with no perceivers, so the board sends the best-placed calm free guard
+  within `INCIDENT.callR` 25 m (its usual pick: path length weighted by officer, caution, role and zone). It is a
+  radioed sighting, not a sound, for the guard sheet and J13's cause log. At most every `LOOKOUT.callCd` 20 s per
+  lookout (per awareness key, kept over a revive); coordinated modes only; host only, no wire.
+  Map authors (M3): a lookout on a vent route stands where he overlooks the vent run or its exit. The first is S5's
+  roof marksman (S9). Tests: `tests/lookout.test.ts`; e2e: e2e-sectorops part 1 "lookouts (guard-rules S7)".
+  The sector tags: next entry (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and
+  `SectorDef.noisy` / `entries`; `EnemyManager.mapNoisy` loads the map's noisy things as the masking, Sector Ops swaps
+  in the live section's (`setNoisy` on load). Checks: `validateGuardAi` / `validatePosts` run on load in dev (console
+  warnings via `reportGuardAi`, never a throw; a lookout's leash and `free` checked too) and in
+  `tests/postsWiring.test.ts` over every live map's sectors.
 - Sector tags (guard-ai S5b, ENGINE.md section 7 on sector-redesign, A26-A28; `ai/sectorTags.ts` pure, the type
   `GuardSlotTags` in `ai/guardAiData.ts`): `SectorGuard`'s `squad` / `handler` / `zone` / `role` / `reason` / `pair` are
   read by `EnemyManager.placeSlot(e, slot, section, slots?, index?)` (`sectorMode.fill` passes the section's `guards` and
@@ -199,9 +213,15 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   assign takes perceivers first); parked modes, the caller searches (old rule). `handler`: the dog is bound
   (`Enemy.handler`, set when both are placed, either order) and heels on him only (`findLeader`); he goes down: the dog
   searches round him, barks (`TAGS.dogBark` 14 m noise via `hear`, the dog skipped) and keeps its heel spot by him; a
-  woken handler takes it back (`swapSlot`), a despawned one frees it. `zone`: a secure zone (`isSecureZone`: 'secure'
-  or a word 'sec') gives the guard a circle (`zoneRadius`: post leash, else 8 m / route reach + 2) in the board's view
-  (`GuardView.setTags`): inside it he counts as a perceiver and ranks first (x `TAGS.secureFirst` 0.25); after a search
+  woken handler takes it back (`swapSlot`), a despawned one frees it. (guard-rules S8, A12, flag `dogRelease`) A stage
+  with `releaseDogs` (campus S4 stage 2, S5 stage 1) lets the live section's free dogs off the heel
+  (`SectorStageRun.raise` -> `dogs`, `SectorMode.releaseDogs`, `Enemy.releaseHeel`): each hurries to the shared last
+  known position (none: its handler) and searches it, then heels again; a dog already searching starts over round the
+  release spot; a section start at a carried stage does not release (S8-a); a dog still waiting in the fill queue at the
+  raise is not released once it spawns; a camera or laser alarm with no shared position sends the dogs to search round
+  their handlers (S8-d). Host only. `zone`: a secure zone (`isSecureZone`: 'secure' or a word 'sec') gives the guard a
+  circle (`zoneRadius`: post leash, else 8 m / route reach + 2) in the board's view (`GuardView.setTags`): inside it
+  he counts as a perceiver and ranks first (x `TAGS.secureFirst` 0.25); after a search
   every guard walks back to his own post / route (the walker; no new code). `role` (on the guard `Enemy.job`, the word, and `roleFlags`, `ROLE_CLASS`; `Enemy.role` is S8's numeric combat role): the
   alarm runner (`alarmRunMul`: supervisor 0.1, officer 0.25), the board's score (`roleSendMul`: supervisor sends
   someone x1.6; a light: rover x0.8, fixed post x1.5). `reason` stored (`Enemy.reason`); `pair` stored

@@ -2,17 +2,23 @@
 // climbs a ladder and a drainpipe, hangs from a pipe and a lip, crawls a
 // duct, rides a zipline and rolls; team moves (phase 5: brace + boost, the human ladder, a denial); the host's copy of the client is in the same mode with the hands, feet and head
 // within 10 cm of the client's own pose. (test-chores-13) A role-swapped pass at the end: the client leads the leg-up
-// (climbs onto the lip) on a bracing host; the client's copy of the host within the same 10 cm.
+// (climbs onto the lip) on a bracing host; the client's copy of the host within the same 10 cm. (coop-kit A1) The rope
+// descent: both pages open with `?kitmoves=descent`; the client beside the host rappels down the host's rope and steps
+// off at the floor; then a second short session with `?kitmoves=0`: no rappel offer.
 import { assert } from './e2e-lib.mjs';
-import { until, waitSim, waitHostSim, hostAndJoin, localJoints as lj, remoteJoints as rj, allowTeleport, JOINTS, watchTeam, teamLog } from './e2e-net-lib.mjs';
+import { until, waitSim, waitHostSim, hostAndJoin, localJoints as lj, remoteJoints as rj, allowTeleport, JOINTS, watchTeam, teamLog, onHostStep, hostStepResult } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
+/** (coop-kit A1) the suite's url with `kitmoves=<v>` (the kit list flag is read at load) */
+const urlKit = (v) => url + (url.includes('?') ? '&' : '?') + 'kitmoves=' + v;
 // (co-op test fix) pauses are game time: the sim runs slower than real time on software GL (e2e-net-lib `waitSim`)
 const wait = (ms) => waitSim(ms);
 let failed = false;
+/** (coop-kit A1) the main session is closed before the `?kitmoves=0` one opens */
+let mainClosed = false;
 
 console.log('host opens a room, client joins');
-const { browser, A, B, pages: P2, errors: [eA, eB], startMode } = await hostAndJoin(url, 2);
+const { browser, A, B, pages: P2, errors: [eA, eB], startMode } = await hostAndJoin(urlKit('descent'), 2);
 const GA = (f, a) => A.evaluate(f, a);
 const GB = (f, a) => B.evaluate(f, a);
 const pages = () => P2;
@@ -381,20 +387,41 @@ try {
   await reset();
 
   console.log('committed moves: a forward roll');
-  // sprint (gear 6) along open floor, tap crouch
-  await GB(() => { const g = window.__app.current; g.player.controller.gears.gear = 5; g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); g.player.cam.yaw = 0; window.__pad.axis(1, -1); });
-  await wait(900);
+  // the host records every mode its copy of the client shows from here (before the run)
   await GA(() => { window.__seen = new Set(); const r = window.__app.current.net.remotes.values().next().value; const tick = () => { window.__seen.add(r.avatar.mode); if (window.__seen.size < 50) requestAnimationFrame(tick); }; tick(); });
-  // crouch (B) HELD 0.3 s of sim time (G32: a held crouch at a run rolls)
-  await GB(() => new Promise((res) => {
+  // (player-flake-fix) run (gear 5) on open floor, timed on the CLIENT's own steps: `wait(900)` counted the slowest
+  // page, and with the host at x0.24 (laptop train 76) the client ran ~3 s into a wall (speed 0, no room: no roll).
+  // At roll speed (>= 2.8 m/s; CT.rollMinSpeed 2.5) crouch (B) is HELD 0.3 s of its sim time (G32: a held crouch
+  // at a run rolls)
+  const run = await GB(() => new Promise((res) => {
     const st = window.__app.current;
+    const c = st.player.controller;
+    c.gears.gear = 5;
+    c.teleport(new st.player.position.constructor(0, 0.1, 0), 0);
+    st.player.cam.yaw = 0;
     const orig = st.fixedUpdate.bind(st);
     let t = 0;
-    window.__pad.set(1, 1);
-    st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t > 0.3) { window.__pad.set(1, 0); st.fixedUpdate = orig; res(); } };
+    let held = -1;
+    const done = (ok) => {
+      st.fixedUpdate = orig;
+      window.__pad.set(1, 0);
+      res({ ok, t: +t.toFixed(2), sp: +c.speed.toFixed(2), pos: [c.pos.x, c.pos.y, c.pos.z].map((v) => +v.toFixed(2)) });
+    };
+    window.__pad.axis(1, -1);
+    st.fixedUpdate = (dt) => {
+      orig(dt);
+      t += dt;
+      if (held < 0) {
+        if (c.speed >= 2.8) {
+          held = 0;
+          window.__pad.set(1, 1);
+        } else if (t > 3) done(false);
+      } else if ((held += dt) > 0.3) done(true);
+    };
   }));
+  if (!run.ok) throw new Error(`the client never reached roll speed (2.8 m/s) in 3 s of its game time (${JSON.stringify(run)})`);
   await until(B, () => window.__app.current.traversal.forwardRolls > 0, null, 4000, 'client rolls').catch(async (e) => {
-    console.log(await GB(() => { const c = window.__app.current.player.controller; return JSON.stringify({ gear: c.gear, sp: c.speed, crouched: c.crouched, grounded: c.grounded, ov: !!c.override, ads: window.__app.current.player.ads }); }));
+    console.log(await GB(() => { const c = window.__app.current.player.controller; return JSON.stringify({ gear: c.gear, sp: c.speed, crouched: c.crouched, grounded: c.grounded, ov: !!c.override, ads: window.__app.current.player.ads, pos: [c.pos.x, c.pos.y, c.pos.z].map((v) => +v.toFixed(2)) }); }));
     throw e;
   });
   await GB(() => window.__pad.axis(1, 0));
@@ -459,9 +486,31 @@ try {
   await until(B, () => { const m = window.__app.current.net.teamMates()[0]; return !!m && m.mode === 'ledge' && (m.sub & 1024) !== 0; }, null, 6000, 'client sees the hanging host offering the relay');
   await until(B, () => !!window.__app.current.team.offer?.relay, null, 4000, 'client is offered the relay');
   assert(/climb/i.test(await GB(() => window.__app.current.team.prompt ?? '')), 'the partner prompt names the relay');
+  // (player-flake-fix) the client's climb up the hanging host lasts TEAM.relayClimb (1.4 s) of its game time and its
+  // feet are above 0.8 m for about 0.8 s of it: the host's view is latched on every host fixed step (onHostStep), not
+  // polled from Node (#506's head 539560f4 timed out here once and passed on the rerun). The host's remote modes are
+  // logged for a failure
+  await GA(() => { window.__relaySeen = []; window.__relayMaxY = -1; });
+  const relayKey = await onHostStep(A, (g) => {
+    const r = g.net.remotes.values().next().value;
+    if (!r) return null;
+    const m = r.avatar.mode;
+    const y = r.avatar.pos.y;
+    const log = window.__relaySeen;
+    const last = log[log.length - 1];
+    if (log.length < 200 && (!last || last[1] !== m)) log.push([+g.time.toFixed(2), m, +y.toFixed(2)]);
+    if (m === 'boost') window.__relayMaxY = Math.max(window.__relayMaxY, y);
+    return m === 'boost' && y > 0.8 ? { y: +y.toFixed(2) } : null;
+  });
   await holdUntil(B, RB, () => window.__app.current.team.count.ladders === 1, 'client climbs the relay').catch(async (e) => { console.log(await GB(() => { const t = window.__app.current.team; return JSON.stringify({ c: t.count, why: t.lastDenied, st: t.state, offer: !!t.offer }); })); throw e; });
   await until(A, () => window.__app.current.team.state === 'relayHold' || window.__app.current.team.state === 'none', null, 4000, 'host holds still for the relay');
-  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r?.avatar.mode === 'boost' && r.avatar.pos.y > 0.8; }, null, 20000, 'host sees the client climbing the hanging body');
+  await hostStepResult(A, relayKey, 20000, 'host sees the client climbing the hanging body').catch(async (e) => {
+    console.log('    host copy modes [t, mode, y]:', await GA(() => JSON.stringify({ seen: window.__relaySeen, maxBoostY: +window.__relayMaxY.toFixed(2) })));
+    console.log('    host:', await teamLog(A));
+    console.log('    client:', await teamLog(B));
+    console.log('    client end:', await GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ why: g.team.endWhy, att: g.traversal.attach.phase, pos: [c.pos.x, c.pos.y, c.pos.z].map((v) => +v.toFixed(2)) }); }));
+    throw e;
+  });
   await until(B, (id) => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.id === id, lipId, 30000, 'client hangs on the same ledge').catch(async (e) => { console.log(await GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, cnt: g.team.count, why: g.team.endWhy, att: g.traversal.attach.phase, aid: g.traversal.attach.anchor?.id, ov: !!c.override, grounded: c.grounded, pos: [c.pos.x, c.pos.y, c.pos.z] }); })); console.log(await GA(() => JSON.stringify({ lip: window.__app.current.traversal.attach.anchor?.id, pos: window.__app.current.player.controller.pos, att: window.__app.current.traversal.attach.phase }))); throw e; });
   await until(A, () => window.__app.current.team.state === 'none', null, 4000, 'host free after the relay');
   assert(await GA(() => window.__app.current.traversal.attached), 'the host is still hanging and pulls up next');
@@ -774,8 +823,77 @@ try {
   await reset();
   await placeTeam(A, 3, 3, 0);
 
+  // (coop-kit A1, R34) the rope descent (`?kitmoves=descent` on both pages): the host on the 4.2 m block's top facing
+  // the drop drops the rope; the client beside it takes it from the top, goes over the edge (the host sees `boost` + sub
+  // 4 with `s` 1), rappels down on the stick and steps off at the floor with the stick held down; the host is freed
+  console.log('rope descent: the client rappels down the host\'s rope from beside it');
+  const blockTop = await GA(() => { const g = window.__app.current; const V = g.player.position.constructor; const h = g.ballistics.ray(new V(4, 8, 28.1), new V(4, 0.5, 28.1), 1); return h.hit ? h.point.y : NaN; });
+  assert(Math.abs(blockTop - 4.2) < 0.15, `the 4.2 m block's top behind its south face (${blockTop})`);
+  const placeAt = async (P, x, y, z, yaw) => P.evaluate(([x, y, z, yaw]) => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(x, y, z), yaw); g.player.cam.yaw = yaw; }, [x, y, z, yaw]);
+  await allowTeleport(A);
+  await GB(() => { for (const a of window.__app.current.net.avatars?.values?.() ?? []) a.allowTeleport?.(3); });
+  await placeAt(A, 4, blockTop + 0.05, 28.1, Math.PI);
+  await placeAt(B, 4.9, blockTop + 0.05, 28.1, Math.PI);
+  await until(A, (y) => { const c = window.__app.current.player.controller; return c.grounded && c.pos.y > y - 0.1; }, blockTop, 8000, 'host stands on the top facing the drop');
+  await until(B, (y) => { const c = window.__app.current.player.controller; return c.grounded && c.pos.y > y - 0.1; }, blockTop, 8000, 'client stands on the top beside it');
+  await waitHostSim(A, 600);
+  await wait(600);
+  await holdUntil(A, RB, () => window.__app.current.team.state === 'ropeOffer', 'host drops the rope').catch(async (e) => { console.log('    host:', await teamLog(A)); throw e; });
+  await until(B, () => !!window.__app.current.team.offer?.down, null, 6000, 'client beside the holder is offered the rappel').catch(async (e) => { console.log('    client:', await teamLog(B)); throw e; });
+  assert(/rappel/i.test(await GB(() => window.__app.current.team.prompt ?? '')), 'the partner prompt names the rappel');
+  await watchTeam(A);
+  const desc0 = await GB(() => window.__app.current.team.count.descents);
+  await holdUntil(B, RB, (n) => window.__app.current.team.count.descents > n, 'client takes the rope from the top', desc0).catch(async (e) => { console.log('    client:', await teamLog(B)); console.log('    host:', await teamLog(A)); throw e; });
+  await until(A, () => window.__app.current.team.__log?.some((e) => e[1] === 'ropeHold'), null, 6000, 'host holds the rope');
+  await until(A, () => { const mv = window.__app.current.net.remotes.values().next().value?.state?.mv; return !!mv && mv.m === 'boost' && mv.sub === 4 && mv.s === 1; }, null, 6000, 'host sees the client on its rope from the top (boost + sub 4, s 1)');
+  // the stick held down: over the edge, down the rope, off at the floor
+  const off0 = await GB(() => window.__app.current.team.count.stepOffs);
+  await GB(() => window.__pad.axis(1, 1));
+  try {
+    await until(B, (n) => window.__app.current.team.count.stepOffs > n, off0, 40000, 'client rappels down and steps off at the floor').catch(async (e) => { console.log('    client:', await teamLog(B), await GB(() => JSON.stringify({ y: window.__app.current.player.controller.pos.y, r: window.__app.current.team.rope }))); throw e; });
+  } finally {
+    await GB(() => window.__pad.axis(1, 0));
+  }
+  await until(A, () => window.__app.current.team.state === 'none', null, 8000, 'the holder is freed when the client steps off');
+  await until(B, () => { const c = window.__app.current.player.controller; return c.grounded && c.pos.y < 0.4 && window.__app.current.team.state === 'none'; }, null, 6000, 'client free on the floor under the block');
+  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r?.state?.mv?.m === 'ground' && r.feet.y < 0.4; }, null, 6000, 'host sees the client on the floor');
+  assert(true, 'rope descent: the client rappelled down the host\'s rope and stepped off; the host is free');
+  await reset();
+  await placeTeam(A, 3, 3, 0);
+
   const errs =[...eA, ...eB].filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
   assert(errs.length === 0, `no console errors (${errs.slice(0, 3).join(' | ')})`);
+
+  // (coop-kit A1) `?kitmoves=0`: a fresh pair of pages; the host drops the rope, the client beside it is offered no
+  // rappel (the climb from the foot is unchanged: e2e-ctcourse A6's rescue line)
+  console.log('rope descent off (?kitmoves=0): no rappel offer beside the holder');
+  await browser.close();
+  mainClosed = true;
+  const off = await hostAndJoin(urlKit('0'), 2);
+  try {
+    await off.startMode('sandbox', 'proving');
+    const OA = off.A;
+    const OB = off.B;
+    await allowTeleport(OA);
+    const place = (P, x, y, z, yaw) => P.evaluate(([x, y, z, yaw]) => { const g = window.__app.current; window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.teleport(new g.player.position.constructor(x, y, z), yaw); g.player.cam.yaw = yaw; }, [x, y, z, yaw]);
+    const top = await OA.evaluate(() => { const g = window.__app.current; const V = g.player.position.constructor; const h = g.ballistics.ray(new V(4, 8, 28.1), new V(4, 0.5, 28.1), 1); return h.hit ? h.point.y : NaN; });
+    await place(OA, 4, top + 0.05, 28.1, Math.PI);
+    await place(OB, 4.9, top + 0.05, 28.1, Math.PI);
+    await until(OB, (y) => { const c = window.__app.current.player.controller; return c.grounded && c.pos.y > y - 0.1; }, top, 8000, 'off: client stands on the top beside the host');
+    await waitHostSim(OA, 600);
+    await OA.evaluate(() => window.__pad.set(5, 1));
+    try {
+      await until(OA, () => window.__app.current.team.state === 'ropeOffer', null, 5000, 'off: host drops the rope');
+    } finally {
+      await OA.evaluate(() => window.__pad.set(5, 0));
+    }
+    await until(OB, () => { const m = window.__app.current.net.teamMates()[0]; return !!m && m.mode === 'brace' && (m.sub & 4) !== 0; }, null, 6000, 'off: client sees the host holding the rope out');
+    await wait(800);
+    const seen = await OB.evaluate(() => ({ down: !!window.__app.current.team.offer?.down, prompt: window.__app.current.team.prompt ?? '' }));
+    assert(!seen.down && !/rappel/i.test(seen.prompt), `off: no rappel offer beside the holder (${JSON.stringify(seen)})`);
+  } finally {
+    await off.browser.close();
+  }
 } catch (e) {
   console.error(e);
   failed = true;
@@ -784,7 +902,7 @@ if (worstLog.length) {
   const m = worstLog.reduce((a, b) => (b[1] > a[1] ? b : a));
   console.log(`  (netmove-compare) max joint error ${(m[1] * 100).toFixed(1)} cm (${m[0]}) over ${worstLog.length} compares; drawn ${((worstLog.find((w) => w[0] === 'drawn')?.[1] ?? NaN) * 100).toFixed(1)} cm`);
 }
-await browser.close();
+if (!mainClosed) await browser.close();
 if (failed || process.exitCode) {
   console.error('FAILED');
   process.exit(1);

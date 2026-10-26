@@ -32,8 +32,9 @@ export interface SectorStageAction {
    */
   responseRoute?: readonly (readonly [number, number])[];
   /**
-   * Stub: the section's dogs are let off the heel at this stage. The mode only records it (`SectorStageRun.dogsReleased`);
-   * the release behaviour (the dog runs to the last seen spot) is guard-ai's.
+   * The section's dogs are let off the heel at this stage: the stage's raise returns `dogs` (`SectorStageRun.raise`);
+   * with `flags.dogRelease` the mode releases the live section's dogs (`Enemy.releaseHeel`, guard-rules S8, A12). Flag
+   * off it is recorded only (`SectorStageRun.dogsReleased`).
    */
   releaseDogs?: boolean;
 }
@@ -258,7 +259,7 @@ export class SectorStageRun<D> {
   private readonly locks: StageLock<D>[] = [];
   /** Locks raised but not yet shut (`step` skips its loop at 0). */
   private pendingN = 0;
-  /** Stub (EW9 dog release): a stage with `releaseDogs` was reached in the live section. guard-ai reads it. */
+  /** A stage with `releaseDogs` was reached in the live section (tests, debug). */
   dogsReleased = false;
   /** Lockdown doors that could not be found (tests, the mode's warning). */
   readonly missing: string[] = [];
@@ -281,16 +282,21 @@ export class SectorStageRun<D> {
 
   /**
    * The alarm went from stage `from` to `to` in section `sec`: the actions of stages from+1..to. Counts changed (`doors`:
-   * shut now; a door with a player in its doorway is left pending for `step`).
+   * shut now; a door with a player in its doorway is left pending for `step`). `dogs`: this raise reached a `releaseDogs`
+   * stage (an edge: a later raise that reaches no new such stage returns false).
    */
-  raise(sec: number, from: number, to: number): { lights: number; doors: number } {
+  raise(sec: number, from: number, to: number): { lights: number; doors: number; dogs: boolean } {
     let lights = 0;
+    let dogs = false;
     const d = this.defs[sec];
-    if (!d?.stageActions || to <= from) return { lights, doors: 0 };
+    if (!d?.stageActions || to <= from) return { lights, doors: 0, dogs: false };
     for (const a of d.stageActions) {
       if (a.stage <= from || a.stage > to) continue;
       for (const g of a.lightsFull ?? []) lights += this.hooks.groupOn(g);
-      if (a.releaseDogs) this.dogsReleased = true;
+      if (a.releaseDogs) {
+        this.dogsReleased = true;
+        dogs = true;
+      }
     }
     for (const l of this.locks) {
       if (l.sec !== sec || l.on || l.stage <= from || l.stage > to) continue;
@@ -298,7 +304,7 @@ export class SectorStageRun<D> {
       l.pending = true;
       this.pendingN++;
     }
-    return { lights, doors: this.step() };
+    return { lights, doors: this.step(), dogs };
   }
 
   /**

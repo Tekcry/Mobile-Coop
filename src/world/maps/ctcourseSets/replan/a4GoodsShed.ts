@@ -17,7 +17,8 @@
  * - stations 9, 8, 10 (STATIONS section 3, verbatim), the done-flag pass zones `a4-grille` and `a4-wicket`, LANTERN's retry
  *   lines, one objective line per station and the holding-room line;
  * - the kettle loop out: `a4-dock2` stands at the desk (a static slot), the officer's second line is about the pair;
- * - C3 fixed down the wicket line (its 40 degree sweep reached both station 10 marks with the loop off: SA12);
+ * - C3 fixed down the wicket line (its 40 degree sweep reached both station 10 marks with the loop off: SA12), and off for good once
+ *   `a4-grille` is set (marlow-play B2: past the loop it saw every takedown at the desk);
  * - the lamps of Q2: group 49 (three strips over the back aisle), group 44 (the dispatch office's panel, its switch inside).
  * The drill windows of stations 8 and 10 are the set's tick, `src/game/course/replan/a4Ticks.ts`.
  */
@@ -215,10 +216,12 @@ export function replanA4GoodsShed(b: LevelBuilder, _kit: FacilityKit, part: SetP
   p.squads[A4_OFFICER] = { ...p.squads[A4_OFFICER]!, info: A4_OFFICER_INFO_REPLAN };
 
   // ---- C3 on the wicket line (SA12): fixed east, so the crouch spots behind both stacks are out of its frame with the loop off ----
+  // (marlow-play B2) and off for the rest of the set once station 9 is done (its offFlag is `a4-grille`, not the console's loop flag):
+  // with the 60 s loop run out it saw every synced takedown at the desk, and station 10's retry never re-runs the loop
   p.cameras = p.cameras.map((c): CameraDevice => {
     if (c.id !== A4_CAMERAS[2]) return c;
     const { sweep: _sweep, ...fixed } = c;
-    return { ...fixed, facing: A4_C3_FACING, reason: "Warehouse CCTV: the wicket line, the loaders' desk and the main aisle's west end (fixed: the crouch spots behind the stacks are out of frame)" };
+    return { ...fixed, facing: A4_C3_FACING, offFlag: A4_GRILLE_FLAG, reason: "Warehouse CCTV: the wicket line, the loaders' desk and the main aisle's west end (fixed; off once the grille is passed)" };
   });
 
   // ---- stations, done flags, the retry lines, the objective lines (#441's rule: what and where, one per station, then the room) ----
@@ -232,8 +235,9 @@ export function replanA4GoodsShed(b: LevelBuilder, _kit: FacilityKit, part: SetP
       id: 'a4-s8',
       bay: 'A4',
       text: 'Loop the cameras at the security console, then cross the main aisle to the dock in 60 s.',
-      a: 'Take the duty officer from behind if he is still up.',
-      b: 'Use the console once the officer is down.',
+      // (marlow-play C7) the job line is all the HUD shows: each one names the run to the dock and its 60 s
+      a: 'Down the officer, then run: back aisle, cross aisle, main aisle west to the dock - 60 s',
+      b: 'Use the console once the officer is down, then run west to the dock - 60 s',
       done: { flag: A4_WEST_FLAG },
       timer: A4_GATE,
     },
@@ -241,8 +245,9 @@ export function replanA4GoodsShed(b: LevelBuilder, _kit: FacilityKit, part: SetP
       id: 'a4-s10',
       bay: 'A4',
       text: 'Two loaders at the dock desk: take both at once from behind the pallet stacks.',
-      a: 'Take the man nearest the office when your partner is set.',
-      b: 'Take the man nearest the racking when your partner is set.',
+      // (marlow-play C7) A's mark is the north crouch spot (D1), B's the south (D2); the step ends at the push bar (`a4-wicket`)
+      a: 'Take the north man: count down and go together, then both to the push bar by the L4 door.',
+      b: 'Take the south man: count down and go together, then both to the push bar by the L4 door.',
       done: { flag: A4_WICKET_FLAG },
     },
     { id: 'a4-lock', bay: 'A4', text: 'Push the bar at the dock wicket, then both into holding room four. Medkit inside.' },

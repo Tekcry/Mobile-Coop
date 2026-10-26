@@ -47,11 +47,12 @@ export const A8_STATIONS: readonly StationDef[] = [
   { n: 19, id: 'a8-loopset', lesson: 'camera_loop', retry: 'caught', doneFlag: 'a8-loop',
     marks: [{ x: 135.0, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console'] },
+  // (marlow-play-2 C13) 20 / 21's A mark by the office door (137.5, 76.5), 5.6 m behind the seated officer, was (141.5, 73.5) at 1.8 m
   { n: 20, id: 'a8-isolate', lesson: 'timed_light_cut', retry: 'caught', doneFlag: 'a8-grille-in', drillS: 25,
-    marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
+    marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-night', 'g-a8-grille'] },
   { n: 21, id: 'a8-locks', lesson: 'synced_hack', retry: 'caught', doneFlag: 'a8-sync', drillS: 60,
-    marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
+    marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console', 'g-a8-vault', 'laser-a8'] },
 ];
 
@@ -304,6 +305,11 @@ export function replanA8Strongroom(b: LevelBuilder, kit: FacilityKit, part: SetP
   });
   line('a8-office', (o) => {
     o.b = 'Jam the gallery camera from behind the counters for your partner.';
+  });
+  // (marlow-play C5) the grille step is done on station 20's own flag (one through the grille), not A's lobby zone: that
+  // ticked while 21 was live, so a 21 retry took the step back
+  line('a8-grille', (o) => {
+    o.done = { flag: A8_GRILLE_IN_FLAG };
   });
   for (const [at, text] of Object.entries(A8_RETRY_LINES)) part.bay.radio.push({ at, text });
 

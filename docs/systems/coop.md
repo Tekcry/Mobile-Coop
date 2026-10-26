@@ -72,6 +72,10 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   start, routing. A new host room starts on Infiltration with the first listed mission (Hunter with `?legacy=1`).
   Clients accept authoritative messages (lobby / start / snap / ev / end) only from the host; the host accepts gameplay
   messages only from lobby members. No host migration.
+- Campaign start: a campaign mission (Sector Ops on a campaign map, or a campaign mission picked) starts only with exactly
+  two players in the room (`campaignStartBlock`, G2, G48). A blocked start leaves the room in `lobby`, with the reason on
+  the Start button and the status line. "Resume hosting" re-arms the start (`startWhenUnblocked`): the match starts on its
+  own once the partner rejoins.
 - `GameOptions.net = { role, attach(g) }` -> `GameState.net: NetAttachment` (fixed / frame hooks, death, revive,
   pickups, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
   `damageMul = 0`). Co-op never pauses the sim (the pause menu only takes input). A hidden page keeps simulating and
@@ -311,6 +315,17 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   dual takedown are gone (G180). CT's double takedown is two ordinary takedowns timed together: two finishes within
   `DUAL_WINDOW` 1.5 s (`game/dualTakedown.ts`) -> banner; counted in `StealthRating.duals` and the `dualTakedown` event
   for section-rating (spare 12), no extra knockout.
+- (mission NET, wire change) The co-op kit moves on the wire: `tmove` / `tstart` take `pull` (pull-up) and `shutter`
+  (`TeamKind` includes `KitKind`). The host (`onTeamMove`) builds the claimed point when the move `claimsPoint` (the
+  pull-up's catch point: `tmove` `lx`, `gy`, `lz`, the start's `l`), checks the move's rule (`checkTeamRequest` ->
+  the kit's check), pairs a `paired` move, starts it at once and calls `GameMode.onTeamMove`. `TeamSide.crouch` is the
+  host's crouch (its controller, a client's `PF.crouch`): the shutter's crawl needs it. Ends ride `hangEnd` / `tend` k
+  with the kit's rules (`net/kitNet.ts`): the pull-up's catch is claimed by the holder b only and judged on the host's
+  clock (`pullVerdict(now - t0, claim, lag)`, `lag` `PULL.claimLag` 0.3 s for a client holder), one verdict per
+  attempt; the partner holds its landing `PULL.verdictWait` 0.25 s for it, then says 'drop' (a catch after that lets
+  go). Shutter: only the crawler a says 'pull' (through), either side 'drop'. A player down mid-move ends the pair
+  (`endPairOf`, as a leave). Remotes in `boost` + PULL_SUB / SHUTTER_SUB pose as role a of their move
+  (`teamPoseOfWire`, `poseFromMoveState`: hang / climb-up for the pull, the crouch for the crawl), never the leg-up.
 - (throw-ko) Partner throw onto a guard (CT: landing on a guard knocks him out): at a throw's `tstart` the host records
   the flight (`net/throwKo.ts`, `ThrowKo`: `throwArc` from the thrown player's feet as the host has them to the bounded
   landing, from the host's start time) and replays it each fixed step; descending feet within `TEAM.throwKoReach` m
@@ -355,6 +370,41 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   hold it as lip ("hook") grips while the body rises past and lift off as the arms run out (`liftOff`, the rig's
   `liftOffTarget`). The partner's avatar does the same with no wire change: its own lip search from the shown feet,
   the top-out from the feet past the rope's top and the wire phase (`ropeSeenStep`).
+- (coop-kit A1, R34) The rope descent: with the `descent` id in `flags.kitMoves` (`?kitmoves=descent`; every built id on
+  /preview/, none live) a partner standing beside the holder (its floor within 0.4 m, `TEAM.ropeReach` 2.0 m across)
+  is offered "Co-op: rappel down the rope" and asks for the same `tmove` `rope` at the same rope point; the host tells
+  the two apart by height (`ropeFromTop`) and accepts the top only when its own `kitMoves` has `descent`. Same `tstart`,
+  same pair, same ends. The climber goes over the edge (`ropeOver`, `TEAM.ropeOver` 1.3 s: the top-out's path backwards,
+  `ropeOverPath`; placeholder pose `climbUp` with `traverseT` 1 -> 0, A2 animates it), then `ropeClimb` down to the
+  floor found by a ray under the rope point; at the floor the stick held down steps off (`ropeStepOff`, end `drop`:
+  the holder is freed by the `tend`). Back up the rope once `ROPE_DESCENT_ARM` 0.3 m down tops out to where it stood;
+  either letting go slides to the floor as before. Its MoveState is `boost` + `ROPE_SUB` with `s` 1 while it came
+  from the top (`wireS`): no wire shape change. Off, the climb from the foot is unchanged. `flags.coopKit` (Campaign's
+  pull-up and shutter gate) stays a writable field; it loads true when `kitMoves` holds `pull` or `shutter`
+  (`?coopkit=1` / `0` add / remove both).
+- (coop-kit K0, wire change; PROTOCOL_VERSION untouched, the train bumps) The kit made generic for the five part 2
+  moves (coop-kit PLAN "Part 2", on feature/coop-kit). One string per move: the `kitMoves` id = `KitKind` = the `tmove` / `tstart`
+  kind = `StationDef.kit`. A part 2 request's `target` is a spot index into the host's `TeamController.devices.list`
+  (bounded: out of range or another kind's device = -1, none) and reaches the move's rule as `TeamRequest.spot`; its `s`
+  is the request's phase (Plank Bridge's lay 2); the claimed point (`lx`, `gy`, `lz`) parses for any kit kind. The start
+  carries that index and `s`. The host's kit pair (`net/kitNet.ts`) lasts `KIT_PAIR[kind].pairS` and only the move's
+  `doneBy` side may say 'pull' (the success end; either side 'drop'); pull-up and shutter keep their rules. On the
+  relayed success end the host calls `kitDone` (`game/kit/kitApi.ts`) -> `GameMode.onKitDone(kind, spot id, a, b)`
+  (undefined = the host's player; a no-op on a client page); Deadweight and Plank Bridge call it from their own host
+  tick. Spots come from the map sets: `addKitSpot(b.anchors, KitSpot)` (`{ id, kind, x, y, z, yaw, w?, h?, x2?, y2?,
+  z2?, door? }`), read with `kitSpotsOf(level, kind)`. Per-id gate: the host refuses a part 2 kind whose id is off;
+  each page's kit offers run with `flags.coopKit` (pull-up, shutter) or any part 2 id on, each move only with its own
+  id (`kitIdOn`). A remote poses from the bit table (`kitMoveOfSub`): role B (`brace`) the TeamPoser placeholder (or a
+  KA pose file's body, `KIT_POSERS`), role A (`boost`) its placeholder traverse (`KIT_A_TRAVERSE`); tuner rows
+  `team.<move>.a` / `.b` (`KIT_TUNE_MOVES`, not studio pairs yet). Every id stays out of `KIT_BUILT` until its slice.
+
+  | Move (slice) | Id / wire kind | Sub bit | Role b (`brace`) states | Role a (`boost`) states | Remote placeholder b / a | Done by | Marlow station |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | Deadweight (K1) | `deadweight` | 64 | chainGrab, chainHang, chainDrop | grateUnder | ledge hang / crouched walk | host tick (pass under the grate) | 9 `a4-deadweight` |
+  | Drop Catch (K2) | `dropCatch` | 128 | catchOffer, catchTake | dropInto | brace / drop | b (catcher) | 16 `a6-dropcatch` |
+  | Chimney Pair (K3) | `chimneyPair` | 256 | chimneyOffer, chimneyBrace, chimneyClimb, chimneyTop | chimneyJoin, chimneyPush, chimneyRise, chimneyOut | brace / climb | a | 11 `a5-chimney` |
+  | Swing Pass (K4) | `swingPass` | 512 | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
+  | Plank Bridge (K5a, K5b) | `plankBridge` | 1024 | plankOffer, plankLift, plankCarry, plankDrop, plankLay | plankJoin, plankLiftA, plankCarryA, plankDropA, plankLayA | brace / walk | host tick (a crossing) | 5 `a2-plank` |
 - Partners block each other (training D49, A49, G52: every co-op mode): each page gives each partner a
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the
@@ -500,6 +550,15 @@ client next to a device first.
   The client's `CtDevices` mirror runs `setLive(ls)` (other sections' cameras off, lasers dark, no jam targets), breaks
   or repairs cameras from `dn` and sets door locks from `lk`. The HUD line (section, alarm, syringes) comes with the
   snapshot's `info`. Objectives, the exit item and banners use the item and event mirror (no markers: G339).
+- (mission NET, wire change) `ms` the running mission (`MissionWire`, `game/mission/missionWire.ts`: done bits per team,
+  facts, rule breaks `rb` and the last line `rl`, rules kept `rk`), parsed by `parseMissionWire` in `sectorExtra`. The
+  client applies it (`net/missionMirror.ts`: a `MissionRunner` from the map's `missions` by id; never evaluated; the
+  client's mission HUD reads `runner`, while `kept` (the rules-kept row of the rating) has no reader yet). The
+  rule line reaches a live client as the host's radio line (`feed` event); only a late joiner's first `ms` with breaks
+  shows `rl` (its feed). A client interrogation's intel carries the guard id and the client id (`revealIntel` eid / by).
+  A client's frag, mine or sticky cam use goes as `gused {kind}` (client -> host, 4 a second at most;
+  `USE_ONLY_GADGETS`) to `GameMode.onRemoteGadget` (a mission's No gadgets rule); gas / flash / EMP / noise still
+  count on their `gadget` effect.
 - (section-rating, protocol 42) `rt` the last section rating `{ sec, marks, synced, gadget, syringe, medkit, alarmStep }`
   (`SectorRatingWire`; `sec` -1 none yet, `marks` 0-15, the rest whole 0-99; junk drops `rt` only). The host rates a
   section as its connector unloads it (the extraction rates the last one, sent at once, its grant fields zeroed) and

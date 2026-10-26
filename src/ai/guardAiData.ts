@@ -198,8 +198,9 @@ const finite = (v: number): boolean => Number.isFinite(v);
 /**
  * Per-slot post checks (map teams call it on a map's or a section's slots): a leash is finite, either exactly 0 (stays
  * on the spot) or at least `POST.minLeash`; a posted guard's route stays inside his leash; a high-security post must be
- * stood (not `free`, no route point outside the leash); `profile` is 'standard' or 'aggressive'. `label` prefixes each
- * error (e.g. the section id). Returns the errors (empty when fine).
+ * stood (not `free`, no route point outside the leash); a lookout (guard-rules S7, A9) has a leash of at most
+ * `POST.lookoutLeash` and is never `free` (he holds his perch); `profile` is 'standard' or 'aggressive'. `label` prefixes
+ * each error (e.g. the section id). Returns the errors (empty when fine).
  */
 export function validatePosts(slots: readonly GuardSlot[], label = 'slot'): string[] {
   const errs: string[] = [];
@@ -215,6 +216,8 @@ export function validatePosts(slots: readonly GuardSlot[], label = 'slot'): stri
     }
     if (p.leash !== 0 && p.leash < POST.minLeash) errs.push(`${who}: leash ${p.leash} must be 0 or >= ${POST.minLeash}`);
     if (p.highSecurity && s.free) errs.push(`${who}: a high-security post cannot be free (it must stand its post)`);
+    if (p.lookout && p.leash > POST.lookoutLeash) errs.push(`${who}: a lookout's leash ${p.leash} must be at most ${POST.lookoutLeash} m`);
+    if (p.lookout && s.free) errs.push(`${who}: a lookout cannot be free (he holds his perch)`);
     const route = s.route;
     if (route) {
       const r = p.leash + POST.arrive;
@@ -223,7 +226,7 @@ export function validatePosts(slots: readonly GuardSlot[], label = 'slot'): stri
         const dx = px - s.x;
         const dz = pz - s.z;
         if (dx * dx + dz * dz > r * r) {
-          errs.push(`${who}: route point ${k} is outside the leash (${p.leash} m)${p.highSecurity ? ' of a high-security post' : ''}`);
+          errs.push(`${who}: route point ${k} is outside the leash (${p.leash} m)${p.highSecurity ? ' of a high-security post' : ''}${p.lookout ? ' of a lookout' : ''}`);
           break;
         }
       }
@@ -284,9 +287,11 @@ export function validateGuardAi(layout: GuardAiLayout, slots: readonly GuardSlot
     if (noisyIds.has(n.id)) errs.push(`noisy ${n.id}: duplicate id`);
     noisyIds.add(n.id);
     if (!(n.db >= NOISY_LIMITS.dbMin && n.db <= NOISY_LIMITS.dbMax)) errs.push(`noisy ${n.id}: db ${n.db} outside ${NOISY_LIMITS.dbMin}..${NOISY_LIMITS.dbMax}`);
-    if (!(n.radius >= NOISY_LIMITS.radiusMin && n.radius <= NOISY_LIMITS.radiusMax)) errs.push(`noisy ${n.id}: radius ${n.radius} outside ${NOISY_LIMITS.radiusMin}..${NOISY_LIMITS.radiusMax}`);
+    // (piano escape GA7, check B) an infinite radius is map-wide (`mapWideNoise`, rain on the roof): no range or bounds check
+    const wide = n.radius === Number.POSITIVE_INFINITY;
+    if (!wide && !(n.radius >= NOISY_LIMITS.radiusMin && n.radius <= NOISY_LIMITS.radiusMax)) errs.push(`noisy ${n.id}: radius ${n.radius} outside ${NOISY_LIMITS.radiusMin}..${NOISY_LIMITS.radiusMax}`);
     if (!finite(n.x) || !finite(n.z)) errs.push(`noisy ${n.id}: position is not finite`);
-    else if (bounds && !inRect(bounds, n.x, n.z)) errs.push(`noisy ${n.id}: outside the map bounds`);
+    else if (bounds && !wide && !inRect(bounds, n.x, n.z)) errs.push(`noisy ${n.id}: outside the map bounds`);
     if (n.section !== undefined && !sectionOk(n.section)) errs.push(`noisy ${n.id}: section ${n.section} does not exist`);
   }
 

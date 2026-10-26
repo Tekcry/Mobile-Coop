@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { COURSE_TEXT_MAX } from '../../../src/config/course';
 import type { StationDef } from '../../../src/game/course/stationDef';
-import { bayHeader, retryRule, STATION_BADGES, stationBadge } from '../../../src/ui/hud/courseHud';
+import { bayHeader, playOrderN, retryRule, STATION_BADGES, stationBadge, stationRule } from '../../../src/ui/hud/courseHud';
 import { LevelBuilder } from '../../../src/world/levelBuilder';
 import { buildCtcourse } from '../../../src/world/maps/ctcourse';
 
@@ -87,5 +87,36 @@ describe('J14 R2: ratings on the re-plan', () => {
     const body = src.slice(at, src.indexOf('\n  }\n', at));
     expect(body).toContain('resetStationGuards');
     expect(body).not.toMatch(/rating/);
+  });
+});
+
+describe('marlow-play-2 C10 / C15: the rule from the live station, the badge by play order', () => {
+  const bays = replan.layout.course!.def.bays;
+  const idxOf = (id: string) => bays.findIndex((b) => b.id === id);
+
+  it('C15: the stations badge 1-21 in play order; A4 (n 9, 8, 10) reads step 8, 9, 10', () => {
+    const order: number[] = [];
+    bays.forEach((b, i) => { for (const s of b.stations ?? []) order.push(playOrderN(bays, i, s)); });
+    expect(order).toEqual(Array.from({ length: order.length }, (_, k) => k + 1));
+    const a4 = idxOf('A4');
+    const list = bays[a4]!.stations!;
+    expect(list.map((s) => s.n)).toEqual([9, 8, 10]);
+    expect(list.map((s) => bayHeader('A4', playOrderN(bays, a4, s)))).toEqual([
+      'A4 - objectives - step 8 of 18', 'A4 - objectives - step 9 of 18', 'A4 - objectives - step 10 of 18',
+    ]);
+    expect(bayHeader('A8', playOrderN(bays, idxOf('A8'), bays[idxOf('A8')]!.stations![2]!))).toBe('A8 - objectives - step 18c of 18');
+    expect(playOrderN(bays, a4, null)).toBe(0);
+  });
+
+  it('C10: no rule while no-fail 11-12 are live; 13 seen or out of time; A2 3 seen, 4 seen or out of time; none live: no line', () => {
+    const rule = (id: string, n: number) => stationRule(bayOf(id)!.stations!.find((s) => s.n === n)!);
+    expect(rule('A5', 11)).toBeNull();
+    expect(rule('A5', 12)).toBeNull();
+    expect(rule('A5', 13)).toBe(SEEN_T);
+    expect(rule('A2', 3)).toBe(SEEN);
+    expect(rule('A2', 4)).toBe(SEEN_T);
+    expect(rule('A8', 18)).toBe(CAUGHT);
+    expect(rule('A8', 21)).toBe(CAUGHT_T);
+    expect(stationRule(null)).toBeNull();
   });
 });
