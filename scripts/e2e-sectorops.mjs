@@ -93,6 +93,9 @@ await run(PARAMS, async ({ page, G, sim }) => {
     await sim(0.3);
     const ph = await G(() => window.__sector.debug());
     assert(ph.phase === (last ? 'extract' : 'connector'), `section ${i + 1} (${s.id}): the ${s.kind} opens the connector or the extraction (${ph.phase})`);
+    // (sector-marks, G290) no exit beacon: the exit item is there (its zone) with nothing drawn
+    const ex = await G((id) => { const it = window.__app.current.interactables.items.find((x) => x.id === `${id}-exit`); return it ? { parts: it.parts.length, light: it.light !== null } : null; }, s.id);
+    assert(ex !== null && ex.parts === 0 && !ex.light, `section ${i + 1} (${s.id}): the exit has no beacon (${JSON.stringify(ex)})`);
     if (i === 0) {
       // (G343, hud-guidance B1) the objective popup: the exit line fades in when section 1's objective is done, is gone
       // after the hold (real time: the popup reads performance.now(), not the sim) with its text kept, and O brings it

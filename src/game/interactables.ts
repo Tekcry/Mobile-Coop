@@ -3,6 +3,7 @@ import { TransformNode, type AbstractMesh, type InstancedMesh, type Scene } from
 import type { PartLibrary } from '../world/partLibrary';
 import { hyp2 } from '../core/mathx';
 import { ITEM_SCOPE_OFF, itemInScope } from './itemScope';
+import type { ModeId } from './modes/gameMode';
 
 /** Objectives (terminal, cache, extract), light switches, alarm panels, body hiding spots, bodies, doors. */
 export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate';
@@ -24,6 +25,15 @@ export const KIND_COLOR: Record<InteractKind, string> = {
   medkitWall: '#d9363e',
   crate: '#f2c230',
 };
+
+/**
+ * (sector-marks, G290) Does a session in `mode` draw the extraction beacon (the green disc and lit pole of an `extract`
+ * item)? Never in Sector Ops (VISION 4 rule 5, no markers): its exits are zones only; the connector door, signs and
+ * light show the way.
+ */
+export function drawsExitBeacon(mode: ModeId): boolean {
+  return mode !== 'sector';
+}
 
 export interface Interactable {
   id: string;
@@ -81,6 +91,8 @@ export class Interactables {
   constructor(
     private scene: Scene,
     private parts: PartLibrary,
+    /** (sector-marks) Draw the `extract` beacon (`drawsExitBeacon`); false: an `extract` item has no visuals. */
+    private readonly exitBeacon = true,
   ) {}
 
   add(id: string, kind: InteractKind, pos: Vector3, label: string, holdTime: number, yaw = 0): Interactable {
@@ -131,6 +143,8 @@ export class Interactables {
       add('box', '#4b5a3a', [0.9, 0.45, 0.55], [0, 0.225, 0]);
       add('box', '#3a4433', [0.92, 0.06, 0.57], [0, 0.45, 0]);
       light = add('box', KIND_COLOR.crate, [0.5, 0.08, 0.02], [0, 0.3, 0.28]);
+    } else if (kind === 'extract' && !this.exitBeacon) {
+      // (sector-marks, G290) no beacon: the exit is a zone only
     } else {
       add('cyl', '#3a4048', [2.6, 0.08, 2.6], [0, 0.04, 0]);
       light = add('cyl', '#4fdc7c', [0.12, 3.2, 0.12], [0, 1.6, 0]);
