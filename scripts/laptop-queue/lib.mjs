@@ -815,18 +815,22 @@ export function yieldTo(r, started, trains) {
  * 'superseded' (laptop-queue-8 A6) when `superseded` names the newer request lib supersededRunning paired with it, at any
  * stage (lock wait, prepare, suites); 'withdrawn' wins over it. 'taken' (laptop-queue-8 G, checker FIX 1) first of
  * all when `taken` names the worker that now holds the run's claim (a heartbeat push found it blocking, e.g. after a
- * long push outage): the run stops and posts nothing, that worker's run owns the head.
+ * long push outage): the run stops and posts nothing, that worker's run owns the head. 'hung' (laptop-queue-10 A3, F10)
+ * when `hung` (lib idleStep: no suite event for the idle limit), after 'withdrawn' and 'superseded', before the spare and
+ * train rules.
  */
 export const ALONE_PREEMPT_MIN = 10;
 /** A pr run this far through its expected wall (runProgress) finishes instead (Orchestrator audit 2026-10-24: a coop4 run cut at 15/15 shards). */
 export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
-export function cutShort(r, { taken = '', withdrawn = false, superseded = '', trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false } = {}) {
+export function cutShort(r, { taken = '', withdrawn = false, superseded = '', trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false, hung = false } = {}) {
   if (taken) return 'taken';
   if (withdrawn) return 'withdrawn';
   // laptop-queue-8 A6: a newer head of the same PR is queued (lib supersededRunning; the id): stop at any stage
   if (superseded) return 'superseded';
+  // laptop-queue-10 A3: no suite event for the idle limit (#317 held 4192 for 65 min); a hung run frees its slot
+  if (hung) return 'hung';
   // spare work (laptop-queue-5) never holds a train or a real request: cut whatever its kind, age or progress (the
   // service marks it done); realOpen = a non-spare request waits on the branch (lib realWaiting)
   if (r?.requester === SPARE_REQUESTER && (trains ?? []).length) return 'train';
@@ -897,6 +901,69 @@ export function finishedSuites(text) {
     if (m) out.push({ s: m[1], ok: m[2] === 'ok', report: m[2].startsWith('REPORT'), sec: +m[3] });
   }
   return out;
+}
+
+/**
+ * The suite events in a run-e2e log (laptop-queue-10 A3): its result lines (lib finishedSuites) plus its streamed start
+ * headers ("=== s ===", "=== s (REPORT ONLY: never fails the run) ===", run-e2e at E2E_JOBS=1). The times table is not
+ * an event. A count that grows means the run is alive.
+ */
+const START_HEADER = /^=== \S+( \(REPORT ONLY: never fails the run\))? ===\s*$/;
+const RESULT_LINE = /^=== \S+ \((ok|FAIL|REPORT ONLY, exit -?\d+), \d+s\) ===\s*$/;
+export function suiteEvents(text) {
+  let n = 0;
+  for (const l of String(text ?? '').split('\n')) if (START_HEADER.test(l) || RESULT_LINE.test(l)) n++;
+  return n;
+}
+
+/**
+ * The hung-run limit in ms (laptop-queue-10 A3): 0 (off) unless idleMin > 0, else the longer of idleMin and run-e2e's
+ * own suite timeout plus 2 min, so a legal suite that runs to its timeout is never cut (17 min at 15 and 900 s).
+ */
+export function idleLimitMs(idleMin, suiteTimeoutS) {
+  if (!(idleMin > 0)) return 0;
+  return Math.max(idleMin * 60_000, (suiteTimeoutS + 120) * 1000);
+}
+
+/**
+ * One tick of the hung watch: prev = the last { count, at, hung } (null: the clock starts now), count = the attempt's
+ * suite events (lib suiteEvents). `at` moves to now when the count grows; hung once limitMs > 0 and now - at >= limitMs.
+ */
+export function idleStep(prev, count, now, limitMs) {
+  const at = !prev || count > prev.count ? now : prev.at;
+  return { count, at, hung: limitMs > 0 && now - at >= limitMs };
+}
+
+/** The parts (run-e2e names, in order) that have no finished row (lib finishedSuites) yet. */
+export function unfinishedParts(parts, rows) {
+  const done = new Set((rows ?? []).map((x) => x.s));
+  return (parts ?? []).filter((p) => !done.has(p));
+}
+
+/**
+ * A hung train's laptop-e2e description (laptop-queue-10 A4): "<ok>/<parts> pass, <wall> s; hung <min> min; FAIL:
+ * <failed + unfinished>", prefix first (the desktop's "desktop: "), cut to 140 with "..." (auto-train failSuites then
+ * reads no list). A later row of a suite wins (a flake rerun that passed); a REPORT ONLY row never fails.
+ */
+export function hungTrainDesc(rows, parts, wallS, min, prefix = '') {
+  const last = new Map();
+  for (const x of rows ?? []) last.set(x.s, x);
+  let ok = 0;
+  const bad = [];
+  for (const x of last.values()) { if (x.ok || x.report) ok++; else bad.push(x.s); }
+  const d = `${prefix}${ok}/${(parts ?? []).length} pass, ${Math.round(wallS)} s; hung ${min} min; FAIL: ${[...bad, ...unfinishedParts(parts, rows)].join(',')}`;
+  return d.length > 140 ? `${d.slice(0, 137)}...` : d;
+}
+
+/**
+ * The folder of a new run attempt (laptop-queue-10 A12, F27): base when free, else the first free base-2, base-3, ...
+ * so a rerun of the same train or request never mixes its logs into an earlier attempt's. exists = fs.existsSync.
+ */
+export function attemptDir(base, exists) {
+  if (!exists(base)) return base;
+  let n = 2;
+  while (exists(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, unfinishedParts, hungTrainDesc, attemptDir } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -1519,6 +1519,56 @@ describe('cutShort', () => {
     expect(cutShort({ kind: 'alone' }, { ...young, trains: [] })).toBe('');
     expect(cutShort({ kind: 'alone' }, { ...young, started: false })).toBe(''); // before its steps: yieldTo gives the slots back
     expect(cutShort({ kind: 'full' }, young)).toBe('');
+  });
+});
+
+describe('hung runs and attempt folders (laptop-queue-10 S1)', () => {
+  const t = { sha: 'a'.repeat(40), n: '57' };
+  it('suiteEvents counts result lines and streamed start headers, not the times table', () => {
+    expect(suiteEvents('=== e2e-a (ok, 40s) ===\nlog\n=== e2e-b (FAIL, 12s) ===\nlog')).toBe(2);
+    expect(suiteEvents('\n=== e2e-a ===\nlog\n\n=== e2e-a (ok, 40s) ===\r\n')).toBe(2);
+    expect(suiteEvents('=== e2e-r (REPORT ONLY: never fails the run) ===\n')).toBe(1);
+    expect(suiteEvents('times (GPU, 1 at a time):\n  e2e-a ok 40s\n  e2e-b FAIL 12s\nKILLED: e2e-c after 900s')).toBe(0);
+    expect(suiteEvents('')).toBe(0);
+  });
+  it('idleLimitMs never cuts under the suite timeout + 2 min; 0 is off', () => {
+    expect(idleLimitMs(15, 900)).toBe(1_020_000);
+    expect(idleLimitMs(20, 900)).toBe(1_200_000);
+    expect(idleLimitMs(0, 900)).toBe(0);
+  });
+  it('idleStep moves the clock on a new event and is hung at the limit', () => {
+    const L = 1_020_000;
+    const a = idleStep(null, 0, NOW, L);
+    expect(a).toEqual({ count: 0, at: NOW, hung: false }); // prev null starts the clock
+    const b = idleStep(a, 1, NOW + 5_000, L);
+    expect(b.at).toBe(NOW + 5_000);
+    expect(idleStep(b, 1, NOW + 5_000 + L - 1, L).hung).toBe(false);
+    expect(idleStep(b, 1, NOW + 5_000 + L, L).hung).toBe(true);
+    expect(idleStep(b, 1, NOW + 10 * L, 0).hung).toBe(false); // limit 0: off
+  });
+  it('cutShort: hung stops at any stage, after withdrawn and superseded, before a pending train', () => {
+    expect(cutShort({ kind: 'pr' }, { hung: true })).toBe('hung');
+    expect(cutShort({ kind: 'full' }, { hung: true, started: true })).toBe('hung');
+    expect(cutShort({ kind: 'pr' }, { hung: true, withdrawn: true })).toBe('withdrawn');
+    expect(cutShort({ kind: 'pr' }, { hung: true, superseded: 'x' })).toBe('superseded');
+    expect(cutShort({ kind: 'pr' }, { hung: true, trains: [t], started: true })).toBe('hung');
+  });
+  it('unfinishedParts lists the parts with no result row, in order', () => {
+    expect(unfinishedParts(['a', 'b:1', 'b:2'], [{ s: 'a', ok: true }, { s: 'b:1', ok: false }])).toEqual(['b:2']);
+  });
+  it('hungTrainDesc names the failed and unfinished parts as FAIL, cut to 140', () => {
+    const rows = [{ s: 'a', ok: true }, { s: 'b', ok: true }, { s: 'c', ok: true }, { s: 'd', ok: false }];
+    expect(hungTrainDesc(rows, ['a', 'b', 'c', 'd', 'e'], 1100, 17)).toBe('3/5 pass, 1100 s; hung 17 min; FAIL: d,e');
+    expect(hungTrainDesc(rows, ['a', 'b', 'c', 'd', 'e'], 1100, 17, 'desktop: ')).toBe('desktop: 3/5 pass, 1100 s; hung 17 min; FAIL: d,e');
+    const many = Array.from({ length: 40 }, (_, i) => `e2e-suite-${i}`);
+    const d = hungTrainDesc([], many, 1100, 17);
+    expect(d).toHaveLength(140);
+    expect(d.endsWith('...')).toBe(true);
+  });
+  it('attemptDir gives each attempt its own folder', () => {
+    expect(attemptDir('runs/x', () => false)).toBe('runs/x');
+    const have = new Set(['runs/x', 'runs/x-2']);
+    expect(attemptDir('runs/x', (p: string) => have.has(p))).toBe('runs/x-3');
   });
 });
 
