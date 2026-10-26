@@ -174,6 +174,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   (`laptop-e2e/train<n>-rerun` here). The desktop worker
   prefixes its own `laptop-e2e` descriptions with `desktop: ` (`scripts/laptop-queue/service.mjs`; the failed suites
   follow `FAIL:` as in `lib.mjs describe`).
+- A train head that moves (a docs-only commit after the version commit, `LQ_TRAIN_CARRY`): the laptop carries the
+  newest final `laptop-e2e` verdict of an earlier head onto it (success "carried from <sha>", never a failure) when
+  every file between the two is docs-only (lib `carryFrom`, up to `LQ_TRAIN_CARRY_DEPTH` commits back), also onto a
+  head pushed mid-run; a live docs-only ancestor run is waited for. Any other moved head runs as a normal train.
 - Optional, for pacing: `origin/laptop-queue` with one JSON file per pending request under `pending/` and a `running*`
   marker while a run is going; removed or moved out of `pending/` when done.
 - Spare work (`docs/archive/laptop-queue-PLAN-2026-10-23.md` "Spare work"): after 5 idle minutes the laptop queues one spare request

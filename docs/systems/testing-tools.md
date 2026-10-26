@@ -566,11 +566,14 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
   the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
-  `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full
-  requests (one slot), then alone-measurements (both slots; one waiting over 30 min (`ALONE_AGE_MIN`) goes ahead of pr work).
+  `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full requests (one slot): front
+  branches (`LQ_FRONT_BRANCHES`; no wait bound, by design: Michael's Mixamo priority), green PRs smallest first
+  (`LQ_GREEN_FIRST`; the oldest non-front request over `LQ_GREEN_MAX_WAIT_MIN` (30) first), then arrival order; a head
+  conflicting with master gets no affected run; then alone-measurements (both slots; over 30 min (`ALONE_AGE_MIN`) ahead
+  of pr work). A train head that moves: `docs/systems/auto-train.md` "What the laptop queue service provides".
 - Train reruns (2026-10-24, auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
   `"trainRerun": true` (kind pr). It runs right after trains, before every other request and alone run, never held by
-  the alone hold, on one laptop slot at `E2E_JOBS=1` with the suites at once (no sharding; the desktop never takes it).
+  the alone hold, at `E2E_JOBS=1`, sharded over both slots when free (`LQ_RERUN_SHARD`), else one (never the desktop).
   Its context is `laptop-e2e/<set>` like any pr request (auto-train sends `--set train<n>-rerun` and reads
   `laptop-e2e/train<n>-rerun`); only a rerun with no `--set` gets `laptop-e2e/rerun-<suites without e2e->`. A full pass also posts `laptop-e2e` success on the sha,
   "laptop rerun passed: <suites> (desktop fail)": the combined status keeps the latest status per context, so that
@@ -604,8 +607,7 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   `fitsBeforeTrain`: expected wall known, not alone / full, now + `LQ_FIT_PREP_S` (120) s + 1.2 x wall <= ETA); a
   fitted run an early train catches falls to `cutShort`'s 80% rule. Log: "<why>, next train ~HH:MMZ: only runs that
   fit start". Pacing assumption: auto-train builds right after the release, in the same tick; when its pacing waits, the
-  late window caps the held slots at 11.5 min per release. Old 3-min gap: `LQ_TRAIN_GAP_MIN=3 LQ_TRAIN_LATE_MIN=0
-  LQ_TRAIN_READY_LAG_MIN=0`.
+  late window caps the held slots at 11.5 min per release. An aged alone gets the gap after it (`LQ_ALONE_GAP`).
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
@@ -622,9 +624,7 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   never supersede each other, and each PR branch takes its turn in arrival order beside the leads' requests. Opt out
   per PR with the label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
   (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
-  affected request is requested again (4.101.1). The service runs the picked suites by name, so a legacy or GPU suite
-  in the list gates the head today (not REPORT ONLY there; the fix is in another PR). A lead's own
-  `request.mjs --affected` still works as before.
+  affected request is requested again (4.101.1). A lead's own `request.mjs --affected` still works as before.
 - Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.

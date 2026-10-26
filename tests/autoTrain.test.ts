@@ -806,4 +806,14 @@ describe('auto-train: a version commit past gh\'s 100-commit cap (train 112, 202
     expect(withRecentSubjects(whole, 112, () => { throw new Error('not called'); })).toBe(whole);
     expect(withRecentSubjects(capped, 112, () => null)).toBe(capped);
   });
+
+  it('a moved head with the laptop queue\'s carried success releases with --resume on that head (laptop-queue-7 C, F1)', () => {
+    const H = '0123456789abcdef0123456789abcdef01234567';
+    const t = { n: 112, head: H, version: '4.106.0', title: 'Doc fix', ci: 'success', vitest: 'missing', ageMin: 20, versionCommit: true, resume: true,
+      laptop: { state: 'success', description: 'carried from 546a2286, docs-only delta' } };
+    expect(decide({ train: t })).toMatchObject({ state: 'releasing', action: 'release' });
+    const args = releaseArgs(t);
+    expect(args).toContain('--resume');
+    expect(args.slice(args.indexOf('--head'), args.indexOf('--head') + 2)).toEqual(['--head', H]);
+  });
 });
