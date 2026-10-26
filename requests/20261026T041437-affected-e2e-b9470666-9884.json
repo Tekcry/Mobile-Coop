@@ -1,0 +1,15 @@
+{
+  "id": "20261026T041437-affected-e2e-b9470666-9884",
+  "sha": "b94706665b541cb9a168b730042359b2225c1230",
+  "branch": "feature/preview-flags",
+  "pr": 560,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-move"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #560"
+}
