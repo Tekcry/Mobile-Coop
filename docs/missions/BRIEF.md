@@ -51,6 +51,12 @@ These override the brief where they differ (decision 3's "Marlow's stripes go" i
 - M6 (2026-10-25 ~20:25, native multiple choice, relayed by the orchestrator) Three Grey Coats, a knock-out before Teale
   talks: Michael picked "Restart the section (Recommended)": the section restarts from its checkpoint with Teale at his
   table; not a rule break. A kill before he talks stays a rule break and he moves (signed page ~18:05).
+- M7 (2026-10-26 ~18:47, native multiple choice, coop-kit A12) Co-op move sizes: "Not yet": the five new co-op move
+  sizes stay out of the level rules; no new map plans on them. ~18:52 "Keep it": Tallow C4's Plank Bridge (pie loft to
+  clock loft) stays, on Marlow Yard's sizes; no other new co-op-move uses on Tallow for now.
+- M8 (2026-10-26 ~19:25, native multiple choice, G5-Q1) Tallow market far corner ~16 s to the gallery against the 15 s
+  reach rule: "Allow this corner (Recommended)": one named exception on the Tallow map (fish hall side door corner); G5
+  builds as planned.
 
 ## Assumed decisions (planner, PLAN.md 2026-10-24 ~23:30; each undoable)
 - A6 Campaign maps run on Sector Ops' runtime (`SectorMode`, `mode=sector`) with `players: [2]`; Marlow and Course mode are

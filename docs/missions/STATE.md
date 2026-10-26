@@ -1,7 +1,7 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~19:25 (Night Shift | Campaign Build, after the ~19:05 swap; read this block first)
+## RESUME 2026-10-26 ~19:35 (Night Shift | Campaign Build, after the ~19:05 swap; read this block first)
 Process as in the 18:35 block below (prototype mode; bypass: the lead posts `checker`; low.mjs; junctions only to
 Mobile-Coop-menu/node_modules). Notes: scratch/campaign/lead-notes.md "Session after the 19:05 swap".
 The engine reaches master as 4 stacked big-pr members (BRIEF A29); each retargets to master once the one below lands (A27):
@@ -15,13 +15,15 @@ The engine reaches master as 4 stacked big-pr members (BRIEF A29); each retarget
    tsc + 352 tests), checker posted. Retarget after #581. When it lands: Tallow W1 in /preview/; tell the orchestrator
    (walk card as in the 18:35 block, plus the two shutters).
 5. A red check on any member: fix on the lowest member it touches and merge upward (b -> c -> d), re-post `checker`.
-6. S4 (wharf e2e walks both shutters; scripts/e2e-sectorops-wharf.mjs only) on cloud-queue 1f9726828, base (d) 0adfd8dee
-   (desktop CPU 97% at 19:15). Done -> Sonnet checker -> merge feature/tallow-s4 into (d), re-post checker.
-7. G5 (A30): blocked on Michael's G5-Q1 (scratch/campaign/tallow-g5-plan.md section 8; sent to the orchestrator ~19:20).
-   Answer 1 or 3: release cq/campaign-tallow-g5.md on base (d) (+ S4 if landed; G5 and S4 share no files), replace the
-   engine's pre-fix G5-plan / brief. Answer 2: re-plan G5 first.
-8. Polish lists and Michael's ~18:47 / ~18:52 picks: as in the 18:35 block (BRIEF "Michael picked" at the next edit).
-Next: watch #522 into a train; retarget #578 -> #581 -> #583 in order; pick up S4 from cloud-queue; G5 on Michael's answer.
+6. S4 (wharf e2e walks both shutters; scripts/e2e-sectorops-wharf.mjs only) on cloud-queue, base (d) 0adfd8dee, claimed
+   by Cloud Builder 6 08:17Z. Done -> Sonnet checker -> merge feature/tallow-s4 into (d), re-post checker.
+7. G5 (A30): Michael ~19:25 G5-Q1 answer 1 "Allow this corner" (BRIEF M8). Released on cloud-queue d90ecfaee
+   (briefs/campaign-tallow-g5.md + its plan campaign-tallow-g5-plan.md), base (d) 0adfd8dee, branch feature/tallow-g5.
+   Done -> Opus checker -> merge into (d) (or a follow-up PR once (d) lands). Engine's pre-fix docs/tallow-fixes/G5-plan.md
+   + briefs/G5.md: replace with the fixed copies in the same merge.
+8. Polish lists: as in the 18:35 block. Michael's ~18:47 / ~18:52 / ~19:25 picks are BRIEF M7-M8. Desktop CPU 95-100%
+   (orchestrator ~19:25): no new local builders until under 80%; cloud-queue is fine.
+Next: watch #522 into a train; retarget #578 -> #581 -> #583 in order; pick up S4 and G5 from cloud-queue (checker each, merge into (d)).
 
 ## OLD RESUME 2026-10-26 ~18:35 SAVE (Night Shift | Campaign Build; prototype mode; read this block first)
 Process: prototype mode (one closest set per change = the automatic affected run only, no extra sets; a red test gets one
