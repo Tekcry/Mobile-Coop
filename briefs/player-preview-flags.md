@@ -9,14 +9,15 @@ Small: one source file, one test file, one doc line, one fragment. Sonnet-level 
 anything the brief does not settle is `status: blocked`, not a guess.
 
 ## AMENDMENT 2026-10-26 ~14:10 (orchestrator ruling; supersedes A1 and the mixamo line in Rule)
- goes ON in /preview/ too (URL  off). Do this as one more commit:
-- Files: add  to the file list.
--  :20 change  to
-   and :375  to
-  . Nothing else in that file.  itself stays   (null when the URL names none), so once PR #494's Animation source setting is on master the player's stored
+`mixamo` goes ON in /preview/ too (URL `=0` off). Do this as one more commit:
+- Files: add `src/anim/mixamo.ts` to the file list.
+- `src/anim/mixamo.ts` :20 change `import { flags } from '../core/flags';` to
+  `import { flags, PREVIEW_ON } from '../core/flags';` and :375 `setMixamo(flags.mixamo === true);` to
+  `setMixamo(flags.mixamo ?? PREVIEW_ON);`. Nothing else in that file. `flags.mixamo` itself stays `onOffFlag(...)`
+  (null when the URL names none), so once PR #494's Animation source setting is on master the player's stored
   setting wins over the preview default.
-- Test: the source guard also asserts  contains .
-- Table row:  |  off | Player Build | Mixamo traversal captures on Wren (hang, shimmy, climb-up,
+- Test: the source guard also asserts `src/anim/mixamo.ts` contains `setMixamo(flags.mixamo ?? PREVIEW_ON)`.
+- Table row: `mixamo` | `?mixamo=0` off | Player Build | Mixamo traversal captures on Wren (hang, shimmy, climb-up,
   ladder, vent crawl). Fragment: add "the Mixamo climbing moves" to the list.
 
 ## Rule
