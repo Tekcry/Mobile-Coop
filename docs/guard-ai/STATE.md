@@ -1048,7 +1048,7 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    like the other armed kinds. Brief 10bb6bd4a (slices/RUNNER-ARMED-BRIEF.md). Opus builder STARTED 13:40 (lead
    rulings: Q2 no role, Q3 rifle, Q4 pin runner FREE parity cases to an unarmed copy = A12, no tolerance change).
    Conflict: Player's origin/feature/player-j19-s4 commit 4fbce7eff arms him as data (melee kept) + tests/enemyArms.test.ts
-   + sectors.test.ts; asked Player Build 13:35 to revert it (S4 keeps R17); if S4 lands first: brief A1 undo.
+   + sectors.test.ts; Player REVERTED it (80f7bf7db, 14:20): no overlap with #531.
    BUILT fa53d2515 (tsc / eslint clean, vitest 24 files 445 pass; A12-A15 in its report: alarmRaised in 2 e2e, 8 s run,
    chase keeps known.y for the runner; ai.md lines incl. A15 to fold; polish P4 known.y for every kind). Laptop
    checks A + B PASS (checks/RUNNER-ARMED-CHECK-A/B.md). PR #531 head 442458ff7, checker posted, laptop runner-armed
