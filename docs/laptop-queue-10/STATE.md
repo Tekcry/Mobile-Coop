@@ -46,3 +46,13 @@ attempt-folder fix (BRIEF F27 note); (3) brief the S1 Opus builder from PLAN "S1
   hand-off (the parts it ran, kept suites excluded). Tests: describe "desktop wall by parts and fail fast (laptop-queue-10
   S2)", 3 cases + the desktopTooLong case updated; laptop-queue 240 + autoTrain 71 = 311 pass; typecheck:fast clean.
   +176 / -25 counted lines (lib 30/7, service 106/15, tests 40/3).
+- 2026-10-26: S3 (Opus builder, feature/laptop-queue-10b): desktop train-soon hold (F9) and CPU reading (F24). lib
+  fitsBeforeTrain `jobs` (desktop 1, laptop none), backgroundCpuMs 4th token (name / `e2e`, countE2e; returns e2eMs, top
+  3 subtracted names), cpuNote. service LQ_DESKTOP_TRAIN_SOON, LQ_CPU_COUNT_E2E, trainSoonNow (split from
+  pendingTrains), pass headsOnce memo shared with desktopTrains, desktop next read when a pr request and a free port
+  remain (a GitHub error never holds), the train-soon filter on both workers, BG_CPU_PS names (`e2e` under
+  \ms-playwright\), cpuGated { gated, total, top, elapsedMs, cores }, lazyCpu per pass with .taken(), cpuNote on the
+  desktop train / queue lines and "<id>: desktop start on <port>, <cpuNote>". Tests: describe "desktop train soon and
+  CPU reading (laptop-queue-10 S3)", 5 cases + 2 backgroundCpuMs asserts updated for the new fields; laptop-queue 245 +
+  autoTrain 71 = 316 pass; typecheck:fast clean; BG_CPU_PS run once by hand (parses). +139 / -34 (lib 34/9, service
+  60/22, tests 45/3).
