@@ -318,7 +318,8 @@ export function studioCapturesLoaded(): boolean {
  * (mixamo-retarget I9 fix round) Loads the captures no game code names (batch 2: `studioCapturesLazy.ts`) as one chunk,
  * once, then refills the loop list's motion-capture group in table order (an entry already listed keeps its object).
  * Called when the Studio opens (the stage and the panel); off the frame loop: the fill runs once, in the import's
- * callback. Later calls return the same promise.
+ * callback. Later calls return the same promise, unless the load failed (the next call tries again). The promise always
+ * resolves; `studioCapturesLoaded()` says whether the captures are in.
  */
 export function loadStudioCaptures(): Promise<void> {
   if (!lazyCaptures) {
@@ -333,9 +334,21 @@ export function loadStudioCaptures(): Promise<void> {
       ENTRIES.splice(BASE_ENTRIES.length, captureCount, ...next);
       captureCount = next.length;
       lazyLoaded = true;
+    }, (e: unknown) => {
+      // (I9 polish) a failed chunk is not cached: the next Studio open asks again
+      lazyCaptures = null;
+      console.warn(`Anim Studio: the batch 2 captures did not load (${e instanceof Error ? e.message : String(e)}); opening the Studio again retries`);
     });
   }
   return lazyCaptures;
+}
+
+/**
+ * (I9 polish) Calls `refill` once the lazy captures are in, also when they already are (the panel's first Studio sync
+ * always refills, so a chunk that landed before it is never missed), or `failed` when the load failed.
+ */
+export function whenStudioCaptures(refill: () => void, failed: () => void): Promise<void> {
+  return loadStudioCaptures().then(() => (lazyLoaded ? refill() : failed()));
 }
 
 /** (item 24, track A) The guard puppet's paces (m/s): the grunt's walk x the patrol / investigate paces, its run. */

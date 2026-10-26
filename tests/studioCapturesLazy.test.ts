@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { EAGER_MIXAMO_FILES, STUDIO_ENTRIES, captureClip, loadStudioCaptures, studioCapturesLoaded, studioEntry } from '../src/anim/studio';
+import { EAGER_MIXAMO_FILES, STUDIO_ENTRIES, captureClip, loadStudioCaptures, studioCapturesLoaded, studioEntry, whenStudioCaptures } from '../src/anim/studio';
 import { MOCAP_SOURCE_NAMES, mocapSource } from '../src/anim/mocapSources';
 
 const DIR = 'src/anim/clips/mixamo';
@@ -57,6 +57,19 @@ describe('mixamo-retarget I9 fix round: lazy batch 2 captures', () => {
     const first = ids.indexOf(caps[0]!.id);
     expect(ids.slice(first, first + caps.length)).toEqual(caps.map((e) => e.id));
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('(I9 polish) a refill asked for after the captures landed still runs, once', async () => {
+    let refills = 0;
+    let fails = 0;
+    const before = STUDIO_ENTRIES.length;
+    await whenStudioCaptures(() => refills++, () => fails++);
+    expect([refills, fails]).toEqual([1, 0]);
+    // each caller gets its own refill (the panel's capWait keeps it to one per panel)
+    await whenStudioCaptures(() => refills++, () => fails++);
+    expect([refills, fails]).toEqual([2, 0]);
+    // no second splice
+    expect(STUDIO_ENTRIES.length).toBe(before);
   });
 
   it('the eager and lazy sets split clips/mixamo; no game code names a lazy module', async () => {

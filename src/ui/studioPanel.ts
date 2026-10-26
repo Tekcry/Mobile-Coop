@@ -1,5 +1,5 @@
 import type { Scene } from '../core/babylon';
-import { STAGE_LIGHT_RANGE, STUDIO, STUDIO_ENTRIES, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_SPEED, STUDIO_WEAPONS, TURN_RATES, loadStudioCaptures, stageLightScale, studioCapturesLoaded, studioEntry, studioKey, type StudioSnap, type StudioWeapon } from '../anim/studio';
+import { STAGE_LIGHT_RANGE, STUDIO, STUDIO_ENTRIES, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_SPEED, STUDIO_WEAPONS, TURN_RATES, loadStudioCaptures, stageLightScale, studioCapturesLoaded, studioEntry, studioKey, whenStudioCaptures, type StudioSnap, type StudioWeapon } from '../anim/studio';
 import { keyClip, keyFrame, keyRank, keyReadout } from '../anim/keyTimeline';
 import { FREE_VIEW, type FreeMode } from '../player/freeView';
 import { StudioOverlay } from './studioOverlay';
@@ -70,7 +70,7 @@ export class StudioPanel {
   private keyedBox: HTMLInputElement;
   private readonly keyedOut: LoopKeyed = { on: false, other: '' };
   private shown = false;
-  /** (I9 fix round) The lazy captures were asked for (the Loop list refills once they land). */
+  /** (I9 fix round) The lazy captures were asked for (the Loop list refills once they land; cleared after a failed load). */
   private capWait = false;
   private nextRead = 0;
   /** (tuner-clarity S4) The Now playing line (the panel sets its text: one computation, shown in both places). */
@@ -210,7 +210,11 @@ export class StudioPanel {
       entries: () => STUDIO_ENTRIES.map((e) => e.id),
       // (mixamo-retarget I9 fix round) batch 2's lazy captures: in yet, and a wait for them (the loop count after)
       capturesLoaded: () => studioCapturesLoaded(),
-      loadCaptures: () => loadStudioCaptures().then(() => STUDIO_ENTRIES.length),
+      loadCaptures: () =>
+        loadStudioCaptures().then(() => {
+          if (studioCapturesLoaded()) this.refreshEntries();
+          return STUDIO_ENTRIES.length;
+        }),
       pick: (id: string) => this.setEntry(id),
       play: () => this.api.freeze(false),
       pause: () => this.api.freeze(true),
@@ -282,10 +286,13 @@ export class StudioPanel {
       this.overlay.clear();
       return;
     }
-    // (mixamo-retarget I9 fix round) batch 2's captures load once as the Studio opens: the Loop list refills when they land
-    if (!studioCapturesLoaded() && !this.capWait) {
+    // (mixamo-retarget I9 fix round; I9 polish) batch 2's captures load once as the Studio opens: the Loop list refills
+    // when they land, also when they landed before this first sync; after a failed load the next sync asks again
+    if (!this.capWait) {
       this.capWait = true;
-      void loadStudioCaptures().then(() => this.refreshEntries());
+      void whenStudioCaptures(() => this.refreshEntries(), () => {
+        this.capWait = false;
+      });
     }
     if (this.entrySel.value !== STUDIO.entry) this.entrySel.value = STUDIO.entry;
     this.mirrorBox.checked = STUDIO.mirror;
