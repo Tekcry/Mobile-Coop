@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-26T03:01:24Z
+status: done feature/player-j19-s5 6a5cc40076aa93b9a0314c27b22f7ea8cd9d6a50
 
 # Brief: player-batch-j19 S5 - Forward lean, sprint anim paths, audit limits, compare flag (Player Build)
 
@@ -401,7 +401,7 @@ new `src` code uses `hyp2` / `hyp3` (none is expected). Comments in the file's o
 - Anything not settled here is `status: blocked <one-line reason>`, evidence under `## Report`, push, move on. The lead
   answers by editing this brief.
 
-## Report (fill in)
+## Report spec (from the lead)
 - Branch, the four commit shas.
 - R25: W, J0, J1 and the chosen P; every row of Step 4 (a)-(c) with its number; whether the `to: 2.6` fallback ran.
 - What changed, file:line per Step item.
@@ -416,3 +416,98 @@ new `src` code uses `hyp2` / `hyp3` (none is expected). Comments in the file's o
   (the folder moved to `docs/archive/`).
 - Deviations from this brief, each with the reason.
 - Pending PC run: the suites, anim-audit and look video listed under Run.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-26)
+Branch `feature/player-j19-s5` from 29f03b6c0, pushed, head `6a5cc40076aa93b9a0314c27b22f7ea8cd9d6a50`. Built in full;
+the Step 4 fallback (`to: 2.6`) ran and one dictated anim-audit comment was reworded (Deviations).
+
+### Commits
+1. 65d4bc848 no forward lean below 3.5 m/s, the run as before (R25, G217)
+2. 1723aee56 the audit's sprint band and gear 6 rows go; bible turn, draw and takedown minimums (R19 anim, R30)
+3. 75c62ad0a `?mocapraw=1` shows the capture as recorded, for the Q37 video (R27 compare, dev only)
+4. 6a5cc4007 changelog fragment
+
+### R25 numbers (headless rig, mode 'on', 60 Hz)
+- Measured (throwaway test, not committed): W = 3.710, J0 = 13.677, J1 = 3.132 deg. P = 0.26 x (W - J1) / (J0 - J1)
+  = 0.0143, rounded to 0.01 (inside [-0.15, 0.20]).
+- Fallback ran: with `to` 3.0, row (a) at 2.4 m/s was 6.16 deg (+2.45 over the walk, bar 1.5) while 3.0 and 3.3 passed.
+  With `to: 2.6` all rows pass; (d) checks `to === 2.6`.
+- (a) walk 3.71 deg; trunk vs walk: 2.1 m/s 3.54 (-0.17), 2.4 3.66 (-0.05), 2.7 3.41 (-0.30), 3.0 3.42 (-0.29),
+  3.3 3.52 (-0.19).
+- (b) run at 4.0 m/s: trunk 14.78 deg (pre-S5 14.78), hipY 86.34 cm (pre-S5 86.34).
+- (c) start 0 to 4: worst bone step 24.6 deg (OFF 24.4); hard stop 4 to 0: 19.8 deg (OFF 31.6).
+- AF2 rows: run trunk 14.8; the 5.0 m/s ("sprint") trunk 19.9 (was 22.5); every other AF2 row unchanged and passes.
+- R27 `?mocapraw=1` vs default: run pelvis roll mean -0.07 -> -4.64 deg; run hipY 86.3 -> 75.1 cm; run wrist jerk max
+  1.44 -> 2.06 cm; crouch walk trunk 32.2 -> 43.1 deg; crouch walk sway 4.2 -> 8.4 cm p2p.
+
+### What changed, per step
+- Steps 2-3 `src/anim/mocap.ts`: :126 `MOCAP_RUN_POSE` `to: 2.6, pitch: 0.01, pitchSprint: 0.26, pitchFrom: 3.5,
+  pitchTo: 3.8` (rest unchanged); :115-119 the `pitch` / `pitchSprint` doc bullet replaced with the brief's text.
+- Step 4 `tests/mocapRunPose.test.ts`: imports :12-18; R25 describe :132-182, tests (a)-(d).
+- Step 5 `src/anim/audit/limits.ts`: docs :20, :94; `MIN_DURATION` :95-111 (`turn180` 0.4 :99; `raisePistol` 0.75 and
+  `raiseRifle` 1.1 :104-105 replace `raise`; takedown comment :109); `raiseMin` :113-116; `PELVIS_P2P` :130 (no sprint
+  entry); `gaitBand` doc and body :133-137; `READY_ELBOW` and `readyElbowBand(stance)` :160-167.
+- Step 6 `scripts/anim-audit.mjs`: :25 `--quick` help; :128 `drawPh` column; :297 local `drawPh`; :1759 remote
+  `drawPh` NaN; `dash` writes removed from `run()`, `reset()` and B's input loop; :455-461 gear lists and loops capped
+  at gear 5; :477-480 takedown scenarios added to `scenarios`; gear cap arrays 5 entries at :494, :1332, :2131; the
+  `sprint` input gone from `drive()` and `remoteSegments()`; raise drive :546 `m.cls`, :551 `t.run(2.0, ...)`;
+  :693-713 takedown drive branch; :1054 "run framing" comment; :1136 `readyElbowBand(sc.stance)`; :1153 moving list
+  gains `takedown`; :1170 turn row tagged `':824'`; :1172-1177 raise row reads `drawPh` against `L.raiseMin`;
+  :1203-1207 `takedownTime` analysis; :1296 remote flat list; :1967 "stand 5" comment.
+- Step 7 `tests/animAudit.test.ts`: imports :1, :5; gait bands :31-34; two new tests :37-58; `raisePistol` line;
+  `READY_ELBOW` block (sprint line removed, keys check added).
+- Step 8 `src/core/flags.ts`: interface entry with doc :39-44; :159 `mocapRaw: params.get('mocapraw') === '1'`.
+- Step 9 `src/anim/mocap.ts`: :37 `flags` import; :131-154 `MOCAP_RAW`, `AF2_SHIPPED`, `setMocapRaw`, load-time switch.
+- Step 10 `src/anim/animGraph.ts`, the three hunks: :72 import; `crouchSet` :2498 `mcp`, :2499 `p0`, :2517
+  `* mcp.sway`; :3456-3458 `MOCAP_CROUCH_RAW`.
+- Step 11 `tests/mocapRunPose.test.ts` :184-229, R27 describe, three tests.
+- Step 12 `tests/mocapGuards.test.ts`: import :12; new test :149-170.
+- Step 13 `changes/feature-player-j19-s5.md`, text as given (its first bullet still holds after the fallback).
+
+### Checks
+- `npm run typecheck:fast` clean; eslint 0 errors on the eight listed files (only warning: `scripts/anim-audit.mjs` is
+  on the repo's eslint ignore list); `node --check scripts/anim-audit.mjs` OK.
+- `git diff --stat 29f03b6c0` lists only the nine files; `src/player/characterRig.ts` unchanged.
+- `git merge-tree --write-tree --name-only` clean against origin/feature/mixamo-source-wire df214492f,
+  origin/feature/mixamo-on e39da5fd9 and origin/master 99fbd37fd.
+- vitest, all 22 listed files in one run: 233 passed, 0 failed, 7 skipped (existing gated tests: fixture captures,
+  report-only measures, the mid-move switch case). animAudit 29, e2eAffected 31, changesFragments 1, mocapRunPose 11,
+  mocapGuards 6, animSkeletonGuardIdentity 1 (+1 skip), guardPoseGolden 1 (+1), mocapSprint 10, mocapRunFeet 6 (+1),
+  mocapCrouch 7, crouchStrafe 16, mocapPlayer 10 (+1), mocapSwitch 13, mocapDefault 6, mixamoSwitch 10, mixamoLoco 16,
+  mocapSources 5, nowPlaying 21, animSkeletonIdentity 1 (+1), bodyMotion 13 (+1), animStudio 19, animFixPass 0 (+1).
+  No pre-existing failures.
+
+### Sprint code kept, with its readers
+- `src/anim/clips/mocap/sprint.ts` and `MOCAP_SET.sprint`: the Studio's `import.meta.glob` (`studio.ts:216`); the
+  `mocap_sprint` row (`mocapSources.ts:64`, pinned by `tests/mocapSources.test.ts:58`); `tests/mixamoLoco.test.ts:64`.
+- The `speedSet` sprint branch and `KEYED_GAITS.sprintFrom`: Mixamo `fast_run` row (`mixamo.ts:273`); a remote posed
+  from its measured pace; `tests/nowPlaying.test.ts:92`, `:134` (`MOVE_IDS.sprint` at 6.0 m/s).
+- `MOCAP_RUN_POSE.pitchSprint`: characterRig reads the name.
+- The graph's `dash` / `dashS` and the `READY_HANDS` sprint fields: live for guards (`enemy.ts:4179`, the Studio's
+  guard run `studio.ts:311`).
+
+### Deviations
+1. `POSTURE.runFrom` / `runTo` / `runLean` unchanged (the brief's own deviation from PLAN R25): on Wren's holstered
+   free gait the keyed trunk overwrites that lean, and changing it would move the guard golden and identity fixtures.
+   Lead decides any follow-up.
+2. Step 4 fallback ran: `to` is 2.6, not 3.0; test (d) checks `to === 2.6`.
+3. One anim-audit comment reworded: the brief's Step 6 comment ended "...ran the gear-5 run under a sprint band", but
+   the Step 7 test forbids `\bsprint\b` in the file. It now ends "...under the old gear-6 band" (`anim-audit.mjs:458`).
+4. Import timing only: `pelvisLateral` added to the `tests/mocapRunPose.test.ts` import in commit 3 (first use), not
+   commit 1 (`noUnusedLocals`). The final file is as specified.
+
+### Polish list (not fixed)
+- The audit's gear caps (`anim-audit.mjs:494`, `:1332`, `:2131`; standing 0.65 / 1.1 / 1.65 / 2.3 / 3.15) are not
+  `GEARS.stand` (0.75 / 1.4 / 2.1 / 3.0 / 4.0, exported as `L.GEAR_CAPS`), so `rootOvershoot` reads every standing gear
+  against too low a cap.
+- The other `MIN_DURATION` bible line tags in the audit (`:824`-`:831`) are two lines off the bible's table.
+- `tests/animFixPass.test.ts` writes `docs/anim-fix-pass/before/numbers.md`; that folder moved to `docs/archive/`.
+
+### Pending PC run
+- anim-audit full, local and remote, `--compare` against `docs/archive/locomotion/audit/anim-baseline.json`. Expected new
+  fails, limits stay per A14: `turn180Time` ~0.25 s vs 0.4, `takedownTime` ~0.92 s vs 1.0 until S1, any `raiseTime`
+  under its class minimum. The `stand6` rows are gone, so the compare shows them missing.
+- e2e: `e2e-anim`, `e2e-clip`, `e2e-weapons-carry`, `e2e-move`, `e2e-takedown`, `e2e-park` plus CORE (`e2e-combat`),
+  and the requested `e2e-coop` and `e2e-netmove`.
+- Look video (`scripts/look-video.mjs`): walk, jog and run side views at each gear, master vs this branch; one jog / run
+  / crouch-walk pass with `?mocapraw=1`.
