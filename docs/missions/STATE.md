@@ -17,8 +17,8 @@ The engine reaches master as 4 stacked big-pr members (BRIEF A29); each retarget
    (walk card: uneven TGC split, gallery reach 16.3 s; 47 Tallow lamps in lampBoxAlign KNOWN_EMBEDDED, a light-pass item).
 5. A red check on any member: fix it on the lowest member it touches and merge upward (b -> c -> d), re-post `checker`.
 6a. S3 (both shutters placed on Tallow; brief scratch/campaign/cq/campaign-tallow-s3.md, HELD lifted ~19:00) building on the
-   desktop: Sonnet, branch feature/tallow-s3 from (d) cf9fa7e4f, worktree C:/NightShift/Mobile-Coop-tallow-s3, report
-   scratch/campaign/tallow-s3-report.md. If cut off: resume from the branch head. Then a checker, merge into (d) (or a
+   desktop: DONE feature/tallow-s3 44575348a (Sonnet, from (d) cf9fa7e4f; tsc 0, 28 files / 677 tests; report
+   scratch/campaign/tallow-s3-report.md). Sonnet checker running -> scratch/campaign/tallow-s3-check.md. Then a checker, merge into (d) (or a
    follow-up PR on #583), then S4 (cq/campaign-tallow-s4.md). G5 needs S3 first (G5-plan section 7).
 6. Then G5 (A30): docs/tallow-fixes/G5-plan.md + briefs/G5.md on the engine (held; plan check scratch/campaign/tallow-g5-plan-check.md).
 7. Polish lists: scratch/campaign/member-{b,c-check-1,c-check-2,d}-check*.md; Player Build's coop-kit A1 adds a kitMoves
