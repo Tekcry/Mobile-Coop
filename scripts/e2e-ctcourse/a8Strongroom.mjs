@@ -74,7 +74,7 @@ const WEST = -Math.PI / 2;
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
 export async function walk(t, n) {
-  const { A, B, GA, GB, until, assert, waitSim, use, hostDebug, moveHost, moveClient, doorIndex, point, RB, holdUntil, padReady, crouch, pullUp, dev, drawPistol, holster, aimAt, lt } = t;
+  const { A, B, GA, GB, until, assert, waitSim, use, hostDebug, moveHost, moveClient, doorIndex, point, RB, holdUntil, padReady, crouch, pullUp, dev, drawPistol, holster, aimAt, lt, arcOverLine } = t;
 
   // ---- helpers local to the set ----
   const sees = (P, re, what) => until(P, ([src]) => new RegExp(src).test(document.querySelector('.course-hud .ch-step')?.textContent ?? ''), [re.source], 15000, what);
@@ -184,21 +184,14 @@ export async function walk(t, n) {
       return !!m && Math.hypot(m.pos.x - hx, m.pos.z - hz) < 0.1 && Math.abs(Math.atan2(Math.sin(m.yaw - hy), Math.cos(m.yaw - hy))) < 0.05 && c.grounded && !c.override && !g.traversal.attached;
     }, host, 8000, `${what}: the client's view of the offering host has settled`).catch(dump);
     assert((await GA(() => window.__app.current.team.state)) === 'throwOffer', `${what}: the host still offers the throw at the press`);
+    // (F7 fix B) the arc over the beam line on every client fixed step (`arcOverLine`, as A5); an unseen arc now fails
+    const arc = await arcOverLine(BEAM_X, 1, what);
     await holdUntil(B, RB, () => window.__app.current.team.count.throws >= 1, `${what}: the client is thrown`).catch(dump);
-    let ownMax = 0;
-    const t0 = Date.now();
-    const s0 = await GB(() => window.__app.current.time);
-    for (;;) {
-      const [own, st] = await GB(() => { const g = window.__app.current; const c = g.player.controller; return [[c.pos.x, c.pos.y], g.team.state]; });
-      if (Math.abs(own[0] - BEAM_X) < 0.3) ownMax = Math.max(ownMax, own[1]);
-      if (st === 'none' && own[0] > BEAM_X + 1) break;
-      if ((await GB(() => window.__app.current.time)) - s0 > 20 || Date.now() - t0 > 200000) throw new Error(`${what}: the throw did not land (${st}, ${own})`);
-      await waitSim(30);
-    }
+    const { max: ownMax, n: bandSteps } = await arc();
     await until(B, () => window.__app.current.player.controller.grounded, null, 8000, `${what}: the client lands on its feet`);
     const land = await GB(() => { const c = window.__app.current.player.controller; return { x: c.pos.x, y: c.pos.y, z: c.pos.z }; });
     assert(Math.hypot(land.x - LANDING[0], land.z - LANDING[1]) <= 0.5 && Math.abs(land.y) < 0.3, `${what}: the client lands within 0.5 m of the landing (${JSON.stringify(land)})`);
-    assert(ownMax > 1.45 || ownMax === 0, `${what}: the client's arc clears the top beam at the line (${ownMax.toFixed(2)})`);
+    assert(bandSteps >= 1 && ownMax > 1.45, `${what}: the client's arc clears the top beam at the line (${ownMax.toFixed(2)} over ${bandSteps} steps)`);
     await waitSim(600);
     const d1 = await dev(A);
     assert(d1.hits === d0.hits && d1.alarm === d0.alarm, `${what}: the thrown client touched no beam (hits ${d0.hits} -> ${d1.hits}, alarm ${d0.alarm} -> ${d1.alarm})`);

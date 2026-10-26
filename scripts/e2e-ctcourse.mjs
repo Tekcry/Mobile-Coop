@@ -250,6 +250,40 @@ async function throughHoldingRoom(n) {
   await until(B, ([nd, fd]) => window.__course.wire.locks.includes(nd) && !window.__course.wire.locks.includes(fd), [near, far], 15000, `the client sees ${a.nearDoor} locked and ${a.farDoor} open`);
 }
 
+/**
+ * (F7 fix B) The thrown client's own arc over a beam line at x = `beamX`, recorded on every client fixed step (Node
+ * polling under load skipped the line: "0 samples", A5). Call before the throw press, await the returned function after
+ * it: it resolves once the client is free again more than 1 m past the line on the `dir` side (-1: towards -x, +1:
+ * towards +x), with `max` (the feet height in the +-0.3 m band, and the height interpolated between the two steps
+ * either side of the line) and `n` (steps inside the band; 0 means the arc was never seen there). The hook keeps
+ * numbers only: nothing is allocated per step.
+ */
+async function arcOverLine(beamX, dir, what, timeout = 20000) {
+  const key = await onHostStep(B, (g, [bx, d], st) => {
+    const c = g.player.controller;
+    const x = c.pos.x;
+    const y = c.pos.y;
+    if (st.n === undefined) {
+      st.n = 0;
+      st.max = 0;
+      st.px = NaN;
+      st.py = 0;
+    }
+    if (Math.abs(x - bx) < 0.3) {
+      st.n++;
+      if (y > st.max) st.max = y;
+    }
+    if (st.px === st.px && (st.px - bx) * (x - bx) < 0) {
+      const h = st.py + ((y - st.py) * (st.px - bx)) / (st.px - x);
+      if (h > st.max) st.max = h;
+    }
+    st.px = x;
+    st.py = y;
+    return g.team.state === 'none' && (x - bx) * d > 1 ? { max: st.max, n: st.n } : null;
+  }, [beamX, dir]);
+  return () => hostStepResult(B, key, timeout, `${what}: the throw lands past the line`);
+}
+
 /** The set helpers a set module's `walk(t, n)` gets. */
 const t = {
   get A() {
@@ -261,7 +295,7 @@ const t = {
   GA, GB, until, assert, waitSim, sleep: waitSim, use, hostDebug, moveHost, moveClient, doorIndex, point, stepLine,
   RB, holdUntil, padReady, P5, crouch, legUp, pullUp, dev, drawPistol, holster, aimAt, lt, avatarDrawn, stubWalk,
   // (load-audit, load-latent-net) host-clock windows and presses on the host's own fixed step (synced pairs)
-  waitHostSim, onHostStep, offHostStep, hostStepResult,
+  waitHostSim, onHostStep, offHostStep, hostStepResult, arcOverLine,
 };
 
 /** (B8, G126) The finale in the cash dock: the client goes down and the host revives it inside the 30 s window. */
