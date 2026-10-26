@@ -34,7 +34,8 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    prototypes. can you provide more realistic versions of both songs."): the picker stays open (intro + mission slots) for
    intro-1/2, mission-1/2 from the orchestrator (feature/music-real, scratch/music/real/); add them when it says they landed. S5b (Opus) building on feature/piano-escape-s5 (#618), brief S5b-brief.md.
    Lightning re-timed (period 160.04, doubles on the Grohl section changes; PLAN 2b) + Guard AI GA5's six data deltas:
-   S1b-2 (Sonnet) building on feature/piano-escape-s1b (#617), brief S1b2-brief.md. Sector Ops (SO5) and Guard AI told.
+   S1b-2 DONE: #617 head 937603b46, Sonnet PASS (S1b2-check.md), checker posted, PR comment; Guard AI + Sector Ops told
+   (GA6a note: G4 lap clock must start on arrival at point 0, or starts change). Sector Ops (SO5) and Guard AI told.
 5. Tallow: #522 + #578 merged; #581 retargeted to master ~22:30 (MERGEABLE, checker posted, affected pending); then #583.
 6. S5 DONE 73c2ecd0e (12 tracks, ?pianomusic=pixabay|grohl|1-4|a-f; S5-report.md); Sonnet PASS (S5-check.md) -> PR #618
    (base feature/piano-escape; head 4f9971281, checker posted). S6 (storm sound) waits for #604 on master. S4 waits for knife #614, GA6 / GA7, SO2-SO5.
