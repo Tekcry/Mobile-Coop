@@ -4,9 +4,9 @@
 /**
  * chanLoop channel clip (src/anim/clip.ts), replacing CRAWL (traverse.ts) when the mixamo switch is on (I2).
  * Clock: the cadence (0..1 loop): the right hand's reach starts at 0 (take 0.667 s), the left's at 0.5 (take 1.633 s).
- * leg scale x1.035; facing turned -0.8 deg.
+ * leg scale x1.035; facing turned -0.8 deg; yaw from the right axis (pitched past 75 deg): chest.
  * cycle 1.800 s; travel over the cycle taken out (x 0.000, y 0.000, z 0.892 m at 1.75 m).
- * Keys within 1 cm / 1 deg of the dense samples (largest 0.98 cm, 0.97 deg).
+ * Keys within 1 cm / 1 deg of the dense samples (largest 0.98 cm, 0.98 deg).
  */
 import { makeClip } from '../../clip';
 
@@ -28,11 +28,7 @@ export const MOCAP_CRAWLING_HANDS_AND_KNEES = makeClip({
       0.94583, 0.3027,
     ],
     spPitch: [0, 1.2691, 0.15417, 1.1817, 0.22083, 1.2351, 0.37917, 1.3482, 0.6, 1.1628, 0.72083, 1.3179, 0.8, 1.2689, 0.87917, 1.3112],
-    spYaw: [
-      0, -4.1135, 0.01667, -4.2795, 0.0625, -4.5543, 0.1375, -4.7211, 0.175, -4.6648, 0.2, -4.4095, 0.20833, -4.2194, 0.23333, -3.2289, 0.24167, -2.9592, 0.25, -2.7837, 0.27083, -2.5451, 0.29167, -2.456,
-      0.30833, -2.4623, 0.3625, -2.6581, 0.39583, -2.6972, 0.4125, -2.6527, 0.44583, -2.4087, 0.4625, -2.2186, 0.49167, -1.8878, 0.50833, -1.7571, 0.6, -1.4241, 0.6125, -1.4631, 0.65833, -1.7463, 0.67917, -2.0575,
-      0.70417, -2.7048, 0.72083, -3.1229, 0.74167, -3.4168, 0.82083, -3.888, 0.87917, -3.6234, 0.92083, -3.542, 0.9625, -3.7384,
-    ],
+    spYaw: [0, -0.0474, 0.12083, 0.0901, 0.24167, 0.0842, 0.30833, 0.1456, 0.3625, 0.1241, 0.49167, 0.1135, 0.6, -0.011, 0.75, -0.0233, 0.8375, -0.0984, 0.9, -0.0527],
     spRoll: [0, -0.1384, 0.08333, -0.2049, 0.15417, -0.1955, 0.2625, -0.1092, 0.4125, 0.0153, 0.6, 0.1626, 0.71667, 0.0778],
     hdPitch: [0, 2],
     grip: [0, 0],

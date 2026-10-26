@@ -21,6 +21,7 @@ import { blocked, overlapsGreybox, placementMount, shapesOf } from '../../campus
 import { PROP_LOOK } from '../../props/facilityProps';
 import { hyp2 } from '../../../core/mathx';
 import { S4_BASKET, S4_BOX, S4_DECK, S4_GROUPS, S4_NOC, S4_PODS } from './s4';
+import { hyp2 } from '../../../core/mathx';
 
 /** Every room of `S4_ROOMS` -> its tag (brief section 1). */
 export const S4_ART_TAGS: Record<string, ArtTag> = {

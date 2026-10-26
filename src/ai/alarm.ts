@@ -58,6 +58,21 @@ export function raiseTime(tolerance: number): number {
   return ALARM.holdTime * tolerance;
 }
 
+/**
+ * (guard-rules S5, D5, A7; bible 5.7 "Each raised alarm adds one level") Repeat guard alarms, where the mode asks for them
+ * (`EnemyManager.alarmRepeat`: Sector Ops and the campaign; Marlow Yard keeps one guard alarm per load, Q11). After a
+ * guard alarm the next may be raised once its response is in: a member of a response team it brought is searching, or
+ * `rearm` s after it, whichever is first; at most `max` guard alarms per section load. Undo: `enabled` false (one guard
+ * alarm per load everywhere).
+ */
+export const ALARM_REPEAT = {
+  enabled: true,
+  /** Most guard alarms per section load (the Sector Ops stage cap is 3 anyway). */
+  max: 3,
+  /** Seconds after a guard alarm before the next may be raised when no team member is searching yet. */
+  rearm: 60,
+} as const;
+
 /** (guard-ai S6, design 7, M4) The command call that raises the alarm by radio. */
 export const ALARM_CALL = {
   /** Seconds after the command caller is cut (down, grabbed, blinded) before the next guard in combat takes the call. */

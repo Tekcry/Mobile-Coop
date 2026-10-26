@@ -1,4 +1,4 @@
-// Combat performance probe on Warehouse with 10 enemies (120 Hz targets):
+// Combat performance probe on Warehouse by default (MAP=...) with 10 enemies (120 Hz targets):
 //  - CPU per display frame at a simulated 120 Hz (fixed 60 Hz sim + 2 interpolated frame updates), p50/p95/p99
 //  - animation cost per character (rig evaluation, ms)
 //  - allocations per simulated second (sampling heap profiler, incl. collected objects) + top allocators
@@ -289,7 +289,7 @@ const real = await page.evaluate(async (desktop) => {
 }, heavy);
 
 const out = {
-  map: 'warehouse',
+  map: MAP, mode: MODE ?? null,
   profile: preset ? `preset ${preset}` : desktop ? 'desktop (gfx=epic)' : 'test path (gfx=min)',
   enemies: cpu.alive,
   cpu120: { frames: cpu.frames, p50: +cpu.p50.toFixed(3), p95: +cpu.p95.toFixed(3), p99: +cpu.p99.toFixed(3) },
@@ -305,7 +305,7 @@ const out = {
 };
 if (asJson) console.log(JSON.stringify(out));
 else {
-  console.log(`Warehouse, ${out.enemies} enemies, ${out.profile} (${GPU ? 'hardware GPU, local budget profile' : 'SwiftShader: GPU numbers not representative'})`);
+  console.log(`${MAP}${MODE ? '/' + MODE : ''}, ${out.enemies} enemies, ${out.profile} (${GPU ? 'hardware GPU, local budget profile' : 'SwiftShader: GPU numbers not representative'})`);
   console.log(GPU ? `machine speed: reference workload ${calibMs.toFixed(1)} ms (info: the local budgets are not scaled)` : `machine speed: reference workload ${calibMs.toFixed(1)} ms vs ${REF_MS} -> CPU budgets x${speed.toFixed(2)}`);
   console.log(`CPU per frame @120 Hz (sim + anim + camera, no render): p50 ${out.cpu120.p50} p95 ${out.cpu120.p95} p99 ${out.cpu120.p99} ms`);
   console.log(`sim p95 ${out.cpu120.p95} ms  [budget <= ${(BUDGET.cpuP95Ms * speed).toFixed(2)} = ${BUDGET.cpuP95Ms} x speed]; render JS ${out.renderJsMs} ms${GPU ? '' : " (info: GPU stalls of software GL land in it; the laptop's benchmark gives the real main thread)"}`);

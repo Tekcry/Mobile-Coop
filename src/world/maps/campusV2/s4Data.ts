@@ -202,7 +202,7 @@ export const S4_SECTOR: SectorDef = {
   crate: { at: [S4_AMMO_CRATE.x, S4_AMMO_CRATE.y, S4_AMMO_CRATE.z], yaw: S4_AMMO_CRATE.yaw },
   // download (10 s, within 4 m) the build and signing logs at the cage terminal: opens C4
   // sync-s4-cagekp: release prompt; 30 s (90 s solo), an expired release is asked for again (J26)
-  objective: { kind: 'download', label: 'Download the build and signing logs', x: 18, y: 0, z: 38.3, yaw: PI },
+  objective: { kind: 'download', label: 'Download the signing logs in the server cage', x: 18, y: 0, z: 38.3, yaw: PI },
   connector: {
     label: 'Along the colonnade to the Old House',
     box: [-26, 26, -10, 32],
