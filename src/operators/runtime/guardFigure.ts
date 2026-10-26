@@ -40,6 +40,7 @@ import { loadModel, operatorMaterial, readRig, rigNodes, type RigLike } from './
 import { GuardFigurePlugin } from './guardFigurePlugin';
 import { GUARD_LOD, guardFolds, guardPosesNow } from './guardLod';
 import { pickLod } from './lodPick';
+import { newEffectWatch, watchBodyEffect, type EffectWatch } from '../../player/bodyEffectRecovery';
 import { LOD_0, LOD_1, LOD_2, LOD_NAMES, REQUIRED_JOINTS } from './manifest';
 import { OperatorPoser, poserSetup, RIG_JOINTS, RIG_PARENT, TRS, type PoserSetup } from './pose';
 
@@ -248,6 +249,8 @@ interface GuardPart {
   count: number;
   /** The rest box for the submesh (its own: `setIndexBuffer` rebuilds the submesh). */
   subBox: BoundingInfo;
+  /** (gm-watchdog) Its main-pass effect, timed while unready (`drawState`, the S1 body's watchdog). */
+  watch: EffectWatch;
 }
 
 interface GuardLod {
@@ -491,7 +494,7 @@ export class GuardFigure {
       m.receiveShadows = true;
       m.alwaysSelectAsActiveMesh = this.loose;
       m.setEnabled(false);
-      parts.push({ prim, mesh: m, gvis, gvisVb, count: -1, subBox: new BoundingInfo(bmin, bmax) });
+      parts.push({ prim, mesh: m, gvis, gvisVb, count: -1, subBox: new BoundingInfo(bmin, bmax), watch: newEffectWatch() });
       meshes.push(m);
     });
     const inst: GuardLod = {
@@ -674,6 +677,35 @@ export class GuardFigure {
     // A pending pose left over (not drawn) runs from the rig as it is when the guard is next drawn
     l.pending = true;
     l.bones[0]?.markAsDirty();
+  }
+
+  /**
+   * (gm-watchdog) Once per render, after `update`: the shown LOD's main-pass effects. Each drawn part's effect is
+   * watched (`watchBodyEffect`, logged as 'guard figure': a timed-out, failed or disposed compile is recompiled at once,
+   * one that never finishes after STUCK_MS and STUCK_FRAMES, at most MAX_RECOMPILES per variant). 1: every drawn
+   * part's effect is ready; -1: one is unready; 0: nothing to judge (disposed, disabled, no LOD shown, or no effect
+   * asked for yet: culled since it was shown, or just dropped by a recompile). No allocation.
+   * An effect the watch recompiles this render counts as unready (it was; the drop leaves the sub-mesh without one).
+   */
+  drawState(now: number): number {
+    if (this.disposed || !this.enabled) return 0;
+    const l = this.current >= 0 ? this.lods[this.current] : null;
+    if (!l) return 0;
+    let unready = false;
+    let ready = false;
+    for (let i = 0; i < l.parts.length; i++) {
+      const p = l.parts[i]!;
+      if (p.count === 0) continue; // no visible piece: never drawn
+      if (watchBodyEffect(p.mesh, p.watch, now, 'guard figure')) {
+        unready = true;
+        continue;
+      }
+      const e = p.mesh.subMeshes?.[0]?.effect;
+      if (!e || e.isDisposed) continue;
+      if (e.isReady()) ready = true;
+      else unready = true;
+    }
+    return unready ? -1 : ready ? 1 : 0;
   }
 
   /**

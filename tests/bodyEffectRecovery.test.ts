@@ -315,6 +315,21 @@ describe('guard-ai body watchdog: recover on a real failure only', () => {
     rig.dispose();
   });
 
+  it('(gm-watchdog) R1 the log names the caller: the S1 body by default, the guard figures as "guard figure"', async () => {
+    const { mesh, ready, rec, rig } = await setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await ready()).toBe(true);
+    timeOut(mesh.subMeshes[0]!.effect!);
+    expect(rec.watchBodyEffect(mesh, rec.newEffectWatch(), 0)).toBe(true);
+    expect(warn).toHaveBeenLastCalledWith(`smooth body ${mesh.name}: body shader compile timed out, recompiling (1/3)`);
+    rec.resetEffectRecovery();
+    expect(await ready()).toBe(true);
+    timeOut(mesh.subMeshes[0]!.effect!);
+    expect(rec.watchBodyEffect(mesh, rec.newEffectWatch(), 0, 'guard figure')).toBe(true);
+    expect(warn).toHaveBeenLastCalledWith(`guard figure ${mesh.name}: body shader compile timed out, recompiling (1/3)`);
+    rig.dispose();
+  });
+
   it('the recompile cap is unchanged: 3 per variant', async () => {
     const rec = await import('../src/player/bodyEffectRecovery');
     expect(rec.MAX_RECOMPILES).toBe(3);
