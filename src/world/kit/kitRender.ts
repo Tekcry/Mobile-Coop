@@ -12,6 +12,8 @@
  */
 import { Color3, Mesh, PBRMaterial, StandardMaterial, VertexData, type AbstractMesh, type Material, type Observer, type Scene } from '../../core/babylon';
 import { parseGlb, type GlbMesh, type GlbModel } from '../../operators/lab/glb';
+import { loadKeptModel } from '../../operators/runtime/figure';
+import { kept } from '../../core/keptParts';
 import { markLampLevel } from '../bakedLamps';
 import type { DoorState } from '../doors';
 import type { LightRegistry } from '../lights';
@@ -65,6 +67,8 @@ export class KitRender {
   static async create(scene: Scene, layout: KitLayout, doors: readonly DoorState[], reg: LightRegistry, addCaster: (m: AbstractMesh) => void): Promise<KitRender> {
     const url = kitUrl();
     if (!url) throw new Error('facility kit GLB missing (npm run kit:build)');
+    // (map-ready S9) flag on: parsed once per page (the kept parts); off: fetched and parsed per load as before
+    if (kept.enabled) return KitRender.fromModel(scene, await loadKeptModel(scene, url), layout, doors, reg, addCaster);
     const res = await fetch(url);
     if (!res.ok) throw new Error(`facility kit GLB: HTTP ${res.status}`);
     return KitRender.fromModel(scene, parseGlb(await res.arrayBuffer()), layout, doors, reg, addCaster);

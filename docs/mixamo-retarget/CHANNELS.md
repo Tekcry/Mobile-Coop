@@ -48,20 +48,20 @@ path, time-warped onto its events. Keys are held within 1 cm / 1 deg of the dens
 
 `Crawling Hands And Knees.fbx` -> `src/anim/clips/mixamo/trav_crawling_hands_and_knees.ts` (`mocap_crawling_hands_and_knees`), chanLoop, Studio loop `trav:vent`; replaces CRAWL (traverse.ts).
 
-- Keys: 216 over 28 channels; largest error 0.98 cm, 0.97 deg (bound 1 cm, 1 deg).
+- Keys: 195 over 28 channels; largest error 0.98 cm, 0.98 deg (bound 1 cm, 1 deg).
 - Clock: the cadence (0..1 loop): the right hand's reach starts at 0 (take 0.667 s), the left's at 0.5 (take 1.633 s).
 - Events: rReach at 0, lReach at 0.5.
-- leg scale x1.035; facing turned -0.8 deg.
+- leg scale x1.035; facing turned -0.8 deg; yaw from the right axis (pitched past 75 deg): chest.
 - cycle 1.800 s; travel over the cycle taken out (x 0.000, y 0.000, z 0.892 m at 1.75 m).
 
 ## freehang_climb
 
 `Freehang Climb.fbx` -> `src/anim/clips/mixamo/trav_freehang_climb.ts` (`mocap_freehang_climb`), chanPath, Studio loop `trav:ledge`; replaces CLIMB_UP from a free hang, to standing.
 
-- Keys: 725 over 28 channels; largest error 1.00 cm, 0.99 deg (bound 1 cm, 1 deg).
+- Keys: 709 over 28 channels; largest error 1.00 cm, 0.99 deg (bound 1 cm, 1 deg).
 - Clock: climb-up progress k (0..1 over 1.300 s, crouched at 0.654); standing at 1.
 - Events: release at 0.475, onTop at 0.394, crouch at 0.654.
-- leg scale x1.035; facing turned -2.6 deg.
+- leg scale x1.035; facing turned -2.6 deg; yaw from the right axis (pitched past 75 deg): chest.
 - take 0.000-3.700 s used (3.700 s of 3.867) over 1.300 s of game time (x2.85 speed).
 - events in the take (s from the start used): on top 2.067, first hand off 2.492, crouch 2.700, end 3.700.
 - anchors (take s -> k): start 0.000 -> 0, release 2.492 -> 0.475, crouch 2.700 -> 0.654, end 3.700 -> 1.
@@ -73,10 +73,10 @@ path, time-warped onto its events. Keys are held within 1 cm / 1 deg of the dens
 
 `Braced Hang To Crouch.fbx` -> `src/anim/clips/mixamo/trav_braced_hang_to_crouch.ts` (`mocap_braced_hang_to_crouch`), chanPath, Studio loop `trav:ledge`; replaces CLIMB_UP to the crouch.
 
-- Keys: 334 over 28 channels; largest error 1.00 cm, 1.00 deg (bound 1 cm, 1 deg).
+- Keys: 320 over 28 channels; largest error 1.00 cm, 1.00 deg (bound 1 cm, 1 deg).
 - Clock: climb-up progress k (0..1 over 1.300 s, crouched at 0.654); the take ends crouched at k 0.654 (held after).
 - Events: release at 0.475, onTop at 0.4627, crouch at 0.654.
-- leg scale x1.035; facing turned 2.3 deg.
+- leg scale x1.035; facing turned 2.3 deg; yaw from the right axis (pitched past 75 deg): chest.
 - take 0.000-1.133 s used (1.133 s of 1.133) over 0.850 s of game time (x1.33 speed).
 - events in the take (s from the start used): on top 0.625, first hand off 0.642, crouch 1.133 (the end), end 1.133.
 - anchors (take s -> k): start 0.000 -> 0, release 0.642 -> 0.475, crouch 1.133 -> 0.654.
