@@ -1,0 +1,14 @@
+{
+  "id": "20261026T024412-night-shift-guard-ai-77e65e3f-96ce",
+  "sha": "77e65e3f6917e5286767deb878b659c531619c88",
+  "branch": "feature/guard-ai-mission-hooks-s4",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-guard-carry",
+    "e2e-sectorops:1"
+  ],
+  "set": "mh-s4"
+}
