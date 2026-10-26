@@ -213,23 +213,36 @@ export function cpuTotalPct(before, after) {
  * time between the snapshots). Returns { bgMs, elapsedMs }: CPU ms the background processes used in the window, summed
  * over pids in both snapshots (a pid in only one started, ended or changed priority in the window and is skipped, so
  * the gate leans toward counting load). elapsedMs is NaN when the el line is missing or not positive.
+ * laptop-queue-10 A9 (F24): a line may carry a 4th token, the process name or `e2e` (a Playwright browser: they run at
+ * Idle priority; old 3-token lines name ''). With countE2e (LQ_CPU_COUNT_E2E) the e2e rows stay out of bgMs: they are
+ * the queue's own load. Also returns e2eMs (their ms) and top: the 3 heaviest subtracted names by ms.
  */
-export function backgroundCpuMs(text) {
+export function backgroundCpuMs(text, { countE2e = true } = {}) {
   const a = new Map();
   const b = new Map();
   let elapsedMs = NaN;
   for (const line of String(text ?? '').split(/\r?\n/)) {
-    const m = /^\s*([ab])\s+(\d+)\s+(\d+(?:\.\d+)?)\s*$/.exec(line);
+    const m = /^\s*([ab])\s+(\d+)\s+(\d+(?:\.\d+)?)(?:\s+(\S+))?\s*$/.exec(line);
     if (m) {
-      if (m[2] !== '0') (m[1] === 'a' ? a : b).set(m[2], Number(m[3]));
+      if (m[2] !== '0') (m[1] === 'a' ? a : b).set(m[2], { ms: Number(m[3]), name: m[4] ?? '' });
       continue;
     }
     const e = /^\s*el\s+(\d+(?:\.\d+)?)\s*$/.exec(line);
     if (e && Number(e[1]) > 0) elapsedMs = Number(e[1]);
   }
   let bgMs = 0;
-  for (const [pid, ms] of b) if (a.has(pid)) bgMs += Math.max(0, ms - a.get(pid));
-  return { bgMs, elapsedMs };
+  let e2eMs = 0;
+  const byName = new Map();
+  for (const [pid, { ms, name }] of b) {
+    if (!a.has(pid)) continue;
+    const d = Math.max(0, ms - a.get(pid).ms);
+    if (name === 'e2e') e2eMs += d;
+    if (name === 'e2e' && countE2e) continue;
+    bgMs += d;
+    if (name) byName.set(name, (byName.get(name) ?? 0) + d);
+  }
+  const top = [...byName].filter(([, ms]) => ms > 0).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([name, ms]) => ({ name, ms }));
+  return { bgMs, elapsedMs, e2eMs, top };
 }
 
 /**
@@ -249,6 +262,18 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
  * mode 'total' -> the whole machine, anything else ('normal', the default) -> the gated load (lib gatedCpu).
  */
 export const gateCpu = (c, mode) => (mode === 'total' ? c?.total : c?.gated);
+
+/**
+ * The CPU reading a desktop start or refusal logs (laptop-queue-10 A9, F24): c = service cpuGated { gated, total, top,
+ * elapsedMs, cores }. "cpu <gated>% gated / <total>% total (<mode>)", plus the top subtracted processes ("; subtracted:
+ * <name> <pct>%, ...", pct of the whole machine) when total - gated >= 20.
+ */
+export function cpuNote(c, mode) {
+  const pct = (v) => (Number.isFinite(v) ? `${v}%` : '?');
+  const out = `cpu ${pct(c?.gated)} gated / ${pct(c?.total)} total (${mode})`;
+  if (!(c?.total - c?.gated >= 20) || !(c?.elapsedMs > 0) || !(c?.cores > 0) || !c?.top?.length) return out;
+  return `${out}; subtracted: ${c.top.map((x) => `${x.name} ${Math.round((x.ms / (c.elapsedMs * c.cores)) * 100)}%`).join(', ')}`;
+}
 
 /**
  * The desktop leaves a request to the laptop when its wall at E2E_JOBS=1 (lib desktopWallS) is over maxS (laptop-queue-8
@@ -1226,12 +1251,12 @@ export function nextTrain({ building = null, releasing = null, lastMerge = null,
 
 /**
  * Whether request r may start under nextTrain's hold: a pr run (not alone / full) whose expected wall is known
- * (expectedWallS over r.jobs ?? 2 jobs) and whose prep (prepS) + FIT_SLACK x wall ends by etaMs. A fitted run an early
- * train catches falls to cutShort's 80% rule.
+ * (expectedWallS over jobs ?? r.jobs ?? 2 jobs; the desktop passes 1, laptop-queue-10 A1) and whose prep (prepS) +
+ * FIT_SLACK x wall ends by etaMs. A fitted run an early train catches falls to cutShort's 80% rule.
  */
-export function fitsBeforeTrain(r, { now, etaMs, times, prepS }) {
+export function fitsBeforeTrain(r, { now, etaMs, times, prepS, jobs }) {
   if (r?.kind !== 'pr') return false;
-  const wallS = expectedWallS(r.suites, times, r.jobs ?? 2);
+  const wallS = expectedWallS(r.suites, times, jobs ?? r.jobs ?? 2);
   return Number.isFinite(wallS) && now + (prepS + FIT_SLACK * wallS) * 1000 <= etaMs;
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, unfinishedParts, hungTrainDesc, attemptDir, desktopWallS, failFast } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, unfinishedParts, hungTrainDesc, attemptDir, desktopWallS, failFast, cpuNote } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -741,9 +741,9 @@ describe('gate cpu (BelowNormal / Idle left out)', () => {
   it('backgroundCpuMs sums deltas of pids in both snapshots and reads the window', () => {
     const out = ['a 100 5000', 'a 200 10', 'a 0 999', 'a 300 50', '', 'b 100 13000', 'b 200 10', 'b 0 5000', 'b 400 900', 'el 1012', 'junk line'].join('\r\n');
     // 100: 8000 ms (the Blender bake), 200: idle, 0 left out, 300 ended, 400 new: skipped
-    expect(backgroundCpuMs(out)).toEqual({ bgMs: 8000, elapsedMs: 1012 });
+    expect(backgroundCpuMs(out)).toEqual({ bgMs: 8000, elapsedMs: 1012, e2eMs: 0, top: [] });
     expect(backgroundCpuMs('').elapsedMs).toBeNaN();
-    expect(backgroundCpuMs('a 1 10\nb 1 5\nel 0')).toEqual({ bgMs: 0, elapsedMs: NaN });
+    expect(backgroundCpuMs('a 1 10\nb 1 5\nel 0')).toEqual({ bgMs: 0, elapsedMs: NaN, e2eMs: 0, top: [] });
   });
   it('gatedCpu takes the background share off the total: the 22:34 Blender bake no longer holds 4192', () => {
     // 20 cores at 95%, a BelowNormal bake using 10 cores' worth for 1 s: 95 - 50 = 45 < 50, the slot starts
@@ -1300,6 +1300,48 @@ describe('fitsBeforeTrain', () => {
     const c = { ...ctx, etaMs: NOW + 200_000, times: { a: 60, b: 60 } };
     expect(fitsBeforeTrain({ kind: 'pr', suites: ['a', 'b'] }, c)).toBe(true); // 120 + 72 s
     expect(fitsBeforeTrain({ kind: 'pr', suites: ['a', 'b'], jobs: 1 }, c)).toBe(false); // 120 + 144 s
+  });
+});
+
+describe('desktop train soon and CPU reading (laptop-queue-10 S3)', () => {
+  const ctx = { now: NOW, etaMs: NOW + 200_000, times: { a: 60, b: 60 }, prepS: 120 };
+  const r = { kind: 'pr', suites: ['a', 'b'] };
+  it('fitsBeforeTrain jobs: the desktop fits at one job, over r.jobs; the laptop passes none', () => {
+    expect(fitsBeforeTrain(r, ctx)).toBe(true); // 120 + 72 s
+    expect(fitsBeforeTrain(r, { ...ctx, jobs: 1 })).toBe(false); // 120 + 144 s
+    expect(fitsBeforeTrain({ ...r, jobs: 3 }, { ...ctx, jobs: 1 })).toBe(false);
+    expect(fitsBeforeTrain({ ...r, jobs: 3 }, ctx)).toBe(true);
+  });
+  it('holdKeeps with the desktop fit: a due train drops a run that does not fit; no train keeps it', () => {
+    const next = { why: 'train 101 released, 1 train-ready PR(s) waiting', etaMs: ctx.etaMs, untilMs: ctx.etaMs + 300_000 };
+    const fits = fitsBeforeTrain(r, { ...ctx, jobs: 1 });
+    expect(holdKeeps(r, { next, fits })).toBe(false);
+    expect(holdKeeps(r, { next: null, fits })).toBe(true);
+    expect(holdKeeps(r, { next, fits: fitsBeforeTrain({ kind: 'pr', suites: ['a'] }, { ...ctx, jobs: 1 }) })).toBe(true); // 120 + 72 s
+  });
+  it('backgroundCpuMs: e2e rows are load (countE2e), named rows give the top subtracted', () => {
+    const out = ['a 10 1000 blender', 'a 20 500 e2e', 'b 10 1600 blender', 'b 20 1500 e2e', 'el 1000'].join('\n');
+    expect(backgroundCpuMs(out)).toEqual({ bgMs: 600, elapsedMs: 1000, e2eMs: 1000, top: [{ name: 'blender', ms: 600 }] });
+    expect(backgroundCpuMs(out, { countE2e: false }).bgMs).toBe(1600);
+    expect(backgroundCpuMs(out, { countE2e: false }).top).toEqual([{ name: 'e2e', ms: 1000 }, { name: 'blender', ms: 600 }]);
+    expect(backgroundCpuMs('a 1 100\nb 1 400\nel 1000')).toEqual({ bgMs: 300, elapsedMs: 1000, e2eMs: 0, top: [] }); // 3 tokens
+    const four = ['a 1 0 a', 'a 2 0 b', 'a 3 0 c', 'a 4 0 d', 'b 1 10 a', 'b 2 40 b', 'b 3 30 c', 'b 4 20 d', 'b 5 99 e', 'el 1000'].join('\n');
+    expect(backgroundCpuMs(four).top.map((x) => x.name)).toEqual(['b', 'c', 'd']); // 3 heaviest; e started in the window
+  });
+  it('gatedCpu replay (A9): 8 Idle Playwright chromium count as load, a BelowNormal Blender is still subtracted', () => {
+    const lines = ['a 9 1000 blender', 'b 9 1600 blender', 'el 1000'];
+    for (let i = 0; i < 8; i++) lines.push(`a ${100 + i} 0 e2e`, `b ${100 + i} 125 e2e`);
+    const out = lines.join('\n');
+    const c = { total: 100, elapsedMs: 1000, cores: 16 };
+    expect(gatedCpu({ ...c, bgMs: backgroundCpuMs(out).bgMs })).toBe(96); // 600 ms
+    expect(gatedCpu({ ...c, bgMs: backgroundCpuMs(out, { countE2e: false }).bgMs })).toBe(90); // 1600 ms
+  });
+  it('cpuNote names gated and total, and the top subtracted processes when the gap is 20 or more', () => {
+    const c = { gated: 42, total: 97, top: [{ name: 'chrome', ms: 4000 }], elapsedMs: 1000, cores: 8 };
+    expect(cpuNote(c, 'normal')).toBe('cpu 42% gated / 97% total (normal); subtracted: chrome 50%');
+    expect(cpuNote({ ...c, gated: 80 }, 'normal')).toBe('cpu 80% gated / 97% total (normal)');
+    expect(cpuNote({ ...c, gated: 80 }, 'total')).toBe('cpu 80% gated / 97% total (total)');
+    expect(cpuNote({ gated: NaN, total: 50 }, 'normal')).toBe('cpu ? gated / 50% total (normal)');
   });
 });
 
