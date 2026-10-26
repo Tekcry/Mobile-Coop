@@ -24,7 +24,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { selectSuites, suitesForFile, affectedPick, parseAffectedMax, QUICK_COVERS, LEGACY, GPU, AUDIO } from './e2e-affected.mjs';
-import { classify, status, reportSet, isReport } from './e2e-verdict.mjs';
+import { classify, status, reportSet, isReport, slowLine } from './e2e-verdict.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4179);
 // Windows: `localhost` can resolve to ::1, which a VPN adapter on the PC blocks (EACCES): bind and browse the IPv4 loopback there
@@ -49,8 +49,8 @@ const REPORT = ['anim-audit'];
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
 // (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages. (J14) Parts 5-8
 // are the same four pairs on the re-planned yard (map `ctcourseReplan`, `scripts/e2e-ctcourse/replan/`).
-// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6 (campusOps: S1-S3 greybox routes)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
+// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6-9 (campusOps, solo: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5; split in F33 so no part nears the kill)
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9'] };
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
@@ -272,6 +272,8 @@ const wall = (Date.now() - t00) / 1000;
 const sum = results.reduce((a, r) => a + r.sec, 0);
 console.log(`\ntimes (${process.env.E2E_GPU === '1' ? 'GPU' : 'software GL'}, ${jobs} at a time):\n  ${results.sort((a, b) => b.sec - a.sec).map((r) => `${r.s} ${status(r, verdictOpts)} ${r.sec.toFixed(0)}s`).join('\n  ')}`);
 console.log(`\nwall ${wall.toFixed(0)}s, suites summed ${sum.toFixed(0)}s${jobs > 1 ? ` (x${(sum / wall).toFixed(1)})` : ''}`);
+// (F33-c) a part that passes but used over 75% of the kill limit is drifting toward KILLED: say so before it gets there
+for (const r of results) { const slow = slowLine(r, SUITE_TIMEOUT / 1000); if (slow) console.log(slow); }
 if (fullRun && !allFailed.length) {
   // keep the schedule current (the file is committed: a fresh checkout starts with a good order)
   for (const r of results) known[r.s] = Math.round(r.sec);

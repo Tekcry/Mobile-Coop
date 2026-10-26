@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { classify as classifyUntyped, status as statusUntyped, reportSet as reportSetUntyped, isReport as isReportUntyped } from '../scripts/e2e-verdict.mjs';
+import { classify as classifyUntyped, status as statusUntyped, reportSet as reportSetUntyped, isReport as isReportUntyped, slowLine as slowLineUntyped } from '../scripts/e2e-verdict.mjs';
 
 type R = { s: string; code: number | null; sec: number };
 type Opts = { report: (s: string) => boolean; quarantined: (s: string) => boolean };
@@ -8,6 +8,7 @@ const classify = classifyUntyped as (results: R[], o: Opts) => { failed: R[]; fl
 const status = statusUntyped as (r: R, o: Opts) => string;
 const reportSet = reportSetUntyped as (env: Record<string, string | undefined>) => Set<string>;
 const isReport = isReportUntyped as (s: string, set: Set<string>) => boolean;
+const slowLine = slowLineUntyped as (r: R, limitSec: number) => string | null;
 
 const q = new Set(['e2e-pad', 'e2e-sectorops:6']);
 const opts: Opts = { report: (s) => s === 'e2e-foley', quarantined: (s) => q.has(s) || q.has(s.split(':')[0] ?? '') };
@@ -37,6 +38,15 @@ describe('e2e-verdict classify (J20 T8, BRIEF A3)', () => {
     const v = classify([{ s: 'e2e-move', code: 1, sec: 40 }, { s: 'smoke', code: 0, sec: 10 }, { s: 'e2e-pad', code: 0, sec: 8 }], opts);
     expect(names(v.failed)).toEqual(['e2e-move']);
     expect(v.flakyFailed).toEqual([]);
+  });
+});
+
+describe('e2e-verdict slowLine (F33-c)', () => {
+  it('prints only for a passing suite past 75% of the limit', () => {
+    expect(slowLine({ s: 'e2e-sectorops:6', code: 0, sec: 666 }, 900)).toBeNull(); // 74%
+    expect(slowLine({ s: 'e2e-sectorops:6', code: 0, sec: 684 }, 900)).toBe('SLOW: e2e-sectorops:6 684s of 900s'); // 76%
+    expect(slowLine({ s: 'e2e-sectorops:6', code: 1, sec: 800 }, 900)).toBeNull(); // failed
+    expect(slowLine({ s: 'e2e-sectorops:6', code: 124, sec: 900 }, 900)).toBeNull(); // killed
   });
 });
 

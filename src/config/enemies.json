@@ -53,16 +53,22 @@
     "walkSpeed": 1.3,
     "runSpeed": 4.2,
     "turnSpeed": 12,
-    "engageMin": 0,
-    "engageMax": 1.7,
+    "engageMin": 4,
+    "engageMax": 18,
     "usesCover": false,
-    "weapon": null,
-    "melee": {
-      "damage": 16,
-      "range": 1.7,
-      "cooldown": 0.85,
-      "lunge": 7
+    "weapon": {
+      "damage": 7,
+      "rpm": 420,
+      "burstMin": 3,
+      "burstMax": 6,
+      "pauseMin": 0.9,
+      "pauseMax": 1.8,
+      "windup": 0,
+      "spreadDeg": 3.2,
+      "range": 34,
+      "tracer": "#ff9a6a"
     },
+    "melee": null,
     "xp": 80,
     "credits": 12,
     "look": {
@@ -83,7 +89,7 @@
     },
     "height": 1.74,
     "build": "lean",
-    "gun": null,
+    "gun": "rifle",
     "plated": false
   },
   "heavy": {
