@@ -45,5 +45,6 @@ describe('knife-attack: the holstered attack press in the knife scene', () => {
     const m = stub({ lethalOnly: false });
     m.run(false);
     expect(m.start).not.toHaveBeenCalled();
+    expect(m.feedItem).not.toHaveBeenCalled();
   });
 });

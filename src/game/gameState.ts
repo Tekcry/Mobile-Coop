@@ -1607,12 +1607,12 @@ export class GameState implements AppState {
 
   /** (knife-attack) The holstered attack press with the knife switch on: the knife kill on the guard on offer (the same
    *  `start` as the context menu's TAKEDOWN row: the switch forces the knife); no guard in reach: a short cue, nothing
-   *  else (no free slash, Michael ~20:05). */
+   *  else (no free slash, Michael ~20:05). `aFree`: the context menu's list is not open (blocked: nothing at all). */
   private knifeAttack(aFree: boolean): void {
     const td = this.takedown;
     const o = td.offer;
-    if (td.busy || this.strike.active) return;
-    if (o && aFree) td.start(o.lethalOnly);
+    if (td.busy || this.strike.active || !aFree) return;
+    if (o) td.start(o.lethalOnly);
     else this.hud.feedItem('Knife ready: get behind or beside a guard');
   }
 
@@ -2244,7 +2244,9 @@ export class GameState implements AppState {
       // (piano-knife S1, Michael ~20:05 "Palm strike knockout disabled, only knife kills") no strike with the knife switch on;
       // (knife-attack, Michael's walk 2026-10-27 ~09:15 "pressing attack button holstered in piano map doesnt use knife")
       // the attack press is the knife kill on a guard in reach, as the takedown row; none in reach: a cue, no free slash
-      if (atk && this.takedown.knife) this.knifeAttack(aFree);
+      // (checker FIX 1) free unless the menu's list is open: `aFree` is false whenever the menu has a row, and a guard on
+      // offer always adds the TAKEDOWN row
+      if (atk && this.takedown.knife) this.knifeAttack(this.ctxMenu.state !== 'active');
       this.strike.fixedUpdate(dt, atk && !this.takedown.knife, rt === 'hold');
     }
     // (anim-rework S1, M4) a traversal or a busy move holds the weapon state (the gun away for it, back after); holding a
