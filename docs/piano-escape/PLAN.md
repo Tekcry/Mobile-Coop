@@ -401,6 +401,7 @@ from SO5's `flashAt` on the shared sim clock, never from a page's music time; no
   only, no audio context in tests); e2e: e2e-piano (a flash raises the meter under a window and not in a flash shadow;
   `?lightning=1`).
 - Waits for: #604 (SO5). Flag: `pianoEscape`.
+- Status: built, synthesised; a real recording is a walk-card question.
 
 ## Flags (dark until accepted)
 | Flag | Default | Owner | Switch-on date | Switches on when |
