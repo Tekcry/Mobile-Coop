@@ -44,7 +44,7 @@ import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_DEVICE, MODE_HELP, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import { BREAKER_WALK } from './breaker';
 import { isConsoleGroup } from './consoleFault';
-import { closeFromCover, P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, SQUAD, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
+import { closeFromCover, combatSeed, P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, SEED_SENSE, SQUAD, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
 import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
@@ -381,9 +381,13 @@ export class Enemy implements Damageable {
   readonly num = nextId++;
   /** (guard-ai S8, A7) Seeded combat dice (bursts, strafes, cover-first, spread, grenade timing; mulberry32): seeded
    *  by `num` at spawn, reseeded per guard per engagement when he goes to combat (`AiContext.combatSeed`). Declared
-   *  first: the field initialisers below draw from it. The think cadence (`thinkT`) stays on `Math.random`: it is
-   *  perception, not combat. */
+   *  first: the field initialisers below draw from it. The think cadence draws from `senseRng`: perception, not
+   *  combat. */
   readonly rng = new Rng(Math.imul(this.num, 2654435761));
+  /** (guard-ai seed-random) Perception dice (the think cadence only), apart from the combat `rng` so a think never
+   *  shifts a combat sequence; seeded by `num` at spawn, as `rng` is. Hard rule 8: the same spawn order gives the same
+   *  cadence. Declared before `thinkT`, which draws from it. `0x5eed`: `EnemyManager.matchSeed`'s default. */
+  private readonly senseRng = new Rng(combatSeed(0x5eed, SEED_SENSE, this.num));
   readonly id = `e${this.num}`;
   /** (guard-models G6n, M3) His 7-bit look seed (0-127, `guardLook.ts`): set once by `EnemyManager` at spawn from his
    *  spawn slot (never from `num`), so a section restart gives the slot the same look; a woken guard keeps it
@@ -425,7 +429,7 @@ export class Enemy implements Damageable {
   raysThink = 0;
   /** (coop4 AI2) Sight rays cast since the manager last read it (`EnemyManager.raysThisStep` sums and zeroes it). */
   raysStep = 0;
-  private thinkT = Math.random() * 0.25;
+  private thinkT = this.senseRng.next() * 0.25;
   /** Light level on the target at the last think (0 dark .. 1 lit). */
   targetLight = 1;
   private path: Waypoint[] = [];
@@ -2409,7 +2413,7 @@ export class Enemy implements Damageable {
     this.strafeT -= dt;
     this.thinkT -= dt;
     if (this.thinkT <= 0) {
-      this.thinkT = 0.22 + Math.random() * 0.08;
+      this.thinkT = 0.22 + this.senseRng.next() * 0.08;
       this.perceive();
     }
     if (this.los) this.losT += dt;
