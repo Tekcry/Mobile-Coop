@@ -38,6 +38,9 @@ export interface Flags {
   legacy: boolean;
   /** Dev / hand checks (`?fullbright=1`): the map is lit like day (theme light level, hemisphere, sun, gameplay light). Nothing changes without it. */
   fullbright: boolean;
+  /** (piano SO5) Dev / hand checks (`?lightning=1`): any map plays the fixed demo lightning loop (`DEMO_LIGHTNING`)
+   *  through its baked sky visibility. A map's own `lightning` data wins. Nothing changes without it. */
+  lightning: boolean;
   /** Dev only (the level editor's walk test, `?editorDraft=1`): build the Kestrel map from the editor's unsaved campus. Always false in production. */
   devDraft: boolean;
   /** Dev only (`?spawn=x,z,level,yaw`, yaw in radians): where the editor's walk test starts the player. */
@@ -251,6 +254,7 @@ export const flags: Flags = {
   gear: /^[1-5]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
   legacy: params.get('legacy') === '1',
   fullbright: params.get('fullbright') === '1',
+  lightning: params.get('lightning') === '1',
   // (the DEV test first: the production build drops the parameter name and the whole read)
   devDraft: import.meta.env.DEV && params.get('editorDraft') === '1',
   spawn: import.meta.env.DEV ? readSpawn(params.get('spawn')) : null,

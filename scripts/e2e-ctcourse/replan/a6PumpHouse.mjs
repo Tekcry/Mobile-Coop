@@ -201,10 +201,18 @@ export async function walk(t) {
   // ---- 3. station 15: one seen retry (the client in front of the attendant at his desk) ----
   console.log('  A6 (re-plan): station 15, the attendant sees the client: the station retry');
   await moveHost(HOLDER[0], HOLDER[1], DECK_Y + 0.1, Math.PI);
-  await waitAttendant({ near: [POST[0], POST[1], 1.2] }, 150000, 'A6 retry: the attendant is at his desk');
+  // he faces the client only while he stops at the desk (4 s, facing south, of a ~53 s round): catch him on the leg in (round
+  // index 0, W to D, not yet arrived), so the whole stop faces her; a wait that caught him leaving put him 40 s away (triage 4)
+  await until(A, ([px, pz]) => {
+    const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive && q.pos.x > 40 && q.pos.x < 64 && q.pos.z > 54 && q.pos.z < 72);
+    if (!e || e.alerted || (e.walker?.idx ?? -1) !== 0) return false;
+    const d = Math.hypot(e.pos.x - px, e.pos.z - pz);
+    return d > 0.6 && d < 1.6;
+  }, POST, 150000, 'A6 retry: the attendant walks in to his desk');
   const r0 = await GA(() => window.__course.restarts);
   await moveClient(SEEN_AT[0], SEEN_AT[1], 0.1, 0);
-  await until(A, (n0) => window.__course.restarts > n0 && window.__course.lastRetry?.st === 15 && window.__course.lastRetry?.cause === 'seen', r0, 30000, 'A6 retry: the attendant sees the client: station 15 retries (seen)');
+  await padReady(B);
+  await until(A, (n0) => window.__course.restarts > n0 && window.__course.lastRetry?.st === 15 && window.__course.lastRetry?.cause === 'seen', r0, 60000, 'A6 retry: the attendant sees the client: station 15 retries (seen)');
   await until(A, ([ax, az, bx, bz]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - ax, f[2] - az) < 0.8 && Math.hypot(f[3] - bx, f[5] - bz) < 0.8; }, [...MARK15_A, ...MARK15_B], 15000, "A6 retry: both land on station 15's marks at the bridge's north end");
   assert((await feetNear(0, MARK15_A)) && (await feetNear(1, MARK15_B)), 'A6 retry: the host (A) at (50.5, 68.5), the client (B) at (52.5, 68.5)');
   for (const P of [A, B]) assert((await P.evaluate(() => window.__app.current.player.controller.pos.y)) > 4.2, 'A6 retry: both on the bridge deck');

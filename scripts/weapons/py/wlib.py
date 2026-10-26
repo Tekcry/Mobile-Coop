@@ -459,6 +459,15 @@ def is_mag(name):
     return base == 'mag' or base.startswith('mag-plate') or base.startswith('mag-rib')
 
 
+SLIDE_PARTS = ('slide', 'extractor', 'rear-sight', 'front-sight')
+
+
+def is_slide(name):
+    """(piano-knife S4a) Slide parts (their own mesh in the GLB: an empty pistol locks the slide back). Exact base
+    names: 'slide-stop' and 'slide-stop-pin' are frame parts, the barrel hood stays with the barrel."""
+    return name.split('.')[0] in SLIDE_PARTS
+
+
 def join_all(name):
     """Applies every part's modifiers and transforms, smooths by angle, joins into one mesh object."""
     objs = list(PARTS)
@@ -478,6 +487,9 @@ def join_all(name):
         # (anim-cleanup) the magazine tag survives the join (other parts get the default 0)
         at = me.attributes.get('wmag') or me.attributes.new('wmag', 'INT', 'POINT')
         at.data.foreach_set('value', [1 if is_mag(o.name) else 0] * len(me.vertices))
+        # (piano-knife S4a) the slide tag survives the join the same way
+        st = me.attributes.get('wslide') or me.attributes.new('wslide', 'INT', 'POINT')
+        st.data.foreach_set('value', [1 if is_slide(o.name) else 0] * len(me.vertices))
         o.select_set(False)
     for o in objs:
         o.select_set(True)
@@ -674,6 +686,9 @@ def write_glb(path, obj, name, files):
     vmag = np.zeros(len(me.vertices), np.int32)
     if me.attributes.get('wmag') is not None:
         me.attributes['wmag'].data.foreach_get('value', vmag)
+    vslide = np.zeros(len(me.vertices), np.int32)
+    if me.attributes.get('wslide') is not None:
+        me.attributes['wslide'].data.foreach_get('value', vslide)
     co = co.reshape(-1, 3)[vi]
     nor, tan, uv = nor.reshape(-1, 3), tan.reshape(-1, 3), uv.reshape(-1, 2)
     tri = np.empty(len(me.loop_triangles) * 3, np.int32)
@@ -682,11 +697,16 @@ def write_glb(path, obj, name, files):
     rot = lambda a: np.stack([a[:, 0], a[:, 2], -a[:, 1]], 1)  # noqa: E731
     P_all, N_all, T_all = rot(co), rot(nor), rot(tan)
     UV_all = np.stack([uv[:, 0], 1.0 - uv[:, 1]], 1)
-    # (anim-cleanup) the magazine's triangles (every corner tagged) are a mesh of their own: `<name>-mag`
-    tmag = vmag[vi[tri.reshape(-1, 3)]].min(1) > 0
-    groups = [(name, tri.reshape(-1, 3)[~tmag].ravel())]
+    # (anim-cleanup) the magazine's triangles (every corner tagged) are a mesh of their own: `<name>-mag`;
+    # (piano-knife S4a) the slide's likewise: `<name>-slide`. A triangle with any untagged corner stays in the body.
+    t3 = tri.reshape(-1, 3)
+    tmag = vmag[vi[t3]].min(1) > 0
+    tslide = (vslide[vi[t3]].min(1) > 0) & ~tmag
+    groups = [(name, t3[~tmag & ~tslide].ravel())]
     if tmag.any():
-        groups.append((f'{name}-mag', tri.reshape(-1, 3)[tmag].ravel()))
+        groups.append((f'{name}-mag', t3[tmag].ravel()))
+    if tslide.any():
+        groups.append((f'{name}-slide', t3[tslide].ravel()))
     blobs, views, accessors = [], [], []
     off = 0
 
@@ -708,7 +728,7 @@ def write_glb(path, obj, name, files):
         accessors.append(a)
         return len(accessors) - 1
 
-    meshes_js, nodes_js, stats = [], [], {'vertices': 0, 'triangles': 0}
+    meshes_js, nodes_js, stats = [], [], {'vertices': 0, 'triangles': 0, 'meshTriangles': {}}
     for gname, gtri in groups:
         used = np.unique(gtri)
         P, N, UV = P_all[used], N_all[used], UV_all[used]
@@ -730,6 +750,7 @@ def write_glb(path, obj, name, files):
         nodes_js.append({'name': gname, 'mesh': len(meshes_js) - 1})
         stats['vertices'] += int(Pg.shape[0])
         stats['triangles'] += int(idx.shape[0] // 3)
+        stats['meshTriangles'][gname] = int(idx.shape[0] // 3)
     images = []
     for kind in ('albedo', 'orm', 'normal'):
         with open(files[kind], 'rb') as f:
