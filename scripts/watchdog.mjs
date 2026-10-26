@@ -424,7 +424,23 @@ export function autoTrainAlerts(a, { limits = LIMITS } = {}) {
 /** Paths that never make a request stale (the queue-audit rule): docs, tests, e2e scripts, fragments, CHANGELOG, *.md. */
 export const nonTestFiles = (files) => files.filter((f) => f && !/^(docs\/|tests\/|scripts\/e2e|changes\/|CHANGELOG)|\.md$/.test(f));
 
-/** q = { requests, claims, trainHeads, activity, desktopBeat, stale: { [id]: { ref, files } }, now } (docs/systems/watchdog.md). */
+/**
+ * `git log --diff-filter=A --no-renames --format=@%ct --name-only -- requests/` text (newest first) -> { [id]: ms of the
+ * newest commit that added requests/<id>.json }. A re-filed id keeps its old timestamp, so age reads this, not the id (F20).
+ */
+export function requestAddTimes(logText) {
+  const out = {};
+  let at = 0;
+  for (const raw of String(logText ?? '').split('\n')) {
+    const line = raw.trim();
+    if (line.startsWith('@')) { at = Number(line.slice(1)) * 1000 || 0; continue; }
+    const m = /^requests\/(.+)\.json$/.exec(line);
+    if (m && at && !(m[1] in out)) out[m[1]] = at;
+  }
+  return out;
+}
+
+/** q = { requests, claims, trainHeads, activity, desktopBeat, stale: { [id]: { ref, files } }, addedAt?: { [id]: ms }, now } (docs/systems/watchdog.md). */
 export function laptopAlerts(q, { limits = LIMITS } = {}) {
   const out = [];
   const reqIds = new Set(q.requests.map((r) => r.id));
@@ -447,7 +463,7 @@ export function laptopAlerts(q, { limits = LIMITS } = {}) {
     const st = q.stale?.[r.id];
     if (st && !r.pin) out.push(alert('lq-request-stale', r.id, 'warn', `${who} [${r.set ?? ''}]: ${st.ref} moved past ${short(r.sha)} in ${st.files} non-test file(s); the verdict cannot count`, { advice: `alert only (${who}: withdraw it)` }));
     if (c) continue; // claimed: the claim checks cover it
-    const age = mins(q.now - lq.idTime(r.id));
+    const age = mins(q.now - (q.addedAt?.[r.id] ?? lq.idTime(r.id)));
     if (age >= limits.requestOldMin) out.push(alert('lq-request-old', r.id, 'warn', `${who} [${r.set ?? ''}]: queued ${age} min, unclaimed`));
   }
   return out;
@@ -617,7 +633,9 @@ function gather(o) {
       }
       const logText = git(['log', '-n', '500', '--format=%ct %s', 'origin/laptop-queue']);
       const activity = { laptop: lq.workerActivity(logText, 'laptop').last || 0, desktop: lq.workerActivity(logText, 'desktop').last || 0 };
-      return { requests, claims, activity };
+      let addedAt = {};
+      try { addedAt = requestAddTimes(git(['log', '--since=7.days', '--diff-filter=A', '--no-renames', '--format=@%ct', '--name-only', 'origin/laptop-queue', '--', 'requests/'])); } catch { /* falls back to the id time */ }
+      return { requests, claims, activity, addedAt };
     });
   }
   if (need('prs', 'labels', 'cloud')) {
@@ -713,7 +731,7 @@ function checkAutoTrain(ctx) {
 
 function checkLaptop(ctx) {
   if (!ctx.lq) throw new Error(`laptop-queue unavailable: ${ctx.errors['laptop-queue']}`);
-  const { requests, claims, activity } = ctx.lq;
+  const { requests, claims, activity, addedAt } = ctx.lq;
   const trainHeads = new Set((ctx.prs ?? []).filter((p) => isTrain(p.branch)).map((p) => p.head));
   let desktopBeat = 0;
   for (const f of ['log.txt', 'runs']) {
@@ -734,7 +752,7 @@ function checkLaptop(ctx) {
     const files = nonTestFiles(d.out.split('\n').map((s) => s.trim())).length;
     if (files > 0) stale[r.id] = { ref, files };
   }
-  return laptopAlerts({ requests, claims, trainHeads, activity, desktopBeat, stale, now: ctx.now });
+  return laptopAlerts({ requests, claims, trainHeads, activity, desktopBeat, stale, addedAt, now: ctx.now });
 }
 
 function checkCloud(ctx) {
