@@ -195,6 +195,7 @@ describe('S5 v2 P3 guards (26: #1-#24, #28, #34)', () => {
       expect((g as { minPlayers?: number }).minPlayers, `#${num(i)} minPlayers`).toBeUndefined();
     }
     expect((S5 as { gear?: unknown }).gear).toBeUndefined();
+    expect((S5 as { shieldTeams?: boolean }).shieldTeams).toBe(true);
     expect(G.map((g, i) => (g.gear ? `#${num(i)} ${g.gear}` : '')).filter(Boolean)).toEqual(['#1 armour', '#2 armour', '#3 armour', '#4 armour', '#9 armour', '#10 armour']);
     // the K4 set: the keyholders posted on the token (high security), #28 posted on it too
     expect(G[8]!.post).toEqual({ leash: 3, highSecurity: true, guards: 'token' });
