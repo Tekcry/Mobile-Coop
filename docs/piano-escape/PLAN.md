@@ -1,7 +1,7 @@
 # piano-escape: plan
 Owner: Night Shift | Campaign Build. Status: current.
 
-Lead: Night Shift | Campaign Build. Planner: Opus 5.5, master 1b58989ed. Brief: `docs/piano-escape/BRIEF.md` (A1-A10,
+Lead: Night Shift | Campaign Build. Planner: Opus 5.5, master 1b58989ed. Brief: `docs/piano-escape/BRIEF.md` (A1-A11,
 Michael ~19:20 / ~19:28 / ~19:40 / ~19:55). Prototype mode: small, no tuning, one test set.
 
 ## 1. What runs, from what exists (found in code)

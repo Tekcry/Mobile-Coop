@@ -208,7 +208,8 @@ corridor pair), never a guard without a torch.
 - No security devices (cameras, lasers, keypads) and no security sheet.
 - One player may play it (the standard says exactly two).
 - The corridor pair is the only must-do teamwork moment; no forced climbing or boosting together.
-- No extra design sheets beyond this plan.
+- No designed split-up points, hidden rewards, lit choke points or extra test checklist; this plan is the map's only spec
+  (no separate map sheet).
 
 ## Intent check (5 lines)
 1. Michael said: "a black screen, slowly fading in to the characters upper chest ... holding an empty pistol ...
