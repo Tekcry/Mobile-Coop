@@ -2,7 +2,7 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import type { CamSpace } from '../camSpaces';
-import type { SectorBolt, SectorDef } from '../../game/sectors';
+import type { RoutePt, SectorBolt, SectorDef, SectorGuard } from '../../game/sectors';
 
 /**
  * Thornbeck Mill (piano-escape, `scene: 'piano'`): a storm grain mill in Hollowmere, the setting of the piano escape
@@ -69,26 +69,137 @@ export const THORNBECK_STAIR_GATE = { x: 8.8, z: 10.4, width: 1.2 } as const;
 export const THORNBECK_LADDER = { x: 31.2, z: 15.6 } as const;
 const HATCH = { x0: 30.8, x1: 31.6, z0: 15.2, z1: 16.0 } as const;
 
-/** The scene's one section (start, exit zone and lines; the guards come in the guard step). */
+const PI = Math.PI;
+const EAST = PI / 2;
+const WEST = -PI / 2;
+const SOUTH = PI;
+
+/** The stair gate is a team door bolted from the gallery side (north): it opens only from the stair head (PLAN section 3). */
+export const THORNBECK_BOLTS: readonly SectorBolt[] = [{ at: [THORNBECK_STAIR_GATE.x, THORNBECK_STAIR_GATE.z], side: [0, 1], w: THORNBECK_STAIR_GATE.width }];
+
+/** The takedown spots K1-K10 (PLAN section 3: the stretch's kill; K3 and K7 are stretches with no kill). */
+export const THORNBECK_KILL_SPOTS = {
+  K1: [6.0, 8.4],
+  K2: [22.8, 7.0],
+  K4: [28.2, 9.9],
+  K5: [25.4, 12.2],
+  K6: [22.8, 16.2],
+  K8: [12.8, 16.1],
+  K9: [8.8, 16.9],
+  K10: [1.6, 16.5],
+} as const satisfies Record<string, readonly [number, number]>;
+const K = THORNBECK_KILL_SPOTS;
+
+/** Why the crew is there (design text, a later bark): a security contractor's night crew holds the store tonight. */
+const CREW = 'night crew of the security contractor holding the mill in the storm';
+
+/**
+ * The 12 guards G1-G12 (PLAN section 3 table), in the guard list's order: slots 0-3 are the opening four, G1 and G2 (down
+ * the stair) and G3 and G4 (along the aisle). All armed (`grunt`), every one with a fixed route of patrol points (a post
+ * is a two-point route on the same spot, panning by `faces`); a route's first point is where he starts or is next to it.
+ * Out-and-back sweeps list the way back (the walker loops its points); `waits` 0 passes straight through. Pairs: G1 + G2,
+ * G8 + G9 and G11 + G12 walk side by side on parallel lanes 0.7 - 0.8 m apart (the same `squad`; GA6 adds the pace and
+ * the torch aim); G4 + G5 are on one 40 s timed loop (`loop`, `pair`) so they stand 1.2 m apart at the office door every
+ * lap. `takedownSpot` is the plan's K spot for the stretch. Every start and route point is 0.5 m clear of a collider.
+ */
+export const THORNBECK_GUARDS: SectorGuard[] = [
+  // G1 + G2 (slots 0, 1): came down the stair; the only ones who search round W1 (Q2); after it, side by side north of W1
+  { kind: 'grunt', x: 7.5, z: 8.7, yaw: WEST, route: [[8.6, 8.7], [3.5, 8.7]], waits: [4, 4], takedownSpot: [...K.K1], squad: 1, zone: 'startBay', role: 'patrol', reason: CREW },
+  { kind: 'grunt', x: 8.3, z: 8.0, yaw: WEST, route: [[8.6, 8.0], [3.5, 8.0]], waits: [4, 4], takedownSpot: [...K.K1], squad: 1, zone: 'startBay', role: 'patrol', reason: CREW },
+  // G3 (slot 2): came along the aisle; the aisle east to the mill bay, a 6 s pan in the roller mill's shadow, back
+  { kind: 'grunt', x: 9.0, z: 2.0, yaw: EAST, route: [[9.5, 2.0], [20.5, 2.0], [20.5, 7.0], [22.8, 7.0], [20.5, 7.0], [20.5, 2.0]], waits: [4, 0, 0, 6, 0, 0], takedownSpot: [...K.K2], squad: 2, zone: 'aisle', role: 'patrol', reason: CREW },
+  // G4 (slot 3) + G5: the sack bay's two sweeps, one 40 s lap each; they meet at the office door for a 4 s check (K5)
+  { kind: 'grunt', x: 10.0, z: 3.4, yaw: 0.8, route: [[17, 10.2], [25.2, 10.2], [25.2, 12.2], [25.2, 10.2]], wait: 4, faces: [EAST, 0, EAST, WEST], loop: { period: 40, leave: [4, 16, 23, 26], t0: 0 }, pair: 4, takedownSpot: [...K.K5], squad: 3, zone: 'sackBay', role: 'patrol', reason: CREW },
+  { kind: 'grunt', x: 20.8, z: 9.0, yaw: 0, route: [[20.8, 8.6], [20.8, 12.2], [24.0, 12.2], [20.8, 12.2]], wait: 4, faces: [0, EAST, EAST, SOUTH], loop: { period: 40, leave: [8, 14, 23, 28], t0: 0 }, pair: 3, takedownSpot: [...K.K5], squad: 3, zone: 'sackBay', role: 'patrol', reason: CREW },
+  // G6: the office post at the desk; the torch pans the east window and the west door, 8 s each way
+  { kind: 'grunt', x: 29.0, z: 9.9, yaw: EAST, route: [[29.0, 9.9], [29.0, 9.9]], waits: [8, 8], faces: [EAST, -0.92], takedownSpot: [...K.K4], squad: 4, zone: 'office', role: 'post', reason: CREW },
+  // G7: the east gallery, from the hatch end west to sack stack GS2, a 6 s pan there
+  { kind: 'grunt', x: 28.8, z: 16.2, y: DECK_Y, yaw: WEST, route: [[28.8, 16.2], [22.6, 16.2]], waits: [3, 6], takedownSpot: [...K.K6], squad: 5, zone: 'eastGallery', role: 'patrol', reason: CREW },
+  // G8 + G9: the pair along the crane bay, side by side, torches panning down into the crane well
+  { kind: 'grunt', x: 12.5, z: 15.7, y: DECK_Y, yaw: EAST, route: [[12.5, 15.7], [21.4, 15.7]], waits: [4, 4], takedownSpot: [...K.K8], squad: 6, zone: 'craneBay', role: 'patrol', reason: CREW },
+  { kind: 'grunt', x: 12.5, z: 16.5, y: DECK_Y, yaw: EAST, route: [[12.5, 16.5], [21.4, 16.5]], waits: [4, 4], takedownSpot: [...K.K8], squad: 6, zone: 'craneBay', role: 'patrol', reason: CREW },
+  // G10: the post at the stair head, facing south, the torch panning down into the hall
+  { kind: 'grunt', x: 8.8, z: 16.2, y: DECK_Y, yaw: SOUTH, route: [[8.8, 16.2], [8.8, 16.2]], waits: [6, 6], faces: [SOUTH - 0.5, SOUTH + 0.5], takedownSpot: [...K.K9], squad: 7, zone: 'stairHead', role: 'post', reason: CREW },
+  // G11 + G12: the exit pair on the hoist landing, side by side, 5 s at each end
+  { kind: 'grunt', x: 1.5, z: 16.1, y: DECK_Y, yaw: EAST, route: [[1.5, 16.1], [5.5, 16.1]], waits: [5, 5], takedownSpot: [...K.K10], squad: 8, zone: 'landing', role: 'patrol', reason: CREW },
+  { kind: 'grunt', x: 1.5, z: 16.9, y: DECK_Y, yaw: EAST, route: [[1.5, 16.9], [5.5, 16.9]], waits: [5, 5], takedownSpot: [...K.K10], squad: 8, zone: 'landing', role: 'patrol', reason: CREW },
+];
+
+/** G1-G12 by list index (the tags the plan, the report and the tests use). */
+export const THORNBECK_GUARD_TAGS: readonly string[] = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12'];
+
+/** A tagged extra: the plan's G13-G16 (up to 16 guards if SO3's torch check allows), with the stretch they change. */
+export interface ThornbeckExtraGuard {
+  tag: 'G13' | 'G14' | 'G15' | 'G16';
+  stretch: number;
+  guard: SectorGuard;
+}
+
+/**
+ * The tagged extras G13-G16 (PLAN section 3 "Up to 16"), not in the section's list: the lead adds them when the torch check
+ * allows 16 (`THORNBECK_GUARDS_16`). G13 a second office post (stretch 4 becomes two solo kills); G14 a second stalked
+ * guard behind G7 (stretch 6); G15 + G16 a pair at the stair head (stretch 9 becomes a co-op kill). Positions are mine:
+ * the plan gives none.
+ */
+export const THORNBECK_EXTRA_GUARDS: readonly ThornbeckExtraGuard[] = [
+  { tag: 'G13', stretch: 4, guard: { kind: 'grunt', x: 30.6, z: 7.2, yaw: 0, route: [[30.6, 7.2], [30.6, 7.2]], waits: [6, 6], faces: [-0.6, 0.4], takedownSpot: [30.6, 6.6], squad: 4, zone: 'office', role: 'post', reason: CREW } },
+  { tag: 'G14', stretch: 6, guard: { kind: 'grunt', x: 30.0, z: 16.2, y: DECK_Y, yaw: WEST, route: [[30.0, 16.2], [24.4, 16.2]], waits: [3, 5], takedownSpot: [24.6, 16.2], squad: 5, zone: 'eastGallery', role: 'patrol', reason: CREW } },
+  { tag: 'G15', stretch: 9, guard: { kind: 'grunt', x: 10.6, z: 16.3, y: DECK_Y, yaw: WEST, route: [[10.6, 16.3], [10.6, 16.3]], waits: [6, 6], faces: [WEST - 0.4, WEST + 0.4], takedownSpot: [11.4, 16.65], squad: 9, zone: 'stairHead', role: 'post', reason: CREW } },
+  { tag: 'G16', stretch: 9, guard: { kind: 'grunt', x: 10.6, z: 17.0, y: DECK_Y, yaw: WEST, route: [[10.6, 17.0], [10.6, 17.0]], waits: [6, 6], faces: [WEST + 0.4, WEST - 0.4], takedownSpot: [11.4, 16.65], squad: 9, zone: 'stairHead', role: 'post', reason: CREW } },
+];
+
+/** All 16 (G1-G12, then G13-G16), for when the torch check allows 16. */
+export const THORNBECK_GUARDS_16: SectorGuard[] = [...THORNBECK_GUARDS, ...THORNBECK_EXTRA_GUARDS.map((e) => e.guard)];
+
+/** The path through the ten stretches, in order (the plan's green line; every stop is walkable on the nav grid). */
+export interface PathStop {
+  name: string;
+  stretch: number;
+  pt: RoutePt;
+}
+export const THORNBECK_PATH: readonly PathStop[] = [
+  { name: 'start', stretch: 1, pt: [4.0, 4.6] },
+  { name: 'K1', stretch: 1, pt: K.K1 },
+  { name: 'aisle west', stretch: 2, pt: [9.0, 2.5] },
+  { name: 'aisle east', stretch: 2, pt: [19.5, 2.5] },
+  { name: 'K2', stretch: 2, pt: K.K2 },
+  { name: 'sack bay', stretch: 3, pt: [22.5, 10.5] },
+  { name: 'office door', stretch: 3, pt: [25.6, 12.2] },
+  { name: 'K4', stretch: 4, pt: K.K4 },
+  { name: 'K5, inside the door', stretch: 5, pt: [27.0, 12.2] },
+  { name: 'office north door', stretch: 5, pt: [29.6, 13.4] },
+  { name: 'lobby', stretch: 6, pt: [30.0, 14.4] },
+  { name: 'ladder foot', stretch: 6, pt: [31.2, 14.8] },
+  { name: 'deck, top of the ladder', stretch: 6, pt: [31.2, 16.4, DECK_Y] },
+  { name: 'K6', stretch: 6, pt: [K.K6[0], K.K6[1], DECK_Y] },
+  { name: 'behind GS2', stretch: 7, pt: [22.8, 17.3, DECK_Y] },
+  { name: 'K8', stretch: 8, pt: [K.K8[0], K.K8[1], DECK_Y] },
+  { name: 'K9', stretch: 9, pt: [K.K9[0], K.K9[1], DECK_Y] },
+  { name: 'K10', stretch: 10, pt: [K.K10[0], K.K10[1], DECK_Y] },
+  { name: 'hoist door, inside', stretch: 10, pt: [1.0, 16.6, DECK_Y] },
+  { name: 'hoist platform', stretch: 10, pt: [-1.3, 16.6, DECK_Y] },
+];
+
+/** The scene's one section: the start, the `clear` objective, the exit zone on the hoist platform, 12 guards, the stair gate bolt. */
 export const THORNBECK_SECTORS: readonly SectorDef[] = [
   {
     id: 'thornbeckMill',
     name: 'Thornbeck Mill',
     // behind W1, backs to the bins, facing west (PLAN section 3 "Start / checkpoint": one checkpoint, the start)
-    start: { x: 4.0, y: 0, z: 4.6, yaw: -Math.PI / 2 },
-    start2: { x: 4.0, y: 0, z: 6.0, yaw: -Math.PI / 2 },
+    start: { x: 4.0, y: 0, z: 4.6, yaw: WEST },
+    start2: { x: 4.0, y: 0, z: 6.0, yaw: WEST },
     objective: { kind: 'clear', label: 'Take down every guard. Then get out.', x: 0, y: 0, z: 0, yaw: 0 },
     // the hoist platform outside the west gable (svg: x -2.4..0, z 15.5..17.7), on the gallery's level
     extract: { label: 'Get out', box: [-2.4, 15.5, 0, 17.7], floorY: DECK_Y },
-    guards: [],
+    guards: THORNBECK_GUARDS,
     reinforce: [],
+    // rain: see THORNBECK_RAIN (TODO(#603): noisy: [mapWideNoise('rain', 6)])
+    bolts: THORNBECK_BOLTS,
     perStage: 0,
-    routes: [{ name: 'placeholder', pts: [[0, 0], [10, 0]], obj: 0 }],
+    // the one directed path; the ladder leg (ladder foot -> deck) is a climb
+    routes: [{ name: 'The directed path', pts: THORNBECK_PATH.map((s) => s.pt), obj: 17, climbs: [11] }],
   },
 ];
-
-/** The stair gate is a team door bolted from the gallery side (north): it opens only from the stair head (PLAN section 3). */
-export const THORNBECK_BOLTS: readonly SectorBolt[] = [{ at: [THORNBECK_STAIR_GATE.x, THORNBECK_STAIR_GATE.z], side: [0, 1], w: THORNBECK_STAIR_GATE.width }];
 
 /** Camera spaces (PLAN section 3): tight in the start bay, aisle, office, lobby and on the landing; open over the crane bay. */
 export const THORNBECK_CAM_SPACES: readonly CamSpace[] = [
