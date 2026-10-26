@@ -1,0 +1,14 @@
+{
+  "id": "20261026T222718-night-shift-guard-ai-d7fc1f6d-2144",
+  "sha": "d7fc1f6d546fdbfa5f397ab985ef34b2e080d8ff",
+  "branch": "feature/guard-ai-j16-2",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai"
+  ],
+  "set": "j16-g5b",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T222354-night-shift-guard-ai-d7fc1f6d-c515, rerun on the laptop"
+}
