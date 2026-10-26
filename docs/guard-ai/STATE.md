@@ -1041,5 +1041,7 @@ PROTOCOL_VERSION line). J16 Guard AI half (row 13): BRIEF + PLAN 14b5e11e8 on fe
 G1 shapes + G2 notice rule (start now, parallel) -> G3 src/ai wiring = PR 1 (~1.0k); G4a / G4b (waits on Sector Ops
 S3b-2: GameState.shadowCues) / G5 e2e / G6 docs = PR 2. Cue: calm guard, moving shadow in focused cone -> meter 0.35,
 2.4 s look, never escalates alone (A1-A11 in BRIEF). Next: fresh Opus plan checker (prompt in the planner's report:
-docs/guard-ai-j16/PLAN.md + templates/plan-check.md, claims-check in background) when the pace allows an agent.
+docs/guard-ai-j16/PLAN.md + templates/plan-check.md, claims-check in background) on the orchestrator's next pace go.
+Orchestrator 04:15: G3 after the piano escape lands; S3b-2 sequenced by it after Sector Ops' lamp-id fix; G4b not
+held (prototype mode: on in /preview/, the walk cap limits live switch-on only).
 ```
