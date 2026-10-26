@@ -1,0 +1,17 @@
+{
+  "id": "20261026T204139-night-shift-sector-o-a4a2054b-10b6",
+  "sha": "a4a2054b0069e9fa994dd88c3e48cd8e503aa255",
+  "branch": "feature/lamp-id-shot",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "npm run build",
+    "node scripts/sector-lights-shots.mjs C:/NightShift/scratch/sector-ops-checks/lamp-id-shot after"
+  ],
+  "env": {
+    "PROBE": "1",
+    "ONLY": "s5-stair-foot,s5-stair-up"
+  },
+  "set": "lamp-id-shot"
+}
