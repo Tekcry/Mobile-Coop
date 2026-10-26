@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-26T03:05:10Z
 # J14 Marlow re-plan, slice G-A6 fix round 1 (Opus): station 16 line names the ladder; A26-style trap retry for A6
 
 Lead: Night Shift | Marlow Build. Checker (fresh Opus) verdict on the base head 00d90d254 (G-A6 merged): FIX, two items.
