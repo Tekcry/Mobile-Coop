@@ -36,6 +36,30 @@
 - Done (this commit, not yet full-suite run): capture <-> hand-made switch inside traverse inertialized (animGraph mxLast); switch-frame tests (graph and rig).
 - Done (this commit): allocation test warmed and alternating over 5 rounds, medians; 3 runs in a row pass (hang moving 1664 vs 2368, still 1305 vs 1737, climb-up 1305 vs 1401-1417).
 - Done in the fix round (1f1ad42b): I2-REPORT bytes and test list, PLAN Claims (studioStage.ts, climbHands.test.ts), full vitest list (41 pass). Checker Opus PASS on 1f1ad42b.
+- Done (CI alloc fix): real, not noise. `mixamoTrav` alone allocated 32-160 B a frame (kept channels' `evalCurve` not inlined: boxed time and value); `evalCurveIO` (curves.ts) and the capture doubles in a Float64Array make it 0; the test reads `mixamoTrav` directly (the whole frame swung 1.4 KB between rounds). 3 runs pass.
+
+## Toggle (feature/mixamo-on, stacked on #477)
+Michael 2026-10-26 ~00:25: "dont set mixamo moves as default in game, allow toggle between hand made, cmu, and mixamo";
+00:20: "an animation set toggle so i can sort through only those animations". The default-on slice was dropped before
+any commit (only the art-credits licence sentence, A11 cleared, stays: 9433a960c).
+- A12: one global choice, Settings > Gameplay > Animation source (Hand-made / CMU / Mixamo), the same switch in the Anim
+  Studio, saved with the settings (IndexedDB settings path; a new field `gameplay.animSource`, the sanitizer fills the
+  default for an old save: no SAVE_VERSION bump). Default CMU = today's game (mocap locomotion on, Mixamo off). Undo:
+  per-move picks.
+- A13: a co-op partner is drawn with the viewer's source (a local look choice, no wire field); undo = send the owner's
+  source on the wire (G400 "players must look exact").
+- A14: the Studio's set filter is a "Set" drop list over the Loop list (pad: its data-pad key, as the other lists), not an
+  LB / RB tab row.
+- Code: `src/anim/animSource.ts` (resolve once per change), `mixamo.ts` `addMixamoResolver`, `flags.anim` (`?anim=`),
+  app.ts (settings -> applyAnimSource; tuner box and `?mocap` / `?mixamo` still override), settingsScreen row,
+  studio.ts `studioEntrySet` / `studioEntriesOf`, studioPanel Set + Animation source, nowPlaying `nowPlayingSourceText`.
+
+### At the save (00:40)
+- Done: the toggle, Settings row, Studio switch and Set filter, Now playing source, ?anim=, addMixamoResolver, tests
+  (tests/animSource.test.ts 12/12), changelog, TESTING line; origin/feature/mixamo-i2 merged (9be7701fd); tsc and eslint clean.
+- Remote check: a partner is `operatorRig` (tuneRows -> graph.wrenReady) animated by the same AnimGraph, which reads
+  the module-wide LOCO and WREN_TRAV: it follows the viewer's source with no src/net edit (A13).
+- Left: the vitest list result (running at the save); the Set filter as LB / RB tabs (A14) if Michael wants it.
 
 ## I3 (2026-10-25, feature/mixamo-i3): built
 - Done: WREN_STANCE / STANCE_SHOT (mixamo.ts), stanceShot in the keyed block (animGraph.ts), tests/mixamoStance.test.ts
@@ -43,3 +67,29 @@
 - MIXAMO_ON stand_to_crouch / crouch_to_stand both off (A8): over the 0.22 s stance the takes jump the joints 20.2 / 11.3 cm
   a frame (e2e-anim limit 7.5, hand-made 6.5 / 6.4); Studio only.
 - Left: laptop run (affected-e2e src/anim, e2e-anim, e2e-move, e2e-stealth, anim-audit).
+
+## I4 (feature/mixamo-i4)
+- Done: recipe options `turn` (trunk yaw onto travel, mixamoTake.mjs `turnTake`) and `armIn` (mixamoEmit.mjs `armIn`),
+  stance `trim`s, no head channel on the stance clips, `STANCE_SHOT.edge` 0.4; the four clips re-emitted; rows
+  standing_idle, crouched_walking, stand_to_crouch, crouch_to_stand on (Michael 2026-10-26: Mixamo wins unless visibly
+  broken); tests assert the shipped rows with hard caps (bone step 25 deg, planted slide). I4-REPORT.md.
+- At the save: left = full CLIPS.md re-emit (partial runs keep it), the stance leg-channel check the I3 checker asked
+  (knee readings equal the hand-made blend, not traced in mixKeyed), the animGraph `./mixamo` import fold, laptop e2e.
+
+## Source wire (feature/mixamo-source-wire, stacked on the toggle 4286b7215)
+G400 (Michael Q39: "yes players must look exact in everyones games"): replaces A13 (per-viewer). Each player's own
+Animation source rides `PlayerState.an` (0 hand / 2 mixamo; no field = CMU, also an older sender; PROTOCOL_VERSION not
+bumped); every screen draws that player with the OWNER's source. Undo: drop the field (back to per-viewer).
+- `AnimGraph.animSource` (get / set; `followPageSource()`): a graph no one hands a source reads the page's live tables
+  (`PAGE_TABLES` = LOCO / WREN_TRAV / WREN_KEYED / WREN_STANCE, overrides and the Studio pick included: default game
+  byte-identical); `RemoteAvatar` hands the owner's, which reads `SOURCE_TABLES[s]` (that source alone). Tables rewritten
+  in place once per change (`addMixamoResolver`); the graph re-picks on a compare. characterRig reads its graph's table.
+- Senders: coopHost `selfState`, coopClient pstate (`animSourceWire(wireAnimSource(ANIM_SOURCE))`); the host relays by spread.
+
+### Built (builder, 2026-10-26)
+- Done: per-graph tables, rig, wire (host, client, remote); laptop e2e on faa1041ab GREEN 7/7 (set mixamo-wire);
+  tsc + eslint clean; override gap closed: the senders send `wireAnimSource(ANIM_SOURCE)` (the source this page draws,
+  `?anim=` / `?mocap=` / `?mixamo=` / the tuner box in; default no field); the Studio pick stays local (A entry).
+  tests/animSourceWire.test.ts 9/9 (+ animSource 21/21), net / coopFix / coopCarry 114/114. The no-allocation check
+  reads both on one graph (two graphs read V8's tier: 1744 B vs 171 B, 1 run in 3). Report: WIRE-REPORT.md.
+- Next: two Opus checkers on the head.

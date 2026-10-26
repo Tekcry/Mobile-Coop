@@ -13,7 +13,8 @@
  */
 import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
-import { MIXAMO_ON, setMixamo } from '../src/anim/mixamo';
+import { MIXAMO_ON } from '../src/anim/mixamo';
+import { ANIM_SOURCE, setAnimSource, type AnimSource } from '../src/anim/animSource';
 import { KIT_PULL, KIT_SHOT, KIT_TABLES, kitClipTime, kitGapTrend, kitShotTime, kitShutterPhase, newKitShotIn, resolveKit, setKitSourceOf, type KitShotIn } from '../src/anim/kitMixamo';
 import { KIT_POSE_IDS, KIT_POSE_LOCAL, TEAM_LINK, TeamPoser, newTeamPoseIn, teamLinkFrame, teamPoseOfState, teamPoseOfWire, type KitPoseId, type TeamPoseIn, type TeamRigIn, type TeamRigPose } from '../src/anim/clips/team';
 import { AnimGraph, defaultInput, type AnimInput, type TraverseKind } from '../src/anim/animGraph';
@@ -41,7 +42,7 @@ function clearLink(): void {
 
 afterEach(() => {
   Object.assign(MIXAMO_ON, ON0);
-  setMixamo(false);
+  setAnimSource('cmu');
   resolveKit();
   setKitSourceOf(null);
   clearLink();
@@ -49,7 +50,7 @@ afterEach(() => {
   KIT_POSE_LOCAL.gap = NaN;
 });
 
-/** The four takes' rows (the optional phases stay as shipped), the tables rebuilt (the stub resolver: tests call it). */
+/** The four takes' rows (the optional phases stay as shipped), the tables rebuilt (a MIXAMO_ON edit fires no resolver: tests call it). */
 function rows(on: boolean): void {
   for (const s of TAKES) MIXAMO_ON[s] = on;
   resolveKit();
@@ -221,7 +222,7 @@ interface Out {
 }
 
 /** `each`: called before frame k's begin (a source flip mid-move). */
-interface RunOpts { wren?: boolean; each?: (k: number) => void }
+interface RunOpts { wren?: boolean; each?: (k: number) => void; /** the rig's owner's source (a remote's, G400) */ src?: AnimSource }
 
 async function run(frames: readonly F[], o: RunOpts = {}): Promise<Out> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
@@ -241,6 +242,7 @@ async function run(frames: readonly F[], o: RunOpts = {}): Promise<Out> {
     const rig: CharacterRig = op.rig;
     rig.tuneRows = o.wren ?? true;
     rig.carrier = true;
+    if (o.src !== undefined) rig.graph.animSource = o.src;
     const poser = new TeamPoser();
     const tin = newTeamPoseIn();
     const pose: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, armed: false, traverse: 'none', traverseT: 0 };
@@ -340,9 +342,20 @@ function wrenGraph(trav: TraverseKind = 'brace'): { g: AnimGraph; i: AnimInput }
 
 // ---- a fake rig for the poser alone (as tests/teamPose.test.ts) ----
 
-interface FakeRig extends TeamRigIn { graph: { kit: KitShotIn } }
+/** A graph's kit input and its `animSource` as `AnimGraph`'s: the page's source until one is handed (a remote's owner). */
+class FakeGraph {
+  readonly kit = newKitShotIn();
+  own: AnimSource | null = null;
+  get animSource(): AnimSource {
+    return this.own ?? ANIM_SOURCE.source;
+  }
+  set animSource(s: AnimSource) {
+    this.own = s;
+  }
+}
+interface FakeRig extends TeamRigIn { graph: FakeGraph }
 function fakeRig(): FakeRig {
-  return { reachL: { x: 0, y: 0, z: 0, w: 0 }, reachR: { x: 0, y: 0, z: 0, w: 0 }, plantR: { x: 0, y: 0, z: 0, w: 0 }, root: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0 } }, height: 1.75, graph: { kit: newKitShotIn() } };
+  return { reachL: { x: 0, y: 0, z: 0, w: 0 }, reachR: { x: 0, y: 0, z: 0, w: 0 }, plantR: { x: 0, y: 0, z: 0, w: 0 }, root: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0 } }, height: 1.75, graph: new FakeGraph() };
 }
 
 /** The poser over `frames` on a fake rig: per frame the shot it wrote (copied between begin and end). */
@@ -376,7 +389,7 @@ function poserRun(frames: readonly F[], rig: FakeRig = fakeRig()): { clip: (Keye
 // (g) first: measured before the real-rig runs make the poser's code polymorphic (a tier that boxes doubles)
 describe('mixamo-kit (g): no allocation', () => {
   it('(g) the poser (local and remote pose input) and the graph leave no more a frame with the shot on than off', async () => {
-    setMixamo(true);
+    setAnimSource('mixamo');
     // (the placeholder poses already box doubles in their curve calls, 30-110 B a frame by phase and tier: each kit
     // phase is measured on its own with the same inputs, the shot on against the rows off, as tests/mixamoStance.test.ts)
     const at = new Int32Array(1);
@@ -456,12 +469,12 @@ describe('mixamo-kit (a): off is bit-identical', () => {
       const base = await run(fs);
       rows(true);
       expect(differ(base.hash, (await run(fs)).hash), `${name}: Hand, rows on`).toBe(0);
-      setMixamo(true);
+      setAnimSource('mixamo');
       await run(fs);
-      setMixamo(false);
+      setAnimSource('cmu');
       expect(differ(base.hash, (await run(fs)).hash), `${name}: Hand after Mixamo`).toBe(0);
       // the Mixamo source, every kit row false (no hang skip, no shot), after the rows were on: the same as never on
-      setMixamo(true);
+      setAnimSource('mixamo');
       rows(false);
       const baseM = await run(fs);
       rows(true);
@@ -472,12 +485,12 @@ describe('mixamo-kit (a): off is bit-identical', () => {
       const guard = await run(fs, { wren: false });
       rows(true);
       expect(differ(guard.hash, (await run(fs, { wren: false })).hash), `${name}: guard`).toBe(0);
-      setMixamo(false);
+      setAnimSource('cmu');
     }
   }, 600_000);
 
   it('(a2) the Mixamo source with the rows on: the non-kit team moves and locomotion; the capture hang after a pull', async () => {
-    setMixamo(true);
+    setAnimSource('mixamo');
     for (const [name, make] of PLAIN_SCENES) {
       const fs = make();
       rows(false);
@@ -535,7 +548,7 @@ describe('mixamo-kit (b): on, each pose id plays its take at the table time', ()
   });
 
   it('the poser writes each mapped id\'s take and progress (Mixamo source); Hand writes none', () => {
-    setMixamo(true);
+    setAnimSource('mixamo');
     rows(true);
     const local: readonly (readonly [F[], readonly KitPoseId[]])[] = [[holderPull(false), ['pullCatch', 'pullHaul']], [holderShutter(false), ['shutterLift', 'shutterHold']], [climberPull(false), ['pullScramble']], [crawler(false), ['crawlUnder']]];
     for (const [fs, ids] of local) {
@@ -550,9 +563,9 @@ describe('mixamo-kit (b): on, each pose id plays its take at the table time', ()
       }
       // nothing for the optional phases (rows off) and nothing under the Hand source
       for (let k = 0; k < fs.length; k++) if (['pullOffer', 'pullJump', 'pullHang', 'shutterOffer'].includes(fs[k]!.state)) expect(R.clip[k]).toBeNull();
-      setMixamo(false);
+      setAnimSource('cmu');
       expect(poserRun(fs).clip.every((c) => c === null)).toBe(true);
-      setMixamo(true);
+      setAnimSource('mixamo');
     }
     // the lift's progress is the gap's; the hold ping-pongs on its own clock; the crawl's phase is the distance's
     const S = KIT_SHOT;
@@ -622,7 +635,7 @@ describe('mixamo-kit (b): on, each pose id plays its take at the table time', ()
 
 describe('mixamo-kit (c): both screens give the same take and clip time', () => {
   it('the pull: the holder on its own page and on the partner\'s page; the partner on both', () => {
-    setMixamo(true);
+    setAnimSource('mixamo');
     resolveKit();
     const a = newTeamPoseIn();
     const b = newTeamPoseIn();
@@ -659,7 +672,7 @@ describe('mixamo-kit (c): both screens give the same take and clip time', () => 
   });
 
   it('the shutter: a stepwise 20 Hz wire gap and the 60 Hz local gap give the same phase every frame, the time within a step', () => {
-    setMixamo(true);
+    setAnimSource('mixamo');
     resolveKit();
     const L = poserRun(holderShutter(false));
     const R = poserRun(holderShutter(true));
@@ -690,7 +703,7 @@ describe('mixamo-kit (c): both screens give the same take and clip time', () => 
   });
 
   it('the crawl: both pages fed the same root path give the same phase', () => {
-    setMixamo(true);
+    setAnimSource('mixamo');
     rows(true);
     const L = poserRun(crawler(false));
     const R = poserRun(crawler(true));
@@ -705,13 +718,16 @@ describe('mixamo-kit (c2): the per-rig source (G400)', () => {
     resolveKit();
     const A = fakeRig();
     const B = fakeRig();
-    setKitSourceOf((r) => (r === A ? 1 : 0));
+    // through the real pick (`kitSourceOf` reads `graph.animSource`): each rig handed its owner's source
+    A.graph.animSource = 'mixamo';
+    B.graph.animSource = 'cmu';
     const fs = holderShutter(false);
     const ra = poserRun(fs, A);
     const rb = poserRun(fs, B);
     expect(ra.clip.some((c) => c === MOCAP_LIFTING_HEAVY_OBJECT)).toBe(true);
     expect(rb.clip.every((c) => c === null)).toBe(true);
-    setKitSourceOf((r) => (r === B ? 1 : 0));
+    A.graph.animSource = 'hand';
+    B.graph.animSource = 'mixamo';
     expect(poserRun(fs, A).clip.every((c) => c === null)).toBe(true);
     expect(poserRun(fs, B).clip).toEqual(ra.clip);
     // the pull's hang: move / role written on both rigs (a kit row is on), whatever their source
@@ -723,23 +739,21 @@ describe('mixamo-kit (c2): the per-rig source (G400)', () => {
   });
 
   it('a non-Mixamo rig under a Mixamo viewer is today\'s pose bit for bit and keeps the hand-made HANG; a Mixamo rig under Hand draws the take', async () => {
-    setMixamo(true);
+    setAnimSource('mixamo');
     const fs = holderShutter(false);
     rows(false);
-    const base = await run(fs);
+    const base = await run(fs, { src: 'cmu' });
     rows(true);
-    setKitSourceOf(() => 0);
-    expect(differ(base.hash, (await run(fs)).hash)).toBe(0);
+    expect(differ(base.hash, (await run(fs, { src: 'cmu' })).hash)).toBe(0);
     // a CMU partner on a Mixamo screen: the pull hang skips the capture (the hand-made HANG)
     const cp = climberPull(false);
-    const R = await run(cp);
+    const R = await run(cp, { src: 'cmu' });
     const hangK = R.trav.map((t, k) => (t === 'hang' ? k : -1)).filter((k) => k >= 0);
     expect(hangK.length).toBeGreaterThan(10);
     expect(hangK.every((k) => !R.mx[k])).toBe(true);
     // the other way: the viewer on Hand, the rig's player on Mixamo
-    setMixamo(false);
-    setKitSourceOf(() => 1);
-    const on = await run(fs);
+    setAnimSource('hand');
+    const on = await run(fs, { src: 'mixamo' });
     expect(differ(base.hash, on.hash)).toBeGreaterThan(30);
     expect(on.shotW.some((w) => w > 0)).toBe(true);
   }, 300_000);
@@ -747,7 +761,7 @@ describe('mixamo-kit (c2): the per-rig source (G400)', () => {
 
 describe('mixamo-kit (d) timing, (e) the hang skip', () => {
   it('(d) the root, the traverse and the input\'s game fields are the same with the shot on and off', async () => {
-    setMixamo(true);
+    setAnimSource('mixamo');
     for (const [name, make] of KIT_SCENES) {
       const fs = make();
       rows(false);
@@ -761,7 +775,7 @@ describe('mixamo-kit (d) timing, (e) the hang skip', () => {
   }, 600_000);
 
   it('(e) under the Mixamo source the pull partner\'s hang is the hand-made HANG, local and remote; rows off it is the capture', async () => {
-    setMixamo(true);
+    setAnimSource('mixamo');
     for (const remote of [false, true]) {
       const fs = climberPull(remote);
       rows(true);
@@ -781,7 +795,7 @@ describe('mixamo-kit (f) no pop, (h) the A8 readings', () => {
   const READ: Record<string, { on: ReturnType<typeof steps>; off: ReturnType<typeof steps>; wingOn: number; wingOff: number; bowOn: number; bowOff: number }> = {};
 
   it('(f) entry, exit, each phase change and a source flip mid-move under the placeholder\'s own steps x 2; the palms on the bar', async () => {
-    setMixamo(true);
+    setAnimSource('mixamo');
     for (const [name, make] of KIT_SCENES) {
       const fs = make();
       rows(false);
@@ -798,8 +812,8 @@ describe('mixamo-kit (f) no pop, (h) the A8 readings', () => {
     // a mid-move source flip (Mixamo -> Hand -> Mixamo) through the hold
     const fs = holderShutter(false);
     const k0 = Math.round((0.4 + SHUTTER.liftTime + 0.5) * 60);
-    const flip = await run(fs, { each: (k) => (k === k0 ? setMixamo(false) : k === k0 + 30 ? setMixamo(true) : undefined) });
-    setMixamo(true);
+    const flip = await run(fs, { each: (k) => (k === k0 ? setAnimSource('cmu') : k === k0 + 30 ? setAnimSource('mixamo') : undefined) });
+    setAnimSource('mixamo');
     const hold = await run(fs);
     const sFlip = steps(flip, k0 - 2, k0 + 45);
     const sHold = steps(hold, k0 - 2, k0 + 45);
@@ -826,7 +840,7 @@ describe('mixamo-kit (f) no pop, (h) the A8 readings', () => {
 
 describe('mixamo-kit (i) no stale shot', () => {
   it('(i) the shot is cleared after a pull ends, aborts and misses, after a shutter, and on a non-kit move after a kit move', () => {
-    setMixamo(true);
+    setAnimSource('mixamo');
     resolveKit();
     const ends: F[][] = [];
     // ends: the holder's haul, then nothing

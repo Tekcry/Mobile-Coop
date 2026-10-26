@@ -27,6 +27,7 @@ import { HANG_HEAD } from '../../game/teamMoves';
 import type { TraverseKind } from '../animGraph';
 // (mixamo-kit) the kit moves' Mixamo shots (docs/mixamo-kit/PLAN.md)
 import { clearKitShot, KIT_PULL, KIT_SHOT, KIT_TABLES, kitGapInto, kitSourceOf, kitTimeInto, newKitClock, type KitShotIn } from '../kitMixamo';
+import type { AnimSource } from '../animSource'; // (mixamo-kit) the acting player's source on the rig's graph (G400)
 
 /** (mission KIT0) + the co-op kit's 'pull' (pull-up, KIT-PULL) and 'shutter' (hold shutter / crawl under, KIT-SHUT). */
 export type TeamPoseMove = 'boost' | 'throw' | 'hang' | 'rope' | 'pull' | 'shutter';
@@ -604,8 +605,9 @@ export interface TeamRigIn {
   plantR: Target;
   root: { position: { x: number; y: number; z: number }; rotation: { y: number } };
   height: number;
-  /** (mixamo-kit) The rig's graph: TeamPoser writes its kit shot (a CharacterRig's `graph`; absent: no shot). */
-  graph?: { readonly kit: KitShotIn; readonly wrenReady?: boolean };
+  /** (mixamo-kit) The rig's graph: TeamPoser writes its kit shot (a CharacterRig's `graph`; absent: no shot); its
+   *  `animSource` (the acting player's, `AnimGraph.animSource`) picks the kit table (`kitSourceOf`). */
+  graph?: { readonly kit: KitShotIn; readonly wrenReady?: boolean; readonly animSource?: AnimSource };
 }
 /** The RigPose fields the team pose writes. */
 export interface TeamRigPose {

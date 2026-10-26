@@ -13,7 +13,7 @@
  *   the distance along the crawl, and the linked local clock otherwise (PLAN 2).
  */
 import type { KeyedClip } from './keyed';
-import { MIXAMO, MIXAMO_ON } from './mixamo';
+import { addMixamoResolver, MIXAMO_ON } from './mixamo';
 import { LEAP, TEAM } from '../config/movement';
 import { MOCAP_KNEELING_PULL_UP } from './clips/mixamo/kneeling_pull_up';
 import { MOCAP_PULLING_UP_TO_A_LEDGE } from './clips/mixamo/pulling_up_to_a_ledge';
@@ -104,15 +104,15 @@ export function resolveKit(): void {
   T.any = any;
 }
 
-const addMixamoResolver = (fn: () => void): void => fn(); // STUB (mixamo-kit): swap for the mixamo.ts export
 addMixamoResolver(resolveKit);
 
-export let kitSourceOf = (_rig: TeamRigIn): 0 | 1 => (MIXAMO.on ? 1 : 0); // STUB (mixamo-kit): rig.graph.animSource
-const KIT_SOURCE_STUB = kitSourceOf;
+/** The acting player's source (G400): the rig graph's `animSource` (local: the setting; remote: its owner's, from the wire). */
+export let kitSourceOf = (rig: TeamRigIn): 0 | 1 => (rig.graph?.animSource === 'mixamo' ? 1 : 0);
+const KIT_SOURCE_OF = kitSourceOf;
 
-/** Tests only, at set-up (never per frame): give rigs their own source; null puts the stub back. */
+/** Tests only, at set-up (never per frame): give rigs their own source; null puts the real pick back. */
 export function setKitSourceOf(fn: ((rig: TeamRigIn) => 0 | 1) | null): void {
-  kitSourceOf = fn ?? KIT_SOURCE_STUB;
+  kitSourceOf = fn ?? KIT_SOURCE_OF;
 }
 
 /** What one rig's kit shot is this frame (TeamPoser writes it before `rig.animate`; the graph's `kitShot` reads it). */
