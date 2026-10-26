@@ -3,35 +3,50 @@ import type { SectorDef, SectorGuard } from '../../../game/sectors';
 import type { SecurityDesk } from '../../../game/sectorDesks';
 import type { SecurityData } from '../../../security/data';
 import type { CampusAlarm, CampusSectionParts } from '../campusParts';
-import { buildCampusS1, C1_BOX, S1_COOP_LIPS, S1_DOORS, S1_GROUPS, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES, type S1Colour, type S1Lights } from './s1';
+import { buildCampusS1, C1_BOX, S1_COOP_LIPS, S1_DOORS, S1_GROUPS, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES, type S1Colour, type S1Column, type S1Lights } from './s1';
 import { dressS1, HERO_S1, S1_ART_TAGS } from './s1Dress';
 
 const PI = Math.PI;
 
-// PROVISIONAL - light-realism retunes these (docs/light-realism/PLAN.md, AS/NZS 1158.3.1).
-// TODO(light-realism): replace with calibrated values.
+// PROVISIONAL - light-realism retunes these (docs/light-realism/PLAN.md, AS/NZS 1158.3.1), except the car-park columns and
+// the lane floodlight: light-realism L1 calibrated those (P11a, Michael "Approve but only s1"); L1 covers the car park only.
+// TODO(light-realism): replace the other S1 lamps with calibrated values.
 /** The warm sodium and the cool white of S1's fittings (linear RGB). */
 export const SODIUM: S1Colour = [1, 0.72, 0.38];
 export const WHITE: S1Colour = [1, 0.95, 0.88];
+/** (light-realism L1) The car-park column rows' z on v2's rows (`ROW_Z` -75.75 / -71.25 / -60.75 / -56.25): the north row's
+ *  remaining poles in R3, the aisle row 1 m inside the aisle's north edge, the south row on R0 / R1's back-to-back line. */
+const PARK_ROW_N = -55;
+const PARK_ROW_AISLE = -64;
+const PARK_ROW_S = -73.5;
+/** A row of twin-head columns: each pole x carries a head on a -x arm and one on a +x arm. */
+const twinRow = (z: number, xs: readonly number[]): S1Column[] => xs.flatMap((x) => [[x, z, -1, 0] as const, [x, z, 1, 0] as const]);
 /**
  * (campus-greybox S1 G1) Every S1 lamp in one block (lead note, Michael ~09:05 "Real-world levels"; job BRIEF A19): position,
  * height, radius, intensity, colour, cone and circuit. `buildCampusS1` draws every lamp, column pillar and lamp post from it
  * (`S1_PARTS.build`), so light-realism's calibration retunes this block only. Today's engine values (the as-built S1, B:214-314).
  */
 export const S1_LIGHTS: S1Lights = {
-  // the car-park columns (6.0 pillars, sodium cones) on the feeder pillar's two circuits
-  // (G3, D:78-81) 14 -> 10: the rows moved 2 m south, the four z -53 columns under the carport gone (its downlights replace them)
-  columnsW: [[-34, -64], [-28, -64], [-22, -64], [-16, -64], [-34, -55], [-28, -55]],
-  columnsE: [[-10, -64], [-4, -64], [2, -64], [2, -55]],
-  column: { pillarH: 6.0, pillarR: 0.15, y: 6.0, r: 12, i: 0.9, colour: SODIUM, cone: [0, -1, 0, 1.15], w: 0.6, groupW: S1_GROUPS.parkW, groupE: S1_GROUPS.parkE },
+  // the car-park columns on the feeder pillar's two circuits: (light-realism L1, ported from v1 `campusS1.ts`) twin-head arm
+  // columns, 6.2 m poles, 0.6 m arms at y 6.10-6.20, each light point 0.8 m out at y 6.0, tuned to AS/NZS 1158.3.1 P11a
+  // (`docs/light-realism/measure/S1-carpark.md`). L1's rows 2 m south with v2's (G3, D:77): the aisle row z -64, the south row
+  // on the back-to-back line between R0 and R1 (z -73.5), poles on bay boundaries (x -36 + 2.8k) in the rows; L1's north row
+  // at the carport (x -24.8, -13.6, 0.4) gone, the carport downlights replace it; its west pole kept at z -55 and its east
+  // pole one bay east (x 3.2) off the carport's eave. Every west pole west of every east pole (one breaker each half).
+  columnsW: [...twinRow(PARK_ROW_N, [-33.2]), ...twinRow(PARK_ROW_AISLE, [-33, -21]), ...twinRow(PARK_ROW_S, [-36, -24.8, -13.6])],
+  columnsE: [...twinRow(PARK_ROW_N, [3.2]), ...twinRow(PARK_ROW_AISLE, [-9, 3]), ...twinRow(PARK_ROW_S, [-2.4, 6])],
+  // the heads: radius 10 (the worst 2 m lamp-grid column stays within `LAMP_GRID_SLOTS`), the cone tipped 0.2 toward the arm,
+  // outer 1.3 rad (tilt + outer at most 1.5: a full cut-off head)
+  column: { pillarH: 6.2, pillarR: 0.15, armLen: 0.6, armY: 6.15, reach: 0.8, y: 6.0, r: 10, i: 2.0, colour: SODIUM, tilt: 0.2, outer: 1.3, w: 0.6, groupW: S1_GROUPS.parkW, groupE: S1_GROUPS.parkE },
   // the forecourt light bollards on the yard board's circuit
   bollards: { xs: [-28, -24, -20, -16, -12, -8, -4, 0], z: -45.5, postH: 0.9, postR: 0.08, y: 0.85, r: 4.5, i: 0.5, colour: SODIUM, group: S1_GROUPS.fore, w: 0.2 },
   // the entrance canopy downlights (A65: the east pair at x -18.5)
   canopy: { pts: [[-23, -38], [-18.5, -38], [-23, -35.6], [-18.5, -35.6]], y: 4.1, r: 4.5, i: 0.85, colour: WHITE, group: S1_GROUPS.canopy, cone: [0, -1, 0, 1.0], w: 0.5 },
   // the dock lamp over the plant room's goods door, on the yard board
   dock: { x: -33, y: 2.7, z: -40.4, r: 5, i: 0.8, colour: WHITE, group: S1_GROUPS.fore, cone: [0, -0.8, -0.6, 1.0], w: 0.4 },
-  // the lane floodlight (photocell: no switch, shot only)
-  laneFlood: { x: 9, y: 6.0, z: -66, r: 12, i: 0.8, colour: SODIUM, group: S1_GROUPS.lane, cone: [0, -1, 0, 1.15], w: 0.6, poleH: 6.0, poleR: 0.15 },
+  // the lane floodlight (photocell: no switch, shot only): (light-realism L1) its 6.2 m pole at x 9, the arm +x into the lane,
+  // the light point at the arm's end 0.8 m out (x 9.8)
+  laneFlood: { x: 9.8, y: 6.0, z: -66, r: 12, i: 0.5, colour: SODIUM, group: S1_GROUPS.lane, cone: [0, -1, 0, 1.15], w: 0.6, poleX: 9, poleH: 6.2, poleR: 0.15, armLen: 0.6, armY: 6.15 },
   // the gatehouse ceiling tube (switch by its door)
   gate: { x: 17, y: 2.9, z: -76, r: 5.5, i: 0.9, colour: WHITE, group: S1_GROUPS.gate, cone: null, w: 0.6 },
   // (G2, D:67) the warm desk lamp on the CCTV desk, on the gate circuit (colour and intensity A6)

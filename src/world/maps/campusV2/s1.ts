@@ -194,6 +194,12 @@ export { PARK_COLUMNS_W, PARK_COLUMNS_E, BOLLARD_XS, CANOPY_LAMPS } from './s1Da
 /** A light colour (linear RGB) and a cone as `makeCone`'s arguments (direction x, y, z, outer angle). */
 export type S1Colour = readonly [number, number, number];
 export type S1Cone = readonly [number, number, number, number];
+/**
+ * (light-realism L1) One car-park column head: the pole's x, z and its arm's unit direction ax, az (along x or z, toward the
+ * bays). A twin-head column is two entries at one x, z with opposite arms (a head's own pole shades a wedge behind it, the
+ * other head lights it); the pole is drawn once per twin.
+ */
+export type S1Column = readonly [number, number, number, number];
 /** One lamp fitting of the light block. */
 export interface S1Lamp {
   x: number;
@@ -223,18 +229,22 @@ export interface S1LampRow {
  * in `s1Data.ts`, passed to `buildCampusS1` (`S1_PARTS.build`), so light-realism retunes it without touching the geometry.
  */
 export interface S1Lights {
-  /** The car-park columns: pillar height / radius, the lamp spec, the west and east circuits' points. */
-  columnsW: readonly (readonly [number, number])[];
-  columnsE: readonly (readonly [number, number])[];
-  column: { pillarH: number; pillarR: number; y: number; r: number; i: number; colour: S1Colour; cone: S1Cone | null; w: number; groupW: number; groupE: number };
+  /** The car-park column heads on the west and east circuits (light-realism L1: twin-head arm columns, `S1Column`). */
+  columnsW: readonly S1Column[];
+  columnsE: readonly S1Column[];
+  /** The column spec: the pole (height, radius), the arm (from the pole's axis to `armLen` out, centred at `armY`), the
+   *  light point `reach` out along the arm at `y`, the head (radius, intensity, colour, the cone tipped `tilt` toward the
+   *  arm with outer angle `outer`, fixture width) and the two circuits. */
+  column: { pillarH: number; pillarR: number; armLen: number; armY: number; reach: number; y: number; r: number; i: number; colour: S1Colour; tilt: number; outer: number; w: number; groupW: number; groupE: number };
   /** The forecourt light bollards: x list at one z, the post and the lamp. */
   bollards: { xs: readonly number[]; z: number; postH: number; postR: number; y: number; r: number; i: number; colour: S1Colour; group: number; w: number };
   /** The entrance canopy downlights. */
   canopy: S1LampRow;
   /** The plant room's dock lamp over the goods door. */
   dock: S1Lamp;
-  /** The barrier lane floodlight on its pole (photocell: no switch, shot only). */
-  laneFlood: S1Lamp & { poleH: number; poleR: number };
+  /** The barrier lane floodlight (photocell: no switch, shot only): the lamp at its arm's end; the pole at (poleX, z), the
+   *  arm along x from the pole's axis to `armLen` out toward the lamp, centred at `armY` (light-realism L1). */
+  laneFlood: S1Lamp & { poleX: number; poleH: number; poleR: number; armLen: number; armY: number };
   /** The gatehouse ceiling tube. */
   gate: S1Lamp;
   /** (G2) The warm desk lamp on the CCTV desk (gate circuit). */
@@ -251,8 +261,8 @@ export interface S1Lights {
 export function s1Lamps(L: S1Lights): S1Lamp[] {
   const c = L.column;
   const out: S1Lamp[] = [L.gate, L.deskLamp, L.laneFlood];
-  for (const [x, z] of L.columnsW) out.push({ x, y: c.y, z, r: c.r, i: c.i, colour: c.colour, group: c.groupW, cone: c.cone, w: c.w });
-  for (const [x, z] of L.columnsE) out.push({ x, y: c.y, z, r: c.r, i: c.i, colour: c.colour, group: c.groupE, cone: c.cone, w: c.w });
+  for (const h of L.columnsW) out.push(columnLamp(c, h, c.groupW));
+  for (const h of L.columnsE) out.push(columnLamp(c, h, c.groupE));
   const o = L.bollards;
   for (const x of o.xs) out.push({ x, y: o.y, z: o.z, r: o.r, i: o.i, colour: o.colour, group: o.group, cone: null, w: o.w });
   for (const [x, z] of L.canopy.pts) out.push({ ...L.canopy, x, z });
@@ -261,6 +271,12 @@ export function s1Lamps(L: S1Lights): S1Lamp[] {
   for (const [x, z, group] of cp.pts) out.push({ x, y: cp.y, z, r: cp.r, i: cp.i, colour: cp.colour, group, cone: cp.cone, w: cp.w });
   out.push(L.bikes, L.smoke);
   return out;
+}
+
+/** (light-realism L1) A column head's lamp: the light point hangs at the arm's end, `reach` out, not on top of its pole;
+ *  its cone tipped `tilt` toward the arm. */
+export function columnLamp(c: S1Lights['column'], [x, z, ax, az]: S1Column, group: number): S1Lamp {
+  return { x: x + c.reach * ax, y: c.y, z: z + c.reach * az, r: c.r, i: c.i, colour: c.colour, group, cone: [ax * c.tilt, -1, az * c.tilt, c.outer], w: c.w };
 }
 
 /** A visible lamp fitting (no model: the glowing box), a real registry light, from a light-block entry. */
@@ -364,23 +380,32 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   b.block(11, -77, 1.0, 1.0, 2.4, KERB);
   b.box(12.75, 1.0, -77, 2.5, 0.08, 0.1, '#d8c24a', 0, 0, false);
   b.pillar(11, -77.9, 0.07, 3.0, STEEL);
-  // the lane floodlight on its pole (photocell: no switch, shot only)
-  b.pillar(L.laneFlood.x, L.laneFlood.z, L.laneFlood.poleR, L.laneFlood.poleH, STEEL);
-  lamp(b, L.laneFlood);
+  // the lane floodlight on its pole, its arm along x into the lane, the light point at the arm's end (light-realism L1: not
+  // on top of its pole) (photocell: no switch, shot only)
+  const lf = L.laneFlood;
+  const lsx = Math.sign(lf.x - lf.poleX);
+  b.pillar(lf.poleX, lf.z, lf.poleR, lf.poleH, STEEL);
+  b.box(lf.poleX + (lsx * lf.armLen) / 2, lf.armY, lf.z, lf.armLen, 0.1, 0.1, STEEL);
+  lamp(b, lf);
 
   // ---- the marsh verge (20..26, -80..-56): dark, reeds (visual) and two trees
   b.pillar(22.5, -66, 0.3, 5, '#4a3a2a');
   b.pillar(24.5, -60, 0.3, 5, '#4a3a2a');
 
   // ---- the staff car park (-40..6, -80..-54): 14 parked cars (roofs 1.5), column lamps 6.0 on two circuits (E5, E6, E11);
-  // (G3, C3) the rows 2 m south, the columns 14 -> 10 (the light block), the solar carport, the courier's van
+  // (G3, C3) the rows 2 m south, the columns (the light block: light-realism L1's twin-head arm columns), the solar carport,
+  // the courier's van
   CARS.forEach(([row, bay], k) => b.box(bayX(bay), 0.75, ROW_Z[row]!, 1.8, 1.5, 4.2, CAR_COLOURS[k % CAR_COLOURS.length]!));
+  // each column (light-realism L1): the pole (once per twin), each arm along (ax, az) from the pole's axis to armLen out, and
+  // its light point hanging at the arm's end, reach out (nothing of its own below it)
   const col = L.column;
   for (const [pts, group] of [[L.columnsW, col.groupW], [L.columnsE, col.groupE]] as const) {
-    for (const [x, z] of pts) {
-      b.pillar(x, z, col.pillarR, col.pillarH, STEEL);
-      lamp(b, { x, y: col.y, z, r: col.r, i: col.i, colour: col.colour, group, cone: col.cone, w: col.w });
-    }
+    pts.forEach((h, k) => {
+      const [x, z, ax, az] = h;
+      if (k === 0 || pts[k - 1]![0] !== x || pts[k - 1]![1] !== z) b.pillar(x, z, col.pillarR, col.pillarH, STEEL);
+      b.box(x + (col.armLen / 2) * ax, col.armY, z + (col.armLen / 2) * az, ax ? col.armLen : 0.1, 0.1, az ? col.armLen : 0.1, STEEL);
+      lamp(b, columnLamp(col, h, group));
+    });
   }
   // the solar PV carport x -24..0, z -63..-54: top 3.0, underside 2.6, a planned solo route (not noLedge); posts every 6 m on
   // z -58.5; its under-canopy downlights mid-span between the posts (A9), on the car park's two circuits
