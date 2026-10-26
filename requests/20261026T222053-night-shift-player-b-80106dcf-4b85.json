@@ -1,0 +1,14 @@
+{
+  "id": "20261026T222053-night-shift-player-b-80106dcf-4b85",
+  "sha": "80106dcf92cdf6886d6cdd0a15e48470bb5b1681",
+  "branch": "fix/knife-attack-button",
+  "pr": 682,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-piano",
+    "e2e-coop"
+  ],
+  "set": "krt",
+  "fix": true
+}
