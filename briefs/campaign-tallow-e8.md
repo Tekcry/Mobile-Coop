@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 4 2026-10-26T03:56Z
+status: done feature/tallow-e8 108c8673fc94dd34d1550e0d5e89c6a98a345b4f
 
 # campaign J8 E8: the wharf e2e follows J8's geometry (Sonnet 5.5)
 
@@ -131,3 +131,48 @@ built map (step 8), and the lead runs the laptop suites.
 Commits; the gate check results (step 1, with the triage head found); the pawn site as read (x, z, dx, dz, dist); the
 bolt indexes found (W2 pawn door, W3 foot); the spot-audit table (point, clear or moved, by how much); whether step 9 and
 step 10 were done; check results; every deviation with its reason; "pending PC run" with the suite list.
+
+## Report (Night Shift | Cloud Builder 4, 2026-10-26)
+- Commit: feature/tallow-e8 108c8673fc94dd34d1550e0d5e89c6a98a345b4f (`tallow E8: ...`), base 2de5701c0. Diff: `scripts/e2e-sectorops-wharf.mjs` only, +70 / -8. No SKIP line touched.
+- Gate (step 1), all pass: triage head 820101ecd is an ancestor of HEAD; `tallow TD-b` commit 01844586 on teamController.ts; `pg.a.at[` count 0; `readSectors` (R7), `objLineIs` / `fieldRows` (R8) present; `W2_BOLTS[2]` = `w2-pawn-taking-in`; `W3_BOLTS` ends with `w3-bulkhead-foot`, `missions: ['twoKeyLedger']`; `throwSites` at tallowWharf.ts:111; `lastThrowDist` at teamController.ts:116.
+- Pawn site as read (built layout): x 51.2, z 67.2, dx 0, dz 1, dist 5.8. The script reads it on the host page (`world.layout.throwSites`, within 1.0 m of (51.2, 67.2)) and asserts it; thrower = site, runner 1.3 m back (51.2, 65.9); stage `PAWN_STAGE` [50.2, 72.5, 52.2, 73.5] (named constant, G2 step 3). `toss` takes `c.dist`: waits for the host to see the client within 0.15 m of the thrower spot, then asserts `lastThrowDist` within 0.01 (prints `lastThrowDist 5.8 (the site's 5.8)`) and the landing's plan distance within dist +- 1 (prints it).
+- Bolt indexes: W2 pawn taking-in door = W2 bolt 2 (`boltAt(1, 51.2, 67.45)`, asserted k 2, then `useBolt(1, b.k)`); W3 bulkhead foot = W3 bolt 4 (TKL: asserted k 4, shut, locked on host, client door `anchor.locked` true within 8 s; TGC: no sec-2 k-4 entry, none at (112.5, 68), the foot door (centre within 1 m, hinge y < 1) unlocked on host and client). Both A30 print lines as the brief words them.
+- Spot audit (temporary `tests/tallowWharf/_e8spots.test.ts`, run then deleted; body r 0.3 over feet +0.1..+1.7 against `solidOf(builtWharf().b)`, floor = `downHit` within 0.3 m under the feet):
+
+| point | at (x, y, z) | floor | result |
+| --- | --- | --- | --- |
+| W1 leg-up spot (client) | 4, 0, 13.5 | 0 | clear |
+| W1 leg-up host behind | 4, 0, 12.7 | 0 | clear |
+| W1 tgc-1 coats spot | 22, 0, 41 | 0 | clear |
+| W1 tally-book use | 3.6, 4.5, 50.6 | 4.5 | clear |
+| W1 tea-stall spot | 18.75, 0, 7.75 | 0 | FAIL: inside the urn crates box (18-19.6, 6.6-8, h 2.0; there since GB1) -> MOVED to (18.75, 8.5), 0.75 m north, clear, still in the tgc-tea overhear box [17.5, 6.5, 20, 9] |
+| W2 pawn bolt use (0.8 m out) | 51.2, 4.5, 66.65 | 4.5 | clear |
+| W2 pawn thrower (site) | 51.2, 4.5, 67.2 | 4.5 | clear |
+| W2 pawn runner | 51.2, 4.5, 65.9 | 4.5 | clear |
+| W2 pull holder | 73.5, 4.5, 59.35 | 4.5 | clear |
+| W2 pull partner | 73.5, 0, 58.3 | 0 | clear |
+| W2 walkway spot | 61, 4.5, 60.5 | 4.5 | clear |
+| W3 keypad use | 112, 0, 51.1 | 0 | clear |
+| W3 ledger use | 101, 0, 61.5 | 0 | clear |
+| W3 chute leg-up spot (client) | 97.1, 0, 53.2 | 0 | clear |
+| W3 chute host behind | 97.1, 0, 54.0 | 0 | clear |
+| W3 coal-yard spot (yard box [83, 41, 97, 51]) | 96.7, 0, 48.5 | 0 | clear |
+| W3 client spot | 90, 0, 46 | 0 | clear |
+| W3 east key post (host) | 109, 0, 76.4 | 0 | clear |
+| W3 west key post (client) | 88, 0, 76.4 | 0 | clear |
+| W4 clerestory leg-up spot (client) | 79, 0, 29.2 | 0 | clear |
+| W4 clerestory host behind | 79, 0, 30.0 | 0 | clear |
+| W4 objective use | 75.5, 0, 15 | 0 | clear |
+| W4 jetty pull holder | 73.5, 0, 6.35 | 0 | clear |
+| W4 jetty pull partner | 73.5, -4.4, 5.3 | -4.4 | clear |
+| W1 connector centre | 38, 0, 60 | 0 | clear |
+| W2 connector centre | 84.35, 8.4, 66 | 8.4 | clear |
+| W3 connector centre | 90, 0, 36 | 0 | clear |
+| W4 extraction centre | 90, -1, 3 | -1 | clear |
+
+- Step 9 (R8 polish) done: (a) after `restarted(1, cp2, 'W2 protected restart', 1)` the client's SECTION RESTART count is re-read and asserted 1; (b) the "Teale asked" wait is `stepDoneWithin('tgc-3', ...)`, a node-side poll of `stepDone` (wall-clock 8 s); (c) comments at the two `currentIs` calls after the restarts; (d) `fieldRows` waits for `!window.__app.current.menuPaused` after Resume.
+- Step 10: base `flags.ts` has `coopKit` (`?coopkit=1`), so `coopkit=1` is left as it is.
+- Step 11: header comment gains the pawn site throw (A24, TD-b, `lastThrowDist`) and the A30 bulkhead clause.
+- Checks: `node --check` OK; `npx eslint scripts/e2e-sectorops-wharf.mjs`: the repo's eslint config ignores `scripts/**/*.mjs` (file-ignored warning, 0 errors); `npm run typecheck:fast` exit 0; spot audit 1 test passed after the move (it failed on the tea-stall spot before); `npx vitest run tests/tallowWharf/ tests/throwSites.test.ts --maxWorkers=2`: 8 files, 312 tests passed.
+- Deviations: the tea-stall overhear spot moved (above), the only point outside the brief's steps 3-7. The step-9 (b) wait is a wall-clock poll (`until` evaluates in-page and cannot call the node-side `stepDone`).
+- Pending PC run (after PR T and E8 are both merged into PR G2's head, per the laptop hold): `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl e2e-sectorops:mission e2e-coop e2e-netmove` + the affected set. Done when both wharf suites are green, the pawn line prints `lastThrowDist 5.8` and the two A30 lines print.
