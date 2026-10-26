@@ -105,6 +105,9 @@ export function sweepGuard(list: Enemy[], x: number, z: number, yaw: number, rou
     homeT: 0,
     homeLong: false,
     homeSlicing: false,
+    // (piano polish 1) the sweep's stranding, as the constructor sets them
+    swNoPath: 0,
+    swRetryT: 0,
     walkX: x,
     walkZ: z,
     walkT: 0,
