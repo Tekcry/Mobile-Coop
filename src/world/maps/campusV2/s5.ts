@@ -8,6 +8,7 @@ import type { LaserPanelDef } from '../../../game/laserPanels';
 import type { BoardDef } from '../../../game/isolators';
 import { makeCone } from '../../lights';
 import { hyp2 } from '../../../core/mathx';
+import type { CoopLip } from '../campusS1';
 
 /**
  * Saltmarsh Park (`campusOps`) section 5 - the Old House and the extraction (`docs/sector-redesign/briefs/SLICE5.md`,
@@ -162,6 +163,44 @@ export const S5_BOX = {
 
 /** The hoist door's sill over the well (CR7): the rope's edge, 4.2 over the well floor. */
 export const S5_ROPE_EDGE = { x: -46.15, z: 36.0, y: 4.2, n: { x: -1, z: 0 }, floor: 0 } as const;
+
+/**
+ * (P4, D:167-188) The co-op-only lips of section 5: CR8-s5 the low roof's 0.2 gutter kerb over the lawn (a boost from the
+ * lawn 1.5 m east of the kitchen back door, P11), CR9-s5 the roof's 0.2 coping over the low roof (a boost from the low roof),
+ * CR10-s5 the smoke hatch's west kerb over the kitchen (a boost from the floor under the hatch). Each lip is 4.4 over its
+ * boost floor with no solo stand-on in reach. The campus list `CAMPUS_COOP_LIPS` is built once in `campusLips.ts`.
+ */
+export const S5_COOP_LIPS: readonly CoopLip[] = [
+  {
+    id: 'CR8-s5',
+    section: 4,
+    lip: { x: -27.5, z0: 44.15, z1: 44.15, y: 4.4, n: { x: 0, z: 1 } },
+    top: { x0: -32, x1: -26, z0: 18, z1: 44, top: 4.2 },
+    boost: { floor: 0, x: -27.5, z: 44.75 },
+    solo: 'the plant-room flue ladder, or the service stair to the roof and the coping drop',
+  },
+  {
+    id: 'CR9-s5',
+    section: 4,
+    lip: { x: -31.85, z0: 30, z1: 33, y: 8.6, n: { x: 1, z: 0 } },
+    top: { x0: -56, x1: -32, z0: 18, z1: 44, top: 8.4 },
+    boost: { floor: 4.2, x: -31.25, z: 31.5 },
+    solo: 'the service stair to the roof bulkhead',
+  },
+  {
+    id: 'CR10-s5',
+    section: 4,
+    lip: { x: -28.6, z0: 41.4, z1: 42.6, y: 4.4, n: { x: 1, z: 0 } },
+    top: { x0: -32, x1: -26, z0: 18, z1: 44, top: 4.2 },
+    boost: { floor: 0, x: -28.0, z: 42.0 },
+    solo: 'the plant-room flue ladder to the low roof',
+  },
+];
+
+/** (P4, job A17) The true plan segment of the x-running co-op lip (`S5_COOP_LIPS` writes it point-style). */
+export const S5_LIP_SEGMENTS: Record<string, { a: [number, number]; b: [number, number] }> = {
+  'CR8-s5': { a: [-32, 44.15], b: [-26, 44.15] },
+};
 
 /** One stair flight as `LevelBuilder.stairs` takes it (centre, width, length, rise, yaw, base height). */
 export interface Flight {
@@ -609,12 +648,14 @@ export function buildCampusS5(b: LevelBuilder): void {
   const [sh0, shz0, sh1, shz1] = S5_BOX.smokeHatch;
   slab(b, [-32, -26, 18, 44], L1, [[ph0, ph1, phz0, phz1], [sh0, sh1, shz0, shz1]]);
   // parapets on the low roof: the east and south edges look over ground outside S5 (1.9); the north edge is the 0.2 gutter
-  // kerb (CR8-s5: not noLedge)
+  // kerb (CR8-s5: not noLedge). (fix 1) The co-op lip pieces are 0.40 deep, their lip faces kept: a lip climbs only off a
+  // piece LEDGE.climbDepth (0.38) deep (`generateLedges` canClimbUp); their back faces (a 0.2 drop to the roof) hang nowhere
   rail(b, -26.2, -26.0, 18, 44, L1, 1.9);
   rail(b, -32, -26, 18, 18.2, L1, 1.9);
-  bx(b, -32, -26, L1, L1 + 0.2, 43.85, 44.15, STEEL);
-  // the smoke hatch kerb (0.2, 0.1 thick, outside the hole): the west piece is CR10-s5's lip (not noLedge), the others noLedge
-  bx(b, sh0 - 0.1, sh0, L1, L1 + 0.2, shz0 - 0.1, shz1 + 0.1, STEEL);
+  bx(b, -32, -26, L1, L1 + 0.2, 43.75, 44.15, STEEL);
+  // the smoke hatch kerb (0.2, 0.1 thick, outside the hole): the west piece is CR10-s5's lip (not noLedge; 0.4 thick, fix 1),
+  // the others noLedge
+  bx(b, sh0 - 0.4, sh0, L1, L1 + 0.2, shz0 - 0.1, shz1 + 0.1, STEEL);
   bx(b, sh1, sh1 + 0.1, L1, L1 + 0.2, shz0 - 0.1, shz1 + 0.1, STEEL, { noLedge: true });
   bx(b, sh0, sh1, L1, L1 + 0.2, shz0 - 0.1, shz0, STEEL, { noLedge: true });
   bx(b, sh0, sh1, L1, L1 + 0.2, shz1, shz1 + 0.1, STEEL, { noLedge: true });
@@ -786,10 +827,11 @@ export function buildCampusS5(b: LevelBuilder): void {
   // (P1, R2) the west parapet splits round the garden rappel (z 30.4..31.6)
   rail(b, -56, -55.8, 18, 30.4, R);
   rail(b, -56, -55.8, 31.6, 44, R);
-  // (P1, R1) the east parapet splits round the 0.2 coping z 30..33 (CR9-s5: not noLedge; on the wall top, flush with its face)
+  // (P1, R1) the east parapet splits round the 0.2 coping z 30..33 (CR9-s5: not noLedge; on the wall top, flush with its face;
+  // 0.4 deep into the roof, fix 1)
   rail(b, -32.2, -32, 18, 30, R);
   rail(b, -32.2, -32, 33, 44, R);
-  bx(b, -32.15, -31.85, R, R + 0.2, 30, 33, STEEL);
+  bx(b, -32.25, -31.85, R, R + 0.2, 30, 33, STEEL);
   rail(b, -56, -54.6, 43.8, 44, R);
   rail(b, -53.4, -32, 43.8, 44, R);
   b.rappel(S5_BOX.rappel.x, R, S5_BOX.rappel.z, 0, R);
