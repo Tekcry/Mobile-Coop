@@ -23,6 +23,8 @@
  */
 import { Color3, Mesh, PBRMaterial, StandardMaterial, VertexBuffer, VertexData, type AbstractMesh, type Material, type Observer, type Scene } from '../../core/babylon';
 import { parseGlb, type GlbMesh, type GlbModel } from '../../operators/lab/glb';
+import { loadKeptModel } from '../../operators/runtime/figure';
+import { kept } from '../../core/keptParts';
 import { markLampLevel } from '../bakedLamps';
 import { bakedMesh } from '../kit/kitRender';
 import { markDrawFirst, useSkinsFirst, type BakePart } from '../kit/staticMerge';
@@ -129,6 +131,8 @@ export class CampusArtRender {
         const cat = cats[id]!;
         const url = id === 'F' ? propsUrl() : campusArtUrl(cat.glb);
         if (!url) throw new Error(`campus art: ${cat.glb} missing (npm run campus-props:build)`);
+        // (map-ready S9) flag on: parsed once per page (the kept parts); off: fetched and parsed per load as before
+        if (kept.enabled) return loadKeptModel(scene, url);
         const res = await fetch(url);
         if (!res.ok) throw new Error(`campus art: ${cat.glb}: HTTP ${res.status}`);
         return parseGlb(await res.arrayBuffer());

@@ -131,6 +131,7 @@ export function setOnRated(fn: typeof onRated): void {
 }
 import { crateItemId } from '../crateLedger';
 import type { SlotPoint } from '../spawnSlots';
+import { applySectorStart, practiceLine, sectorStartIndex } from '../sectorStart';
 import { sectorObjectiveLines } from '../sectorObjectives';
 import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
 import {
@@ -240,6 +241,9 @@ export class SectorMode implements GameMode {
   reinforced = 0;
   /** Section restarts (tests). */
   restarts = 0;
+  /** (campus-greybox A28) The section number a `?sectorStart=N` run began at (practice: no star, no best rating, no
+   *  progression); 0: a normal run (tests, e2e). */
+  practiceFrom = 0;
   /** (G22) Lights and doors the last restart put back (tests). */
   lastReset = { lights: 0, doors: 0 };
   private its: Interactable[] = [];
@@ -415,15 +419,41 @@ export class SectorMode implements GameMode {
     this.findDesks();
     this.findCrates();
     this.findStageDoors();
+    // (campus-greybox A28) `?sectorStart=N`: the run begins at section N as its connectors leave it (practice)
+    this.startAt(sectorStartIndex(this.run.defs, flags.sectorStart));
     const s = this.run.current;
     if (s) {
-      g.player.controller.teleport(new Vector3(s.start.x, s.start.y, s.start.z), s.start.yaw);
-      g.player.cam.yaw = s.start.yaw;
+      const cp = this.run.checkpoint;
+      g.player.controller.teleport(new Vector3(cp.x, cp.y, cp.z), cp.yaw);
+      g.player.cam.yaw = cp.yaw;
     }
     g.letterbox(2.8);
     this.opTeam = teamSizeOf(g, this.refs);
     this.loadSection(this.run.index);
     this.beginSection();
+  }
+
+  /**
+   * (campus-greybox A28) A start at run index `i` (0: none, nothing happens): the run moves there
+   * (`applySectorStart`), every connector before it is left as its cycle leaves it (near door locked, far door and side
+   * doors unlocked, the far door open, silently), the earlier sections' objective codes are held (no line), and the run
+   * is practice. The earlier sections are never loaded or rated.
+   */
+  private startAt(i: number): void {
+    if (!applySectorStart(this.run, i)) return;
+    const g = this.g;
+    for (let k = 0; k < i; k++) {
+      const d = this.doors[k];
+      if (d?.far) {
+        this.lockDoor(d.far, false);
+        g.world.doors.setOpen(d.far, true);
+      }
+      if (d) for (const x of d.seal) this.lockDoor(x, false);
+      this.codes.objectiveDone(k, this.granted);
+    }
+    this.keypadLabels();
+    this.practiceFrom = i + 1;
+    g.stats.practice = true;
   }
 
   /** The connectors' doors, by position; every door into a later section starts locked. */
@@ -752,7 +782,12 @@ export class SectorMode implements GameMode {
     // (guard-ai S5) the section's noisy things mask hearing (else the map's); dev / tests check its posts (warnings)
     const em = this.g.enemyMgr;
     // (guard-ai S6, S3-CHECK) the radio net serves the live section (its command call raises this section's alarm)
-    if (em && s) em.setSection(i);
+    if (em && s) {
+      em.setSection(i);
+      // (guard-rules S5, A7, bible 5.7 "Each raised alarm adds one level") after a response is in, a guard may raise the
+      // next alarm (up to `ALARM_REPEAT.max` a load); Marlow Yard (`courseMode`) keeps one guard alarm per load
+      em.alarmRepeat = true;
+    }
     // (coop4 AI5) the section's response numbers for Guard AI, on every load and restart (none: its default)
     if (em) (em as unknown as ResponseHooks).setResponseShape?.(s?.responseShape ?? null);
     if (em) em.setNoisy(s?.noisy ?? em.mapNoisy);
@@ -978,6 +1013,11 @@ export class SectorMode implements GameMode {
     if (this.codes.grantCode(flag, this.run.index)) this.keypadLabels();
   }
 
+  /** (guard-rules S5) At the stage cap (or a section with no `perStage`) the next alarm sends no one. */
+  alarmQuiet(): boolean {
+    return this.run.nextAlarmSends() < 1;
+  }
+
   /** A guard's alarm: up one stage, and guards come in hunting (A3). The mode brings its own reinforcements. */
   onAlarm(): boolean {
     const up = this.run.alarm;
@@ -1105,8 +1145,8 @@ export class SectorMode implements GameMode {
     const ct = this.ct;
     if (ct && g.net?.sector) g.net.sector(ct.wire(), this.netExtra(ct));
     g.events.emit('operationComplete', {});
-    // M7: the op's star for this difficulty (and the best time), solo or the co-op host
-    void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
+    // M7: the op's star for this difficulty (and the best time), solo or the co-op host; never on a practice run (A28)
+    if (!this.practiceFrom) void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
     g.hud.banner('SECTORS CLEAR', resultBadge(this.result()), 2600);
     g.slowBeat(0.4, 0.5);
     g.letterbox(2.6);
@@ -1163,7 +1203,8 @@ export class SectorMode implements GameMode {
     w.alarmStep = grant ? r.alarmStep : 0;
     this.secT = 0;
     const mapId = g.world.map.id;
-    void updateRatingRecord(mapId, s.id, marks, synced);
+    // (campus-greybox A28) a practice run records no best rating
+    if (!this.practiceFrom) void updateRatingRecord(mapId, s.id, marks, synced);
     this.rateGrant = grant;
     onRated?.(mapId, s.id, marks, synced);
     this.freshCounters();
@@ -1343,7 +1384,7 @@ export class SectorMode implements GameMode {
       if (this.endT <= 0) {
         this.endT = 0;
         if (this.result().ghost) g.stats.score += 2000;
-        g.endSession(true, this.result().line);
+        g.endSession(true, this.practiceFrom ? practiceLine(this.result().line, this.practiceFrom) : this.result().line);
       }
       return;
     }

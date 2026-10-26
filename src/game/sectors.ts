@@ -871,6 +871,11 @@ export class SectorRun {
     return true;
   }
 
+  /** (guard-rules S5) How many guards the next alarm would send in (`raiseAlarm`'s count, coop4 A9 extras included; 0 once capped). */
+  nextAlarmSends(): number {
+    return alarmStep(this.alarm, this.current?.perStage ?? SECTOR.perStage, this.teamSize).send;
+  }
+
   /** An alarm (A3): up one stage (capped); returns how many guards it sends in (0 once capped; coop4 A9: + the extras for `teamSize`). */
   raiseAlarm(): number {
     const a = alarmStep(this.alarm, this.current?.perStage ?? SECTOR.perStage, this.teamSize);

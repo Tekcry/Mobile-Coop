@@ -57,7 +57,7 @@ import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
 import { joinSpawn, slotSpawn, type SlotPoint, type SpawnBody } from '../game/spawnSlots';
 import { OutFollow } from '../game/sectorOut';
-import { canWalk, spawnProbe, startSlotPoints } from '../game/spawnPlace';
+import { canWalk, offSection, spawnProbe, startSlotPoints } from '../game/spawnPlace';
 import { HALL_BACK_HOLD } from '../game/jammer';
 import { hostTrapKey, openTrapGaps } from '../game/gapMenu';
 import { JOIN_PLACE, JOIN_RESYNC, JOIN_REVIVE_QUIET_S, JoinWatch } from './joinWatch';
@@ -496,6 +496,19 @@ export class CoopHost implements NetAttachment {
     r.allowTeleport(3);
   }
 
+  /**
+   * (mission-framework NET3, belt and braces) Remote `r`'s first state of the match, at (x, y, z): in Sector Ops, a body
+   * outside the current section (`offSection`: away from the checkpoint and no walk to it, e.g. a client that started
+   * at section 0 of a later-start mission) is put at the checkpoint (`joinSpot`), repeated as a `restore` until it
+   * stands there. Every other mode, and a remote in the section, is untouched.
+   */
+  private firstPlace(r: RemotePlayer, x: number, y: number, z: number): void {
+    const mode = this.g.mode;
+    if (mode?.id !== 'sector' || !offSection(this.g, mode.checkpointSpawns?.() ?? [], x, y, z)) return;
+    this.joins.place(r.id, this.joinSpot(r, null), this.time);
+    r.allowTeleport(3);
+  }
+
   /** (coop-rejoin) Where the host puts remote `r` as it (re)joins mid-run (`joinSpawn`, `held`: its held spot). */
   private joinSpot(r: RemotePlayer, held: SlotPoint | null): SlotPoint {
     const g = this.g;
@@ -804,6 +817,8 @@ export class CoopHost implements NetAttachment {
         if (this.rejoining.has(from)) this.resume(r);
         // (coop-rejoin) a client the match went to again: watched for its reload (its old match may still send first)
         if (this.joins.watching(from)) this.joinStep(r, msg.s.x, msg.s.z);
+        // (mission-framework NET3) a remote's first state of the match, outside the current section: placed there
+        else if (!r.state && !this.joins.restoring(from)) this.firstPlace(r, msg.s.x, msg.s.y, msg.s.z);
         if (this.joins.restoring(from)) r.allowTeleport(3);
         r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length, this.g.world.level.opticPoints.length);
         r.avatar.buf.push(this.stateTime(r.id, msg.s.t), r.state!);
@@ -1886,9 +1901,27 @@ export class CoopHost implements NetAttachment {
     pl.followFeet = f.pick(g.app.input.state.pressed('swapNext') ? 1 : 0);
   }
 
+  /** (campus-greybox A28 fix 1) The remotes' first states were judged before the mode started (`placeEarly`, once). */
+  private earlyPlaced = false;
+
+  /**
+   * (campus-greybox A28 fix 1) The host's first step after `enter` (`mode.start()`; the loop runs `fixedUpdate` only
+   * after it): a remote whose first state came while the host was still loading was judged against the run as built
+   * (section 1, no door locked). A run that `start()` moved (`?sectorStart=N`) is judged once more here: each remote with
+   * a state, not watched and not being restored, goes through `firstPlace` at its feet. A normal run stands at section
+   * 1's start, so nothing moves; a remote whose first state comes later takes `receive`'s path as before.
+   */
+  private placeEarly(): void {
+    this.earlyPlaced = true;
+    for (const r of this.remotes.values()) {
+      if (r.state && !this.joins.watching(r.id) && !this.joins.restoring(r.id)) this.firstPlace(r, r.feet.x, r.feet.y, r.feet.z);
+    }
+  }
+
   fixedUpdate(dt: number): void {
     this.time += dt;
     this.followStep();
+    if (!this.earlyPlaced) this.placeEarly();
     if (this.strikes.size) this.runStrikes();
     if (this.throwKo.active && this.g.enemyMgr) this.throwKo.step(this.time, this.g.enemyMgr.enemies);
     this.itemsT -= dt;
