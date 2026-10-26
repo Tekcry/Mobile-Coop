@@ -260,6 +260,12 @@ behind a VPN adapter).
   and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
   re-bolted on both pages by the host's checkpoint restart. Part 7's H8 block (hard rule 9): in campus sections 2-5
   every spawned guard is alive at section start (TS-private `loadSection` / `unloadSection`; prints `H8 block: <n> s`).
+  (mission-framework GB6) Two more parts run Tallow Wharf in co-op
+  (`scripts/e2e-sectorops-wharf.mjs --mission=<id>`, host + client over `?net=local`, `E2E_GPU=1`, laptop only; run with no
+  `--mission` it runs both): `e2e-sectorops:wharf-tgc` plays Three Grey Coats W1 to W4 to VICTORY with one forced co-op move per
+  section (leg-up, partner throw, leg-up) and a decoy interrogation that restarts W2 to its checkpoint; `e2e-sectorops:wharf-tkl`
+  plays Two-Key Ledger W2 to W4 to VICTORY (pull-up, chute leg-up and hatch, jetty pull-up, the two keys together) and a kill that
+  restarts W3 to its checkpoint; the shutters print SKIP until their wiring slice, and the client-start check is gated on NET3.
 - `e2e-section-rating` (section-rating S7 / S6) the stealth rating: solo Sector Ops (a clean section: 4 ticks; a kill:
   No kills missed; the extraction: results lines), co-op (a synced pair on both cards, the client top-up, the host syringe,
   a rejoin with no second grant) and solo Marlow Yard (A1 unrated, A2 rated with the gadget grant, A3 rated clean after a
