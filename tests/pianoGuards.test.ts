@@ -3,6 +3,7 @@ import { EnemyManager } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { BLACKOUT_SEARCH, ringPoint, SEARCH, SEARCH_BLACKOUT, SEARCH_PLAIN, searchSpec } from '../src/ai/response';
 import { hyp2 } from '../src/core/mathx';
+import { PatrolWalker } from '../src/ai/patrol';
 import type { Enemy } from '../src/ai/enemy';
 import type { Scene } from '../src/core/babylon';
 import type { World } from '../src/world/world';
@@ -51,6 +52,11 @@ async function standIn(em: EnemyManager, kind: 'grunt' | 'officer' | 'dog', leve
     yaw: 0,
     crouch: 0,
     ctx,
+    // (GA6b) `sceneDark = true` puts every guard on his sweep: a post at his spot
+    walker: new PatrolWalker(null, 0, 0, 0),
+    post: [0, 0],
+    postYaw: 0,
+    slotIdx: -1,
   });
 }
 
