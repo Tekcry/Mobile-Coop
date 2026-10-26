@@ -37,8 +37,8 @@ cuts to play in pure darkness, guards searching with flashlights: a quiet, tense
 every guard must be taken down with a knife in the shadows before the exit opens.
 
 ## Limits
-- Out of scope: campaign story, a rating or score, saves beyond settings, new guard AI behaviour (the scene uses the
-  guards as built), new lighting systems, polish (prototype mode: Michael 2026-10-26 ~16:20, no tuning before he plays),
+- Out of scope: campaign story, a rating or score, saves beyond settings, new guard AI behaviour outside A11 (the scene uses
+  the guards as built), new lighting systems, polish (prototype mode: Michael 2026-10-26 ~16:20, no tuning before he plays),
   any change to Tallow Wharf, Marlow Yard or Sector Ops.
 - Rules that hold: every code hard rule in `CLAUDE.md` (one lighting system and light parity, no network assets, co-op
   only through `src/net` behind `flags.coop`, hot paths allocate nothing); G12 desktop / pad first; G127 and G146 hold
@@ -61,6 +61,11 @@ every guard must be taken down with a knife in the shadows before the exit opens
   runs in slow motion. The intro can be skipped (hold a button) and is skipped on a restart. Undo: no skip.
 - A4: "Empty pistol": the pistol is held but has no ammo for the whole scene; the knife is the only weapon. No gadgets
   in play (the EMP is the intro's last beat, A10). Undo: give a gadget set in the scene data.
+- A11: Michael's ~19:55 words ("forcing all the guards to use flashlights") need two pieces of scene-only Guard AI
+  work, gated on the scene's blackout: torches on in every state, and one blackout reaction (the guards nearest the
+  start search, then return to their fixed rounds). Guard sight in the dark stays what light parity gives (only light
+  the meter reads, torch cones included); no rule that lets a guard see more than the meter shows. Nothing changes off
+  the scene. Undo: drop the blackout gate; guards keep today's torch rule.
 - A10: The EMP (Michael ~19:55) is the intro's last beat: one on-screen button prompt, the player presses it (in co-op
   either player), every light on the map dies for the whole escape, and play starts. Guards switch to flashlights and
   search with them. Light parity holds: the flashlight cones are what guards are lit by and see by, and what the light
