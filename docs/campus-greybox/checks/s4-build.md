@@ -237,3 +237,71 @@ and the cage top attaches; the planned ledge; the lip list now CR4, CR4-west, CR
 **Findings for the lead:** A2 (the brief's literal 0.5 kills CR10; a test that builds `generateLedges` alone misses it, the noLedge points apply in
 `LevelBuilder.build`). The test helper applies them (`noLedgeAt`) to see the real result.
 **Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags); E2E-1 / E2E-2 (v2): the CR10 leg-up and the cage-top ladder attach, the kp-riser door.
+
+## G4.6 25 guards, routes, Code Relay devices, graph keys, LD 15 tests (D:42, D:101-121)
+
+**Files:** `s4Data.ts`, `s4.ts` (props and comments only), `s4Dress.ts` (the one `Math.hypot` -> `hyp2`, A26 carry), the graph, all S4 test
+files: `tests/campusV2S4Guards.test.ts`, `campusV2S4Sync.test.ts`, `campusV2S4Screen.test.ts`, `campusV2S4Graph.test.ts` (new), `campusV2S4.test.ts`
+and `campusV2S4Lights.test.ts` (sealing, door separation, the final light rules), the fragment, this report.
+
+**Built (s4Data.ts lines):**
+- `S4_GUARDS` 25 rows (:39-91): #4 `pair: 20` (:47); #12 the new round (:64); #21 goods-in officer (:81, `pair: 3`); #22 second keyholder (:84);
+  #23 tank watch (:86); #24 chiller watch (:88); #25 night runner (:90). #6, #14, #15 `gear: 'armour'` (:51, :66-67); `S4_SECTOR.gear` removed (job
+  BRIEF A27: no `'helmet'`; `shieldTeams` waits for PR1). No `minPlayers` row.
+- `EXIT` and the three routes (:94-125; renamed `S4_STEALTH` / `S4_LOUD` / `S4_HIGH`, `S4_ARMOURED` follows): objs 21 / 17 / 16, the high route `climbs`
+  `[8..14]`. Posts #3 #4 #5 #6 #9 #14 #15 #19 #23 #24; dormant #10 #11 #16 only. 25 + 3 x 2 = 31 <= 32.
+- Sector data: CR9 pair gate (:236, door (8, 20.5), keys (1.3, 21.0) / (7.7, 21.4), the default window); stage 2 `lockDoors` follows `S4_DOORS.dockWest`;
+  `sweep` `[12.8, 17.4]`, `[-5.4, 18.5]`, then the old tail (:217); `reinforce` unchanged.
+- Code Relay devices, ids verbatim in comments: dock board `sync-s4-dockboard` (s4Data.ts:227, unmoved (16, 1.5, 21.85)); camera desk `sync-s4-desk`
+  and the footage-drive note on `desk-sec4` (s4Data.ts:186-187, unmoved); `sync-s4-noc` console (1.0, 4.45, 42.35) and `Dunmore's seat placard` (1.0, 4.55, 42.3)
+  (s4.ts:611-614); `sync-s4-cagekp` on the objective (s4Data.ts:204); `lead-s4-roster` board (-3.85, 1.5, 45.2) (s4Data.ts:229-230); `lead-s4-deckradio`
+  overhear box (11, 33.2, 13, 35.0) floor 7.3 talkers [12] (s4Data.ts:231-232); bolt point (28, 0, 45.8) comment on `S4_DOORS.kpDeck` (s4.ts:64);
+  `sync-s4-ess-board` (s4.ts:217, G4.3) and `sync-s4-yard-board` (s4.ts:215, unmoved). The twist (#20 to the cage front): nothing built, held open by the
+  twist-path test. Both intel lines <= 60 characters; `s4-noc-duty` opens no keypad.
+
+**For the lead's SYNC.md update (positions at the final head; ids unchanged):** sync-s4-dockboard (16, 1.5, 21.85) s4Data.ts:227; sync-s4-desk desk-sec4
+(-2.8, 44.6) s4Data.ts:186-188, lead = secNc (8, 43.5) s4.ts:80; sync-s4-noc console s4.ts:611-613 and Dunmore #14 s4Data.ts:66; sync-s4-cagekp
+(18, 0, 38.3) s4Data.ts:204-205; sync-s4-ess-board (-5.5, 0, 27.3) groups 76 + 77, 25 s s4.ts:217; sync-s4-yard-board (33.85, 0, 20.8) group 75, 20 s s4.ts:215;
+lead-s4-roster s4Data.ts:229-230; lead-s4-deckradio s4Data.ts:231-232; kp-batt (-4, 18.5), kp-deck (30.5, 45) with its riser-side prop (s4.ts:647), kp-riser
+(34, 46.5) (s4Data.ts:221-225; s4.ts:511); bolt point s4.ts:64; CR9 s4Data.ts:236.
+
+**Graph (`graph/v2/campusOps-S4.json`):** guard keys "1" .. "4" equal on every guarded space (dock 2, lobby 2, batt 1, yard 4, deck 2, noc 2, sec 3, hall 7,
+nc 1 (#16), cc 1 (#19) = 25; the old "2"-only keys gone); `s4-cc` tagged `unavoidable` with the A18 note; `s4-hall`, `s4-cage` notes -> "BUILT G4.6 (...)", the guard
+lines in the other notes; targets stay DECLARED. Line references in each note are at the commit of the slice that wrote it (`git show <sha>:path`):
+G4.3 0eadcb49, G4.4 50dc6f38, G4.5 690f5faf (later slices added comment lines, so the G4.1-G4.5 s4.ts numbers drift by a few lines at the head).
+**Validator** `node scripts/level-validate.mjs graph/v2/campusOps-S{1..5}.json`: 0 errors, 141 warnings, no ERROR names an `s4-` space. S4 WARN kinds are the ones
+justified at D:169-176 (ceilings, over-class sizes, custom class, basket headroom, the C4 spine link width, the late band 6-10 now once per key 1-4 for the
+seven guarded spaces below the hall) plus one new kind for the lead: `s4-cc: unknown tag 'unavoidable'` (this validator does not know the tag yet; the A18
+connector WARN "not a guarded encounter space" is therefore not emitted either - J12).
+
+**Tests:** `campusV2S4Guards` 11 (25 guards, rows, cycles, posts / dormant, loops, slots on nav, devices on nav, M8, the three routes on the analytic and the
+runtime grid, runtime rules, armoured bypasses, the twist path), `campusV2S4Sync` 11 (graph syncs = SY:37-42, one case per device, ids in the source, co-op items
+73 <= 100 / 128), `campusV2S4Screen` 1 (worst 8 guards, at (26.75, 4.40, 30.75) facing 270: #7 #9 #10 #11 #14 #15 #20 #22; cap 12; 11016 points, 0 over),
+`campusV2S4Graph` 6 (areas on nav, 18 door / pair_gate links on the shared edges, the sums per key, solo past the team doors, the light at the vantages, no
+unplanned lip), `campusV2S4` 19 (adds sealing and door separation), `campusV2S4Lights` 9 (adds the final rules), `campusV2S4Coop` 29.
+**Slice set final:** 12 files, 156 / 156 (`campusRuntimeNav` 3, `campusS4` 41, `campusS4Dress` 14, `campusS4NocSight` 3, `campusV2` 9, `campusV2S4` 19,
+`campusV2S4Coop` 29, `campusV2S4Graph` 6, `campusV2S4Guards` 11, `campusV2S4Lights` 9, `campusV2S4Screen` 1, `campusV2S4Sync` 11); typecheck clean.
+
+**M8 isolation (longest isolated run at the takedown spot, 15 s window):** #3 9.25 s, #4 7.75, #7 6.25, #8 4.5, #9 9.5, #10 9.25, #11 9.25, #12 3.25, #13 6.25,
+#16 3.5, #17 4.75, #18 4.75, #19 15, #20 6.5, #21 7.5, #22 4.25, #23 21.25, #24 19.25. Not isolated (0 s, recorded exceptions): the dog team #1 (0) / #2 (1.25), the
+security room #5, #6 and the night runner #25 (the same room, so #25 joins the recorded #5-#6 overlap), the NOC pair #14, #15.
+
+**Assumptions:**
+- **A3 (deviation, undo: the brief's spot)** #12's `takedownSpot` moved from (-7.0, 21.0) to (-5.5, 35.4), on his own route (the brief allows it): K3 #19 sees the first
+  spot down the battery room through battCC (0 s isolated, no candidate within CHECK_SPOT of it). 3.25 s at the new spot.
+- **A4 (deviation, undo: z 32.4)** #22's two z 32.4 points ((13.5, 32.4), (22.5, 32.4)) are off the nav grid (0.25 m from pod P3's rack end); moved 0.1 m north to z 32.5
+  (the nearest walkable point), slot and route. Cycle 41.0 s (the brief's 41.2). No other slot, route point, takedown spot, reinforce or sweep point was off the nav grid.
+- **A5** #25 recorded as an M8 overlap exception with #5-#6 (above), and the "light at vantages" test uses the registry level (ambient + lamps, unoccluded) because the baked
+  `LightField` needs a scene; the unoccluded level lights B-N basket x < ~8 at 0.29 (> shadow 0.28) from the as-built NOC lamps through the clear NOC window, so the dark assertion is
+  the plenum, the basket centre and B-N x >= 12 (reported, never dimmed, A19).
+- The brief's T4 stop-length rule (longest stop 3-6 s) is not ported (the new rows have stops of 1 s and 6 s by the table); every cycle is 25-45 s.
+**Deviations:** A3, A4 (above), plus the earlier slices' A1 (NOC hatch ladder) and A2 (CR10 noLedge radius 0.4).
+**Findings for the lead:**
+- `unknown tag 'unavoidable'` WARN (above): J12's validator.
+- The screen count is at most 8 (cap 12): no guard moved.
+- All five gear tags follow A27; `gear: 'helmet'` is gone from the v2 section, so until PR1 lands the v2 S4 guards carry no section helmet.
+- `s4Dress.ts` `Math.hypot` -> `hyp2` done here (the A26 carry the G4.1 report named).
+**Pending PC run (everything GPU / e2e / measure / screenshot):** `e2e-sectorops:1` .. `:6` (default flags; the live map unchanged); E2E-1 / E2E-2 (v2): the CR8 / CR8-west /
+CR10 climbs engage, the NOC hatch ladder (A1), the escape ladder, the fire stair, the kp-riser door, the deck exit; the level-measure / V6 `measured` targets (shadow, vantage,
+los, time_s, split legs, reach: declared, never written `measured`); the lit pictures of the new lamps; the dressed hero log in the browser (NOC desk 2 omitted, battery racks
+unskinned); `--require-measured` is the lead's EXIT-4. Then "S4 v2 data pushed at <sha>" for Marlow's Code Relay validator re-run.

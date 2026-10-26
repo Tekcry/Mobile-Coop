@@ -61,6 +61,7 @@ export const S4_DOORS = {
   c4Near: [-10, 29] as [number, number],
   kpBatt: [-4, 18.5] as [number, number],
   /** (G4.5 C22) the riser partition moved to x 30.5. */
+  // bolt point (Dunmore's spook respawn, Code Relay A11): (28, 0, 45.8) kept clear
   kpDeck: [30.5, 45] as [number, number],
   /** (G4.5 D:37, BT:102) the cable-pull door from the compound into the riser, keypad on the plant doors code. */
   kpRiser: [34, 46.5] as [number, number],
@@ -560,12 +561,14 @@ export function buildCampusS4(b: LevelBuilder): void {
   slab(b, -10, -4, 27.5, 31, 3.2);
   // (G4.2 C11, D:26) the battery racks 2.0 high, noLedge (CR8-west rules 2-3)
   for (const [x0, z0, x1, z1] of S4_BOX.batteryRacks) bx(b, x0, x1, 0, 2.0, z0, z1, RACK, { noLedge: true });
-  // (G4.2 CR8, D:24) the sill strips under the two side grilles (y 0..4.4, z 19.5..21.0) lose noLedge: a lip at 4.4 on both faces
-  for (const x of [14, -4]) {
-    const sill = b.boxes.find((q) => Math.abs(q.c[0] - x) < 1e-6 && Math.abs(q.c[2] - 20.25) < 1e-6 && Math.abs(q.s[2] - 1.5) < 1e-6 && Math.abs(q.c[1] - 2.2) < 1e-6 && Math.abs(q.s[1] - 4.4) < 1e-6);
-    if (!sill) throw new Error(`campus S4: the CR8 sill strip at x ${x} is not found`);
-    delete sill.noLedge;
-  }
+  // (G4.2 CR8, D:24; fix 1) the sills under the two side grilles (y 0..4.4, z 19.5..21.0) stay noLedge: a strip 0.2 / 0.3
+  // deep only hangs (`canClimbUp` needs `LEDGE.climbDepth`), so each sill top gets manual ledges (hang and climb up) on
+  // both faces: the boost side (CR8 dock x 14.1, CR8-west battery room x -4.15) and the plenum side (x 13.9, -3.85; the
+  // plenum floor is the lobby slab at 3.2, 1.2 under the sill), so the climb in and the hang-drop back out both work
+  b.ledge(14.1, 19.5, 14.1, 21.0, 4.4);
+  b.ledge(13.9, 21.0, 13.9, 19.5, 4.4);
+  b.ledge(-4.15, 21.0, -4.15, 19.5, 4.4);
+  b.ledge(-3.85, 19.5, -3.85, 21.0, 4.4);
   const [ux0, uz0, ux1, uz1] = S4_BOX.upsCabinets;
   bx(b, ux0, ux1, 0, 2.0, uz0, uz1, RACK, { noLedge: true });
 
@@ -607,6 +610,10 @@ export function buildCampusS4(b: LevelBuilder): void {
 
   // ---- the security room (x -4..8, z 42..48; the NOC's slab over it) and the NOC (3.6..7.0)
   // (G4.4 C16, D:31) the dog-leg fire stair: one slab rect minus the well, the mid landing, the spine, the three rails
+  // sync-s4-noc: Dunmore (#14) issues the release (J26; re-askable, no hard countdown). The console prop and the seat placard (BT:107)
+  // sit on the window ledge in front of the west seat (P12), not inside #14's slot (1.0, 3.6, 43.0)
+  b.box(1.0, 4.45, 42.35, 0.6, 0.08, 0.3, '#2a2f35', 0, 0, false);
+  b.box(1.0, 4.55, 42.3, 0.25, 0.08, 0.02, '#d8d8d8', 0, 0, false); // Dunmore's seat placard (BT:107)
   slabCut(b, [-4, 8, 42, 48], S4_NOC, [STAIR_WELL]);
   bx(b, 0, 1.4, 1.6, 1.8, 45.1, 47.85, STEEL, { noLedge: true });
   bx(b, 1.4, 4.2, 0, 4.7, 46.4, 46.5, WALL_DARK, { noLedge: true });

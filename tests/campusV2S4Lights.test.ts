@@ -7,6 +7,10 @@ import { describe, expect, it, vi } from 'vitest';
 import type { BoxPiece, LevelBuilder as LB } from '../src/world/levelBuilder';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { hyp2 } from '../src/core/mathx';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { LevelBuilder as LiveBuilder } from '../src/world/levelBuilder';
+import { buildCampusS4 as buildLiveS4 } from '../src/world/maps/campusS4';
 import { lampReach } from '../src/world/lampMath';
 
 const PI = Math.PI;
@@ -190,5 +194,51 @@ describe('G4.5 deck lights and the riser lamp (D:40, 0.5 rule 4)', () => {
     expect(nearNav(30.75, 46.2, 0), 'riser switch on nav').toBe(true);
     expect(hyp2(sw[0]!.pos.x - S4_DOORS.kpDeck[0], sw[0]!.pos.z - S4_DOORS.kpDeck[1])).toBeLessThanOrEqual(1.5);
     expect(s4Lights.length).toBe(Object.values(S4_LIGHTS).flat().length);
+  });
+});
+
+describe('G4.6 final light rules (job BRIEF A19, S4.md 0.5)', () => {
+  it('every S4 lamp comes from S4_LIGHTS, on, lit, shootable and electric; the block carries the PROVISIONAL / TODO(light-realism) header', () => {
+    const all = Object.values(S4_LIGHTS).flat();
+    expect(s4Lights.length).toBe(all.length);
+    for (const l of s4Lights) {
+      expect(all.some((q) => q.x === l.x && q.y === l.y && q.z === l.z && q.group === l.group && q.i === l.intensity), `light ${l.id}`).toBe(true);
+      expect(l.on && l.intensity > 0 && l.destructible && l.electric, `light ${l.id}`).toBe(true);
+    }
+    const src = readFileSync(fileURLToPath(new URL('../src/world/maps/campusV2/s4.ts', import.meta.url)), 'utf8');
+    expect(src).toContain('// PROVISIONAL - light-realism (J10) retunes these values (AS/NZS 1680 / 1158 bands). TODO(light-realism): replace with calibrated values.');
+    expect(src.indexOf('TODO(light-realism)')).toBeLessThan(src.indexOf('export const S4_LIGHTS'));
+  });
+
+  it('no as-built lamp is below its as-built value (position, radius, intensity, group), none removed or dimmed; the 30 as-built lamps are all there', () => {
+    const live = new LiveBuilder();
+    buildLiveS4(live);
+    const built = live.lights.lights.filter((l) => isS4Group(l.group));
+    expect(built.length).toBe(30);
+    for (const l of built) {
+      const q = s4Lights.find((v) => v.x === l.x && v.y === l.y && v.z === l.z && v.group === l.group);
+      expect(q, `as-built (${l.x}, ${l.y}, ${l.z})`).toBeTruthy();
+      expect(q!.radius).toBeGreaterThanOrEqual(l.radius);
+      expect(q!.intensity).toBeGreaterThanOrEqual(l.intensity);
+    }
+  });
+
+  it('every lit group has a switch or a board except 79 (the deck: external plant lighting on a photocell, the LD 5.1 named reason)', () => {
+    const groups = [...new Set(s4Lights.map((l) => l.group))].sort((p, q) => p - q);
+    expect(groups).toEqual([70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 140, 141, 142]);
+    for (const g of groups) {
+      const sw = (lay.switches ?? []).some((s) => s.group === g);
+      const bd = (lay.boards ?? []).some((q) => q.groups.includes(g));
+      if (g === 79) expect(sw || bd, 'group 79 has no switch or board').toBe(false);
+      else expect(sw || bd, `group ${g} has a switch or a board`).toBe(true);
+    }
+  });
+
+  it('dark by reason: no lamp in the plenum, over the baskets above 4.4 or inside a pod (the hot aisles are behind the pod roofs)', () => {
+    const { S4_BOX, S4_PODS } = m.s4;
+    const inBox = (l: { x: number; z: number }, a: number, c: number, z0: number, z1: number): boolean => l.x >= a && l.x <= c && l.z >= z0 && l.z <= z1;
+    expect(s4Lights.filter((l) => l.y > 3.1 && l.y < 7.2 && inBox(l, -4, 14, 16, 22)).map((l) => l.id)).toEqual([]);
+    for (const q of [S4_BOX.b1, S4_BOX.b2, S4_BOX.b3, S4_BOX.bN, S4_BOX.bCage]) expect(s4Lights.filter((l) => l.y > 4.4 && inBox(l, q[0], q[2], q[1], q[3])).map((l) => l.id), `over basket ${q}`).toEqual([]);
+    for (const x0 of S4_PODS) expect(s4Lights.filter((l) => inBox(l, x0, x0 + 3.6, 24, 32) && l.y < 3.1).map((l) => l.id), `pod ${x0}`).toEqual([]);
   });
 });

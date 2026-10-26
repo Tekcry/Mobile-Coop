@@ -19,6 +19,7 @@ import type { CampusDresser } from '../../campusArt/dresser';
 import { boxAt, boxesIn, rectsOverlap } from '../../campusArt/geometry';
 import { blocked, overlapsGreybox, placementMount, shapesOf } from '../../campusArt/keepouts';
 import { PROP_LOOK } from '../../props/facilityProps';
+import { hyp2 } from '../../../core/mathx';
 import { S4_BASKET, S4_BOX, S4_DECK, S4_GROUPS, S4_NOC, S4_PODS } from './s4';
 
 /** Every room of `S4_ROOMS` -> its tag (brief section 1). */
@@ -175,7 +176,7 @@ function around(c: Cand, rx: number, rz: number, step: number, yaws: readonly nu
   const out: { d: number; c: Cand }[] = [];
   for (let dx = -rx; dx <= rx + 1e-9; dx += step) {
     for (let dz = -rz; dz <= rz + 1e-9; dz += step) {
-      for (const yaw of yaws) out.push({ d: Math.hypot(dx, dz) + (yaw === c.yaw ? 0 : 0.01), c: { x: c.x + dx, y: c.y, z: c.z + dz, yaw } });
+      for (const yaw of yaws) out.push({ d: hyp2(dx, dz) + (yaw === c.yaw ? 0 : 0.01), c: { x: c.x + dx, y: c.y, z: c.z + dz, yaw } });
     }
   }
   return out.sort((a, b) => a.d - b.d).map((o) => o.c);
