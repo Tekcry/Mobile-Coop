@@ -1,5 +1,5 @@
 import vm from 'node:vm';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 // @ts-expect-error plain .mjs tool script without types
 import * as C from '../scripts/route-run/coop.mjs';
@@ -326,5 +326,22 @@ describe('R9: co-op moves through runOne on two fake pages', () => {
     await d.install();
     const r = await C.coopBoost({ host: P.page, client: null, driver: d, notes: [], advance: (s: number) => d.advance(s) }, { index: 17, kind: 'coop_boost', at: [0, 0, 4], past: [0, 4.4, 5.2], hold_s: 6 });
     expect(r).toEqual({ outcome: 'stub', stub: { link: 17, kind: 'coop_boost', hold_s: 6, why: S.STUB_WHY_COOP } });
+  });
+});
+
+describe('R9: selftest fixtures and real co-op moves (check fix 1)', () => {
+  it('a 2-player fixture that expects a stub on a boost or human ladder asks for stubs (expect.coop "stub")', () => {
+    const dir = new URL('./fixtures/route-run/', import.meta.url);
+    const files = readdirSync(dir).filter((f) => /^selftest.*\.graph\.json$/.test(f));
+    expect(files.length).toBeGreaterThan(0);
+    for (const f of files) {
+      const fx = JSON.parse(readFileSync(new URL(f, dir), 'utf8'));
+      if (fx.expect?.players !== 2) continue;
+      for (const r of fx.expect.runs ?? []) {
+        for (const [i, o] of Object.entries(r.outcomes ?? {})) {
+          if (o === 'stub' && C.REAL_KINDS.includes(fx.links?.[Number(i)]?.kind)) expect(fx.expect.coop, `${f} ${r.id} link ${i}`).toBe('stub');
+        }
+      }
+    }
   });
 });
