@@ -1,0 +1,13 @@
+{
+  "id": "20261026T013225-night-shift-sector-o-763fc7bf-1ad7",
+  "sha": "763fc7bfba8d856aa576711cae9c4fd4b9cb4beb",
+  "branch": "feature/map-ready-s14",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "map-ready-s14-gate"
+}
