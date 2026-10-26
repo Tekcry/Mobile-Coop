@@ -325,13 +325,13 @@ async function pointsLoader() {
   }
 }
 
-/** The points table: a selftest fixture's own (unchecked); else `--points <file|auto>` through R6's `loadPoints` (it
- *  throws on a stale table: exit 2), its notes printed; else a fixture given as --graph keeps its own. `load` (tests)
- *  replaces the loader. */
+/** The points table: a selftest's (its fixture's own, else `--points` read as it is: unchecked); else `--points
+ *  <file|auto>` through R6's `loadPoints` (it throws on a stale table: exit 2), its notes printed (stderr: a --dry-run's
+ *  output stays the plan); else a fixture given as --graph keeps its own. `load` (tests) replaces the loader. */
 export async function readPoints(o, graphs, fixture = null, load = null) {
-  if (fixture?.points) return fixture.points;
+  if (fixture) return fixture.points ?? (o.points ? readJson(o.points) : null);
   if (!o.points) return graphs.find((gr) => gr.points)?.points ?? null;
-  const table = await (load ?? (await pointsLoader()))({ graphs, files: fixture ? [o.selftest] : o.graphs, src: o.points });
+  const table = await (load ?? (await pointsLoader()))({ graphs, files: o.graphs, src: o.points });
   for (const n of table?.notes ?? []) console.error(`route-run points: ${n}`);
   return table;
 }
