@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-26T03:22:08Z
+status: open
 
 # campaign J8 E8: the wharf e2e follows J8's geometry (Sonnet 5.5)
 
