@@ -541,7 +541,7 @@ describe('piano-knife S3: the remote pair looks as the owner\'s (G400)', () => {
         const gap = traceGap(local.trace, w.trace);
         lines.push(`${via}: root ${(w.wireRoot * 100).toFixed(2)} cm, wrist ${(gap[0]! * 100).toFixed(1)} tip ${(gap[1]! * 100).toFixed(1)} head ${(gap[2]! * 100).toFixed(1)} cm; contacts grip ${(w.grip * 100).toFixed(1)} tip ${(w.tip * 100).toFixed(1)} handR ${(w.handR * 100).toFixed(1)} handL ${(w.handL * 100).toFixed(1)} (local ${(local.grip * 100).toFixed(1)} ${(local.tip * 100).toFixed(1)} ${(local.handR * 100).toFixed(1)} ${(local.handL * 100).toFixed(1)})`);
         expect(w.wireRoot, `${via} root`).toBeLessThanOrEqual(rootTol);
-        for (let k = 0; k < 3; k++) expect(gap[k]!, `${via} ${PARTS[k]}`).toBeLessThanOrEqual(knownGap(id, via, PARTS[k]) ?? 0.03);
+        for (let k = 0; k < 3; k++) expect(gap[k]!, `${via} ${PARTS[k]}`).toBeLessThanOrEqual(knownGap(id, via, PARTS[k]!) ?? 0.03);
         for (const c of CONTACTS) expect(w[c], `${via} ${c}`).toBeLessThanOrEqual(knownGap(id, via, c) ?? local[c] + contactTol);
       }
       console.info(`(piano-knife S3) ${id}: ${lines.join(' | ')}`);
