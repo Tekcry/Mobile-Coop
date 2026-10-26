@@ -15,7 +15,7 @@ Michael ~19:20: "a black screen, slowly fading in to the characters upper chest,
 an empty pistol, calmly breathing". Campaign owns the camera, fade, actors and the EMP; this slice gives Campaign one call,
 `GameState.introPose(on, variant)`: the operator's back on the nearest high face (W1, the grain bins), the pistol out at
 low ready in both hands, its slide locked back (S4a), one calm breath every 4 s on the trunk taken from the captured
-Breathing Idle, the hero LOD while the intro runs. `introPose(false)` (the cut to play) takes the operator off the wall,
+Breathing Idle, the hero LOD while the intro runs. `introPose(false)` (the cut to play) leaves the operator on the wall in normal wall cover (Campaign ~22:45),
 holsters the pistol and puts the slide forward (lead decision: the slide goes forward when holstered, A13). In co-op each
 page calls it for its own operator only; the partner's screen poses him from his MoveState (G400), so both players look
 the same everywhere. Map `thornbeckMill`, scene `'piano'`; Campaign's spots (4.0, 4.6) and (4.0, 6.0), backs to W1 (face
@@ -152,9 +152,9 @@ Step 2: the call, the remote, the Studio.
      `w.intro = true`; `w.introLeft = v === 'mirror'`; `player.stance.base = 'lowReady'` (the draw runs in the 0-3 s
      black); `host.pistol()?.slideLock(true)`; `host.closeUp(true)`; `void loadIntroBreath()`; `INTRO_SIM.on = true`;
      `this.on = true; this.variant = v`; return true. Called again while on: the same (re-enters; harmless).
-   - `set(false)`: if `!this.on` return false. `w.intro = w.introLeft = false`; `w.leave('intro')`;
-     `player.stance.holster()`; `host.pistol()?.slideLock(false)`; `host.closeUp(false)`; `INTRO_SIM.on = false`;
-     `this.on = false`; return true. Leaving keeps the wall's stance (`wallStep`'s crouch carry-over, :3456-3459).
+   - `set(false)`: if `!this.on` return false. `w.intro = w.introLeft = false` (the operator STAYS on the wall in ordinary wall cover: no `w.leave`; Campaign
+     ~22:45: play starts in wall cover); `player.stance.holster()`; `host.pistol()?.slideLock(false)`; `host.closeUp(false)`; `INTRO_SIM.on = false`;
+     `this.on = false`; return true. From then on the normal wall rules apply (any leave input releases the wall).
 
 8. `src/game/gameState.ts`
    - `wallStep` (:3414): the `this.wallCore ??= new WallCore(segs, buildWallLinks(segs), COVER_STANDOFF)` moves into
@@ -215,8 +215,8 @@ Step 3: tests, docs.
 12. `docs/systems/movement.md`: after the "Open-side hand" bullet (:312) add: "- Piano intro pose (piano-knife S4b):
     `GameState.introPose(on, variant)` (`game/introPose.ts`) puts the operator's back on the nearest high face within
     reach, the pistol at low ready in both hands (no wall tuck or hang), slide locked back, one breath of the captured
-    Breathing Idle every 4 s on the trunk (`anim/introBreath.ts`, tuner section "Intro pose"), the hero LOD; off: off the
-    wall, holstered, slide forward. Remotes from `WALL_SUB.intro` (32; mirror: `leftHand`)." `changes/feature-piano-knife-s4b.md`
+    Breathing Idle every 4 s on the trunk (`anim/introBreath.ts`, tuner section "Intro pose"), the hero LOD; off: normal wall
+    cover, holstered, slide forward. Remotes from `WALL_SUB.intro` (32; mirror: `leftHand`)." `changes/feature-piano-knife-s4b.md`
     (`kind: patch`, three lines: the intro pose for the piano scene, dark until Campaign calls it).
 
 ## Tests (one closest set, run once; a red test gets one fix and one rerun)
@@ -299,8 +299,8 @@ for the intro camera as well.
 ## Questions for Campaign (via the lead; the defaults hold until answered, no code waits)
 1. Which variant for which operator? Default: `'stand'` for the operator on `start` (solo and host), `'mirror'` for the
    one on `start2` (side by side they frame symmetrically); `'crouch'` is there if they want the partner low.
-2. At the cut `introPose(false)` takes the operator off the bins (free standing, pistol holstered). Default: yes; the
-   alternative (stay on the wall at the cut) is a one-line change.
+2. ANSWERED (Campaign ~22:45): at the cut the operator stays on the bins in normal wall cover (pistol holstered,
+   slide forward); play starts in wall cover. 1. ANSWERED: the defaults (`stand` on start, `mirror` on start2).
 
 ## Size
 | Part | Lines |
