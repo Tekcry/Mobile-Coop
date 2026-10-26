@@ -350,7 +350,7 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~18:40 SAVE at ~85%, PROTOTYPE MODE).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~18:55 SAVE, PROTOTYPE MODE).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu; ROADMAP Decided
 "PROTOTYPE MODE" (~16:05) and "Prototype, not polish" (~16:20): playable over perfect, ONE closest test set per change,
 one fix + one rerun at most, no tuning passes before Michael plays.
@@ -372,6 +372,11 @@ them when train-ready; orchestrator told ~18:05):
    variant. Should land with or before the first v2 section, else preview bakes on the PC at load.
 On a red: one Opus triage, one fix, one rerun, then quarantine / note and ship. On a conflict between them: merge
 master into that branch, resolve, one checker.
+4b. ~18:50 level validator on the five v2 graphs (docs/sector-redesign/graph/v2/): 0 errors, 172 warnings
+   (scratch v2-validate.log); --require-measured 33 errors (no measured values; V6 not live, RULES). QUEUED laptop alone
+   request 20261026T075231-night-shift-sector-o-bfe27e3f-0cfe: route-run S1-S5 code routes, 1 player, on origin
+   test/campus-v2-all @ bfe27e3f (all v2 PRs merged), published to branch route-run-results; verdict laptop-e2e/
+   routerun-campus-v2. Read REPORT.md: a dead stop or a stuck leg = a playthrough blocker -> one fix on that section PR.
 5. J10 light: L2 (S2-S5 re-light) HOLD until Michael's S1 walk. Known: v2 S1 carport edges dark (real gap).
 Next: check S2-S5 CI after the rerun; watch #573 / #525 / #518 affected reruns (sectorops:6, no longer
 quarantined on the desktop, FIXES F48); on green the watchdog labels; watch all land; then ask the orchestrator for the next playable piece (e.g. a bot route-run of v2 S1-S5).
