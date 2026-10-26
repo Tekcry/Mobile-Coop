@@ -134,6 +134,19 @@ describe('GA3: one blackout reaction', () => {
     for (const e of [down, fighting, held]) expect(e.searchAt).not.toHaveBeenCalled();
   });
 
+  it("blackoutSearchSlots takes the live section's slot indices (the plan's mill:0-mill:3); an empty slot is skipped", () => {
+    const { em } = manager();
+    const g = () => ({ alive: true, alerted: false, taken: false, searchAt: vi.fn() });
+    const s0 = g();
+    const s2 = g();
+    const s3 = g();
+    (em as unknown as { slotGuard: unknown[] }).slotGuard.push(s0, null, s2, s3);
+    expect(em.blackoutSearchSlots([0, 1, 2, 7], 5.5, 5.25)).toBe(2);
+    expect(s0.searchAt).toHaveBeenCalledWith(5.5, 5.25, null, SEARCH_BLACKOUT);
+    expect(s2.searchAt).toHaveBeenCalledWith(5.5, 5.25, null, SEARCH_BLACKOUT);
+    expect(s3.searchAt).not.toHaveBeenCalled();
+  });
+
   it('in a scene blackout a lights-out sends nobody (the scene reaction is the only one); off, the board runs as built', () => {
     const { em } = manager();
     const room = vi.fn();

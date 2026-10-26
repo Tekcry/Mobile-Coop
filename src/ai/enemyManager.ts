@@ -1259,6 +1259,17 @@ export class EnemyManager {
     return n;
   }
 
+  /** (piano escape GA3, check B) `blackoutSearch` by the live section's slot indices (its guard list order: the plan's
+   *  `mill:0`-`mill:3` are slots 0-3); an empty slot is skipped. Not hot. Returns how many started. */
+  blackoutSearchSlots(slots: readonly number[], x: number, z: number): number {
+    const list: Enemy[] = [];
+    for (let i = 0; i < slots.length; i++) {
+      const e = this.slotGuard[slots[i]!];
+      if (e) list.push(e);
+    }
+    return this.blackoutSearch(list, x, z);
+  }
+
   /**
    * Lights went out at a point (a lamp shot out, a wall switch, a circuit cut; every lights-out path comes here).
    * (x, y, z): the fixture (or the switch: where guards walk to); `lightId` the lamp that went (registry id) or
