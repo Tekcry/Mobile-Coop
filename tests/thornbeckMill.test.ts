@@ -363,6 +363,23 @@ describe('Thornbeck Mill: light (PLAN section 2b and "Spaces, levels and lamps")
     expect(f[0]!.t + P - (last.t + last.len)).toBeGreaterThan(10);
   });
 
+  it('the lightning openings (SO5b): the ten windows and board gap, on the walls, facing in; not the hoist doorway', () => {
+    const o = THORNBECK_LIGHTNING.openings;
+    expect(o).toHaveLength(10);
+    for (const p of o) {
+      expect(Math.abs(p.nx) + Math.abs(p.nz)).toBe(1);
+      // on a wall's inner face, facing into the hall
+      if (p.nz === 1) expect(p.z).toBe(0);
+      if (p.nz === -1) expect(p.z).toBe(18);
+      if (p.nx === 1) expect(p.x).toBe(0);
+      if (p.nx === -1) expect(p.x).toBe(32);
+      expect(p.w).toBeGreaterThan(0);
+      expect(p.h).toBeGreaterThan(0);
+      // the hoist doorway (west gable z 15.8-17.4) is not one
+      expect(p.nx === 1 && p.z > 15).toBe(false);
+    }
+  });
+
   it("the lightning period is the mission track's loop: 162.04 s whole less the 2 s cross-fade", () => {
     expect(THORNBECK_LIGHTNING.period).toBe(THORNBECK_LIGHTNING_PERIOD);
     expect(THORNBECK_LIGHTNING.period).toBeCloseTo(160.04, 9);
