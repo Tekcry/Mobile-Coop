@@ -111,7 +111,8 @@ export const KIT_POSE_PLACEHOLDER: Readonly<Record<KitPoseId, string>> = {
 export const KIT_B_PLACEHOLDER: Readonly<Record<Exclude<KitPoseMove, 'pull' | 'shutter'>, 'brace' | 'hangOffer' | TraverseKind>> = {
   deadweight: 'hang',
   dropCatch: 'brace',
-  chimneyPair: 'brace',
+  // (coop-kit K3, lead) the ladder climb, not the crouched offer all the way up the shaft (KA3's real pose replaces it)
+  chimneyPair: 'climb',
   swingPass: 'hangOffer',
   plankBridge: 'brace',
 };

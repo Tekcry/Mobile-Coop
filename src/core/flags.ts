@@ -136,8 +136,9 @@ export interface Flags {
 }
 
 /** (coop-kit A1, BRIEF A8) Every kit move id that exists in the game (each slice adds its id in the PR that makes the
- *  move playable): A1's rope descent, Campaign's pull-up and shutter (PR #578, folded in from `coopKit`). */
-export const KIT_BUILT: readonly string[] = ['descent', 'pull', 'shutter'];
+ *  move playable): A1's rope descent, Campaign's pull-up and shutter (PR #578, folded in from `coopKit`), (coop-kit K3)
+ *  Chimney Pair (`chimneyPair`). */
+export const KIT_BUILT: readonly string[] = ['descent', 'pull', 'shutter', 'chimneyPair'];
 
 /** (coop-kit A1) The kit ids on in the live game: an id joins this list when Michael accepts its walk (switch-on). */
 export const KIT_MOVES_ON: readonly string[] = [];
