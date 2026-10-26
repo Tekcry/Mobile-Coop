@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import * as L from '../src/anim/audit/limits';
 import * as M from '../src/anim/audit/metrics';
+import { DRAW_TIME_PRIMARY, DRAW_TIME_SIDEARM } from '../src/weapons/drawState';
 
 const DT = 1 / 60;
 /** Quaternion stream rotating about Y by `degPerFrame` each frame. */
@@ -29,7 +31,30 @@ describe('anim audit limits', () => {
   });
   it('D2 gait bands (A7)', () => {
     expect([1, 2, 3, 4, 5].map((g) => L.gaitBand('stand', g))).toEqual(['walk', 'walk', 'walk', 'run', 'run']);
-    expect(L.gaitBand('crouch', 6)).toBe('crouch');
+    expect(L.gaitBand('crouch', 5)).toBe('crouch');
+    expect(Object.keys(L.PELVIS_P2P)).toEqual(['crouch', 'walk', 'run']);
+  });
+  it('(J19 S5, R30) bible 5.12.2 item 6: the flick turn, the draw per class and the takedown', () => {
+    expect(L.MIN_DURATION.turn180).toBe(0.4);
+    expect(L.raiseMin('pistol')).toBe(0.75);
+    expect(L.raiseMin('pistol')).toBe(DRAW_TIME_SIDEARM);
+    for (const cls of ['rifle', 'smg']) {
+      expect(L.raiseMin(cls)).toBe(1.1);
+      expect(L.raiseMin(cls)).toBe(DRAW_TIME_PRIMARY);
+    }
+    expect(L.MIN_DURATION.takedown).toBe(1.0);
+    expect('raise' in L.MIN_DURATION).toBe(false);
+  });
+  it('(J19 S5, R19 / R30) anim-audit: no gear 6, sprint or dash rows; the takedown row; the draw row per class', () => {
+    const src = readFileSync('scripts/anim-audit.mjs', 'utf8');
+    expect(src).not.toMatch(/\bsprint\b/i);
+    expect(src).not.toMatch(/'dash'/);
+    expect(src).not.toMatch(/\['stand', 6\]/);
+    expect(src).not.toMatch(/MIN_DURATION\.raise\b/);
+    expect(src).toMatch(/kind: 'takedown'/);
+    expect(src).toMatch(/L\.MIN_DURATION\.takedown/);
+    expect(src).toMatch(/L\.raiseMin\(/);
+    expect(src).toMatch(/'drawPh'/);
   });
 });
 
@@ -281,7 +306,7 @@ describe('anim audit metrics', () => {
     y[15] = y[15]! + 0.1;
     expect(M.stairsPelvisDrop(y, 0.0333).pass).toBe(false);
     const f = Array.from({ length: 60 }, (_, i) => (i >= 5 && i < 17 ? 1 : 0));
-    expect(M.durationOf(f, DT, L.MIN_DURATION.raise).worst).toBeCloseTo(0.2, 5);
+    expect(M.durationOf(f, DT, L.MIN_DURATION.raisePistol).worst).toBeCloseTo(0.2, 5);
     expect(M.durationOf(f, DT, L.MIN_DURATION.swap).pass).toBe(false);
     const st = [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
     const w = [1, 1, 0.3, 0.6, 0.9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
@@ -470,16 +495,16 @@ describe('anim audit step 21 (holstered arms gate, M14)', () => {
       }
       return [a, b, c];
     };
-    // M14: relaxed at the sides standing (8-30), softly bent crouched (15-50), pumping at the sprint (55-95)
-    const st = L.readyElbowBand('stand', 2);
+    // M14: relaxed at the sides standing (8-30), softly bent crouched (15-50)
+    const st = L.readyElbowBand('stand');
     expect(st).toEqual({ min: 8, max: 30 });
-    expect(L.readyElbowBand('crouch', 3)).toEqual({ min: 15, max: 50 });
-    expect(L.readyElbowBand('stand', 6)).toEqual({ min: 55, max: 95 });
+    expect(L.readyElbowBand('crouch')).toEqual({ min: 15, max: 50 });
+    expect(Object.keys(L.READY_ELBOW)).toEqual(['stand', 'crouch']);
     const ok = M.flexBand(...arm([12, 18, 25]), st.min, st.max);
     expect(ok.pass).toBe(true);
     expect(ok.min).toBeCloseTo(12, 3);
     expect(ok.max).toBeCloseTo(25, 3);
-    const cr = L.readyElbowBand('crouch', 2);
+    const cr = L.readyElbowBand('crouch');
     const straight = M.flexBand(...arm([30, 5.1]), cr.min, cr.max);
     expect(straight.pass).toBe(false);
     expect(straight.worst).toBeCloseTo(9.9, 3);
