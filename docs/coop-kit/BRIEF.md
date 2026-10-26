@@ -3,7 +3,7 @@ Owner: Night Shift | Player Build. Status: current (job doc; archived by `Job-do
 
 Lead: Night Shift | Player Build. Started: 2026-10-25 ~18:20. Base: master 2148ec969. Job: FOLDED-PLAN J24 (co-op kit:
 shoulder stand, rope descent; conformance P R32, P R34), widened at ~18:10 by the lead's note to the five moves Michael
-added to the kit (below). Planner: Opus 5.5.
+added to the kit (below). Planner: Opus 5.5. Revised for plan check 2 (2026-10-26, pointers at master 65411ea65).
 
 ## Michael said
 - 2026-10-17 (LEVEL-06, G57): "Ladder reaches 4.5 m"
@@ -19,8 +19,17 @@ added to the kit (below). Planner: Opus 5.5.
 - 2026-10-25 ~16:50 (folded plan Q38, G399): "mocap only, i will fine tune them in anim dev"
 - 2026-10-25 ~22:42 (ROADMAP Decided): "confirming priority is mixamo animations in anim tuner and in game. note this
   for next session to continue"
+- 2026-10-26 ~00:20 (ROADMAP Decided): "does mixamo have versions to replace those that cmu covers? i approve
+  downloading any additional mixamo animations and implemeting into the game, i want to be able to switch between all 3
+  animation sets in game and animation dev to test."
 - 2026-10-26 ~00:25 (ROADMAP Decided): "update - dont set mixamo moves as default in game, allow toggle between hand
   made, cmu, and mixamo"
+- 2026-10-26 ~13:55 (ROADMAP Decided): "why are you hiding all new features until switched on? i trial them all in the
+  preview server"
+- 2026-10-26 ~16:05 (ROADMAP Decided): "is it worth pushing out quicker as prototype? i still dont know if the gameplay
+  is solid yet, and you are spending a long time testing things that may not be used."
+- 2026-10-26 ~16:20 (ROADMAP Decided): "definitely keep in mind that this is all a prototype, and cannot get bogged down
+  with fine tuning or re-running tests constantly."
 
 ## Michael picked
 - 2026-10-24 ~22:50 (native multiple choice, G293) the campaign co-op traversal kit: "boost up a wall, throw over a gap,
@@ -30,38 +39,55 @@ added to the kit (below). Planner: Opus 5.5.
 - 2026-10-25 ~18:05 Q: "Do any proposed moves join the kit now?" (`docs/missions/prototypes/coop-kit/SIGNOFF.md` on
   origin/feature/mission-framework, PR #372) -> all five join: "Deadweight,Drop Catch,Chimney Pair,Swing Pass" and
   Plank Bridge "Add it" (as recorded in ROADMAP Decided on origin/feature/menu, ~18:05).
+- 2026-10-25 ~20:20 Q: the relay lip height (Marlow J12 A24) -> picked: "Keep 4.6 m (Recommended)" (ROADMAP Decided).
+- 2026-10-26 ~13:55 Q: hidden features and the preview -> picked: "All on in preview" (every dark feature flag defaults
+  on in `/preview/`, a URL `=0` turns one off; the live game unchanged) (ROADMAP Decided).
+- 2026-10-26 ~16:05 Q: testing and pace -> picked: "Prototype mode (Recommended)" ("turn everything on in preview,
+  lighter testing ... Building follows your playthrough"; ROADMAP Decided: one closest test set per change, no repeat
+  proof runs, playable over polish).
 
 ## Goal
 Part 1: two players can do the CT shoulder stand (one stands on the partner's shoulders to reach a 4.5 m lip, or stays
 up and aims the pistol) and can rappel down the two-person rope as well as climb it. Part 2: Deadweight, Drop Catch,
-Chimney Pair, Swing Pass and Plank Bridge are playable kit moves. Every move ships dark behind its flag id, with both
-players' poses exact on both screens (Q39) and a look video, and switches on when Michael accepts it on a walk.
+Chimney Pair, Swing Pass and Plank Bridge are playable kit moves. Every move ships behind its flag id: on in `/preview/`
+as soon as it is built (~13:55), off in the live game until Michael accepts it on a walk; both players' poses exact on
+both screens (Q39), each drawn with its owner's Animation source, and a look video. Prototype mode (~16:05, ~16:20):
+playable pieces first, no fine-tuning passes, one test set per PR.
 
 ## Limits
 - Out of scope: map placement of the moves (Tallow Wharf uses only the six approved moves; Marlow Yard's teaching sets
   are Marlow's J14 re-plan); the level validator's code (`scripts/level-validate.mjs`, Marlow Build); the pull-up and
   shutter poses Player owes Marlow (resume-ct-core: pull and shutter clips): this job only names the files it shares
-  with them; the ledge relay's reach (A5); guard reactions beyond naming the hooks Guard AI owns (Plank Bridge, a lifted
+  with them; the ledge relay's reach (M2); guard reactions beyond naming the hooks Guard AI owns (Plank Bridge, a lifted
   grate).
 - Rules that hold: CLAUDE.md hard rules (no static `src/net` import, hot paths allocate nothing, `hyp2` / `hyp3`, flags
   for unfinished work); G57 (one 4.3-4.5 m band for boost and human ladder), G151 (anywhere with room, a prompt naming
   the move), G180 (pure CT mechanics), G210 / bible 5.12 (real-world trained-operator animation, the 5.12.2 realism
   standard, paired moves within 3 cm at contact on host and client), G243 (real-world research sets timings; per-clip
-  speed slider in the tuner), G10 (numbers are starting values), Q39 (partner animation exact on every page), G399
-  (players get motion capture; narrowed by Michael's ~00:25 toggle: hand-made stays the default, CMU and Mixamo are
-  picked by a global setting), G406 / G407 (Mixamo and other free commercial-use captures, retargeted onto our rigs,
-  Michael downloads Mixamo files), bible 5.9 C3-C4, bible 5.12, level-design 11.8-11.9 and 12.
+  speed slider in the tuner), G10 (numbers are starting values), Q39 (partner animation exact on every page; ROADMAP
+  ~00:55 G400: each player is drawn on every screen with that player's own Animation source), G399 (players get motion
+  capture; narrowed by Michael's ~00:25 toggle: one global Animation source Hand-made / CMU / Mixamo, the default
+  `cmu` = today's game, `ANIM_SOURCE_DEFAULT` in `src/anim/animSource.ts`; a move with no clip in the chosen source
+  keeps today's clip), G406 / G407 (Mixamo and other free commercial-use captures, retargeted onto our rigs; ~00:20:
+  Michael pre-approves every Mixamo download, the orchestrator downloads them in the browser pane as Player Build lists
+  them), ~13:55 (every dark flag on in `/preview/`), prototype mode (~16:05, ~16:20), bible 5.9 C3-C4, bible 5.12,
+  level-design 11.8-11.9 and 12.
 - `docs/design/scale-sheet.md` and `docs/level-design.md` are Marlow Build's and change only with Michael's approval:
   the rope descent line follows G293 (approved), the human-ladder reach lines follow G57 (approved) as a 12.1 engine-fact
-  change; Marlow Build reviews both in the PRs that ship the code (PLAN slices A1, B1).
-- Areas touched and their unwalked count: Player / animation 2 (optic cable partner view, client body carry). The
-  AF0-AF6 walk was dropped at ~22:25 2026-10-25 (ROADMAP Decided "Walk plan": Mixamo replaces those moves); the
-  "Waiting on Michael" row still reads 3 until the orchestrator updates it. The ~00:25 2026-10-26 Animation source
-  toggle picks which clips play; it switches none of these moves on. Everything here ships dark; switch-on waits for
-  Michael's walk (G288, G355).
+  change; Marlow Build reviews both in the PRs that ship the code (PLAN slices A1, B1). Part 2's new band rows and
+  graph kinds are not approved yet: a question to Michael (A12).
+- Areas touched and their unwalked count (ROADMAP "Waiting on Michael"): Player / animation 3, AT CAP (the row still
+  lists the AF0-AF6 pass, which ~22:25 2026-10-25 dropped, so the real count is 2 until the orchestrator updates it);
+  Marlow Yard 3, AT CAP (its kit stations switch from stand-in to the real move through `kitMoveOn`, PLAN part 2). The
+  cap holds switch-on in the live game only: building goes on, and `/preview/` shows every built move (~13:55). The
+  Animation source toggle picks which clips play; it switches no move on. Live switch-on waits for Michael's walk
+  (G288, G355).
 
 ## Answers (M) and assumptions (A)
 - M1 2026-10-25 ~18:05: the five proposed kit moves join the kit (Michael picked, above).
+- M2 2026-10-25 ~20:20: `TEAM.relayMax` stays 4.6 (Michael picked "Keep 4.6 m (Recommended)"); scale sheet line 56
+  already says so on master. The relay keeps wire kind `ladder` and is not the shoulder stand (A1); this job leaves it
+  alone.
 - A1: The "human ladder" of G57 and bible 5.9 C3 is CT's shoulder stand (`docs/ct-research/levels-digest.md:41`: one
   stands on the partner's shoulders to reach a high point; the rider can use weapons), a separate move from the ledge
   relay (bible C3 lists both; the relay keeps wire kind `ladder`, `src/game/teamMoves.ts:11`). Mission-engine
@@ -77,57 +103,69 @@ players' poses exact on both screens (Q39) and a look video, and switches on whe
 - A4: The rider on the shoulders may aim and fire the pistol (CT; bible line 512 "human ladder top"; the host already
   allows it: `hostHandsFree` treats `stacked` sub 1 as free, `src/net/validate.ts:242`). Undo: keep the rider's hands
   busy in `gameState.ts` and `validate.ts`.
-- A5: `TEAM.relayMax` stays 4.6. It measures the hanging partner's feet over the climber's floor
-  (`teamMoves.ts:63-64`; `tests/animStudio2.test.ts:376` subtracts `LEDGE.minDrop`), not a lip, so capping it at 4.5 (the
-  R32 fix column) would not bring the relay into G57's lip band and G57 does not name the relay. Scale sheet line 56
-  calls it a lip height: reported to Marlow Build to reword, not edited here. Undo: set `relayMax` 4.5 in slice B1.
+- A5: now M2 (Michael answered the relay lip height at ~20:20 2026-10-25).
 - A6: Rope descent uses today's rope offer (a standing player facing a drop, `teamController.ts:772-801`). A partner
   standing beside the holder (same floor +-0.4 m, within `TEAM.ropeReach`) takes it to rappel down; one at the foot still
   climbs. The host tells the two apart by height on the existing `tmove` / `tstart` kind `rope`: no wire shape change.
   Reaching the floor with the stick down ends it (the holder is freed by the existing `tend` `drop`). Undo: drop A1 / A2.
-- A7: CT's holder steers the rope sideways (levels-digest :40); G180 keeps it, so it is a later small slice A3 after the
-  descent, not dropped. Undo: drop A3.
-- A8: One list flag `kitMoves` (`?kitmoves=stand,descent,...`; `all` = every id), default empty; each move id switches
-  on alone when Michael accepts its walk item (the walk cap counts moves, not the kit). Campaign's `coopKit`
-  (`?coopkit=1`, pull-up and shutter, on origin/feature/mission-engine-flg-gb6) folds into `kitMoves` as ids `pull`
-  and `shutter` (its `KitKind` names, mission-engine `teamMoves.ts` `KIT_KINDS`), as agreed with the orchestrator
-  ~18:25 2026-10-25 (`docs/orchestrator/resume-ct-core.md` J24 row on origin/feature/menu; Campaign's
-  `docs/missions/STATE.md` item 7): Campaign Build does the fold in its kit registry PR, which merges over part 1; the
-  two ids stay Campaign's to switch on. Undo: one boolean flag per move, `coopKit` restored.
-- A9: Every role has three sources (G399, G406, bible 5.12, Mixamo top priority ~22:42, the toggle ~00:25): a
-  hand-made pose (the default, from the real-world technique of trained operators, G210, researched with sources in
-  the slice report, G243 style), plus a CMU and a Mixamo capture wherever one exists (`docs/coop-kit/CLIP-LIST.md`),
-  converted and retargeted with the Player-owned mixamo-retarget pipeline (`scripts/mocap/mixamo*.mjs`,
-  `scripts/mocap/data/mixamo-clips.json`, `src/anim/clips/mixamo/`). Which plays comes only from the global setting
-  "Animation source: Hand-made / CMU / Mixamo" (`src/anim/animSource.ts`, being built on feature/mixamo-on), never a
-  per-role constant; Mixamo clips register through `addMixamoResolver` / `MIXAMO_ON` rows (`src/anim/mixamo.ts`), CMU
-  through the mocap switch. The mixamo-retarget A8 measure is a quality bar recorded in the report, not the switch (a
-  Mixamo row is on unless visibly broken). Timings never under bible 5.12.2 minimums; each move gets tuner rows
-  (`src/anim/moveTune.ts`) so Michael can tune it. No CT footage is traced. Undo: drop a capture's rows; hand-made
-  plays under every setting.
+- A7: CT's holder steers the rope sideways (levels-digest :40). Michael never asked for it, no map uses it and prototype
+  mode builds playable pieces first, so slice A3 is parked until after Michael's playthrough (~16:05 "Building follows
+  your playthrough"); it is built then only if the playthrough or a map asks for it. Undo: build A3 after B2.
+- A8: One list flag `kitMoves` (`?kitmoves=stand,descent,...`; `all` = every built id; `0` / `none` = all off). A
+  `KIT_BUILT` list in `src/core/flags.ts` names the ids that exist (each slice adds its id when it makes the move
+  playable). Default: every `KIT_BUILT` id on `/preview/` (through `PREVIEW_ON`, as `readCampusV2` does; Michael ~13:55
+  "All on in preview"), empty in the live game; an id not in `KIT_BUILT` is never on, so Marlow's `kitMoveOn` never
+  locks a stand-in for a move that does not exist. Each id switches on in the live game alone when Michael accepts its
+  walk item (the walk cap counts moves, not the kit). Campaign's `coopKit` (`?coopkit=1`, pull-up and shutter) lands
+  first on PR #578 (origin/feature/mission-b-sector); slice A1 then folds it into `kitMoves` as ids `pull` and
+  `shutter` (its `KitKind` names, `teamMoves.ts` `KIT_KINDS` on #578); `?coopkit=1` stays an alias for those two ids.
+  The two ids stay Campaign's to switch on live. Agreed with the orchestrator ~18:25 2026-10-25 and changed with Campaign
+  Build 2026-10-26 ~09:50 (`docs/missions/STATE.md` item 7). Undo: one boolean flag per move, `coopKit` restored.
+- A9: Every role is "hand-made + Mixamo <slug>", or hand-made only where Mixamo has no fit (G399, G406, bible 5.12,
+  Mixamo top priority ~22:42, the toggle ~00:25, the downloads ~00:20). The hand-made pose comes from the real-world
+  technique of trained operators (G210, sources in the slice report, G243 style). The Animation source setting
+  (`src/anim/animSource.ts`, on master; default `cmu` = today's game) picks what plays: under Hand-made and under CMU
+  (the default) every kit role plays its hand-made pose, since no CMU take is added per kit role (~00:25: a move with no
+  clip in the chosen source keeps today's clip; a CMU kit row would become the default look, so none is added); under
+  Mixamo the role plays its Mixamo clip where one exists. Mixamo clips are converted and retargeted with the
+  Player-owned mixamo-retarget pipeline (`scripts/mocap/mixamo*.mjs`, `scripts/mocap/data/mixamo-clips.json`,
+  `src/anim/clips/mixamo/`) and register through `addMixamoResolver` / `MIXAMO_ON` rows (`src/anim/mixamo.ts`). Each
+  actor's clip follows that actor's own source (ROADMAP ~00:55, G400): the local player's page setting, a remote
+  player's from the wire (`PlayerState.an` -> `AnimGraph.animSource`, PR #498 feature/mixamo-source-wire), so every
+  screen draws each player with the owner's choice. A Mixamo row is on unless the capture is visibly broken. Timings
+  never under bible 5.12.2 minimums; each move gets tuner rows (`src/anim/moveTune.ts`) so Michael can tune it later
+  (no tuning passes now, ~16:20). No CT footage is traced. Undo: drop a capture's rows; hand-made plays under every
+  setting.
 - A10: The stand's wire: one new `tmove` / `tstart` kind `stand`; MoveState reuses the existing `stacked` mode (sub 1 =
   rider on top, sub 2 = base; `src/player/moveState.ts:46-50`, `:456-458`), so remotes pose from MoveState and the train
   bumps `PROTOCOL_VERSION`. Undo: revert B1's protocol lines.
 - A11: Part 2 moves plug into Campaign's kit registry (`src/game/kit/registry.ts`, one file per move, wire kinds through
-  `TEAM_KINDS`) once Campaign's mission-engine kit PR (KIT0 + NET) is on master; none starts before it. Undo: build them
-  on the built-in rail as part 1.
-- A12: Michael's 18:05 pick adds the five moves to the kit list of level-design 11.9 and the scale sheet's kit bands;
-  each part 2 PR carries its band row and graph kind as doc lines for Marlow Build's review, and Marlow's validator slice
-  adds the kinds to `scripts/level-validate.mjs`. Undo: drop the doc lines; the moves stay off maps.
+  `TEAM_KINDS`) once PR #578 (feature/mission-b-sector, Campaign's KIT0 registry + NET kit kinds) is on master; none
+  starts before it. Undo: build them on the built-in rail as part 1.
+- A12: Michael's 18:05 pick approves the five moves, not their bands. Adding the five graph kinds to level-design 11.9
+  and their band rows to the scale sheet changes the level standard, which changes only with Michael's approval
+  (CLAUDE.md hard rules; Intake step 2). So the rows are a one-click question to Michael by day (below), asked when the
+  detailed part 2 section is written with the numbers in hand; overnight they are assumed and logged (an A line sent
+  to the orchestrator for his next look) and the work carries on. Each part 2 PR carries its rows only once answered or
+  logged; Marlow's validator slice adds the kinds to `scripts/level-validate.mjs`. Undo: drop the doc lines; the moves
+  stay off maps.
 - A13: The game has no fall damage (`teamMoves.ts:294`), so Drop Catch's gain is the silent, roll-free landing from above
   the hard-landing band (the SIGNOFF row: "The landing is silent"). Undo: add fall harm in a separate job (a Michael
   question).
-- A14: The clip request is sent, not held for a day question. The lead sends `docs/coop-kit/CLIP-LIST.md` (the Mixamo
-  titles per role, the 21 files already in `C:/NightShift/scratch/mixamo/clips/` reused first) to the orchestrator once
-  the PLAN passes; the orchestrator gets the downloads to Michael (G406: he downloads Mixamo files himself, Adobe
-  sign-in). Every role is hand-made regardless (the default source); the downloads add the Mixamo option under the
-  Animation source setting. Slices never wait for them: they use the folder as it is when they start and note each
-  missing clip. CMU takes are fetched without asking (G268). Undo: withdraw the list; roles get Mixamo only from the 21
-  files.
+- A14: The clip list goes to the orchestrator, not to Michael. The lead sends `docs/coop-kit/CLIP-LIST.md` (the Mixamo
+  titles per role, the 21 files already in `C:/NightShift/scratch/mixamo/clips/` reused first) once the PLAN passes;
+  the orchestrator downloads them in the browser pane (Michael pre-approved every Mixamo download and its use, ~00:20;
+  FBX without skin, 30 fps, In Place off). Every role is hand-made regardless; the downloads add the Mixamo option.
+  Slices never wait for them: they use the folder as it is when they start and note each missing clip. No CMU takes are
+  hunted per kit role (A9). Undo: withdraw the list; roles get Mixamo only from the 21 files.
 
 ## Questions for Michael (one click each, asked by day)
-- The clip request (A14): the orchestrator sends Michael `docs/coop-kit/CLIP-LIST.md` to download (G406). No other
-  question (no assumption above loosens a Michael-only rule).
+- Part 2 bands (A12), asked when the detailed part 2 section is written: "Add the five new co-op moves' size bands to
+  the level standard?" listing each move's level-design 11.9 graph kind and scale-sheet band row (Deadweight chain and
+  grate, Drop Catch drop height, Chimney Pair shaft width, Swing Pass gap, Plank Bridge gap) with the numbers from the
+  research; options "Add them (Recommended)" / "Change a number" / "Not yet". Overnight: assumed and logged (A12).
+- No download question: Michael pre-approved the Mixamo downloads (~00:20); the orchestrator fetches them (A14).
 
 ## Sign-off needed
-no (no map or layout; each animation PR carries a 1-2 min look video and every move switches on only at his walk).
+no (no map or layout; each animation PR carries a 1-2 min look video and every move switches on in the live game only
+at his walk; `/preview/` shows it once built).

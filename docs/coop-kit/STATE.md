@@ -3,23 +3,28 @@ Owner: Night Shift | Player Build. Status: current (job doc).
 
 ## Resume block
 - Job: FOLDED-PLAN J24 co-op kit (R32 shoulder stand, R34 rope descent) plus the five moves Michael added at ~18:05
-  (Deadweight, Drop Catch, Chimney Pair, Swing Pass, Plank Bridge). BRIEF `docs/coop-kit/BRIEF.md` (A1-A13, no
-  questions for Michael), PLAN `docs/coop-kit/PLAN.md` (part 1 detailed: A1, A2, B1, B2, A3; part 2 slice briefs: K0,
-  K1-K4, K5a, K5b).
-- Location: worktree C:/NightShift/Mobile-Coop-coop-kit, branch feature/coop-kit from origin/master 2148ec969. Guard:
+  (Deadweight, Drop Catch, Chimney Pair, Swing Pass, Plank Bridge). BRIEF `docs/coop-kit/BRIEF.md` (M1-M2, A1-A14, one
+  day question: the part 2 bands, A12), PLAN `docs/coop-kit/PLAN.md` (part 1 detailed: A1, A2, B1, B2; A3 parked until
+  after Michael's playthrough; part 2 slice briefs: K0, K1-K4, K5a, K5b), `docs/coop-kit/CLIP-LIST.md` (for the
+  orchestrator to download, pre-approved ~00:20).
+- Location: worktree C:/NightShift/Mobile-Coop-coop-kit, branch feature/coop-kit. Pointers: origin/master 65411ea65;
+  each slice brief re-takes them from the master it is cut from. Guard:
   `test "$(git rev-parse --abbrev-ref HEAD)" = feature/coop-kit`.
 - 2026-10-25 ~18:40: BRIEF + PLAN written by the Opus planner. No code yet.
-- 2026-10-26: plan check 1 FIX applied (mocap first + `CLIP-LIST.md` / BRIEF A14, A1 ctcourse, Mixamo file clash, flag
-  fold, part 2 checker, Guard AI notice hook); then Michael's ~00:25 toggle (hand-made default, CMU / Mixamo by the
-  Animation source setting) and the shared Mixamo pipeline files; next: a fresh Opus plan checker on the new head.
-- Gates: a fresh Opus plan checker (`docs/templates/plan-check.md`; `node scripts/claims-check.mjs --plan
-  docs/coop-kit/PLAN.md --name feature/coop-kit`) -> PLAN-CHECK.md PASS; the orchestrator orders part 1 against
-  Campaign's mission-engine kit branch (PLAN "Claims", shared files).
-- Part 2 gate: Campaign's kit PR (KIT0 registry + NET kit kinds) on master; then a detailed part 2 PLAN section.
-- Owed elsewhere (not this job): Marlow's pull-up and shutter poses (shared `src/anim/clips/team.ts`); scale-sheet line
-  56 wording (Marlow Build, A5); mission-engine PLAN row 106 (orchestrator, A1).
-- Next: plan checker on this head; on PASS start A1 (Opus) in C:/NightShift/Mobile-Coop-coop-kit-a1
-  (`feature/coop-kit-a1` from origin/master) and write the A2 and B1 briefs.
+- 2026-10-26: plan check 1 FIX applied; Michael's ~00:25 toggle folded in.
+- 2026-10-26 ~18:00: plan check 2 FIX (`C:/NightShift/scratch/ctcore/coop-kit-PLAN-CHECK.md`, 11 fixes) -> revised:
+  `kitMoves` on in /preview/ for built ids (`KIT_BUILT`), off live; each player drawn with the owner's source (A2 / B2
+  wait for #498); A1 owns the coopKit fold (after #578), B1 adds `stand` to `TEAM_KINDS`; prototype-mode tests (one
+  set per PR, one fix round, one rerun); hand-made + Mixamo per role, no CMU hunt; A3 parked; K0 rewires Marlow's
+  `kitMoveOn`; A12 bands a day question; Shared list complete; stale facts fixed.
+- Order: #578 on master -> A1 -> (A2 || B1) -> B2 (A2 / B2 also after #498). Part 2 after #578 and part 1, with a
+  detailed PART-2 section and its own plan check.
+- Owed elsewhere (not this job): Marlow's pull-up and shutter poses (shared `src/anim/clips/team.ts`); mission-engine
+  PLAN row 106 (orchestrator, BRIEF A1).
+- Next: plan check 3 (fresh Opus, `docs/templates/plan-check.md` + `node scripts/claims-check.mjs --plan
+  docs/coop-kit/PLAN.md --name feature/coop-kit`); on PASS send CLIP-LIST to the orchestrator and start A1 (Opus) in
+  C:/NightShift/Mobile-Coop-coop-kit-a1 (`feature/coop-kit-a1` from origin/master once #578 is on it).
 
 ## Done
 - 2026-10-25: BRIEF, PLAN, STATE (planner).
+- 2026-10-26: plan check 1 fixes; plan check 2 fixes.
