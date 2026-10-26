@@ -1047,8 +1047,9 @@ G2; 5 = carried-body shadow hand-off to Player, sent to the orchestrator). G1 + 
 (slices/G1-G2-CHECK.md; polish 1-6, item 4 = 16-bit owner keys into the G3 brief). PR 1 checked (G3 check A FIX -> fix round; check B FIX 2 -> fix round 2 54cc1b8f8 -> re-check PASS
 d808f062b). Split: #669 = part 1 G1 + G2 (feature/guard-ai-j16-a, worktree -guard-ai-j16-a, 999 lines, checker
 posted) -> green: tell orch train-ready; #670 = part 2 G3 (feature/guard-ai-j16 bb3aa2e5a, master merged, checker
-posted) DRAFT until #669 merges -> then `gh pr ready 670` + tell orch. Then PR 2: G4a (set chars + switch fill in one
-commit) / G4b (em.cues = game.shadowCues) / G5 e2e (Sonnet, Opus brief) / G6 docs, after #665 merges.
+posted) DRAFT until #669 merges -> then `gh pr ready 670` + tell orch. PR 2 (07:45): Opus builder RUNNING on G4a / G4b / G6 + the G5
+Sonnet brief, branch feature/guard-ai-j16-2 (worktree -guard-ai-j16-2) stacked on #670 with Sector Ops #665's branch
+merged in locally -> slices/PR2-REPORT.md; then checker; PR after #669 / #670 / #665 merge.
 S3b-2 = Sector Ops PR #665 (GameState.shadowCues,
 null on a client / flag off): G4a / G4b build on it once #665 merges.
 Orchestrator 04:15: G3 after the piano escape lands; S3b-2 sequenced by it after Sector Ops' lamp-id fix; G4b not
