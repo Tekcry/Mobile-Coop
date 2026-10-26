@@ -436,6 +436,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   line says "motion-capture (CMU) walk clip"; turn a knee in Joints (walk) or move a foot in Hands & feet: the capture
   follows; Arm swing is greyed (hand-made only) and changes nothing on it, as in the game. Walking in a match: "Now
   playing: motion-capture (CMU) walk". On a ledge, Body > foot reach rows are greyed ("Does nothing in this move").
+- [ ] Animation source (mixamo-retarget Toggle): Settings > Gameplay > Animation source. CMU (default) is the game as
+  before; Hand-made: the walk / jog / run are the keyed clips (Now playing "hand-made ... (animation source: Hand-made)");
+  Mixamo: hang on a ledge and shimmy, then top out a ladder: the Mixamo captures ("motion-capture (Mixamo) hang").
+  Restart: the choice is kept. In the Anim Studio the same switch sits over the Loop list, with Set (All / Hand-made /
+  CMU / Mixamo) showing only that set's loops. `?anim=hand|cmu|mixamo` sets it for one page.
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
