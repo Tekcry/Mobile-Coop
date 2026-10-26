@@ -184,7 +184,7 @@ lines); the shape of the plan (A4 phase order, A5 stay upstairs, rank, room-edge
    held `searching` grunt and sees `mhCueN` bump and his unit go to `check`.
 
 ### Fold-ins for the builders (no PLAN change needed)
-1. Gallery end state: the hoist door opens only when every guard is down (`thornbeckMill.ts:73`), so a stealthy pair
+1. Gallery end state: the hoist door opens only when every guard is down (`thornbeckMill.ts:71`, `:441`), so a stealthy pair
    must take every gallery unit after climbing L1 into a queue that faces the hatch. Keep at least one hall-facing aim
    per gallery hold stop (A5 "cover the hall from above"; south is inside the 100 deg) so the hatch is not watched
    without a break; the H2 sim asserts in the final state that each queued gallery unit's aims include one not on the
