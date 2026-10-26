@@ -8,6 +8,7 @@ import {
   checkWaitReason, ciLabel, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN, FAST_POLL_LATE_S, LAPTOP_EXPECT_MIN, pendingSince, laptopLate,
   failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase, repeatedSuites, carryLastDrop, AUTODROP_MAX_SUITES, confirmPlan,
   ghRetryable, withRetry, GH_RETRY_S, buildExitState, nothingNewSkip, carryNothingNew, NOTHING_NEW_EXIT, deployPlan, carryDeployWatch, DEPLOY_REPAIR_MIN, SPARE_ID_TAG,
+  splitCandidates, headStatusAgrees, labelTaken, freshPlan, sameMembers, memberChanges,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 // @ts-expect-error plain .mjs script without types
@@ -341,8 +342,10 @@ describe('auto-train: nothing new is idle (F12, train 102)', () => {
     expect(b.indexOf('r.code === NOTHING_NEW_EXIT')).toBeGreaterThan(0);
     expect(b.indexOf('r.code === NOTHING_NEW_EXIT')).toBeLessThan(b.indexOf('commentLeftOut('));
     const nt = src.slice(src.indexOf('async function noTrain('), src.indexOf('async function step('));
-    expect(nt.indexOf('nothingNewSkip(')).toBeGreaterThan(0);
-    expect(nt.indexOf('nothingNewSkip(')).toBeLessThan(nt.indexOf('return build(nextN()'));
+    // S2 (F23): the skip is nothingNewIdle (nothingNewSkip on the given set), in noTrain and again on build's final set
+    expect(src.slice(src.indexOf('function nothingNewIdle('), src.indexOf('async function noTrain('))).toContain('nothingNewSkip(last, cands, master)');
+    expect(nt.indexOf('nothingNewIdle(fresh)')).toBeGreaterThan(0);
+    expect(nt.indexOf('nothingNewIdle(fresh)')).toBeLessThan(nt.indexOf('return build(nextN()'));
   });
 });
 
@@ -415,6 +418,149 @@ describe('auto-train: pacing counts laptop claims only (F19, 2026-10-25 15:35)',
   it('the pacing line: a desktop claim only and the last release 10 min ago builds', () => {
     expect(pacing({ now: T, releases: [T - 10 * MIN], queue: state({ [id]: claim('desktop') }) })).toBeNull();
     expect(pacing({ now: T, releases: [T - 10 * MIN], queue: state({ [id]: claim('laptop') }) })).toMatch(/laptop queue busy/);
+  });
+});
+
+describe('auto-train: unlabelled train-ready PRs (F16, #460 missed train 103)', () => {
+  const T0 = '2026-10-26T12:00:00Z';
+  const run = (name: string, status = 'COMPLETED', conclusion = 'SUCCESS') => ({ __typename: 'CheckRun', name, status, conclusion, completedAt: T0, startedAt: T0 });
+  const sc = (context: string, state: string) => ({ __typename: 'StatusContext', context, state, startedAt: T0 });
+  const green = [run('check'), sc('checker', 'SUCCESS'), sc('affected-e2e', 'SUCCESS')];
+  const ready = [{ name: 'train-ready' }];
+  const gh = (number: number, o: Record<string, unknown> = {}) => ({ number, headRefName: `feature/p${number}`, headRefOid: `h${number}`, title: `t${number}`,
+    isDraft: false, mergeable: 'MERGEABLE', labels: [] as { name: string }[], statusCheckRollup: green, ...o });
+  const prs = [
+    gh(1, { labels: ready, statusCheckRollup: [run('check')] }), // labelled, green check: a candidate as before
+    gh(2, { labels: ready, statusCheckRollup: [run('check', 'IN_PROGRESS', '')] }), // labelled, check running: waiting
+    gh(3), // unlabelled, all three green: a candidate
+    gh(4), // the same, but it lost the label on this head (heldOff)
+    gh(5, { statusCheckRollup: [run('check'), sc('checker', 'PENDING'), sc('affected-e2e', 'SUCCESS')] }), // checker pending: nothing
+    gh(6, { statusCheckRollup: [run('check', 'IN_PROGRESS', ''), sc('checker', 'SUCCESS'), sc('affected-e2e', 'SUCCESS')] }), // check running: waiting (F23)
+    gh(7, { isDraft: true }), gh(8, { headRefName: 'train/9' }), // a draft and a train PR: nothing
+    gh(9), // its head's own status disagrees with the rollup
+  ];
+
+  it('splitCandidates: labelled as before; unlabelled by the rule, not held off, head status agreeing', () => {
+    const askedHeld: number[] = [];
+    const askedAgree: number[] = [];
+    const s = splitCandidates(prs, { unlabelled: true, heldOff: (p: { pr: number }) => { askedHeld.push(p.pr); return p.pr === 4; },
+      agrees: (p: { pr: number; check: string }) => { askedAgree.push(p.pr); expect(p.check).toBe('success'); return p.pr !== 9; } });
+    expect(s.cands).toEqual([{ pr: 1, branch: 'feature/p1', head: 'h1', title: 't1' }, { pr: 3, branch: 'feature/p3', head: 'h3', title: 't3', unlabelled: true }]);
+    expect(s.ruleReady.map((c: { pr: number }) => c.pr)).toEqual([3]);
+    expect(s.waiting.map((w: { pr: number; why: string; unlabelled?: boolean }) => [w.pr, w.why, !!w.unlabelled])).toEqual([[2, 'check running', false], [6, 'check running', true]]);
+    expect(s.held.map((h: { pr: number }) => h.pr)).toEqual([4, 9]);
+    expect(s.held[0].why).toMatch(/train-ready was removed on this head/);
+    // the gh reads (label history, head status) only for unlabelled PRs the rule passes: none for labelled, pending, draft or train PRs
+    expect(askedHeld).toEqual([3, 4, 6, 9]);
+    expect(askedAgree).toEqual([3, 6, 9]);
+  });
+
+  it('splitCandidates: AUTO_TRAIN_UNLABELLED=0 takes labelled PRs only; the injected checks default to "out"', () => {
+    const off = splitCandidates(prs, { unlabelled: false, heldOff: () => false, agrees: () => true });
+    expect(off.cands.map((c: { pr: number }) => c.pr)).toEqual([1]);
+    expect(off.waiting.map((c: { pr: number }) => c.pr)).toEqual([2]);
+    expect(off.held).toEqual([]);
+    expect(splitCandidates(prs).cands.map((c: { pr: number }) => c.pr)).toEqual([1]);
+    // a labelled PR is unchanged even as a draft (G325 stays the watchdog's)
+    expect(splitCandidates([gh(1, { labels: ready, isDraft: true, statusCheckRollup: [run('check')] })], {}).cands.map((c: { pr: number }) => c.pr)).toEqual([1]);
+  });
+
+  it('headStatusAgrees: the head\'s own combined status must name the head and keep the rule', () => {
+    const flat = { pr: 3, branch: 'feature/p3', head: 'h3', draft: false, mergeable: 'MERGEABLE', labels: [] as string[], check: 'success',
+      statuses: { checker: { state: 'success', description: '' }, 'affected-e2e': { state: 'success', description: '' } } };
+    const at = (m: number) => new Date(Date.parse(T0) + m * MIN).toISOString();
+    const combined = (sha: string, checker = 'success', aff: string | null = 'success') => ({ sha, statuses: [
+      { context: 'checker', state: checker, description: 'Opus PASS', updated_at: at(1) }, ...(aff ? [{ context: 'affected-e2e', state: aff, updated_at: at(1) }] : [])] });
+    expect(headStatusAgrees(flat, combined('h3'))).toBe(true);
+    expect(headStatusAgrees(flat, combined('h2'))).toBe(false);
+    expect(headStatusAgrees(flat, combined('h3', 'pending'))).toBe(false); // the rollup said success
+    expect(headStatusAgrees(flat, combined('h3', 'success', 'error'))).toBe(false);
+    expect(headStatusAgrees(flat, combined('h3', 'success', null))).toBe(false);
+    expect(headStatusAgrees({ ...flat, labels: ['no-affected-e2e'] }, combined('h3', 'success', null))).toBe(true);
+    expect(headStatusAgrees(flat, null)).toBe(false);
+  });
+
+  it('labelTaken: adds train-ready to unlabelled members; a failed add or a dry run leaves that member out', () => {
+    const members = [{ pr: 1, branch: 'feature/p1', head: 'h1' }, { pr: 3, branch: 'feature/p3', head: 'h3', unlabelled: true },
+      { pr: 6, branch: 'feature/p6', head: 'h6', unlabelled: true }, { pr: null, branch: 'feature/menu', head: undefined }];
+    const added: number[] = [];
+    const r = labelTaken(members, { add: (pr: number) => { added.push(pr); if (pr === 6) throw new Error('HTTP 502'); } });
+    expect(added).toEqual([3, 6]);
+    expect(r.members.map((m: { branch: string }) => m.branch)).toEqual(['feature/p1', 'feature/p3', 'feature/menu']);
+    expect(r.left).toEqual([{ pr: 6, branch: 'feature/p6', why: 'adding train-ready failed: HTTP 502' }]);
+    const shown: number[] = [];
+    const lines: string[] = [];
+    const d = labelTaken(members, { add: (pr: number) => shown.push(pr), dry: true, log: (l: string) => lines.push(l) });
+    expect(shown).toEqual([3, 6]); // the add is printed (act under --dry-run)
+    expect(d.members.map((m: { branch: string }) => m.branch)).toEqual(['feature/p1', 'feature/menu']);
+    expect(d.left.map((l: { why: string }) => l.why)).toEqual(['dry run: label not added', 'dry run: label not added']);
+    expect(lines[0]).toBe('  #3 feature/p3: left out (dry run: label not added)');
+  });
+
+  it('the shell: one open-PR list (no --label) feeds splitCandidates with the gh-backed checks', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'auto-train.mjs'), 'utf8').replace(/\r\n/g, '\n');
+    const cs = src.slice(src.indexOf('function candidates('), src.indexOf('export function plan('));
+    expect(cs).not.toMatch(/'--label'/);
+    expect(cs).toMatch(/number,headRefName,headRefOid,title,isDraft,mergeable,labels,statusCheckRollup/);
+    expect(cs).toContain('splitCandidates(prs, { unlabelled: UNLABELLED, heldOff: isHeldOff, agrees: headAgrees })');
+    expect(cs).toContain('train-ready by rule on');
+  });
+});
+
+describe('auto-train: re-read at build start (F23, #521 missed train 119 by 27 s)', () => {
+  const A1 = { pr: 1, branch: 'feature/a', head: 'a1' };
+  const A2 = { pr: 1, branch: 'feature/a', head: 'a2' };
+  const B1 = { pr: 2, branch: 'feature/b', head: 'b1' };
+  const M = { pr: null, branch: 'feature/menu', head: undefined };
+  const reads = (...lists: unknown[][]) => { let i = 0; return () => (lists[Math.min(i++, lists.length - 1)] ?? []).map((c) => ({ ...(c as object) })); };
+  const planner = () => { const calls: unknown[][] = []; return { calls, plan: (c: { branch: string }[]) => { calls.push(c); return { branches: c.map((x) => x.branch) }; } }; };
+
+  it('a PR that turned green during the plan is planned in: [A] then [A, B] plans twice', async () => {
+    const pl = planner();
+    const f = await freshPlan({ reread: reads([A1], [A1, B1]), plan: pl.plan });
+    expect(pl.calls.length).toBe(2);
+    expect(f.p.branches).toEqual(['feature/a', 'feature/b']);
+    expect(f.cands.map((c: { branch: string }) => c.branch)).toEqual(['feature/a', 'feature/b']);
+    expect(f.changed).toEqual(['+feature/b']);
+  });
+
+  it('the same set plans once; a moved head plans again; passes 1 plans the first read only', async () => {
+    const same = planner();
+    const f = await freshPlan({ reread: reads([A1, M], [M, A1]), plan: same.plan });
+    expect(same.calls.length).toBe(1);
+    expect(f.changed).toEqual([]);
+    const moved = planner();
+    const g = await freshPlan({ reread: reads([A1], [A2]), plan: moved.plan });
+    expect(moved.calls.length).toBe(2);
+    expect(g.cands[0].head).toBe('a2');
+    expect(g.changed).toEqual(['+feature/a', '-feature/a']);
+    const one = planner();
+    let n = 0;
+    const h = await freshPlan({ reread: () => { n++; return [A1]; }, plan: one.plan, passes: 1 });
+    expect([n, one.calls.length, h.cands[0].head]).toEqual([1, 1, 'a1']);
+  });
+
+  it('sameMembers / memberChanges: branch@head sets, order-insensitive (feature/menu counts)', () => {
+    expect(sameMembers([A1, B1, M], [M, B1, A1])).toBe(true);
+    expect(sameMembers([A1, B1], [A1, B1, M])).toBe(false);
+    expect(sameMembers([A1], [A2])).toBe(false);
+    expect(sameMembers([], [])).toBe(true);
+    expect(memberChanges([A1, B1], [A1, M])).toEqual(['+feature/menu', '-feature/b']);
+  });
+
+  it('the shell: build re-reads, then skips a nothing-new set and labels before merge-train build', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'auto-train.mjs'), 'utf8').replace(/\r\n/g, '\n');
+    const b = src.slice(src.indexOf('async function build('), src.indexOf('/** origin/master'));
+    const mt = b.indexOf("mergeTrain(['build'");
+    expect(mt).toBeGreaterThan(0);
+    for (const k of ['freshPlan({ reread, plan', 'nothingNewIdle(cands)', 'labelTaken(cands']) {
+      expect(b.indexOf(k)).toBeGreaterThan(0);
+      expect(b.indexOf(k)).toBeLessThan(mt);
+    }
+    expect(b.indexOf('freshPlan(')).toBeLessThan(b.indexOf('nothingNewIdle('));
+    expect(b.indexOf('nothingNewIdle(')).toBeLessThan(b.indexOf('labelTaken('));
+    const nt = src.slice(src.indexOf('async function noTrain('), src.indexOf('async function step('));
+    expect(nt).toContain('return build(nextN(), fresh, { reread: REREAD ? () => pick().cands : null })');
   });
 });
 

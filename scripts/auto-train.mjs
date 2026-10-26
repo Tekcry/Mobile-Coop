@@ -19,11 +19,16 @@
 //     CI / build-time vitest failures stay "failed" (nothing destructive); pending ->
 //     wait; no laptop status 3 h after the head was pushed -> state "stale"; CI green but no laptop status 10 min
 //     after (AUTO_TRAIN_LAPTOP_MISSING_MIN) -> state "laptop-missing" (waitingMin in the status).
-//   no open train: open PRs to master labelled `train-ready` with a green `check` on their head (plus feature/menu
-//     when it differs from master in docs only, riding along) -> `merge-train build <n+1> <version> "<title>" ...`,
-//     paced: only once the last release is --min-interval min old (default 60) or the laptop queue is idle; held
-//     (state "holding") up to AUTO_TRAIN_CHECK_WAIT_MIN (3) min per head while a train-ready PR's check still runs;
-//     the candidates are re-read right before the build.
+//   no open train: open PRs to master that are train-ready: labelled `train-ready` with a green `check` on their head,
+//     or unlabelled and meeting the train-ready rule on their head (scripts/train-ready.mjs; its owner is docs/RULES.md
+//     "Getting to master") without having lost the label since that head was pushed; auto-train adds the label when it
+//     builds them (AUTO_TRAIN_UNLABELLED=0: labelled only). Plus feature/menu when it differs from master in docs only,
+//     riding along -> `merge-train build <n+1> <version> "<title>" ...`, paced: only once the last release is
+//     --min-interval min old (default 60) or the laptop queue is idle (no open laptop claim other than spare work; desktop
+//     claims and unclaimed requests never hold a train); held (state "holding") up to AUTO_TRAIN_CHECK_WAIT_MIN (3) min
+//     per head while a candidate's check still runs; the candidates are re-read right before the build, at build start
+//     and once more after its plan (AUTO_TRAIN_REREAD=0: the first re-read only). merge-train build exit 6 (nothing new
+//     to release) -> idle with `nothingNew` in the status, no build until a member head or master moves.
 // It calls scripts/merge-train.mjs (next to this file) only through its CLI, with cwd = the train worktree
 // (--worktree, default C:/NightShift/Mobile-Coop-train). It reads GitHub through gh / ls-remote (no fetch of its own),
 // never forces a push, never touches dev or master; every write (gh or merge-train) goes through act(), which only
@@ -36,6 +41,11 @@
 // laptop-e2e pending status is older than its expected wall ("expect ~N s" in it, else LAPTOP_EXPECT_MIN 10 min).
 // Release is `merge-train release ... --head <the tested head> --no-fallback` (pinned; never the old-style path); a
 // train without a version commit is state "error" ("rebuild"). merge-train build runs no vitest (CI's `test` does).
+// Release has no deploy wait (MERGE_TRAIN_DEPLOY_WAIT_MIN = AUTO_TRAIN_DEPLOY_WAIT_MIN, 0): every later tick checks
+// /preview/version.json while `deployWatch` is in the status and runs `merge-train repair` once when it is still stale
+// AUTO_TRAIN_DEPLOY_REPAIR_MIN (20) min after the release (0: never), closing the watch that long after the repair.
+// Read-only gh / git calls retry once per step after AUTO_TRAIN_GH_RETRY_S (5) s on a transient failure (not on a
+// timeout, a first try over 30 s or an HTTP 4xx other than 499); writes (act) never retry.
 // A failed rebuild after release exit 3 is recorded (`rebuildFailed`) and skipped until the train head or master moves.
 // Files: lock C:/NightShift/scratch/auto-train.lock (wx, stale when untouched 30 min; a heartbeat keeps a long build's
 // lock fresh; merge-train takes the same lock for a hand run), log C:/NightShift/scratch/runs/auto-train.log, status
@@ -53,8 +63,9 @@ import { fetchWithRetry } from './fetch-retry.mjs';
 import { takeTouchLock } from './heavy-lock.mjs';
 import { coverFolders, DIRECT_COVERS, suiteSetFor } from './e2e-affected.mjs';
 import { cmpVersion, pagesRoot, parsePreviewVersion } from './merge-train.mjs';
+import * as tr from './train-ready.mjs';
 
-export const LABEL = 'train-ready';
+export const LABEL = tr.LABEL;
 export const LAPTOP_CONTEXT = 'laptop-e2e';
 export const VITEST_CONTEXT = 'auto-train/vitest';
 export const MENU_BRANCH = 'feature/menu';
@@ -427,6 +438,114 @@ export const SPARE_ID_TAG = '-laptop-queue-spare-';
 export function laptopQueueState(paths, { claims = {}, now = Date.now() } = {}) {
   return Object.entries(claims).some(([id, c]) => c && c.done === false && c.worker === 'laptop' && !id.includes(SPARE_ID_TAG)
     && now - Date.parse(c.at) < QUEUE_CLAIM_STALE_H * 3600_000) ? 'busy' : 'idle';
+}
+
+// ---- train-ready PRs without the label (F16: #460 missed train 103) ------------------------------------------------
+
+/**
+ * A PR's statuses re-read from its head's own combined status (`gh api .../commits/<head>/status`, BRIEF A4: gh's
+ * statusCheckRollup reads `commits(last:1)`, newest by date, not always the head): true only when `combined.sha` is
+ * the PR's head and the train-ready rule still passes with that status's `checker` and `affected-e2e`. `pr` = the flat
+ * PR of splitCandidates.
+ */
+export function headStatusAgrees(pr, combined, { requireAffected = true } = {}) {
+  if (!pr?.head || !combined?.sha || combined.sha !== pr.head) return false;
+  const statuses = { ...pr.statuses };
+  for (const ctx of [tr.CHECKER_CONTEXT, tr.AFFECTED_CONTEXT]) {
+    const s = contextStatus(combined, ctx);
+    if (s.state === 'missing') delete statuses[ctx];
+    else statuses[ctx] = { state: s.state, description: s.description };
+  }
+  return tr.trainReady({ ...pr, statuses }, { requireAffected }).ready;
+}
+
+/**
+ * The open PRs to master (gh pr list: number, headRefName, headRefOid, title, isDraft, mergeable, labels,
+ * statusCheckRollup) -> { cands, waiting, ruleReady, held }. Labelled (`train-ready`): a green `check` is a candidate,
+ * else waiting (as before F16). Unlabelled, with `unlabelled` on (AUTO_TRAIN_UNLABELLED): the train-ready rule
+ * (scripts/train-ready.mjs) on the head, then `heldOff(flat)` (lost the label since this head: out) and `agrees(flat)`
+ * (headStatusAgrees on the head's combined status) -> a candidate with `unlabelled: true` (also in `ruleReady`); one
+ * that fails the rule only on a `check` CI is still running toward goes to `waiting` (F23: it holds the build like a
+ * labelled one). `held` = [{ pr, branch, head, why }] kept out by heldOff / agrees. The injected checks default to "out".
+ */
+export function splitCandidates(prs, { unlabelled = true, heldOff = () => true, agrees = () => false } = {}) {
+  const cands = [];
+  const waiting = [];
+  const ruleReady = [];
+  const held = [];
+  for (const p of prs ?? []) {
+    const rollup = p.statusCheckRollup ?? [];
+    const c = { pr: p.number, branch: p.headRefName, head: p.headRefOid, title: p.title };
+    const labels = (p.labels ?? []).map((l) => (typeof l === 'string' ? l : l?.name)).filter(Boolean);
+    if (labels.includes(LABEL)) {
+      if (ciState(rollup, 'check') === 'success') cands.push(c);
+      else waiting.push({ ...c, why: checkWaitReason(rollup, 'check'), ci: ciLabel(rollup, 'check') });
+      continue;
+    }
+    if (!unlabelled) continue;
+    const flat = { ...c, draft: !!p.isDraft, mergeable: p.mergeable ?? 'UNKNOWN', labels, check: ciState(rollup, 'check'), statuses: tr.statusesFromRollup(rollup) };
+    const ready = tr.trainReady(flat).ready;
+    const why = ready ? null : checkWaitReason(rollup, 'check');
+    if (!ready && !(why && tr.trainReady({ ...flat, check: 'success' }).ready)) continue;
+    if (heldOff(flat)) { held.push({ ...c, why: `${LABEL} was removed on this head` }); continue; }
+    if (!agrees({ ...flat, check: 'success' })) { held.push({ ...c, why: `its head's own status disagrees with the rollup (${tr.CHECKER_CONTEXT} / ${tr.AFFECTED_CONTEXT})` }); continue; }
+    if (ready) { cands.push({ ...c, unlabelled: true }); ruleReady.push(c); } else waiting.push({ ...c, why, ci: ciLabel(rollup, 'check'), unlabelled: true });
+  }
+  return { cands, waiting, ruleReady, held };
+}
+
+/**
+ * BRIEF A5: `train-ready` is added to every unlabelled member (`unlabelled: true`) right before `merge-train build`
+ * through `add(pr)` (throws on failure), so auto-drop, left-out, the watchdog's G325 check and the laptop queue see one
+ * label. A member whose add fails, or under `dry` (the add is only printed), is left out of this build.
+ * -> { members: the rest, left: [{ pr, branch, why }] }.
+ */
+export function labelTaken(members, { add, dry = false, log = () => {} } = {}) {
+  const kept = [];
+  const left = [];
+  for (const m of members ?? []) {
+    if (!m?.unlabelled || !m.pr) { kept.push(m); continue; }
+    let why = null;
+    try { add(m.pr); if (dry) why = 'dry run: label not added'; } catch (e) { why = `adding ${LABEL} failed: ${String(e?.message ?? e).slice(0, 200)}`; }
+    if (why) { left.push({ pr: m.pr, branch: m.branch, why }); log(`  #${m.pr} ${m.branch}: left out (${why})`); continue; }
+    log(`  #${m.pr} ${m.branch}: ${LABEL} added (train-ready by rule on ${short(m.head)})`);
+    kept.push(m);
+  }
+  return { members: kept, left };
+}
+
+// ---- re-read at build start (F23: #521 missed train 119 by 27 s) ---------------------------------------------------
+
+/** The `<branch>@<head>` keys of a candidate list (feature/menu with an empty head). */
+const memberKeys = (cands) => (cands ?? []).map((c) => `${c.branch}@${c.head ?? ''}`).sort();
+
+/** True when two candidate lists have the same branch@head set (any order). */
+export function sameMembers(a, b) {
+  const x = memberKeys(a);
+  const y = memberKeys(b);
+  return x.length === y.length && x.every((k, i) => k === y[i]);
+}
+
+/** "+<branch>" for each new or moved member of `b`, "-<branch>" for each one gone since `a` (log text). */
+export function memberChanges(a, b) {
+  const ka = new Set(memberKeys(a));
+  const kb = new Set(memberKeys(b));
+  return [...(b ?? []).filter((c) => !ka.has(`${c.branch}@${c.head ?? ''}`)).map((c) => `+${c.branch}`),
+    ...(a ?? []).filter((c) => !kb.has(`${c.branch}@${c.head ?? ''}`)).map((c) => `-${c.branch}`)];
+}
+
+/**
+ * BRIEF A11: the candidates read at build start (`reread()`), planned (`plan(cands)`), then read once more; a changed
+ * set (a PR that turned green while the plan read fragments, or a moved head) is planned again from that second read.
+ * At most `passes` plans (1 = one read and one plan). -> { cands, p, changed } (changed: memberChanges, [] when equal).
+ */
+export async function freshPlan({ reread, plan, passes = 2 }) {
+  const c1 = await reread();
+  const p1 = await plan(c1);
+  if (passes < 2) return { cands: c1, p: p1, changed: [] };
+  const c2 = await reread();
+  if (sameMembers(c1, c2)) return { cands: c1, p: p1, changed: [] };
+  return { cands: c2, p: await plan(c2), changed: memberChanges(c1, c2) };
 }
 
 /**
@@ -906,6 +1025,10 @@ const GH_RETRY = envMin('AUTO_TRAIN_GH_RETRY_S', GH_RETRY_S);
 /** The release's deploy wait handed to merge-train (MERGE_TRAIN_DEPLOY_WAIT_MIN): 0 = dispatch only, the ticks watch (F18). */
 const DEPLOY_WAIT = envMin('AUTO_TRAIN_DEPLOY_WAIT_MIN', 0);
 const DEPLOY_REPAIR = envMin('AUTO_TRAIN_DEPLOY_REPAIR_MIN', DEPLOY_REPAIR_MIN);
+/** F16: unlabelled PRs that meet the train-ready rule on their head are candidates (0 = labelled PRs only). */
+const UNLABELLED = envMin('AUTO_TRAIN_UNLABELLED', 1) > 0;
+/** F23: the candidates are read again at build start and after the plan (0 = the one read before the build). */
+const REREAD = envMin('AUTO_TRAIN_REREAD', 1) > 0;
 /** The read-only retry budget of one step (withRetry): reset at the start of each step. */
 const GH_BUDGET = { left: 1 };
 let CWD = 'C:/NightShift/Mobile-Coop-train';
@@ -1095,27 +1218,42 @@ function openTrain() {
   };
 }
 
+/** When `train-ready` was last removed from a PR (ms), or null when never; throws when unreadable (F16 heldOff). */
+function unlabeledAt(pr) {
+  // every page (oldest first): the last removal wins
+  const out = read(['gh', 'api', '--paginate', `repos/{owner}/{repo}/issues/${pr}/events?per_page=100`, '--jq', `.[] | select(.event == "unlabeled" and .label.name == "${LABEL}") | .created_at`]);
+  return Date.parse(out.split('\n').filter(Boolean).pop() ?? '') || null;
+}
+
+/** When a head was pushed (ms): its earliest check suite (made by the push), or null when it has none (F16 heldOff). */
+function headPushedAt(head) {
+  return Date.parse(api(`repos/{owner}/{repo}/commits/${head}/check-suites?per_page=100`, '[.check_suites[].created_at] | min // ""') ?? '') || null;
+}
+
+/** F16 for one unlabelled ruled-ready PR: true (stay out) when it lost the label on this head, or on a read failure. */
+function isHeldOff(pr) {
+  try { return tr.heldOff({ unlabeledAt: unlabeledAt(pr.pr), headPushedAt: headPushedAt(pr.head) }); } catch (e) { log(`  #${pr.pr} ${pr.branch}: label history unreadable (${e.message.slice(0, 200)}): left out`); return true; }
+}
+
+/** F16 for one unlabelled ruled-ready PR: its head's own combined status agrees (headStatusAgrees); false on a read failure. */
+function headAgrees(pr) {
+  try { return headStatusAgrees(pr, JSON.parse(api(`repos/{owner}/{repo}/commits/${pr.head}/status`) || 'null')); } catch (e) { log(`  #${pr.pr} ${pr.branch}: head status unreadable (${e.message.slice(0, 200)}): left out`); return false; }
+}
+
 /**
- * Train-ready PRs with a green check on their head, plus feature/menu when it is docs-only ahead of master.
- * -> { cands, waiting }: `waiting` = the train-ready PRs whose check is not green, with `why` = checkWaitReason (null
- * when CI is not running: failed or no activity) for holdForChecks.
+ * Train-ready PRs (splitCandidates: labelled with a green check, or unlabelled meeting the rule on their head, F16),
+ * plus feature/menu when it is docs-only ahead of master. -> { cands, waiting }: `waiting` = the PRs whose check is not
+ * green yet, with `why` = checkWaitReason (null when CI is not running: failed or no activity) for holdForChecks.
  */
-function candidates(labelExists) {
-  const out = [];
-  const waiting = [];
-  if (labelExists) {
-    const prs = readJson(['gh', 'pr', 'list', '--state', 'open', '--base', 'master', '--label', LABEL, '--limit', '100', '--json', 'number,headRefName,headRefOid,title,statusCheckRollup']);
-    for (const p of prs) {
-      const ci = ciState(p.statusCheckRollup, 'check');
-      if (ci !== 'success') {
-        const why = checkWaitReason(p.statusCheckRollup, 'check');
-        log(`  #${p.number} ${p.headRefName}: check ${ciLabel(p.statusCheckRollup, 'check')}, not a candidate${why ? ` (CI still running: ${why})` : ''}`);
-        waiting.push({ pr: p.number, branch: p.headRefName, head: p.headRefOid, why });
-        continue;
-      }
-      out.push({ pr: p.number, branch: p.headRefName, head: p.headRefOid, title: p.title });
-    }
-  }
+function candidates() {
+  const prs = readJson(['gh', 'pr', 'list', '--state', 'open', '--base', 'master', '--limit', '100', '--json', 'number,headRefName,headRefOid,title,isDraft,mergeable,labels,statusCheckRollup']);
+  if (prs.length >= 100) log(`WARNING: ${prs.length} open PRs to master read (the list's limit): older PRs are not candidates this tick`);
+  const s = splitCandidates(prs, { unlabelled: UNLABELLED, heldOff: isHeldOff, agrees: headAgrees });
+  for (const w of s.waiting) log(`  #${w.pr} ${w.branch}: check ${w.ci}, not a candidate${w.unlabelled ? ' yet (train-ready by rule otherwise, no label)' : ''}${w.why ? ` (CI still running: ${w.why})` : ''}`);
+  for (const h of s.held) log(`  #${h.pr} ${h.branch}: train-ready by rule on ${short(h.head)} but left out: ${h.why}`);
+  for (const r of s.ruleReady) log(`  #${r.pr} ${r.branch}: train-ready by rule on ${short(r.head)} (no label)`);
+  const out = s.cands;
+  const waiting = s.waiting;
   if (!out.some((c) => c.branch === MENU_BRANCH)) {
     const cmp = api(`repos/{owner}/{repo}/compare/master...${MENU_BRANCH}`, '{ahead: .ahead_by, files: [.files[].filename]}');
     const c = cmp && JSON.parse(cmp);
@@ -1129,7 +1267,7 @@ function candidates(labelExists) {
 export function plan(members) {
   const tips = stackedTips(members.filter((m) => m.head), contains);
   for (const m of members) {
-    if (m.head && !tips.includes(m)) { m.build = false; log(`  ${m.branch} (#${m.pr}): contained in another candidate's head, rides with its tip`); }
+    if (m.head && !tips.includes(m)) { m.build = false; log(`  ${m.branch} (#${m.pr}): contained in another candidate's head, rides with its tip`); } else delete m.build; // a re-plan (labelTaken) starts afresh
     if (m.pr) m.fragment = fileAt(fragmentPath(m.branch), m.head ?? m.branch);
   }
   const masterVersion = JSON.parse(fileAt('package.json', 'master')).version;
@@ -1265,15 +1403,41 @@ async function autoDrop(t, o, labelExists, base, c, prev) {
     lastDrop: { train: t.n, failing: [...new Set(failing.map(suiteBase))], at: new Date().toISOString() } };
 }
 
-/** Builds train n from `cands`; returns the status fields. */
-async function build(n, cands, { rebuildOf } = {}) {
-  const p = plan(cands);
+/**
+ * Builds train n from `cands`; returns the status fields. A new train (no `rebuildOf`): with `reread` (F23) its
+ * candidates are read again at build start and after the plan (freshPlan); the final set is skipped when it had nothing
+ * new to release (F12) and its unlabelled members get `train-ready` first (F16, labelTaken: a failed add, or any under
+ * --dry-run, leaves that member out and the rest is planned again).
+ */
+async function build(n, cands, { rebuildOf, reread } = {}) {
+  let p;
+  const labelLeft = [];
+  if (rebuildOf) p = plan(cands);
+  else {
+    if (reread) {
+      const f = await freshPlan({ reread, plan, passes: 2 });
+      if (f.changed.length) log(`  re-read at build start: ${f.changed.join(', ')}`);
+      cands = f.cands;
+      p = f.p;
+    } else p = plan(cands);
+    const idle = (reason) => { log(`decision (build start): idle - ${reason}`); return { state: 'idle', reason, candidates: cands.map((c) => c.branch) }; };
+    if (!cands.some((c) => c.pr)) return idle('no candidate left at build start');
+    const nn = nothingNewIdle(cands);
+    if (nn) return nn;
+    const lt = labelTaken(cands, { add: (pr) => act(['gh', 'pr', 'edit', String(pr), '--add-label', LABEL]), dry: DRY, log });
+    if (lt.left.length) {
+      labelLeft.push(...lt.left.map((l) => `${l.branch}: ${l.why}`));
+      cands = lt.members;
+      if (!cands.some((c) => c.pr)) return { ...idle(`no member left once the unlabelled ones were left out (${labelLeft.join('; ')})`), leftOut: labelLeft };
+      p = plan(cands);
+    }
+  }
   log(`build train ${n}: ${p.version} (${p.kind}, master ${p.masterVersion}) "${p.title}" <- ${p.branches.join(' ')}`);
   log(`  build marker ${FILES.building} (deleted once the version commit is pushed)`);
   const r = await withBuildMarker(FILES.building, { train: n, version: p.version },
     () => mergeTrain(['build', String(n), p.version, p.title, ...p.branches], { AUTO_TRAIN_BUILD_MARKER: FILES.building }));
   const base = { train: n, version: p.version, members: p.branches };
-  if (r.dry) return { ...base, state: 'building', reason: `${rebuildOf ? 'rebuild' : 'build'} would run (dry run)` };
+  if (r.dry) return { ...base, state: 'building', reason: `${rebuildOf ? 'rebuild' : 'build'} would run (dry run)`, ...(labelLeft.length ? { leftOut: labelLeft } : {}) };
   // F12 (train 102): nothing new to release is no error and nothing was pushed (no left-out comments); a new train is
   // idle and skipped until a candidate head or master moves (nothingNewSkip), a rebuild stays failed (rebuildFailed)
   if (r.code === NOTHING_NEW_EXIT) {
@@ -1291,7 +1455,7 @@ async function build(n, cands, { rebuildOf } = {}) {
     }
   }
   if (left.length) commentLeftOut(cands, left, n);
-  const leftOut = left.map((l) => `${l.branch}: ${l.why}`);
+  const leftOut = [...labelLeft, ...left.map((l) => `${l.branch}: ${l.why}`)];
   if (r.code === 0) {
     if (rebuildOf) {
       const pr = readJson(['gh', 'pr', 'list', '--head', `train/${n}`, '--state', 'open', '--json', 'number'])[0]?.number;
@@ -1306,13 +1470,24 @@ async function build(n, cands, { rebuildOf } = {}) {
 /** origin/master's sha (ls-remote) or null. */
 const masterSha = () => exec(['git', 'ls-remote', 'origin', 'refs/heads/master']).out.split('\t')[0].trim() || null;
 
+/** F12: the idle status when the last build of these heads on this master had nothing new to release (it would exit 6 again), else null. */
+function nothingNewIdle(cands) {
+  const last = readStatus(FILES.realStatus);
+  if (!last?.nothingNew) return null;
+  const master = masterSha();
+  if (!nothingNewSkip(last, cands, master)) return null;
+  const reason = `nothing new to release in ${cands.map((c) => c.branch).join(', ')} on master ${short(master)} (merge-train exit ${NOTHING_NEW_EXIT} on these heads): no build until a head or master moves`;
+  log(`decision: idle - ${reason}`);
+  return { state: 'idle', reason, candidates: cands.map((c) => c.branch), nothingNew: last.nothingNew };
+}
+
 /**
  * No open train: candidates, pacing, build. After an auto-drop: `exclude` = the dropped branches (also when their label
  * removal failed or under --dry-run), `afterDrop` skips pacing (the failed train already passed it).
  */
 async function noTrain(o, labelExists, { exclude = [], afterDrop = false } = {}) {
   const pick = () => {
-    const r = candidates(labelExists);
+    const r = candidates();
     return { ...r, cands: r.cands.filter((c) => !exclude.includes(c.branch)), waiting: r.waiting.filter((c) => !exclude.includes(c.branch)) };
   };
   const { cands, waiting } = pick();
@@ -1337,17 +1512,12 @@ async function noTrain(o, labelExists, { exclude = [], afterDrop = false } = {})
   if (fd.action !== 'build') { log(`decision (re-read): ${fd.state} - ${fd.reason}`); return { state: fd.state, reason: fd.reason, candidates: fresh.map((c) => c.branch) }; }
   const added = fresh.filter((c) => !cands.some((x) => x.branch === c.branch && x.head === c.head)).map((c) => c.branch);
   if (added.length) log(`  re-read: ${added.join(', ')} new or moved since the decision`);
-  // F12: the last build of these heads on this master had nothing new to release: it would exit 6 again
-  const last = readStatus(FILES.realStatus);
-  if (last?.nothingNew) {
-    const master = masterSha();
-    if (nothingNewSkip(last, fresh, master)) {
-      const reason = `nothing new to release in ${fresh.map((c) => c.branch).join(', ')} on master ${short(master)} (merge-train exit ${NOTHING_NEW_EXIT} on these heads): no build until a head or master moves`;
-      log(`decision: idle - ${reason}`);
-      return { state: 'idle', reason, candidates: fresh.map((c) => c.branch), nothingNew: last.nothingNew };
-    }
-  }
-  return build(nextN(), fresh);
+  // F12: the last build of these heads on this master had nothing new to release: it would exit 6 again (build checks
+  // its final re-read set too)
+  const nn = nothingNewIdle(fresh);
+  if (nn) return nn;
+  // F23: build re-reads the candidates after nextN() and after its plan (freshPlan; AUTO_TRAIN_REREAD=0: not again)
+  return build(nextN(), fresh, { reread: REREAD ? () => pick().cands : null });
 }
 
 async function step(o) {
