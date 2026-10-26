@@ -416,8 +416,9 @@ describe('the cause of a retry never repeats it (fix 4)', () => {
     r.guard('gd2').alerted = true;
     r.step();
     expect(r.mode.restarts).toBe(1);
-    // the sighting is out of the guards' memory: calls, incidents, the command call, the last known positions
-    expect(r.cleared).toEqual({ radio: 1, board: 1, alarm: 1, intruders: 1 });
+    // the sighting is out of the guards' memory: calls, incidents, the command call, the last known positions (C17: the
+    // set's start cleared them once already)
+    expect(r.cleared).toEqual({ radio: 2, board: 2, alarm: 2, intruders: 2 });
     expect(r.guard('gd1')).toBe(gd1);
     r.step(5);
     gd1.alerted = true;
@@ -450,6 +451,20 @@ describe('flags a retry drops (fix 5)', () => {
     r.step();
     expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
     expect(r.consoleCalls.at(-1)).toEqual(['sw2', true]);
+  });
+});
+
+describe('(marlow-play-2 C17) a new set clears the guards\' shared memory', () => {
+  it('each bayStarted clears the calls, the incident board, the alarm and the last-known positions', () => {
+    const r = rig(def());
+    expect(r.cleared).toEqual({ radio: 1, board: 1, alarm: 1, intruders: 1 });
+    r.em.lkpValid = true;
+    r.em.sightT = 0;
+    r.st.startAt(1);
+    r.step();
+    expect(r.cleared).toEqual({ radio: 2, board: 2, alarm: 2, intruders: 2 });
+    expect(r.em.lkpValid).toBe(false);
+    expect(r.em.sightT).toBe(99);
   });
 });
 

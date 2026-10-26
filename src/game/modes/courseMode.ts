@@ -962,6 +962,10 @@ export class CourseMode implements GameMode {
     const bay = st.currentBay;
     switch (e.t) {
       case 'bayStarted':
+        // (marlow-play-2 C17) the last set's sightings, incidents (its downed guards' bodies logged), alarm and last-known
+        // positions do not follow the players into the new set (the bay restart's `resetMemory` already clears them).
+        // Course mode only: Sector Ops and the campaign never run this
+        this.forgetSighting();
         this.spawnSquad(e.squad);
         this.radio('enter');
         // (section-rating S6) the set's rating counts from here
