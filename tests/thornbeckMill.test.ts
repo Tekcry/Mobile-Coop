@@ -231,7 +231,7 @@ describe('Thornbeck Mill: guards (PLAN section 3)', () => {
       expect(c.route!.every((p) => p[1] === c.z)).toBe(true);
       expect(a.waits).toEqual(c.waits);
     }
-    // G4 + G5 (GA5 items 2 and 3): per-point waits, no `loop` / `wait`, faces kept, 1.2 m apart at the door, one 47 s lap each
+    // G4 + G5 (GA5 items 2 and 3): per-point waits, no `loop` / `wait`, faces kept, 1.2 m apart at the door, one 50 s lap each
     const g4 = THORNBECK_GUARDS[3]!;
     const g5 = THORNBECK_GUARDS[4]!;
     expect([g4.pair, g5.pair]).toEqual([4, 3]);
@@ -248,12 +248,12 @@ describe('Thornbeck Mill: guards (PLAN section 3)', () => {
     const door5 = g5.route![2]!;
     expect(hyp2(door4[0] - door5[0], door4[1] - door5[1])).toBeCloseTo(1.2, 6);
     // (S4) GA6b's lap: `sweepPeriod` on each guard's route object (the legs at sweep pace, the turns, the waits); equal laps
-    // of 47 s (40 s does not fit: G4's lap without its end pause is 46.13 s)
+    // of 50 s (Guard AI's values; 40 s does not fit: G4's lap without its end pause is 46.13 s)
     const route = (g: SectorGuard): PatrolRoute => ({ points: g.route!, waits: g.waits, faces: g.faces, start: g.start });
     const G4 = route(g4);
     const G5 = route(g5);
     expect(sweepPeriod(G4)).toBeCloseTo(sweepPeriod(G5), 6);
-    expect(sweepPeriod(G4)).toBeCloseTo(47, 6);
+    expect(sweepPeriod(G4)).toBeCloseTo(50, 3);
     // the door stops (point 2) coincide: they leave it together every lap (sweep time from the start), after a 4 s stop
     const p4 = sweepPlan(G4, 0, 0, 0);
     const p5 = sweepPlan(G5, 0, 0, 0);
