@@ -4,14 +4,15 @@ status: open
 Lead: Night Shift | Sector Ops Build. Job map-ready (FOLDED-PLAN J21, ROADMAP Now row 17; Michael's fix (1) of his
 2026-10-25 ~18:50 pick: "warm characters, guards and weapons behind the loading screen"; his 20 s cap, ~20:05 Q1).
 PLAN S3 (`docs/map-ready/PLAN.md` on `origin/feature/map-ready` @ eae83afc9a2b527a2e0c76dba3326db5acd8508f, lines
-190-203) and section 2 (the gate table, :97-124); BRIEF A3, A8, A9 (same commit). S1 and S2 are checker PASS; S2 is
-PR #513 (it carries S1 #511). This brief is the whole strict brief: there is no `briefs/S3.md` on the job branch.
+190-203) and section 2 (the gate table, :97-124); BRIEF A3, A8, A9 (same commit). S1, S2 and S14 are checker PASS; S2 is
+PR #513 (it carries S1 #511); S14 (the compile log and parallel compile groups) stacks on S2. Lead decision
+2026-10-26: S3 stacks on S14 (order S2 -> S14 -> S3), never a parallel branch on the same file. This brief is the whole strict brief: there is no `briefs/S3.md` on the job branch.
 Opus work (AI warm, gate code); the lead runs two independent Opus checkers, Guard AI reviews the `src/ai` part.
 
 ## Base, branch, guard
-- Base: `origin/feature/map-ready-s2` @ `a85f3db930e6a00aa3fa5f6f93c210e91cd46527` (W0 + S1 fix1 + S2 fix1).
+- Base: `origin/feature/map-ready-s14` @ `763fc7bfba8d856aa576711cae9c4fd4b9cb4beb` (W0 + S1 fix1 + S2 fix1 + S14).
   New branch: `feature/map-ready-s3` (create it from that commit and push it; never push to `feature/map-ready`,
-  `feature/map-ready-s2`, another lane or master; never merge or rebase anything into it).
+  `feature/map-ready-s2`, `feature/map-ready-s14`, another lane or master; never merge or rebase anything into it).
 - Guard before every write: `test "$(git rev-parse --abbrev-ref HEAD)" = feature/map-ready-s3`.
 - Read first (from the base): `git show origin/master:docs/systems/agent-preamble.md` ("Cloud sessions"),
   `git show origin/master:CLAUDE.md` (hard rules), then BRIEF.md / PLAN.md from eae83afc9 as above.
@@ -21,7 +22,7 @@ Opus work (AI warm, gate code); the lead runs two independent Opus checkers, Gua
 
 ## Co-op and #317
 - No `src/net` file is edited and nothing new imports from `src/net`. The co-op client gets the warm with no net code:
-  its `GameState.create` and S2's gate run the same `flags.mapReady` path, and its guard puppets are built by the same
+  its `GameState.create` and the gate (S2 / S14) run the same `flags.mapReady` path, and its guard puppets are built by the same
   builders (`src/net/enemyPuppet.ts:136-150`: `buildEnemyRig`, `DogModel`, `buildShieldPart`). So the hard rule
   (`src/net` only via the dynamic import behind `flags.coop`) is untouched.
 - No dependency on #317 `feature/coop4` (open, not on master or the base). It edits `gameState.ts` (+69 / -8) in
@@ -36,7 +37,7 @@ Opus work (AI warm, gate code); the lead runs two independent Opus checkers, Gua
 - `src/audio/music/music.ts` - one passthrough `firstCue` (A21).
 - `src/audio/gameAudio.ts` - `gameAudioReady` (a new export; `attachGameAudio` unchanged).
 - `src/game/mapGate.ts` - `STEPS` gains `'audio'` before `'warm'` and its doc line (A21).
-- `src/game/gameState.ts` - S2's gate members and the `flags.mapReady` block of `create` only (A21).
+- `src/game/gameState.ts` - the gate members (S2 / S14) and the `flags.mapReady` block of `create` only (A21).
 - `tests/guardWarmSets.test.ts` (new), `tests/mapReadyAudio.test.ts` (new, A21), `tests/mapGate.test.ts` (the S2
   `STEPS` test only, :45-51).
 - `changes/feature-map-ready-s3.md` (new, `kind: patch`, the `changes/feature-map-ready-s2.md` format, plain words).
@@ -45,9 +46,9 @@ Opus work (AI warm, gate code); the lead runs two independent Opus checkers, Gua
 ## Never touch
 `src/net/**`, `src/game/modes/**` (no `courseMode.ts` edit: A22), `src/ai/enemy.ts`, `src/ai/enemyRig.ts`,
 `src/ai/enemyManager.ts`, `src/ai/helmetDrops.ts`, `src/ai/gearParts.ts`, `src/ai/dogModel.ts`, `src/player/**`,
-`src/world/**`, `src/core/**` (`flags.ts`: `mapReady` exists, W0), `src/operators/**`, `scripts/**`, every other test.
+`src/world/**`, `src/core/**` (`flags.ts`: `mapReady` exists, W0; `compileLog.ts` is S14's), `src/game/compileOrder.ts` (S14), `src/operators/**`, `scripts/**`, every other test.
 
-## What the base has (anchors checked on a85f3db93)
+## What the base has (anchors checked on 763fc7bfb)
 - Guards spawn after the release: Course mode's bay squads (`courseMode.ts:934-957`, `em.spawn(s.kind, ...)`), the
   alarm's reinforcements and response team (`game/stealthSystems.ts:567-571`, `:598`; `enemyManager.ts:897-899`,
   `:1104-1110`), Sector Ops slots inside `SPAWN_MIN_DIST` (A8, `sectorMode.ts:127`, `:882-888`), revivals. Course mode starts
@@ -65,16 +66,20 @@ Opus work (AI warm, gate code); the lead runs two independent Opus checkers, Gua
 - The figure warm (`guardWarm.ts:132-174`, `?guardmodels=1` only): hidden disabled meshes per base (LOD2), kept for
   the scene's life so their sub-meshes hold the effects (`:12-16`); `warmReady` (:83-105) compiles the main pass and
   every shadow generator of `m.lightSources` under each map's `renderPassIds`; `untilWarm` (:107-124) polls with a
-  `WARM_GIVE_UP_MS` 20 s give-up (:29). In S2's gated `create` it is started and not awaited (`gameState.ts:995`).
+  `WARM_GIVE_UP_MS` 20 s give-up (:29). In S2's gated `create` it is started and not awaited (`gameState.ts:1001`).
 - Shadow lists: `World.addShadowCaster` (`world.ts:413-433`) puts a mesh into `charCasters` (:85, read every frame by
   `charShadows.ts`) and `sunMoving` (walked every 0.25 s, `world.ts:345-370`, which skips disabled meshes). Every
   shadow map is a Babylon `ShadowGenerator` (sun / moon in `lightRig.ts:513`, character tiles `charShadows.ts:317`,
   torch tiles `torchShadows.ts:226`). Babylon 9.29 `Mesh.isReady(true)` checks a generator only when the mesh is in
   its render list, so a disabled mesh outside the lists never gets its depth variants from S2's sweep.
-- S2's gate (`gameState.ts`): `create`'s gated block :987-998; `enter` :1203-1243; members :2409-2431; `runGate`
-  :2439-2461; `gateRead` :2465-2489 (`bodies` :2471-2478, `shaders` :2481, `audio` / `peers` placeholders :2484-2486);
-  `gateCompileAll` :2530-2559 (the guards group starts at `this.gateCompile = 3`, :2543); `gateDrawReady` :2494-2510;
-  `gateDescribe` :2575-2579; `release` :2603-2634. `mapGate.ts:12-13` `STEPS` (S3 inserts `'audio'` before `'warm'`),
+- The gate (`gameState.ts`, S2 with S14's compile groups): `create`'s gated block :993-1004; `enter` :1209-1249;
+  members :2513-2539 (S14's `gateStarted` / `gateSettled` / `gateOrder` / `gateDue` :2527-2530); `runGate`
+  :2547-2569; `gateRead` :2573-2605 (`bodies` :2579-2586, the groups due :2587-2596, `shaders` :2597, `audio` /
+  `peers` placeholders :2600-2602); `gateDrawReady` :2610-2626; `gateCompileAll(due)` :2647-2653; `gateStart`
+  :2656-2671 (sets the group's settled bit when its promise settles); `gateGroup` :2675-2704 (the guards group
+  `GROUP_GUARDS` :2687-2702: parallel by default, `?compileorder=serial` one guard after the other); `gateDescribe`
+  :2720-2724; `release` :2748. `game/compileOrder.ts` (`compileGroupsDue`): `GROUP_GUARDS` starts at quality +
+  content in the parallel order, after the level group settled in the serial one. `mapGate.ts:12-13` `STEPS` (S3 inserts `'audio'` before `'warm'`),
   `TEXT.audio` 'Loading sound' (:66), `MapGateInput.audio` (:39-40).
 - Helmet drop: `helmetDropSource(scene)` (`guardHelmet.ts:47-65`) starts the load on its first call (the first drop),
   null until built; `HelmetDrops.make` (`helmetDrops.ts:115-121`) uses the placeholder box while it is null; the source
@@ -88,7 +93,7 @@ Opus work (AI warm, gate code); the lead runs two independent Opus checkers, Gua
   wrapper, which holds `GameMusic` privately (`music.ts:11-16`).
 - Test patterns: NullEngine + `PartLibrary` + `buildEnemyRig` (`tests/guardFigureWarm.test.ts:115-128`); a real
   `EnemyManager.spawn` of ctcourse squads on the built level (`tests/consoleNoticeA4.test.ts:48-111`); the program
-  cache read `engine._compiledEffects` (`tests/bodyEffectRecovery.test.ts:36`, `gameState.ts:2352`).
+  cache read `engine._compiledEffects` (`tests/bodyEffectRecovery.test.ts:36`, `gameState.ts:2360`).
 
 ## Interfaces (write them as given; doc comments in the files' style)
 ```ts
@@ -192,23 +197,26 @@ export function gameAudioReady(app: App): Promise<void>;
    - `mapGate.ts`: `STEPS` = S2's with `'audio'` before `'warm'`; its doc line says S3 inserted it (S5 appends
      `'peers'`). `tests/mapGate.test.ts:45-51`: the test now expects the audio step (rename it to say so); the rest of
      the file unchanged.
-   - `gameState.ts` new private members next to S2's (:2409-2431): `gateWarm` (0 not started, 1 compiling, 2 settled),
+   - `gameState.ts` new private members next to the gate's (:2513-2539): `gateWarm` (0 not started, 1 compiling, 2 settled),
      `gateGear` (true when not needed or settled), `gateAudio` (false until settled), and the `warmGuardModels` promise
      from `create`.
-   - `create`'s gated block (:987-998): keep the `warmGuardModels` promise (still not awaited there).
-   - `runGate` (:2439), before `runMapGate`: start `gameAudioReady(this.app)` (sets `gateAudio` when settled); with
+   - `create`'s gated block (:993-1004): keep the `warmGuardModels` promise (still not awaited there).
+   - `runGate` (:2547), before `runMapGate`: start `gameAudioReady(this.app)` (sets `gateAudio` when settled); with
      `flags.guardModels`, start `helmetDropReady(this.scene)` and, when the kinds include the enforcer,
      `preloadShield()` (sets `gateGear` when both settled).
-   - `gateCompileAll` (:2530), where the guards group starts (`this.gateCompile = 3`, :2543): ONE line,
-     `this.gateWarmGuards();`, a new private method that builds and compiles the warm sets
+   - The guards group (`gateGroup`, `GROUP_GUARDS`, :2687-2702) also starts the warm, through a new private method
+     `gateWarmGuards(): Promise<unknown>` that builds and compiles the warm sets
      (`warmGuardSets(this.scene, this.world, guardKindsFor(this.world.map.id, this.opts.mode))`) and, with
-     `flags.guardModels`, waits for the kept `warmGuardModels` promise too; `gateWarm` = 2 when both settled. Started
-     there so the player's body and the level compile first (S2's Q1 order).
-   - `gateRead` (:2465): `bodies` also needs `gateGear`; `shaders` (:2481) also needs `gateWarm === 2`; `g.audio =
-     this.gateAudio` (:2485; `peers` stays true for S5). No allocation in `gateRead`.
-   - `gateDescribe` (:2575): append the warm and audio states for the cap's log line.
+     `flags.guardModels`, waits for the kept `warmGuardModels` promise too; `gateWarm` = 2 when both settled. The
+     group's promise includes it in both orders (parallel: in the `Promise.all` with the guards; serial: after the last
+     guard), so `GROUP_GUARDS` settles only once the warm has, the serial order's rest group waits for it, and S14's
+     compile log lists its programs under the guards group. `compileOrder.ts` and the other groups do not change.
+   - `gateRead` (:2573): `bodies` (:2586) also needs `gateGear` (set before the `gateDue` copy, so the own group
+     waits for it too); `shaders` (:2597) also needs `gateWarm === 2`; `g.audio = this.gateAudio` (:2601; `peers`
+     stays true for S5). No allocation in `gateRead`.
+   - `gateDescribe` (:2720): append the warm and audio states for the cap's log line.
    - Run: `npm run typecheck:fast`; `npx vitest run tests/mapGate.test.ts tests/menuGate.test.ts
-     tests/mapReadyStats.test.ts --maxWorkers=2`.
+     tests/mapReadyStats.test.ts tests/compileOrder.test.ts tests/compileLog.test.ts --maxWorkers=2`.
 5. Fragment and report: `changes/feature-map-ready-s3.md` (`kind: patch`; e.g. "Behind the map-ready loading screen
    (off by default): every guard type's look is prepared on the loading screen, so a guard arriving later (a training
    bay's squad, a reinforcement) no longer stutters the game; the weapon sounds and the first music are ready before
@@ -220,10 +228,11 @@ export function gameAudioReady(app: App): Promise<void>;
 `npx tsc --noEmit -p .` (or `npm run typecheck:fast`) and
 `npx vitest run tests/guardWarmSets.test.ts tests/mapReadyAudio.test.ts tests/mapGate.test.ts tests/guardFigureWarm.test.ts
 tests/guardHelmetDrop.test.ts tests/guardShieldShare.test.ts tests/guardBody.test.ts tests/weapons-audio.test.ts
-tests/music.test.ts tests/menuGate.test.ts tests/mapReadyStats.test.ts tests/changesFragments.test.ts --maxWorkers=2`.
+tests/music.test.ts tests/menuGate.test.ts tests/mapReadyStats.test.ts tests/compileOrder.test.ts tests/compileLog.test.ts
+tests/changesFragments.test.ts --maxWorkers=2`.
 
 ## Done criteria (a checker tests each)
-1. Branch `feature/map-ready-s3` from a85f3db93, steps 1-5 pushed; `git diff --name-only a85f3db93` lists only the
+1. Branch `feature/map-ready-s3` from 763fc7bfb, steps 1-5 pushed; `git diff --name-only 763fc7bfb` lists only the
    files above.
 2. tsc clean; every vitest file above green; counts in the report.
 3. `tests/guardWarmSets.test.ts` (c) and (d): spawning a guard of every kind (with helmet, armour, shield, sniper
@@ -234,7 +243,8 @@ tests/music.test.ts tests/menuGate.test.ts tests/mapReadyStats.test.ts tests/cha
    `flags.mapReady` block or a method only the gate calls).
 5. `STEPS` is `['bake-live', 'quality', 'content', 'bodies', 'shaders', 'probe', 'bake-all', 'audio', 'warm']`;
    `gateRead` sets `audio` from `gameAudioReady`, `shaders` waits for the warm sets (and `warmGuardModels` with
-   `?guardmodels=1`), `bodies` for the helmet drop and shield with `?guardmodels=1`.
+   `?guardmodels=1`), `bodies` for the helmet drop and shield with `?guardmodels=1`; `GROUP_GUARDS` settles only after
+   the warm, in both compile orders.
 6. No `src/net` edit or import; no per-frame allocation (the report's hook list); no `Math.hypot`; Babylon imported
    only through `src/core/babylon.ts`; `import type` for types.
 7. Report `docs/map-ready/checks/s3-build.md` pushed; then the "Report" section below and `status: done
@@ -251,12 +261,11 @@ tests/music.test.ts tests/menuGate.test.ts tests/mapReadyStats.test.ts tests/cha
 - Same alone run with `E2E_PARAMS=mapready=1&guardmodels=1` (helmet drop and shield in at the reveal, no box).
 
 ## Assumed decisions (the lead logs them in BRIEF.md; A20 is S16's proposed line, so these start at A21)
-- A21 (files beyond PLAN S3's list): + `src/game/mapGate.ts` and `tests/mapGate.test.ts` (S2 left the `audio` step
-  for S3, `mapGate.ts:12`), + `src/game/gameState.ts` (S2's gate members: the warm start, the `audio` / `bodies` /
-  `shaders` reads; PLAN S14 says "none claims gameState.ts" for S3, so the lead merges S3 and S14 by hand: S14
-  rewrites `gateCompileAll`, `gateRead`'s `shaders` line and `gateDescribe`, and S3 keeps one line in each), +
-  `src/audio/music/music.ts` (one passthrough; not in PLAN's claims block), + `tests/mapReadyAudio.test.ts`; -
-  `src/game/modes/courseMode.ts` (A22). Undo: n/a (a file list).
+- A21 (files beyond PLAN S3's original list; recorded in BRIEF / PLAN on `feature/map-ready`): + `src/game/mapGate.ts`
+  and `tests/mapGate.test.ts` (S2 left the `audio` step for S3, `mapGate.ts:12`), + `src/game/gameState.ts` (the gate
+  members after S14: the warm in the guards group, the `audio` / `bodies` / `shaders` reads; S3 stacks on S14, order
+  S2 -> S14 -> S3, so no two branches edit it at once), + `src/audio/music/music.ts` (one passthrough), +
+  `tests/mapReadyAudio.test.ts`; - `src/game/modes/courseMode.ts` (A22). Undo: n/a (a file list).
 - A22 (narrows nothing, widens PLAN S3's "course mode lists its bays' kinds"): the warm covers every kind in every
   guard mode, because the alarm and the response team bring kinds beyond a course's squads
   (`stealthSystems.ts:567`, `:598`); about 8 hidden sets per match. Undo: in `guardKindsFor`, return a course's
