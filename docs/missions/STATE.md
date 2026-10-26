@@ -11,9 +11,9 @@ Mobile-Coop-menu/node_modules only). Newest: scratch/campaign/lead-notes.md "Ses
 4. (b) PR #578 feature/mission-b-sector 8d4feb8ec (base (a), big-pr): Opus PASS (member-b-check.md), status posted,
    the automatic affected run only (set mb withdrawn: one set per change). Retarget to master after #522 lands (A27). Polish: the check report.
 5. (c) PR #581 feature/mission-c-net 3a114fbb0 (base (b), big-pr): Opus PASS x2 (check-2 fix: blips line), status posted.
-   (d) feature/mission-d-wharf 10dd6eff0 (10,437 counted; 47 Tallow lamps listed in lampBoxAlign KNOWN_EMBEDDED, a
-   light-pass item): Opus checker -> member-d-check.md. Cut report member-cd-cut-report.md. PASS -> PRs (big-pr), the
-   automatic affected run only; tell the orchestrator firstPlace stays live (master ships it) + (c)'s live-invisible changes.
+   (d) PR #583 feature/mission-d-wharf fe062fc02 (base (c), big-pr; restacked on (c) 3a114fbb0): Opus FIX -> fix round
+   (wharf blips(), testing-tools 720 budget, lamp note), status posted. 47 Tallow lamps in lampBoxAlign KNOWN_EMBEDDED
+   (light-pass item; lamp 92 buried in the clock block). All 4 members are PRs; orchestrator told.
 6. G5 after (d) (A30); #549 look-video merged (master).
 Next: (d) checker verdict -> PR (merge (c) 3a114fbb0 in + fix e2e-sectorops-wharf.mjs:396 blips() first); #578 / #522 verdicts; Tallow W1 in /preview/ when (d) lands.
 
