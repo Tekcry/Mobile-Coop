@@ -1023,8 +1023,10 @@ slow tactical room-by-room close-in on a fixed readable order (Michael ~10:05 "f
 cleared, groups <= 2: BRIEF + PLAN 597df8bce on feature/guard-ai-mill-hunt (worktree -guard-ai-mill-hunt;
 flag millHunt; H1 map data Sonnet + H2 pure rules Opus start now in parallel; H3 wiring after #694; PR 1 = H1-H3,
 PR 2 = H4 reactions). Plan check 1 FIX f2c0b5e7c (stall with no trigger, start deadlock, H4 cue dead,
-check breaks the cap, no claims block): PLAN revision 1 RUNNING, then a fresh plan check, then H1 + H2. Asked Michael via the orchestrator: gallery
-guards stay upstairs (assumed) or come down.
+check breaks the cap, no claims block) -> PLAN revision 1 a9dd94fde (phase order as map data, rank rule +
+start spread, mhCue, check stops at the room edge, claims block; Michael picked "Stay upstairs (Recommended)").
+Plan check 2 RUNNING. Then PR 1 = H1 (Sonnet data) + H2 (Opus pure board) in parallel; PR 2 = H3 after #694; PR 3 = H4. Asked Michael via the orchestrator: gallery
+answered.
 Open (2026-10-27 ~08:55, new window to ~13:50, 1 agent; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
