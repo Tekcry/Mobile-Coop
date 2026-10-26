@@ -3,7 +3,9 @@ Owner: Test Runner. Status: current.
 
 ## Resume (2026-10-26, builder)
 Branch feature/laptop-queue-8 holds origin/feature/laptop-queue-7 (merge 624cb7278; #507 still open). The `fix` label
-already existed (red, "Bug fix: tested ahead of new features"). Slices A-E built (A-C Opus builder; D, E builder 1bf8e909c, f1790d34d); F not built.
+already existed (red, "Bug fix: tested ahead of new features"). Slices A-F built (A-C Opus builder; D, E builder
+1bf8e909c, f1790d34d; F docs: RULES "Machines", testing-tools.md "Laptop queue", changes/feature-laptop-queue-8.md,
+docs/laptop-queue/STATE.md).
 A-C pointers are this branch after slice C (shifted by D, E: find by name); D, E pointers after E.
 - Slice A (fixes first, keep place): lib `placeKey` :20, `isFix` :253, pickFrom fix tier :332 (nonAlone sorted by
   place), `placeFor` :472, prBoard `fix` :1008; service `FIX_FIRST` :159, `pushFile` mustExist :370, prBoardNow labels
@@ -27,7 +29,7 @@ A-C pointers are this branch after slice C (shifted by D, E: find by name); D, E
   affectedPass call :488 (skipped for a conflicting head under LQ_SKIP_CONFLICTING), `prCarry` :527; tests describe
   "docs-only carry for PR heads" :2091.
 Verify per slice: `npm run typecheck:fast`, `npx vitest run tests/laptop-queue.test.ts tests/autoTrain.test.ts`.
-Next: slice F (Sonnet, own worktree), then the Opus checker on the head. Dry runs
+Next: the Opus checker on the head. Dry runs
 (`node scripts/laptop-queue/service.mjs --once --dry-run`, also with `LQ_WORKER=desktop`) not yet run.
 Carry-ins (2026-10-26 ~13:45, after #517 merges):
 - #517 checker polish: refileOverCap passes `mustExist` to pushFile (withdrawal race); a null / [] recompute goes in a

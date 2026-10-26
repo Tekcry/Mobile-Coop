@@ -1,6 +1,10 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-26: laptop-queue-8 (feature/laptop-queue-8): fixes first (`fix` label or `--fix`), a new head keeps its
+  request's place and stops the old run, a train preempt keeps passed suites, the desktop takes the smallest request
+  and skips any over 15 min (CPU mode knob), a docs-only PR commit carries affected-e2e. Rules: RULES.md "Machines",
+  testing-tools.md "Laptop queue"; resume: docs/laptop-queue-8/STATE.md.
 - 2026-10-25: laptop-queue-6 (feature/laptop-queue-6): the train hold predicts the next train (lib `nextTrain`, ETA
   from the merge + 6.5 min or a newly green candidate + 3 min, late window 5 min) and lets only pr runs that fit
   before it start (lib `fitsBeforeTrain`); replaces `trainSoon` / `LQ_RELEASE_HOLD_MIN`. Rules: testing-tools.md
