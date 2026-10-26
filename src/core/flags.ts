@@ -55,13 +55,15 @@ export interface Flags {
    *  (Settings > Gameplay > "Mocap locomotion"); null when the page names none. */
   mocap: boolean | null;
   /** (mixamo-retarget I2) `?mixamo=1` / `?mixamo=0`: the Mixamo traversal captures on Wren (hang, shimmy, climb-up, ladder,
-   *  vent crawl; `src/anim/mixamo.ts`); null when the page names none = off (default OFF until the orchestrator rules). */
+   *  vent crawl; `src/anim/mixamo.ts`); null when the page names none =
+   *  off, on /preview/ on (preview-flags: `setMixamo(flags.mixamo ?? PREVIEW_ON)`). */
   mixamo: boolean | null;
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
   /** (guard-models G7, A10) Guards draw as the operator-pipeline figure (`src/ai/guardBody.ts`); `?guardmodels=0` keeps
    *  the merged S1 body (comparisons, and the fallback while a guard's files load). DEFAULT OFF on the guard-models
-   *  branch until G8 measures (`?guardmodels=1` turns it on); G8 flips the default. */
+   *  branch until G8 measures (`?guardmodels=1` turns it on); G8 flips the default. On /preview/ default on
+   *  (preview-flags). */
   guardModels: boolean;
   /** (guard-render S4) Guard anim tiers (off-screen every `ANIM_TIER_OFFSCREEN` th frame, far every 2nd:
    *  `src/ai/animTier.ts`); `?animtier=0` off. */
@@ -77,19 +79,23 @@ export interface Flags {
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
   /** (J14 Marlow re-plan, owner Marlow Build, switch-on 2026-10-29) `?marlowreplan=1`: a host's room opens on the re-planned
-   *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged. */
+   *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged.
+   *  On /preview/ default on (preview-flags). */
   marlowReplan: boolean;
   /** (char-shadow-meter, J16) Character shadows in the light meter and the guards' light (`world/charOccluders.ts`);
-   *  `?charlight=1` on. DEFAULT OFF until Michael's walk (owner Sector Ops Build; switch-on: BRIEF A9). */
+   *  `?charlight=1` on. DEFAULT OFF until Michael's walk (owner Sector Ops Build; switch-on: BRIEF A9). On /preview/
+   *  default on (preview-flags). */
   charShadowLight: boolean;
   /** (map-ready, `docs/map-ready/PLAN.md`; owner Night Shift | Sector Ops Build; switch-on after Michael's Sector Ops
    *  and Marlow Yard walks, target 2026-11-01) The loading screen waits for a built and warmed map, the campus lamps
-   *  ship pre-built, the costly parts are kept between matches, the lobby preloads. `?mapready=1` on; default off. */
+   *  ship pre-built, the costly parts are kept between matches, the lobby preloads. `?mapready=1` on; default off.
+   *  On /preview/ default on (preview-flags). */
   mapReady: boolean;
   /** (campus-greybox; owner Sector Ops Build) The Saltmarsh Park sections (1-5) built from their v2 layouts
    *  (`src/world/maps/campusV2/`) instead of the live ones. Default `CAMPUS_V2_ON` (none: production unchanged); a
    *  section joins it when Michael accepts its walk. `?campusv2=1,3`: exactly those sections; `?campusv2=0`: none. Every
-   *  co-op peer must open the same link (the layout is not on the wire). */
+   *  co-op peer must open the same link (the layout is not on the wire).
+   *  On /preview/ every section (preview-flags). */
   campusV2: readonly number[];
 }
 
@@ -97,9 +103,10 @@ export interface Flags {
  *  when Michael accepts that section's walk (switch-on; the date goes in the PR body and the ROADMAP). */
 export const CAMPUS_V2_ON: readonly number[] = [];
 
-/** (campus-greybox) `?campusv2=` as a sorted section list (1-5); absent or unreadable: the default. "0" means none. */
-export function readCampusV2(v: string | null): readonly number[] {
-  if (v === null || !/^[0-5](,[0-5])*$/.test(v)) return CAMPUS_V2_ON;
+/** (campus-greybox) `?campusv2=` as a sorted section list (1-5); absent or unreadable: the default. "0" means none.
+ *  On /preview/ (preview-flags) the default is every section. */
+export function readCampusV2(v: string | null, preview = false): readonly number[] {
+  if (v === null || !/^[0-5](,[0-5])*$/.test(v)) return preview ? CAMPUS_V2_ALL : CAMPUS_V2_ON;
   return [...new Set(v.split(',').map(Number))].filter((n) => n > 0).sort((a, b) => a - b);
 }
 
@@ -107,6 +114,20 @@ export function readCampusV2(v: string | null): readonly number[] {
 export function onOffFlag(v: string | null): boolean | null {
   return v === '1' ? true : v === '0' ? false : null;
 }
+
+/** (preview-flags, Michael 2026-10-26 ~13:55 "All on in preview") The /preview/ build: every dark feature flag
+ *  defaults on there (a URL `=0` still turns one off). Not the named slots (`/ct/`), the live game, dev or tests
+ *  (vitest defines neither constant). New feature flags read through `darkFlag(params.get(...), PREVIEW_ON)`. */
+export const PREVIEW_ON: boolean =
+  typeof __PREVIEW__ !== 'undefined' && __PREVIEW__ && (typeof __PREVIEW_ID__ === 'undefined' || __PREVIEW_ID__ === '');
+
+/** (preview-flags) A dark feature flag's URL value: "1" on, "0" off, else the build's default (`preview`: on). */
+export function darkFlag(v: string | null, preview: boolean): boolean {
+  return v === '1' || (v !== '0' && preview);
+}
+
+/** (preview-flags) Every campus section, the /preview/ default for `campusV2`. */
+export const CAMPUS_V2_ALL: readonly number[] = [1, 2, 3, 4, 5];
 
 function readParams(): URLSearchParams {
   try {
@@ -168,14 +189,14 @@ export const flags: Flags = {
   mixamo: onOffFlag(params.get('mixamo')),
   guardMerge: params.get('guardmerge') !== '0',
   // (guard-models G7) default off until G8's budget run: `?guardmodels=1` on; G8 makes it `!== '0'`
-  guardModels: params.get('guardmodels') === '1',
+  guardModels: darkFlag(params.get('guardmodels'), PREVIEW_ON),
   animTier: params.get('animtier') !== '0',
   animShadow: params.get('animshadow') !== '0',
   animOff: Number(params.get('animoff')) | 0,
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
-  marlowReplan: params.get('marlowreplan') === '1',
-  charShadowLight: params.get('charlight') === '1',
-  mapReady: params.get('mapready') === '1',
-  campusV2: readCampusV2(params.get('campusv2')),
+  marlowReplan: darkFlag(params.get('marlowreplan'), PREVIEW_ON),
+  charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
+  mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
+  campusV2: readCampusV2(params.get('campusv2'), PREVIEW_ON),
 };
