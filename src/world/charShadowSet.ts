@@ -3,11 +3,13 @@
  * presets, which lamps hold a shadow-map slot (with hysteresis, so the set does not flicker), each slot's cone fit
  * around the characters in its reach, and the shared atlas's tiles. Babylon-free and allocation-free per frame
  * (fixed typed arrays); `world/charShadows.ts` renders it. Rendering only: the light meter and guard perception never
- * read any of it (they keep the light field, which has no character shadows at all).
+ * read any of it (they keep the light field; with `charShadowLight` on its character term comes from `charOccluders.ts`,
+ * never from this file).
  */
 import type { ShadowQuality } from '../core/quality';
 import { hyp2, hyp3 } from '../core/mathx';
 import { LAMP_LEVEL_GAIN, photoFalloff } from './lampMath';
+import { CHAR_LIGHT } from './charOccluders';
 
 /**
  * (LR16-P F2) A lamp's character shadow reach (m): the distance where its level on the axis, `LAMP_LEVEL_GAIN` x
@@ -66,8 +68,9 @@ export const CHAR_SHADOW = {
   /** Slots in the atlas (2 x 2 tiles). */
   maxSlots: 4,
   /** (LR16-P F2) A slot's shadow reach (`charShadowReach`): where the lamp's level (`LAMP_LEVEL_GAIN` x intensity x
-   *  `photoFalloff`, on its axis) falls to this. Past it a character keeps his capsule from that lamp. Picture only. */
-  minLevel: 0.04,
+   *  `photoFalloff`, on its axis) falls to this. Past it a character keeps his capsule from that lamp. Picture only; set
+   *  from the gameplay lamp set's `CHAR_LIGHT.minLevel` (char-shadow-meter), never the reverse. */
+  minLevel: CHAR_LIGHT.minLevel,
   /** A lamp is a candidate while the nearest focus point is within its shadow reach + this (m). */
   reachMargin: 3,
   /** A held lamp stays a candidate this much further (m). */
