@@ -1,0 +1,24 @@
+{
+  "id": "20261026T003917-affected-e2e-a85f3db9-959a",
+  "sha": "a85f3db930e6a00aa3fa5f6f93c210e91cd46527",
+  "branch": "feature/map-ready-s2",
+  "pr": 513,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-desktop",
+    "e2e-gadgets",
+    "e2e-levels",
+    "e2e-lightbake",
+    "e2e-move",
+    "e2e-park",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #513"
+}
