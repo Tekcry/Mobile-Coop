@@ -30,10 +30,14 @@
  *   `a6-sw-sump` on the sump bay's south wall by the L5 door;
  * - the stations (STATIONS section 3, verbatim), the pit's pass zone (section 8), LANTERN's retry lines (section 6), the
  *   objective lines (one per station and the outfall line).
- * Only type imports from `../` besides the set file's constants (the facility imports nothing from here).
+ * - (marlow-kit-wire) the Drop Catch kit spot `a6-dropcatch` in the drop opening (`A6_DROP_CATCH`), placed unconditionally
+ *   (inert while `dropCatch` is off); with it on, station 16's objective and retry line are the drop and the catch.
+ * Only type imports from `../` besides the set file's constants and two pure course modules (`kitApi`, `stationDef`) (the
+ * facility imports nothing from here).
  */
 import { retryKey, type AnchorLockGate, type CourseObjective } from '../../../../game/course/courseDef';
-import type { StationDef } from '../../../../game/course/stationDef';
+import { kitMoveOn, type StationDef } from '../../../../game/course/stationDef';
+import { addKitSpot } from '../../../../game/kit/kitApi';
 import type { FacilityKit } from '../../../kit/facilityKit';
 import type { LevelBuilder } from '../../../levelBuilder';
 import { makeCone } from '../../../lights';
@@ -76,6 +80,9 @@ export const A6_COVER: FloorHole = [50.4, 64.625, 50.95, 65.175];
 export const A6_PIT_LADDER = 'a6-pit-ladder';
 export const A6_PIT_LADDER_GATE = 'g-a6-pit-ladder';
 export const A6_PIT_LADDER_AT = { x: 52.5, z: 65.85 } as const;
+/** (marlow-kit-wire, A9) Station 16's Drop Catch point: the drop opening's middle in x, and in z a body's 0.3 m clear of the
+ *  stand-in ladder's rails (0.06 m off its line, 0.05 thick: z 65.765), so 0.45 m south of the ladder's line. */
+export const A6_DROP_CATCH = { x: (A6_DROP[0] + A6_DROP[2]) / 2, z: A6_PIT_LADDER_AT.z - 0.45 } as const;
 
 /** The gauge board on the housing's north face (the built board's size), the attendant's G stop in front of it. */
 export const A6_GAUGE_REPLAN = { x: 58.0, z: A6_HOUSING.north + 0.1, w: 1.2, t: 0.2, h: 1.5 } as const;
@@ -132,9 +139,16 @@ export const A6_RETRY_LINES: readonly { id: string; text: string }[] = [
   { id: 'a6-rope', text: 'The attendant saw you. Back to the sump bay, behind the kerb.' },
   { id: 'a6-hangdown', text: "Seen on the bridge. Back to the bridge's north end." },
   // (fix 1) until `dropCatch` ships the way down is the stand-in ladder, so the line names it, not the catch (STATIONS section 6
-  // has "Back to the bridge; catch your partner."; it goes back to that when the move ships)
+  // has "Back to the bridge to catch again."; it goes back to that when the move ships)
   { id: 'a6-dropcatch', text: 'The attendant heard the landing. Back to the bridge.' },
 ];
+/** (marlow-kit-wire) Station 16's lines while `dropCatch` is on (STATIONS section 6, verbatim; the built ones are the ladder's). */
+export const A6_DROPCATCH_KIT_RETRY = 'The attendant heard the landing. Back to the bridge to catch again.';
+export const A6_DROP_KIT_OBJECTIVE = {
+  text: 'Drop into the drive pit, partner catches',
+  a: 'Step off the bridge through the opening over the pit.',
+  b: 'Stand under the opening in the drive pit and catch your partner.',
+} as const;
 /** (fix 2, A26 for A6) LANTERN's lines at `retry:<id>:other` when the tick (`replan/a6Ticks.ts`) frees a pair stuck on the pump
  *  floor (the lip locked, nobody up to hold the rope): without one the retry is silent. */
 export const A6_TRAP_LINES = {
@@ -162,10 +176,8 @@ export const A6_OBJECTIVES: readonly CourseObjective[] = [
     b: 'Hold the key on the drive panel while the attendant is away.',
     done: { flag: A6_DRIVE_FLAG },
   },
-  // (fix 1) station 16's stand-in: until `dropCatch` ships, the way down is the cage ladder (`g-a6-pit-ladder`) and there is no
-  // catch, so both go down it. When the move ships these go back to the drop and catch: text "One of you drops through the
-  // bridge opening into the drive pit; the other catches.", a "Step off the bridge through the opening over the pit.", b "Stand
-  // under the opening in the drive pit and catch your partner."
+  // (fix 1) station 16's stand-in: while `dropCatch` is off, the way down is the cage ladder (`g-a6-pit-ladder`) and there is
+  // no catch, so both go down it; (marlow-kit-wire) with it on the builder swaps in `A6_DROP_KIT_OBJECTIVE`
   {
     id: 'a6-drop',
     bay: 'A6',
@@ -337,6 +349,8 @@ export function replanA6PumpHouse(b: LevelBuilder, kit: FacilityKit, part: SetPa
     p.anchors[A6_PIT_LADDER] = b.ladder(A6_PIT_LADDER_AT.x, A6_PIT_LADDER_AT.z, P.y, deck, 0, '#5b5f63').id;
   });
   p.bay.gates.push({ kind: 'anchorLock', id: A6_PIT_LADDER_GATE, anchorId: A6_PIT_LADDER, flag: A6_PIT_LADDER } satisfies AnchorLockGate);
+  // (marlow-kit-wire) the Drop Catch spot (inert while `dropCatch` is off): the dropper steps off the opening's open west side
+  addKitSpot(b.anchors, { id: 'a6-dropcatch', kind: 'dropCatch', x: A6_DROP_CATCH.x, y: deck, z: A6_DROP_CATCH.z, yaw: Math.PI / 2 });
   // the self-closing edge gate (SA11): the set file names the loading edge's lip; station 14 lists the gate (its retry reopens the lip)
   if (p.anchors[A6_GALLERY_LIP] === undefined) throw new Error('replan a6: the loading edge lip is not named');
   p.bay.gates.push({ kind: 'anchorLock', id: A6_EDGE_GATE, anchorId: A6_GALLERY_LIP, flag: A6_GAL1_FLAG, lockOn: true } satisfies AnchorLockGate);
@@ -367,10 +381,12 @@ export function replanA6PumpHouse(b: LevelBuilder, kit: FacilityKit, part: SetPa
   p.passZones.push({ id: 'a6-p-pit', box: A6_PIT_ZONE, flag: A6_PIT_FLAG, floorY: A6_PIT_Y });
   p.passZones.push({ id: 'a6-p-gal1', box: A6_GAL1_ZONE, flag: A6_GAL1_FLAG, floorY: A6_DECK.lip, any: true });
   p.externalFlags.push(A6_PIT_FLAG, A6_PIT_LADDER, A6_GAL1_FLAG);
-  for (const r of A6_RETRY_LINES) p.bay.radio.push({ at: retryKey(r.id), text: r.text });
+  // (marlow-kit-wire, A6) the kit-on lines are chosen as the set builds, from this page's own `kitMoves`
+  const drop = kitMoveOn('dropCatch');
+  for (const r of A6_RETRY_LINES) p.bay.radio.push({ at: retryKey(r.id), text: drop && r.id === 'a6-dropcatch' ? A6_DROPCATCH_KIT_RETRY : r.text });
   for (const [id, text] of Object.entries(A6_TRAP_LINES)) p.bay.radio.push({ at: retryKey(id, 'other'), text });
   p.objectives.length = 0;
-  p.objectives.push(...A6_OBJECTIVES.map((o) => ({ ...o })));
+  p.objectives.push(...A6_OBJECTIVES.map((o) => (drop && o.id === 'a6-drop' ? { ...o, ...A6_DROP_KIT_OBJECTIVE } : { ...o })));
 
   // ---- spaces, nav seeds, debug points, light and shot spots (the cage's and the gauge board's move with them) ----
   p.ambientZones.push({ id: 'A6-pit', box: [49, 61, 64, 67], ambient: MARLOW_LEVEL.standby, minY: A6_PIT_Y - 0.5, maxY: HALL_H - 0.1 });

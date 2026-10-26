@@ -17,6 +17,7 @@ import { charShadowReach } from './charShadowSet';
 import type { TorchShadowLink } from './torchShadows';
 import { bounceColor, packFillRGBA, type BounceGrid } from './bounceGrid';
 import { BOUNCE_T_SHIFT, BOUNCE_T_STEP } from '../voxel/lampBounce';
+import { ILLUM_GLSL } from '../vfx/nvIlluminator';
 /** (LR16t) vec4 per drawn torch in `lampTorch`. */
 const TORCH_VEC4 = TORCH_DRAW_STRIDE / 4;
 
@@ -172,6 +173,20 @@ export class BakedLamps implements CharShadowLamps {
   visionGain = 1;
   /** The gain at full night vision (`VISION_GAIN`; tests set `visionGain` to it). */
   readonly visionGainMax = VISION_GAIN;
+  /** (nv-illuminator) Rendering only: the goggles' IR illuminator (`nvIlluminator.ts`): origin xyz + night vision 0..1,
+   *  then the view axis xyz (unit) + 0. Set per render frame by `GameState.renderVision` from the local camera and
+   *  operator (never sent; the light field, the bake and the meter never read it). w 0: off. */
+  readonly illum = new Float32Array(8);
+  setIlluminator(k: number, ox: number, oy: number, oz: number, fx: number, fy: number, fz: number): void {
+    const u = this.illum;
+    u[0] = ox;
+    u[1] = oy;
+    u[2] = oz;
+    u[3] = k;
+    u[4] = fx;
+    u[5] = fy;
+    u[6] = fz;
+  }
   dark: DarkParams;
   /** The curve as bound this frame (`visionDark` scratch). */
   readonly darkNow: DarkParams = { ...DARK_DESKTOP };
@@ -1478,6 +1493,9 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampBounceC', size: 4, type: 'vec4' },
         { name: 'lampDark', size: 4, type: 'vec4' },
         { name: 'lampDarkP', size: 4, type: 'vec4' },
+        // (nv-illuminator) the goggles' IR illuminator: origin + night vision, the view axis
+        { name: 'lampIllum', size: 4, type: 'vec4' },
+        { name: 'lampIllumD', size: 4, type: 'vec4' },
         { name: 'lampSkyO', size: 4, type: 'vec4' },
         { name: 'lampSkyN', size: 4, type: 'vec4' },
         { name: 'lampLvlSky', size: 4, type: 'vec4' },
@@ -1493,7 +1511,7 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampTsP', size: 4, type: 'vec4', arraySize: nT },
         { name: 'lampTsI', size: 4, type: 'vec4' },
       ],
-      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampBounceC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\nuniform vec4 lampCsM[16];\nuniform vec4 lampCsP[4];\nuniform vec4 lampCsI;\nuniform vec4 lampTorch[${nT * TORCH_VEC4}];\nuniform vec4 lampTsM[${nT * 4}];\nuniform vec4 lampTsP[${nT}];\nuniform vec4 lampTsI;\n#endif`,
+      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampBounceC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampIllum;\nuniform vec4 lampIllumD;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\nuniform vec4 lampCsM[16];\nuniform vec4 lampCsP[4];\nuniform vec4 lampCsI;\nuniform vec4 lampTorch[${nT * TORCH_VEC4}];\nuniform vec4 lampTsM[${nT * 4}];\nuniform vec4 lampTsP[${nT}];\nuniform vec4 lampTsI;\n#endif`,
     };
   }
 
@@ -1510,6 +1528,10 @@ export class LampPlugin extends MaterialPluginBase {
     ubo.updateFloat4('lampDark', l.visionGain, l.moonLight + l.skyFlash, visionAmount(l.visionGain), 0);
     const d = visionDark(l.dark, l.visionGain, l.darkNow);
     ubo.updateFloat4('lampDarkP', d.centre, d.steep, d.floor, d.top);
+    // (nv-illuminator) the goggles' IR illuminator (picture only)
+    const il = l.illum;
+    ubo.updateFloat4('lampIllum', il[0]!, il[1]!, il[2]!, il[3]!);
+    ubo.updateFloat4('lampIllumD', il[4]!, il[5]!, il[6]!, 0);
     if (f && l.fillTex) {
       ubo.updateFloat4('lampAmbO', f.grid.origin[0], f.grid.origin[1], f.grid.origin[2], AMBIENT_CELL);
       ubo.updateFloat4('lampAmbN', f.grid.n[0], f.grid.n[1], f.grid.n[2], 0);
@@ -1597,6 +1619,7 @@ float nsR = nsDarkRatio(nsS, lampDark.x, lampDarkP);`;
 ${LAMP_GLSL}
 ${CHAR_SHADOW_GLSL}
 ${DARK_GLSL}
+${ILLUM_GLSL}
 #ifdef LAMP_TORCH
 ${torchDrawGlsl(this.nTorch, this.cutTorch)}
 #endif
@@ -1788,6 +1811,10 @@ ${level('nsLampRaw')}
   // bodies and props under night vision x the body fill cap, as their flat fill)
   nsStat += nsBounce * lampMore.w * lampBounceC.rgb * surfaceAlbedo.rgb * nsBF;
 #endif
+  // (nv-illuminator) the goggles' IR illuminator (\`nvIlluminator.ts\`): a soft beam from the local operator's head along
+  // the view, as a static light of that level (through the curve and the gain below), faded out where the bake is lit.
+  // Picture only: the light field, the bake and the meter never see it; zero with the goggles off
+  if (lampIllum.w > 0.0) nsStat += nvIllum(vPositionW, normalW, nsS, lampIllum, lampIllumD) * lampMore.w * surfaceAlbedo.rgb;
 #ifdef LAMP_TORCH
   // (LR15) the flashlights without a shadow map, drawn as the light field sums them x their beam's cut; like Babylon's
   // lights they join after the darkness curve. (lrpolish) x directIntensity / PI, as Babylon's lights scaled them: 1 on
