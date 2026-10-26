@@ -94,7 +94,12 @@ export interface KnifeKillRow {
   target: 'kidney' | 'neck' | 'chest';
 }
 
-/** The rows (index = `KNIFE_KILL_IDS` order; the real pairs, see the header). */
+/**
+ * The rows (index = `KNIFE_KILL_IDS` order; the real pairs, see the header). The fit's winners, but two from one focused
+ * try after it on the rows over 10 cm (lead, S2 part B): behindLow `standoff` 0.2 (below the fit's 0.25-0.60 grid) with
+ * `victimTo` 0.5, front `standoff` 0.45 with `victimTo` 0.25 (the guard's clip stops well before he drops). The corner
+ * row stays over (S2 report).
+ */
 export const KNIFE_KILLS: readonly KnifeKillRow[] = [
   { id: 'behind', attacker: 'mocap_stabbing', victim: 'mocap_falling_forward_death', seconds: 1.5, attackerFrom: 0.258, attackerTo: 0.828, contact: 0.55, victimFrom: 0, victimTo: 0.286, limp: 0.9, standoff: 0.25, side: -0.15, yawOff: 0, grip: 'mouth', target: 'kidney' },
   { id: 'behindLow', attacker: 'mocap_stabbing', victim: 'mocap_dying', seconds: 1.5, attackerFrom: 0.258, attackerTo: 0.828, contact: 0.55, victimFrom: 0, victimTo: 0.5, limp: 0.9, standoff: 0.2, side: -0.15, yawOff: 0, grip: 'mouth', target: 'kidney' },

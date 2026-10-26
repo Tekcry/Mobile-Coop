@@ -38,3 +38,8 @@ Next: the orchestrator passes the fix round to the plan checker (or signs off); 
   knife and night vision only; 12-16 guards sweeping in PAIRS, paired knife kills on the sweeping pairs (S3 double kill
   matters more); gantries / ladders may add a rail-side kill or a crouched kill behind grain sacks: approach list
   follows Michael's approval of Campaign's new page.
+- 2026-10-26 ~22:00 (S2, Opus builder, parts A + B on `feature/piano-knife-s2`): real Mixamo knife pairs wired (six
+  clips in `clips/mixamo/piano/`, CMU 18-23: no fit); each row plays its attacker clip's window at natural speed; one
+  fit run + one focused try; KNOWN_MISS 5.5-9.7 cm on all rows, corner grip / guard left palm ~17 cm over the 10 cm
+  ceiling (lead's call). Timings for Campaign: contact 1.05 s, limp 1.57 s, free 1.87 s from the press. Report
+  `C:/NightShift/scratch/ctcore/pk-s2-REPORT.md`; no PR.

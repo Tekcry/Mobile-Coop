@@ -179,7 +179,7 @@ The close strike of G42 / G155; this is the build.
 - Tests: `tests/elbowStrike.test.ts`, `tests/committedMoves.test.ts`; e2e-pad, e2e-mouse, e2e-takedown, e2e-netmove
   (`strike`, `denied`), e2e-coop; anim-audit scenario `strike`.
 
-## Knife kills (piano scene; piano-knife S1, `docs/piano-knife/`)
+## Knife kills (piano scene; piano-knife S1, S2, `docs/piano-knife/`)
 - Gate (BRIEF A1): `knifeSceneOn(flagOn, scene, live)` in `src/game/knifeKill.ts` is true only with Campaign's
   `pianoEscape` flag on, the map's `scene` `'piano'` and the scene switch live. Campaign's `pianoScene.ts` is the only
   caller of `TakedownController.setKnifeScene(on)` (on: the clips start loading by dynamic import). Off (the default)
@@ -189,8 +189,12 @@ The close strike of G42 / G155; this is the build.
   (`gameState` passes no strike start). The knife (`PlayerWeapons.knife`) shows from the press until the attacker is free.
 - Rows (`KNIFE_KILLS`, wire order `behind`, `behindLow`, `corner`, `front`; `pickKnifeKill`): behind (crouched: the rise),
   corner / overCover, front / side. Other kinds, a victim without `knifeVictim` (a co-op puppet until S3) or clips not
-  loaded yet: the -1 path (today's lethal move, knife shown). S1 plays stand-in Mixamo clips (`cross_punch`,
-  `crouch_to_stand`, the Pro Rifle Pack deaths); S2 swaps in the real pairs.
+  loaded yet: the -1 path (today's lethal move, knife shown). The pairs (S2, Michael's Mixamo downloads in
+  `src/anim/clips/mixamo/piano/`, loaded only from `setKnifeScene(true)`): behind `stabbing` + `falling_forward_death`,
+  behindLow and front `stabbing` + `dying`, corner `standing_melee_attack_downward` + `falling_back_death`. The move is
+  1.5 s (A15); the attacker clips are 2.1-2.6 s, so each row plays its clip's window (`attackerFrom` .. `attackerTo`)
+  around the stab at the clip's own speed. The rows' timing, windows, `victimTo`, `standoff` and `side` are measured
+  (`tests/knifePairFit.test.ts`, KP_FIT=1, one run on 2026-10-26; behindLow and front from one focused try after it).
 - Pairing (A14, `src/game/knifePair.ts`): from the grab (the approach's last `gripIn` share) the guard's root and facing
   are set from the attacker's current root every fixed step (`victimRoot`) and again every render frame from her drawn
   root (`TakedownController.frameLate`, after the player poses and before the enemies; `Enemy.frame` then leaves his
@@ -198,12 +202,17 @@ The close strike of G42 / G155; this is the build.
   buckle on spine and chest from the stab. Hand IK: her left hand on his mouth (from behind) or shoulder, the knife
   tip (`KnifeModel.tipWorld`) on kidney / neck / chest from the stab, his hands on her left forearm.
 - Contact rule (bible 5.12.2): grip, knife tip and his palms within 3 cm (`KNIFE.contactTol`) of their marks while in
-  contact, measured every frame by `tests/knifePair.test.ts` (the attacker walking and turning). S1's stand-in clips
-  miss it on some rows (5-23 cm, the numbers in the test's `S1_REACHED`); S2's real clips close it.
+  contact, measured every frame by `tests/knifePair.test.ts` (the attacker walking and turning). The real pairs still
+  miss it on most rows: the test's `KNOWN_MISS` holds each at its measured maximum (5.5-9.7 cm, accepted until Michael
+  plays, BRIEF A16); the corner row's grip and the guard's left palm (about 17 cm) are over A16's 10 cm ceiling
+  (`OVER_CEILING`, the lead's call).
 - Noise and body (A5, A6): at the row's `limp` the guard dies (`applyDamage`, the ordinary body and ragdoll), noise
-  `KNIFE.noise` 1.2 m, the `takedown` events carry `knife: true`, counted as `done.byKind.knife`. Damage to the
+  `KNIFE.noise` 1.2 m (S2: the -1 path too, every piano kill is quiet), the `takedown` events carry `knife: true`,
+  counted as `done.byKind.knife`. Damage to the
   attacker before the stab aborts (both drives and hands off, the knife away); after it the kill finishes at once. The
-  attacker's clip plays to its end and blends out before she is free (no offer meanwhile).
+  attacker's clip window plays to its end and blends out before she is free (no offer meanwhile;
+  `TakedownController.busy` stays true, so `gameState` keeps her gun stowed and traversal off until then).
 - Studio: the `pair: knife <id>` rows play Wren and a guard through the same code (`studioStage.knifeFrame`).
-- Tests: `tests/knifeKill.test.ts`, `tests/killDrive.test.ts`, `tests/knifePair.test.ts`, `tests/knifeTakedown.test.ts`,
+- Tests: `tests/knifeKill.test.ts`, `tests/killDrive.test.ts`, `tests/knifePair.test.ts` (harness `tests/helpers/knifePairRun.ts`),
+  `tests/knifePairFit.test.ts`, `tests/knifeTakedown.test.ts`,
   `tests/takedownAlloc.test.ts` (a knife run allocates nothing per step), `tests/grabMenu.test.ts`.
