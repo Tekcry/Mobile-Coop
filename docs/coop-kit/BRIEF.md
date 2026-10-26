@@ -48,6 +48,8 @@ added to the kit (below). Planner: Opus 5.5. Revised for plan check 2 (2026-10-2
 - 2026-10-26 ~18:47 Q: the part 2 move sizes in the level rules (A12) -> picked: "Not yet" (the moves are still built
   and used at Marlow Yard's five spots on the A17 starting sizes; docs/level-design.md and the scale sheet stay as they
   are and no new map may plan on them yet; via the orchestrator).
+- 2026-10-26 ~18:52 Q: Tallow Wharf C4's Plank Bridge after "Not yet" -> picked: "Keep it" (it stands, same move and
+  sizes as Marlow Yard; only further new map uses wait; via the orchestrator).
 
 ## Goal
 Part 1: two players can do the CT shoulder stand (one stands on the partner's shoulders to reach a 4.5 m lip, or stays
@@ -60,8 +62,8 @@ playable pieces first, no fine-tuning passes, one test set per PR.
 ## Limits
 - Out of scope: map placement of the moves (Marlow Yard's teaching sets are Marlow's J14 re-plan; Campaign Build
   planned a Plank Bridge on Tallow Wharf C4, pie loft to clock loft, after Michael's ~20:45 "Mix of both", flag date
-  2026-10-27: Campaign is a second user of the same API (`addKitSpot`, `onKitDone`); whether Michael's ~18:47 "Not yet"
-  (M3: no new map plans on the five moves) stops it is the orchestrator's call, asked 2026-10-26 ~19:50); the level validator's code (`scripts/level-validate.mjs`, Marlow Build); the pull-up and
+  2026-10-27: Campaign is a second user of the same API (`addKitSpot`, `onKitDone`); Michael picked "Keep it" ~18:52 (M4): Tallow C4's plank stands
+  (approved before the 18:47 "Not yet"), same move and sizes as Marlow Yard; only further new map uses wait); the level validator's code (`scripts/level-validate.mjs`, Marlow Build); the pull-up and
   shutter poses Player owes Marlow (resume-ct-core: pull and shutter clips): this job only names the files it shares
   with them; the ledge relay's reach (M2); guard reactions beyond naming the hooks Guard AI owns (Plank Bridge, a lifted
   grate).
@@ -91,6 +93,8 @@ playable pieces first, no fine-tuning passes, one test set per PR.
 
 ## Answers (M) and assumptions (A)
 - M1 2026-10-25 ~18:05: the five proposed kit moves join the kit (Michael picked, above).
+- M4 2026-10-26 ~18:52: Tallow Wharf C4's Plank Bridge -> "Keep it" (Michael picked, via the orchestrator): it stands
+  (approved before the 18:47 "Not yet"), using the same move and sizes as Marlow Yard; only further new map uses wait.
 - M3 2026-10-26 ~18:47: the A12 sizes question -> "Not yet" (Michael picked, above): the five moves keep the A17
   starting sizes as move constants only; slice KD is parked (no level-design.md / scale-sheet edit) until Michael asks
   to add them.
