@@ -54,6 +54,7 @@ files:
   - src/audio/gameAudio.ts
   - src/audio/weapons/weaponAudio.ts
   - src/audio/score/game/gameMusic.ts
+  - src/audio/music/music.ts
   - src/ui/screens/briefingScreen.ts
   - src/pwa/runtimeCaching.ts
   - src/pwa/precacheGlobs.ts
@@ -68,6 +69,7 @@ files:
   - tests/mapGate.test.ts
   - tests/mapReadyStats.test.ts
   - tests/mapReadyNet.test.ts
+  - tests/mapReadyAudio.test.ts
   - tests/guardWarm*.test.ts
   - tests/sectionBake*.test.ts
   - tests/shippedBake.test.ts
@@ -201,14 +203,18 @@ job"). Fix (1).** The guard body variant warmed per kind on the merged-body path
 course bay's squad; a reinforcement) compiles nothing; course mode lists its bays' kinds at load (`courseMode.ts`);
 the helmet drop and shield meshes start loading at load when the run's guards can carry them (`guardHelmet.ts`,
 `guardShield.ts`); audio ready promises for the `audio` step and for S11's preload (`gameAudio.ts`, `weaponAudio.ts`,
-`gameMusic.ts`); a `guardKindsFor(mapId, mode)` export S11 reads.
-- Files: `src/ai/guardWarm.ts`, `src/ai/guardHelmet.ts`, `src/ai/guardShield.ts`, `src/game/modes/courseMode.ts`,
-  `src/audio/gameAudio.ts`, `src/audio/weapons/weaponAudio.ts`, `src/audio/score/game/gameMusic.ts`,
-  `tests/guardWarm*.test.ts`. Est. lines: 600.
+`gameMusic.ts`); a `guardKindsFor(mapId, mode)` export S11 reads. Brief: cloud-queue `briefs/map-ready-S3.md`
+(base S14 763fc7bfb); BRIEF A21-A24: every guard kind is warmed (A22, so no `courseMode.ts` edit), the proof covers
+`?guardmodels=0` (A23), the first cue is 'caution' (A24).
+- Files: `src/ai/guardWarm.ts`, `src/ai/guardHelmet.ts`, `src/ai/guardShield.ts`, `src/audio/gameAudio.ts`,
+  `src/audio/weapons/weaponAudio.ts`, `src/audio/score/game/gameMusic.ts`, `src/audio/music/music.ts`,
+  `src/game/gameState.ts` (the gate members after S14), `src/game/mapGate.ts` (`STEPS` gains `audio`),
+  `tests/guardWarm*.test.ts`, `tests/mapReadyAudio.test.ts`, `tests/mapGate.test.ts` (A21). Est. lines: 750.
 - Checks: vitest the guard-warm tests, tsc; affected e2e plus `e2e-coop` + `e2e-netmove` (guard bodies are drawn on
   the client); `e2e-ctcourse` with `mapready=1` (a bay's squad spawns: 0 programs created at its spawn).
 - Done looks like: a guard spawning mid-match adds no shader program; helmets and shields never show a stand-in box.
-- Order: after S2. `gameAudio.ts` is also j19's (its S7 `put-body` sound): different functions; the second rebases.
+- Order: S2 -> S14 -> S3 (lead decision 2026-10-26: S3 cuts from `feature/map-ready-s14` 763fc7bfb, never a
+  parallel branch on `gameState.ts`). `gameAudio.ts` is also j19's (its S7 `put-body` sound): different functions; the second rebases.
 - Flag: `mapReady` (the warm meshes are built only with it on).
 
 **S4 Campus lamps shipped pre-built (Opus 5.5; Opus checker). Fix (2).** How it stays in sync (A15): built at build
@@ -384,8 +390,8 @@ keeps S2's order for A/B; `map-ready-measure.mjs` gains `--runs cold`, `--compil
   run, parallel and serial -> `research/compile-times.md` (the lead).
 - Done looks like: the run names each map's long variants by kind, the body keys per character kind, peak in flight,
   and the `shaders` step parallel vs serial (expected: about the longest variant vs about the sum).
-- Order: after S1 and S2 (base `feature/map-ready-s2` until the lead merges them); parallel with S3, S5, S11 (none
-  claims `gameState.ts`) and S15. Flag: `mapReady` for the order; the log reads only.
+- Order: after S1 and S2 (base `feature/map-ready-s2` until the lead merges them); before S3 (S3 stacks on S14: both
+  edit `gameState.ts`, order S2 -> S14 -> S3); parallel with S5, S11 and S15. Flag: `mapReady` for the order; the log reads only.
 
 **S15 The body lamp loop without forced unrolling (Opus 5.5; Opus checker; laptop GPU per step).** Under a
 `LAMP_NOUNROLL` define set with `mapReady`: step 1 fingerprints today's lamp, char-shadow, torch and volume-mix code
@@ -520,7 +526,7 @@ Opus plan checker passes them before any build.
 - Under Q3 option 1 (picked) neither is built; they return only if the after-S11 run shows repeat loads above
   near-instant and Michael reopens it (Q2).
 
-Order: W1 (now, disjoint files): S1, S4, S9. W2: S2 (after S1), S10 (after S9). W3: S3 (after S2), S5 (after S2 and
+Order: W1 (now, disjoint files): S1, S4, S9. W2: S2 (after S1), S10 (after S9). W3: S3 (after S2 and S14: S2 -> S14 -> S3), S5 (after S2 and
 j19 S3). W4: S11 (after S2, S3, S4, S9, j19 S3). S2, S5, S6 and S11 also cut from the master that carries #317
 `feature/coop4` (ROADMAP row 10, before this job's row 17), or rebase if it slips (section 7). S8's plan (Q1's 20 s,
 `SHORTEN.md`) right after S1 and S2; its build slices alongside W3-W4: S14 and S15 in parallel after S1 + S2 (S15's

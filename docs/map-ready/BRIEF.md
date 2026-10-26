@@ -173,6 +173,27 @@ The wait is capped at his ~20:05 Q1 pick, 20 s (A2).
   the menu stage alone stays alive in the lobby (never a level and the menu built at once). The lobby shows its own
   progress line ("Map loading 62%" / "Map ready"), local only, no wire. A map change cancels and preloads the new one;
   leaving the lobby drops what is not kept. Undo: the hooks are not called (flag off).
+- A20 is S16's proposed line (PLAN S16; not logged until its trigger). A21-A24 come from the S3 brief
+  (cloud-queue `briefs/map-ready-S3.md`, 2026-10-26).
+- A21 (S3's files): S3 stacks on S14 (lead decision 2026-10-26: order S2 -> S14 -> S3, never two parallel branches on
+  one file), so after S14 S3 claims `src/game/gameState.ts` (the gate members: the guard warm in the guards compile
+  group, the `audio` / `bodies` / `shaders` reads) and also `src/game/mapGate.ts` + `tests/mapGate.test.ts` (S2 left
+  the `audio` step for S3), `src/audio/music/music.ts` (one `firstCue` passthrough) and `tests/mapReadyAudio.test.ts`;
+  it drops `src/game/modes/courseMode.ts` (A22). PLAN S3 and the claims block carry them. Undo: n/a (a file list).
+- A22 (widens PLAN S3's "course mode lists its bays' kinds"): the warm covers every guard kind (`ENEMY_KINDS`, the dog
+  too) in every guard mode, none in the sandbox (`guardKindsFor`), because the alarm and the response team bring kinds
+  beyond a course's squads (`game/stealthSystems.ts:567`, `:598`); about 8 hidden sets per match. Undo: in
+  `guardKindsFor`, return a course's squad kinds plus the alarm's kinds.
+- A23 (narrows S3's done line "a guard spawning mid-match adds no shader program" to the default guard path): the
+  0-new-programs proof covers `?guardmodels=0` (today's default: merged body, parts, gear, the dog). With
+  `?guardmodels=1` S3 loads the helmet drop mesh and the shield file at load, warms the drop's instanced variant and
+  makes the gate wait for `warmGuardModels`; the figure's LOD0 / LOD1 and shield programs are not warmed (the
+  guard-models switch-on, G8, owns that path; S1's after-window measures it). Undo: extend `warmGuardSets` to the
+  figure path then.
+- A24 (reads A9): "the first music cue" is 'caution', the first track a mission plays (`gameMusic.ts:123`), decoded
+  in the gate with no user gesture (an `OfflineAudioContext`). The weapon sprite is waited for only when the audio
+  context exists (none until the first input since page load: it decodes then, as today). Undo: `gameAudioReady`
+  waits for the music only, or drop the `audio` step (A9).
 
 ## Questions for Michael (one click each, asked by day)
 - Q1 (answered ~20:05: "20 seconds"; A2): "When a map starts, how long may the loading screen wait for it to
