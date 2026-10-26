@@ -112,13 +112,15 @@
 // service ("laptop-queue | ... pid <n> | <iso>", pid dead here) is broken at the gate like a dead heavy-lock line.
 // laptop-queue-10: a run with no suite event for LQ_SUITE_IDLE_MIN (15, at least the suite timeout + 2 min) is cut
 // 'hung' and posts failure (a train: its unfinished suites as FAIL); each run attempt logs to its own runs/<id>[-n].
+// The desktop caps a request by the wall of the parts run-e2e lists (no time = the median; partsOf, lib desktopWallS) and
+// hands a pr run to the laptop at its first counted failure (LQ_DESKTOP_FAIL_FAST), a hung run or an incomplete one.
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, hungTrainDesc, attemptDir } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, hungTrainDesc, attemptDir, desktopWallS, failFast, unfinishedParts } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 import { overCapAffected } from './lib.mjs';
 import { AFFECTED_MAX } from '../e2e-affected.mjs';
@@ -181,6 +183,8 @@ const SUITE_TIMEOUT_S = 900; // run-e2e's own per-suite timeout at the queue (E2
 // suite timeout + 2 min: 17 min at the default 15)
 const SUITE_IDLE_MS = idleLimitMs(Number(process.env.LQ_SUITE_IDLE_MIN ?? 15), SUITE_TIMEOUT_S);
 const HUNG_MIN = Math.round(SUITE_IDLE_MS / 60_000);
+// laptop-queue-10 A5 (F11): 0 = a desktop failure hands off at the end of the run and an incomplete run fails, as before
+const FAIL_FAST = process.env.LQ_DESKTOP_FAIL_FAST !== '0';
 /** lib claimBlocks for this worker now, with the heartbeat bound (A17). */
 const blocks = (c) => claimBlocks(c, WORKER, Date.now(), CLAIM_MAX_MS, CLAIM_BEATS);
 const argv = process.argv.slice(2);
@@ -1295,6 +1299,24 @@ function newestLog(runDir) {
 }
 
 /**
+ * laptop-queue-10 A5: the live quarantine entries (the committed scripts/e2e-quarantine.json list plus this worker's
+ * quarantine.json, the reads updateBudget makes), re-read at most every 60 s. The desktop's fail fast skips them.
+ */
+let quarantineMemo = { at: 0, list: [] };
+function quarantineNow() {
+  const now = Date.now();
+  if (now - quarantineMemo.at < 60_000) return quarantineMemo.list;
+  let repo = [];
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-quarantine.json'), 'utf8'));
+    if (Array.isArray(j?.quarantine)) repo = j.quarantine;
+  } catch { /* no file or unreadable: nothing committed */ }
+  const own = readJson('quarantine.json', []);
+  quarantineMemo = { at: now, list: [...repo, ...(Array.isArray(own) ? own : [])].filter((q) => Date.parse(q?.expiry) > now) };
+  return quarantineMemo.list;
+}
+
+/**
  * Reruns each failed (non-quarantined) suite once alone; a pass is a flake (state.flakes, counted against the suite's
  * flake budget, see updateBudget). Mutates result.suites, returns flake names. Replaces "flake stands" (process audit
  * 2026-10-24): a suite that keeps flaking goes over budget and into quarantine with an owner and an expiry instead.
@@ -1623,7 +1645,7 @@ async function runRequest(r, port, pair = null) {
   // yield: a pending train head takes the slot back until the suites / steps start (lib yieldTo)
   let yielded = null;
   // cut short: withdrawn at any point, or (a pr request in its suites) preempted by a pending train (lib cutShort)
-  const ctl = { child: null, why: '', by: null };
+  const ctl = { child: null, why: '', by: null, handOff: null };
   // laptop-queue-7 A10: a train rerun lib pick put on both slots (pair) runs its parts split over them at E2E_JOBS=1,
   // one ctl per slot (a cut kills both trees); a slot that fails its lock or prepare goes back to the queue and every
   // part runs on the other slot alone, as a one-slot rerun
@@ -1654,6 +1676,28 @@ async function runRequest(r, port, pair = null) {
   let cpuPrev = null;
   // laptop-queue-10 A3: the hung clock (lib idleStep) starts with the suites; alone steps are not watched
   let idle = null;
+  // laptop-queue-10 A5 (F11): a desktop pr run (not a train or laptop rerun) never posts a final failure: at its first
+  // counted failed suite (LQ_DESKTOP_FAIL_FAST, lib failFast over the attempt's result rows while run-e2e runs), when hung,
+  // or when incomplete it queues a laptop rerun of the failed and unfinished parts and posts pending; runParts = the
+  // parts run-e2e runs (partsOf), set before the suites start
+  const handsOff = DESKTOP && r.kind === 'pr' && !r.trainRerun && !r.laptopRerun;
+  let runParts = [];
+  let e2eLive = false;
+  const cpuPct = () => { const c = median(cpuSamples); return Number.isFinite(c) ? `${Math.round(c)}%` : '?%'; };
+  /** Pushes the laptop-only rerun request of `suites` (lib laptopRerunRequest); its id, '' when not queued (dry run, push failed). */
+  const queueRerun = (suites, desc) => {
+    const rr = laptopRerunRequest(r, suites, { now: Date.now(), suffix: randomBytes(2).toString('hex') });
+    if (DRY) { log(`dry-run: ${r.id}: would queue the laptop rerun ${rr.id} (${suites.join(' ')}): ${desc}`); return ''; }
+    if (pushFile(`requests/${rr.id}.json`, `${JSON.stringify(rr, null, 2)}\n`, `request ${rr.id}`)) return rr.id;
+    log(`${r.id}: laptop rerun push failed, the desktop failure stands`);
+    return '';
+  };
+  /** The queued rerun's end of this run: pending desc on every verdict context (affected-e2e too), no PR comment. */
+  const handOff = (desc, rerun, how) => {
+    for (const c of verdictCtx) postStatus(r.sha, 'pending', c, desc);
+    state.done[r.id] = { result: 'laptop-rerun', rerun, date: new Date().toISOString() };
+    log(`${r.id}: ${desc} as ${rerun} (${how})`);
+  };
   const watch = DRY ? null : setInterval(() => {
     if (DESKTOP && started) {
       const now = os.cpus();
@@ -1668,6 +1712,16 @@ async function runRequest(r, port, pair = null) {
     if (started && r.kind !== 'alone' && SUITE_IDLE_MS > 0 && !ctl.why) idle = idleStep(idle, attemptEvents(runDir).count, Date.now(), SUITE_IDLE_MS);
     const why = cutShort(r, { taken: takenBy.get(r.id) ?? '', withdrawn: withdrawnIds.has(r.id), superseded: runningSup.get(r.id)?.id ?? '', trains, started, others, startedAt, now: Date.now(), progress: progress(), realOpen: spare && realOpenNow(), due, hung: Boolean(idle?.hung) });
     if (why && !ctl.why) { ctl.by = why === 'superseded' ? runningSup.get(r.id) : trains[0] ?? null; for (const c of Object.values(ctls)) cut(c, why); }
+    // fail fast: one try per run (a failed push lets the run go on to today's end-of-run hand-off)
+    if (handsOff && FAIL_FAST && e2eLive && !ctl.why && !ctl.handOff) {
+      const ff = failFast(attemptEvents(runDir).rows, runParts, (s) => Boolean(quarantined(quarantineNow(), s, Date.now())));
+      if (ff) {
+        const desc = desktopFailDesc(ff.failed, median(cpuSamples));
+        const rerunId = queueRerun(ff.rerun, desc);
+        ctl.handOff = { desc, rerunId };
+        if (rerunId) for (const c of Object.values(ctls)) cut(c, 'handed-off');
+      }
+    }
   }, 5_000);
   const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
   let posted = false;
@@ -1730,8 +1784,17 @@ async function runRequest(r, port, pair = null) {
       state.done[r.id] = { result: 'superseded-run', by, date: new Date().toISOString() };
       return;
     }
+    if (ctl.why === 'handed-off') return handOff(ctl.handOff.desc, ctl.handOff.rerunId, 'fail fast');
     if (ctl.why === 'hung') {
-      // laptop-queue-10 A4: the tree died through cut (taskkill /T /F), the finally frees the port and pushes done
+      // laptop-queue-10 A4: the tree died through cut (taskkill /T /F), the finally frees the port and pushes done; the
+      // desktop hands its failed and unfinished parts to the laptop (A5; a failed push posts the failure below)
+      if (handsOff) {
+        const rows = attemptEvents(runDir, true).rows;
+        const left = failFast(rows, runParts, (s) => Boolean(quarantined(quarantineNow(), s, Date.now())))?.rerun ?? unfinishedParts(runParts, rows);
+        const hd = `desktop hung ${HUNG_MIN} min (cpu ${cpuPct()}), laptop rerun queued`;
+        const rerunId = queueRerun(left.length ? left : runParts, hd); // every part finished, no summary: all of them
+        if (rerunId) return handOff(hd, rerunId, 'hung');
+      }
       const desc = `${DESKTOP ? 'desktop: ' : ''}no suite finished in ${HUNG_MIN} min (hung), run stopped`;
       log(`${r.id}: ${desc}`);
       verdict('failure', desc);
@@ -1847,17 +1910,27 @@ async function runRequest(r, port, pair = null) {
     const split = ports.length > 1;
     const bins = split ? shard(suiteParts(list, times), times, ports.length) : [{ suites: list }];
     if (split) bins.forEach((b, i) => log(`${r.id}: bin ${ports[i]}: ${b.suites.length} parts, weight ${Math.round(b.weight)} s`));
+    if (handsOff) runParts = partsOf(list);
     const t0 = Date.now();
     started = true;
     progress = () => runProgress(list, times, jobs, Date.now() - t0);
     // every suite kept: no e2e call, the verdict comes from the kept passes
+    e2eLive = true;
     const runs = list.length ? await settleAll(ports.map((p, i) => e2e(p, bins[i].suites, jobs, path.join(runDir, `${p}.log`), split ? ctls[p] : ctl)), Object.values(ctls)) : [];
+    e2eLive = false;
     if (ctl.why) return cutEnd();
     // same completeness rule as a train shard, per slot; at least the listed suites (a named suite may expand into parts)
     const broken = list.length ? ports.findIndex((p, i) => !runComplete(runs[i], bins[i].suites.length)) : -1;
     if (broken >= 0) {
       const [bp, run, n] = [ports[broken], runs[broken], bins[broken].suites.length];
       log(`${r.id}: run incomplete${split ? ` on ${bp}` : ''} (exit ${run.code}, ${run.suites.length}/${n} suites, summary ${run.complete ? 'seen' : 'missing'})`);
+      // laptop-queue-10 A5 (tallow-prg1 c648c5d8: 60 min timeout, 0/7 suites, final red): the desktop hands every suite
+      // it ran to the laptop; a failed push keeps the failure
+      if (handsOff && FAIL_FAST) {
+        const hd = `desktop: slot ${bp} gave no result (cpu ${cpuPct()}), laptop rerun queued`;
+        const rerunId = queueRerun(list, hd);
+        if (rerunId) return handOff(hd, rerunId, 'incomplete');
+      }
       verdict('failure', `slot ${bp} gave no result`);
       if (r.pr) postComment(r.pr, `${ctx} failed on ${r.sha.slice(0, 8)} (${job.ref}): slot ${bp} gave no result (exit ${run.code}, ${run.suites.length}/${n} suites).\nLog on the ${WORKER}: ${path.join(runDir, `${bp}.log`)}\n\`\`\`\n${capTail(run.tail40 || '(empty log)', 8_000)}\n\`\`\``);
       state.done[r.id] = { result: 'incomplete', date: new Date().toISOString() };
@@ -1877,14 +1950,9 @@ async function runRequest(r, port, pair = null) {
     let handedOff = '';
     let rerunId = '';
     if (DESKTOP && bad.length) {
-      const rr = laptopRerunRequest(r, bad, { now: Date.now(), suffix: randomBytes(2).toString('hex') });
       const desc = desktopFailDesc(bad, median(cpuSamples));
-      if (DRY) log(`dry-run: ${r.id}: would queue the laptop rerun ${rr.id} (${bad.join(' ')}): ${desc}`);
-      else if (pushFile(`requests/${rr.id}.json`, `${JSON.stringify(rr, null, 2)}\n`, `request ${rr.id}`)) {
-        handedOff = desc;
-        rerunId = rr.id;
-        log(`${r.id}: ${desc} as ${rr.id}`);
-      } else log(`${r.id}: laptop rerun push failed, the desktop failure stands`);
+      rerunId = queueRerun(bad, desc);
+      if (rerunId) { handedOff = desc; log(`${r.id}: ${desc} as ${rerunId}`); }
     }
     const ok = finish(job, verdictCtx, result, runDir, r.pr, { handedOff });
     // a train rerun that passed also turns the train's own context green (the latest status per context wins in the
@@ -2161,6 +2229,23 @@ function trainBuilding() {
 }
 
 /**
+ * laptop-queue-10 A6 (F14): the parts run-e2e runs for a suite list (`run-e2e.mjs --list <suites>` in the service
+ * checkout: its PARTS is the one home), memo per sorted list; an error or no output falls back to lib suiteParts.
+ */
+const partsMemo = new Map();
+function partsOf(suites) {
+  if (!(suites ?? []).length) return [];
+  const key = [...suites].sort().join(' ');
+  let parts = partsMemo.get(key);
+  if (!parts) {
+    parts = cmd('node', ['scripts/run-e2e.mjs', '--list', ...suites], { soft: true }).split('\n').map((x) => x.trim()).filter(Boolean);
+    if (!parts.length) parts = suiteParts(suites, times);
+    partsMemo.set(key, parts);
+  }
+  return parts;
+}
+
+/**
  * laptop-queue-7 A12: the due marks after the holds (lib aloneDue): an aged or preempted alone request a hold dropped
  * this pass (in before, not in after) is stamped; logs once per id when stamped and when its gap opens. An empty
  * listing (a failed ls-tree reads the same) keeps the marks.
@@ -2231,10 +2316,12 @@ async function pass() {
     const backlog = queue.requests.length;
     // a train rerun and a laptop rerun of a desktop failure are the laptop's (the desktop failed them)
     queue.requests = queue.requests.filter((r) => r.kind === 'pr' && !r.trainRerun && !r.laptopRerun);
-    // laptop-queue-8 A9: a run estimated over LQ_DESKTOP_MAX_MIN at E2E_JOBS=1 is the laptop's (the backlog above counts it)
+    // laptop-queue-8 A9: a run estimated over LQ_DESKTOP_MAX_MIN at E2E_JOBS=1 is the laptop's (the backlog above counts it);
+    // laptop-queue-10 A6: weighed over the parts run-e2e lists for what still runs (no time = the median)
     queue.requests = queue.requests.filter((r) => {
-      if (!desktopTooLong(r, times, DESKTOP_MAX_S)) return true;
-      if (!tooLongLogged.has(r.id)) { tooLongLogged.add(r.id); log(`${r.id}: ~${Math.round(expectedWallS(keptPlan(r, r.sha, times).rest, times, 1) / 60)} min on the desktop, left to the laptop`); }
+      const parts = partsOf(keptPlan(r, r.sha, times).rest);
+      if (!desktopTooLong(r, times, DESKTOP_MAX_S, parts)) return true;
+      if (!tooLongLogged.has(r.id)) { tooLongLogged.add(r.id); log(`${r.id}: ~${Math.round(desktopWallS(parts, times, 1) / 60)} min over ${parts.length} parts on the desktop, left to the laptop`); }
       return false;
     });
     const why = {};
@@ -2291,12 +2378,16 @@ async function pass() {
     for (const p of Object.keys(held)) virtual[p] = true;
   }
   // fixes first (laptop-queue-8 A1), then front, then green PR heads smallest wall first, then arrival (lib pick
-  // queue.order); built after every filter above. The desktop (A8): fixes, then smallest expected wall at E2E_JOBS=1.
+  // queue.order); built after every filter above. The desktop (A8): fixes, then smallest expected wall at E2E_JOBS=1
+  // (laptop-queue-10 A6: over its run-e2e parts, lib desktopWallS).
   if (DESKTOP || GREEN_FIRST || FIX_FIRST) {
     const green = GREEN_FIRST && !DESKTOP ? greenIds(queue.requests, board) : new Set();
     const fix = new Set(FIX_FIRST ? queue.requests.filter((r) => isFix(r, board)).map((r) => r.id) : []);
     const wallS = {};
-    for (const r of queue.requests) if (DESKTOP || green.has(r.id)) wallS[r.id] = expectedWallS(r.suites, times, DESKTOP ? 1 : r.jobs ?? 2);
+    for (const r of queue.requests) {
+      if (DESKTOP) wallS[r.id] = desktopWallS(partsOf(r.suites), times, 1);
+      else if (green.has(r.id)) wallS[r.id] = expectedWallS(r.suites, times, r.jobs ?? 2);
+    }
     const frontBranches = GREEN_FIRST && !DESKTOP ? FRONT_BRANCHES : [];
     queue.order = { fix, green, wallS, frontBranches, maxWaitMs: GREEN_MAX_WAIT_MS, smallest: DESKTOP };
     const frontIds = frontBranches.length ? queue.requests.filter((r) => r.kind !== 'alone' && isFront(r, FRONT_BRANCHES)).map((r) => r.id) : [];
