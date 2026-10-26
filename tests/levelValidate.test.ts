@@ -612,6 +612,55 @@ describe('level-validate: reach, references, rejoin (checker should-fix 2, 4)', 
     drop(g, 'b-walk', 'b-vault', 'ladder');
     expectErr(checkCoop(g, METRICS) as Report, 'split x: legs never rejoin (no space both b-dock and b-walk lead to)');
   });
+
+  // A28 (S11): base() with leg b (b-walk) entered only by a coop_boost from the fork b-hall: the fire stair and the
+  // vault's boost gone, the walk's ladder down one way, a dock door to the walk for partner reach.
+  const coopEntry = (): Graph => {
+    const g = base();
+    drop(g, 'b-hall', 'b-walk', 'fire_stair');
+    drop(g, 'b-vault', 'b-walk', 'coop_boost');
+    link(g, 'b-walk', 'b-vault', 'ladder').one_way = true;
+    g.links.push(
+      ln('b-hall', 'b-walk', 'coop_boost', 'high', { level_change: 4.5, length: 6, time_s: 8 }),
+      ln('b-dock', 'b-walk', 'door', 'shadow', { ...DOOR, length: 9 }),
+    );
+    return g;
+  };
+  const LEG_B_INFO = 'split x leg b: entered by link b-hall -> b-walk (coop_boost) (co-op, from the fork b-hall)';
+
+  it('a split leg entered by a co-op link from the fork (A28): no ERR, an INFO line, the boost timed on its leg', () => {
+    const g = coopEntry();
+    const r = checkCoop(g, METRICS) as Report;
+    expect(r.errors).toEqual([]);
+    expect(r.infos).toContain(LEG_B_INFO);
+    expect(check(g).errors).toEqual([]);
+    // Leg b = the boost 8 s + the ladder 12 s = 20.0 s; at 25 s the boost makes it 37.0 s.
+    link(g, 'b-hall', 'b-walk', 'coop_boost').time_s = 25;
+    expectErr(checkCoop(g, METRICS) as Report, 'split x: legs 23.1 s vs 37.0 s differ by 38% (max 20%)');
+  });
+
+  it('both legs entered only by co-op links from the fork: the no-solo-entry ERR as before A28', () => {
+    const g = coopEntry();
+    link(g, 'b-hall', 'b-dock', 'door').kind = 'coop_boost';
+    Object.assign(link(g, 'b-hall', 'b-dock', 'coop_boost'), { level_change: 4.5, time_s: 5 });
+    link(g, 'b-dock', 'b-vault', 'door').one_way = true;
+    const r = checkCoop(g, METRICS) as Report;
+    expectErr(r, 'split x leg a: no solo link leads into b-dock', 'split x leg b: no solo link leads into b-walk');
+    expect(r.infos.filter((i) => i.includes('co-op, from the fork'))).toEqual([]);
+  });
+
+  it('the co-op entry bolted the wrong way (walkable only toward the fork): the ERR as before A28', () => {
+    const g = coopEntry();
+    link(g, 'b-hall', 'b-walk', 'coop_boost').bolted = true;
+    const r = checkCoop(g, METRICS) as Report;
+    expectErr(r, 'split x leg b: no solo link leads into b-walk');
+    expect(r.infos).not.toContain(LEG_B_INFO);
+  });
+
+  it('a split with a solo fork prints no co-op entry line (output as before A28)', () => {
+    const r = checkCoop(base(), METRICS) as Report;
+    expect(r).toEqual({ errors: [], warns: [], infos: [] });
+  });
 });
 
 describe('level-validate: coverage, routes, structure', () => {
