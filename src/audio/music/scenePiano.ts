@@ -127,6 +127,11 @@ export class ScenePiano {
     return this.state !== 'off';
   }
 
+  /** A `fadeOut` is running (the scene is over; the piano stops by itself when it ends). */
+  get fadingOut(): boolean {
+    return this.stopTimer !== null;
+  }
+
   /** Fetch and decode the track (only now), then play from the intro's 0 s (or the last `seek` made while loading). */
   async start(): Promise<void> {
     if (this.state !== 'off') return;

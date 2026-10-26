@@ -3,6 +3,7 @@
  * fake audio context (nothing is fetched or decoded: the track arrives through the injected loader).
  */
 import { describe, expect, it } from 'vitest';
+import { Music } from '../src/audio/music/music';
 import type { AudioEngine } from '../src/audio/audioEngine';
 import {
   CROSSFADE,
@@ -235,5 +236,55 @@ describe('scene piano: lifecycle', () => {
     await p.start();
     expect(p.active).toBe(false);
     expect(sources.length).toBe(0);
+  });
+});
+
+describe('Music.scene: the director is muted while a scene is on', () => {
+  /** A running fake context whose clock the test advances; `whenReady` never fires (no track is fetched). */
+  function musicOn(): { music: Music; tick: (awareness: 'calm' | 'caution' | 'alert', seconds: number) => void } {
+    const ctx = { currentTime: 0, state: 'running' };
+    const audio = { ctx, whenReady: () => {}, unlock: () => {}, out: () => null } as unknown as AudioEngine;
+    const music = new Music(audio);
+    music.mission();
+    return {
+      music,
+      tick: (awareness, seconds) => {
+        for (let t = 0; t < seconds; t += 0.1) {
+          ctx.currentTime += 0.1;
+          music.update(0.1, awareness);
+        }
+      },
+    };
+  }
+
+  it('without a scene the guards being alert moves the director off Calm', () => {
+    const { music, tick } = musicOn();
+    tick('alert', 20);
+    expect(music.state).not.toBe('calm');
+  });
+
+  it('with a scene on, alert guards leave it in Calm (silence); it survives a checkpoint calm()', () => {
+    const { music, tick } = musicOn();
+    music.scene(true);
+    expect(music.sceneActive).toBe(true);
+    tick('alert', 30);
+    expect(music.state).toBe('calm');
+    music.calm();
+    tick('alert', 30);
+    expect(music.state).toBe('calm');
+  });
+
+  it('scene(false) hands the score back; leaving (stop / menu) ends a scene too', () => {
+    const { music, tick } = musicOn();
+    music.scene(true);
+    music.scene(false);
+    expect(music.sceneActive).toBe(false);
+    music.mission();
+    tick('alert', 20);
+    expect(music.state).not.toBe('calm');
+    music.scene(true);
+    music.stop();
+    expect(music.sceneActive).toBe(false);
+    expect(music.piano.active).toBe(false);
   });
 });
