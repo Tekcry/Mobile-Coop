@@ -29,6 +29,7 @@ import {
 } from '../src/ui/tunerLayout';
 import { FREE_CFG, FreeViewCore, freeSnap } from '../src/player/freeView';
 import { STUDIO, STUDIO_ENTRIES, studioEntry, studioInput, studioReset, studioSpot, spotShift, type StudioInputOut } from '../src/anim/studio';
+import { mocapSource } from '../src/anim/mocapSources';
 import { TunePadCtl } from '../src/ui/animTunePad';
 import { PAD } from '../src/input/gamepadMapping';
 
@@ -44,7 +45,7 @@ describe('tuner-ui: tabs', () => {
     expect(tabs.find((t) => t.id === 'body')!.sections).toEqual(expect.arrayContaining(['body', 'joint', 'ik', 'trav']));
     expect(tabs.find((t) => t.id === 'weapon')!.sections).toEqual(expect.arrayContaining(['gun', 'weapon']));
     expect(tabs.find((t) => t.id === 'coop')!.sections.every((s) => s.startsWith('team_'))).toBe(true);
-    expect(tabs.find((t) => t.id === 'coop')!.sections.length).toBe(6);
+    expect(tabs.find((t) => t.id === 'coop')!.sections.length).toBe(11); // (coop-kit K0) + the five part 2 kit moves
     expect(TUNER_TABS[0]!.id).toBe('view');
   });
 
@@ -299,7 +300,8 @@ describe('tuner-ui: the loop sets the state', () => {
     for (const e of STUDIO_ENTRIES) {
       const g = loopGroups(e.id);
       for (const v of [g.body, g.team, g.trav, g.step, g.weight]) if (v) expect(isTuneGroup(v), `${e.id} -> ${v}`).toBe(true);
-      if (g.clip) expect(isTuneGroup(`key.${g.clip}.0`) || e.kind === 'pair', `${e.id} clip`).toBe(true);
+      // (mixamo-retarget M5) a motion capture has no Keys table (Keys edit the hand-made clips only; the panel skips a missing group)
+      if (g.clip) expect(isTuneGroup(`key.${g.clip}.0`) || e.kind === 'pair' || mocapSource(g.clip) !== null, `${e.id} clip`).toBe(true);
     }
   });
 });

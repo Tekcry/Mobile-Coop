@@ -16,9 +16,9 @@ import { BODY } from './bodies';
 import type { LightDef, Occluder } from '../world/lights';
 import { rayOccluder } from '../world/shadowAccuracy';
 import { beamReach, type BeamHit } from '../world/torches';
-import { ALARM_CALL, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
+import { ALARM_CALL, ALARM_REPEAT, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
-import { ARCHETYPE, type DifficultyDef } from './archetypes';
+import { ARCHETYPE, type DifficultyDef, type HelmetRule } from './archetypes';
 import { ALERT } from './alertState';
 import { ReconDrone } from './reconDrone';
 import { COMBAT_HEAR, HEARING, ambientDb, combatHearAct, effectiveReach, hearTier, wallMatters, WALL_FACTOR, type HearTier, type NoisySource } from './hearing';
@@ -45,9 +45,11 @@ import { HelmetDrops } from './helmetDrops';
 import { MODE_BREAKER } from './incidents';
 import { BREAKER, LATE } from './gear';
 import { BREAKER_WALK, CIRCUIT_KEY, DARK_SHOT, DarkList, LATE_SCAN, type BreakerHost } from './breaker';
-import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
+import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SEED_RADIO, seeded01, SQUAD } from './squadRoles';
 // (guard-ai S10) talking pairs
-import { PairMeet, PAIRS, pickMeet, type MeetPick, type PairGuard } from './pairs';
+import { PairMeet, PAIRS, pickMeet, postedDef, type MeetPick, type PairGuard } from './pairs';
+// (guard-rules S6) posted pairs and the walking-together check, read at load time only (`buildPair`)
+import { flags } from '../core/flags';
 // (guard-ai S14) section alert: missed check-ins and loud shots
 import { MISSING, SHOTS } from './gear';
 // (guard-ai S17, Michael's walk of 4.72 G1) a tripped device is an incident at the device, never the player
@@ -244,9 +246,28 @@ export class EnemyManager {
   /** A knocked-out enemy was revived (modes count it back in). */
   onRevived: ((e: Enemy, b: Body) => void) | null = null;
   bodiesFound = 0;
-  /** Alarm panels on the map; raised once per match (reinforcements). */
+  /** Alarm panels on the map (reinforcements): raised once per load, or (guard-rules S5) up to `ALARM_REPEAT.max`
+   *  with `alarmRepeat`. */
   readonly alarms: AlarmPanel[] = [];
+  /** A guard alarm was raised (since the load): sticky for its readers (the carry rule, the alarm's intruder). New
+   *  raises are gated by the repeat lock (`alarmOpen`), not by this. */
   alarmRaised = false;
+  /**
+   * (guard-rules S5, D5, A7) Repeat guard alarms (`ALARM_REPEAT`): false = one guard alarm per load (today's rule, Marlow
+   * Yard's and the parked modes'); `SectorMode` sets it on each section load (Sector Ops and the campaign).
+   */
+  alarmRepeat = false;
+  /** (guard-rules S5) Guard alarms raised this load (panel or radio; tests / e2e read it). */
+  guardAlarms = 0;
+  /** (guard-rules S5) The repeat lock opened since the last guard alarm: the next may be raised. */
+  private rearmed = false;
+  /** (guard-rules S5) Seconds since the last guard alarm, and the response teams it brought (`teams` indices
+   *  `alarmTeam0` up to, not including, `alarmTeamN`: a later camera or laser stage's team is not one of them). */
+  private alarmAgo = 0;
+  private alarmTeam0 = 0;
+  private alarmTeamN = 0;
+  /** (guard-rules S5) The repeat table (tests / e2e read the numbers from here). */
+  readonly alarmRepeatTable = ALARM_REPEAT;
   /** The alarm went off: `e` raised it, at panel `p` (null: (guard-ai S6) by radio, a command call that got through). */
   onAlarm: ((e: Enemy, p: AlarmPanel | null) => void) | null = null;
   /** (guard-ai S6) How the alarm was raised ('' not yet; tests / e2e / debug). */
@@ -490,6 +511,9 @@ export class EnemyManager {
    *  gear (`stageGear`): every guard placed (`placeSlot`) or woken (`revive`) gets it on top of his own. */
   alarmStage = 0;
   readonly alarmGear: GuardGear = { helmet: false, armour: false };
+  /** (guard-rules S1, A1, G350) The helmet rule in force: `stage` (today's: helmets only from the alarm stage) unless
+   *  the mode calls `useDifficultyHelmets` (Sector Ops and the campaign), which takes the difficulty's. */
+  helmetRule: HelmetRule = 'stage';
   /** (guard-ai S13, items 3 and 11, A38, A39) The response teams of the live section, in the order the alarms brought
    *  them (the index is the sweep's start offset); cleared with the guards (`clear`: a section unload or restart). */
   readonly teams: SweepTeam<Enemy>[] = [];
@@ -627,7 +651,8 @@ export class EnemyManager {
         this.grenadeT = 8;
         this.grenadesThrown++;
         const T = 1.15;
-        const v = new Vector3((to.x - from.x) / T, (to.y + 0.3 - from.y + 0.5 * -GRAVITY.y * T * T) / T, (to.z - from.z) / T);
+        // (guard-ai-alloc) kept: `Grenades.throw` copies a velocity (`dir.clone()`)
+        const v = this.throwV.set((to.x - from.x) / T, (to.y + 0.3 - from.y + 0.5 * -GRAVITY.y * T * T) / T, (to.z - from.z) / T);
         this.grenades.throw(from, v, 'enemy', e.id, undefined, true);
         e.bark('grenade');
         return true;
@@ -644,10 +669,13 @@ export class EnemyManager {
         return slot;
       },
       callAlert: (e) => {
-        for (const o of this.enemies) {
+        const list = this.enemies;
+        for (let i = 0; i < list.length; i++) {
+          const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
           const d = Vector3.Distance(o.pos, e.pos);
-          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + Math.random() * 0.3) * this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1), e.hunt);
+          // (guard-ai seed-random) replayable jitter per listener per engagement (hard rule 8)
+          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + seeded01(this.matchSeed, SEED_RADIO ^ Math.imul(this.engagement, 2654435761), o.num) * 0.3) *this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1), e.hunt);
         }
       },
       shout: (e) => {
@@ -656,9 +684,12 @@ export class EnemyManager {
           this.voice(e);
           return;
         }
-        for (const o of this.enemies) {
+        const list = this.enemies;
+        for (let i = 0; i < list.length; i++) {
+          const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
-          if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + Math.random() * 0.3, e.hunt);
+          // (guard-ai seed-random) replayable jitter (hard rule 8)
+          if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + seeded01(this.matchSeed, SEED_RADIO ^ Math.imul(this.engagement, 2654435761), o.num) * 0.3, e.hunt);
         }
       },
       radioCall: (e, inc, kind) => {
@@ -690,9 +721,14 @@ export class EnemyManager {
         if (d.target === 0 && !d.anchor.locked && doors.open(d, 'enemy')) this.doorOpens++;
         return false;
       },
+      // (guard-ai-alloc D2) per search ring point (`Enemy`): an index loop, no iterator
       searchSlot: (e) => {
         let n = 0;
-        for (const o of this.enemies) if (o !== e && o.alive && o.level === 'searching' && o.num < e.num) n++;
+        const list = this.enemies;
+        for (let i = 0; i < list.length; i++) {
+          const o = list[i]!;
+          if (o !== e && o.alive && o.level === 'searching' && o.num < e.num) n++;
+        }
         return n;
       },
       // (guard-ai S25) the search after combat: his intruder's probable area, one point per searcher
@@ -713,6 +749,8 @@ export class EnemyManager {
       bodyFound: (e, b) => this.bodyFound(e, b),
       revive: (b, by) => this.revive(b, by),
       alarmRaised: () => this.alarmRaised,
+      // (guard-rules S5, A7) a panel run goes on while a new guard alarm may be raised
+      alarmOpen: () => this.alarmOpen(),
       // (guard-ai S27, A164) the mode's alarm stage: only the guards' carry rule reads it
       alarmStage: () => this.alarmStage,
       raiseAlarm: (e, p) => this.raiseAlarm(e, p),
@@ -726,7 +764,8 @@ export class EnemyManager {
   /** Bodies still simulating as ragdolls are under the budget. */
   canRagdoll(): boolean {
     let n = 0;
-    for (const b of this.bodies) if (b.simulating) n++;
+    const bodies = this.bodies;
+    for (let i = 0; i < bodies.length; i++) if (bodies[i]!.simulating) n++;
     return n < BUDGET.maxRagdolls;
   }
 
@@ -785,7 +824,9 @@ export class EnemyManager {
     }
     e.bark('body');
     e.searchAt(b.pos.x, b.pos.z, b.lethal ? null : b);
-    for (const o of this.enemies) {
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i]!;
       if (o === e || !o.alive || o.alerted) continue;
       if (Vector3.Distance(o.pos, e.pos) < EnemyManager.RADIO) o.searchAt(b.pos.x, b.pos.z, null);
     }
@@ -796,6 +837,12 @@ export class EnemyManager {
    *  S6) Nor the command call: no alarm is owed. */
   resetAlarm(): void {
     this.alarmRaised = false;
+    // (guard-rules S5) the repeat lock and count: the load's first guard alarm may be raised again
+    this.rearmed = false;
+    this.guardAlarms = 0;
+    this.alarmAgo = 0;
+    this.alarmTeam0 = 0;
+    this.alarmTeamN = 0;
     this.alarmRunner = null;
     this.alarmBy = '';
     this.alarmHunt = -1;
@@ -804,11 +851,58 @@ export class EnemyManager {
     this.command.clear();
   }
 
+  /**
+   * (guard-rules S5, A7) May a guard alarm be raised now: none raised since the load, or the repeat lock opened since the
+   * last (`alarmRepeat`, `ALARM_REPEAT`; `repeatStep`). Gates every new raise (panel run, contact, command, radio).
+   */
+  alarmOpen(): boolean {
+    return !this.alarmRaised || this.rearmed;
+  }
+
+  /**
+   * (guard-rules S5, A7) Per step: after a guard alarm, with repeats on and fewer than `ALARM_REPEAT.max` raised this load,
+   * the lock opens once a member of a response team the alarm brought is searching where he was sent (its response is
+   * in: `teamSearching`), or `rearm` s after it. Only a raise this manager made counts (`guardAlarms`): an
+   * `alarmRaised` set from outside stays shut.
+   */
+  private repeatStep(dt: number): void {
+    if (!this.alarmRaised || this.rearmed || !this.alarmRepeat || !ALARM_REPEAT.enabled) return;
+    const n = this.guardAlarms;
+    if (n < 1 || n >= ALARM_REPEAT.max) return;
+    this.alarmAgo += dt;
+    if (this.alarmAgo >= ALARM_REPEAT.rearm || this.teamSearching(this.alarmTeam0, this.alarmTeamN)) this.rearmed = true;
+  }
+
+  /**
+   * (guard-rules S5, A7) A living, free member of a response team `teams[from]` up to `teams[to]` (not included) is
+   * searching and has arrived: not still running his entry route in, and a device responder (`joinAsResponder`,
+   * searching from the moment he spawns) only once he stands at a search spot. No allocation.
+   */
+  private teamSearching(from: number, to: number): boolean {
+    const ts = this.teams;
+    const end = to < ts.length ? to : ts.length;
+    for (let i = from; i < end; i++) {
+      const ms = ts[i]!.members;
+      for (let j = 0; j < ms.length; j++) {
+        const m = ms[j]!;
+        if (!m.alive || m.taken || m.level !== 'searching' || m.entering) continue;
+        if (!m.responder || m.atSearchSpot) return true;
+      }
+    }
+    return false;
+  }
+
   /** An alerted enemy worked a panel, or (guard-ai S6) a command call got through (`p` null): reinforcements (once per
-   *  match; Sector Ops once per section load). */
+   *  match; Sector Ops once per section load, (guard-rules S5) or up to `ALARM_REPEAT.max` with `alarmRepeat`). */
   private raiseAlarm(e: Enemy, p: AlarmPanel | null): void {
-    if (this.alarmRaised || (p && p.disabled)) return;
+    if (!this.alarmOpen() || (p && p.disabled)) return;
     this.alarmRaised = true;
+    // (guard-rules S5) the lock shuts again; the teams this alarm brings are made in `onAlarm` (index from here on)
+    this.rearmed = false;
+    this.alarmAgo = 0;
+    this.alarmTeam0 = this.teams.length;
+    this.alarmTeamN = this.alarmTeam0;
+    this.guardAlarms++;
     this.alarmBy = p ? 'panel' : 'radio';
     // (guard-ai S24) the reinforcements hunt the intruder of the guard who raised it; (S24 fix) he has none: the one the
     // last contact call that got through named (command heard it), else none until one does (`sink.completed`)
@@ -820,15 +914,18 @@ export class EnemyManager {
     this.alarmRunner = null;
     this.command.raised();
     this.onAlarm?.(e, p);
+    // (guard-rules S5) the teams the mode made for it (`newTeam`, at once; their members spawn later)
+    this.alarmTeamN = this.teams.length;
   }
 
   /**
    * (guard-ai S6, design 7, M4) A contact call from `caller` got through: the alarm is owed. Stealth modes with the radio
-   * alarm on, no alarm yet: the officer in the caller's voice range (alive, free) holds the command call, else the caller,
-   * else the next guard in the fight. One command call at a time (the net refuses a second).
+   * alarm on, while a new alarm may be raised (`alarmOpen`): the officer in the caller's voice range (alive, free) holds
+   * the command call, else the caller, else the next guard in the fight. One command call at a time (the net refuses a
+   * second).
    */
   private contactThrough(caller: number): void {
-    if (!RADIO_ALARM || !this.stealth || !this.coordinated || this.alarmRaised) return;
+    if (!RADIO_ALARM || !this.stealth || !this.coordinated || !this.alarmOpen()) return;
     if (!this.command.owe()) return;
     const c = this.byNum(caller);
     let who: Enemy | null = null;
@@ -1015,7 +1112,7 @@ export class EnemyManager {
 
   /**
    * (guard-ai S13, item 4, A37) The alarm stage is now `stage` (Sector Ops: a rise, a section load, a restart). Its gear
-   * (`GEAR_BY_STAGE`: stage 2 armour, stage 3 armour and helmet) goes to every guard placed or woken from now on, and
+   * (`GEAR_BY_STAGE`: stage 2 and 3 armour and helmet, guard-rules A3) goes to every guard placed or woken from now on, and
    * with `now` at once to every living guard (the live section: Sector Ops loads one at a time), on top of the gear he
    * has. No camera is touched (the cameras are `CtDevices`'; item 4 "dont add cameras").
    */
@@ -1025,6 +1122,29 @@ export class EnemyManager {
     if (!now) return;
     const list = this.enemies;
     for (let i = 0; i < list.length; i++) if (list[i]!.alive) this.giveStageGear(list[i]!);
+  }
+
+  /**
+   * (guard-rules S1, A1, G350, BRIEF M4) Helmets by difficulty from now on (`DifficultyDef.helmets`): Realistic and
+   * Perfectionist place every human guard helmeted, Perfectionist's helmets locked (never shot off, A2); Rookie / Normal
+   * keep the stage rule. `SectorMode.start` calls it (off elsewhere: Marlow Yard and the parked modes keep their gear).
+   * Undo for a mode: do not call it. `on` false: back to the stage rule.
+   */
+  useDifficultyHelmets(on = true): void {
+    this.helmetRule = on ? this.diff.helmets : 'stage';
+  }
+
+  /** (guard-rules S1) The difficulty's helmet on a human guard: `always` / `locked` add one when `give` (a placement);
+   *  every guard placed, woken or joined to a team gets the lock on `locked`, so any helmet he wears or is given later
+   *  (the stage, the shield lead) is locked. A dog wears nothing. */
+  private ruleHelmet(e: Enemy, give: boolean): void {
+    if (e.def.quadruped) return;
+    const r = this.helmetRule;
+    e.helmetLocked = r === 'locked';
+    if (!give || r === 'stage' || e.helmet) return;
+    this.gearB.helmet = true;
+    this.gearB.armour = e.armour;
+    e.setGear(this.gearB);
   }
 
   /** (guard-ai S13) The stage's gear on top of his own (nothing to give: his gear is left as it is). */
@@ -1080,6 +1200,8 @@ export class EnemyManager {
       this.gearB.armour = e.armour;
       e.setGear(this.gearB);
     }
+    // (guard-rules S1, A2) on Perfectionist his helmet is locked too
+    this.ruleHelmet(e, false);
   }
 
   /**
@@ -1520,7 +1642,7 @@ export class EnemyManager {
 
   /** Assign the alarm runner: an alerted enemy near a working panel (stealth rules only). */
   private assignAlarm(): void {
-    if (!this.stealth || this.alarmRaised || !this.alarms.length) return;
+    if (!this.stealth || !this.alarmOpen() || !this.alarms.length) return;
     const r = this.alarmRunner;
     if (r && r.alive && r.alerted && r.runningAlarm) return;
     this.alarmRunner = null;
@@ -1637,6 +1759,8 @@ export class EnemyManager {
     }
     // (guard-ai S13, A37) the alarm stage's gear on top of what he went down in
     this.giveStageGear(e);
+    // (guard-rules S1, A2) the lock by difficulty (a helmet shot off before the knockout stays off; a soak is kept)
+    this.ruleHelmet(e, false);
     this.enemies.push(e);
     this.removeBody(b);
     e.searchAt(e.pos.x, e.pos.z, null);
@@ -1796,7 +1920,8 @@ export class EnemyManager {
 
   get alive(): number {
     let n = 0;
-    for (const e of this.enemies) if (e.alive) n++;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) if (list[i]!.alive) n++;
     return n;
   }
 
@@ -1997,7 +2122,8 @@ export class EnemyManager {
    * caller (desk), alarm runner (supervisor), light checker (rover first). `reason` is stored.
    *
    * (guard-ai S12) His gear: the slot's `gear` tag merged with the section default `sectionGear` (`SectorDef.gear`);
-   * neither = no gear (Marlow Yard and the early sections are unchanged).
+   * neither = no gear (Marlow Yard and the early sections are unchanged). (guard-rules S1) Then the difficulty's helmet
+   * (`useDifficultyHelmets`: Realistic / Perfectionist helmeted, Perfectionist locked) and a fresh soak.
    */
   placeSlot(
     e: Enemy,
@@ -2013,6 +2139,9 @@ export class EnemyManager {
     // (guard-ai S13, A37) and the alarm stage's gear on top (a later spawn: next section, a restart at a carried stage,
     // a reinforcement)
     this.giveStageGear(e);
+    // (guard-rules S1, A1, A2) the difficulty's helmet and lock; a placed guard's locked helmet has soaked nothing yet
+    e.helmetSoaked = false;
+    this.ruleHelmet(e, true);
     // (guard-ai S8, A25) the squad-roles profile: a posted guard holds and watches (never point / flank), an aggressive
     // slot bounds first
     e.tacticsProfile = slot.post ? P_POST : slot.profile === 'aggressive' ? P_AGGRESSIVE : P_STANDARD;
@@ -2073,6 +2202,9 @@ export class EnemyManager {
    * overlap, at the slower walker's speed: a timed loop walks at `walkSpeed`). The two walkers' loop times now line the
    * clocks up (they may have been placed at different moments). No window (no timed loop, periods differ, no overlap):
    * logged (`pairSkips`, a console warning) and skipped. Load time only.
+   * (guard-rules S6, A10, A11; `flags.guardPairs`, read here only) A timed-loop pair also gets the walking-together
+   * check (`PairDef.watch`); two standing guards (`postedWhyNot`) whose posts are within `PAIRS.meetMax` become a posted
+   * pair (`postedDef`: meet points at the posts, a fixed clock). Flag off: today's path, nothing new read.
    */
   private buildPair(e: Enemy, index: number): void {
     const sg = this.slotGuard;
@@ -2106,7 +2238,18 @@ export class EnemyManager {
     const id = e.section * 100 + lo;
     const why = this.pairWhyNot(A, B);
     if (why) {
-      const msg = `section ${e.section} slots ${lo} + ${hi}: ${why}`;
+      let pw = '';
+      if (flags.guardPairs) {
+        pw = this.postedWhyNot(A, B);
+        if (!pw) {
+          const pa = A.postPoint;
+          const pb = B.postPoint;
+          const pm = new PairMeet(postedDef(id, [pa[0], pa[1]], [pb[0], pb[1]]));
+          this.pairs.push({ pm, sa: lo, sb: hi });
+          return;
+        }
+      }
+      const msg = pw ? `section ${e.section} slots ${lo} + ${hi}: ${why} (posted pair: ${pw})` : `section ${e.section} slots ${lo} + ${hi}: ${why}`;
       this.pairSkips.push(msg);
       console.warn(`guard-ai pairs: ${msg}`);
       return;
@@ -2127,7 +2270,7 @@ export class EnemyManager {
     }
     const pa = ra.points[m.stopA]!;
     const pb = rb.points[m.stopB]!;
-    const pm = new PairMeet({ id, period: ra.loop!.period, t0: ta, open: m.open, close: m.close, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]] });
+    const pm = new PairMeet({ id, period: ra.loop!.period, t0: ta, open: m.open, close: m.close, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]], watch: flags.guardPairs });
     this.pairs.push({ pm, sa: lo, sb: hi });
   }
 
@@ -2138,6 +2281,24 @@ export class EnemyManager {
     const rb = B.patrolRoute;
     if (!ra || !ra.loop || !rb || !rb.loop) return 'not both on a timed loop';
     if (Math.abs(ra.loop.period - rb.loop.period) > 1e-6) return `loop periods differ (${ra.loop.period} / ${rb.loop.period} s)`;
+    return '';
+  }
+
+  /**
+   * (guard-rules S6, A11, S6-a) Why two guards cannot be a posted pair ('' when they can): each stands (no route at all,
+   * or a post with an untimed route) and their posts are within `PAIRS.meetMax`. Load time only (`flags.guardPairs`).
+   */
+  private postedWhyNot(A: Enemy, B: Enemy): string {
+    if (A.dog || B.dog) return 'a dog does not talk';
+    const ra = A.patrolRoute;
+    const rb = B.patrolRoute;
+    const standA = ra === null || (A.postDef !== null && !ra.loop);
+    const standB = rb === null || (B.postDef !== null && !rb.loop);
+    if (!standA || !standB) return 'not both standing a post';
+    const pa = A.postPoint;
+    const pb = B.postPoint;
+    const d = hyp2(pa[0] - pb[0], pa[1] - pb[1]);
+    if (d > PAIRS.meetMax) return `posts ${d.toFixed(1)} m apart (over ${PAIRS.meetMax} m)`;
     return '';
   }
 
@@ -2511,7 +2672,7 @@ export class EnemyManager {
     this.radioNet.tick(dt, v, this.sink, this.rxReaction, null);
     // (guard-ai S6) the command call: cut -> the next guard in the fight after `ALARM_CALL.retry` s; nobody: no alarm
     if (this.command.tick(dt, this.radioNet.commandOpen)) {
-      const c = this.alarmRaised ? null : this.nextCaller();
+      const c = this.alarmOpen() ? this.nextCaller() : null;
       if (c) this.startCommand(c);
       else this.command.lapse();
     }
@@ -2547,12 +2708,13 @@ export class EnemyManager {
 
   /** (guard-ai S3, S6) A `command` call got through: the alarm (reinforcements, M4), no panel needed (`RADIO_ALARM`). */
   private radioAlarm(caller: number): void {
-    if (!RADIO_ALARM || this.alarmRaised) return;
+    if (!RADIO_ALARM || !this.alarmOpen()) return;
     const e = this.byNum(caller);
     if (!e) return;
+    const n = this.guardAlarms;
     this.raiseAlarm(e, null);
-    // (guard-ai S14) the section's tally
-    if (this.alarmRaised) this.counts.radioAlarms++;
+    // (guard-ai S14) the section's tally; (guard-rules S5) each radio alarm raised
+    if (this.guardAlarms > n) this.counts.radioAlarms++;
   }
 
   /**
@@ -3496,7 +3658,16 @@ export class EnemyManager {
 
   /** Pick (or drop) the flanker: someone with cover tactics once a player has held cover a while. */
   private assignFlanker(): void {
-    const held = this.players().some((p) => p.target.alive && p.cover && (p.coverT ?? 0) > 4);
+    // (guard-ai-alloc D2) every 0.5 s: an index loop, no closure
+    const ps = this.players();
+    let held = false;
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i]!;
+      if (p.target.alive && p.cover && (p.coverT ?? 0) > 4) {
+        held = true;
+        break;
+      }
+    }
     if (!held) {
       this.flanker = null;
       return;
@@ -3518,6 +3689,13 @@ export class EnemyManager {
     this.flanker = best;
   }
 
+  /** (guard-ai-alloc D2) `refreshFlow`'s goals and heights, kept (the pairs are made once per player slot). */
+  private readonly flowGoals: P2[] = [];
+  private readonly flowYs: number[] = [];
+  private readonly flowPairs: P2[] = [];
+  /** (guard-ai-alloc) A guard grenade's throw velocity (copied by `Grenades.throw`). */
+  private readonly throwV = new Vector3();
+
   private refreshFlow(): void {
     // stealth: towards where they think the players are, never where they really are; (guard-ai S24) one field per
     // intruder (`slotFlowStep`)
@@ -3530,10 +3708,24 @@ export class EnemyManager {
       return;
     }
     this.flowBlank = false;
-    const live = this.players().filter((p) => p.target.alive);
-    const goals = live.map((p) => [p.feet.x, p.feet.z] as [number, number]);
-    // heights pick the storey (a roof, an upper floor) the goal is on
-    const ys = live.map((p) => p.feet.y);
+    // (guard-ai-alloc D2) every 0.5 s: the live players' feet into kept buffers (a pair per player, made once), no
+    // filter / map arrays; heights pick the storey (a roof, an upper floor) the goal is on
+    const ps = this.players();
+    const goals = this.flowGoals;
+    const ys = this.flowYs;
+    let n = 0;
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i]!;
+      if (!p.target.alive) continue;
+      const g = this.flowPairs[n] ?? (this.flowPairs[n] = [0, 0]);
+      g[0] = p.feet.x;
+      g[1] = p.feet.z;
+      goals[n] = g;
+      ys[n] = p.feet.y;
+      n++;
+    }
+    goals.length = n;
+    ys.length = n;
     if (goals.length) this.nav.flowField(goals, this.flowField, ys);
     this.flowVer = this.nav.version;
   }
@@ -3570,6 +3762,8 @@ export class EnemyManager {
       if (this.coordinated && this.rolesActive) this.flanker = null;
       else this.assignFlanker();
     }
+    // (guard-rules S5) the repeat lock, before the panel runner is picked
+    this.repeatStep(dt);
     this.alarmT -= dt;
     if (this.alarmT <= 0) {
       this.alarmT = 0.5;

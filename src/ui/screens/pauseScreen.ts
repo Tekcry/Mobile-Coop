@@ -8,11 +8,26 @@ import { FeedbackFormScreen } from './feedbackScreen';
 /** Extra pause-menu rows added at run time (dev tools: the level editor's walk test adds "Back to editor"). Empty in play. */
 export const pauseExtraRows: { label: string; act: () => void }[] = [];
 
-/** One mission objective and its state (G108: the objectives live in the menu). */
+/** One mission objective and its state (G108: the objectives live in the menu; G343: the menu keeps the full list). */
 export interface ObjectiveLine {
   label: string;
   done: boolean;
   current: boolean;
+  /** (mission-rules R6, HG8) A line with no done / current state: the mission's rule (the counter reads "Rule"). */
+  note?: true;
+  /** (mission-rules R6, HG8) The hint layer's line for this objective (the current one, hints on). */
+  hint?: string;
+}
+
+/** (mission-rules R6) The rules line's description in the Objectives screen. */
+export const OBJ_NOTE_DESC = "The mission's rule. Breaking it restarts the section.";
+
+/** (mission-rules R6) An Objectives row's counter and description: a `note` row is the rule; a hint follows the desc. */
+export function objectiveRowState(o: ObjectiveLine): { ctr: string; desc: string } {
+  if (o.note) return { ctr: 'Rule', desc: OBJ_NOTE_DESC };
+  const ctr = o.done ? 'Done' : o.current ? 'Current' : 'To do';
+  const desc = `${ctr}. ${o.done ? 'Completed.' : o.current ? 'Do this next.' : 'Comes after the current objective.'}`;
+  return { ctr, desc: o.hint ? `${desc} Hint: ${o.hint}` : desc };
 }
 
 export interface PauseOpts {
@@ -20,6 +35,8 @@ export interface PauseOpts {
   coop?: boolean;
   /** The mission's objectives (empty: free roam or no objectives). */
   objectives?: () => ObjectiveLine[];
+  /** (hud-guidance B5, R12) This match's interrogation lines, oldest first (empty: none yet). */
+  notes?: () => readonly string[];
   /** Depth of field is on (the pause look blurs the game); false: a plain dark overlay (Low preset). */
   dof?: boolean;
   /** A controller dropped out: a line with the way back. */
@@ -47,15 +64,31 @@ export class ObjectivesScreen extends MenuScreen {
       list.append(button('No objectives', () => {}, { class: 'ms-item', key: 'none', autofocus: true, desc: 'Free roam has no objectives. Explore the map.' }));
     }
     lines.forEach((o, i) => {
-      const state = o.done ? 'Done' : o.current ? 'Current' : 'To do';
+      const row = objectiveRowState(o);
       const b = button(o.label, () => {}, {
-        class: `ms-item obj-${o.done ? 'done' : o.current ? 'current' : 'todo'}`,
+        class: `ms-item obj-${o.note ? 'note' : o.done ? 'done' : o.current ? 'current' : 'todo'}`,
         key: `obj-${i}`,
         autofocus: o.current || (i === 0 && !lines.some((x) => x.current)),
-        desc: `${state}. ${o.done ? 'Completed.' : o.current ? 'Do this next.' : 'Comes after the current objective.'}`,
+        desc: row.desc,
       });
-      b.append(h('span', { class: 'ms-ctr', text: state }));
+      b.append(h('span', { class: 'ms-ctr', text: row.ctr }));
       list.append(b);
+    });
+    this.body.append(list);
+  }
+}
+
+/** (hud-guidance B5, R12, BRIEF A9) Notes: what guards told you this match, oldest first; the newest has the focus.
+ *  Read only: each row's help line holds the whole note. */
+export class NotesScreen extends MenuScreen {
+  constructor(lines: readonly string[]) {
+    super('notes-screen', ['Field', 'Notes']);
+    const list = h('div', { class: 'ms-list', attrs: { 'data-wrap': '' } });
+    if (!lines.length) {
+      list.append(button('No notes yet', () => {}, { class: 'ms-item', key: 'none', autofocus: true, desc: 'Interrogate a guard: what he tells you is kept here for this match.' }));
+    }
+    lines.forEach((t, i) => {
+      list.append(button(t, () => {}, { class: 'ms-item', key: `note-${i}`, autofocus: i === lines.length - 1, desc: t }));
     });
     this.body.append(list);
   }
@@ -80,6 +113,7 @@ export class PauseScreen extends MenuScreen {
     list.append(
       item('Resume', () => this.resume(), opts.coop ? 'Back to the mission. It kept running while you were here.' : 'Back to the mission.', 'resume', true),
       item('Objectives', () => this.manager.push(new ObjectivesScreen(opts.objectives?.() ?? [])), 'The mission objectives and where each one stands.', 'objectives'),
+      item('Notes', () => this.manager.push(new NotesScreen(opts.notes?.() ?? [])), 'What guards told you in interrogations this match.', 'notes'),
       // (menu-notes A2, Michael's note 7) one place for controls: Settings > Controls (hold / toggle, sensitivities and
       // Remap controls); the separate Controls item is gone
     );

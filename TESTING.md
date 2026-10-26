@@ -27,11 +27,16 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The main menu shows Sector Ops, Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
   `?legacy=1`). Sector Ops opens the op list (Saltmarsh Park and the old Warehouse op, four stars each), then its
   briefing: the sectors listed, Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
+- [ ] (sector-marks) Sector Ops: no green disc or glowing pole at any connector or at the extraction (host and co-op
+  client). Each Saltmarsh Park objective says what and where: S1 the gatehouse, S2 the facilities office, S3 the
+  prototype store, S4 the server cage, S5 the strongroom.
 - [ ] Sector Ops on Saltmarsh Park (`campusOps`): five sections, S1 gatehouse and car park, S2 HQ atrium, S3 labs, S4
   data hall, S5 Old House. Each objective unlocks the connector room's door; standing in the room shuts it behind you,
   the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when there
   were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room. Solo
   finishes it (team doors keep a solo route, G280).
+- [ ] (G339) No minimap, compass or objective dots in Sector Ops, Marlow Yard (co-op) or free roam; the Marlow drill
+  pointer and pings still show.
 - [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes
   and objective read by lamp light, with dark
   pockets between; sections 2 and 3 each offer three routes (`docs/archive/warehouse-s23/WALK.md`). Every lamp is an LED
@@ -44,9 +49,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] (fog fix) Saltmarsh Park on Epic, then High: the atrium, the S3 hall and the L1 offices read clear across the room;
   ceiling lights glow with a short, faint haze under their shade (no long beams), guard torches still beam, and the
   light meter reads as before.
-- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
-  and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
-  partner is revived until they run out, then a down restarts the section with both players at the room.
+- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star and every easier one are
+  filled beside Sector Ops (Saltmarsh Park's stars) and in the op list (best time in the context panel). Co-op Sector
+  Ops: the HUD shows Syringes (2 on Normal); a downed partner is revived until they run out, then a down restarts the
+  section with both players at the room.
+- [ ] (sector-batch) Sector Ops result: a run with no kill and no alarm ends "PERFECT" on the result line and the
+  extraction banner (with "GHOST" too when never spotted); an alarm takes Perfect away.
 - [ ] Sector Ops restart: get spotted (alarm, alert music), use some ammo and a gadget, go down. After "Restarting from
   checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
@@ -66,6 +74,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   beside the host if that airlock is shut off), with A1-A2 done, the A3 doors as the host has them and the HUD on A3,
   never at the yard start. Same in Sector Ops in section 2 or 3.
 - [ ] (coop-carry) Co-op, two pages: the joiner knocks a guard out, walks to the body and picks it up (Pick up body): the 2 s lift, then it rides on the joiner's shoulder on both screens (the joiner bent, slow); the joiner hides it at a hiding spot (gone on both) or puts it down (a ragdoll on both, a guard nearby hears it). The host's own carry now shows on the joiner's screen too.
+- [ ] (coop-kit A1) Co-op, two pages with `?kitmoves=descent` (or /preview/): one player on a 2.2-6 m edge, standing facing the drop, presses Co-op (rope down); the other, standing beside them, sees "Co-op: rappel down the rope" and presses it: over the edge onto the rope, stick down to the bottom, stick held down steps off and the holder is free. Climbing back up tops out beside the holder. With `?kitmoves=0` no rappel offer; the climb from the bottom works as before.
 - [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
@@ -190,6 +199,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Character shadows (LR14, High and up): under a lamp near you a guard, your partner, a body or a held rifle throws
   its real silhouette on the floor and walls (arms, legs, crouch), steady as you walk between lamps; at Medium (or
   Graphics > Character shadows Off) the soft capsule shadows return.
+- [ ] Guard shadow in view (guard-cap T1-SHADOW, A195): Marlow, a guard just out of view under a lamp, his shadow in
+  view: his shadow's feet do not step or slide (`&animshadow=0` shows the camera-only 1/8 rate).
 - [ ] Guard alerts (guard-ai S1-S3, Sector Ops): a thrown bottle sends one guard over while the others only turn; shoot
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
@@ -204,6 +215,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Alarm by radio (guard-ai S6, Sector Ops): get spotted and let the radio calls through: "Command, contact. Send
   backup.", ALARM STAGE about 6.5 s after the spotter saw you, and reinforcements run in hunting. Take the spotter down
   before his first radio line: no alarm, nobody comes.
+- [ ] Barks by cause (guard-rules S4): let a guard glimpse you at the edge of a light: he says a seeing line ("Thought
+  I saw something."); throw a bottle near another: he says a hearing line; neither ever says the other kind.
 - [ ] Squads and dogs (guard-ai S5b, Sector Ops): knock a guard out unseen and wait up to ~40 s: his squad's radio
   check misses him and two squad mates walk to where he went down and wake him. A dog stays with its handler; drop the
   handler and the dog stays by him and barks.
@@ -243,10 +256,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
     the officer, glasses on some (the sniper always dark ones). The heavy and enforcer wear a balaclava, no hair.
   - Faces: at 1.5 m and 3 m the eyes, brows, nose and mouth read, no gap or step at the neck, no hair floating, the cap
     sits on the scalp; far away (> 25 m) the guard is a plain, correctly coloured figure, no flicker at the LOD switches.
-  - Helmet knock-off: raise the alarm to the helmet stage (three alarms in Sector Ops, or `e.setGear` in the console);
-    the helmet shows only then, the cap and hair under it are gone; a head shot pings and the helmet leaves his head and
-    falls to the floor as the same helmet (his faction colour), the hair or cap shows again. Vests show only with the
-    armour stage; the heavy shows his plate; the enforcer carries the shield on his left arm.
+  - Helmet knock-off: raise the alarm to the helmet stage (two alarms in Sector Ops on Rookie / Normal, or `e.setGear`
+    in the console); the helmet shows only then, the cap and hair under it are gone; a head shot pings and the helmet
+    leaves his head and falls to the floor as the same helmet (his faction colour), the hair or cap shows again. Vests
+    show only with the armour stage; the heavy shows his plate; the enforcer carries the shield on his left arm.
   - Same looks after a restart: note three guards (a face, hair, cap); restart at the checkpoint or the section: the same
     guards in the same places look the same.
   - Bodies: carry and drop a guard: the body keeps his face, clothes and helmet state; thermal and night vision show him
@@ -262,10 +275,18 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Armour (guard-ai S16, campus S4): stand on the data hall floor in front of the NOC window and get seen: the NOC
   pair aim at you but fire no round into the bulletproof glass (no sparks on it); after a moment they move (down to the
   hall, or another spot) or hold. A plain window still lets their rounds through.
-- [ ] Response teams (guard-ai S13, Sector Ops): raise the alarm twice: every guard now wears armour; a third time:
-  helmets too. Each alarm's team comes in behind a shield guard; hide: after about a minute at your last spot the team
-  walks the section point to point (shield first, the rest close behind, a look round at each, torches in the dark),
-  still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Response teams (guard-ai S13, guard-rules S1 / S5, Sector Ops, Normal): raise the alarm twice (guard-rules S5:
+  once the first team is in and searching, or a minute later, a guard who sees you again raises the next stage; up to
+  three guard alarms a section, Marlow Yard still one): every guard now wears armour and a helmet. In Saltmarsh Park
+  sections 4 and 5 each alarm's team comes in behind a shield guard; in sections 1-3, the warehouse and Marlow Yard the
+  team is armed guards only. Hide: after about a minute at your last spot the team walks the section point to point
+  (shield first where there is one, the rest close behind, a look round at each, torches in the dark), still hunting
+  minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Helmets and dogs (guard-rules S1 / S2, Sector Ops): on Realistic every guard wears a helmet from the start; on
+  Rookie and Normal no guard does until the second alarm. On Perfectionist a head shot on a helmet only staggers him and
+  the helmet stays on; a second head shot kills. Walk behind a dog: no takedown prompt (also in co-op on the joiner);
+  gas knocks it out and the section can still end with "No kills"; shoot a dog dead instead: the rating loses "No kills"
+  and Perfect and the score drops.
 - [ ] Section alert (guard-ai S14, Sector Ops): knock a squad guard out unseen and wait for the radio check: "Unit N,
   report... Nothing.", then "a unit's not answering" on the radio; the section's guards walk slower and look longer for
   a few minutes (cautious), two search the spot. Do it again but take the caller down while he is still on the radio:
@@ -414,6 +435,22 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   choke on one clock. "traversal: ladder up and over the top": Wren walks to the ladder, climbs it, tops out, resets and
   goes again; the same for the vault, ledge, drainpipe, pipe, hang bar, vent, window, door, rappel and wall loops.
   Pick "state: idle": she is back in the middle.
+- [ ] Anim Studio motion capture (mixamo-retarget M5): the Loop list has a "Motion capture (CMU): ..." group (walk, jog,
+  run, sprint, start, stop, turns, sneak, strafes; Mixamo ones as "Motion capture (Mixamo): ..." once they land, the
+  climbing ones on their props: picking one plays that capture there, flag or not; in a match the climbing
+  captures play with `?mixamo=1`). Pick "Motion capture (CMU): walk": the Now playing
+  line says "motion-capture (CMU) walk clip"; turn a knee in Joints (walk) or move a foot in Hands & feet: the capture
+  follows; Arm swing is greyed (hand-made only) and changes nothing on it, as in the game. Walking in a match: "Now
+  playing: motion-capture (CMU) walk". On a ledge, Body > foot reach rows are greyed ("Does nothing in this move").
+- [ ] (mixamo-retarget I9) Anim Studio, Set "Mixamo": the batch 2 packs are listed ("Motion capture (Mixamo): rifle walk forward",
+  pistol, shooter, aa ...); each plays on Wren and moves with its tuner rows.
+- [ ] Animation source (mixamo-retarget Toggle): Settings > Gameplay > Animation source. CMU (default) is the game as
+  before; Hand-made: the walk / jog / run are the keyed clips (Now playing "hand-made ... (animation source: Hand-made)");
+  Mixamo: hang on a ledge and shimmy, then top out a ladder: the Mixamo captures ("motion-capture (Mixamo) hang").
+  Restart: the choice is kept. In the Anim Studio the same switch sits over the Loop list, with Set (All / Hand-made /
+  CMU / Mixamo) showing only that set's loops. `?anim=hand|cmu|mixamo` sets it for one page.
+- [ ] (F45) /preview/ with no pick yet: Settings > Gameplay > Animation source shows Mixamo and a ledge hang plays the
+  Mixamo capture; pick CMU, restart: CMU is kept. The live game with no pick: CMU.
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.

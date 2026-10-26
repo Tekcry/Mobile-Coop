@@ -328,7 +328,7 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit, opts: { re
     {
       id: 'a3-in',
       bay: 'A3',
-      text: 'Jam the camera for each other. If it sees you, you start again.',
+      text: 'Jam the corridor camera for each other. If it sees you, you start again.',
       a: 'Hold the jammer on the camera while your partner moves.',
       b: 'Move on the jam: the recess first, then the far lobby.',
       done: { flag: A3_FAR1_FLAG },
@@ -336,7 +336,7 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit, opts: { re
     {
       id: 'a3-swap',
       bay: 'A3',
-      text: 'Swap: the far player jams now.',
+      text: 'Swap: jam the corridor camera from the far lobby.',
       a: "Move on your partner's jam: the recess, then the far lobby.",
       b: 'Jam the camera from the far lobby for your partner.',
       done: { flag: A3_FAR_FLAG },

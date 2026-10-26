@@ -33,6 +33,7 @@ import { MOCAP_CROUCH_WALK } from './clips/mocap/crouch_walk';
 import { MOCAP_SPRINT } from './clips/mocap/sprint';
 import { MOCAP_STRAFE_L } from './clips/mocap/strafe_l';
 import { MOCAP_STRAFE_R } from './clips/mocap/strafe_r';
+import { noteMoveSources } from './nowPlaying';
 
 /**
  * Per-layer scales for the mocap set (one table; the job lead tunes them once the real clips land). Each scales a
@@ -192,6 +193,9 @@ export const MOCAP_SET: LocoClipSet = {
   strafeR: MOCAP_STRAFE_R,
 };
 
+// (mixamo-retarget M5) the line's sources before the first switch (the mocap set is the only one with captures)
+noteMoveSources(MOCAP_SET);
+
 /** Any slot filled (the graph runs `MocapSlots` only then). */
 export function hasSlots(S: LocoClipSet): boolean {
   return S.turnInPlace !== null || S.turnMoveL !== null || S.turnMoveR !== null || S.start !== null || S.stop !== null;
@@ -203,11 +207,56 @@ export function hasSlots(S: LocoClipSet): boolean {
  */
 export const LOCO: { set: LocoClipSet; mocap: boolean; slots: boolean } = { set: HAND_KEYED_SET, mocap: false, slots: false };
 
+/**
+ * (mixamo-retarget I1, PLAN Claims "crouch-walk slot") The mocap set with another crouched walk in its slot (the Mixamo
+ * capture under `?mixamo=1`; `mixamo.ts` hands it over, this module never imports that one): a copy of `MOCAP_SET` made
+ * once, and the set the switch's ON side uses (`MOCAP_SET` itself, untouched, unless a crouched walk is handed over).
+ */
+const MOCAP_SET_MX: { -readonly [K in keyof LocoClipSet]: LocoClipSet[K] } = { ...MOCAP_SET };
+let mocapActive: LocoClipSet = MOCAP_SET;
+
+/**
+ * (mixamo-retarget I6) The mocap set's clip slots a Mixamo capture may take (the set's seconds and layers stay CMU's: a
+ * start / stop capture plays by progress over `MOCAP_START_SECONDS` / `MOCAP_STOP_SECONDS`, so the game's timing holds).
+ * A new slot (turns, strafes) needs only its name here and its recipe's `slot` (mixamo-clips.json).
+ */
+export const MX_SLOTS = ['walk', 'jog', 'run', 'sprint', 'start', 'stop', 'crouchWalk', 'turnInPlace', 'turnMoveL', 'turnMoveR', 'strafeL', 'strafeR'] as const;
+export type MixamoLocoSlot = (typeof MX_SLOTS)[number];
+
+/** The Mixamo captures handed over per slot (null: the CMU clip); written by `setMocapMixamo` only. */
+const MX_TAKEN: Record<MixamoLocoSlot, KeyedClip | null> = {
+  walk: null, jog: null, run: null, sprint: null, start: null, stop: null, crouchWalk: null,
+  turnInPlace: null, turnMoveL: null, turnMoveR: null, strafeL: null, strafeR: null,
+};
+
+/**
+ * (mixamo-retarget I1, I6) Hand Mixamo captures to the mocap set's slots (a slot left out keeps what it had; null: the
+ * CMU clip back). Rebuilds `MOCAP_SET_MX` from `MOCAP_SET` as it is now (tests swap its clips) and makes it the switch's
+ * ON set while any slot is taken, else `MOCAP_SET` itself (untouched). Once per change, never per frame.
+ */
+export function setMocapMixamo(slots: Partial<Record<MixamoLocoSlot, KeyedClip | null>>): void {
+  for (const k of MX_SLOTS) if (slots[k] !== undefined) MX_TAKEN[k] = slots[k] ?? null;
+  Object.assign(MOCAP_SET_MX, MOCAP_SET);
+  let any = false;
+  for (const k of MX_SLOTS) {
+    const c = MX_TAKEN[k];
+    if (c) { MOCAP_SET_MX[k] = c; any = true; }
+  }
+  mocapActive = any ? MOCAP_SET_MX : MOCAP_SET;
+  if (LOCO.mocap) setMocapLocomotion(true);
+}
+
+/** (mixamo-retarget I1) The crouched walk in the mocap set's slot (null: the CMU 136_09 back); once per change. */
+export function setMocapCrouchWalk(c: KeyedClip | null): void {
+  setMocapMixamo({ crouchWalk: c });
+}
+
 /** Switch the clip set (once per change; a toggle mid-stride takes the new set on the next frame). */
 export function setMocapLocomotion(on: boolean): void {
   LOCO.mocap = on;
-  LOCO.set = on ? MOCAP_SET : HAND_KEYED_SET;
+  LOCO.set = on ? mocapActive : HAND_KEYED_SET;
   LOCO.slots = hasSlots(LOCO.set);
+  noteMoveSources(LOCO.set); // (mixamo-retarget M5) the Now playing line's source per move (CMU / Mixamo)
 }
 
 /**
@@ -238,7 +287,7 @@ export function mocapWanted(url: boolean | null, setting: boolean): boolean {
 /** Resolve and apply the switch (settings load and every settings change; not per frame). Returns the state. */
 export function applyMocapSwitch(url: boolean | null, setting: boolean): boolean {
   const on = mocapWanted(url, setting);
-  if (on !== LOCO.mocap || LOCO.set !== (on ? MOCAP_SET : HAND_KEYED_SET)) setMocapLocomotion(on);
+  if (on !== LOCO.mocap || LOCO.set !== (on ? mocapActive : HAND_KEYED_SET)) setMocapLocomotion(on);
   return on;
 }
 

@@ -30,6 +30,21 @@ export function objectiveName(name: string): string {
   return name ? name.charAt(0).toUpperCase() + name.slice(1) : name;
 }
 
+const ROOM_WORDS: readonly string[] = ['one', 'two', 'three', 'four', 'five', 'six', 'seven'];
+
+/** (marlow-objective-place) The bay's closing place in words, never its code: "holding room two", or the cash dock for the finish. Other maps on this HUD keep their airlock pad. */
+export function exitPlace(exit: string): string {
+  const n = /^L(\d)$/.exec(exit);
+  const word = n ? ROOM_WORDS[Number(n[1]) - 1] : undefined;
+  if (word) return `holding room ${word}`;
+  return exit === 'end' ? 'the cash dock' : `the ${exit} airlock pad`;
+}
+
+/** The closing line when the bay has none of its own: both players, into the holding room (or out to the cash dock). */
+export function exitLine(exit: string): string {
+  return exit === 'end' ? 'Both of you out to the cash dock.' : `Both of you into ${exitPlace(exit)}.`;
+}
+
 export class CourseHud {
   readonly el: HTMLElement;
   private bayEl: HTMLElement;
@@ -106,8 +121,8 @@ export class CourseHud {
       const cell = (p: PlayerIdx): HTMLElement => h('td', { class: `ch-t${done ? ' done' : ''}`, text: done ? '✓' : '·', attrs: { 'data-p': String(p + 1) } });
       rows.push(h('tr', { class: o === step ? 'cur' : '', attrs: { 'data-step': o.id } }, h('td', { class: 'ch-n', text: o.text }), cell(0), cell(1)));
     }
-    // the last objective: both onto the airlock pad (or the finish), current once this player's drills are done
-    const last = bay.exit === 'end' ? 'Finish the course' : `Both onto the ${bay.exit} airlock pad`;
+    // the last objective: the bay's closing line (both into the holding room, or out to the cash dock), current once this player's drills are done
+    const last = bayObjective(st.def, bay.id) ?? exitLine(bay.exit);
     const lastDone = st.over || st.done[st.bay] === true;
     const lastCell = (p: PlayerIdx): HTMLElement => h('td', { class: `ch-t${lastDone ? ' done' : ''}`, text: lastDone ? '✓' : '·', attrs: { 'data-p': String(p + 1) } });
     rows.push(h('tr', { class: !next && !step && !lastDone ? 'cur' : '', attrs: { 'data-obj': 'exit' } }, h('td', { class: 'ch-n', text: last }), lastCell(0), lastCell(1)));
@@ -129,9 +144,9 @@ export class CourseHud {
     else if (step) {
       text = st.stepLine(step, me);
       if (secs > 0) text += ` - ${timerLabel(step.timer !== undefined ? this.gateOf(st, step.timer) : undefined)} ${secs} s`;
-    } else if (bay.drills.length) text = 'Objectives done. Both of you onto the airlock pad.';
+    } else if (bay.drills.length) text = `Objectives done. ${exitLine(bay.exit)}`;
     // (course-ready F1) the bay's last line (its step without a done condition), or the airlock once its steps are done
-    else text = bayObjective(st.def, bay.id) ?? (st.stepsOf().length ? (bay.exit === 'end' ? 'Both of you to the exit.' : `Both of you onto the ${bay.exit} airlock pad.`) : '');
+    else text = bayObjective(st.def, bay.id) ?? (st.stepsOf().length ? exitLine(bay.exit) : '');
     this.stepEl.innerHTML = stepHtml(text);
   }
 

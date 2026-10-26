@@ -1,13 +1,11 @@
 import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
-import { buildCampusS1, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './campusS1';
-import { buildCampusS2, S2_BOARDS, S2_HIDESPOTS, S2_NAV_SEEDS, S2_PICKUPS, S2_ROOMS, S2_SWITCHES } from './campusS2';
+import type { CampusSectionParts } from './campusParts';
+import { CAMPUS_PARTS } from './campusSections';
 import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from './campusSectors';
-import { buildCampusS3, S3_HIDESPOTS, S3_LASERS, S3_NAV_SEEDS, S3_PANELS, S3_PICKUPS, S3_ROOMS, S3_SWITCHES } from './campusS3';
-import { buildCampusS4, S4_BOARDS, S4_HIDESPOTS, S4_LASERS, S4_NAV_SEEDS, S4_PANELS, S4_ROOMS, S4_SWITCHES } from './campusS4';
-import { buildCampusS5, S5_BOARDS, S5_HIDESPOTS, S5_LASERS, S5_NAV_SEEDS, S5_PANELS, S5_ROOMS, S5_SWITCHES } from './campusS5';
 import { dressCampus } from './campusDress';
+import { CAMPUS_MISSION_TEST } from './campusMissionTest';
 
 const T = 0.3;
 const WALL = '#a9a496';
@@ -65,6 +63,9 @@ function buildSection(b: LevelBuilder, section: number, build: (b: LevelBuilder)
   ranges[section] = [i0, b.boxes.length];
 }
 
+/** (campus-greybox P0) The order the sections' boards are listed in (0-based): S4, S5, S2 as live, then S1, S3. */
+const BOARD_ORDER: readonly number[] = [3, 4, 1, 0, 2];
+
 /** Extra nav flood seeds: every stub section's interior and connector (the stub run is joined by doorways, but seeds keep them kept). */
 const STUB_NAV_SEEDS: Vector3[] = [
   new Vector3(24, 0, -14),
@@ -84,6 +85,7 @@ export const campusOps: MapDef = {
   description: 'A research campus raided in five sections: the gatehouse and car park, the HQ atrium, the labs, the data hall and the Old House.',
   modes: ['sector'],
   sectors: CAMPUS_SECTORS,
+  missions: [CAMPUS_MISSION_TEST],
   navLayers: 5,
   // greybox: no generated skirting, vents or clutter (everything on a wall is placed on purpose)
   detail: false,
@@ -119,29 +121,32 @@ export function buildCampus(b: LevelBuilder, o: { dress: boolean }): MapLayout {
   // the ground (1 m thick under y 0) and the boundary walls (they set the map's bounds)
   b.floor(0, -7, 140, 154, GROUND, 0, 1);
   b.perimeter(CAMPUS_BOUNDS.minX, CAMPUS_BOUNDS.maxX, CAMPUS_BOUNDS.minZ, CAMPUS_BOUNDS.maxZ, 6, '#2c3033');
-  buildSection(b, 0, buildCampusS1, ranges);
-  buildSection(b, 1, buildCampusS2, ranges);
+  // (campus-greybox P0) each section from its live or v2 parts (`campusSections.ts`, `flags.campusV2`)
+  const [p1, p2, p3, p4, p5] = CAMPUS_PARTS as readonly [CampusSectionParts, CampusSectionParts, CampusSectionParts, CampusSectionParts, CampusSectionParts];
+  buildSection(b, 0, p1.build, ranges);
+  buildSection(b, 1, p2.build, ranges);
   otherBuildings(b);
-  buildSection(b, 2, buildCampusS3, ranges);
-  buildSection(b, 3, buildCampusS4, ranges);
-  buildSection(b, 4, buildCampusS5, ranges);
+  buildSection(b, 2, p3.build, ranges);
+  buildSection(b, 3, p4.build, ranges);
+  buildSection(b, 4, p5.build, ranges);
   const alarms = CAMPUS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], a.y ?? 0, a.at[1]), yaw: a.yaw, section: a.section }));
   const layout: MapLayout = {
-    playerSpawns: S1_SPAWNS,
+    playerSpawns: p1.spawns,
     // the sections' guards come from the mode, not the rooms
     enemySpawns: [],
     props: [],
     objectives: [],
-    pickups: [...S1_PICKUPS, ...S2_PICKUPS, ...S3_PICKUPS],
-    hideSpots: [...inSection(S1_HIDESPOTS, 0), ...inSection(S2_HIDESPOTS, 1), ...inSection(S3_HIDESPOTS, 2), ...inSection(S4_HIDESPOTS, 3), ...inSection(S5_HIDESPOTS, 4)],
-    switches: [...inSection(S1_SWITCHES, 0), ...inSection(S2_SWITCHES, 1), ...inSection(S3_SWITCHES, 2), ...inSection(S4_SWITCHES, 3), ...inSection(S5_SWITCHES, 4)],
-    rooms: [...S1_ROOMS, ...S2_ROOMS, ...S3_ROOMS, ...S4_ROOMS, ...S5_ROOMS],
-    navSeeds: [...S1_NAV_SEEDS, ...S2_NAV_SEEDS, ...STUB_NAV_SEEDS, ...S3_NAV_SEEDS, ...S4_NAV_SEEDS, ...S5_NAV_SEEDS],
+    pickups: CAMPUS_PARTS.flatMap((p) => p.pickups),
+    hideSpots: CAMPUS_PARTS.flatMap((p, k) => inSection(p.hideSpots, k)),
+    switches: CAMPUS_PARTS.flatMap((p, k) => inSection(p.switches, k)),
+    rooms: CAMPUS_PARTS.flatMap((p) => p.rooms),
+    navSeeds: [...p1.navSeeds, ...p2.navSeeds, ...STUB_NAV_SEEDS, ...p3.navSeeds, ...p4.navSeeds, ...p5.navSeeds],
     alarms,
     security: CAMPUS_SECURITY,
-    lasers: [...S3_LASERS, ...S4_LASERS, ...S5_LASERS],
-    laserPanels: [...S3_PANELS, ...S4_PANELS, ...S5_PANELS],
-    boards: [...inSection(S4_BOARDS, 3), ...inSection(S5_BOARDS, 4), ...inSection(S2_BOARDS, 1)],
+    lasers: CAMPUS_PARTS.flatMap((p) => p.lasers),
+    laserPanels: CAMPUS_PARTS.flatMap((p) => p.panels),
+    // the live board order (S4, S5, S2), then S1 and S3: a new board appends, so the others keep their index
+    boards: BOARD_ORDER.flatMap((k) => inSection(CAMPUS_PARTS[k]!.boards, k)),
   };
   if (o.dress) layout.campusArt = dressCampus(b, layout, ranges);
   return layout;

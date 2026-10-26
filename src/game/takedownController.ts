@@ -5,7 +5,7 @@ import type { CharacterRig } from '../player/characterRig';
 import type { DamageResult, HitInfo } from './damage';
 import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
-import { approachPoint, assistPlan, GRAB, GRAB_KINDS, HANG_GRAB, hangHoldPoint, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
+import { approachPoint, assistPlanInto, GRAB, GRAB_KINDS, HANG_GRAB, hangHoldPoint, pickTakedownInto, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
 import { HANG_HEAD } from './teamMoves';
 import { gearCap } from '../player/speedGears';
 import type { GameState } from './gameState';
@@ -82,7 +82,7 @@ export interface TakedownVictim {
 
 /**
  * Runs melee takedowns (phase 4). Each fixed step it finds the takedown on offer (the nearest enemy the geometry
- * allows, `pickTakedown`), shows it as a world prompt on the victim, and on the interact press plays it: the
+ * allows, `pickTakedownInto`), shows it as a world prompt on the victim, and on the interact press plays it: the
  * attacker's feet follow an eased path onto the aligned spot (a vault over a low wall, a drop from above), the
  * victim is seized (brain off, a struggle pose, pulled over a lip or through a window), then the strike: tap =
  * non-lethal (a choke, the victim knocked out), held = lethal. Taking damage aborts it (the victim breaks free,
@@ -116,6 +116,16 @@ export class TakedownController {
   private kin = new Vector3();
   private eye = new Vector3();
   private head = new Vector3();
+  /** (player-hygiene S3) The offer scan's scratch plan and its `victimTo` buffer, and the one offer object (`offer`
+   *  points at it while a takedown is on offer; `e` is set before it is ever exposed): no plan, offer or vector literal
+   *  per step. */
+  private readonly scanPlan: TakedownPlan = { kind: 'behind', alignX: 0, alignY: 0, alignZ: 0, faceYaw: 0, approach: 0, arc: 0, strike: 0, victimTo: null };
+  private readonly scanTo = { x: 0, y: 0, z: 0 };
+  private readonly scanOffer: { e: TakedownVictim; plan: TakedownPlan; lethalOnly: boolean } = { e: null as unknown as TakedownVictim, plan: this.scanPlan, lethalOnly: false };
+  /** (player-hygiene S3) The started takedown's own copy of the offered plan and its `victimTo` (the next scan
+   *  overwrites `scanPlan`). */
+  private readonly activePlan: TakedownPlan = { kind: 'behind', alignX: 0, alignY: 0, alignZ: 0, faceYaw: 0, approach: 0, arc: 0, strike: 0, victimTo: null };
+  private readonly activeTo = { x: 0, y: 0, z: 0 };
   /** (G7) The controller override, reused (no object per step). */
   private ov: MoveOverride = { kinematic: undefined, yaw: 0, turnRate: 40, crouch: false };
   private ko: KoState = { limp: 0, lower: 0, bend: 0 };
@@ -219,28 +229,46 @@ export class TakedownController {
     if (!o || this.active) return;
     const g = this.g;
     const c = g.player.controller;
+    // (player-hygiene S3) the started takedown's own plan: a copy of the offer's (the scan's scratch is never mutated)
+    const plan = this.activePlan;
+    const op = o.plan;
+    plan.kind = op.kind;
+    plan.alignX = op.alignX;
+    plan.alignY = op.alignY;
+    plan.alignZ = op.alignZ;
+    plan.faceYaw = op.faceYaw;
+    plan.approach = op.approach;
+    plan.arc = op.arc;
+    plan.strike = op.strike;
+    if (op.victimTo) {
+      const to = this.activeTo;
+      to.x = op.victimTo.x;
+      to.y = op.victimTo.y;
+      to.z = op.victimTo.z;
+      plan.victimTo = to;
+    } else plan.victimTo = null;
     // leaving the anchor for moves that carry the attacker; hanging pulls (and an inverted choke) stay put
-    const hangDown = o.plan.kind === 'hangDown';
-    if (o.plan.kind !== 'below' && o.plan.kind !== 'window' && o.plan.kind !== 'inverted' && !hangDown) {
+    const hangDown = plan.kind === 'hangDown';
+    if (plan.kind !== 'below' && plan.kind !== 'window' && plan.kind !== 'inverted' && !hangDown) {
       if (g.traversal.attached) g.traversal.reset();
     }
     // (3.2.0) from behind on a guard on two legs: a grab, decided by a fresh press while holding them
-    const grab = GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped && !o.lethalOnly && lethal === undefined;
+    const grab = GRAB_KINDS.includes(plan.kind) && !o.e.def.quadruped && !o.lethalOnly && lethal === undefined;
     // (G7, AUDIT-WALLS row 5) the grab steps in over 0.42 s (CT 110936: 1.5 m in 0.35-0.45 s), rising out of a crouch
     // (hang-down) from the hang the hands reach down to him (`HANG_GRAB.reach`), the body stays where it hangs
-    if (grab && hangDown) o.plan.approach = HANG_GRAB.reach;
+    if (grab && hangDown) plan.approach = HANG_GRAB.reach;
     else if (grab) {
-      o.plan.approach = GRAB.approach;
+      plan.approach = GRAB.approach;
       c.standUp();
     }
     // (G7) the victim struggles from the contact, not the press
     // (coop-walk-fixes P6) the partner's hostage stays in the partner's hold: not seized here; the net layer is told
-    const assist = o.plan.kind === 'assist';
+    const assist = plan.kind === 'assist';
     if (assist) g.net?.assistTakedown?.(o.e, 'start', false);
-    else o.e.beginTakedown(lethal !== true, o.plan.approach);
+    else o.e.beginTakedown(lethal !== true, plan.approach);
     this.active = {
       e: o.e,
-      plan: o.plan,
+      plan,
       lethal: lethal === true,
       decided: grab || lethal !== undefined,
       t: 0,
@@ -251,7 +279,7 @@ export class TakedownController {
     };
     if (grab) this.grabs.held++;
     this.offer = null;
-    g.events.emit('takedown', { phase: 'start', lethal: lethal === true, kind: o.plan.kind });
+    g.events.emit('takedown', { phase: 'start', lethal: lethal === true, kind: plan.kind });
   }
 
   /** The nearest candidates (up to `TRY`), nearest first. */
@@ -275,7 +303,8 @@ export class TakedownController {
     for (let k = 0; k < vs.length; k++) {
       const e = vs[k]!;
       // (coop-walk-fixes P6) a guard the partner holds as a hostage is on offer (the team takedown), taken or alert
-      if (!e.alive || ((e.taken || (known && e.level === 'alert')) && !(net?.partnerHolds?.(e) ?? false))) continue;
+      // (G348) a dog: no takedown of any kind, from any state
+      if (!e.alive || e.def.quadruped || ((e.taken || (known && e.level === 'alert')) && !(net?.partnerHolds?.(e) ?? false))) continue;
       const d = hyp2(e.pos.x - p.x, e.pos.z - p.z);
       // insertion into the three nearest
       for (let j = 0; j < TRY; j++) {
@@ -310,9 +339,13 @@ export class TakedownController {
       if (i.state !== 'ground' && i.state !== 'wall') return null;
       this.eye.set(p.x, p.y + 1.2, p.z);
       this.head.set(best.pos.x, best.pos.y + 1.2, best.pos.z);
-      const hr = g.ballistics.ray(this.eye, this.head, G.STATIC);
-      const plan = assistPlan(p.x, p.y, p.z, best.pos.x, best.pos.y, best.pos.z, !hr.hit || hr.distance > Vector3.Distance(this.eye, this.head) - 0.2);
-      return plan ? { e: best, plan, lethalOnly: false } : null;
+      // (player-hygiene S3) the shorter sight check: the first hit's distance, or the segment's (no hit), allocates nothing
+      const los = g.ballistics.hitDistance(this.eye, this.head, G.STATIC) > Vector3.Distance(this.eye, this.head) - 0.2;
+      if (!assistPlanInto(p.x, p.y, p.z, best.pos.x, best.pos.y, best.pos.z, los, this.scanPlan)) return null;
+      const so = this.scanOffer;
+      so.e = best;
+      so.lethalOnly = false;
+      return so;
     }
     i.ax = p.x;
     // (hang-down) the hanging head's height (the rig root is the turned-over feet reference)
@@ -343,15 +376,18 @@ export class TakedownController {
     this.eye.set(p.x, p.y + (i.state === 'hang' ? 2.05 : i.state === 'hangDown' ? 0.05 - HANG_HEAD : 1.2), p.z);
     // (the plan's align is the attacker's own spot; from the hang it is never used: the body stays where it hangs)
     this.head.set(best.pos.x, best.pos.y + 1.2, best.pos.z);
-    const h = g.ballistics.ray(this.eye, this.head, G.STATIC | G.GLASS);
-    i.los = !h.hit || h.distance > Vector3.Distance(this.eye, this.head) - 0.2;
-    const plan = pickTakedown(i);
-    if (!plan) return null;
+    i.los = g.ballistics.hitDistance(this.eye, this.head, G.STATIC | G.GLASS) > Vector3.Distance(this.eye, this.head) - 0.2;
+    if (!pickTakedownInto(i, this.scanPlan, this.scanTo)) return null;
+    const plan = this.scanPlan;
     // archetypes: an enforcer's shield stops a grab from the front, a heavy only falls to a strike there
     // (G155) no heavies in the missions: the heavy's frontal rule is off; the enforcer's shield still stops a frontal grab
     // (hang-down) from over the head: no shield or frontal rule applies
     const rule = best.def.kind === 'heavy' || plan.kind === 'hangDown' ? 'ok' : grabRule(best.def.kind, plan.kind);
-    return rule === 'no' ? null : { e: best, plan, lethalOnly: rule === 'lethal' };
+    if (rule === 'no') return null;
+    const so = this.scanOffer;
+    so.e = best;
+    so.lethalOnly = rule === 'lethal';
+    return so;
   }
 
   /** (locomotion step 18, D7) `gameplay.grabToggle` (local only, D8). */
@@ -474,7 +510,7 @@ export class TakedownController {
           gr.talkI = 0;
           gr.talkT = 0;
         } else if (!g.puppet) g.hud.feedItem('Interrogated: nothing new'); // a client: the host's feed answers
-        if (!g.puppet) revealIntel(g, e.pos, info); // (spare 9) the client's intel comes from the host
+        if (!g.puppet) revealIntel(g, e.pos, info, e.id); // (spare 9) the client's intel comes from the host; (EN2) `eid` for a mission's named target
         // (joint-interrogation, G148) the host's own read with a partner's live bluff: the joint lines too. Host / solo
         // holder only (a client holder's read is the host's `seized` path; solo has no `net`, so no bluff)
         if (!g.puppet && lines && g.net?.jointLive?.(e, jointOf(info))) revealJoint(g, e.pos, jointOf(info));
@@ -608,7 +644,17 @@ export class TakedownController {
   private carryStep(dt: number): void {
     const g = this.g;
     this.carryT -= dt;
-    const b = g.enemyMgr?.bodies.find((x) => x.enemyId === this.carryId);
+    // (player-hygiene S3) an index loop, the first match (no closure per step)
+    const bs = g.enemyMgr?.bodies;
+    let b: NonNullable<typeof bs>[number] | undefined;
+    if (bs) {
+      for (let k = 0; k < bs.length; k++) {
+        if (bs[k]!.enemyId === this.carryId) {
+          b = bs[k];
+          break;
+        }
+      }
+    }
     if (b && g.stealth && !g.stealth.carrying && !this.active) {
       g.stealth.pickUpBody(b);
       this.carryId = '';

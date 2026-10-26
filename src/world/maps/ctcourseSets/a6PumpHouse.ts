@@ -351,7 +351,7 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit, opts: { repl
       id: 'a6-up',
       bay: 'A6',
       text: 'Get both of you onto the motor gallery at the dark west end.',
-      a: 'Boost your partner up, then climb the rescue line.',
+      a: 'Boost your partner up, then climb the rescue line to the gallery.',
       b: 'Drop the rescue line from the davit box for your partner.',
       done: { flag: A6_GAL_FLAG },
     },

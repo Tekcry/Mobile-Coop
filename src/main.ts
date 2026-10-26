@@ -14,12 +14,15 @@ import { campaignUnlocked, showEconomy } from './core/legacy';
 import { loadRejoin } from './core/rejoin';
 import { MenuState } from './world/menuScene';
 import { gateLimits } from './world/menuGate';
+import { readyCapMs } from './game/mapGate';
 import { IGNITE_S } from './world/menuShots';
 import { MainMenuScreen } from './ui/screens/mainMenu';
 import { TitleScreen } from './ui/screens/titleScreen';
 import { SettingsScreen } from './ui/screens/settingsScreen';
 import { GameState, type GameOptions, type SessionCallbacks } from './game/gameState';
 import { getMap } from './world/maps';
+import { mapBootAllowed, missionParam } from './game/mission/sectorMission';
+import { campaignStartBlock } from './game/mission/campaign';
 import { courseSoloFlag } from './game/modes/courseMode';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
@@ -161,7 +164,8 @@ async function boot(): Promise<void> {
     if (flags.legacy) menu.badge.append(profileBadge(app));
     app.screens.push(menu);
     void app.feedback.all().then((all) => menu.setCounter('feedback', all.length ? `${all.length}` : ''));
-    void starsFor('warehouseOps').then((st) => {
+    // (sector-batch, G328) the counter shows Saltmarsh Park's stars (the Sector Ops map)
+    void starsFor('campusOps').then((st) => {
       sectorStars = starsText(st);
       menu.setCounter('sectorops', sectorStars);
     });
@@ -254,7 +258,7 @@ async function boot(): Promise<void> {
       label: 'Sector Ops',
       order: 10,
       counter: () => sectorStars,
-      ctx: 'Solo or co-op: the Warehouse in sections, each harder than the last. Objective, then exit. Kills optional. A star for each difficulty completed.',
+      ctx: 'Solo or co-op: Saltmarsh Park in sections, each harder than the last. Objective, then exit. Kills optional. A star for each difficulty completed; a harder clear fills the easier stars too.',
       action: () => a.screens.push(new SectorOpsScreen(a, (o) => startGame(o))),
     }),
   );
@@ -394,10 +398,18 @@ async function boot(): Promise<void> {
     // (the last match / the menu stage freed first: never two matches in memory; nothing may hold the menu)
     app.onAvatarStyle = null;
     app.releaseState();
+    const gen = bootGen;
     void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }), missions: () => openMissions(), briefing: (id) => openMissions(id) })
       .then((st) => {
         app.setState(st);
         app.crashLog?.stage(`in ${what}`);
+        // (map-ready S2) the state is held behind the boot screen: the load gate (`mapGate.ts`) releases it, then the boot
+        // screen goes (`finally`). Never rejects.
+        if (flags.mapReady)
+          return st.runGate((p, text) => {
+            if (gen === bootGen) setBoot(0.5 + 0.5 * p, text);
+          }, readyCapMs(location.search));
+        return undefined;
       })
       .catch((e: unknown) => {
         console.error(e);
@@ -409,7 +421,10 @@ async function boot(): Promise<void> {
         if (cbOverride) cbOverride.quit();
         else goToMenu();
       })
-      .finally(() => document.getElementById('boot')?.classList.add('done'));
+      // (map-ready S2: a newer load owns the boot screen once this one's gate was closed by it)
+      .finally(() => {
+        if (!flags.mapReady || gen === bootGen) document.getElementById('boot')?.classList.add('done');
+      });
   };
 
   // (3.1.4: every run in its own match, its settings set before the map loads - a change mid-match is not what a run
@@ -445,20 +460,30 @@ async function boot(): Promise<void> {
   // dev solo flag (`&course=solo`) boots it single player instead
   // (sector-ops slice 3: Sector Ops the same way, `?net=local&autostart=warehouseOps&mode=sector`)
   const localMode = flags.mode === 'course' && !courseSoloFlag() ? 'course' : flags.mode === 'sector' ? 'sector' : null;
-  const localCourse = !!flags.autostart && !!localMode && flags.coop && flags.net === 'local';
+  // (FLG) a mission map (Tallow Wharf) boots by URL only with `?missions=1`; off: the menu, never plain Sector Ops
+  const autostart = flags.autostart && mapBootAllowed(getMap(flags.autostart)) ? flags.autostart : null;
+  const localCourse = !!autostart && !!localMode && flags.coop && flags.net === 'local';
   if (localCourse && localMode) {
     goToMenu();
-    const mapId = getMap(flags.autostart!).id;
+    const mapId = getMap(autostart!).id;
     void loadCoop()
       .then((m) => m.autoLocalCourse(app, coopApi, mapId, localMode))
       .catch((e: unknown) => {
         console.error(e);
         app.toasts.show('Co-op unavailable', 'warn');
       });
-  } else if (flags.autostart) {
-    // infiltration: the mission picks its map
-    const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === flags.autostart) ?? MISSIONS[0]! : null;
-    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+  } else if (autostart) {
+    // (mission-rules R2, G2 / G48, A9) a URL boot is one player: a campaign map or mission never starts solo (two tabs
+    // over `?net=local`, or Play > Co-op, walk it)
+    const block = flags.mode === 'sector' ? campaignStartBlock(getMap(autostart).missions, missionParam(), 1) : null;
+    if (block) {
+      goToMenu();
+      app.toasts.show(block, 'warn');
+    } else {
+      // infiltration: the mission picks its map
+      const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === autostart) ?? MISSIONS[0]! : null;
+      startGame({ map: getMap(mission ? mission.map : autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+    }
   }
   else goToMenu();
   editorWalk?.attach(app);

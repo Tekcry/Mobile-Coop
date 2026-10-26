@@ -327,8 +327,8 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit, opts: { r
     {
       id: 'a2-back',
       bay: 'A2',
-      text: 'Now the other way round.',
-      a: 'Cross behind the shunter while your partner isolates.',
+      text: 'Now swap: the other one of you crosses the neck.',
+      a: 'Cross the neck behind the shunter while your partner isolates.',
       b: 'Isolate at cabinet two so your partner can cross.',
       done: { flag: A2_EAST_FLAG },
       timer: A2_GATE,

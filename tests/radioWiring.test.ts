@@ -266,5 +266,10 @@ describe('radio net wired: reports and the command call', () => {
     expect(em.alarmRaised).toBe(true);
     expect(em.alarmBy).toBe('radio');
     expect(other.radio).not.toHaveBeenCalled();
+    // (guard-rules S5, A7) a second command call through: no second alarm while the repeat lock is shut (alarmRepeat
+    // off, today's one per load); the net still counts the call, the manager does not raise
+    em.radioNet.startCall(caller.num, -1, 'command', 0.2);
+    run(1);
+    expect([em.radioNet.alarms, em.guardAlarms, em.sectionCounts.radioAlarms]).toEqual([2, 1, 1]);
   });
 });

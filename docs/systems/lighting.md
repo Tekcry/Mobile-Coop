@@ -6,8 +6,9 @@ Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G101, G102, G181, G352)
 (Section 5.1).
 
 Light parity (bible 5.1): what the player sees, the light meter and guard perception agree. Gameplay reads only the light
-field (collision, the light bake, the noise model), never the render state. One gap is decided but not built yet:
-character shadows (G352, Parity below).
+field (collision, the light bake, the noise model), never the render state. Character shadows in the meter and guard
+perception (G352) are built dark behind `charShadowLight` (`?charlight=1`; owner Sector Ops Build; switched on by
+Michael's yes on the walk item, char-shadow-meter BRIEF A9): Parity below.
 Security cameras are outside the light model (marlow-jammer, Michael M3): each has its own IR illuminator, so inside its
 range and cone it reads every body at `CAMERA.irLight` 1 (fully lit); lamps, jammed or shot lamps and dark corners do
 not change what a camera sees. Lights matter for guards and the meter only. (camera-range) Only distance thins a camera's
@@ -26,8 +27,9 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 - Decided (G333, "Everywhere"): hardened lit choke points are allowed on campaign and Sector Ops maps:
   un-shootable fixtures and guarded or locked breakers. A route around the choke point always stays. This loosens the
   older "every lit chokepoint can be darkened at least two ways" (docs/level-design.md).
-- Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:
-  `DOOR_SHUT` 0.05 in `world/lightField.ts`.
+- Built (G41, sector-batch): one 15% door threshold. `DOOR_SHUT` 0.15 in `world/lightField.ts` (the field, the bake's
+  shut flags, the torch shadow set) equals `DOOR.driveShut` (`world/doors.ts`; `tests/doorLight.test.ts` pins it). A
+  peek crack and a stick-driven door under 15% keep `open` 0, so they are shut; guard sight and sound: `ai.md`.
 - Decided, light half built (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
   sees through glass. Light half built (bible L15): glass, clear or frosted, is never a light shape
   (`src/voxel/lightShapes.ts:23-24`), so the light field and the bake pass it. The sight rules (clear glass passes
@@ -252,14 +254,40 @@ capsules.
   characters its map does not hold (a partial fit). A fresh pick draws capsules until its map has been copied once.
 - Budget: one texture per lit shader while on. Without WebGL2 float or half-float targets the capsules stay. (The voxel
   render path and `?voxels=1` are removed, G282.)
-- Parity: the meter and guard perception never had character shadows (capsules were render-only too) and still have
-  none. Decided, not built yet (G352, replaces G315's render-only shadows and the bible's old L11): light parity holds
-  for character shadows, so the meter and guard perception read the real-time character shadows the picture shows (a
-  build job). The darkness curve's input (`nsLampRaw`) is unchanged. On screen a mapped lamp's term drops to 0.15
-  inside a silhouette, now also from casters the capsules lacked (partner, bodies, weapons, poses) and on a body's own
-  limbs; the meter reads that lamp in full there (`lr14-build.md`, parity note).
-- Co-op: each machine uses its own setting and its own nearest lamps; no wire change.
-- Tests: `tests/charShadowSet.test.ts`; `scripts/e2e-lightbake.mjs` (smooth Epic: on, 4 slots, `LAMP_CSHADOW`
+- Parity, flag off (today's default): the meter and guard perception have no character shadows (the capsules are
+  render-only). The darkness curve's input (`nsLampRaw`) is unchanged. On screen a mapped lamp's term drops to 0.15
+  inside a silhouette, also from casters the capsules lack (partner, bodies, weapons, poses) and on a body's own limbs;
+  the meter reads that lamp in full there (`lr14-build.md`, parity note).
+- Parity, with `charShadowLight` on (G352, replaces G315's render-only shadows and the bible's old L11; job
+  char-shadow-meter): one character contract (`world/charOccluders.ts` `CharOccluders`: one upright capsule per
+  character, filled from the sim every step; today's interim fill, `game/charOccluderFill.ts`, holds the players and
+  the live guards, dogs as guards; bodies and the real shapes come with Guard AI's and Player's fills) is read by the meter, guard perception and the picture's round shadows (`pictureInto` feeds
+  `BakedLamps.capsules`). A source's share at a point is multiplied by the soft capsules between them:
+  `level(p) = ambient + bounce + moon x T_moon + sum of lamps L_i x T_i + sum of flashlights D_j x T_j`, `T_s` the
+  product of `capsuleTransmit(p, s, c)` over the capsules c between (the sampled character's own skipped, A4; a
+  character holding the source, within r + 0.6 m of its axis, skipped, A5; a lamp under `CHAR_LIGHT.minLevel` 0.04 not
+  shaded). `capsuleTransmit` is the shaders' `lampCapsule` line for line (`LAMP_CAPSULE_GLSL` is built from the same
+  `CAPSULE` numbers). "Every preset darkens a character's shadow on you from the same lamps by the same amount; higher
+  presets draw the real outline from the nearest lamps, the others draw soft round shadows."
+
+  | Preset | Picture under a character | Meter |
+  | --- | --- | --- |
+  | Off (char shadows off) | round shadow from every lamp (16 capsules, 4 per lamp) | same formula, every set lamp |
+  | Low / Medium | real outline from the 1 nearest lamp, round from the rest; both floor 0.15 | same; the outline lamp reads the capsule |
+  | High / Ultra / Epic | real outline from 2 / 3 / 4 nearest, round from the rest | same |
+  | Shadows Off (moon) | no moon character shadow (cascades off) | moon counted (A6) |
+  | Flashlights | torch shadow maps on every tier (`TORCH_SHADOW_PRESET.off` 256, `world/torchShadowSet.ts`) | the capsule formula per flashlight, the holder rule (A5) |
+  | `?gfx=min` debug path | no baked lamps, no round shadows | unchanged rule; not a player preset |
+- Known limits with the flag on (picture only): 16 capsules in all, 4 per lamp (`bakedLamps.ts` `MAX_CAPSULES`,
+  `CAPS_PER_LAMP`), in contract order (players, then the others nearest the local player); outline edges differ from
+  the capsule by limbs and weapons; the holder rule (A5) also skips a baked lamp within r + 0.6 m of a character's axis
+  in the meter while the picture still shades it; at Shadows Off the picture draws no moon character shadow while the
+  meter counts it (A6).
+- Co-op: each machine uses its own setting and its own nearest lamps; no wire change. With the flag on a client's own
+  meter reads snapshot guard positions, so a shadow edge can lead or trail the host's by up to ~0.3 s (A7). A client
+  fills its partners from its own sim view of them (`net/charMates.ts`), in the host's player order.
+- Tests: `tests/charShadowSet.test.ts`, `tests/charOccluders.test.ts`, `tests/charOccluderFill.test.ts`;
+  `scripts/e2e-lightbake.mjs` (smooth Epic: on, 4 slots, `LAMP_CSHADOW`
   compiled, maps copied, every shader <= 16 textures with the guards alerted).
 
 ## Lamp light volume (Kestrel editor only)

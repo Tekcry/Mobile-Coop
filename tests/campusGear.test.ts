@@ -1,14 +1,17 @@
 /**
  * (sector-redesign gear, guard-ai S11 data) Saltmarsh Park gear tags and response-team sweep points: S1-S3 carry no gear,
- * S4 / S5 default to helmets with body armour on the NOC pair + security supervisor (S4) and the response team + token room
- * officers (S5), no dog has gear, every section passes `validateGuardAi`, and every sweep point is on the runtime nav grid
- * (ground storey) and reachable from the section's reinforce entry.
+ * S4 / S5 put body armour on the NOC pair + security supervisor (S4) and the response team + token room officers (S5)
+ * (guard-rules S1, A15: no helmet tags, no section gear: helmets come from the difficulty and the stage), shield-led
+ * response teams in S4 / S5 only (A4), no dog has gear, every section passes `validateGuardAi` and `checkSectorGuards`,
+ * and every sweep point is on the runtime nav grid (ground storey) and reachable from the section's reinforce entry.
  */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { campusOps } from '../src/world/maps/campusOps';
 import { CAMPUS_SECTORS } from '../src/world/maps/campusSectors';
 import { validateGuardAi } from '../src/ai/guardAiData';
+import { checkSectorGuards } from '../src/game/sectors';
+import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import type { GearGuard } from '../src/world/maps/campusS4Data';
 import { runtimeNav } from './helpers/runtimeNav';
 
@@ -28,24 +31,38 @@ describe('campus gear tags', () => {
     }
   });
 
-  it('S4: helmet by default; the NOC pair and the security room supervisor wear both', () => {
-    expect(CAMPUS_SECTORS[3]!.gear).toBe('helmet');
+  it('S4: no section gear; the NOC pair and the security room supervisor wear armour', () => {
+    expect(CAMPUS_SECTORS[3]!.gear).toBeUndefined();
     const noc = both(3, 'noc');
     const sup = both(3, 'supervisor', 'sec');
     expect(noc).toHaveLength(2);
     expect(sup).toHaveLength(1);
     const expected = new Set([...noc, ...sup]);
-    guardsOf(3).forEach((g, i) => expect(g.gear, `S4 #${i + 1}`).toBe(expected.has(i) ? 'both' : undefined));
+    guardsOf(3).forEach((g, i) => expect(g.gear, `S4 #${i + 1}`).toBe(expected.has(i) ? 'armour' : undefined));
   });
 
-  it('S5: helmet by default; the response team and the token room officers wear both', () => {
-    expect(CAMPUS_SECTORS[4]!.gear).toBe('helmet');
+  it('S5: no section gear; the response team and the token room officers wear armour', () => {
+    expect(CAMPUS_SECTORS[4]!.gear).toBeUndefined();
     const team = both(4, 'response');
     const token = both(4, 'posted', 'token');
     expect(team).toHaveLength(4);
     expect(token).toHaveLength(2);
     const expected = new Set([...team, ...token]);
-    guardsOf(4).forEach((g, i) => expect(g.gear, `S5 #${i + 1}`).toBe(expected.has(i) ? 'both' : undefined));
+    guardsOf(4).forEach((g, i) => expect(g.gear, `S5 #${i + 1}`).toBe(expected.has(i) ? 'armour' : undefined));
+  });
+
+  it('(guard-rules S1, A15) no helmet tag anywhere; every section passes checkSectorGuards', () => {
+    for (let s = 0; s < CAMPUS_SECTORS.length; s++) {
+      const sec = CAMPUS_SECTORS[s]!;
+      expect(sec.gear === 'helmet' || sec.gear === 'both', `section ${s + 1}`).toBe(false);
+      for (const g of guardsOf(s)) expect(g.gear === 'helmet' || g.gear === 'both', `section ${s + 1}`).toBe(false);
+      expect(checkSectorGuards(sec), `section ${s + 1}`).toEqual([]);
+    }
+  });
+
+  it('(guard-rules S1, A4) shield-led response teams in S4 / S5 only; warehouseOps none', () => {
+    expect(CAMPUS_SECTORS.map((s) => s.shieldTeams === true)).toEqual([false, false, false, true, true]);
+    for (const s of WAREHOUSE_SECTORS) expect(s.shieldTeams, s.id).toBeUndefined();
   });
 
   it('no dog has gear', () => {

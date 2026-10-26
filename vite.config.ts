@@ -2,7 +2,9 @@ import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { kestrelEditor } from './scripts/kestrel/editor-server';
+import { shippedBakes } from './scripts/prebake/emit';
 import { pickBuildSha } from './src/core/buildSha';
+import { previewBuildOf, previewDefines } from './src/core/previewBuild';
 import { PRECACHE_GLOBS, PRECACHE_IGNORES } from './src/pwa/precacheGlobs';
 import { RUNTIME_CACHING } from './src/pwa/runtimeCaching';
 
@@ -10,8 +12,9 @@ import { RUNTIME_CACHING } from './src/pwa/runtimeCaching';
 const base = process.env.VITE_BASE ?? '/';
 // Preview build (dev branch) served under /<repo>/preview/ next to the live game (VITE_PREVIEW=1). A named slot
 // (VITE_PREVIEW_ID=ct: the ct-movement branch under /<repo>/ct/) gets its own save database and label.
-const previewId = /^[a-z0-9-]{1,16}$/.test(process.env.VITE_PREVIEW_ID ?? '') ? (process.env.VITE_PREVIEW_ID as string) : '';
-const preview = process.env.VITE_PREVIEW === '1' || previewId !== '';
+// (prebake-preview) read by `previewBuildOf`, which the campus prebake shares (scripts/prebake/vitest.prebake.config.ts)
+const previewBuild = previewBuildOf(process.env);
+const { preview, previewId } = previewBuild;
 // (G183) the build's commit, shown next to the version so every build is identifiable: the checked-out folder's HEAD
 // (each Pages slot checks out its own branch), GITHUB_SHA only when git fails (src/core/buildSha.ts)
 const buildSha = pickBuildSha(
@@ -27,8 +30,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.0'),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     __BUILD_SHA__: JSON.stringify(buildSha),
-    __PREVIEW__: JSON.stringify(preview),
-    __PREVIEW_ID__: JSON.stringify(previewId),
+    ...previewDefines(previewBuild),
   },
   optimizeDeps: {
     // Havok resolves its WASM relative to its own module; prebundling breaks that.
@@ -53,6 +55,8 @@ export default defineConfig({
   plugins: [
     // the level editor's endpoints (dev server only; editor.html is never built)
     kestrelEditor(),
+    // (map-ready S4) the prebaked campus lamps as `bakes/*` (scripts/prebake.mjs; never precached, `bakes` runtime rules)
+    shippedBakes(),
     VitePWA({
       // (sw-reload) 'prompt': a new deploy's worker waits (no mid-match reload); src/pwa/pwa.ts activates it on the menu
       registerType: 'prompt',

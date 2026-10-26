@@ -2,10 +2,11 @@ import type { CourseSummary } from '../course/courseRating';
 import type { Enemy } from '../../ai/enemy';
 import { emptyKinds, type EnemyKind } from '../../ai/enemyDefs';
 import type { HitInfo } from '../damage';
-import type { Blip } from '../../ui/hud/minimap';
 import type { Vector3 } from '../../core/babylon';
 import type { Interactable } from '../interactables';
 import type { SlotPoint } from '../spawnSlots';
+import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
+import type { KitKind } from '../teamMoves';
 
 /** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`; `sector` is Sector Ops. */
 export type ModeId = 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector';
@@ -37,6 +38,8 @@ export interface SessionStats {
   alarms?: number;
   /** Training course: the results panel (T1c). */
   course?: CourseSummary;
+  /** (campus-greybox A28) A `?sectorStart=N` run (or its co-op client's): nothing goes to the save (no progression). */
+  practice?: boolean;
 }
 
 export function emptyStats(mode: ModeId, mapId: string): SessionStats {
@@ -73,6 +76,9 @@ export interface GameMode {
   onPlayerOut?(): void;
   /** The alarm went off; return true when the mode brings its own reinforcements (Hunter doubles the count). */
   onAlarm?(at: Vector3): boolean;
+  /** (guard-rules S5) The next alarm brings no reinforcements (Sector Ops at the stage cap): the alarm banner says
+   *  none are inbound. */
+  alarmQuiet?(): boolean;
   /** An interactable the mode put down was used. */
   onInteract?(it: Interactable): void;
   /** Co-op host: a client reported a verb only it can see (course drills, DECISIONS C10). */
@@ -83,6 +89,9 @@ export interface GameMode {
   onRemoteMove?(id: string, mode: string): void;
   /** Co-op host: a team move started between `a` and `b` (player ids; undefined = the host). */
   onTeamMove?(a: string | undefined, b: string | undefined): void;
+  /** (coop-kit K0) Co-op host: kit move `kind` completed at kit spot `spot` ('' = a free move away from any spot) by `a`
+   *  and `b` (player ids; undefined = the host), once per completed move (`kitDone`, game/kit/kitApi.ts). */
+  onKitDone?(kind: KitKind, spot: string, a: string | undefined, b: string | undefined): void;
   /** Co-op host: a client's `use` of an item is running (`active` true before its `onUse`, false after). */
   onRemoteUse?(id: string, active: boolean): void;
   /** Co-op host: a client's takedown finished (host-checked); `kind` is the client's takedown kind ('' unknown). */
@@ -96,6 +105,8 @@ export interface GameMode {
   /** (marlow-bays item 3) The pause menu's "Restart at checkpoint" (solo or the co-op host): the same clean retry as
    *  everyone down (Sector Ops: the section; Course: the bay), every player back at the checkpoint. False: not now. */
   restartCheckpoint?(): boolean;
+  /** (hud-guidance B4, G343 / HG8) Field Terminal > Objectives rows; null: none here (GameState asks the net layer). */
+  objectiveLines?(): ObjectiveLine[] | null;
   /** (marlow-bays R3) The checkpoint a resumed co-op match starts from (course: the current bay, 1-based). */
   resumeBay?(): number;
   /** (coop-rejoin) The current checkpoint's slot points (slot 0 the host, slot 1 the partner; one is fine): where the
@@ -103,6 +114,5 @@ export interface GameMode {
   checkpointSpawns?(): SlotPoint[];
   /** (coop-rejoin) Co-op host: send the mode's whole state on the next step (a client joined or reconnected mid-run). */
   resync?(): void;
-  blips(): Blip[];
   dispose(): void;
 }
