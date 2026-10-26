@@ -1,7 +1,21 @@
 # piano-escape - STATE
 Owner: Night Shift | Campaign Build. Status: current.
 
-## RESUME 2026-10-26 ~20:25 SAVE (Night Shift | Campaign Build; Michael ~19:40: piano scene is the main focus)
+## RESUME 2026-10-26 ~21:00 (Night Shift | Campaign Build, after the ~20:45 swap; read this block first)
+Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. ROADMAP Now row 20.
+1. Re-check 3 items L1a / L1b / L2 / L5 + polish applied to the PLAN (58a76a36d): period 91.03 = loopPeriod(); t0 to the
+   client as one optional field of the  message (claims: protocol.ts, S4); blackoutSearchSlots after fill(); S4
+   pass line. SIGNOFF (sign-off 2) sent to the orchestrator ~20:58 for Michael's click (main Q + Q2 + Q3).
+2. On Michael's Approve: S1b greybox (Sonnet) from PLAN S1b; tell Sector Ops (SO2 / SO4) the branch + head.
+3. Building now (max 2): S2 intro + EMP (Opus) on feature/piano-escape-s2 (worktree -s2), brief
+   scratch/campaign/piano/S2-brief.md, report S2-report.md; on stubs (none of #602 / #603 / #604 on master: TODO lines).
+   S5 music A/B (Sonnet) on feature/piano-escape-s5 (worktree -s5), brief S5-brief.md, report S5-report.md.
+   Each done -> one checker (S2 Opus; S5 Sonnet) -> its own PR to master (or merge into feature/piano-escape if #606 still open).
+4. PR #606 (S1 + S3): head 58a76a36d, checker re-posted; CI + automatic affected run pending.
+5. Tallow: #522 merged; #578 train-ready (base master); then retarget #581 -> master, then #583.
+Next: wait for S2 / S5 and Michael's click; S1b on Approve; #578 train.
+
+## OLD RESUME 2026-10-26 ~20:25 SAVE (Night Shift | Campaign Build; Michael ~19:40: piano scene is the main focus)
 Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. ROADMAP Now row 20.
 Setting history: piano works (plan approved ~20:15 as drawn) -> bunker (~20:05) -> one room / more guards (~20:10) ->
 STORM GRAIN MILL (Michael picked ~20:15; map id `thornbeckMill`, BRIEF A8, A12-A16) -> linear cinematic path, forced
