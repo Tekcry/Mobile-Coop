@@ -21,9 +21,16 @@ Owner: Night Shift | Player Build. Status: current (job doc).
   detailed PART-2 section and its own plan check.
 - Owed elsewhere (not this job): Marlow's pull-up and shutter poses (shared `src/anim/clips/team.ts`); mission-engine
   PLAN row 106 (orchestrator, BRIEF A1).
-- Next: plan check 3 (fresh Opus, `docs/templates/plan-check.md` + `node scripts/claims-check.mjs --plan
-  docs/coop-kit/PLAN.md --name feature/coop-kit`); on PASS send CLIP-LIST to the orchestrator and start A1 (Opus) in
-  C:/NightShift/Mobile-Coop-coop-kit-a1 (`feature/coop-kit-a1` from origin/master once #578 is on it).
+- 2026-10-26 ~19:00: plan check 3 FIX, one item (A1 must not remove `flags.coopKit`: #583's
+  tests/missionFlags.test.ts sets and reads it) -> applied 628e83bc (coopKit stays a writable gate, A1 changes only its
+  load value). Second FIX went to the orchestrator: OK to start A1, no 4th check.
+- A-log (orchestrator ~19:05, prototype mode): (A15) A1 starts on the plan check 3 fix without a fourth plan check; the
+  slice checker covers it. Undo: run plan check 4 on 628e83bc before A1's PR. (A16) A1 is cut on top of
+  origin/feature/mission-b-sector (#578, still open: red CI test, behind #522) as feature/coop-kit-a1 in
+  C:/NightShift/Mobile-Coop-coop-kit-a1 (PR base feature/mission-b-sector), retargeted to master when #578 lands.
+  Undo: rebase A1 onto master after #578.
+- Next: A1 (Opus builder) in C:/NightShift/Mobile-Coop-coop-kit-a1; then its checker, one test set, PR; send
+  CLIP-LIST to the orchestrator.
 
 ## Done
 - 2026-10-25: BRIEF, PLAN, STATE (planner).
