@@ -368,6 +368,8 @@ Landed in train 119/120: #481, #488, #489, #511, #512, #513.
    Next slices: S15 (laptop GPU per step; builder waits for CPU < 80%), S5 after #317, S16 / A20 (docs/map-ready/PLAN.md).
 3. J16 char-shadow-meter: #557 S2c (master): 2x Opus FIX -> fix 1 6eaca54b -> both PASS, checker posted; waits on
    affected-e2e (co-op group). Next: S4 (after J11 PR B on master). F27 (playerRefsInto) logged to Guard AI.
+   F32 (mine, watch): shadowCues S3b over its 2432 B limit once in a full parallel run (#559 body); a fix on the
+   first CI / e2e fail, with a repeat guard.
 4. J10 light: Michael 11:45 "Approve but only s1, let me walk it before doing any more". L2-S1/S2/S3 briefs on HOLD
    until his S1 walk (feature/light-realism-l2). No L2 builds.
 5. Polish carried (not blocking): S1/S2 lane fragments `kind: minor`; s4-a fragment wording; S3 r1 polish
