@@ -4,7 +4,7 @@ status: open
 Owner: Campaign Build. Lead: Night Shift | Campaign Build. Released 2026-10-26 ~13:25. Orchestrator call 12:55: "NET3
 firstPlace: gate it behind `missions` (unfinished work ships dark)".
 
-Base: origin/feature/mission-engine at 377e4c608cb0e1ad1ac2b0efd8cc0a1bc22f7f28 (resolve the short sha with `git rev-parse`
+Base: origin/feature/mission-engine at 377e4c608c4f438dbb2013a7ad7b1ec66375f7a4 (check with `git rev-parse`
 if the full one differs). New branch: feature/mission-net3-gate. Cloud: guard on the branch name only
 (`test "$(git rev-parse --abbrev-ref HEAD)" = feature/mission-net3-gate`), per agent-preamble "Cloud sessions"; no CPU
 wait in the cloud. Model: Opus (src/net). Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
