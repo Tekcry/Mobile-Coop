@@ -563,8 +563,8 @@ A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task 
 tested sha. No message per verdict. Slots, job counts and the desktop's gates: `docs/RULES.md` "Machines".
 - Request (from any desktop, never touches your working tree): `node scripts/laptop-queue/request.mjs --sha <ref> [--pr N]
   [--set name] [--jobs N] [--requester "<title>"] (--suites "e2e-coop e2e-netmove" | --full | --alone --step "<cmd>" [--env K=V])`.
-  Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
-  the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
+  Needs a pushed sha; pushes `requests/<id>.json` to the `laptop-queue` branch, prints the id (`--dry-run`: shows, no push).
+  An `--alone` step may start with `serve ` (`serve.mjs`); a `scripts/perf.mjs` step gets `--budget` unless it says `--no-budget` (`perfStep`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
   `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full requests (one slot): fixes
   (PR label `fix` or `request.mjs --fix`; `LQ_FIX_FIRST` 0 = off; no wait bound), front branches (`LQ_FRONT_BRANCHES`;
@@ -612,21 +612,24 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
-- Affected e2e on every PR head (process audit 2026-10-24; laptop only, every `LQ_AFFECTED_POLL_MIN` (2; 0 = off) min):
-  each open non-train, non-draft PR head with no `affected-e2e` status and no open affected request gets the suites
-  `request.mjs --affected` picks (merge-base with `origin/master`, `--no-renames`, the DIRECT tier; lib
-  `affectedSuites`), without the GPU and LEGACY suites (`affectedGateSuites` in `scripts/e2e-affected.mjs`; audit
-  2026-10-25: run by name, nothing is REPORT ONLY, so they gated). None reached: `affected-e2e` success "no browser
-  suites (docs / unit only)". Otherwise it enqueues a pr request (requester `affected-e2e`, set `affected`, PR number,
-  branch) and posts `affected-e2e` pending; the verdict goes to `laptop-e2e/affected` and `affected-e2e` (failures
-  comment on the PR as usual). A conflicting head gets error, not a run; F51: after master moves, open affected
-  requests' PRs are re-read (`LQ_MERGE_RECHECK_S` 60 s, `LQ_MERGE_RECHECK_MIN` 10 min) until known and a conflict
-  retires at once. A newer head on the same branch supersedes the older open request (its `affected-e2e` gets error
-  "superseded"); other PRs never supersede each other and take turns in arrival order beside the leads' requests. Opt
-  out: label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
-  (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
-  affected request is requested again (4.101.1). A head with only docs-only commits since the last final verdict carries
-  it, or waits for a live older request (`LQ_PR_CARRY` 0 = off).
+- Light parity on every train (Michael 2026-10-25, Q27; J20): each train run adds `e2e-darkness` (lib `TRAIN_PARITY`), so a
+  light-meter-vs-picture failure fails `laptop-e2e` and holds the release. Off with no release: `config/train-parity.json`
+  `{ "off": true, "why", "by" }` on `laptop-queue` (pending says "; parity off"; delete to undo; tell Sector Ops) or `LQ_TRAIN_PARITY=off`.
+- Affected e2e on every PR head (process audit 2026-10-24; laptop only, every `LQ_AFFECTED_POLL_MIN` (2; 0 = off) min): each
+  open non-train, non-draft PR head with no `affected-e2e` status and no open affected request gets the suites `request.mjs
+  --affected` picks (merge-base with `origin/master`, `--no-renames`, the DIRECT tier; lib `affectedSuites`). Only gate suites
+  gate, also in a desktop failure's laptop rerun (`affectedGateSuites`: no GPU, LEGACY or AUDIO); LEGACY / AUDIO ones go in its
+  `report` list in the slots the cap leaves (lib `affectedReport`) and run after them with `E2E_REPORT`, REPORT ONLY (J20 T4).
+  None reached: `affected-e2e` success "no browser suites (docs / unit only)". Otherwise it enqueues a pr request (requester
+  `affected-e2e`, set `affected`, PR number, branch) and posts `affected-e2e` pending; the verdict goes to
+  `laptop-e2e/affected` and `affected-e2e` (failures comment on the PR as usual). A conflicting head gets error, not a run;
+  F51: after master moves, open affected requests' PRs are re-read (`LQ_MERGE_RECHECK_S` 60 s, `LQ_MERGE_RECHECK_MIN` 10 min)
+  until known and a conflict retires at once. A newer head on the same branch supersedes the older open request (its
+  `affected-e2e` gets error "superseded"); other PRs never supersede each other and take turns in arrival order beside the
+  leads' requests. Opt out: label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork
+  heads (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
+  affected request is requested again (4.101.1). A head with only docs-only commits since the last final verdict carries it, or
+  waits for a live older request (`LQ_PR_CARRY` 0 = off).
 - Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
@@ -670,31 +673,28 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
 ## Flakes and quarantine
 The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; replaces "flake stands" and the old
 `KNOWN_FLAKY` list in `docs/backlog.md`).
-- What counts: a failure in a quarantined suite before its expiry prints KNOWN FLAKY (owner, expiry) and does not fail
-  the run; the suite still runs. Any other failure counts only if it also fails in a solo rerun on the same sha. A
-  suite that fails and then passes on the same sha is a flake: it counts as a pass, and its owner fixes the test in the
-  next batch PR. A crash or timeout mid-suite is never a pass.
-- Committed quarantine: `scripts/e2e-quarantine.json` lists { suite, owner, expiry, reason } (a part like
-  `e2e-sectorops:6` or a whole suite) and `owners` (who fixes each suite's flakes; every REQUIRED suite has one). Add an
-  entry only with an owner, an ISO expiry and the failure under `docs/backlog.md` "Flaky e2e suites"; an expired entry
-  counts again; the owner removes it once fixed. `tests/e2eQuarantine.test.ts` enforces this (and `_doc` naming this
-  heading). run-e2e also reads `E2E_QUARANTINE_FILE` (the queue's automatic list below).
-- Auto-quarantine (laptop queue): a failed, non-quarantined suite reruns once alone on the same sha; a pass is logged as
-  a flake (state.json `flakes`, runs per day in `suiteRuns`). A suite may flake 2 times in 7 days (lib `FLAKE_BUDGET`,
-  `FLAKE_BUDGET_DAYS`); the next flake quarantines it for 48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`,
-  owner from `owners`, else the orchestrator), so later runs print it KNOWN FLAKY instead of rerunning it.
-  `flake-budget.md` in the same folder holds the per-suite rates; a run that flaked or hit a quarantined failure adds
-  that table to its PR comment (a passing run comments only when it recorded a new flake). Only flakes after a suite's
-  last auto quarantine count; an auto entry just expires. One automatic list, the laptop's (F48): the desktop drops its
-  own and forgives only the committed list (its runs and trains); its failures rerun on the laptop. Older commits ignore
-  `E2E_QUARANTINE_FILE`. The Slow table holds 7 days of `SLOW:` lines (F35), each also on its status as "; slow:".
-- Hard-rule checks (vitest): `tests/noRouteTimer.test.ts` (rule 6, G334; allowlist `pairGates[].window`, SECTOR hold
-  keys); `tests/importBoundary.test.ts` (rule 10: `core/quality`, `qualityManager` and the governor fenced; allowlist
-  `benchmark.ts`, `core/display` readers); `tests/replayDeterminism.test.ts` (rule 8, G143: patrols and detection
-  replay equal under a poisoned `Math.random`; the `src/ai` allowlist shrinks as Guard AI seeds; a 1 m shift differs).
-- Repeat quarantine (Michael 2026-10-25, Q30, "Becomes blocking"): a suite due a second quarantine within 14 days of
-  its last stays blocking (its failures fail the run) and its owner gets a ROADMAP fix job. Until the queue code does it
-  (J20), Test Runner applies it by hand from `flake-budget.md` and tells the orchestrator.
+- What counts: an assert failure (exit 1) of a quarantined suite before its expiry prints KNOWN FLAKY (owner, expiry), not a
+  fail; a timeout or crash always fails (J20 T8). Any other failure counts only if a solo rerun on the same sha fails too; fail
+  then pass on the same sha is a flake: a pass, and its owner fixes the test in the next batch PR.
+- Committed quarantine: `scripts/e2e-quarantine.json` lists { suite, owner, expiry, reason } (a part like `e2e-sectorops:6` or a
+  whole suite) and `owners` (every REQUIRED suite has one). Add an entry only with an owner, an ISO expiry and the failure under
+  `docs/backlog.md` "Flaky e2e suites"; expired counts again; the owner removes it once fixed (`tests/e2eQuarantine.test.ts`
+  enforces it, `_doc` names this heading). run-e2e also reads `E2E_QUARANTINE_FILE`.
+- Auto-quarantine (laptop queue): a failed, non-quarantined suite reruns once alone on the same sha; a pass is a flake
+  (state.json `flakes`, runs per day in `suiteRuns`). A suite may flake 2 times in 7 days (lib `FLAKE_BUDGET`,
+  `FLAKE_BUDGET_DAYS`); the next flake quarantines it for 48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`, owner from
+  `owners`, else the orchestrator): later runs print it KNOWN FLAKY instead of rerunning it. `flake-budget.md` there lists each
+  suite that flaked, failed KNOWN FLAKY (`knownFlaky`) or is quarantined in the window, with its BLOCKING state (line 1 says rates
+  read high until 7 days are counted); a run that flaked or hit a quarantined failure adds it to its PR comment (a pass only on a
+  new flake). Only flakes after a suite's last auto quarantine count; an auto entry just expires. One automatic list, the
+  laptop's (F48): the desktop drops its own, forgives only the committed list, decides no quarantine or blocking, and reruns its
+  failures on the laptop. Older commits ignore `E2E_QUARANTINE_FILE`. Slow table: 7 days of `SLOW:` lines (F35), "; slow:".
+- Hard-rule checks (vitest): `tests/noRouteTimer.test.ts` (rule 6, G334; allowlist `pairGates[].window`, SECTOR holds);
+  `tests/importBoundary.test.ts` (rule 10: quality, `qualityManager`, governor fenced; allowlist `benchmark.ts`, display
+  readers); `tests/replayDeterminism.test.ts` (rule 8, G143; `Math.random` allowlist in `src/ai` shrinks as Guard AI seeds).
+- Repeat quarantine (Q30, "Becomes blocking"; lib `REPEAT_DAYS` 14): due a second auto quarantine within 14 days of the last, a
+  suite stays blocking (normal rule); once per 14 days the laptop pushes `alerts/<ts>-<worker>-fixjob-<suite>.json` to `laptop-queue`
+  and comments "BLOCKING: <suite> needs a fix job"; the orchestrator's cron reads `alerts/*-fixjob-*.json`, opens the fix job.
 
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches

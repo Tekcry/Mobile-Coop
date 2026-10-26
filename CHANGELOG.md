@@ -1,5 +1,61 @@
 # Changelog
 
+## 4.122.1 - Train 141: Guard AI: piano intro actors; Marlow Yard re-plan walks, part 2 (2026-10-26, PR #628; #611, #610)
+
+### Guard AI: piano intro actors
+- (guard-ai piano GA4) `GuardActor` (`src/ai/guardActor.ts`, path in `guardActorPath.ts`): a guard rig with no brain that walks a path at its own playback rate with the aimed walk, fire kick and muzzle flash, for the piano intro (not used yet); `Vfx.muzzleFlash` takes an optional life.
+
+### Marlow Yard re-plan walks, part 2
+- Marlow Yard re-plan walks: seven test-side fixes so the quarantined walks run to the end.
+
+## 4.122.0 - Train 140: Piano scene knife kills (piano-knife S1) (2026-10-26, PR #626; #614)
+- Piano scene (dark until Campaign's scene switch): every takedown on a guard is a one-press paired knife kill. The
+  operator grips the guard (mouth from behind, shoulder at a corner or face to face), the guard is held to her for the
+  whole move, the knife goes in, he buckles with his hands on her forearm and falls as an ordinary body. 1.2 m of
+  noise, no grab, no knockout, no RT palm strike in the scene. Stand-in Mixamo clips until the real knife clips (S2).
+- Anim Studio: `pair: knife behind / behindLow / corner / front` rows play the kill on Wren and a guard.
+
+## 4.121.0 - Train 139: Missions and the co-op kit in co-op (2026-10-26, PR #625; #581)
+- Co-op: the host's mission reaches the partner. The partner sees their own team's step on the objective line, the
+  Field Terminal's mission list and the radio line when a rule is broken.
+- Co-op: the pull-up and the roller shutter work between two players, with the host judging the catch.
+- Campaign missions start only with exactly two players; with one the lobby says why. "Resume hosting" a campaign match
+  waits for the partner, then starts on its own when they rejoin. Campaign missions give 2 revives at every difficulty.
+
+## 4.120.0 - Train 138: Storm scene guards: torches, the blackout search, rain masking; Guards get home (2026-10-26, PR #621; #603, #588)
+
+### Guards get home
+- Guards find their way back to their posts after a search; the alarm runner gives up an unreachable panel.
+
+### Storm scene guards: torches, the blackout search, rain masking
+- (scene only, `?piano=1`) During the scene's blackout every guard keeps his flashlight on in every state, calm
+  included, while he is up; dogs carry none. The scene's one reaction to the blackout: the guards it names search
+  round the intro wall (about 6 m), then go back to their rounds; a light going out sends nobody else.
+- (scene only) Rain on the roof masks sound for every guard across the map (`mapWideNoise`): at 6 dB a footstep is
+  heard at half the distance.
+
+## 4.119.2 - Train 137: Test Runner batch (J20), PR-B: laptop queue; Mains-off blackout (piano SO1) (2026-10-26, PR #619; #615, #602)
+
+### Mains-off blackout (piano SO1)
+- Lighting: `LightRegistry.mainsOff(x, y, z, over = 0.8)` cuts every electric light for good, nearest first over 0.8 s;
+  torches and window lights stay; no switch, jam end, outage end or section restart turns one back on, and guards never
+  walk to reset it. Dark: nothing calls it until the piano scene does.
+
+### Test Runner batch (J20), PR-B: laptop queue
+- Every train run also runs `e2e-darkness`: a light meter that disagrees with the picture holds the release. Off
+  without a release: `config/train-parity.json` `{ "off": true, "why", "by" }` on the `laptop-queue` branch, or
+  `LQ_TRAIN_PARITY=off` on a worker.
+- Affected runs gate only on their gate suites; the legacy and audio suites they reach run after them, REPORT ONLY, in
+  the slots the affected cap leaves. A desktop failure's laptop rerun keeps gate suites only.
+- A perf step in an alone request enforces its budgets unless it says `--no-budget`.
+- `flake-budget.md` lists known-flaky failures and quarantined suites, escapes owners with `|`, and warns while fewer
+  than 7 days of runs are counted.
+- A suite over its flake budget again within 14 days of its last quarantine is BLOCKING: no new quarantine, a
+  `alerts/<ts>-<worker>-fixjob-<suite>.json` alert on the `laptop-queue` branch and a line in the PR comment.
+
+## 4.119.1 - Train 136: Marlow Yard re-plan: geometry for the plank and swing kit moves (2026-10-26, PR #613; #608)
+- Marlow Yard re-plan: geometry for the plank and swing kit moves (#608)
+
 ## 4.119.0 - Train 135: Lookouts and dog release (2026-10-26, PR #609; #595)
 - (dark, `?lookouts=1`) Lookouts: a guard on a lookout post (first: the Saltmarsh Park S5 roof marksman) never leaves
   his perch. A noise only turns him within a metre of it; when he glimpses you he radios it in and the best-placed calm

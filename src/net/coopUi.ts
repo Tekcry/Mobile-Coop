@@ -22,6 +22,7 @@ import { CoopClient } from './coopClient';
 import { loadCourseRecord, lobbyStartBay, startableBays, type CourseRecord } from '../save/courseRecord';
 import { loadSectorRecord, starsOf, starsText, type SectorRecord } from '../save/sectorRecord';
 import { courseAllBaysFlag } from '../game/modes/courseMode';
+import { CAMPAIGN_TWO_PLAYERS } from '../game/mission/campaign';
 import { registeredBayCount } from '../game/course/courseDef';
 
 /** What the coop UI needs from the app shell (main.ts), so this module never imports it. */
@@ -407,7 +408,7 @@ function lobbyModes(current: NetMode): typeof MODE_OPTS {
  * (J14 R1 fix 8) With `?marlowreplan=1` that is the re-planned yard (`roomMap`), so it is offered and named once.
  */
 function lobbyMaps(mode: NetMode): typeof MAPS {
-  const all = MAPS.filter((m) => m.modes.includes(mode));
+  const all = MAPS.filter((m) => !m.unlisted && m.modes.includes(mode));
   if (mode !== 'course' || flags.legacy) return all;
   const campaign = roomMap(CAMPAIGN_MAP);
   return all.filter((m) => m.id === campaign);
@@ -515,8 +516,11 @@ class LobbyScreen extends MenuScreen {
       ...Array.from({ length: Math.max(0, slots - ps.length) }, () => h('div', { class: 'lobby-player empty', text: 'Open slot' })),
     );
     const cap = s.cap;
+    const block = s.isHost ? s.campaignBlock : null;
     if (!s.hostId) this.status.textContent = 'Connecting to host…';
-    else if (s.overCapacity) this.status.textContent = `${MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
+    else if (s.overCapacity) this.status.textContent = `${s.campaign ? 'The campaign' : MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
+    // (mission-rules R4) why the campaign cannot start yet
+    else if (block) this.status.textContent = block === CAMPAIGN_TWO_PLAYERS && ps.length < 2 ? `${block}. Share the code to invite your partner.` : `${block}.`;
     else if (s.isHost) this.status.textContent = ps.length < 2 ? `${courseStartBlock(s.mode, ps.length) ? `${COURSE_TWO_PLAYERS}. ` : ''}Share the code to invite your ${cap > 2 ? 'teammates' : 'partner'}.` : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
     else this.status.textContent = s.phase === 'playing' ? 'Match in progress - joining…' : 'Waiting for the host to start.';
   }
@@ -650,8 +654,9 @@ class LobbyScreen extends MenuScreen {
         autofocus: true,
         key: 'start',
         desc: 'Start the mission for everyone in the room.',
-        // (J14 F1, R36) Course mode needs two players
-        blocked: s.overCapacity ? `Too many players for this mode (${s.cap})` : (courseStartBlock(s.mode, s.players.size) ?? (!solo && !s.allReady ? 'Waiting for players to ready up' : undefined)),
+        // (mission-rules R4) a campaign start needs exactly two players and a campaign mission; (J14 F1, R36) Course mode
+        // needs two players
+        blocked: s.overCapacity ? `Too many players for ${s.campaign ? 'the campaign' : 'this mode'} (${s.cap})` : (s.campaignBlock ?? courseStartBlock(s.mode, s.players.size) ?? (!solo && !s.allReady ? 'Waiting for players to ready up' : undefined)),
       });
     } else {
       const me = s.players.get(s.selfId);
@@ -823,7 +828,10 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     session.weather = resume.weather;
     session.courseBay = resume.bay;
     adopt(app, api, session);
-    session.startMatch();
+    // (mission-rules R4) a campaign room does not start alone: the host waits in the lobby. (PR E fix) The partner is
+    // still in the match, waiting on the code with no Ready button (a lobby never takes a waiting joiner back to the
+    // lobby), so the match starts on its own the moment the partner's hello lifts the block, no ready needed
+    if (!session.startMatch() && session.campaignBlock === CAMPAIGN_TWO_PLAYERS) session.startWhenUnblocked(() => session.campaignBlock);
     return;
   }
   // a new room starts on the campaign, Marlow Yard in Course mode (sector-ops slice 3); `?legacy=1` keeps the parked Hunter
@@ -910,7 +918,7 @@ export async function autoLocalCourse(app: App, api: CoopApi, map: string, mode:
   session.setSettings(mode, map, session.difficulty, '');
   adopt(app, api, session);
   const off = session.events.on('lobby', () => {
-    if (session.phase !== 'lobby' || session.players.size < (flags.players ?? 2) || !session.allReady || session.overCapacity) return;
+    if (session.phase !== 'lobby' || session.players.size < (flags.players ?? 2) || !session.allReady || session.overCapacity || session.campaignBlock !== null) return;
     off();
     // (after the lobby handler that announced the partner: the match starts on the next task)
     setTimeout(() => session.startMatch(), 0);
