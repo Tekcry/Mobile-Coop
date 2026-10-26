@@ -111,15 +111,18 @@ export type MocapLayers = typeof MOCAP_LAYERS;
  * - `bob`, `lift` (1.75 m units), eased in from `liftFrom` to `liftTo` m/s: the capture's height swing about its mean is
  *   scaled by `bob` and the whole raised by `lift` (the run's stance knee 59 -> ~34 deg, its hips 2-5 cm over the
  *   hand-keyed run's; at the jog a lift overreached the trailing leg at toe-off: the pelvis drop jerked 3 cm a frame).
- * - `pitch` / `pitchSprint` (rad): the chest's forward pitch at `pitchFrom` / `pitchTo` m/s (CT run 10-20 deg, sprint
- *   <= 25), in place of the capture's mean (the 127_07 sprint leans ~32 deg, the run sits upright over bent knees).
+ * - `pitch` / `pitchSprint` (rad): the chest's forward pitch in place of the capture's mean on the run share: `pitch`
+ *   below `pitchFrom` m/s (J19 S5, R25, G217 "no lean until full speed": upright, the jog's trunk within 1 deg of the
+ *   walk's), `pitchSprint` from `pitchTo` on (the full run's CT carriage, run 10-20 deg; the name kept, characterRig reads
+ *   it: there is no sprint, G31), linear between. `pitchTo` 3.8 sits under the run's 4.0 m/s less its stride swell
+ *   (MOVEMENT.rootDip 2.5 %), so the full run never leaves it.
  * - `bankLag` (s): the graph's pelvis roll (the turn bank, BANK) followed before it goes over the capture.
  * - `armTau` (s), `armLead` (0..1): the keyed arm points (chest frame) through a critically damped follower on the share
  *   (`armSmooth`), the points' own rate fed forward by `armLead` (0: ~5 frames late and 30 % smaller at the run; 0.7: ~2
  *   frames, ~10 %); `elbowRate` (rad/s): keepElbowOut's 15 deg swivel steps eased in and out at most this fast.
  * Undo: the four MOCAP_LAYERS entries `pelHeight`, `trunkMean`, `bankWipe`, `armSmooth` back to 1 (as captured).
  */
-export const MOCAP_RUN_POSE = { from: 2.0, to: 3.0, tau: 0.25, bob: 0.35, lift: 0.05, liftFrom: 3.0, liftTo: 4.0, pitch: 0.26, pitchSprint: 0.32, pitchFrom: 4.0, pitchTo: 5.0, bankLag: 0.06, armTau: 0.08, armLead: 0.7, elbowRate: 4 } as const;
+export const MOCAP_RUN_POSE = { from: 2.0, to: 2.6, tau: 0.25, bob: 0.35, lift: 0.05, liftFrom: 3.0, liftTo: 4.0, pitch: 0.01, pitchSprint: 0.26, pitchFrom: 3.5, pitchTo: 3.8, bankLag: 0.06, armTau: 0.08, armLead: 0.7, elbowRate: 4 } as const;
 // (the sampler reads the three it owns through the keyed format's own interface)
 const _LAYERS_FIT: KeyedLayerScale = MOCAP_LAYERS;
 void _LAYERS_FIT;
