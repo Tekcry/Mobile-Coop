@@ -1027,7 +1027,8 @@ check breaks the cap, no claims block) -> PLAN revision 1 a9dd94fde (phase order
 start spread, mhCue, check stops at the room edge, claims block; Michael picked "Stay upstairs (Recommended)").
 Orchestrator order on enemy.ts / enemyManager.ts / flags.ts: #694 -> mill-hunt PR 1 -> PR 2 -> PR 3 ->
 guard-ai-j16-2 -> guard-ai-mission-hooks (rebased on top); mission / tallow overlaps: second lander rebases.
-Plan check 2 RUNNING. Then PR 1 = H1 (Sonnet data) + H2 (Opus pure board) in parallel; PR 2 = H3 after #694; PR 3 = H4. Asked Michael via the orchestrator: gallery
+Plan check 2 FIX (3 gaps); lead wrote PLAN revision 2 (rank rule, admit() on every join, cue in hearSearch,
+fold-ins); asked the orchestrator for go on PR 1 without a third check. Then PR 1 = H1 (Sonnet data) + H2 (Opus pure board) in parallel; PR 2 = H3 after #694; PR 3 = H4. Asked Michael via the orchestrator: gallery
 answered.
 Open (2026-10-27 ~08:55, new window to ~13:50, 1 agent; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
