@@ -9,6 +9,7 @@
  * exported pure functions below (unit tests: tests/scenePiano.test.ts).
  */
 import type { AudioEngine } from '../audioEngine';
+import { loopStartFor, sceneTrackUrl } from './sceneTracks';
 
 /** The track's length (s), as measured (ffprobe). The decoded buffer's own duration is what plays. */
 export const TRACK_LENGTH = 134.03;
@@ -112,6 +113,8 @@ export class ScenePiano {
   private master: GainNode | null = null;
   private legs: Leg[] = [];
   private offset = 0;
+  /** Where the loop jumps back to (s): `loopStartFor` the loaded track's length (S5: 41 s, or 0 for a short track). */
+  private loopStart = LOOP_START;
   private readonly curveIn = equalPowerCurve(CURVE_N, 'in');
   private readonly curveOut = equalPowerCurve(CURVE_N, 'out');
   private stopTimer: ReturnType<typeof setTimeout> | null = null;
@@ -146,6 +149,7 @@ export class ScenePiano {
       }
       this.buf = b;
     }
+    this.loopStart = loopStartFor(this.buf.duration);
     await new Promise<void>((resolve) => this.audio.whenReady(resolve));
     if (gen !== this.gen) return;
     const ctx = this.audio.ctx;
@@ -231,7 +235,7 @@ export class ScenePiano {
 
   /** Schedule the leg after `from` (it starts at `from`'s cross-fade); when `from` has ended, the one after that. */
   private chain(from: Leg, gen: number): void {
-    const next = this.leg(from.at + from.fadeAt, LOOP_START, from.fade);
+    const next = this.leg(from.at + from.fadeAt, this.loopStart, from.fade);
     this.legs.push(next);
     this.fadeLegOut(from);
     from.src.onended = () => {
@@ -273,10 +277,19 @@ export class ScenePiano {
   }
 }
 
-/** The bundled file, imported by URL only here, when the scene starts (not at page load). Same origin only. */
+/** The bundled file `?pianomusic=` chose (default: S3's), its URL imported only here, when the scene starts (not at page load). Same origin only. */
 async function defaultLoad(): Promise<AudioBuffer | null> {
   try {
-    const url = (await import('../../assets/music/scene/piano-escape.mp3?url')).default;
+    return await loadSceneTrack(await sceneTrackUrl());
+  } catch (e) {
+    console.warn('scene music', e);
+    return null;
+  }
+}
+
+/** Fetch and decode one bundled track by its URL (also the Music Lab's "Scene" list). Same origin only. */
+export async function loadSceneTrack(url: string): Promise<AudioBuffer | null> {
+  try {
     if (!isSameOrigin(url, location.href)) throw new Error('scene music: not same origin');
     const decoder = new OfflineAudioContext(2, 1, DECODE_RATE);
     return await decoder.decodeAudioData(await (await fetch(url)).arrayBuffer());
