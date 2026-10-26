@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.122.1 - Train 141: Guard AI: piano intro actors; Marlow Yard re-plan walks, part 2 (2026-10-26, PR #628; #611, #610)
+
+### Guard AI: piano intro actors
+- (guard-ai piano GA4) `GuardActor` (`src/ai/guardActor.ts`, path in `guardActorPath.ts`): a guard rig with no brain that walks a path at its own playback rate with the aimed walk, fire kick and muzzle flash, for the piano intro (not used yet); `Vfx.muzzleFlash` takes an optional life.
+
+### Marlow Yard re-plan walks, part 2
+- Marlow Yard re-plan walks: seven test-side fixes so the quarantined walks run to the end.
+
+## 4.122.0 - Train 140: Piano scene knife kills (piano-knife S1) (2026-10-26, PR #626; #614)
+- Piano scene (dark until Campaign's scene switch): every takedown on a guard is a one-press paired knife kill. The
+  operator grips the guard (mouth from behind, shoulder at a corner or face to face), the guard is held to her for the
+  whole move, the knife goes in, he buckles with his hands on her forearm and falls as an ordinary body. 1.2 m of
+  noise, no grab, no knockout, no RT palm strike in the scene. Stand-in Mixamo clips until the real knife clips (S2).
+- Anim Studio: `pair: knife behind / behindLow / corner / front` rows play the kill on Wren and a guard.
+
+## 4.121.0 - Train 139: Missions and the co-op kit in co-op (2026-10-26, PR #625; #581)
+- Co-op: the host's mission reaches the partner. The partner sees their own team's step on the objective line, the
+  Field Terminal's mission list and the radio line when a rule is broken.
+- Co-op: the pull-up and the roller shutter work between two players, with the host judging the catch.
+- Campaign missions start only with exactly two players; with one the lobby says why. "Resume hosting" a campaign match
+  waits for the partner, then starts on its own when they rejoin. Campaign missions give 2 revives at every difficulty.
+
 ## 4.120.0 - Train 138: Storm scene guards: torches, the blackout search, rain masking; Guards get home (2026-10-26, PR #621; #603, #588)
 
 ### Guards get home

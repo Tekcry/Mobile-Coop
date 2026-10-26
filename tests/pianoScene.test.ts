@@ -507,7 +507,7 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
 
   it('(S4) the co-op host keeps the campaign revive cap for a scene map (no Sector Ops syringes)', () => {
     const h = src('src/net/coopHost.ts');
-    expect(h).toContain("if (mode === 'sector' && !isPianoScene(g.world.map)) this.reviveClock.cap = syringesFor(g.opts.difficulty);");
+    expect(h).toContain("if (mode === 'sector' && isPianoScene(g.world.map)) this.reviveClock.cap = REVIVES_PER_MISSION;");
     expect(isPianoScene(thornbeckMill)).toBe(true);
   });
 
