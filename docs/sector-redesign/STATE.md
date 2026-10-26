@@ -350,7 +350,7 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~18:10, PROTOTYPE MODE).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~18:30, PROTOTYPE MODE).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu; ROADMAP Decided
 "PROTOTYPE MODE" (~16:05) and "Prototype, not polish" (~16:20): playable over perfect, ONE closest test set per change,
 one fix + one rerun at most, no tuning passes before Michael plays.
@@ -360,8 +360,10 @@ BelowNormal, --maxWorkers=2; node_modules junctions only to C:/NightShift/Mobile
 GOAL (orchestrator ~17:45, prototype step 6): Saltmarsh Park finishable end to end on /preview/ (campusV2 = all sections
 there). Seven PRs carry it, every one checker PASS on its head, waiting on CI + one affected-e2e set (auto-train takes
 them when train-ready; orchestrator told ~18:05):
-1. #573 F42 window vault fix (fix + no-affected-e2e) @ 10b9433d.
-2. #525 v2 S1 (big-pr) @ 5b2c40bf. #518 S1 L1 lighting on v2 (contains #525; big-pr) @ a353ff82.
+1. #573 F42 window vault fix (fix; no-affected-e2e removed ~18:30 for its own rerun) @ 2a520d94. Train 127 dropped it
+   and #525: sectorops:6 walk stood 1.84 m from the moved PC (reach 1.8); fixed: stand at the window south end (1.5 m).
+2. #525 v2 S1 (big-pr) @ dba89c74 (+ smoker #16 post leash 3, Guard AI ask). #518 S1 L1 lighting on v2 (contains #525)
+   @ 17def8cc. Checker PASS on all three (part6-window-fix-check.md); the auto affected runs are the one rerun.
 3. #529 S2 @ bc06fe5b, #544 S3 @ 79559a3f, #547 S4 @ c77442d6, #535 S5 @ 2d0686af: stacks collapsed ~18:00 (lower PRs
    closed), master merged in. All five + #518 merged together: no conflicts, tsc clean, 66 campus files 905 pass
    (scratch campus-v2-all.log; test branch test/campus-v2-all, local only, worktree -campus-v2-int).
