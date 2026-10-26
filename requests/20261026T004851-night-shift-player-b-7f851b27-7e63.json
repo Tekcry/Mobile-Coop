@@ -1,0 +1,15 @@
+{
+  "id": "20261026T004851-night-shift-player-b-7f851b27-7e63",
+  "sha": "7f851b274269bbd6cf187ce63b2bf33b2c075a1e",
+  "branch": "feature/mixamo-source-wire",
+  "pr": 498,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse"
+  ],
+  "set": "mixamo-wire",
+  "priority": 1
+}
