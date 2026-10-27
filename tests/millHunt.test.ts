@@ -9,7 +9,18 @@ import { describe, expect, it } from 'vitest';
 import { H_HOLD, H_MOVE, H_REGROUP, H_SPREAD, HUNT } from '../src/ai/millHunt';
 import { wrapAng } from '../src/ai/sceneSweep';
 import { bytesPerCall } from './helpers/allocPerCall';
-import { DECK, DT, endState, HuntWorld, runHunt, SET_12, SET_16, type SimSlot, TEST_HUNT } from './helpers/millHuntSim';
+import {
+  DECK,
+  DT,
+  endState,
+  HuntWorld,
+  runHunt,
+  SET_12,
+  SET_16,
+  SimGuard,
+  type SimSlot,
+  TEST_HUNT,
+} from './helpers/millHuntSim';
 
 
 // ---- unit tests ---------------------------------------------------------------------------------------------------
@@ -212,6 +223,44 @@ describe('mill hunt: the step rules (A6)', () => {
   });
 });
 
+describe('mill hunt: groups of at most 2 (check A FIX 1)', () => {
+  it('the looper never steps into a group above 2: it holds and clears where it is; the pair beside the room clears that stop', () => {
+    // a solo on the stair head's west stop (phase 0's target), a pair on crane west 2.5 m past the stair head's east stop
+    const w = solosAt([G(2)]);
+    const b = w.board;
+    expect(b.admit(w.spawnAt({ x: b.sx[G(4)]!, z: b.sz[G(4)]!, y: DECK, pair: 2 }, 1))).toBe(true);
+    expect(b.admit(w.spawnAt({ x: b.sx2[G(4)]!, z: b.sz2[G(4)]!, y: DECK, pair: 1 }, 2))).toBe(true);
+    const lone = b.unitOf(w.gs[0]!);
+    const pair = b.unitOf(w.gs[1]!);
+    expect(pair).toBe(b.unitOf(w.gs[2]!));
+    expect(b.stopDist(G(3), G(4))).toBeLessThan(HUNT.apart);
+    expect(b.crowds(lone, G(3))).toBe(true);
+    let held = false;
+    for (let n = 0; n < Math.round(59 / DT); n++) {
+      w.step();
+      expect(b.uTo[lone]).not.toBe(G(3));
+      if (b.uLooped[lone] && b.uState[lone] === H_HOLD) held = true;
+    }
+    expect(held).toBe(true);
+    // the pair outside the target room faces it: its cycles clear the stop the looper may not take
+    expect(b.done[G(3)]).toBe(1);
+    run(w, 1.4);
+    expect(b.phase).toBe(1);
+  });
+
+  it('two solos may stand near each other (a group of 2); a pair may not join a solo', () => {
+    const w = solosAt([G(2), G(4)]);
+    const b = w.board;
+    w.step();
+    expect(b.crowds(b.unitOf(w.gs[0]!), G(3))).toBe(false);
+    const v = pairsAt([G(2)]);
+    const pb = v.board;
+    expect(pb.admit(v.spawnAt({ x: pb.sx[G(4)]!, z: pb.sz[G(4)]!, y: DECK }, 2))).toBe(true);
+    v.step();
+    expect(pb.crowds(pb.unitOf(v.gs[0]!), G(3))).toBe(true);
+  });
+});
+
 describe('mill hunt: admission and the start spread (FIX 2, plan check 2 item 2)', () => {
   it('12 set in spawn order: G3 leaves the start bay for the aisle; G4 walks back to G5; the pairs pair', () => {
     const w = worldWith(
@@ -297,6 +346,100 @@ describe('mill hunt: admission and the start spread (FIX 2, plan check 2 item 2)
     expect(b.uLive[g2]).toBe(1);
     expect(b.unitOf(w.gs[1]!)).toBe(g2);
     expect(w.gs[1]!.pos.x).toBeGreaterThan(9.4);
+  });
+
+  it('a woken guard (a new object for his slot) takes his index back and pairs with his partner again', () => {
+    const w = worldWith(
+      SET_12,
+      SET_12.map((_, k) => k),
+    );
+    const b = w.board;
+    run(w, 5);
+    const old = w.gs[10]!;
+    const i0 = b.memberIndex(old);
+    expect(b.unitOf(old)).toBe(b.unitOf(w.gs[11]!));
+    old.taken = true;
+    w.step();
+    expect(b.uB[b.unitOf(w.gs[11]!)]).toBe(-1);
+    const woken = new SimGuard(10, old.pairSlot, old.pos.x, old.pos.y, old.pos.z);
+    w.gs[10] = woken;
+    expect(b.admit(woken)).toBe(true);
+    expect(b.memberIndex(woken)).toBe(i0);
+    expect(b.memberIndex(old)).toBe(-1);
+    run(w, 30);
+    expect(b.unitOf(woken)).toBe(b.unitOf(w.gs[11]!));
+  });
+
+  it('a second solo admitted to a taken stop gets its free partner spot', () => {
+    const w = solosAt([S(12), S(12)]);
+    const b = w.board;
+    const a = b.memberIndex(w.gs[0]!);
+    const c = b.memberIndex(w.gs[1]!);
+    expect(b.mTo[a]).toBe(b.mTo[c]);
+    expect(b.mLead[a]).toBe(1);
+    expect(b.mLead[c]).toBe(0);
+    w.step();
+    expect(w.gs[1]!.gx).toBe(b.sx2[S(12)]);
+    expect(w.gs[1]!.gz).toBe(b.sz2[S(12)]);
+  });
+
+  it('a member who gets no nearer his spot for stuckT gives it up: his unit clears that stop from where he stands and goes on', () => {
+    const w = solosAt([S(0)]);
+    const b = w.board;
+    const g = w.gs[0]!;
+    const u = b.unitOf(g);
+    const i = b.memberIndex(g);
+    const px = g.pos.x;
+    const pz = g.pos.z;
+    // a wall: he never gets anywhere
+    const pin = (): void => {
+      w.step();
+      g.pos.x = px;
+      g.pos.z = pz;
+    };
+    let left = -1;
+    let gave = -1;
+    for (let n = 0; n < 400 && gave < 0; n++) {
+      pin();
+      if (left < 0 && b.uTo[u] === S(1)) left = w.t;
+      if (b.mSkip[i]) gave = w.t;
+    }
+    expect(left).toBeGreaterThan(0);
+    expect(gave - left).toBeGreaterThanOrEqual(HUNT.stuckT - 1e-6);
+    expect(gave - left).toBeLessThan(HUNT.stuckT + 0.5);
+    pin();
+    expect(b.uFrom[u]).toBe(S(1));
+    expect(g.gx).toBe(px);
+    expect(g.gz).toBe(pz);
+    let n = 0;
+    while (!b.done[S(1)] && n++ < 100) pin();
+    expect(b.done[S(1)]).toBe(1);
+    n = 0;
+    while (b.uTo[u] === S(1) && n++ < 100) pin();
+    expect(b.uTo[u]).not.toBe(S(1));
+    expect(b.mSkip[i]).toBe(0);
+  });
+
+  it('a unit holding in the target room has its one look back once at that stop, not every hold cycle', () => {
+    const w = solosAt([S(6), S(7)]);
+    const b = w.board;
+    const g = w.gs[1]!;
+    const u = b.unitOf(g);
+    const i = b.memberIndex(g);
+    b.setTarget(21.5, 2.5, 0);
+    const back = b.aimMask(S(7), b.lineHeading(S(7), -1), true) ^ b.aimMask(S(7), b.lineHeading(S(7), -1), false);
+    expect(back).not.toBe(0);
+    const mask = (b as unknown as { mMask: Int32Array }).mMask;
+    let first = false;
+    // (the phase steps on at phaseMin, 60 s)
+    for (let n = 0; n < Math.round(58 / DT); n++) {
+      w.step();
+      expect(b.uFrom[u]).toBe(S(7));
+      if (w.t < 15 && mask[i]! & back) first = true;
+      if (w.t > 30) expect(mask[i]! & back).toBe(0);
+    }
+    expect(first).toBe(true);
+    expect(b.uState[u]).toBe(H_HOLD);
   });
 
   it('outside the target room only aims towards the target (within 100 deg, at least one); in it at most one look back', () => {

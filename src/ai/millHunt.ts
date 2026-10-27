@@ -43,6 +43,23 @@ export const HUNT = {
   arrive: 0.5,
   /** Outside the target room only aims within this of the line towards the target are used (rad, 100 deg; A9). */
   aimSide: 1.75,
+  /**
+   * (check A FIX 1) Guards whose stops (at or walking to) are within this (m, straight) of each other count as one group;
+   * a looping unit never steps to a stop that would make a group above `roomCap` with other units' members, any rank
+   * (`crowds`). Keeps every group of at most 2 apart from the next, so a pair taken down together is not watched from
+   * 3 m (Michael: "not bunch up into groups bigger than 2 ... so coop gameplay allows stealth takedowns"); 4, not 3: a
+   * partner's spot (`pt2`) stands about 1 m off the stop's `pt`.
+   */
+  apart: 4,
+  /**
+   * (fix round, H3) A member who gets no nearer his spot (by `stuckGain`) for this long gives it up (s): he counts as
+   * arrived where he stands, his unit clears that stop from there and goes on. 8: the manager's `goTo` replans once a
+   * second, so 8 replans without a gain mean the nav cannot get him there (a walkable leg gains 0.45 m a second); short
+   * of one hold cycle (`holdAim` x 3-4 aims) so the units queued behind him wait no longer than they would on a hold.
+   */
+  stuckT: 8,
+  /** The least gain on his best distance to the spot that counts as progress (m; a 0.2 s tick at `pace` is 0.09). */
+  stuckGain: 0.1,
 } as const;
 
 /** A guard on the board: an `Enemy` fits it structurally. */
@@ -137,6 +154,12 @@ export class HuntBoard<M extends HuntMember> {
   /** The yaw the board last gave him (an aim, or the heading he arrived on). */
   readonly mYaw: Float64Array;
   private readonly mDone: Uint8Array;
+  /** The stuck watch (`HUNT.stuckT`): the goal it watches (stop * 2 + lead, -1 none), his best distance, the time since. */
+  private readonly mGoal: Int32Array;
+  private readonly mBest: Float64Array;
+  private readonly mStuck: Float64Array;
+  /** 1: he gave up his spot: he counts as arrived and stands where he is until his next goal. */
+  readonly mSkip: Uint8Array;
 
   // units
   readonly uLive: Uint8Array;
@@ -156,6 +179,8 @@ export class HuntBoard<M extends HuntMember> {
   readonly uLooped: Uint8Array;
   /** Its aim cycle uses the target room's set (counts towards clearing it). */
   private readonly uFull: Uint8Array;
+  /** (check A polish 4) It has had its one look back at this stop (cleared by the next leg). */
+  private readonly uBack: Uint8Array;
   /** Its clear is done: decide this tick. */
   private readonly uNeed: Uint8Array;
   /** The stop it last asked for (-1 none): the tests' no-deadlock check reads it. */
@@ -289,6 +314,10 @@ export class HuntBoard<M extends HuntMember> {
     this.mHold = new Float64Array(cap);
     this.mYaw = new Float64Array(cap);
     this.mDone = new Uint8Array(cap);
+    this.mGoal = new Int32Array(cap).fill(-1);
+    this.mBest = new Float64Array(cap);
+    this.mStuck = new Float64Array(cap);
+    this.mSkip = new Uint8Array(cap);
     this.uLive = new Uint8Array(cap);
     this.uA = new Int16Array(cap).fill(-1);
     this.uB = new Int16Array(cap).fill(-1);
@@ -300,6 +329,7 @@ export class HuntBoard<M extends HuntMember> {
     this.uDir = new Int8Array(cap);
     this.uLooped = new Uint8Array(cap);
     this.uFull = new Uint8Array(cap);
+    this.uBack = new Uint8Array(cap);
     this.uNeed = new Uint8Array(cap);
     this.uWant = new Int16Array(cap).fill(-1);
     this.uWalker = new Int16Array(cap).fill(-1);
@@ -409,8 +439,9 @@ export class HuntBoard<M extends HuntMember> {
     return this.mLead[i] ? this.sz[s]! : this.sz2[s]!;
   }
 
-  /** He is within `arrive` of his spot. */
+  /** He is within `arrive` of his spot (or gave it up, `mSkip`). */
   private settled(i: number): boolean {
+    if (this.mSkip[i]) return true;
     const p = this.ms[i]!.pos;
     return hyp2(p.x - this.spotX(i), p.z - this.spotZ(i)) <= HUNT.arrive;
   }
@@ -548,6 +579,18 @@ export class HuntBoard<M extends HuntMember> {
   admit(m: M): boolean {
     if (this.gone(m)) return false;
     let i = this.memberIndex(m);
+    // (fix round, H3) a woken guard is a new object for the same slot: he takes the slot's index back, so his partner's
+    // link (`mPartner`) still names him; the old object leaves the board first
+    if (i < 0 && m.slotIdx >= 0)
+      for (let k = 0; k < this.cap; k++) {
+        const o = this.ms[k];
+        if (o && o.slotIdx === m.slotIdx) {
+          if (this.mOn[k]) this.drop(k);
+          this.ms[k] = m;
+          i = k;
+          break;
+        }
+      }
     if (i < 0) {
       for (let k = 0; k < this.cap; k++)
         if (this.ms[k] === null) {
@@ -577,11 +620,21 @@ export class HuntBoard<M extends HuntMember> {
     const l = this.nearestLine(m.pos.y);
     const s = this.nearestStop(l, m.pos.x, m.pos.z);
     const dir = this.tgt[l]! >= s ? 1 : -1;
+    // (check A polish 1) a second solo on a stop takes its free partner spot, not the same leader spot
+    let lead1 = false;
+    let lead0 = false;
+    for (let k = 0; k < this.cap; k++)
+      if (this.mOn[k] && (this.mFrom[k] === s || this.mTo[k] === s)) {
+        if (this.mLead[k]) lead1 = true;
+        else lead0 = true;
+      }
     this.mOn[i] = 1;
     this.mUnit[i] = u;
     this.mFrom[i] = s;
     this.mTo[i] = s;
-    this.mLead[i] = 1;
+    this.mLead[i] = lead1 && !lead0 ? 0 : 1;
+    this.mGoal[i] = -1;
+    this.mSkip[i] = 0;
     this.mYaw[i] = this.lineHeading(s, dir);
     this.uLive[u] = 1;
     this.uA[u] = i;
@@ -591,6 +644,7 @@ export class HuntBoard<M extends HuntMember> {
     this.uTo[u] = s;
     this.uDir[u] = dir;
     this.uLooped[u] = 0;
+    this.uBack[u] = 0;
     this.uDest[u] = -1;
     this.uWant[u] = -1;
     this.uWalker[u] = -1;
@@ -709,6 +763,7 @@ export class HuntBoard<M extends HuntMember> {
     this.uFrom[keep] = meet;
     this.uTo[keep] = meet;
     this.uLooped[keep] = looped;
+    this.uBack[keep] = 0;
     this.uDir[keep] = dir;
     this.uNeed[keep] = 0;
     this.uWant[keep] = -1;
@@ -869,7 +924,10 @@ export class HuntBoard<M extends HuntMember> {
     const ud = this.uDir[u]! >= 0 ? 1 : -1;
     const dir = inRoom && (s === t || this.uLooped[u]) ? ud : t > s ? 1 : t < s ? -1 : ud;
     this.uFull[u] = inRoom ? 1 : 0;
-    const all = this.aimMask(s, this.lineHeading(s, dir), inRoom);
+    // (check A polish 4) the one look back once per stop: a hold's later cycles there leave it out
+    const back = inRoom && !this.uBack[u];
+    if (back) this.uBack[u] = 1;
+    const all = this.aimMask(s, this.lineHeading(s, dir), back);
     const a = this.uA[u]!;
     const b = this.uB[u]!;
     if (b < 0) {
@@ -953,6 +1011,31 @@ export class HuntBoard<M extends HuntMember> {
     for (let i = 0; i < cap; i++) if (this.mOn[i]) this.emit(i);
   }
 
+  /**
+   * (fix round, H3) The stuck watch: while he is off his spot, his best distance to it must shrink by `stuckGain` at least
+   * every `stuckT` s; else he gives the spot up (`mSkip`): he counts as arrived, his unit clears the stop from where he
+   * stands (its aim cycle, which marks the stop done in the target room) and steps on as usual. A new goal resets it.
+   */
+  private watch(i: number, dt: number): void {
+    const g = this.mTo[i]! * 2 + this.mLead[i]!;
+    if (g !== this.mGoal[i]) {
+      this.mGoal[i] = g;
+      this.mBest[i] = Infinity;
+      this.mStuck[i] = 0;
+      this.mSkip[i] = 0;
+    }
+    if (this.mSkip[i]) return;
+    const p = this.ms[i]!.pos;
+    const d = hyp2(p.x - this.spotX(i), p.z - this.spotZ(i));
+    if (d <= HUNT.arrive || d < this.mBest[i]! - HUNT.stuckGain) {
+      this.mBest[i] = d;
+      this.mStuck[i] = 0;
+      return;
+    }
+    this.mStuck[i] = this.mStuck[i]! + dt;
+    if (this.mStuck[i]! >= HUNT.stuckT) this.mSkip[i] = 1;
+  }
+
   private arriveMember(i: number): void {
     if (this.mFrom[i] === this.mTo[i] || !this.settled(i)) return;
     this.mYaw[i] = this.legHdg(this.mFrom[i]!, this.mTo[i]!);
@@ -962,6 +1045,8 @@ export class HuntBoard<M extends HuntMember> {
   private advanceUnit(u: number, dt: number): void {
     const a = this.uA[u]!;
     const b = this.uB[u]!;
+    this.watch(a, dt);
+    if (b >= 0) this.watch(b, dt);
     this.arriveMember(a);
     if (b >= 0) this.arriveMember(b);
     let w = -1;
@@ -1015,11 +1100,17 @@ export class HuntBoard<M extends HuntMember> {
     }
   }
 
-  /** An aim cycle ends: a full cycle in the target room marks its stop done; a clear (or a loop stop) decides next; a
-   *  hold, a spread waiting for space and a regroup's waiting member go round again. */
+  /** An aim cycle ends: a full cycle in the target room marks its stop done; a cycle outside it marks done the target
+   *  room's stops within `apart` (check A FIX 1: the looper may not go there, `crowds`, and outside the target room a
+   *  unit's aims face the target, so they cover those stops); a clear (or a loop stop) decides next; a hold, a spread
+   *  waiting for space and a regroup's waiting member go round again. */
   private onCycleDone(u: number): void {
     const s = this.uFrom[u]!;
-    if (this.uFull[u] && this.stopRoom[s] === this.targetRoom(this.uLine[u]!)) this.done[s] = 1;
+    const tr = this.targetRoom(this.uLine[u]!);
+    if (this.stopRoom[s] === tr) {
+      if (this.uFull[u]) this.done[s] = 1;
+    } else if (this.uFrom[u] === this.uTo[u])
+      for (let q = this.roomFirst[tr]!; q <= this.roomLast[tr]!; q++) if (this.stopDist(q, s) < HUNT.apart) this.done[q] = 1;
     const st = this.uState[u]!;
     if (st === H_CLEAR || st === H_LOOP) this.uNeed[u] = 1;
     else if (st === H_HOLD || st === H_SPREAD || st === H_REGROUP) this.startCycle(u, HUNT.holdAim);
@@ -1078,8 +1169,9 @@ export class HuntBoard<M extends HuntMember> {
     }
   }
 
-  /** The loop's next stop: on round its way, else back the other way; never into the gap of a higher rank or onto a
-   *  stop another unit holds or walks to (-1: neither). */
+  /** The loop's next stop: on round its way, else back the other way; never into the gap of a higher rank, onto a stop
+   *  another unit holds or walks to, or into a group above 2 (`crowds`, any rank) (-1: neither; the unit holds and
+   *  clears where it is). */
   private loopNext(u: number): number {
     const s = this.uFrom[u]!;
     const r = this.stopRoom[s]!;
@@ -1087,7 +1179,7 @@ export class HuntBoard<M extends HuntMember> {
     for (let k = 0; k < 2; k++, d = -d) {
       const j = s + d;
       if (j < this.roomFirst[r]! || j > this.roomLast[r]!) continue;
-      if (this.gapFree(u, j) && !this.stopTaken(u, j)) return j;
+      if (this.gapFree(u, j) && !this.stopTaken(u, j) && !this.crowds(u, j)) return j;
     }
     return -1;
   }
@@ -1097,13 +1189,46 @@ export class HuntBoard<M extends HuntMember> {
     return false;
   }
 
+  /**
+   * (check A FIX 1) Unit u at stop j would stand in a group above `roomCap`: its members plus the other units' members
+   * near j (`nearStop`) make more than 2, or (u a solo) the one other guard near j already has another guard near him
+   * (his partner included). Any rank.
+   */
+  crowds(u: number, j: number): boolean {
+    let n = this.unitSize(u);
+    let near = -1;
+    for (let i = 0; i < this.cap; i++)
+      if (this.mOn[i] && this.mUnit[i] !== u && this.nearStop(i, j)) {
+        n++;
+        near = i;
+      }
+    if (n > HUNT.roomCap) return true;
+    if (near < 0) return false;
+    const f = this.mFrom[near]!;
+    const t = this.mTo[near]!;
+    for (let i = 0; i < this.cap; i++)
+      if (this.mOn[i] && i !== near && this.mUnit[i] !== u && (this.nearStop(i, f) || this.nearStop(i, t))) return true;
+    return false;
+  }
+
+  /** Member i stands at or walks to a stop within `apart` of stop j. */
+  private nearStop(i: number, j: number): boolean {
+    return this.stopDist(j, this.mFrom[i]!) < HUNT.apart || this.stopDist(j, this.mTo[i]!) < HUNT.apart;
+  }
+
   private leg(u: number, j: number, st: number): void {
     const a = this.uA[u]!;
     const b = this.uB[u]!;
     this.uDir[u] = j > this.uFrom[u]! ? 1 : -1;
     this.uTo[u] = j;
+    this.uBack[u] = 0;
+    if (b < 0) this.mLead[a] = 1;
     this.mTo[a] = j;
-    if (b >= 0) this.mTo[b] = j;
+    this.mSkip[a] = 0;
+    if (b >= 0) {
+      this.mTo[b] = j;
+      this.mSkip[b] = 0;
+    }
     this.uState[u] = st;
     this.uNeed[u] = 0;
   }
@@ -1127,10 +1252,16 @@ export class HuntBoard<M extends HuntMember> {
     const r = this.stopRoom[j]!;
     if (r !== this.stopRoom[s] && this.roomLoad(r, u) + 1 + (r === this.stopRoom[meet] ? 1 : 0) > HUNT.roomCap) return;
     this.mTo[w] = j;
+    this.mSkip[w] = 0;
   }
 
   /** His goal: his spot at the stop he stands at or walks to; the face (NaN while walking); the pace. */
   private emit(i: number): void {
+    if (this.mSkip[i]) {
+      const p = this.ms[i]!.pos;
+      this.out(this.ms[i]!, p.x, p.z, this.mYaw[i]!, HUNT.pace);
+      return;
+    }
     const walking = this.mFrom[i] !== this.mTo[i] || !this.settled(i);
     this.out(this.ms[i]!, this.spotX(i), this.spotZ(i), walking ? Number.NaN : this.mYaw[i]!, HUNT.pace);
   }
