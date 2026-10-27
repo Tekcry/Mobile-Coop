@@ -1,0 +1,13 @@
+{
+  "id": "20261027T031820-night-shift-guard-ai-5336f473-2d6a",
+  "sha": "5336f4735c5138f2d0149d6a14056c9adf99c5a3",
+  "branch": "feature/guard-ai-mill-hunt-h3",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-piano"
+  ],
+  "set": "mill-h3",
+  "note": "mill-hunt H3 wiring: first run of the new hunt e2e checks"
+}
