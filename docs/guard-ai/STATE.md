@@ -1060,14 +1060,14 @@ Open (2026-10-27 ~14:30 SAVE before the account swap; up to 2 agents; target: Mi
    pull resumes short.
 Next (mill hunt, Michael's walk priority; docs/guard-ai/mill-hunt/):
 (1) PR 1 = feature/guard-ai-mill-hunt (H1 data + H2 board + real-map sims; worktree -guard-ai-mill-hunt). Check A
-    decef4d1f FIX (loop walks a 3rd guard behind a pair). Fix round was RUNNING at the swap (4 m loop rule, 3-within-3 m
-    sim check, woken guard re-pairs, stuck timeout HUNT.stuckT): read "## Fix round (check A)" in H2-REPORT.md; if
-    missing, a fresh Opus builder redoes it from PR1-CHECK-A.md + this list. Then a fresh check B over all of PR 1, then
-    open PR 1 (label big-pr, OKd), post checker, tell the orchestrator.
+    FIX -> fix round DONE ed5bc1b27 (HUNT.apart group-of-3 rule + CLUSTER sim check, stuckT 8 s, woken re-pair, freed
+    slots, per-member goal arrays gx / gz / gface / gspeed; H4 gap: a group of 3 can form after a setTarget jump).
+    Check B RUNNING -> PR1-CHECK-B.md; then open PR 1 (big-pr), post checker, tell the orchestrator.
 (2) PR 2 = feature/guard-ai-mill-hunt-h3 (H3 wiring 5336f4735; worktree -mill-hunt-h3; H3-REPORT.md). Check A was
     PASS 91ea88487 (H3-CHECK-A.md; board polish sent to the PR 1 fix round: per-member goal arrays,
     free member slots). Laptop e2e-piano on 5336f4735 PASSED (1/1, 53 s; check its log has
     the hunt checks before relying on it). After PR 1's
-    fixes: merge feature/guard-ai-mill-hunt into it again, check B, PR 2 after PR 1 merges.
+    fixes: merge feature/guard-ai-mill-hunt into it again and switch H3 to read the goal arrays (memberIndex cached
+    at admit; out = null), check B, PR 2 after PR 1 merges.
 (3) H4 reactions (PR 3) per PLAN rev 2. (4) J16: G4 PR (feature/guard-ai-j16-2) after Sector Ops #665; G5 to ctcourse.
 ```
