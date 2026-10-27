@@ -11,7 +11,8 @@
 // every guard is `searching` from the EMP, so the co-op start check is "no guard in combat" (flag off: "no guard past
 // suspicious" as built); the solo run, guards blinded (the difficulty's perception 0), checks 30 s after the cut every
 // live guard searching on the hunt, over the next 60 s no room above 2 guards (positions) and the far ground guards'
-// mean line distance to W1 falling, and the hunt back on (phase 0) after the checkpoint restart.
+// mean line distance to W1 falling (units still spreading or regrouping at 30 s left out), the board's stuck-watch
+// skips logged, and the hunt back on (phase 0) after the checkpoint restart.
 // Hooks: window.__piano (the scene's debug()), window.__sector, window.__app, window.__coop.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
 import { LOAD_MS, NET_VIEWPORT, hostStepResult, onHostStep, offHostStep, setSimPages, startMode, until, waitHostSim, waitSim } from './e2e-net-lib.mjs';
@@ -39,13 +40,14 @@ const HUNT_SETTLE = 30;
 const HUNT_WINDOW = 60;
 const FAR_LINE = 15;
 /** (mill-hunt H3) The hunt's state on the page: the board, every live guard's level and hunt, the fullest room (guard
- *  positions in the board's room boxes, on the room's storey) and each ground guard's line distance to W1's stop. */
+ *  positions in the board's room boxes, on the room's storey), each ground guard's line distance to W1's stop and his
+ *  unit's state, and the guards who gave up their spot (the board's stuck watch, `mSkip`). */
 const huntProbe = () =>
   G(() => {
     const em = window.__app.current.enemyMgr;
     const b = em.millHunt;
     const live = em.enemies.filter((e) => e.alive && !e.taken);
-    const out = { on: !!b, phase: b ? b.phase : -1, n: live.length, notSearching: [], off: [], worst: 0, worstRoom: '', line: {} };
+    const out = { on: !!b, phase: b ? b.phase : -1, n: live.length, notSearching: [], off: [], worst: 0, worstRoom: '', line: {}, st: {}, skip: [] };
     for (const e of live) {
       if (e.level !== 'searching') out.notSearching.push(`${e.id} ${e.level}`);
       if (!e.mhOn) out.off.push(e.id);
@@ -75,6 +77,12 @@ const huntProbe = () =>
     };
     const w1 = b.arc[near(5.5, 5.25)];
     for (const e of live) if (Math.abs(e.pos.y - b.lineY[0]) < 1.5) out.line[e.id] = Math.abs(b.arc[near(e.pos.x, e.pos.z)] - w1);
+    for (const e of live) {
+      const u = b.unitOf(e);
+      if (u >= 0) out.st[e.id] = b.stateName(u);
+      const i = b.memberIndex(e);
+      if (i >= 0 && b.mOn[i] && b.mSkip[i]) out.skip.push(e.id);
+    }
     return out;
   });
 try {
@@ -171,11 +179,18 @@ try {
       h = await huntProbe();
       assert(h.n > 0 && h.notSearching.length === 0, `${HUNT_SETTLE} s after the cut every live guard is searching (${h.n} live; not: ${h.notSearching.join(', ')})`);
       assert(h.off.length === 0, `every live guard is on the hunt (off: ${h.off.join(', ')})`);
-      const ids = Object.keys(h.line).filter((id) => h.line[id] > FAR_LINE);
+      // (H3 check A polish 2) a unit still spreading out or regrouping at 30 s may be walking away from W1: left out
+      const far = Object.keys(h.line).filter((id) => h.line[id] > FAR_LINE);
+      const ids = far.filter((id) => h.st[id] !== 'spread' && h.st[id] !== 'regroup');
+      const moving = far.filter((id) => !ids.includes(id)).map((id) => `${id} ${h.st[id]}`);
       const mean = (o, xs) => xs.reduce((a, id) => a + o[id], 0) / Math.max(1, xs.length);
       const m0 = mean(h.line, ids);
       let worst = 0;
       let where = '';
+      // (PR1 check B polish 4) the stuck watch: each guard's skips (a spot the nav could not reach), logged only
+      const skips = [];
+      let skipping = new Set(h.skip);
+      for (const id of h.skip) skips.push(`${id} at 0.0 s`);
       for (let t = 0; t < HUNT_WINDOW; t += 0.5) {
         await sim(0.5);
         const p = await huntProbe();
@@ -183,11 +198,14 @@ try {
           worst = p.worst;
           where = `${p.worstRoom} at ${t.toFixed(1)} s`;
         }
+        for (const id of p.skip) if (!skipping.has(id)) skips.push(`${id} at ${(t + 0.5).toFixed(1)} s`);
+        skipping = new Set(p.skip);
       }
       h = await huntProbe();
       const live = ids.filter((id) => h.line[id] !== undefined);
       const m1 = mean(h.line, live);
-      console.log(`  hunt: fullest room ${worst} (${where}); far ground guards ${ids.join(', ')}: mean line distance to W1 ${m0.toFixed(1)} -> ${m1.toFixed(1)} m (phase ${h.phase})`);
+      console.log(`  hunt: fullest room ${worst} (${where}); far ground guards ${ids.join(', ')}${moving.length ? ` (left out, moving at ${HUNT_SETTLE} s: ${moving.join(', ')})` : ''}: mean line distance to W1 ${m0.toFixed(1)} -> ${m1.toFixed(1)} m (phase ${h.phase})`);
+      console.log(`  hunt: stuck-watch skips over ${HUNT_WINDOW} s: ${skips.length}${skips.length ? ` (${skips.join(', ')})` : ''}`);
       assert(worst <= ROOM_CAP, `over ${HUNT_WINDOW} s no room holds more than ${ROOM_CAP} guards (${worst}: ${where})`);
       assert(ids.length > 0 && live.length > 0 && m1 < m0, `the far ground guards close in on W1 along the line (${m0.toFixed(1)} -> ${m1.toFixed(1)} m)`);
     } finally {
