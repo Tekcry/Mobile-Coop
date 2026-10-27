@@ -1,0 +1,8 @@
+{
+  "suite": "e2e-netmove",
+  "owner": "Night Shift | Player Build",
+  "last": "2026-10-24T18:52:19.548Z",
+  "since": "2026-10-27T04:09:41.435Z",
+  "reason": "flake budget again within 14 d of the last auto quarantine (2026-10-24T18:52:19.548Z): 3 flakes in 169 runs over 7 d (budget 2)",
+  "worker": "laptop"
+}
