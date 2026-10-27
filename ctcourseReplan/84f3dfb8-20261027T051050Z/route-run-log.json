@@ -1,0 +1,3189 @@
+{
+  "tool": "route-run 1",
+  "map": "ctcourseReplan",
+  "mode": "training",
+  "version": "4.132.0",
+  "sha": "84f3dfb8c0aa14baa7f0e407237828929b111e18",
+  "date": "2026-10-27T05:10:50.920Z",
+  "players": 2,
+  "pace": "sneak",
+  "detections": "forgive",
+  "graphs": [
+    "graph.json"
+  ],
+  "geom": "1obb58c-obwkld",
+  "routes": "graph",
+  "notes": [
+    "link 2 (coop_boost): the leg-up lifted the leader; the follower was placed beside it (a boost lifts one robot)",
+    "the host did not see the follower within 0.4 m of a placement in 5 s",
+    "link 39 (coop_boost): the leg-up lifted the leader; the follower was placed beside it (a boost lifts one robot)",
+    "run full: seen retry at a2-neck with no guard or camera rise logged",
+    "run full: seen retry at a4-secroom with no guard or camera rise logged",
+    "run full: seen retry at an unknown place with no guard or camera rise logged",
+    "run full: seen retry at a4-secroom with no guard or camera rise logged",
+    "run full: seen retry at a7-hall with no guard or camera rise logged",
+    "run A8-loud: seen retry at a8-office with no guard or camera rise logged"
+  ],
+  "runs": [
+    {
+      "id": "full",
+      "section": null,
+      "kind": null,
+      "covers": [],
+      "time_s": 587.6,
+      "walked_m": 377.55,
+      "walkedLinks": 37,
+      "guards": {
+        "spawned": 1,
+        "alive": 1
+      },
+      "deadStops": [
+        {
+          "t": 25.7,
+          "robot": "leader",
+          "at": [
+            12.36,
+            4.5,
+            6.06
+          ],
+          "space": "a1-walltop",
+          "link": 4,
+          "class": "could-not-follow",
+          "shot": "shots/full-1.png",
+          "since": 17.7
+        },
+        {
+          "t": 38.65,
+          "robot": "follower",
+          "at": [
+            11.4,
+            0.02,
+            7.38
+          ],
+          "space": "a1-apron",
+          "link": 8,
+          "class": "could-not-follow",
+          "shot": "shots/full-2.png",
+          "since": 30.6
+        },
+        {
+          "t": 97.85,
+          "robot": "follower",
+          "at": [
+            31.59,
+            0.02,
+            4.6
+          ],
+          "space": "a2-cabin",
+          "link": 12,
+          "class": "could-not-follow",
+          "shot": "shots/full-3.png",
+          "since": 89.7
+        },
+        {
+          "t": 146.45,
+          "robot": "leader",
+          "at": [
+            79.15,
+            0.02,
+            10.73
+          ],
+          "space": "a3-west-lobby",
+          "link": 17,
+          "class": "locked",
+          "shot": "shots/full-4.png",
+          "since": 146.45
+        },
+        {
+          "t": 263.4,
+          "robot": "leader",
+          "at": [
+            76.36,
+            0.02,
+            33.27
+          ],
+          "space": "a4-dock",
+          "link": 25,
+          "class": "locked",
+          "shot": "shots/full-5.png",
+          "since": 263.4
+        },
+        {
+          "t": 279.45,
+          "robot": "follower",
+          "at": [
+            69.45,
+            0.02,
+            32.16
+          ],
+          "space": "a5-gap",
+          "link": 27,
+          "class": "could-not-follow",
+          "shot": "shots/full-6.png",
+          "since": 271.3
+        },
+        {
+          "t": 301.3,
+          "robot": "follower",
+          "at": [
+            67.3,
+            0.04,
+            33.23
+          ],
+          "space": "a5-apron-east",
+          "link": 28,
+          "class": "could-not-follow",
+          "shot": "shots/full-7.png",
+          "since": 293.1
+        },
+        {
+          "t": 331.7,
+          "robot": "follower",
+          "at": [
+            67.55,
+            0.02,
+            31
+          ],
+          "space": "a5-apron-east",
+          "link": 28,
+          "class": "step-timeout",
+          "shot": "shots/full-8.png",
+          "since": 331.7,
+          "step_t": 21.2,
+          "limit_s": 21,
+          "phase": "approach"
+        },
+        {
+          "t": 371.1,
+          "robot": "leader",
+          "at": [
+            51.63,
+            0.02,
+            40.19
+          ],
+          "space": "a5-inner",
+          "link": 35,
+          "class": "no-nav-path",
+          "shot": "shots/full-9.png",
+          "since": 363.1
+        },
+        {
+          "t": 402.35,
+          "robot": "follower",
+          "at": [
+            43.65,
+            0.02,
+            69.28
+          ],
+          "space": "a6-floor",
+          "link": 39,
+          "class": "could-not-follow",
+          "shot": "shots/full-10.png",
+          "since": 394.25
+        },
+        {
+          "t": 427.1,
+          "robot": "leader",
+          "at": [
+            52.58,
+            4.43,
+            62.02
+          ],
+          "space": "a6-bridge",
+          "link": 43,
+          "class": "step-timeout",
+          "shot": "shots/full-11.png",
+          "since": 427.1,
+          "step_t": 5.2,
+          "limit_s": 5,
+          "phase": "off"
+        },
+        {
+          "t": 432.9,
+          "robot": "leader",
+          "at": [
+            53.19,
+            -1.58,
+            64.25
+          ],
+          "space": "a6-pit",
+          "link": 46,
+          "class": "restart-loop",
+          "shot": "shots/full-course-1.png",
+          "since": 432.5
+        },
+        {
+          "t": 448.6,
+          "robot": "follower",
+          "at": [
+            69.44,
+            0.01,
+            59.56
+          ],
+          "space": "a6-hold-l6",
+          "link": 49,
+          "class": "could-not-follow",
+          "shot": "shots/full-12.png",
+          "since": 440.5
+        },
+        {
+          "t": 459.85,
+          "robot": "follower",
+          "at": [
+            73.15,
+            0.04,
+            56.35
+          ],
+          "space": "a7-lobby",
+          "link": 51,
+          "class": "could-not-follow",
+          "shot": "shots/full-13.png",
+          "since": 451.7
+        },
+        {
+          "t": 460.45,
+          "robot": "leader",
+          "at": [
+            74,
+            0.02,
+            62
+          ],
+          "space": "a7-lobby",
+          "link": 50,
+          "class": "restart-loop",
+          "shot": "shots/full-course-2.png",
+          "since": 459.25
+        },
+        {
+          "t": 476.85,
+          "robot": "follower",
+          "at": [
+            75.62,
+            0.04,
+            57.58
+          ],
+          "space": "a7-lobby",
+          "link": 52,
+          "class": "could-not-follow",
+          "shot": "shots/full-14.png",
+          "since": 468.75
+        },
+        {
+          "t": 487.45,
+          "robot": "follower",
+          "at": [
+            91.92,
+            0.02,
+            63.29
+          ],
+          "space": "a7-cage",
+          "link": null,
+          "class": "could-not-follow",
+          "shot": "shots/full-15.png",
+          "since": 479.4
+        },
+        {
+          "t": 571.1,
+          "robot": "leader",
+          "at": [
+            124.94,
+            0.02,
+            63.54
+          ],
+          "space": "a8-hall",
+          "link": null,
+          "class": "no-nav-path",
+          "shot": "shots/full-16.png",
+          "since": 563.1
+        }
+      ],
+      "detections": [
+        {
+          "t": 152.6,
+          "robot": "leader",
+          "guard": {
+            "id": "cam-a3-hall",
+            "kind": "camera",
+            "role": null,
+            "zone": null
+          },
+          "sense": "camera",
+          "inferred": true,
+          "level": "alarm",
+          "restart": "set",
+          "guardAt": null,
+          "robotAt": [
+            88.23,
+            0.02,
+            10.28
+          ],
+          "space": "a3-corridor",
+          "inputs": {
+            "camera": "cam-a3-hall"
+          }
+        },
+        {
+          "t": 163.1,
+          "robot": "leader",
+          "guard": {
+            "id": "cam-a3-hall",
+            "kind": "camera",
+            "role": null,
+            "zone": null
+          },
+          "sense": "camera",
+          "inferred": true,
+          "level": "alarm",
+          "restart": null,
+          "guardAt": null,
+          "robotAt": [
+            101.94,
+            0.02,
+            11.52
+          ],
+          "space": "a3-hold-l3",
+          "inputs": {
+            "camera": "cam-a3-hall"
+          }
+        },
+        {
+          "t": 207.8,
+          "robot": "follower",
+          "guard": {
+            "id": "e10",
+            "kind": "officer",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            104.7,
+            1.6,
+            17.75
+          ],
+          "robotAt": [
+            102.43,
+            0.02,
+            17.88
+          ],
+          "space": "a4-secroom",
+          "inputs": {
+            "distance": 2.77,
+            "angle": 0.23,
+            "light": null,
+            "stance": "crouched",
+            "speed": 0
+          }
+        },
+        {
+          "t": 211.5,
+          "robot": "leader",
+          "guard": {
+            "id": "e7",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "unknown",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            80.25,
+            1.6,
+            31.75
+          ],
+          "robotAt": [
+            102.5,
+            0.04,
+            22.93
+          ],
+          "space": "a4-passage",
+          "inputs": null
+        },
+        {
+          "t": 212,
+          "robot": "leader",
+          "guard": {
+            "id": "e6",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "unknown",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            80.25,
+            1.6,
+            34.25
+          ],
+          "robotAt": [
+            102.5,
+            0.04,
+            22.93
+          ],
+          "space": "a4-passage",
+          "inputs": null
+        },
+        {
+          "t": 225.7,
+          "robot": "leader",
+          "guard": {
+            "id": "e7",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "unknown",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            85.27,
+            1.6,
+            35.44
+          ],
+          "robotAt": [
+            97.76,
+            0.02,
+            30.23
+          ],
+          "space": "a4-cross",
+          "inputs": null
+        },
+        {
+          "t": 229.6,
+          "robot": "leader",
+          "guard": {
+            "id": "cam-a4-c2",
+            "kind": "camera",
+            "role": null,
+            "zone": null
+          },
+          "sense": "camera",
+          "inferred": true,
+          "level": "alarm",
+          "restart": null,
+          "guardAt": null,
+          "robotAt": [
+            97.75,
+            0.02,
+            35.31
+          ],
+          "space": "a4-cross",
+          "inputs": {
+            "camera": "cam-a4-c2"
+          }
+        },
+        {
+          "t": 238.5,
+          "robot": "leader",
+          "guard": {
+            "id": "e7",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            85.06,
+            1.6,
+            34.99
+          ],
+          "robotAt": [
+            86.47,
+            0.02,
+            36.23
+          ],
+          "space": "a4-main-aisle",
+          "inputs": {
+            "distance": 2.45,
+            "angle": 0.67,
+            "light": 0.65,
+            "stance": "crouched",
+            "speed": 1.29
+          }
+        },
+        {
+          "t": 242.1,
+          "robot": "follower",
+          "guard": {
+            "id": "e10",
+            "kind": "officer",
+            "role": null,
+            "zone": null
+          },
+          "sense": "unknown",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            101.85,
+            1.6,
+            21.53
+          ],
+          "robotAt": [
+            93.39,
+            0.02,
+            23.45
+          ],
+          "space": null,
+          "inputs": null
+        },
+        {
+          "t": 345.2,
+          "robot": "leader",
+          "guard": {
+            "id": "e11",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            53.19,
+            1.6,
+            35.88
+          ],
+          "robotAt": [
+            64.34,
+            0.04,
+            36.91
+          ],
+          "space": null,
+          "inputs": {
+            "distance": 11.31,
+            "angle": 0.08,
+            "light": 0.3,
+            "stance": "crouched",
+            "speed": 1.29
+          }
+        },
+        {
+          "t": 348.4,
+          "robot": "leader",
+          "guard": {
+            "id": "e12",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": "set",
+          "guardAt": [
+            46.24,
+            1.6,
+            31.05
+          ],
+          "robotAt": [
+            60.29,
+            0.04,
+            36.24
+          ],
+          "space": "a5-apron",
+          "inputs": {
+            "distance": 15.06,
+            "angle": 0.36,
+            "light": 0.17,
+            "stance": "crouched",
+            "speed": 1.27
+          }
+        },
+        {
+          "t": 354.4,
+          "robot": "leader",
+          "guard": {
+            "id": "e13",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            54.31,
+            1.6,
+            35.12
+          ],
+          "robotAt": [
+            55.6,
+            0.02,
+            35.33
+          ],
+          "space": "a5-lee",
+          "inputs": {
+            "distance": 2.05,
+            "angle": 0.12,
+            "light": 1,
+            "stance": "crouched",
+            "speed": 1.32
+          }
+        },
+        {
+          "t": 354.7,
+          "robot": "leader",
+          "guard": {
+            "id": "e14",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            53.22,
+            1.6,
+            34.15
+          ],
+          "robotAt": [
+            55.3,
+            0.02,
+            35.25
+          ],
+          "space": "a5-lee",
+          "inputs": {
+            "distance": 2.83,
+            "angle": 0.1,
+            "light": 0.99,
+            "stance": "crouched",
+            "speed": 0.45
+          }
+        },
+        {
+          "t": 524.9,
+          "robot": "leader",
+          "guard": {
+            "id": "e21",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": "retry",
+          "guardAt": [
+            128.59,
+            1.6,
+            71.69
+          ],
+          "robotAt": [
+            123.27,
+            0.02,
+            67.5
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 6.96,
+            "angle": 0.28,
+            "light": 0.52,
+            "stance": "crouched",
+            "speed": 1.27
+          }
+        },
+        {
+          "t": 542.2,
+          "robot": "leader",
+          "guard": {
+            "id": "e24",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": "retry",
+          "guardAt": [
+            128.72,
+            1.6,
+            71.74
+          ],
+          "robotAt": [
+            124.87,
+            0.02,
+            67.47
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 5.96,
+            "angle": 0.33,
+            "light": 0.94,
+            "stance": "crouched",
+            "speed": 1.32
+          }
+        }
+      ],
+      "notices": [
+        {
+          "t": 88.5,
+          "robot": "leader",
+          "guard": {
+            "id": "e3",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            51.68,
+            1.6,
+            9.67
+          ],
+          "robotAt": [
+            45.37,
+            0.02,
+            11.77
+          ],
+          "space": "a2-lane",
+          "inputs": {
+            "distance": 6.84,
+            "angle": 0.13,
+            "light": 0.56,
+            "stance": "crouched",
+            "speed": 1.3
+          }
+        },
+        {
+          "t": 89,
+          "robot": "leader",
+          "guard": {
+            "id": "e3",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            51.41,
+            1.6,
+            9.8
+          ],
+          "robotAt": [
+            46.01,
+            0.02,
+            11.76
+          ],
+          "space": "a2-neck",
+          "inputs": {
+            "distance": 5.96,
+            "angle": 0.02,
+            "light": 0.68,
+            "stance": "crouched",
+            "speed": 1.29
+          }
+        },
+        {
+          "t": 176.9,
+          "robot": "leader",
+          "guard": {
+            "id": "e5",
+            "kind": "officer",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            104.75,
+            1.6,
+            17.75
+          ],
+          "robotAt": [
+            103.2,
+            0.04,
+            19.02
+          ],
+          "space": "a4-secroom",
+          "inputs": {
+            "distance": 2.54,
+            "angle": 0.23,
+            "light": 0.39,
+            "stance": "crouched",
+            "speed": 0
+          }
+        },
+        {
+          "t": 177.3,
+          "robot": "leader",
+          "guard": {
+            "id": "e5",
+            "kind": "officer",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            104.75,
+            1.6,
+            17.75
+          ],
+          "robotAt": [
+            103.18,
+            0.04,
+            19.02
+          ],
+          "space": "a4-secroom",
+          "inputs": {
+            "distance": 2.55,
+            "angle": 0.14,
+            "light": 0.39,
+            "stance": "crouched",
+            "speed": 0.34
+          }
+        },
+        {
+          "t": 186.7,
+          "robot": "leader",
+          "guard": {
+            "id": "e8",
+            "kind": "officer",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            104.75,
+            1.6,
+            17.75
+          ],
+          "robotAt": [
+            103.2,
+            0.04,
+            19.02
+          ],
+          "space": "a4-secroom",
+          "inputs": {
+            "distance": 2.54,
+            "angle": 0.88,
+            "light": 0.39,
+            "stance": "crouched",
+            "speed": 0
+          }
+        },
+        {
+          "t": 187.2,
+          "robot": "leader",
+          "guard": {
+            "id": "e8",
+            "kind": "officer",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            104.75,
+            1.6,
+            17.75
+          ],
+          "robotAt": [
+            103.13,
+            0.04,
+            19.02
+          ],
+          "space": "a4-secroom",
+          "inputs": {
+            "distance": 2.58,
+            "angle": 0.5,
+            "light": 0.39,
+            "stance": "crouched",
+            "speed": 0.66
+          }
+        },
+        {
+          "t": 197.1,
+          "robot": "leader",
+          "guard": {
+            "id": "e9",
+            "kind": "officer",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            104.75,
+            1.6,
+            17.75
+          ],
+          "robotAt": [
+            103.2,
+            0.04,
+            19.02
+          ],
+          "space": "a4-secroom",
+          "inputs": {
+            "distance": 2.54,
+            "angle": 0.03,
+            "light": 0.39,
+            "stance": "crouched",
+            "speed": 0
+          }
+        },
+        {
+          "t": 197.5,
+          "robot": "leader",
+          "guard": {
+            "id": "e9",
+            "kind": "officer",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            104.75,
+            1.6,
+            17.75
+          ],
+          "robotAt": [
+            103.09,
+            0.04,
+            19.02
+          ],
+          "space": "a4-secroom",
+          "inputs": {
+            "distance": 2.61,
+            "angle": 0.03,
+            "light": 0.39,
+            "stance": "crouched",
+            "speed": 0.76
+          }
+        },
+        {
+          "t": 206.2,
+          "robot": "leader",
+          "guard": {
+            "id": "e10",
+            "kind": "officer",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            104.75,
+            1.6,
+            17.75
+          ],
+          "robotAt": [
+            102.87,
+            0.04,
+            19.1
+          ],
+          "space": "a4-secroom",
+          "inputs": {
+            "distance": 2.79,
+            "angle": 0.56,
+            "light": 0.35,
+            "stance": "crouched",
+            "speed": 2.82
+          }
+        },
+        {
+          "t": 207.2,
+          "robot": "leader",
+          "guard": {
+            "id": "e10",
+            "kind": "officer",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            104.75,
+            1.6,
+            17.75
+          ],
+          "robotAt": [
+            103.2,
+            0.04,
+            19.02
+          ],
+          "space": "a4-secroom",
+          "inputs": {
+            "distance": 2.54,
+            "angle": 0.07,
+            "light": 0.39,
+            "stance": "crouched",
+            "speed": 0.01
+          }
+        },
+        {
+          "t": 337.8,
+          "robot": "follower",
+          "guard": {
+            "id": "e11",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            49.79,
+            1.6,
+            35.46
+          ],
+          "robotAt": [
+            66.58,
+            0.02,
+            35.29
+          ],
+          "space": null,
+          "inputs": {
+            "distance": 16.86,
+            "angle": 0.32,
+            "light": null,
+            "stance": "crouched",
+            "speed": 5.08
+          }
+        },
+        {
+          "t": 340.6,
+          "robot": "leader",
+          "guard": {
+            "id": "e11",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            50.12,
+            1.6,
+            35.56
+          ],
+          "robotAt": [
+            66.06,
+            0.01,
+            39.34
+          ],
+          "space": null,
+          "inputs": {
+            "distance": 16.46,
+            "angle": 0.1,
+            "light": 1,
+            "stance": "crouched",
+            "speed": 1.27
+          }
+        },
+        {
+          "t": 405.1,
+          "robot": "leader",
+          "guard": {
+            "id": "e15",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "unknown",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            48.22,
+            1.6,
+            61.56
+          ],
+          "robotAt": [
+            42.42,
+            0.02,
+            68.86
+          ],
+          "space": "a6-floor",
+          "inputs": null
+        },
+        {
+          "t": 407.6,
+          "robot": "follower",
+          "guard": {
+            "id": "e15",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "hearing",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            48.21,
+            1.6,
+            61.22
+          ],
+          "robotAt": [
+            42.97,
+            0.02,
+            69.29
+          ],
+          "space": "a6-floor",
+          "inputs": {
+            "radius": 2,
+            "kind": "noise",
+            "distance": 8.82
+          }
+        },
+        {
+          "t": 450.7,
+          "robot": "follower",
+          "guard": {
+            "id": "e17",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            80.09,
+            1.6,
+            57.38
+          ],
+          "robotAt": [
+            75.07,
+            0.02,
+            55.34
+          ],
+          "space": "a7-corridor",
+          "inputs": {
+            "distance": 5.65,
+            "angle": 0.4,
+            "light": null,
+            "stance": "crouched",
+            "speed": 5.19
+          }
+        },
+        {
+          "t": 453.2,
+          "robot": "follower",
+          "guard": {
+            "id": "e17",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            79.75,
+            1.6,
+            57.38
+          ],
+          "robotAt": [
+            76.78,
+            0.02,
+            55.34
+          ],
+          "space": "a7-corridor",
+          "inputs": {
+            "distance": 3.93,
+            "angle": 1.45,
+            "light": null,
+            "stance": "crouched",
+            "speed": 0
+          }
+        },
+        {
+          "t": 523.5,
+          "robot": "leader",
+          "guard": {
+            "id": "e21",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            121.45,
+            0.02,
+            67.55
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 8.57,
+            "angle": 0.44,
+            "light": 0.61,
+            "stance": "crouched",
+            "speed": 1.28
+          }
+        },
+        {
+          "t": 524.1,
+          "robot": "leader",
+          "guard": {
+            "id": "e21",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            122.23,
+            0.02,
+            67.53
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 7.93,
+            "angle": 0.03,
+            "light": 0.5,
+            "stance": "crouched",
+            "speed": 1.33
+          }
+        },
+        {
+          "t": 541.1,
+          "robot": "leader",
+          "guard": {
+            "id": "e24",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            123.44,
+            0.02,
+            67.51
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 6.98,
+            "angle": 0.3,
+            "light": 0.55,
+            "stance": "crouched",
+            "speed": 1.28
+          }
+        },
+        {
+          "t": 541.7,
+          "robot": "leader",
+          "guard": {
+            "id": "e24",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            124.22,
+            0.02,
+            67.49
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 6.41,
+            "angle": 0.04,
+            "light": 0.79,
+            "stance": "crouched",
+            "speed": 1.28
+          }
+        }
+      ],
+      "stubs": [
+        {
+          "link": 10,
+          "kind": "shutter",
+          "hold_s": 6,
+          "why": "co-op move stubbed (A1)",
+          "robots": [
+            "leader",
+            "follower"
+          ]
+        },
+        {
+          "link": 13,
+          "kind": "pair_gate",
+          "hold_s": 8,
+          "why": "co-op move stubbed (A1)",
+          "robots": [
+            "leader",
+            "follower"
+          ]
+        },
+        {
+          "link": 22,
+          "kind": "shutter",
+          "hold_s": 6,
+          "why": "co-op move stubbed (A1)",
+          "robots": [
+            "leader",
+            "follower"
+          ]
+        },
+        {
+          "link": 27,
+          "kind": "team_rope",
+          "hold_s": 12,
+          "why": "co-op move stubbed (A1)",
+          "robots": [
+            "leader",
+            "follower"
+          ]
+        },
+        {
+          "link": 53,
+          "kind": "pair_gate",
+          "hold_s": 6,
+          "why": "co-op move stubbed (A1)",
+          "robots": [
+            "leader",
+            "follower"
+          ]
+        },
+        {
+          "link": 67,
+          "kind": "pair_gate",
+          "hold_s": 6,
+          "why": "co-op move stubbed (A1)",
+          "robots": [
+            "leader",
+            "follower"
+          ]
+        }
+      ],
+      "drills": [],
+      "restarts": [
+        {
+          "t": 89.5,
+          "space": "a2-neck",
+          "set": null,
+          "restart": "retry",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 90.1,
+          "space": "a2-neck",
+          "set": null,
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 152.65,
+          "space": "a3-corridor",
+          "set": null,
+          "restart": "retry",
+          "detection": 0,
+          "then": "rejoined"
+        },
+        {
+          "t": 153.05,
+          "space": "a3-corridor",
+          "set": null,
+          "restart": "set",
+          "detection": 0,
+          "then": "pushed-past"
+        },
+        {
+          "t": 178.05,
+          "space": "a4-secroom",
+          "set": null,
+          "restart": "retry",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 178.6,
+          "space": null,
+          "set": null,
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 188.4,
+          "space": null,
+          "set": null,
+          "restart": "retry",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 188.8,
+          "space": "a4-passage",
+          "set": null,
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 189,
+          "space": "a4-secroom",
+          "set": null,
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 198.25,
+          "space": "a4-secroom",
+          "set": null,
+          "restart": "retry",
+          "detection": null,
+          "then": "pushed-past"
+        },
+        {
+          "t": 198.85,
+          "space": "a4-cross",
+          "set": null,
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 349.35,
+          "space": "a5-apron",
+          "set": null,
+          "restart": "retry",
+          "detection": 10,
+          "then": "rejoined"
+        },
+        {
+          "t": 349.75,
+          "space": "a5-apron",
+          "set": null,
+          "restart": "set",
+          "detection": 10,
+          "then": "pushed-past"
+        },
+        {
+          "t": 432.5,
+          "space": "a6-pit",
+          "set": null,
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 432.9,
+          "space": "a6-pit",
+          "set": null,
+          "restart": "other",
+          "detection": null,
+          "then": "dead-stop"
+        },
+        {
+          "t": 458.65,
+          "space": "a7-hall",
+          "set": null,
+          "restart": "retry",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 459.05,
+          "space": "a7-hall",
+          "set": null,
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 459.25,
+          "space": "a7-lobby",
+          "set": null,
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 460.45,
+          "space": "a7-lobby",
+          "set": null,
+          "restart": "other",
+          "detection": null,
+          "then": "dead-stop"
+        },
+        {
+          "t": 527,
+          "space": "a8-counters",
+          "set": null,
+          "restart": "retry",
+          "detection": 13,
+          "then": "rejoined"
+        },
+        {
+          "t": 527.4,
+          "space": "a8-counters",
+          "set": null,
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 544.25,
+          "space": "a8-counters",
+          "set": null,
+          "restart": "retry",
+          "detection": 14,
+          "then": "pushed-past"
+        }
+      ],
+      "objectives": [
+        {
+          "space": "a2-cabin",
+          "hold_s": 0,
+          "done": false,
+          "why": "no objective hook for this mode (R4a: Sector Ops only)"
+        },
+        {
+          "space": "a5-inner",
+          "hold_s": 0,
+          "done": false,
+          "why": "no objective hook for this mode (R4a: Sector Ops only)"
+        },
+        {
+          "space": "a6-bridge",
+          "hold_s": 0,
+          "done": false,
+          "why": "no objective hook for this mode (R4a: Sector Ops only)"
+        },
+        {
+          "space": "a8-lobby-inner",
+          "hold_s": 0,
+          "done": false,
+          "why": "no objective hook for this mode (R4a: Sector Ops only)"
+        }
+      ],
+      "links": [
+        {
+          "index": 0,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 2,
+          "kind": "coop_boost",
+          "outcome": "walked"
+        },
+        {
+          "index": 4,
+          "kind": "drop",
+          "outcome": "could-not-follow"
+        },
+        {
+          "index": 7,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 8,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 9,
+          "kind": "door",
+          "outcome": "walked"
+        },
+        {
+          "index": 9,
+          "kind": "door",
+          "outcome": "walked"
+        },
+        {
+          "index": 10,
+          "kind": "shutter",
+          "outcome": "stub"
+        },
+        {
+          "index": 11,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 11,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 12,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 13,
+          "kind": "pair_gate",
+          "outcome": "stub"
+        },
+        {
+          "index": 14,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 15,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 17,
+          "kind": "door",
+          "outcome": "locked"
+        },
+        {
+          "index": 19,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 20,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 21,
+          "kind": "door",
+          "outcome": "walked"
+        },
+        {
+          "index": 20,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 21,
+          "kind": "door",
+          "outcome": "walked"
+        },
+        {
+          "index": 21,
+          "kind": "door",
+          "outcome": "walked"
+        },
+        {
+          "index": 20,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 21,
+          "kind": "door",
+          "outcome": "walked"
+        },
+        {
+          "index": 20,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 21,
+          "kind": "door",
+          "outcome": "walked"
+        },
+        {
+          "index": 22,
+          "kind": "shutter",
+          "outcome": "stub"
+        },
+        {
+          "index": 23,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 24,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 25,
+          "kind": "double_door",
+          "outcome": "locked"
+        },
+        {
+          "index": 26,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 27,
+          "kind": "team_rope",
+          "outcome": "stub"
+        },
+        {
+          "index": 28,
+          "kind": "ladder",
+          "outcome": "step-timeout"
+        },
+        {
+          "index": 30,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 35,
+          "kind": "double_door",
+          "outcome": "no-nav-path"
+        },
+        {
+          "index": 36,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 37,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 39,
+          "kind": "coop_boost",
+          "outcome": "walked"
+        },
+        {
+          "index": 42,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 43,
+          "kind": "drop",
+          "outcome": "step-timeout"
+        },
+        {
+          "index": 47,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 48,
+          "kind": "door",
+          "outcome": "walked",
+          "robot": "leader"
+        },
+        {
+          "index": 49,
+          "kind": "door",
+          "outcome": "could-not-follow",
+          "robot": "follower"
+        },
+        {
+          "index": 51,
+          "kind": "door",
+          "outcome": "could-not-follow",
+          "robot": "follower"
+        },
+        {
+          "index": 52,
+          "kind": "door",
+          "outcome": "could-not-follow",
+          "robot": "follower"
+        },
+        {
+          "index": 53,
+          "kind": "pair_gate",
+          "outcome": "stub"
+        },
+        {
+          "index": 54,
+          "kind": "double_door",
+          "outcome": "walked"
+        },
+        {
+          "index": 55,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 56,
+          "kind": "opening",
+          "outcome": "walked",
+          "robot": "follower"
+        },
+        {
+          "index": 55,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 56,
+          "kind": "opening",
+          "outcome": "walked",
+          "robot": "follower"
+        },
+        {
+          "index": 67,
+          "kind": "pair_gate",
+          "outcome": "stub"
+        },
+        {
+          "index": 68,
+          "kind": "opening",
+          "outcome": "walked"
+        }
+      ],
+      "robots": [
+        "leader",
+        "follower"
+      ],
+      "splits": [
+        {
+          "id": "a7",
+          "fork": "a7-lobby",
+          "rejoin": "a7-cage",
+          "start_s": 437.3,
+          "legs": [
+            {
+              "side": "a",
+              "robot": "leader",
+              "links": [
+                48,
+                50
+              ],
+              "start_s": 437.3,
+              "end_s": 463.05,
+              "space": "a7-lobby",
+              "reached": false
+            },
+            {
+              "side": "b",
+              "robot": "follower",
+              "links": [
+                49,
+                51,
+                52
+              ],
+              "start_s": 437.3,
+              "end_s": 487.65,
+              "space": "a7-cage",
+              "reached": true
+            }
+          ],
+          "waited": {
+            "robot": "leader",
+            "s": 24.6
+          }
+        },
+        {
+          "id": "a8",
+          "fork": "a8-hall",
+          "rejoin": "a8-lobby-outer",
+          "start_s": 513.6,
+          "legs": [
+            {
+              "side": "a",
+              "robot": "leader",
+              "links": [
+                63,
+                64,
+                65
+              ],
+              "start_s": 513.6,
+              "end_s": 527,
+              "space": "a8-counters",
+              "reached": false
+            },
+            {
+              "side": "b",
+              "robot": "follower",
+              "links": [
+                56,
+                58,
+                59
+              ],
+              "start_s": 513.6,
+              "end_s": 527.2,
+              "space": "a8-hall",
+              "reached": false
+            }
+          ],
+          "waited": {
+            "robot": "leader",
+            "s": 0.2
+          }
+        },
+        {
+          "id": "a8",
+          "fork": "a8-hall",
+          "rejoin": "a8-lobby-outer",
+          "start_s": 529.65,
+          "legs": [
+            {
+              "side": "a",
+              "robot": "leader",
+              "links": [
+                63,
+                64,
+                65
+              ],
+              "start_s": 529.65,
+              "end_s": 544.25,
+              "space": "a8-counters",
+              "reached": false
+            },
+            {
+              "side": "b",
+              "robot": "follower",
+              "links": [
+                56,
+                58,
+                59
+              ],
+              "start_s": 529.65,
+              "end_s": 544.45,
+              "space": "a8-hall",
+              "reached": false
+            }
+          ],
+          "waited": {
+            "robot": "leader",
+            "s": 0.2
+          }
+        }
+      ]
+    },
+    {
+      "id": "A8-high",
+      "section": "A8",
+      "kind": "high",
+      "covers": [
+        [
+          "a8-hall",
+          "shadow"
+        ],
+        [
+          "a8-hall",
+          "high"
+        ],
+        [
+          "a8-office",
+          "high"
+        ]
+      ],
+      "time_s": null,
+      "walked_m": 0,
+      "walkedLinks": 0,
+      "guards": {
+        "spawned": 0,
+        "alive": 0
+      },
+      "deadStops": [],
+      "detections": [],
+      "notices": [],
+      "stubs": [],
+      "drills": [],
+      "restarts": [],
+      "objectives": [],
+      "links": [],
+      "robots": [
+        "leader",
+        "follower"
+      ],
+      "splits": [],
+      "unplannable": "split a8 leg b: no solo link from a8-gallery-west to a8-counters"
+    },
+    {
+      "id": "A8-loud",
+      "section": "A8",
+      "kind": "loud",
+      "covers": [
+        [
+          "a8-hall",
+          "shadow"
+        ],
+        [
+          "a8-office",
+          "high"
+        ]
+      ],
+      "time_s": 164.3,
+      "walked_m": 182.9,
+      "walkedLinks": 13,
+      "guards": {
+        "spawned": 3,
+        "alive": 3
+      },
+      "deadStops": [
+        {
+          "t": 90.95,
+          "robot": "leader",
+          "at": [
+            131.78,
+            2,
+            70.65
+          ],
+          "space": "a8-gallery",
+          "link": 64,
+          "class": "could-not-follow",
+          "shot": "shots/A8-loud-1.png",
+          "since": 82.95
+        },
+        {
+          "t": 121.8,
+          "robot": "follower",
+          "at": [
+            134.36,
+            4.42,
+            73.74
+          ],
+          "space": "a8-office",
+          "link": 56,
+          "class": "could-not-follow",
+          "shot": "shots/A8-loud-2.png",
+          "since": 113.6
+        },
+        {
+          "t": 145.3,
+          "robot": "leader",
+          "at": [
+            130.18,
+            0.02,
+            70.61
+          ],
+          "space": "a8-hall",
+          "link": 66,
+          "class": "no-nav-path",
+          "shot": "shots/A8-loud-3.png",
+          "since": 137.3
+        }
+      ],
+      "detections": [
+        {
+          "t": 23.9,
+          "robot": "leader",
+          "guard": {
+            "id": "e30",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": "retry",
+          "guardAt": [
+            128.73,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            127.89,
+            0.02,
+            67.39
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 4.71,
+            "angle": 0.3,
+            "light": 0.72,
+            "stance": "crouched",
+            "speed": 1.27
+          }
+        },
+        {
+          "t": 41.1,
+          "robot": "leader",
+          "guard": {
+            "id": "e33",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": "retry",
+          "guardAt": [
+            128.7,
+            1.6,
+            71.73
+          ],
+          "robotAt": [
+            124.8,
+            0.02,
+            67.47
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 5.99,
+            "angle": 0.38,
+            "light": 0.93,
+            "stance": "crouched",
+            "speed": 1.31
+          }
+        },
+        {
+          "t": 58.3,
+          "robot": "leader",
+          "guard": {
+            "id": "e36",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": "retry",
+          "guardAt": [
+            128.71,
+            1.6,
+            71.73
+          ],
+          "robotAt": [
+            124.8,
+            0.02,
+            67.48
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 5.99,
+            "angle": 0.35,
+            "light": 0.92,
+            "stance": "crouched",
+            "speed": 1.29
+          }
+        },
+        {
+          "t": 71.1,
+          "robot": "leader",
+          "guard": {
+            "id": "e39",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            123.23,
+            1.6,
+            71.78
+          ],
+          "robotAt": [
+            118.9,
+            0.02,
+            67.64
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 6.2,
+            "angle": 0.34,
+            "light": 0.4,
+            "stance": "crouched",
+            "speed": 1.31
+          }
+        },
+        {
+          "t": 74.3,
+          "robot": "leader",
+          "guard": {
+            "id": "e40",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "unknown",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            131.05,
+            1.6,
+            64.69
+          ],
+          "robotAt": [
+            123.06,
+            0.02,
+            67.53
+          ],
+          "space": "a8-counters",
+          "inputs": null
+        },
+        {
+          "t": 75,
+          "robot": "leader",
+          "guard": {
+            "id": "e41",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "unknown",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            133.21,
+            1.6,
+            53.6
+          ],
+          "robotAt": [
+            123.97,
+            0.02,
+            67.5
+          ],
+          "space": "a8-counters",
+          "inputs": null
+        },
+        {
+          "t": 125.2,
+          "robot": "leader",
+          "guard": {
+            "id": "e42",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": "retry",
+          "guardAt": [
+            128.58,
+            1.6,
+            71.68
+          ],
+          "robotAt": [
+            123.74,
+            0.02,
+            67.67
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 6.48,
+            "angle": 0.28,
+            "light": 0.61,
+            "stance": "crouched",
+            "speed": 1.33
+          }
+        },
+        {
+          "t": 132.5,
+          "robot": "follower",
+          "guard": {
+            "id": "e47",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            132.97,
+            6,
+            76.69
+          ],
+          "robotAt": [
+            133.02,
+            4.42,
+            75.97
+          ],
+          "space": "a8-gallery",
+          "inputs": {
+            "distance": 1.74,
+            "angle": 1.2,
+            "light": null,
+            "stance": "crouched",
+            "speed": 5.32
+          }
+        },
+        {
+          "t": 133.1,
+          "robot": "leader",
+          "guard": {
+            "id": "e46",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            126.54,
+            1.6,
+            71.79
+          ],
+          "robotAt": [
+            130.18,
+            0.02,
+            71.59
+          ],
+          "space": "a8-hall",
+          "inputs": {
+            "distance": 3.97,
+            "angle": 0.71,
+            "light": 0.52,
+            "stance": "crouched",
+            "speed": 0.53
+          }
+        },
+        {
+          "t": 136.4,
+          "robot": "leader",
+          "guard": {
+            "id": "e45",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "alert",
+          "restart": null,
+          "guardAt": [
+            130.59,
+            1.6,
+            66.87
+          ],
+          "robotAt": [
+            130.18,
+            0.02,
+            70.83
+          ],
+          "space": "a8-hall",
+          "inputs": {
+            "distance": 4.28,
+            "angle": 0.43,
+            "light": 0.6,
+            "stance": "crouched",
+            "speed": 0.09
+          }
+        }
+      ],
+      "notices": [
+        {
+          "t": 23,
+          "robot": "leader",
+          "guard": {
+            "id": "e30",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            126.72,
+            0.02,
+            67.42
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 5.03,
+            "angle": 0.17,
+            "light": 0.72,
+            "stance": "crouched",
+            "speed": 1.33
+          }
+        },
+        {
+          "t": 23.4,
+          "robot": "leader",
+          "guard": {
+            "id": "e30",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            127.25,
+            0.02,
+            67.41
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 4.86,
+            "angle": 0.06,
+            "light": 0.71,
+            "stance": "crouched",
+            "speed": 1.33
+          }
+        },
+        {
+          "t": 40,
+          "robot": "leader",
+          "guard": {
+            "id": "e33",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            123.37,
+            0.02,
+            67.51
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 7.03,
+            "angle": 0.27,
+            "light": 0.54,
+            "stance": "crouched",
+            "speed": 1.27
+          }
+        },
+        {
+          "t": 40.5,
+          "robot": "leader",
+          "guard": {
+            "id": "e33",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            124.02,
+            0.02,
+            67.49
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 6.56,
+            "angle": 0.02,
+            "light": 0.71,
+            "stance": "crouched",
+            "speed": 1.33
+          }
+        },
+        {
+          "t": 57.2,
+          "robot": "leader",
+          "guard": {
+            "id": "e36",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            123.38,
+            0.02,
+            67.52
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 7.02,
+            "angle": 0.3,
+            "light": 0.53,
+            "stance": "crouched",
+            "speed": 1.27
+          }
+        },
+        {
+          "t": 57.8,
+          "robot": "leader",
+          "guard": {
+            "id": "e36",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            124.16,
+            0.02,
+            67.49
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 6.46,
+            "angle": 0.04,
+            "light": 0.74,
+            "stance": "crouched",
+            "speed": 1.3
+          }
+        },
+        {
+          "t": 123.6,
+          "robot": "leader",
+          "guard": {
+            "id": "e42",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            121.67,
+            0.02,
+            67.78
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 8.27,
+            "angle": 0.52,
+            "light": 0.55,
+            "stance": "crouched",
+            "speed": 1.29
+          }
+        },
+        {
+          "t": 124.4,
+          "robot": "leader",
+          "guard": {
+            "id": "e42",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            128.75,
+            1.6,
+            71.75
+          ],
+          "robotAt": [
+            122.7,
+            0.02,
+            67.73
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 7.43,
+            "angle": 0.02,
+            "light": 0.46,
+            "stance": "crouched",
+            "speed": 1.27
+          }
+        },
+        {
+          "t": 126.4,
+          "robot": "leader",
+          "guard": {
+            "id": "e43",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            128.65,
+            1.6,
+            63.49
+          ],
+          "robotAt": [
+            125.3,
+            0.02,
+            67.6
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 5.53,
+            "angle": 0.23,
+            "light": 0.85,
+            "stance": "crouched",
+            "speed": 1.28
+          }
+        },
+        {
+          "t": 126.9,
+          "robot": "leader",
+          "guard": {
+            "id": "e43",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "investigating",
+          "restart": null,
+          "guardAt": [
+            128.52,
+            1.6,
+            63.77
+          ],
+          "robotAt": [
+            125.95,
+            0.02,
+            67.56
+          ],
+          "space": "a8-counters",
+          "inputs": {
+            "distance": 4.85,
+            "angle": 0.03,
+            "light": 0.79,
+            "stance": "crouched",
+            "speed": 1.31
+          }
+        },
+        {
+          "t": 132,
+          "robot": "leader",
+          "guard": {
+            "id": "e46",
+            "kind": "grunt",
+            "role": null,
+            "zone": null
+          },
+          "sense": "sight",
+          "inferred": true,
+          "level": "suspicious",
+          "restart": null,
+          "guardAt": [
+            126.21,
+            1.6,
+            71.43
+          ],
+          "robotAt": [
+            130.09,
+            0.02,
+            72.43
+          ],
+          "space": "a8-hall",
+          "inputs": {
+            "distance": 4.31,
+            "angle": 0.23,
+            "light": 0.47,
+            "stance": "crouched",
+            "speed": 1.33
+          }
+        }
+      ],
+      "stubs": [
+        {
+          "link": 67,
+          "kind": "pair_gate",
+          "hold_s": 6,
+          "why": "co-op move stubbed (A1)",
+          "robots": [
+            "leader",
+            "follower"
+          ]
+        }
+      ],
+      "drills": [],
+      "restarts": [
+        {
+          "t": 25.85,
+          "space": "a8-hall",
+          "set": "A8",
+          "restart": "retry",
+          "detection": 0,
+          "then": "rejoined"
+        },
+        {
+          "t": 26.45,
+          "space": "a8-hall",
+          "set": "A8",
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 43.2,
+          "space": "a8-counters",
+          "set": "A8",
+          "restart": "retry",
+          "detection": 1,
+          "then": "rejoined"
+        },
+        {
+          "t": 43.6,
+          "space": "a8-counters",
+          "set": "A8",
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 60.4,
+          "space": "a8-counters",
+          "set": "A8",
+          "restart": "retry",
+          "detection": 2,
+          "then": "pushed-past"
+        },
+        {
+          "t": 61,
+          "space": "a8-vestibule",
+          "set": "A8",
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 93.55,
+          "space": "a8-office",
+          "set": "A8",
+          "restart": "retry",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 93.95,
+          "space": "a8-office",
+          "set": "A8",
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        },
+        {
+          "t": 127.2,
+          "space": "a8-counters",
+          "set": "A8",
+          "restart": "retry",
+          "detection": 6,
+          "then": "pushed-past"
+        },
+        {
+          "t": 127.8,
+          "space": "a8-lobby-inner",
+          "set": "A8",
+          "restart": "other",
+          "detection": null,
+          "then": "rejoined"
+        }
+      ],
+      "objectives": [
+        {
+          "space": "a8-lobby-inner",
+          "hold_s": 0,
+          "done": false,
+          "why": "no objective hook for this mode (R4a: Sector Ops only)"
+        }
+      ],
+      "links": [
+        {
+          "index": 55,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 56,
+          "kind": "opening",
+          "outcome": "walked",
+          "robot": "follower"
+        },
+        {
+          "index": 58,
+          "kind": "opening",
+          "outcome": "walked",
+          "robot": "follower"
+        },
+        {
+          "index": 55,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 56,
+          "kind": "opening",
+          "outcome": "walked",
+          "robot": "follower"
+        },
+        {
+          "index": 55,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 56,
+          "kind": "opening",
+          "outcome": "walked",
+          "robot": "follower"
+        },
+        {
+          "index": 55,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 56,
+          "kind": "opening",
+          "outcome": "walked",
+          "robot": "follower"
+        },
+        {
+          "index": 58,
+          "kind": "opening",
+          "outcome": "walked",
+          "robot": "follower"
+        },
+        {
+          "index": 63,
+          "kind": "open_stair",
+          "outcome": "walked",
+          "robot": "leader"
+        },
+        {
+          "index": 64,
+          "kind": "door",
+          "outcome": "could-not-follow",
+          "robot": "leader"
+        },
+        {
+          "index": 55,
+          "kind": "opening",
+          "outcome": "walked"
+        },
+        {
+          "index": 56,
+          "kind": "opening",
+          "outcome": "could-not-follow",
+          "robot": "follower"
+        },
+        {
+          "index": 66,
+          "kind": "team_throw",
+          "outcome": "no-nav-path"
+        },
+        {
+          "index": 67,
+          "kind": "pair_gate",
+          "outcome": "stub"
+        },
+        {
+          "index": 68,
+          "kind": "opening",
+          "outcome": "walked"
+        }
+      ],
+      "robots": [
+        "leader",
+        "follower"
+      ],
+      "splits": [
+        {
+          "id": "a8",
+          "fork": "a8-hall",
+          "rejoin": "a8-lobby-outer",
+          "start_s": 9.05,
+          "legs": [
+            {
+              "side": "a",
+              "robot": "leader",
+              "links": [
+                63,
+                64,
+                65
+              ],
+              "start_s": 9.05,
+              "end_s": 25.85,
+              "space": "a8-hall",
+              "reached": false
+            },
+            {
+              "side": "b",
+              "robot": "follower",
+              "links": [
+                56,
+                58,
+                59
+              ],
+              "start_s": 9.05,
+              "end_s": 26.05,
+              "space": "a8-hall",
+              "reached": false
+            }
+          ],
+          "waited": {
+            "robot": "leader",
+            "s": 0.2
+          }
+        },
+        {
+          "id": "a8",
+          "fork": "a8-hall",
+          "rejoin": "a8-lobby-outer",
+          "start_s": 28.6,
+          "legs": [
+            {
+              "side": "a",
+              "robot": "leader",
+              "links": [
+                63,
+                64,
+                65
+              ],
+              "start_s": 28.6,
+              "end_s": 43.2,
+              "space": "a8-counters",
+              "reached": false
+            },
+            {
+              "side": "b",
+              "robot": "follower",
+              "links": [
+                56,
+                58,
+                59
+              ],
+              "start_s": 28.6,
+              "end_s": 43.4,
+              "space": "a8-hall",
+              "reached": false
+            }
+          ],
+          "waited": {
+            "robot": "leader",
+            "s": 0.2
+          }
+        },
+        {
+          "id": "a8",
+          "fork": "a8-hall",
+          "rejoin": "a8-lobby-outer",
+          "start_s": 45.8,
+          "legs": [
+            {
+              "side": "a",
+              "robot": "leader",
+              "links": [
+                63,
+                64,
+                65
+              ],
+              "start_s": 45.8,
+              "end_s": 60.4,
+              "space": "a8-counters",
+              "reached": false
+            },
+            {
+              "side": "b",
+              "robot": "follower",
+              "links": [
+                56,
+                58,
+                59
+              ],
+              "start_s": 45.8,
+              "end_s": 60.6,
+              "space": "a8-hall",
+              "reached": false
+            }
+          ],
+          "waited": {
+            "robot": "leader",
+            "s": 0.2
+          }
+        },
+        {
+          "id": "a8",
+          "fork": "a8-hall",
+          "rejoin": "a8-lobby-outer",
+          "start_s": 63.15,
+          "legs": [
+            {
+              "side": "a",
+              "robot": "leader",
+              "links": [
+                63,
+                64,
+                65
+              ],
+              "start_s": 63.15,
+              "end_s": 93.55,
+              "space": "a8-office",
+              "reached": false
+            },
+            {
+              "side": "b",
+              "robot": "follower",
+              "links": [
+                56,
+                58,
+                59
+              ],
+              "start_s": 63.15,
+              "end_s": 98.55,
+              "space": "a8-office",
+              "reached": false
+            }
+          ],
+          "waited": {
+            "robot": "leader",
+            "s": 5
+          }
+        },
+        {
+          "id": "a8",
+          "fork": "a8-hall",
+          "rejoin": "a8-lobby-outer",
+          "start_s": 113.6,
+          "legs": [
+            {
+              "side": "a",
+              "robot": "leader",
+              "links": [
+                63,
+                64,
+                65
+              ],
+              "start_s": 113.6,
+              "end_s": 127.2,
+              "space": "a8-counters",
+              "reached": false
+            },
+            {
+              "side": "b",
+              "robot": "follower",
+              "links": [
+                56,
+                58,
+                59
+              ],
+              "start_s": 113.6,
+              "end_s": 127.4,
+              "space": "a8-hall",
+              "reached": false
+            }
+          ],
+          "waited": {
+            "robot": "leader",
+            "s": 0.2
+          }
+        }
+      ]
+    }
+  ]
+}
