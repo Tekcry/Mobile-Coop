@@ -1016,9 +1016,9 @@ down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); light
 fixed timeline data (Sector Ops SO5), guards just read the light.
 STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano guard work (#624) moves, at most 2
 builders; 00:59 pace: up to 2 agents, piano first.
-SHIP 4-PLAYER (Michael after the walk, ~10:40): #317 merge 16 Opus builder RUNNING (conflicts e2e-coop.mjs,
-run-e2e.mjs, sectorMode.ts; CI red guardAiAlloc D1 = CI Node 22, not ours, #696) -> merge16-build.md -> one checker ->
-post checker -> tell the orchestrator the head (it labels no-affected-e2e + train-ready). #694 train-ready (train 166
+SHIP 4-PLAYER (Michael after the walk, ~10:40): #317 merge 16 head 2d8fa5a0e, MERGE16-CHECK.md PASS, checker
+posted, orchestrator told (it labels no-affected-e2e + train-ready); CI red guardAiAlloc D1 = CI Node 22 (#696). If it
+conflicts again before its train: merge 17 at once. #694 train-ready (train 166
 failed on another test). J16 G4 PR may open once Sector Ops #665 lands.
 TOP PRIORITY (Michael's mill walk ~10:00, via the orchestrator; J16 HELD): (A) guards fire while facing away:
 fix everywhere = PR #694 (label fix; 58bbbdab2, FIRE_CONE 15 deg, faceFor 110 deg/s; AIM-FIX-REPORT.md):
