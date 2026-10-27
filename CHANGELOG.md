@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.134.0 - Train 171: Co-op kit: Plank Bridge, carrying the board; Marlow Yard re-plan graph: route-run gate points (2026-10-27, PR #712; #710, #601)
+
+### Co-op kit: Plank Bridge, carrying the board
+- Co-op (not switched on yet, in the live game or in /preview/): Plank Bridge's first half. Two players lift a
+  scaffold board from its stack, one at each end, and carry it together: each steers, the pair walks at the slower
+  partner's pace and the board stays between both pairs of hands. B (either player), a hit or a fall puts it down where
+  it is, ready to lift again; a section restart puts it back on its stack. Laying it over a gap and walking across
+  comes in the next update.
+
+### Marlow Yard re-plan graph: route-run gate points
+- The re-planned Marlow Yard graph (`docs/marlow-replan/graph.json`) now names the re-plan map (`ctcourseReplan`), so the
+  route-run gate measures and boots the re-planned yard, not the built one; every link the gate walks has a point the
+  robots can stand on (station marks where a station has one), and the data hall's cage is an objective (the synced hack).
+
 ## 4.133.0 - Train 170: New interaction prompts: the actions wired in (preview only); Co-op kit: Swing Pass; Light check on every map (2026-10-27, PR #709; #700, #681, #658)
 
 ### New interaction prompts: the actions wired in (preview only)
