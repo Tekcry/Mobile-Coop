@@ -13,9 +13,12 @@ Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). Worktre
    Job-done). Plan-check polish 3-11 in scratch/campaign/campaign-mode-plan-check.md go into those briefs.
 4. Mill / Tallow: all walk fixes on master (#690 skip, #693 roof, #701 storm recordings). Waiting on Michael's storm
    level and other notes; mill polish (knife fist, hero framing, glide light) briefs when he asks.
-UPDATE ~14:40: CM3 DONE dc6661422 (CM3-report.md; carried tally SectorMode.carried). Opus checker 1 running ->
-   scratch/campaign/cm/CM3-check-1.md (prompt CM3-check-prompt.md); then checker 2 -> CM3-check-2.md (rerun any missing).
-Next: two checker verdicts -> fix round if needed -> PR 2.
+UPDATE ~15:00: CM3 two Opus PASS -> PR 2 = #711 (feature/campaign-mode-cm3 8bbc61023, base feature/campaign-mode;
+   retarget to master when #708 lands, re-post checker). CM5 notes from the checks: sections before a Continue stay
+   unrated; the save stays on the match options (a restart reuses them: clear it after the Continue starts); the real
+   SectorMode resume wiring has no unit test (stand-in mode): add one in CM5.
+Next: CM4 (lobby Mission row, briefing, Continue, main-menu item; Opus) on feature/campaign-mode-cm4 from #711's head,
+   brief from PLAN 3.5 + CM4 row + plan-check polish 5, 9; then CM5 + CM6 (PR 4), CM7 (PR 5, Job-done).
 
 ## OLD RESUME 2026-10-27 ~11:50 SAVE (Night Shift | Campaign Build; reset 13:50: carry on without waiting)
 Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). All worktrees clean and pushed.
