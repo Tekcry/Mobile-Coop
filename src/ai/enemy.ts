@@ -404,6 +404,18 @@ const BITE_POINT = new Vector3();
 const BITE_DIR = new Vector3();
 const BITE_FROM = new Vector3();
 const THROW_FROM = new Vector3();
+/** (guard-ai aim fix) `tryFire`'s aim point for the facing check (module scratch, as `SHOT_AIM`). */
+const FACE_AIM = new Vector3();
+/**
+ * (guard-ai aim fix, Michael 2026-10-27: "they currently shoot at you without actually aiming at you (ie facing away from
+ * you) which is unrealistic") A round leaves only while his body faces the shot's aim point (flat yaw from his position
+ * to it) within this (rad, 15 deg); outside it he holds the round and turns to it first (`aimFace`, the aimed turn at
+ * `ENEMY_MOTION.turnAim` 110 deg/s). Why 15: the aimed turn eases in at `turnAccel` 12 rad/s^2, so a guard tracking a
+ * target that sweeps across him at the full turn rate trails it by w^2 / (2 a) = 1.92^2 / 24 = 0.15 rad (8.8 deg); 15 deg
+ * keeps that tracking guard's fire rate unchanged, and is under the motion driver's own on-the-spot step threshold
+ * (`turnThreshold` 0.45 rad, 26 deg), so a guard who fires has visibly squared up to the target, gun and chest on him.
+ */
+export const FIRE_CONE = (15 * Math.PI) / 180;
 /** (guard-ai-alloc D1) The damage a guard deals (a round, a bite), refilled per hit (`hitInfo`): no receiver keeps it or
  *  its vectors past the call. */
 const HIT_OUT: HitInfo = { amount: 0, point: SHOT_END, dir: SHOT_DIR, part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: '', sourcePos: SHOT_FROM, impulse: 1 };
@@ -488,6 +500,11 @@ export class Enemy implements Damageable {
   private readonly fireTo = new Vector3();
   /** (guard-ai S16) Rounds fired (debug / tests). */
   roundsFired = 0;
+  /** (guard-ai aim fix) The flat yaw to this step's shot aim point while a round is due (`tryFire` reached the round),
+   *  else NaN: `update` turns him to it (`faceFor`). Reset each `decide`. */
+  aimFace = Number.NaN;
+  /** (guard-ai aim fix) Rounds held this step because he did not yet face the aim point (`FIRE_CONE`; tests, debug). */
+  aimHeld = 0;
   private pauseT = this.rng.range(0.6, 1.4);
   private windup = 0;
   private meleeCd = 0;
@@ -2733,7 +2750,7 @@ export class Enemy implements Damageable {
       return;
     }
     const goal = this.decide(dt);
-    this.move(dt, goal.point, goal.speed, goal.face);
+    this.move(dt, goal.point, goal.speed, this.faceFor(goal.face));
     this.crouch += ((this.wantCrouch ? 1 : 0) - this.crouch) * Math.min(1, dt * 8);
     this.syncHitboxes(dt);
   }
@@ -3842,6 +3859,8 @@ export class Enemy implements Damageable {
   private decide(dt: number): Goal {
     const def = this.def;
     const t = this.target;
+    // (guard-ai aim fix) set again by `tryFire` if a round is due this step
+    this.aimFace = Number.NaN;
     if (!this.alerted) return this.calmDecide(dt);
     if (!t) return this.goal(null, 0, null);
     if (this.stagger > 0) return this.goal(null, 0, this.faceTarget());
@@ -4390,6 +4409,12 @@ export class Enemy implements Damageable {
       }
       this.burstLeft = Math.round(this.rng.range(w.burstMin, w.burstMax));
     }
+    // (guard-ai aim fix) the body faces the aim point first: a round is held (the burst kept) until he has turned to
+    // within `FIRE_CONE` of it; `update` turns him to it this step (`faceFor`). Already facing: no added delay.
+    if (!this.facesAim(t, mode)) {
+      this.aimHeld++;
+      return;
+    }
     if (this.fireT > 0) return;
     this.fireT = 60 / w.rpm;
     this.burstLeft--;
@@ -4398,6 +4423,25 @@ export class Enemy implements Damageable {
       this.windup = 0;
     }
     this.shoot(t, w, mode);
+  }
+
+  /** (guard-ai aim fix) Sets `aimFace` (the flat yaw from his position to this round's aim point) and whether his body
+   *  is within `FIRE_CONE` of it. An aim point on top of him (under 5 cm flat) counts as faced. No allocation. */
+  private facesAim(t: PlayerRef, mode: 'aim' | 'suppress' | 'blind'): boolean {
+    const a = this.aimAt(t, mode, FACE_AIM);
+    const dx = a.x - this.pos.x;
+    const dz = a.z - this.pos.z;
+    if (hyp2(dx, dz) < 0.05) return true;
+    const ay = Math.atan2(dx, dz);
+    this.aimFace = ay;
+    return Math.abs(wrapAngle(ay - this.yaw)) <= FIRE_CONE;
+  }
+
+  /** (guard-ai aim fix) The facing `move` steers to: a goal that faces something (`face` set: aimed) faces this step's
+   *  shot aim point while a round is due (`aimFace`), so he turns at the aimed rate onto what he is about to shoot; a goal
+   *  with no facing (a run to cover: the travel direction) is kept, and he fires only if that already faces the aim. */
+  faceFor(face: number | null): number | null {
+    return face !== null && !Number.isNaN(this.aimFace) ? this.aimFace : face;
   }
 
   /** The muzzle (eye height less 0.2, forward and to the right); blind fire comes over / around the cover. */

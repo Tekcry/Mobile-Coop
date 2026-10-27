@@ -1466,6 +1466,7 @@
   },
   "expect": {
     "players": 2,
+    "coop": "stub",
     "runs": [
       {
         "id": "a1-gate",

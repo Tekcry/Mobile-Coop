@@ -80,9 +80,16 @@ async function setup() {
   const guard = async (kind: EnemyKind, gear = true) => {
     const e = new Enemy(ctx as never, ENEMIES[kind], new B.Vector3(0, 0, 0), 0);
     e.setGear({ helmet: gear, armour: gear });
-    const gb = (e as unknown as { gbody: { shown: boolean } | null }).gbody;
+    const gb = (e as unknown as { gbody: { shown: boolean; fallback: boolean } | null }).gbody;
     if (gb) await vi.waitFor(() => expect(gb.shown).toBe(true));
     for (let i = 0; i < 4; i++) {
+      e.frame(1 / 60, 1);
+      scene.render();
+    }
+    // (gm-watchdog) the merged body stands in until the figure's shader is ready (the Null engine finishes a compile
+    // over a few ticks): count once the figure draws alone
+    for (let i = 0; gb && gb.fallback && i < 50; i++) {
+      await new Promise((r) => setTimeout(r, 10));
       e.frame(1 / 60, 1);
       scene.render();
     }

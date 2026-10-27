@@ -20,8 +20,14 @@
 // (gm-flip, train 159) The page opens `guardmodels=0`: this suite tests the merged S1 body (`rig.voxel.meshes`, the
 // SMOOTHBODY effect and its recovery). With the guard figures on (default since gm-flip) that body is only the fallback
 // until his figure's first LOD is in, then disabled (`GuardBody.ready`), so "visible and enabled" / "among the active
-// meshes" could never hold for it (train 159: the recovery recompiled and the body was ready, but disabled). The merged
-// body still ships: `?guardmodels=0`, and every guard while his figure loads.
+// meshes" could never hold for it (train 159: the recovery recompiled and the body was ready, but disabled). The
+// figures-on leg at the end (gm-watchdog) now covers the figure.
+// (gm-watchdog) Then a second page, figures on (`guardmodels=1`): the same forced fault on the guard figure's shader
+// (GUARDFIG, cut to 5 s so the merged body's own first compile can finish while it stands in; the loading screen's warm
+// meshes let go of the warmed effect first). The merged body must stand in and be drawn while the figure's shader is
+// not ready, the guard must never have neither body, the figure's effect must be recompiled by the S1 body's watchdog
+// ("guard figure ... recompiling", src/player/bodyEffectRecovery.ts via GuardFigure.drawState), and the figure must
+// take over again, drawn and GPU skinned, the merged body off.
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -31,236 +37,296 @@ const G = (f, a) => page.evaluate(f, a);
 const CALM_SEC = 16.5;
 /** Rendering time a body may take to be ready after the one-block stall (a compile that never finishes is recompiled after 90 s, bodyEffectRecovery STUCK_MS; the loop ends as soon as the body is ready). */
 const STALL_WAIT_MS = 105000;
+/** A forced fault's own compile-failure lines (they do not count as console errors). */
+const FAULT_LOG = /Unable to compile effect:|Uniforms: |Attributes: |Defines:|Operation timed out after maximum retries|Trying next fallback/;
+/**
+ * The page-side setup (page.evaluate): the forced-fault hooks for effects whose defines have `#define <define>`, polled
+ * with Babylon's cut to `faultMs`, and the `window.__gc` helpers. `spot`: the sheet's spot (x, z).
+ */
+const SETUP = ({ spot: spotIn, define, faultMs }) => {
+  const a = window.__app;
+  const g = a.current;
+  a.loop.manual = true;
+  const hp = g.target?.health ?? g.player.health;
+  if (hp) hp.invulnerable = true;
+  if (g.mode?.pending) g.mode.pending.length = 0;
+  // a failed compile prints its error line, not ~400 kB of shader source (the GPU logs cut it)
+  const eff = g.scene.meshes.map((m) => m.subMeshes?.[0]?.effect).find((e) => e);
+  if (eff) eff.constructor.LogShaderCodeOnCompilationError = false;
+  // (forced) The laptop's failure made deterministic. While armed, a guard body's pbr effect (SMOOTHBODY) that starts a
+  // parallel compile gets a program that never reports done (`engine._isRenderingStateCompiled` false for its pipeline
+  // contexts: no COMPLETION_STATUS_KHR) and Babylon's own poll (`Effect._checkIsReady`: 16 ms steps, onError on
+  // timeout) is copied with its 120 s cut to FAULT_MS, then calls `_processCompilationErrors` with Babylon's timeout
+  // error. So the effect runs Babylon's real failure path: its fallbacks (the first one switches the mesh to CPU
+  // skinning, whose new variant compiles in the same stall and fails too) until all are used, the material keeping the
+  // effect. The stall ends (disarmed) when a faulted effect is disposed (the fix's recompile); later compiles are normal.
+  // (gm-watchdog) The faulted effects are those with `#define <define>`: SMOOTHBODY (the S1 legs) or GUARDFIG (the
+  // guard figure's, the figures-on leg).
+  const Effect = eff?.constructor;
+  const engine = g.scene.getEngine();
+  const FAULT_MS = faultMs;
+  const DEF = new RegExp('#define ' + define + '\\b');
+  const fault = { armed: false, effects: new Set(), contexts: new WeakSet(), polls: new Set(), faulted: 0, timeouts: 0, disposed: 0, names: [], disposers: [] };
+  const hooked = !!(Effect?.prototype?._checkIsReady && Effect.prototype._processCompilationErrors && Effect.prototype._isReadyInternal && Effect.prototype.dispose && engine._isRenderingStateCompiled);
+  // (carry flake, diagnostic only) A faulted program can be flagged disposed under its effect before the cut poll
+  // times out (Babylon's name-keyed resetCachedPipeline, or the gl-warning-fix delete in src/core/babylon.ts); the
+  // recovery then drops it as "program disposed". Record who set `_isDisposed` (a few stack frames) for the log.
+  const track = (pc) => {
+    if (!pc || fault.contexts.has(pc)) return;
+    fault.contexts.add(pc);
+    let v = !!pc._isDisposed;
+    try {
+      Object.defineProperty(pc, '_isDisposed', {
+        configurable: true,
+        enumerable: true,
+        get: () => v,
+        set: (x) => {
+          if (x && !v && fault.disposers.length < 4) fault.disposers.push(String(new Error().stack ?? '').split('\n').slice(2, 6).map((s) => s.trim()).join(' < '));
+          v = x;
+        },
+      });
+    } catch {
+      // (diagnostic only)
+    }
+  };
+  if (hooked) {
+    const checkIsReady = Effect.prototype._checkIsReady;
+    Effect.prototype._checkIsReady = function (prev) {
+      if (fault.armed && !fault.effects.has(this) && DEF.test(this.defines ?? '')) {
+        fault.effects.add(this);
+        fault.faulted++;
+        fault.names.push(/#define NUM_BONE_INFLUENCERS (\d+)/.exec(this.defines)?.[0].slice(8) ?? 'NUM_BONE_INFLUENCERS 0');
+      }
+      if (!fault.effects.has(this)) return checkIsReady.call(this, prev);
+      track(this._pipelineContext);
+      if (fault.polls.has(this)) return;
+      fault.polls.add(this);
+      let left = FAULT_MS;
+      const int = setInterval(() => {
+        track(this._pipelineContext);
+        if (this._isReadyInternal() || this._isDisposed) {
+          clearInterval(int);
+          fault.polls.delete(this);
+          return;
+        }
+        left -= 16;
+        if (left >= 0) return;
+        clearInterval(int);
+        fault.polls.delete(this);
+        fault.timeouts++;
+        this._processCompilationErrors(new Error('Operation timed out after maximum retries. ' + ` - Effect: ${typeof this.name === 'string' ? this.name : this.key}`), prev);
+      }, 16);
+    };
+    const compiled = engine._isRenderingStateCompiled;
+    engine._isRenderingStateCompiled = function (pc) {
+      return fault.contexts.has(pc) ? false : compiled.call(this, pc);
+    };
+    const dispose = Effect.prototype.dispose;
+    Effect.prototype.dispose = function (force) {
+      const r = dispose.call(this, force);
+      if (this._isDisposed && fault.effects.delete(this)) {
+        fault.disposed++;
+        fault.armed = false;
+      }
+      return r;
+    };
+  }
+  g.vision?.set?.('off');
+  const em = g.enemyMgr;
+  em.clear();
+  const V = g.player.position.constructor;
+  const nav = em.nav;
+  const walk = (x, z) => nav.nearestWalkable(x, z, 0.3, 0) >= 0;
+  // (the sheet's spot under the lamp at 0, -3; else the nearest walkable point round it)
+  let spot = null;
+  for (let r = 0; r <= 4 && !spot; r += 0.25) {
+    for (let k = 0; k < (r ? 16 : 1) && !spot; k++) {
+      const t = (k / 16) * Math.PI * 2;
+      const x = spotIn[0] + Math.cos(t) * r;
+      const z = spotIn[1] + Math.sin(t) * r;
+      if (walk(x, z)) spot = [x, z];
+    }
+  }
+  const FAR = [-22, -24];
+  const defOf = (defs, re) => {
+    const out = [];
+    for (const m of defs.matchAll(re)) out.push(m[1] ? `${m[0].replace('#define ', '')}` : m[0]);
+    return out;
+  };
+  window.__gc = {
+    /** (forced) Flush the cached body effects no live mesh holds (the next body compiles afresh, a new variant), then arm. */
+    arm() {
+      // (gm-watchdog) the loading screen's hidden warm meshes (`guardWarm.ts`) hold the warmed LOD2 guard effect: let go
+      // of it first, else it stays cached and the new guard's figure never compiles (the fault never fires)
+      let released = 0;
+      if (define === 'GUARDFIG') {
+        for (const m of g.scene.meshes) {
+          if (!m.name.startsWith('guard-warm-')) continue;
+          for (const sm of m.subMeshes ?? []) {
+            if (!sm.effect || !DEF.test(sm.effect.defines ?? '')) continue;
+            sm.setEffect(null);
+            released++;
+          }
+        }
+      }
+      const held = new Set();
+      for (const m of g.scene.meshes) for (const sm of m.subMeshes ?? []) if (sm.effect) held.add(sm.effect);
+      let flushed = 0;
+      let kept = 0;
+      for (const [k, e] of Object.entries(engine._compiledEffects ?? {})) {
+        if (!DEF.test(k)) continue;
+        if (held.has(e)) kept++;
+        else {
+          e.dispose(true);
+          flushed++;
+        }
+      }
+      fault.armed = hooked;
+      return { hooked, flushed, kept, released };
+    },
+    /** (gm-watchdog) The forced fault fired and is over (a faulted effect was dropped by the recovery, or disarmed). */
+    spent() {
+      return fault.faulted >= 1 && !fault.armed;
+    },
+    /**
+     * (gm-watchdog) The first guard's figure and merged body: `shown`, `fallback`, `fallbacks`, the shown LOD, whether the
+     * figure is drawn (enabled, among the active meshes, its effect ready) and GPU skinned, and whether the merged body
+     * is on (every mesh enabled) and drawn (one mesh among the active meshes with its material ready). Test only.
+     */
+    figure() {
+      const gb = em.enemies[0]?.gbody;
+      if (!gb) return null;
+      const active = g.scene.getActiveMeshes();
+      const isActive = (m) => {
+        for (let i = 0; i < active.length; i++) if (active.data[i] === m) return true;
+        return false;
+      };
+      const fm = gb.figure.mesh;
+      const fe = fm?.subMeshes?.[0]?.effect ?? null;
+      const inf = /#define NUM_BONE_INFLUENCERS (\d+)/.exec(fe?.defines ?? '');
+      const ms = gb.rig.voxel?.meshes ?? [];
+      return {
+        shown: gb.shown,
+        fallback: gb.fallback,
+        fallbacks: gb.fallbacks,
+        lod: gb.figure.current,
+        figDrawn: !!(fm && fm.isEnabled() && isActive(fm) && fe?.isReady()),
+        figGpuSkin: !!fm?.computeBonesUsingShaders,
+        figInfl: inf ? +inf[1] : 0,
+        mergedOn: ms.length > 0 && ms.every((m) => m.isEnabled(false)),
+        mergedDrawn: ms.some((m) => {
+          const sm = m.subMeshes?.[0];
+          return isActive(m) && !!(sm && m.material?.isReadyForSubMesh(m, sm, false));
+        }),
+      };
+    },
+    /** (forced) Disarm; faulted effects no mesh holds any more are dropped (none left to fail a later pass). */
+    disarm() {
+      fault.armed = false;
+      const held = new Set();
+      for (const m of g.scene.meshes) for (const sm of m.subMeshes ?? []) if (sm.effect) held.add(sm.effect);
+      const { faulted, timeouts, disposed, names } = fault;
+      const disposers = fault.disposers.join(' | ');
+      for (const e of [...fault.effects]) if (!held.has(e)) e.dispose(true);
+      return { faulted, timeouts, disposed, names: names.join(', '), left: fault.effects.size, disposers };
+    },
+    reset() {
+      g.photoFreeze(false);
+      em.clear();
+      if (g.mode?.pending) g.mode.pending.length = 0;
+      const doors = g.world.doors;
+      for (const d of doors.list) {
+        d.open = 0;
+        d.target = 0;
+        doors['write']?.(d);
+        doors['addBody']?.(d);
+      }
+      doors['mesh']?.thinInstanceBufferUpdated?.('matrix');
+    },
+    park() {
+      g.photoFreeze(false);
+      g.player.controller.teleport(new V(FAR[0], 0, FAR[1]), 0);
+    },
+    spawn(kind, x, z) {
+      const e = em.spawn(kind, new V(x, 0, z), false, 0);
+      if (!e) return false;
+      e.passive = false;
+      e.setPatrol(null);
+      return true;
+    },
+    step(s) {
+      this.park();
+      a.loop.stepHeadless(s);
+    },
+    /** As the sheet's front view: the camera 2 m in front of his chest (1.4 m up, aimed at 1.25 m), the player 1.5 m behind it, the world held still. */
+    look() {
+      const e = em.enemies[0];
+      if (!e) return false;
+      g.photoFreeze(true);
+      const rp = e.rig.root.getAbsolutePosition();
+      const fx = Math.sin(e.yaw);
+      const fz = Math.cos(e.yaw);
+      const cx = rp.x + fx * 2;
+      const cz = rp.z + fz * 2;
+      g.player.controller.teleport(new V(cx + fx * 1.5, rp.y, cz + fz * 1.5), Math.atan2(-fx, -fz));
+      const pc = g.photoCamera();
+      pc.position.set(cx, rp.y + 1.4, cz);
+      pc.setTarget(new V(rp.x, rp.y + 1.25, rp.z));
+      return true;
+    },
+    notice() {
+      for (const e of em.enemies) {
+        e.notice(e.pos.x - Math.sin(e.yaw) * 6, e.pos.z - Math.cos(e.yaw) * 6, 0.9);
+        if (e.level === 'unaware') e.aware.set('suspicious');
+      }
+    },
+    /** Per guard: the carry, and each body mesh's draw state and light defines. */
+    bodies() {
+      const active = g.scene.getActiveMeshes();
+      const isActive = (m) => {
+        for (let i = 0; i < active.length; i++) if (active.data[i] === m) return true;
+        return false;
+      };
+      return em.enemies.map((e) => {
+        const ms = e.rig?.voxel?.meshes ?? [];
+        return {
+          id: e.id,
+          kind: e.def.kind,
+          level: e.level,
+          pos: [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)],
+          holstered: !!e.carry?.holstered,
+          phase: e.carry?.phase ?? -1,
+          drawn: ms.some(isActive),
+          meshes: ms.map((m) => {
+            const sm = m.subMeshes?.[0];
+            const ready = !!(sm && m.material?.isReadyForSubMesh(m, sm, false));
+            const ef = sm?.effect ?? null;
+            const defs = ef?.defines ?? sm?.materialDefines?.toString?.() ?? '';
+            const inf = /#define NUM_BONE_INFLUENCERS (\d+)/.exec(defs);
+            return {
+              name: m.name,
+              vis: m.isVisible && m.isEnabled(),
+              ready,
+              effectReady: !!ef?.isReady(),
+              gpuSkin: m.computeBonesUsingShaders,
+              shaderInfluencers: inf ? +inf[1] : 0,
+              forcedCpu: !!ef?._bonesComputationForcedToCPU,
+              lights: defOf(defs, /#define (LIGHTCOUNT \d+|MAXLIGHTCOUNT \d+|(?:HEMI|DIR|SPOT|POINT|CLUST|AREA)LIGHT\d+|SHADOW\d+|SHADOWCSM\d+|SHADOWS\b|LAMP_\w+|BAKED_LAMPS)/g).join(' '),
+              lightSources: m.lightSources?.map((l) => l.name).join(','),
+              error: ef?.getCompilationError?.() || ef?._compilationError || '',
+            };
+          }),
+        };
+      });
+    },
+  };
+  return { stealth: !!em.stealth, spot };
+};
+
 let failed = false;
 try {
   await frames(page, 10);
-  const setup = await G((spotIn) => {
-    const a = window.__app;
-    const g = a.current;
-    a.loop.manual = true;
-    const hp = g.target?.health ?? g.player.health;
-    if (hp) hp.invulnerable = true;
-    if (g.mode?.pending) g.mode.pending.length = 0;
-    // a failed compile prints its error line, not ~400 kB of shader source (the GPU logs cut it)
-    const eff = g.scene.meshes.map((m) => m.subMeshes?.[0]?.effect).find((e) => e);
-    if (eff) eff.constructor.LogShaderCodeOnCompilationError = false;
-    // (forced) The laptop's failure made deterministic. While armed, a guard body's pbr effect (SMOOTHBODY) that starts a
-    // parallel compile gets a program that never reports done (`engine._isRenderingStateCompiled` false for its pipeline
-    // contexts: no COMPLETION_STATUS_KHR) and Babylon's own poll (`Effect._checkIsReady`: 16 ms steps, onError on
-    // timeout) is copied with its 120 s cut to FAULT_MS, then calls `_processCompilationErrors` with Babylon's timeout
-    // error. So the effect runs Babylon's real failure path: its fallbacks (the first one switches the mesh to CPU
-    // skinning, whose new variant compiles in the same stall and fails too) until all are used, the material keeping the
-    // effect. The stall ends (disarmed) when a faulted effect is disposed (the fix's recompile); later compiles are normal.
-    const Effect = eff?.constructor;
-    const engine = g.scene.getEngine();
-    const FAULT_MS = 1000;
-    const fault = { armed: false, effects: new Set(), contexts: new WeakSet(), polls: new Set(), faulted: 0, timeouts: 0, disposed: 0, names: [], disposers: [] };
-    const hooked = !!(Effect?.prototype?._checkIsReady && Effect.prototype._processCompilationErrors && Effect.prototype._isReadyInternal && Effect.prototype.dispose && engine._isRenderingStateCompiled);
-    // (carry flake, diagnostic only) A faulted program can be flagged disposed under its effect before the cut poll
-    // times out (Babylon's name-keyed resetCachedPipeline, or the gl-warning-fix delete in src/core/babylon.ts); the
-    // recovery then drops it as "program disposed". Record who set `_isDisposed` (a few stack frames) for the log.
-    const track = (pc) => {
-      if (!pc || fault.contexts.has(pc)) return;
-      fault.contexts.add(pc);
-      let v = !!pc._isDisposed;
-      try {
-        Object.defineProperty(pc, '_isDisposed', {
-          configurable: true,
-          enumerable: true,
-          get: () => v,
-          set: (x) => {
-            if (x && !v && fault.disposers.length < 4) fault.disposers.push(String(new Error().stack ?? '').split('\n').slice(2, 6).map((s) => s.trim()).join(' < '));
-            v = x;
-          },
-        });
-      } catch {
-        // (diagnostic only)
-      }
-    };
-    if (hooked) {
-      const checkIsReady = Effect.prototype._checkIsReady;
-      Effect.prototype._checkIsReady = function (prev) {
-        if (fault.armed && !fault.effects.has(this) && /#define SMOOTHBODY\b/.test(this.defines ?? '')) {
-          fault.effects.add(this);
-          fault.faulted++;
-          fault.names.push(/#define NUM_BONE_INFLUENCERS (\d+)/.exec(this.defines)?.[0].slice(8) ?? 'NUM_BONE_INFLUENCERS 0');
-        }
-        if (!fault.effects.has(this)) return checkIsReady.call(this, prev);
-        track(this._pipelineContext);
-        if (fault.polls.has(this)) return;
-        fault.polls.add(this);
-        let left = FAULT_MS;
-        const int = setInterval(() => {
-          track(this._pipelineContext);
-          if (this._isReadyInternal() || this._isDisposed) {
-            clearInterval(int);
-            fault.polls.delete(this);
-            return;
-          }
-          left -= 16;
-          if (left >= 0) return;
-          clearInterval(int);
-          fault.polls.delete(this);
-          fault.timeouts++;
-          this._processCompilationErrors(new Error('Operation timed out after maximum retries. ' + ` - Effect: ${typeof this.name === 'string' ? this.name : this.key}`), prev);
-        }, 16);
-      };
-      const compiled = engine._isRenderingStateCompiled;
-      engine._isRenderingStateCompiled = function (pc) {
-        return fault.contexts.has(pc) ? false : compiled.call(this, pc);
-      };
-      const dispose = Effect.prototype.dispose;
-      Effect.prototype.dispose = function (force) {
-        const r = dispose.call(this, force);
-        if (this._isDisposed && fault.effects.delete(this)) {
-          fault.disposed++;
-          fault.armed = false;
-        }
-        return r;
-      };
-    }
-    g.vision?.set?.('off');
-    const em = g.enemyMgr;
-    em.clear();
-    const V = g.player.position.constructor;
-    const nav = em.nav;
-    const walk = (x, z) => nav.nearestWalkable(x, z, 0.3, 0) >= 0;
-    // (the sheet's spot under the lamp at 0, -3; else the nearest walkable point round it)
-    let spot = null;
-    for (let r = 0; r <= 4 && !spot; r += 0.25) {
-      for (let k = 0; k < (r ? 16 : 1) && !spot; k++) {
-        const t = (k / 16) * Math.PI * 2;
-        const x = spotIn[0] + Math.cos(t) * r;
-        const z = spotIn[1] + Math.sin(t) * r;
-        if (walk(x, z)) spot = [x, z];
-      }
-    }
-    const FAR = [-22, -24];
-    const defOf = (defs, re) => {
-      const out = [];
-      for (const m of defs.matchAll(re)) out.push(m[1] ? `${m[0].replace('#define ', '')}` : m[0]);
-      return out;
-    };
-    window.__gc = {
-      /** (forced) Flush the cached body effects no live mesh holds (the next body compiles afresh, a new variant), then arm. */
-      arm() {
-        const held = new Set();
-        for (const m of g.scene.meshes) for (const sm of m.subMeshes ?? []) if (sm.effect) held.add(sm.effect);
-        let flushed = 0;
-        let kept = 0;
-        for (const [k, e] of Object.entries(engine._compiledEffects ?? {})) {
-          if (!/#define SMOOTHBODY\b/.test(k)) continue;
-          if (held.has(e)) kept++;
-          else {
-            e.dispose(true);
-            flushed++;
-          }
-        }
-        fault.armed = hooked;
-        return { hooked, flushed, kept };
-      },
-      /** (forced) Disarm; faulted effects no mesh holds any more are dropped (none left to fail a later pass). */
-      disarm() {
-        fault.armed = false;
-        const held = new Set();
-        for (const m of g.scene.meshes) for (const sm of m.subMeshes ?? []) if (sm.effect) held.add(sm.effect);
-        const { faulted, timeouts, disposed, names } = fault;
-        const disposers = fault.disposers.join(' | ');
-        for (const e of [...fault.effects]) if (!held.has(e)) e.dispose(true);
-        return { faulted, timeouts, disposed, names: names.join(', '), left: fault.effects.size, disposers };
-      },
-      reset() {
-        g.photoFreeze(false);
-        em.clear();
-        if (g.mode?.pending) g.mode.pending.length = 0;
-        const doors = g.world.doors;
-        for (const d of doors.list) {
-          d.open = 0;
-          d.target = 0;
-          doors['write']?.(d);
-          doors['addBody']?.(d);
-        }
-        doors['mesh']?.thinInstanceBufferUpdated?.('matrix');
-      },
-      park() {
-        g.photoFreeze(false);
-        g.player.controller.teleport(new V(FAR[0], 0, FAR[1]), 0);
-      },
-      spawn(kind, x, z) {
-        const e = em.spawn(kind, new V(x, 0, z), false, 0);
-        if (!e) return false;
-        e.passive = false;
-        e.setPatrol(null);
-        return true;
-      },
-      step(s) {
-        this.park();
-        a.loop.stepHeadless(s);
-      },
-      /** As the sheet's front view: the camera 2 m in front of his chest (1.4 m up, aimed at 1.25 m), the player 1.5 m behind it, the world held still. */
-      look() {
-        const e = em.enemies[0];
-        if (!e) return false;
-        g.photoFreeze(true);
-        const rp = e.rig.root.getAbsolutePosition();
-        const fx = Math.sin(e.yaw);
-        const fz = Math.cos(e.yaw);
-        const cx = rp.x + fx * 2;
-        const cz = rp.z + fz * 2;
-        g.player.controller.teleport(new V(cx + fx * 1.5, rp.y, cz + fz * 1.5), Math.atan2(-fx, -fz));
-        const pc = g.photoCamera();
-        pc.position.set(cx, rp.y + 1.4, cz);
-        pc.setTarget(new V(rp.x, rp.y + 1.25, rp.z));
-        return true;
-      },
-      notice() {
-        for (const e of em.enemies) {
-          e.notice(e.pos.x - Math.sin(e.yaw) * 6, e.pos.z - Math.cos(e.yaw) * 6, 0.9);
-          if (e.level === 'unaware') e.aware.set('suspicious');
-        }
-      },
-      /** Per guard: the carry, and each body mesh's draw state and light defines. */
-      bodies() {
-        const active = g.scene.getActiveMeshes();
-        const isActive = (m) => {
-          for (let i = 0; i < active.length; i++) if (active.data[i] === m) return true;
-          return false;
-        };
-        return em.enemies.map((e) => {
-          const ms = e.rig?.voxel?.meshes ?? [];
-          return {
-            id: e.id,
-            kind: e.def.kind,
-            level: e.level,
-            pos: [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)],
-            holstered: !!e.carry?.holstered,
-            phase: e.carry?.phase ?? -1,
-            drawn: ms.some(isActive),
-            meshes: ms.map((m) => {
-              const sm = m.subMeshes?.[0];
-              const ready = !!(sm && m.material?.isReadyForSubMesh(m, sm, false));
-              const ef = sm?.effect ?? null;
-              const defs = ef?.defines ?? sm?.materialDefines?.toString?.() ?? '';
-              const inf = /#define NUM_BONE_INFLUENCERS (\d+)/.exec(defs);
-              return {
-                name: m.name,
-                vis: m.isVisible && m.isEnabled(),
-                ready,
-                effectReady: !!ef?.isReady(),
-                gpuSkin: m.computeBonesUsingShaders,
-                shaderInfluencers: inf ? +inf[1] : 0,
-                forcedCpu: !!ef?._bonesComputationForcedToCPU,
-                lights: defOf(defs, /#define (LIGHTCOUNT \d+|MAXLIGHTCOUNT \d+|(?:HEMI|DIR|SPOT|POINT|CLUST|AREA)LIGHT\d+|SHADOW\d+|SHADOWCSM\d+|SHADOWS\b|LAMP_\w+|BAKED_LAMPS)/g).join(' '),
-                lightSources: m.lightSources?.map((l) => l.name).join(','),
-                error: ef?.getCompilationError?.() || ef?._compilationError || '',
-              };
-            }),
-          };
-        });
-      },
-    };
-    return { stealth: !!em.stealth, spot };
-  }, spotArg);
+  const setup = await G(SETUP, { spot: spotArg, define: 'SMOOTHBODY', faultMs: 1000 });
   assert(setup.stealth, 'Warehouse Infiltration runs the stealth rules (guards holster when calm)');
   assert(!!setup.spot, `a walkable spot near ${spotArg}`);
   const [x, z] = setup.spot;
@@ -298,7 +364,6 @@ try {
 
   // (forced) the one-block stall with the body's first compile timing out as on the laptop (the hook in the setup):
   // without the recovery the material keeps the timed-out effect and the body is never ready
-  const FAULT_LOG = /Unable to compile effect:|Uniforms: |Attributes: |Defines:|Operation timed out after maximum retries|Trying next fallback/;
   const forcedLog = new Set();
   {
     const kind = 'grunt';
@@ -384,4 +449,91 @@ try {
   if (compile.length) console.log(compile.slice(0, 8).join('\n').slice(0, 6000));
 }
 await browser.close();
+
+// (gm-watchdog) Figures on: a guard figure whose shader compile is forced to time out (5 s cut, GUARDFIG). The merged
+// S1 body must stand in while the figure's shader is not ready, the figure's effect must be recompiled by the body
+// watchdog ("guard figure ... recompiling"), and the figure must take over again, GPU skinned, the merged body off.
+{
+  const fig = await launch({ url, params: 'autostart=warehouse&mode=infiltration&gfx=high&guardmodels=1', viewport: { width: 960, height: 720 } });
+  const G2 = (f, a) => fig.page.evaluate(f, a);
+  const err2 = fig.errors;
+  try {
+    // (train 164) the fault holds the figure 20 s, not 5: the stand-in's own shader compiles normally and a cold D3D11
+    // compile takes 8 s and more on a busy machine, so a 5 s fault let the figure take over before the stand-in ever drew
+    console.log('figures on: a grunt whose figure shader compile is forced to time out (20 s): the merged body stands in');
+    await frames(fig.page, 10);
+    const s2 = await G2(SETUP, { spot: spotArg, define: 'GUARDFIG', faultMs: 20000 });
+    assert(!!s2.spot, `figures on: a walkable spot near ${spotArg}`);
+    const [fx, fz] = s2.spot;
+    await G2(() => window.__gc.reset());
+    await frames(fig.page, 3);
+    const armed = await G2(() => window.__gc.arm());
+    assert(armed.hooked, "figures on: the forced fault's hooks are in place (Effect._checkIsReady, _processCompilationErrors, _isReadyInternal, dispose, engine._isRenderingStateCompiled)");
+    console.log(`  figures on: armed, ${armed.released} warm-mesh holds released, ${armed.flushed} cached guard effects flushed, ${armed.kept} held by live meshes`);
+    const e0 = err2.length;
+    assert(await G2(([k, x, z]) => window.__gc.spawn(k, x, z), ['grunt', fx, fz]), 'figures on: grunt spawned');
+    await G2(() => window.__gc.look());
+    let n = 0;
+    let samples = 0;
+    let fallbackSeen = 0;
+    let standInDrawn = 0;
+    let vanished = 0;
+    const vanishedAt = [];
+    let s = null;
+    const t0 = Date.now();
+    while (Date.now() - t0 < STALL_WAIT_MS) {
+      await frames(fig.page, 5);
+      n += 5;
+      s = await G2(() => ({ f: window.__gc.figure(), spent: window.__gc.spent() }));
+      assert(!!s.f, `figures on: the grunt is alive with his guard figure (frame ${n})`);
+      samples++;
+      const f = s.f;
+      if (f.fallback && f.mergedOn) fallbackSeen++;
+      if (f.fallback && f.mergedDrawn) standInDrawn++;
+      if (n > 10 && !f.figDrawn && !(f.fallback && f.mergedOn)) {
+        vanished++;
+        if (vanishedAt.length < 4) vanishedAt.push(`frame ${n}: ${JSON.stringify(f)}`);
+      }
+      if (f.shown && !f.fallback && f.figDrawn && s.spent) break;
+    }
+    const f = await G2(() => window.__gc.disarm());
+    const end = s.f;
+    const recompiled = err2.slice(e0).filter((e) => /guard figure .*recompiling/.test(e));
+    console.log(`  figures on: ${n} frames / ${((Date.now() - t0) / 1000).toFixed(1)} s, ${samples} samples: stood in ${fallbackSeen}, stand-in drawn ${standInDrawn}, vanished ${vanished}; fallbacks ${end.fallbacks}, LOD ${end.lod}`);
+    console.log(`  figures on: end ${JSON.stringify(end)}`);
+    for (const v of vanishedAt) console.log(`    vanished at ${v}`);
+    console.log(`  figures on: fault injected into ${f.faulted} guard effect(s) [${f.names}], ${f.timeouts} poll timeout(s), ${f.disposed} dropped by the recovery; "guard figure ... recompiling" lines: ${recompiled.length}`);
+    for (const r of recompiled.slice(0, 4)) console.log(`    ${r}`);
+    if (f.disposers) console.log(`  figures on: faulted program flagged disposed by: ${f.disposers.slice(0, 1200)}`);
+    // 1
+    assert(f.faulted >= 1 && (f.timeouts >= 1 || f.disposed >= 1), `figures on: the forced figure fault fired (${f.faulted} effects faulted, ${f.timeouts} timeouts, ${f.disposed} dropped by the recovery): else Babylon's compile path changed and this leg tests nothing`);
+    // 2
+    assert(end.fallbacks >= 1 && fallbackSeen >= 1, `figures on: the merged body stood in while the figure's shader was faulted (fallbacks ${end.fallbacks}, ${fallbackSeen} samples with the stand-in on)`);
+    // 3
+    assert(vanished === 0, `figures on: the guard never had neither body after the first 10 frames (${vanished} of ${samples} samples with no figure drawn and no stand-in on)`);
+    // 4
+    assert(standInDrawn >= 1, `figures on: the stand-in was actually drawn (${standInDrawn} samples with the merged body among the active meshes, its material ready, of ${fallbackSeen} with it on)`);
+    // 5
+    assert(recompiled.length >= 1 && f.disposed >= 1, `figures on: the figure recovered through the recompile (${recompiled.length} "guard figure ... recompiling" lines, ${f.disposed} faulted effects dropped)`);
+    // 6
+    assert(end.shown && !end.fallback, `figures on: the figure is back (shown ${end.shown}, fallback ${end.fallback})`);
+    assert(end.figDrawn, 'figures on: the figure is drawn (enabled, among the active meshes, its effect ready)');
+    assert(end.figGpuSkin && end.figInfl > 0, `figures on: the figure is GPU skinned and its effect skins it (GPU ${end.figGpuSkin}, influencers ${end.figInfl})`);
+    assert(!end.mergedOn, 'figures on: the merged body is off again');
+    // 7 (the forced fault's own compile-failure lines do not count)
+    const kept = err2.filter((e, i) => i < e0 || !FAULT_LOG.test(e));
+    const compile = kept.filter((e) => /Unable to compile effect|^\[error\].*Error: /i.test(e));
+    if (compile.length) console.log(compile.slice(0, 8).join('\n').slice(0, 6000));
+    assert(compile.length === 0, `figures on: no effect failed to compile (${compile.length})`);
+    const real = kept.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
+    assert(real.length === 0, `figures on: no console errors (${real.slice(0, 3).join(' | ').slice(0, 600)})`);
+    console.log('guard carry: a faulted guard figure shader leaves the merged body standing in, then the figure is back');
+  } catch (e) {
+    failed = true;
+    console.error(String(e?.stack ?? e));
+    const compile = err2.filter((x) => /Unable to compile effect|Error: |Defines:/i.test(x));
+    if (compile.length) console.log(compile.slice(0, 8).join('\n').slice(0, 6000));
+  }
+  await fig.browser.close();
+}
 process.exit(failed ? 1 : 0);
