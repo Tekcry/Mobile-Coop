@@ -1042,7 +1042,7 @@ and H2 Opus (feature/guard-ai-mill-hunt-h2, worktree -mill-hunt-h2, src/ai/millH
 10 gallery stops, H1-REPORT.md). Next: lead merges both into
 feature/guard-ai-mill-hunt, adds the sims on the real THORNBECK_HUNT, two Opus checkers, PR 1. Then PR 1 = H1 (Sonnet data) + H2 (Opus pure board) in parallel; PR 2 = H3 after #694; PR 3 = H4. Asked Michael via the orchestrator: gallery
 answered.
-Open (2026-10-27 ~14:30 SAVE before the account swap; up to 2 agents; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
+Open (2026-10-27 ~15:15 SAVE, weekly 92%, account swap after ~15:50; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
      4bb733e14 committed ad3c1afd9 (A FIX 2: watch deaf in cooldown / caution, deck sweep leaves his storey; B PASS).
@@ -1068,11 +1068,11 @@ Next (mill hunt, Michael's walk priority; docs/guard-ai/mill-hunt/):
     Check B PASS ec10ddbba. PR 1 = #713 (big-pr, ~2.85k counted, checker posted, orchestrator told) -> green: train.
     MUST FIX IN H4: a top-ranked unit's move can stop 3-4 m from a lower-ranked group across a room edge (PR1-CHECK-B),
     then raise the sim CLUSTER to HUNT.apart (4 m); 16-set gallery density needs a decision.
-(2) PR 2 = feature/guard-ai-mill-hunt-h3 (H3 wiring 5336f4735; worktree -mill-hunt-h3; H3-REPORT.md). Check A was
-    PASS 91ea88487 (H3-CHECK-A.md; board polish sent to the PR 1 fix round: per-member goal arrays,
-    free member slots). Laptop e2e-piano on 5336f4735 PASSED (1/1, 53 s; check its log has
-    the hunt checks before relying on it). After PR 1's
-    fixes: H3 update RUNNING (merge PR 1's head, read the goal arrays, out = null, 0 B, e2e polish) -> "## Update to
-    PR 1's final board" in H3-REPORT.md; then check B, then PR 2 after PR 1 merges.
-(3) H4 reactions (PR 3) per PLAN rev 2. (4) J16: G4 PR (feature/guard-ai-j16-2) after Sector Ops #665; G5 to ctcourse.
+(2) PR 2 = feature/guard-ai-mill-hunt-h3 (worktree -mill-hunt-h3). H3 updated to PR 1's final board 97a26b0c6
+    (goal arrays, 0 B hand-off; H3-REPORT.md "Update to PR 1's final board"). Check A PASS (H3-CHECK-A.md). Check B was
+    RUNNING at the save -> H3-CHECK-B.md (maybe PARTIAL: a fresh Opus checker finishes it). Laptop e2e-piano on
+    97a26b0c6 queued (set mill-h3b; read the log for the hunt checks and any mSkip). After PR 1 (#713) merges: open PR 2
+    (kind minor fragment exists), post checker, tell the orchestrator.
+(3) H4 reactions (PR 3) per PLAN rev 2, first fixing PR1-CHECK-B's must-fix (a top-ranked unit's move stops 3-4 m
+    from a lower-ranked group across a room edge; then sim CLUSTER = HUNT.apart 4 m) and the 16-set gallery density. (4) J16: G4 PR (feature/guard-ai-j16-2) after Sector Ops #665; G5 to ctcourse.
 ```
