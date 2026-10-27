@@ -52,3 +52,11 @@ rating per Sector Ops section. Best-of: more marks (bits of the 4-bit mask) wins
 Sanitised on read (`sanitiseRatingRecord`: marks clamped 0-15, synced a whole 0-1e4, bad ids dropped); writes are
 serialised; the host (or solo) writes at every rating. Read by the Sector Ops op list (four pips per section). Like
 `course:fallow`, a new `kv` key: no `SAVE_VERSION` bump.
+
+## Campaign records (`kv` `campaign:progress`, `campaign:save`)
+`src/save/campaignRecord.ts` (campaign-mode CM2, dark behind `flags.campaign`): `campaign:progress` holds, per campaign
+entry (`src/game/mission/campaignOrder.ts`), the best rating (-1 for the prologue: no percentage), plays and intel steps
+done; `campaign:save` is the host's one save slot for the mission in progress (the section, the runner's done / fact
+bits, revives used, rule breaks, the alarm stage carried into the section and the run's tally, so a Continue keeps the
+rating honest, G146). Both `v: 1`, sanitised on read, never throw. Like `course:fallow`, new `kv` keys: no
+`SAVE_VERSION` bump (G189).
