@@ -1,0 +1,13 @@
+{
+  "id": "20261027T032034-night-shift-marlow-b-84f3dfb8-b34d",
+  "sha": "84f3dfb8c0aa14baa7f0e407237828929b111e18",
+  "branch": "feature/marlow-gate-graph",
+  "pr": 710,
+  "kind": "alone",
+  "requester": "Night Shift | Marlow Build",
+  "steps": [
+    "serve scripts/route-run.mjs http://127.0.0.1:4189/?marlowreplan=1 --graph docs/marlow-replan/graph.json --points auto --players 2 --publish"
+  ],
+  "env": {},
+  "set": "route-run-marlow-replan"
+}
