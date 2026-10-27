@@ -1402,7 +1402,7 @@ async function prepare(port, sha, logFile, stop, ctl) {
 /** One run-e2e call on a slot; returns the parsed run plus its exit code and the last 40 lines of its output. */
 async function e2e(port, suites, jobs, logFile, ctl, { env: extra = {}, timeoutMs } = {}) {
   freePort(port);
-  const env = { E2E_PORT: port, E2E_JOBS: String(jobs), E2E_GPU: '1', E2E_SUITE_TIMEOUT: String(SUITE_TIMEOUT_S),E2E_QUARANTINE_FILE: file('quarantine.json'), ...extra };
+  const env = { E2E_PORT: port, E2E_JOBS: String(jobs), E2E_GPU: '1', E2E_SUITE_TIMEOUT: String(SUITE_TIMEOUT_S), E2E_QUARANTINE_FILE: file('quarantine.json'), ...extra };
   const code = await sh(`node scripts/run-e2e.mjs ${suites.join(' ')}`, { cwd: SLOTS[port].dir, env, logFile, ctl, ...(timeoutMs ? { timeoutMs } : {}) });
   freePort(port);
   const text = fs.readFileSync(logFile, 'utf8').split(/^\$ node scripts\/run-e2e.mjs /m).pop() ?? '';

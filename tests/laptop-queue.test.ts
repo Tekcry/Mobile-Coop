@@ -2332,8 +2332,11 @@ describe('drafts never ride a train (F34, #487 rode train 122 as a draft)', () =
     const blk = src.slice(src.indexOf('// desktop: failed suites go to the laptop'), src.indexOf('const ok = finish(job, verdictCtx'));
     expect(blk).toContain('laptopRerunFor(r, board)');
     expect(blk).toContain('result.note = lr.why');
-    expect(blk.indexOf('laptopRerunFor(')).toBeLessThan(blk.indexOf('laptopRerunRequest('));
-    expect(blk).toMatch(/if \(lr\?\.rerun\) \{\n\s+const rr = laptopRerunRequest\(/);
+    expect(blk).toMatch(/if \(lr\?\.rerun\) \{\n[^}]*queueRerun\(bad, /);
+    // laptop-queue-10: every desktop hand-off (fail fast, hung, incomplete, end of run) files through queueRerun
+    const qr = src.slice(src.indexOf('const queueRerun = '), src.indexOf('const handOff = '));
+    expect(qr).toContain('laptopRerunFor(r, board)');
+    expect(qr.indexOf('laptopRerunFor(')).toBeLessThan(qr.indexOf('laptopRerunRequest('));
   });
 });
 
