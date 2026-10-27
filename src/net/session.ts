@@ -9,6 +9,8 @@ import { REJOIN_HOLD_S } from '../core/rejoin';
 import { MAPS } from '../world/maps';
 import type { MissionDef } from '../game/mission/missionDef';
 import { CAMPAIGN_PLAYERS, campaignStartBlock, isCampaignMap, isCampaignMission } from '../game/mission/campaign';
+import type { CampaignSave } from '../save/campaignRecord';
+import type { GameOptions } from '../game/gameState';
 
 /** (mission-rules R4, G2 "2 player coop campaign only", G48 "No bot anywhere") A campaign room holds exactly two,
  *  whatever the mode's `capacity()` (coop4 takes Sector Ops to 4; a campaign room stays 2). */
@@ -29,10 +31,13 @@ export interface StartInfo {
   /** Infiltration: the mission ('' otherwise). */
   mission: string;
   weather: WeatherChoice;
-  /** Course mode: the bay to start at (1-based, D20). */
+  /** Course mode: the bay to start at (1-based, D20). (campaign-mode CM3) Sector Ops with `flags.campaign`: the section
+   *  to start at (1-based; 1 the mission's own start). */
   bay?: number;
   /** (mission-framework NET3) Sector Ops: the host's mission (`MissionDef.id`; '' / absent: none). */
   sectorMission?: string;
+  /** (campaign-mode CM3, host only, never on the wire) A Continue: the save the mission resumes from. */
+  campaignResume?: CampaignSave;
 }
 
 /**
@@ -99,6 +104,20 @@ export class NetSession {
   weather: WeatherChoice = 'clear';
   /** Course mode: "Start at bay N" (host, 1-based; D20). */
   courseBay = 1;
+  /**
+   * (campaign-mode CM3, A11, host) Plain Sector Ops (no mission): the section a start begins at (1-based; "Resume
+   * hosting" sets it from the record). Read only with `flags.campaign`; a mission's section comes from `campaignResume`
+   * (`sectorStartBay`). Back to 1 on another mode, map or mission.
+   */
+  sectorBay = 1;
+  /**
+   * (campaign-mode CM3, A7 / A9, host) A Continue: the `campaign:save` the next start of its mission resumes from (its
+   * section goes out as the start's `bay`). Used once (`startMatch`); dropped on another mode, map, mission or difficulty.
+   */
+  campaignResume: CampaignSave | null = null;
+  /** (campaign-mode CM3, client) The host's campaign pick as its last lobby carried it (`lobby.sm`; '' none). Shown in
+   *  the lobby only: the match's mission is still the one `start` carries (`sectorMission`). */
+  private lobbySm = '';
   /** (coop-rejoin, host) The course bay a match going to one player starts it at: the current bay, so its load lands
    *  near the checkpoint (`CoopHost` sets it); null: the match's start bay. */
   lateBay: (() => number) | null = null;
@@ -271,6 +290,7 @@ export class NetSession {
       this.mission = msg.mission;
       this.weather = msg.weather;
       this.phase = msg.phase;
+      this.lobbySm = msg.sm ?? '';
       this.events.emit('lobby', { players: [...this.players.values()] });
       // a host taken now (the first, or the next after ours left): our hello with the rejoin token, to it alone
       if (fresh) this.send(this.hello(true), from);
@@ -353,8 +373,18 @@ export class NetSession {
   broadcastLobby(): void {
     if (!this.isHost) return;
     const players = [...this.players.values()];
-    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission, weather: this.weather });
+    const sm = this.campaignPick;
+    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission, weather: this.weather, ...(sm ? { sm } : {}) });
     this.events.emit('lobby', { players });
+  }
+
+  /**
+   * (campaign-mode CM3) The campaign mission the lobby shows (the entry and its briefing): host, its Sector Ops mission
+   * with `flags.campaign` and `flags.missions` on (sent as `lobby.sm`); client, the host's last `lobby.sm`. '' none.
+   */
+  get campaignPick(): string {
+    if (!this.isHost) return this.lobbySm;
+    return flags.campaign && flags.missions && this.mode === 'sector' ? this.sectorMission : '';
   }
 
   setReady(ready: boolean): void {
@@ -364,11 +394,20 @@ export class NetSession {
     else this.toHost({ t: 'ready', ready });
   }
 
-  setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission, weather = this.weather): void {
+  setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission, weather = this.weather, sm = this.sectorMission): void {
     if (!this.isHost) return;
+    // (campaign-mode CM3, PLAN 3.4) the lobby's campaign pick sets Sector Ops' mission, only with `flags.campaign` and
+    // `flags.missions` (as the constructor's URL path); flags off: the session's mission as before
+    const pick = flags.campaign && flags.missions ? sectorMissionId(sm) : this.sectorMission;
     // (PR E fix) another mode, map or mission is a new match, not the one the auto start resumes (a block it lifts, such
-    // as a switch off the campaign, would otherwise start it alone at once)
-    if (mode !== this.mode || map !== this.map || (mode === 'infiltration' ? mission : '') !== this.mission) this.cancelAutoStart();
+    // as a switch off the campaign, would otherwise start it alone at once); (CM3) so is another campaign pick
+    if (mode !== this.mode || map !== this.map || (mode === 'infiltration' ? mission : '') !== this.mission || pick !== this.sectorMission) this.cancelAutoStart();
+    // (CM3) a Continue and a resumed section belong to the match they were set for
+    if (mode !== this.mode || roomMap(map) !== this.map || pick !== this.sectorMission || difficulty !== this.difficulty) {
+      this.campaignResume = null;
+      this.sectorBay = 1;
+    }
+    this.sectorMission = pick;
     this.mode = mode;
     // (J14 R1) the lobby's Marlow Yard pick opens the re-planned yard with the flag on
     this.map = roomMap(map);
@@ -426,11 +465,45 @@ export class NetSession {
     this.phase = 'playing';
     // (NET3) a Sector Ops match carries the host's mission (none: the start as before)
     const sm = this.mode === 'sector' ? this.sectorMission : '';
-    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1, ...(sm ? { sectorMission: sm } : {}) };
+    // (campaign-mode CM3) a Sector Ops start's `bay` is its section (`sectorStartBay`); a Continue's save goes with the
+    // host's start only (`startMsg` never sends it) and is used once
+    const resume = this.resumeFor(sm);
+    this.campaignResume = null;
+    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : this.sectorStartBay(resume), ...(sm ? { sectorMission: sm } : {}), ...(resume ? { campaignResume: resume } : {}) };
     this.send(startMsg(this.start));
     this.broadcastLobby();
     this.events.emit('start', this.start);
     return this.start;
+  }
+
+  /** (campaign-mode CM3) The Continue save for a start of mission `sm` on this room's map, or null (none, flag off, or
+   *  a save of another mission / map / difficulty). */
+  private resumeFor(sm: string): CampaignSave | null {
+    const r = this.campaignResume;
+    if (!r || !flags.campaign || !sm || this.mode !== 'sector') return null;
+    return r.mission === sm && r.map === this.map && r.difficulty === this.difficulty ? r : null;
+  }
+
+  /**
+   * (campaign-mode CM3, A11) The section a Sector Ops start begins at (1-based, the start's `bay`): with `flags.campaign`
+   * a mission resumes at its save's section (`resume`; none: 1, the mission's own start: a mission started later needs
+   * the earlier steps the save holds, PLAN risk 1); plain Sector Ops at `sectorBay`. Flag off: 1, as before.
+   */
+  sectorStartBay(resume: CampaignSave | null = this.resumeFor(this.sectorMission)): number {
+    if (!flags.campaign || this.mode !== 'sector') return 1;
+    if (this.sectorMission) return resume ? resume.section + 1 : 1;
+    return Math.max(1, Math.min(64, Math.floor(this.sectorBay) || 1));
+  }
+
+  /**
+   * (campaign-mode CM3, A9, host) Continue a campaign save: the room goes to its map, difficulty and mission
+   * (`setSettings`, which drops any earlier Continue), and the next start resumes at its section. Nothing with
+   * `flags.campaign` or `flags.missions` off.
+   */
+  continueCampaign(save: CampaignSave): void {
+    if (!this.isHost || !flags.campaign || !flags.missions) return;
+    this.setSettings('sector', save.map, save.difficulty, '', this.weather, save.mission);
+    this.campaignResume = save;
   }
 
   /**
@@ -493,6 +566,20 @@ export class NetSession {
     await this.transport.leave().catch(() => {});
     this.events.clear();
   }
+}
+
+/**
+ * (campaign-mode CM3, PLAN 3.4) A Sector Ops start's game options with `flags.campaign` (`CoopController.start`): the
+ * mission it carries (both flags on; '' none), the section it starts at (the start's `bay`) and on the host a Continue's
+ * save. Any other mode, or the flag off: none (the mode binds `?mission=` and starts as before).
+ */
+export function sectorStartOpts(s: StartInfo): Pick<GameOptions, 'sectorMission' | 'sectorStart' | 'campaignResume'> {
+  if (s.mode !== 'sector' || !flags.campaign) return {};
+  return {
+    sectorStart: Math.max(1, Math.floor(s.bay ?? 1)),
+    ...(flags.missions ? { sectorMission: s.sectorMission ?? '' } : {}),
+    ...(s.campaignResume ? { campaignResume: s.campaignResume } : {}),
+  };
 }
 
 /** The `start` message for a match ((NET3) `sm` only when a sector mission is set). */

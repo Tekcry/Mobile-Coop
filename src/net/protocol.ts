@@ -286,7 +286,9 @@ export type Msg =
   | { t: 'hello'; v: number; name: string; tag: PlayerInfo['tag']; look: AvatarLook; loadout: WeaponId[]; tok: string }
   /** (marlow-bays R2) Host -> one client: the player id the host knows it by (its held slot's on a rejoin). */
   | { t: 'you'; id: string }
-  | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice }
+  /** (campaign-mode CM3) `sm`: the host's campaign mission pick (`MissionDef.id`; absent: none, the lobby as before), so
+   *  the partner's lobby shows the entry and its briefing. The client's start mission still comes only from `start.sm`. */
+  | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice; sm?: string }
   | { t: 'ready'; ready: boolean }
   /** `mission`: Infiltration's. (mission-framework NET3) `sm`: Sector Ops' mission (`MissionDef.id`, the host's
    *  `?mission=`; absent / '': none), so a client starts in the mission's start section and follows the host's. */
@@ -851,7 +853,9 @@ export function parseMessage(raw: unknown): Msg | null {
       const phase = oneOf(raw.phase, ['lobby', 'playing'] as const);
       const map = id(raw.map);
       if (!mode || !difficulty || !phase || !map) return null;
-      return { t: 'lobby', players, mode, map, difficulty, phase, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear' };
+      // (campaign-mode CM3) the campaign pick rides only when set (junk: dropped, the lobby as before)
+      const sm = sectorMissionId(raw.sm);
+      return { t: 'lobby', players, mode, map, difficulty, phase, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', ...(sm ? { sm } : {}) };
     }
     case 'ready': {
       const r = bool(raw.ready);

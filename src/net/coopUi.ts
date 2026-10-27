@@ -12,7 +12,7 @@ import { MAPS, getMap } from '../world/maps';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { MISSIONS, missionById } from '../game/missions';
 import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
-import { NetSession, resumeMap, roomMap, type LocalProfile, type StartInfo } from './session';
+import { NetSession, resumeMap, roomMap, sectorStartOpts, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
 import { createTrysteroTransport } from './trysteroTransport';
@@ -217,6 +217,9 @@ class CoopController {
         missionId: mission?.id,
         weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
         courseBay: s.mode === 'course' ? (s.bay ?? 1) : undefined,
+        // (campaign-mode CM3, PLAN 3.4) Sector Ops with the campaign flag: the start's mission and section, and on the
+        // host a Continue's save; flags off: none, the mode binds `?mission=` and starts as before
+        ...sectorStartOpts(s),
         net: {
           role: session.role,
           code: session.code,
