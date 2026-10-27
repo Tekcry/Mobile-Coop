@@ -15,6 +15,7 @@ import { LIVE_DOGS } from '../ai/dogModel';
 import type { WeatherChoice } from '../world/mapDef';
 import type { MapDef } from '../world/mapDef';
 import type { CampaignSave } from '../save/campaignRecord';
+import type { CampaignResultView } from './mission/campaignRating';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { PauseScreen, type ObjectiveLine } from '../ui/screens/pauseScreen';
@@ -635,6 +636,8 @@ export class GameState implements AppState {
   net: NetAttachment | null = null;
   /** (section-rating) The op's rated sections in order (Sector Ops: the host's mode, or the co-op client's mirror), for the results lines. */
   readonly sectionRatings: RatingView[] = [];
+  /** (campaign-mode CM5) A campaign mission's end panel (the host's mode, or the co-op client from the host's `pc`); null: none. */
+  campaignResult: CampaignResultView | null = null;
   /** Coop client: enemies, waves and objectives are driven by the host. */
   readonly puppet: boolean;
   /** Who a takedown can be done on (enemies; co-op clients: the host's enemies as puppets). */

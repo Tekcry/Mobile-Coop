@@ -78,9 +78,9 @@ import { RatingCard } from '../../ui/hud/ratingCard';
 import { applyMissionResume, applyMissionStart, bindSectorMission, missionCarry, type MissionCarry, type SectorMission } from '../mission/sectorMission';
 import { CAMPAIGN, campaignGrant, campaignResponseKinds, isCampaignMission, missionSectionLine } from '../mission/campaign';
 import { campaignEntry, entryForRoom, type CampaignKey } from '../mission/campaignOrder';
-import { optionalDone, type CampaignTally } from '../mission/campaignRating';
-import { wireDoneBits } from '../mission/missionWire';
-import { writeCampaignSave } from '../../save/campaignRecord';
+import { campaignHeadline, campaignRating, campaignResultRows, campaignResultView, optionalDone, type CampaignResultView, type CampaignTally } from '../mission/campaignRating';
+import { rulesKeptCount, wireDoneBits, type MissionWire } from '../mission/missionWire';
+import { clearCampaignSave, intelDone, recordFinish, writeCampaignSave } from '../../save/campaignRecord';
 import { MissionFeed, missionDoneLine, missionObjectiveLines, missionStepReads } from '../mission/missionFeed';
 
 /** (section-rating S2) The last rated section, as the rating card reads it (S4's `RatingView` shape). */
@@ -309,6 +309,10 @@ export class SectorMode implements GameMode {
   private opKills = 0;
   private opKnockouts = 0;
   private opBodies = 0;
+  /** (CM5) A Continue's section number (1-based) for the results; 0: not a Continue. */
+  private readonly resumedAt: number;
+  /** (CM5) The campaign mission's rating once it ended (the last `ms` carries it as `pc`); -1 before (tests read it). */
+  campaignPct = -1;
   /** (mission-rules R6, HG7) The mission's current step on this machine's objective line (host / solo; the client has its own). */
   private readonly feed = new MissionFeed();
   /** (mission-rules R6 polish) The live section's `<section>-obj` flag (`setup`) and the download percent last written
@@ -350,6 +354,7 @@ export class SectorMode implements GameMode {
     const resume = flags.campaign ? g.opts.campaignResume : undefined;
     this.carried = this.mission && resume && applyMissionResume(this.run, this.mission, resume) ? missionCarry(resume) : null;
     if (this.mission && !this.carried) applyMissionStart(this.run, this.mission.startIndex); // (mission-framework EN4, A23) a later start section
+    this.resumedAt = this.carried ? this.run.index + 1 : 0;
     this.campaignKey = flags.campaign && this.mission ? (entryForRoom('sector', g.world.map.id, this.mission.def.id)?.key ?? null) : null;
   }
 
@@ -1245,13 +1250,17 @@ export class SectorMode implements GameMode {
     }
     // (section-rating S2) the last section is rated at the extraction (nothing follows it to grant)
     this.rate(this.run.index, false);
+    // (campaign-mode CM5) a campaign mission is rated (its percent rides the last `ms` below), recorded and its save cleared
+    const camp = this.campaignEnd();
     // co-op: the last rating goes now (the sector sends stop once the op ends), ahead of the end message
     const ct = this.ct;
     if (ct && g.net?.sector) g.net.sector(ct.wire(), this.netExtra(ct));
     g.events.emit('operationComplete', {});
-    // M7: the op's star for this difficulty (and the best time), solo or the co-op host; never on a practice run (A28)
-    if (!this.practiceFrom) void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
-    g.hud.banner('SECTORS CLEAR', resultBadge(this.result()), 2600);
+    // M7: the op's star for this difficulty (and the best time), solo or the co-op host; never on a practice run (A28);
+    // (CM5, MF11) never for a campaign mission: its record is the campaign's
+    if (!this.practiceFrom && !camp) void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
+    if (camp) g.hud.banner('MISSION COMPLETE', campaignHeadline(camp), 2600);
+    else g.hud.banner('SECTORS CLEAR', resultBadge(this.result()), 2600);
     g.slowBeat(0.4, 0.5);
     g.letterbox(2.6);
     this.endT = 2.6;
@@ -1281,6 +1290,30 @@ export class SectorMode implements GameMode {
       bodies: (c?.bodies ?? 0) + this.opBodies,
       optional: this.mission ? optionalDone(this.mission.def.steps, doneBits).done : 0,
     };
+  }
+
+  /**
+   * (campaign-mode CM5, PLAN 3.6) A campaign mission's end (host / solo, not a practice run; once): the rating from the
+   * op-wide tally (`campaignRating`), the results panel (`g.campaignResult`), the host's own record (`recordFinish`
+   * with the intel found) and the save cleared. `campaignPct` is set for the last `ms` (`pc`). Null, nothing done: not a
+   * campaign mission.
+   */
+  campaignEnd(): CampaignResultView | null {
+    const key = this.campaignKey;
+    const m = this.mission;
+    const e = key ? campaignEntry(key) : null;
+    if (!m || !e || this.practiceFrom || this.campaignPct >= 0) return null;
+    const w = m.wire();
+    const done = wireDoneBits(w);
+    const tally = this.campaignTally(done);
+    const r = campaignRating(tally);
+    this.campaignPct = r.pct;
+    const rows = campaignResultRows({ tally, optional: optionalDone(m.def.steps, done), rules: { kept: rulesKeptCount(w), total: m.def.rules.length } });
+    const view = campaignResultView(e.title, r, rows, this.resumedAt || undefined);
+    this.g.campaignResult = view;
+    void recordFinish(e.key, r.pct, intelDone(m.def.steps, done));
+    void clearCampaignSave();
+    return view;
   }
 
   /** (CM5) Mission time so far (s): a Continue's carried time plus this run's. */
@@ -1691,7 +1724,14 @@ export class SectorMode implements GameMode {
     const lk: number[] = [];
     for (const d of this.g.world.doors.list) if (d.anchor.locked) lk.push(d.index);
     const rh = this.rt.sec >= 0 ? packRated(this.run.marks, this.ratedSynced) : undefined;
-    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}), ...(this.mission ? { ms: this.mission.wire() } : {}), ...(this.scene && this.scene.t0 >= 0 ? { ep: this.scene.t0 } : {}) };
+    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}), ...(this.mission ? { ms: this.missionWire(this.mission) } : {}), ...(this.scene && this.scene.t0 >= 0 ? { ep: this.scene.t0 } : {}) };
+  }
+
+  /** The wire's `ms` (allocates, as before); (campaign-mode CM5) the campaign percent once the mission ended (`pc`). */
+  private missionWire(m: SectorMission): MissionWire {
+    const w = m.wire();
+    if (this.campaignPct >= 0) w.pc = this.campaignPct;
+    return w;
   }
 
   /** (mission-framework EN2) Co-op host: a client's gadget took effect (a mission's no-gadgets rule, by its slot). */
