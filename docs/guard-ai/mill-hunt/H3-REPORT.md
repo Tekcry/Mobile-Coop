@@ -104,3 +104,56 @@ Builder: Opus 5.5, 2026-10-27. Branch `feature/guard-ai-mill-hunt-h3` (origin/ma
 - `tick` boxes one double per member per tick through `out` (16 B each, 192 B for 12): not an object, within bounds;
   inlining could remove it, not needed.
 - `MILL_HUNT_W1` is a manager constant; a `HuntDef.start` (map data) would remove it if the lead prefers.
+
+## Update to PR 1's final board
+Builder: Opus 5.5, 2026-10-27. `origin/feature/guard-ai-mill-hunt` (20c40b35a: the fix round, check B PASS) merged
+clean (cd604192b); then 3529121c6 (hand-off), 0b778b74b (e2e). Lines at this commit.
+
+- **Hand-off without a callback** (H2-REPORT "Fix round (check A)", H3 check A polish 1). `huntBoard` builds the board
+  with `out = null`; `mhOut` and `Enemy.mhGoal` are gone. `Enemy.mhIdx` (`enemy.ts:1978`, -1 none) caches his board
+  index; `mhAdmit` (`enemyManager.ts:2473`) admits and refreshes it only when `member(mhIdx)` is not him (his first admit,
+  a new board, a woken guard). `placeSlot`, `sceneDarkOn` and `mhTick` admit through it. After `hb.tick(0.2)`, `mhTick`
+  (`:2487`) copies `gx` / `gz` / `gface` / `gspeed` at `mhIdx` into `mhPt` / `mhFace` / `mhSpeed` for each hunt guard
+  with `mOn[i]` set and `member(i)` still him (`:2497-2505`).
+- **Woken guards** use the board's re-pair: `revive` -> `mhStart` (kept: it puts him on the hunt), the next `mhTick`
+  admits him, and the board gives him the old object's index by `slotIdx` or a freed one, with his partner link. No H3
+  workaround was left to remove (H3 never patched the stale partner; the "For the lead" note above is closed by the
+  board). **Freed slots**: H3 has no admission cap (the board's own `cap` 24, now with freed indices).
+- **Check A polish 4** (`:4237`): `mhTick` runs before `boardStep` in the 0.2 s block, so a calm hunt guard is
+  `searching` again before the incident board picks (it never sends a searching guard). `glimpseFollow` keeps its place
+  when there is no board.
+- **e2e-piano** (`scripts/e2e-piano.mjs`; check A polish 2, PR1 check B polish 4). `huntProbe` adds each live guard's
+  unit state (`stateName`) and the guards with `mSkip` set. The "closing in" set leaves out far ground guards whose unit
+  is in `spread` or `regroup` at the 30 s sample (named in the log, `:207`). Each guard's skip onset over the 60 s window
+  is logged with its time (`:208`, no assertion: each one is a stop the nav could not reach).
+
+### Tests
+- `tests/millHuntGlue.test.ts` (15): new "each hunt guard's goal is the board's arrays at his cached index" (`out` null,
+  `mhIdx` = `memberIndex`, the four values equal); new "a woken guard ... 30 wakes, no cap" (G1 / G2 in turn die and a
+  new object for the slot wakes, half before the board's next tick (same index), half after it (the index freed):
+  each time admitted, `mhIdx` right, partner link to his mate, his goal from the arrays; all 12 on the board at the end;
+  the pair one unit again 20 s later).
+- **Allocation**: the board-tick test moved to `tests/millHuntGlueAlloc.test.ts` with 12 real `Enemy` objects (null
+  engine, no guard models, `Hitboxes` mocked): `mhTick` (re-admission, the board, the hand-off) **0.0 B a tick**
+  (Turbofan, `ALLOC_TRACE`), asserted under one HeapNumber (16 B); was 192 B. Why its own file: the glue test's
+  stand-ins are built by `Object.assign` (sweepGuard.ts, dictionary properties). Scratch: with them the same loop read
+  376 B (2 doubles a guard, `mhFace` / `mhSpeed`, boxed: the dictionary store, and once those shapes reach the manager's
+  code its stores go generic, so a real-guard measurement in the same file read 384 B; alone it reads 0). Real guards'
+  four writes alone: 0 B. `calmDecide` on the hunt stays in the glue file (0 B, bound 48).
+- `npm run typecheck:fast` exit 0. `npx vitest run` on 83 files (every test importing `ai/enemy` / `ai/enemyManager` /
+  `sceneSweep` / `pianoGuards` / `helpers/sweepGuard` / `millHunt`, plus `millHuntGlueAlloc`, `previewFlags`,
+  `e2eAffected`, `changesFragments`): 83 passed, 1267 passed, 1 skipped. eslint clean on the changed files.
+  `node --check scripts/e2e-piano.mjs` ok. Not run (as briefed): e2e, `npm run check`, `npm run dev`.
+
+### Counted lines
+Against `origin/feature/guard-ai-mill-hunt` merged with H3's master base (03a82e58d), docs excluded: 923 added, 12
+deleted. Code 301 / 12 (`enemy.ts` +68 / -3, `enemyManager.ts` +96 / -3, `flags.ts` +5, `e2e-piano.mjs` +130 / -6,
+`e2e-affected.mjs` +2); tests 618 (`millHuntGlue` 513, `millHuntGlueAlloc` 105); `TESTING.md` 1, changes fragment 3.
+This update alone (cd604192b..0b778b74b): 236 added, 47 deleted (tests 152 of the added).
+
+### For the laptop e2e run
+- If "closing in" fails with an empty set, every far ground unit was still spreading or regrouping at 30 s: the log
+  names them.
+- Any skip in the log is a stop whose spot the nav cannot reach: a map data fix in `THORNBECK_HUNT`, not glue.
+- Check A polish 3 (perception 0 does not stop `instantDetect` within 1.6 m) and polish 6 (no missing-partner watch for
+  hunt pairs) are unchanged: H4 or the lead.
