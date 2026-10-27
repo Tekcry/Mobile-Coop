@@ -111,6 +111,10 @@ export interface Flags {
   /** (piano-escape, owner Campaign Build, review 2026-11-02) `?piano=1`: the piano escape scene (map `thornbeckMill`, `scene:
    *  'piano'`) joins `MAPS` and the main menu. Default off; on /preview/ default on (preview-flags). */
   pianoEscape: boolean;
+  /** (guard-ai mill-hunt, owner Guard AI Build; switched on when Michael accepts it on his walk) `?millhunt=1`: the storm
+   *  mill's guards hunt from the EMP (`src/ai/millHunt.ts`: searching for good, slow, groups of 2 at most, room by room
+   *  along the players' route) instead of GA6's calm sweep. Default off; on /preview/ default on (preview-flags). */
+  millHunt: boolean;
   /** (char-shadow-meter, J16) Character shadows in the light meter and the guards' light (`world/charOccluders.ts`);
    *  `?charlight=1` on. DEFAULT OFF until Michael's walk (owner Sector Ops Build; switch-on: BRIEF A9). On /preview/
    *  default on (preview-flags). */
@@ -309,6 +313,7 @@ export const flags: Flags = {
   dogRelease: darkFlag(params.get('dogrelease'), PREVIEW_ON),
   marlowReplan: darkFlag(params.get('marlowreplan'), PREVIEW_ON),
   pianoEscape: darkFlag(params.get('piano'), PREVIEW_ON),
+  millHunt: darkFlag(params.get('millhunt'), PREVIEW_ON),
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
   campusV2: readCampusV2(params.get('campusv2'), PREVIEW_ON),
