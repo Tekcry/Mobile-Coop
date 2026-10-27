@@ -1019,7 +1019,7 @@ builders; 00:59 pace: up to 2 agents, piano first.
 SHIP 4-PLAYER (Michael after the walk, ~10:40): #317 merge 16 head 2d8fa5a0e, MERGE16-CHECK.md PASS, checker
 posted, LABELLED by the orchestrator (11:30); CI red guardAiAlloc D1 = CI Node 22 (#696). If it
 conflicts again before its train: merge again at once. Merge 17 62e4f2c09 (lead: gameState.ts both kept + a
-shadowCuesGame stand-in field), checker carried, orchestrator asked to re-add train-ready. #694 train-ready (train 166
+shadowCuesGame stand-in field), checker carried, LABELLED again (14:30). Watch its train; merge again if it conflicts. #694 train-ready (train 166
 failed on another test). J16 G4 PR may open once Sector Ops #665 lands.
 TOP PRIORITY (Michael's mill walk ~10:00, via the orchestrator; J16 HELD): (A) guards fire while facing away:
 fix everywhere = PR #694 (label fix; 58bbbdab2, FIRE_CONE 15 deg, faceFor 110 deg/s; AIM-FIX-REPORT.md):
@@ -1039,7 +1039,7 @@ and H2 Opus (feature/guard-ai-mill-hunt-h2, worktree -mill-hunt-h2, src/ai/millH
 10 gallery stops, H1-REPORT.md). Next: lead merges both into
 feature/guard-ai-mill-hunt, adds the sims on the real THORNBECK_HUNT, two Opus checkers, PR 1. Then PR 1 = H1 (Sonnet data) + H2 (Opus pure board) in parallel; PR 2 = H3 after #694; PR 3 = H4. Asked Michael via the orchestrator: gallery
 answered.
-Open (2026-10-27 ~14:05, window to ~18:50, up to 2 agents; weekly meter ~83%, save at ~92%; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
+Open (2026-10-27 ~14:30 SAVE before the account swap; up to 2 agents; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
      4bb733e14 committed ad3c1afd9 (A FIX 2: watch deaf in cooldown / caution, deck sweep leaves his storey; B PASS).
@@ -1058,13 +1058,14 @@ Open (2026-10-27 ~14:05, window to ~18:50, up to 2 agents; weekly meter ~83%, sa
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: real-map sims DONE 8993d6a75 (2 data fixes, all pass); PR 1 check A FIX decef4d1f (loop walks a 3rd guard
-up behind a pair: G10 2.7 m behind G8 + G9 ~170 s) -> fix round RUNNING (4 m loop rule + 3-within-3 m sim check);
-then check B. H3 built 5336f4735 (feature/guard-ai-mill-hunt-h3; H3-REPORT.md; 14 glue tests; 730 counted
-lines): H3 check A RUNNING -> H3-CHECK-A.md; laptop e2e-piano queued (set mill-h3); its two board items (woken guard
-loses his pair; no stuck timeout) sent to the PR 1 fix round. Was: (a) real-map sims on feature/guard-ai-mill-hunt (helpers to tests/helpers/millHuntSim.ts,
-tests/millHuntThornbeck.test.ts, data fixes) -> "## Real-map sims" in H2-REPORT.md; (b) H3 wiring on
-feature/guard-ai-mill-hunt-h3 (worktree -mill-hunt-h3, from master 4.132.0 + mill-hunt) -> H3-REPORT.md. Then two
-Opus checkers on PR 1 (H1 + H2 + sims; confirm PLAN rev 2 items 1-3) -> PR 1 (big-pr OK); then H3 checkers -> PR 2
-after PR 1; H4 (PR 3). J16: G4 PR after #665; G5 to ctcourse later.
+Next (mill hunt, Michael's walk priority; docs/guard-ai/mill-hunt/):
+(1) PR 1 = feature/guard-ai-mill-hunt (H1 data + H2 board + real-map sims; worktree -guard-ai-mill-hunt). Check A
+    decef4d1f FIX (loop walks a 3rd guard behind a pair). Fix round was RUNNING at the swap (4 m loop rule, 3-within-3 m
+    sim check, woken guard re-pairs, stuck timeout HUNT.stuckT): read "## Fix round (check A)" in H2-REPORT.md; if
+    missing, a fresh Opus builder redoes it from PR1-CHECK-A.md + this list. Then a fresh check B over all of PR 1, then
+    open PR 1 (label big-pr, OKd), post checker, tell the orchestrator.
+(2) PR 2 = feature/guard-ai-mill-hunt-h3 (H3 wiring 5336f4735; worktree -mill-hunt-h3; H3-REPORT.md). Check A was
+    RUNNING -> H3-CHECK-A.md (maybe PARTIAL). Laptop e2e-piano on 5336f4735 = status laptop-e2e/mill-h3. After PR 1's
+    fixes: merge feature/guard-ai-mill-hunt into it again, check B, PR 2 after PR 1 merges.
+(3) H4 reactions (PR 3) per PLAN rev 2. (4) J16: G4 PR (feature/guard-ai-j16-2) after Sector Ops #665; G5 to ctcourse.
 ```
