@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.135.2 - Train 174: Character shadows in the light meter: checks (2026-10-27, PR #721; #720)
+- Tests: the light check reads a guard's shadow on a grey card at Character shadows Off, Low and Epic, and the guard and co-op checks cover a shadow on the player.
+
 ## 4.135.1 - Train 173: Route-run planner: a split entered through a co-op link; Laptop queue: hung runs killed, fail fast, fronted requests kept, quarantine keys (laptop-queue-10) (2026-10-27, PR #717; #714, #570)
 
 ### Laptop queue: no hung runs, fairer desktop and order

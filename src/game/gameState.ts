@@ -745,7 +745,11 @@ export class GameState implements AppState {
       lampBeams: mapLampBeams(world.map.theme),
     });
     // 3.2 baked lamps: the characters' soft shadows from every lamp
-    if (world.lamps) world.lamps.capsules = this.charOccluders ? this.charCapsules : this.rtCapsules;
+    if (world.lamps) {
+      world.lamps.capsules = this.charOccluders ? this.charCapsules : this.rtCapsules;
+      // (char-shadow-meter S4) the field counts the character shadows: the picture's darkness curve too
+      world.lamps.charLevel = !!this.charOccluders;
+    }
     this.weather = new Weather(this.scene, kind);
     // (no rain under roofs: the canonical shapes' tops; render only)
     this.weather.occluder = (x, z) => world.roofAt(x, z);

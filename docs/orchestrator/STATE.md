@@ -5,6 +5,7 @@ swap: HANDOFF.md (newest block). History (old Master lines, Pacing, Sessions, me
 archive/STATE-history.md. Keep this file current, not appended: replace a line when it changes.
 
 ## Now (2026-10-25 ~12:45)
+**ON HOLD since 2026-10-27 ~15:35 (ROADMAP "Now" top line): the cron only ships finished, green PRs (labels, trains, failed trains) and answers leads; no pacing nudges, no new jobs, no builder adds, no audits, no account-swap boot work unless Michael asks.**
 Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this list is the standing frame only.
 - Master 4.101.1 (train 86 #406); train 87 (#409, 4.101.2 = #384) running.
 - Docs first (G346, G355): no new game work until Michael signs off the folded plan (ROADMAP Now row 6); finished PRs

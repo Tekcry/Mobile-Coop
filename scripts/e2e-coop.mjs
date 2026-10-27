@@ -14,7 +14,7 @@
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until as untilNet, waitSim, waitHostSim, setSimPages, LOAD_MS } from './e2e-net-lib.mjs';
+import { until as untilNet, waitSim, waitHostSim, setSimPages, LOAD_MS, NET_VIEWPORT } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 // (guard-models G9, gm-flip) The guard models are on by default, so the guard figures exist and the visible-piece asserts
@@ -2213,6 +2213,199 @@ try {
 } finally {
   errs.push(...eA, ...eB);
   await browser.close();
+}
+
+// (char-shadow-meter S4, J16; S2c) Character shadows in co-op, on their own `?charlight=1` pages (every block above runs
+// with the flag off): the host's light for the client (its `RemotePlayer.ref`) equals the client's own meter within 0.02
+// with a parked guard in a lamp's path over the client (the host's guard, the client's puppet), then with the host
+// standing there instead (the partner's capsule: the host's slot 0, the client's `charMatesInto`). The spot is picked
+// from the field on the host (PLAN section 5: re-picked after J10's re-bake).
+console.log('char-shadow-meter: the client\'s light with a guard\'s and the partner\'s shadow (charlight=1)');
+{
+  const CSP = 'net=local&charlight=1';
+  const { browser: br, ctx: c3, page: A2, errors: eA2 } = await launch({ url, params: CSP, viewport: NET_VIEWPORT });
+  let eB2 = [];
+  try {
+    await A2.click('.main-menu .btn:has-text("Co-op")');
+    await A2.click('.btn:has-text("Host a room")');
+    await until(A2, () => !!document.querySelector('.lobby-screen') && !!window.__coop, null, 15000, 'charshadow: host lobby');
+    const code = await A2.evaluate(() => window.__coop.session.code);
+    const opened = await openPage(c3, url, CSP);
+    const B2 = opened.page;
+    eB2 = opened.errors;
+    await B2.click('.main-menu .btn:has-text("Co-op")');
+    await B2.click('.btn:has-text("Join with code")');
+    await B2.keyboard.type(code.toLowerCase());
+    await B2.keyboard.press('Enter');
+    await until(A2, () => window.__coop.session.players.size === 2, null, 15000, 'charshadow: host sees client');
+    setSimPages([A2, B2]);
+    await A2.evaluate((m) => window.__coop.session.setSettings(m[0], m[1], 'normal', m[2]), MISSION);
+    await B2.evaluate(() => window.__coop.session.setReady(true));
+    await until(A2, () => window.__coop.session.allReady, null, 8000, 'charshadow: everyone ready');
+    await A2.evaluate(() => window.__coop.session.startMatch());
+    for (const P of [A2, B2]) await until(P, () => !!window.__app.current?.net && !window.__app.current.isEnded && !!window.__app.current.player, null, LOAD_MS, 'charshadow: match on both pages');
+    await until(A2, () => [...window.__app.current.net.remotes.values()].every((r) => r.state), null, 15000, 'charshadow: client state reaches the host');
+    const on = await Promise.all([A2, B2].map((P) => P.evaluate(() => !!window.__app.current.charOccluders)));
+    assert(on[0] && on[1], `charshadow: the character contract is on on both pages (${on})`);
+    // the host: damage off, the mission's guards and drones statues (S24 pattern), no alarm panel; the pick from the field
+    // (FILL: a copy of src/game/charOccluderFill.ts; CROUCH_DROP of src/game/bodyHeight.ts): the client crouched or standing
+    // 2-8 m from a lamp lit mostly by it, a guard 0.6-0.9 m toward the lamp (and later the host there) shading him
+    const pick = await A2.evaluate((C) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      g.target.damageMul = 0;
+      for (const r of g.net.remotes.values()) r.damageMul = 0;
+      for (const x of em.enemies) {
+        x.update = () => {};
+        if (x.alive && !x.taken) x.aware.set('unaware');
+      }
+      for (const d of em.drones) d.update = () => true;
+      for (const p of em.alarms) p.disabled = true;
+      const f = g.world.lightField;
+      const nav = g.nav;
+      const occl = g['lightOccluder'];
+      const B = g.world.lightBake?.lamps;
+      if (!B) return { err: 'no baked lamps' };
+      const L = B.baked.lights;
+      const n = B.baked.ids.length;
+      const F = C.fill;
+      const tmp = new g.charOccluders.constructor();
+      const ref = g.remotePlayers()[0];
+      const hc = ref?.height ?? 1.75;
+      const hh = g.player.rig.height;
+      const gh = em.enemies.find((x) => x.alive && !x.def.quadruped)?.def.height ?? 1.8;
+      const floorAt = (x, z, hint) => {
+        const k = nav.cellOf(x, z, hint);
+        return k >= 0 && nav.isWalkable(k) ? nav.height[k] : -1e9;
+      };
+      const drop = (x, fl, z, h, gx, gy, gz, top) => {
+        tmp.clear();
+        tmp.add(2, 0, gx, gy + F.footLift, gz, gx, gy + Math.max(F.minTop, top - F.topDrop), gz, F.r);
+        return f.bodyLevel(x, fl, z, h, occl) - f.bodyLevel(x, fl, z, h, occl, 0, 0, tmp, -1);
+      };
+      // nobody else near the spot: the statues and drones 4 m off
+      const crowd = [...em.enemies.filter((x) => x.alive).map((x) => x.pos), ...em.drones.map((d) => d.pos).filter(Boolean)];
+      let best = null;
+      for (let i = 0; i < n; i++) {
+        const lx = L[i * 10], lz = L[i * 10 + 2];
+        for (let D = 2; D <= 8; D += 0.5) {
+          for (let k = 0; k < 16; k++) {
+            const ux = Math.cos((k * Math.PI) / 8), uz = Math.sin((k * Math.PI) / 8);
+            const x = lx - ux * D, z = lz - uz * D;
+            const fl = floorAt(x, z, 0);
+            if (fl < -1e8 || crowd.some((p) => Math.hypot(p.x - x, p.z - z) < 4)) continue;
+            for (const cr of [1, 0]) {
+              const h = hc * (1 - C.crouchDrop * cr);
+              const u = f.bodyLevel(x, fl, z, h, occl);
+              if (u < 0.2 || f.lampAt(i, x, fl + h * 0.6, z) < 0.4 * u) continue;
+              for (const d of [0.6, 0.75, 0.9]) {
+                const gx = x + ux * d, gz = z + uz * d;
+                const gf = floorAt(gx, gz, fl);
+                if (gf < -1e8 || Math.abs(gf - fl) > 0.3) continue;
+                const dg = drop(x, fl, z, h, gx, gf, gz, gh);
+                const dh = drop(x, fl, z, h, gx, gf, gz, hh);
+                const score = Math.min(dg, dh);
+                if (score < C.minDrop || (best && score <= best.score)) continue;
+                // the host's wait and the guard's spot for the second read: to the side, off the lamp's path
+                for (const sg of [1, -1]) {
+                  const px = -uz * sg, pz = ux * sg;
+                  const a1 = [x + px * 3, z + pz * 3], a2 = [x + px * 4.5, z + pz * 4.5];
+                  const f1 = floorAt(a1[0], a1[1], fl), f2 = floorAt(a2[0], a2[1], fl);
+                  if (f1 < -1e8 || f2 < -1e8 || Math.abs(f1 - fl) > 0.3 || Math.abs(f2 - fl) > 0.3) continue;
+                  best = { score, lamp: i, x, z, fl, crouch: cr === 1, g: [gx, gf, gz], hostWait: [a1[0], f1, a1[1]], guardAway: [a2[0], f2, a2[1]], dg, dh };
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      if (!best) return { err: 'no lit spot with a guard spot in its lamp path' };
+      // the host to his wait, a grunt parked in the lamp's path (a statue), facing the lamp
+      const V = g.player.position.constructor;
+      g.player.controller.teleport(new V(best.hostWait[0], best.hostWait[1] + 0.05, best.hostWait[2]), 0);
+      em['csCap'] = em.maxAlive;
+      em.maxAlive = Math.max(em.maxAlive, em.alive + 1);
+      const [gx, gy, gz] = best.g;
+      const e = em.spawn('grunt', new V(gx, gy, gz), false, Math.atan2(gx - best.x, gz - best.z));
+      if (!e) return { err: 'no grunt parked' };
+      e.update = () => {};
+      e.pos.set(gx, gy, gz);
+      e['prevPos'].copyFrom(e.pos);
+      window.__csGuard = e;
+      return best;
+    }, { fill: { r: 0.22, footLift: 0.25, topDrop: 0.2, minTop: 0.5 }, crouchDrop: 0.35, minDrop: 0.02 });
+    assert(!pick.err, `charshadow: a spot (${pick.err ?? JSON.stringify(pick)})`);
+    // the client to the spot (the host grants the teleport), crouched as picked, facing the lamp's way
+    await A2.evaluate(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+    await B2.evaluate((p) => {
+      const g = window.__app.current;
+      g.player.controller['crouchToggled'] = p.crouch;
+      g.player.controller.teleport(new g.player.position.constructor(p.x, p.fl + 0.05, p.z), 0);
+    }, pick);
+    await wait(1500);
+    // the host's light for the client against the client's meter (both at 10 Hz): read until they agree (6 s at most)
+    const lights = async () => {
+      let last = null;
+      for (let k = 0; k < 20; k++) {
+        const host = await A2.evaluate(() => {
+          const g = window.__app.current;
+          const r = g.remotePlayers()[0];
+          return { light: r.light, feet: [r.feet.x, r.feet.y, r.feet.z], crouched: r.crouched, h: r.height ?? 1.75 };
+        });
+        const client = await B2.evaluate(() => window.__app.current.lightLevel);
+        last = { host: host.light, client, feet: host.feet.map((v) => +v.toFixed(2)), crouched: host.crouched };
+        if (Math.abs(host.light - client) <= 0.02) break;
+        await wait(300);
+      }
+      return last;
+    };
+    // the field's drop at the host's view of the client: the parked guard (or the host) against no contract
+    const fieldDrop = () => A2.evaluate((C) => {
+      const g = window.__app.current;
+      const r = g.remotePlayers()[0];
+      const h = (r.height ?? 1.75) * (1 - C.crouchDrop * (r.crouched ? 1 : 0));
+      const f = g.world.lightField;
+      g['fillChars']();
+      const k = g['charKeys'][1];
+      return f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, h, g['lightOccluder']) - f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, h, g['lightOccluder'], 0, 0, g.charOccluders, k);
+    }, { crouchDrop: 0.35 });
+    const withGuard = await lights();
+    const dGuard = await fieldDrop();
+    console.log(`  guard: host ${withGuard.host.toFixed(3)} client ${withGuard.client.toFixed(3)} (field drop ${dGuard.toFixed(3)}; ${JSON.stringify(withGuard)})`);
+    assert(dGuard >= 0.01, `charshadow: the parked guard shades the client in the field (${dGuard.toFixed(3)})`);
+    assert(Math.abs(withGuard.host - withGuard.client) <= 0.02, `charshadow: host's and client's light for the client agree within 0.02 under a parked guard (${withGuard.host.toFixed(3)} / ${withGuard.client.toFixed(3)})`);
+    // the partner's shadow (S2c): the guard to the side, the host where he stood
+    // (S4 triage) his solid hit capsule (`G.ENEMY`, which the host's controller collides with) moves with him: it follows
+    // `pos` only in `update`, stubbed here, so it stayed on the spot and pushed the host out of the lamp's path
+    await A2.evaluate((p) => {
+      const g = window.__app.current;
+      const e = window.__csGuard;
+      e.pos.set(p.guardAway[0], p.guardAway[1], p.guardAway[2]);
+      e['prevPos'].copyFrom(e.pos);
+      e['syncHitboxes'](0);
+      g.player.controller.teleport(new g.player.position.constructor(p.g[0], p.g[1] + 0.05, p.g[2]), Math.atan2(p.g[0] - p.x, p.g[2] - p.z));
+    }, pick);
+    await wait(1500);
+    const hostAt = await A2.evaluate(() => { const q = window.__app.current.player.position; return [q.x, q.y, q.z]; });
+    const hostOff = Math.hypot(hostAt[0] - pick.g[0], hostAt[2] - pick.g[2]);
+    assert(hostOff <= 0.1, `charshadow: the host stands on the guard's spot in the lamp's path (${hostOff.toFixed(2)} m off; at ${hostAt.map((v) => v.toFixed(2))}, spot ${pick.g.map((v) => v.toFixed(2))})`);
+    const withHost = await lights();
+    const dHost = await fieldDrop();
+    console.log(`  partner: host ${withHost.host.toFixed(3)} client ${withHost.client.toFixed(3)} (field drop ${dHost.toFixed(3)}; ${JSON.stringify(withHost)})`);
+    assert(dHost >= 0.01, `charshadow: the host's capsule shades the client in the field (${dHost.toFixed(3)})`);
+    assert(Math.abs(withHost.host - withHost.client) <= 0.02, `charshadow: host's and client's light for the client agree within 0.02 with the partner's shadow on the client (S2c) (${withHost.host.toFixed(3)} / ${withHost.client.toFixed(3)})`);
+    await A2.evaluate(() => {
+      const em = window.__app.current.enemyMgr;
+      if (em['csCap'] !== undefined) em.maxAlive = em['csCap'];
+    });
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    errs.push(...eA2, ...eB2);
+    await br.close();
+  }
 }
 
 console.log('offline state');

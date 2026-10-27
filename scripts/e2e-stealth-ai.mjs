@@ -6,6 +6,7 @@
 // keeps the old one, so the suite turns it on): one guard is sent to a noise, the others turn.
 // `node scripts/e2e-stealth-ai.mjs [url] [--only=name]`
 import { launch, openPage, assert, frames } from './e2e-lib.mjs';
+import { pinLights } from './parity-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
@@ -3545,4 +3546,211 @@ try {
   console.error(String(e));
 }
 await browser.close();
+
+// (char-shadow-meter S4, J16) Character shadows in the meter, on its own `?charlight=1` page (the scenarios above run
+// with the flag off, unchanged). A guard parked in a lamp's path drops the player's meter by the field's amount (a
+// contract holding only his capsule, built here from `FILL`), and a guard watching the player fills slower than with the
+// meter pinned to the unshadowed value. The spot is picked from the field (PLAN section 5: re-picked after J10's
+// re-bake). The pin replaces `updateLight`, so the shadow cues stop filling while pinned (S3b note); the player stands
+// still, so the real run's cue adds nothing either.
+if (!only || 'charshadow'.includes(only)) {
+  console.log('charshadow');
+  const cs = await launch({ url, params: 'autostart=warehouse&mode=clear&charlight=1' });
+  const H = (f, a) => cs.page.evaluate(f, a);
+  try {
+    await frames(cs.page, 10);
+    // the flicker, the pendants' sway and the lightning held still: the meter reads only the shadow
+    await pinLights(cs.page);
+    // FILL: a copy of src/game/charOccluderFill.ts `FILL`; LIGHT: of src/world/lights.ts (shadow, lit); CROUCH_DROP: of
+    // src/game/bodyHeight.ts. The pick only; the asserts read the live meter and the field.
+    const r = await H((C) => {
+      const a = window.__app;
+      const g = a.current;
+      if (!g.charOccluders) return { err: 'no character contract (charlight=1 off?)' };
+      a.loop.manual = true;
+      g.target.health.invulnerable = true;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      const c = g.player.controller;
+      const f = g.world.lightField;
+      const nav = g.nav;
+      const occl = g['lightOccluder'];
+      const proto = Object.getPrototypeOf(g)['updateLight'];
+      const B = g.world.lightBake?.lamps;
+      if (!B) return { err: 'no baked lamps' };
+      const L = B.baked.lights;
+      const n = B.baked.ids.length;
+      const F = C.fill;
+      const tmp = new g.charOccluders.constructor();
+      const vis = (lv) => {
+        const t = Math.max(0, Math.min(1, (lv - C.shadow * 0.5) / (C.lit - C.shadow * 0.5)));
+        const v = 0.25 + 0.75 * t * t * (3 - 2 * t);
+        return v * v;
+      };
+      const floorAt = (x, z, hint) => {
+        const k = nav.cellOf(x, z, hint);
+        return k >= 0 && nav.isWalkable(k) ? nav.height[k] : -1e9;
+      };
+      // a straight walkable line on one floor (no wall or rack between): the watcher's sight, roughly
+      const clearLine = (x0, z0, x1, z1, fl) => {
+        const d = Math.hypot(x1 - x0, z1 - z0);
+        for (let s = 0.5; s < d; s += 0.5) if (Math.abs(floorAt(x0 + ((x1 - x0) * s) / d, z0 + ((z1 - z0) * s) / d, fl) - fl) > 0.3) return false;
+        return true;
+      };
+      const capInto = (gx, gy, gz, hgt) => {
+        tmp.clear();
+        tmp.add(2, 0, gx, gy + F.footLift, gz, gx, gy + Math.max(F.minTop, hgt - F.topDrop), gz, F.r);
+      };
+      const reset = () => {
+        em.clear();
+        em.coordinated = true;
+        if (Array.isArray(g.mode?.pending)) g.mode.pending.length = 0;
+        g['updateLight'] = proto;
+        c['crouchToggled'] = false;
+        g.noise = 0;
+      };
+      const park = (gx, gy, gz, yaw) => {
+        const e = em.spawn('grunt', new V(gx, gy, gz), false, yaw);
+        if (!e) return null;
+        e.update = () => {};
+        e.pos.set(gx, gy, gz);
+        e['prevPos'].copyFrom(e.pos);
+        return e;
+      };
+      const step = (s) => a.loop.stepHeadless(s, 120);
+      // a guard's height (the pick's capsule): one spawned and cleared
+      reset();
+      const probe = em.spawn('grunt', g.player.position.clone(), false, 0);
+      if (!probe) return { err: 'no grunt spawned' };
+      const GH = probe.def.height;
+      reset();
+      const hp = g.player.rig.height;
+      // the pick: the player 2-8 m from a lamp, standing or crouched, lit (0.2 up) mostly by it; a guard 0.6-0.9 m toward it
+      // shades him by >= minDrop and lowers the light factor to <= 85%; a watcher 6-8 m away from the lamp's side
+      const cands = [];
+      for (let i = 0; i < n; i++) {
+        const lx = L[i * 10], lz = L[i * 10 + 2];
+        for (let D = 2; D <= 8; D += 0.5) {
+          for (let k = 0; k < 16; k++) {
+            const ux = Math.cos((k * Math.PI) / 8), uz = Math.sin((k * Math.PI) / 8);
+            const x = lx - ux * D, z = lz - uz * D;
+            const fl = floorAt(x, z, 0);
+            if (fl < -1e8) continue;
+            for (const cr of [1, 0]) {
+              const h = hp * (1 - C.crouchDrop * cr);
+              const u = f.bodyLevel(x, fl, z, h, occl);
+              if (u < 0.2 || f.lampAt(i, x, fl + h * 0.6, z) < 0.4 * u) continue;
+              for (const d of [0.6, 0.75, 0.9]) {
+                const gx = x + ux * d, gz = z + uz * d;
+                const gf = floorAt(gx, gz, fl);
+                if (gf < -1e8 || Math.abs(gf - fl) > 0.3) continue;
+                capInto(gx, gf, gz, GH);
+                const s = f.bodyLevel(x, fl, z, h, occl, 0, 0, tmp, -1);
+                if (u - s < C.minDrop || vis(s) > 0.85 * vis(u)) continue;
+                // the first watcher spot in view (6-8 m, straight away from the lamp or turned 0.4 rad)
+                let w = null;
+                for (const dw of [6, 7, 8]) {
+                  for (const turn of [0, 0.4, -0.4]) {
+                    const wx = x - (ux * Math.cos(turn) - uz * Math.sin(turn)) * dw;
+                    const wz = z - (uz * Math.cos(turn) + ux * Math.sin(turn)) * dw;
+                    const wf = floorAt(wx, wz, fl);
+                    if (wf < -1e8 || Math.abs(wf - fl) > 0.3 || !clearLine(x, z, wx, wz, fl)) continue;
+                    w = [wx, wf, wz];
+                    break;
+                  }
+                  if (w) break;
+                }
+                if (w) cands.push({ lamp: i, x, z, fl, crouch: cr === 1, u, s, g: [gx, gf, gz], w, score: vis(u) - vis(s) });
+              }
+            }
+          }
+        }
+      }
+      cands.sort((p, q) => q.score - p.score);
+      // the best guard spot and stance per player spot (a blocked watcher is tried at the next spot, not the same one)
+      const seen = new Set();
+      const picks = cands.filter((p) => {
+        const key = `${p.x.toFixed(2)},${p.z.toFixed(2)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (!picks.length) return { err: 'no lit spot with a guard in its lamp path and a watcher in view' };
+      // the player at the spot (facing the watcher), settled; the meter with no guard near
+      const place = (p) => {
+        reset();
+        c['crouchToggled'] = p.crouch;
+        const yaw = Math.atan2(p.w[0] - p.x, p.w[2] - p.z);
+        c.teleport(new V(p.x, p.fl, p.z), yaw);
+        g.player.cam.yaw = yaw;
+        g.player.cam.pitch = 0;
+        step(0.8);
+      };
+      // the fill over 2.5 s of a watcher facing the player (pinned: the meter held at `pin`); the same random draws each run
+      const watch = (p, pin) => {
+        const rnd = Math.random;
+        let seed = 12345;
+        Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        try {
+          place(p);
+          park(p.g[0], p.g[1], p.g[2], Math.atan2(p.g[0] - p.x, p.g[2] - p.z));
+          const wt = em.spawn('grunt', new V(p.w[0], p.w[1], p.w[2]), false, Math.atan2(p.x - p.w[0], p.z - p.w[2]));
+          if (!wt) return null;
+          wt.senseRng.reseed(12345);
+          wt.thinkT = 0;
+          wt.meter = 0;
+          if (pin !== null) g['updateLight'] = () => (g.localRef.light = g.lightLevel = pin);
+          let max = 0;
+          let light = 0;
+          for (let k = 0; k < 25; k++) {
+            step(0.1);
+            max = Math.max(max, wt.meter);
+            light = g.lightLevel;
+          }
+          return { max: +max.toFixed(4), light: +light.toFixed(3), level: wt.aware.level };
+        } finally {
+          Math.random = rnd;
+          g['updateLight'] = proto;
+        }
+      };
+      const tried = [];
+      for (const p of picks.slice(0, 8)) {
+        // 1. the meter drop: no guard, then the guard parked in the lamp's path
+        place(p);
+        const um = g.lightLevel;
+        const Lin = g['lightIn'];
+        const smp = [Lin[0], Lin[1], Lin[2], Lin[3], Lin[4], Lin[5]];
+        const e = park(p.g[0], p.g[1], p.g[2], Math.atan2(p.g[0] - p.x, p.g[2] - p.z));
+        if (!e) return { err: 'no grunt parked' };
+        step(0.3);
+        const sm = g.lightLevel;
+        capInto(e.pos.x, e.pos.y, e.pos.z, e.def.height);
+        const fu = f.bodyLevel(smp[0], smp[1], smp[2], smp[3], occl, smp[4], smp[5]);
+        const fs = f.bodyLevel(smp[0], smp[1], smp[2], smp[3], occl, smp[4], smp[5], tmp, -1);
+        // 2. the watcher's fill: pinned to the unshadowed meter, then the real (shadowed) one
+        const pinned = watch(p, um);
+        if (!pinned || pinned.max < C.minFill) {
+          tried.push({ lamp: p.lamp, at: [+p.x.toFixed(2), +p.z.toFixed(2)], pinned });
+          continue;
+        }
+        const real = watch(p, null);
+        return { spot: { lamp: p.lamp, x: +p.x.toFixed(2), z: +p.z.toFixed(2), crouch: p.crouch, guard: p.g.map((v) => +v.toFixed(2)), watcher: p.w.map((v) => +v.toFixed(2)) }, um, sm, fu, fs, pinned, real, tried };
+      }
+      return { err: `no watcher filled with the meter pinned (tried ${JSON.stringify(tried)})` };
+    }, { fill: { r: 0.22, footLift: 0.25, topDrop: 0.2, minTop: 0.5 }, shadow: 0.28, lit: 0.6, crouchDrop: 0.35, minDrop: 0.05, minFill: 0.1 });
+    assert(!r.err, `charshadow: a spot (${r.err ?? JSON.stringify(r.spot)})`);
+    const md = r.um - r.sm;
+    const fd = r.fu - r.fs;
+    console.log(`  meter ${r.um.toFixed(3)} -> ${r.sm.toFixed(3)}, field ${r.fu.toFixed(3)} -> ${r.fs.toFixed(3)}`);
+    assert(fd >= 0.05, `charshadow: the parked guard shades the player in the field (${fd.toFixed(3)})`);
+    assert(Math.abs(md - fd) <= 0.02, `charshadow: the meter drops by the field's amount under the guard's shadow (meter ${md.toFixed(3)}, field ${fd.toFixed(3)}, within 0.02)`);
+    assert(r.pinned.max >= 0.1 && r.real.max < r.pinned.max, `charshadow: the watching guard fills slower in the shadow than with the meter pinned unshadowed (${JSON.stringify(r.real)} vs ${JSON.stringify(r.pinned)})`);
+    const real = cs.errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
+    assert(real.length === 0, `charshadow: no console errors (${real.join(' | ')})`);
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  }
+  await cs.browser.close();
+}
 process.exit(failed ? 1 : 0);
