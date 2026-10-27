@@ -37,7 +37,15 @@ function modules(dir: string, src: 'cmu' | 'mixamo'): Module[] {
     });
 }
 
-const MODS = [...modules(CMU_DIR, 'cmu'), ...modules(MIXAMO_DIR, 'mixamo')];
+// (mixamo-retarget I9) the Anim Studio only Mixamo clips sit one folder down (`place` studio, BATCH2-PLAN I7); (piano-knife
+// S2) so do the piano scene's (`place` piano)
+const MODS = [
+  ...modules(CMU_DIR, 'cmu'), ...modules(MIXAMO_DIR, 'mixamo'), ...modules(`${MIXAMO_DIR}/studio`, 'mixamo'), ...modules(`${MIXAMO_DIR}/piano`, 'mixamo'),
+];
+/** (I9) The pack folders and their names as the Mixamo site gives them (BATCH2-PLAN "(4) Art-credits rows"). */
+const PACKS: Record<string, string> = {
+  'pack-pistol': 'Pistol/Handgun Locomotion Pack', 'pack-rifle': 'Pro Rifle Pack', 'pack-shooter': 'Shooter Pack', 'pack-action-adventure': 'Action Adventure Pack',
+};
 
 /** The Mixamo section's table rows of docs/art-credits.md: cells per row (header and rule skipped). */
 function mixamoCredits(): string[][] {
@@ -71,7 +79,7 @@ describe('mocap sources: the table against the clip modules', () => {
       if (m.dir === 'mixamo') {
         // the slug rule (PLAN "Clip map"): mocap_<slug> in <slug>.ts (keyed) or trav_<slug>.ts (channel)
         const slug = name.slice(6);
-        expect(m.path).toBe(`${MIXAMO_DIR}/${m.kind === 'trav' ? 'trav_' : ''}${slug}.ts`);
+        expect(m.path.replace(/\/(studio|piano)\//, '/')).toBe(`${MIXAMO_DIR}/${m.kind === 'trav' ? 'trav_' : ''}${slug}.ts`);
       }
     }
     for (const name of MOCAP_SOURCE_NAMES) expect(inModules.has(name), `${name}: the row's module exists`).toBe(true);
@@ -148,6 +156,16 @@ describe('mocap sources: the credits', () => {
       expect(terms, `${name}: the licence`).toMatch(/royalty-free/i);
       expect(date, name).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(used, name).not.toBe('');
+      // (I9) a pack clip's title cell starts with its pack's name and names the file in its folder; an Anim Studio only
+      // module says so
+      const pack = /^(pack-[a-z-]+)\//.exec(r.take ?? '')?.[1];
+      if (pack) {
+        expect(PACKS[pack], `${name}: a known pack`).toBeDefined();
+        expect(title!.startsWith(`${PACKS[pack]}: `), `${name}: the title cell starts with the pack name`).toBe(true);
+        expect(r.title.startsWith(`${PACKS[pack]}: `), `${name}: the row title too`).toBe(true);
+      }
+      if (r.take) expect(title, `${name}: the file as downloaded`).toContain(`(\`${r.take}\`)`);
+      if (mod.path.includes('/studio/')) expect(used, name).toMatch(/^Anim Studio only/);
     }
     // the section's licence line (A11; the orchestrator's credits line, verbatim)
     if (MOCAP_SOURCE_NAMES.some((n) => MOCAP_SOURCES[n]!.source === 'mixamo')) {

@@ -691,6 +691,20 @@ describe('(c) traversal probe and committed moves', () => {
     check('commit', name, { steps, hash: h.digest(), last });
   }
 
+  it('a crawl space under a slab never mantles up through the slab (Sector Ops S3 ceiling void)', () => {
+    // feet at (70, 0, 0) facing +z; a 1.5 m block 0.8 m ahead, and a slab (1.5 .. 1.7) over the player and the block:
+    // the top cast from feet + 2.0 reads the slab's top (1.7, a mantle height), but the body has no air to rise through
+    const crawl = new BoxWorld().box(64, -1, -3, 76, 0, 8).box(66, 0, 0.8, 74, 1.5, 2.8).box(64, 1.5, -3, 76, 1.7, 8);
+    const f = fakePlayer(70, 0);
+    const tr = new TraversalController({ getPhysicsEngine: () => crawl } as unknown as Scene, f.player, new TraversalAnchors());
+    const p = tr.probe(new Vector3(70, 0, 0), 0, 1);
+    expect(p === null || p.end.y < 1.5, `probe ${p?.kind} ends at ${p?.end.y}`).toBe(true);
+    // the same block with open air above still mantles (the rise check stops only a body that cannot rise)
+    const open = new BoxWorld().box(64, -1, -3, 76, 0, 8).box(66, 0, 0.8, 74, 1.5, 2.8);
+    const t2 = new TraversalController({ getPhysicsEngine: () => open } as unknown as Scene, fakePlayer(70, 0).player, new TraversalAnchors());
+    expect(t2.probe(new Vector3(70, 0, 0), 0, 1)?.kind).toBe('mantle');
+  });
+
   it('probe rows', () => {
     for (const [name, x, speed] of LANES) {
       const { tr } = make(x, speed);

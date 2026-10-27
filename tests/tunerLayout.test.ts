@@ -45,7 +45,7 @@ describe('tuner-ui: tabs', () => {
     expect(tabs.find((t) => t.id === 'body')!.sections).toEqual(expect.arrayContaining(['body', 'joint', 'ik', 'trav']));
     expect(tabs.find((t) => t.id === 'weapon')!.sections).toEqual(expect.arrayContaining(['gun', 'weapon']));
     expect(tabs.find((t) => t.id === 'coop')!.sections.every((s) => s.startsWith('team_'))).toBe(true);
-    expect(tabs.find((t) => t.id === 'coop')!.sections.length).toBe(6);
+    expect(tabs.find((t) => t.id === 'coop')!.sections.length).toBe(11); // (coop-kit K0) + the five part 2 kit moves
     expect(TUNER_TABS[0]!.id).toBe('view');
   });
 

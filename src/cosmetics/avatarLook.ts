@@ -5,15 +5,16 @@ export const HAIRS = ['none', 'buzz', 'mohawk', 'long', 'bun', 'swept'] as const
 export const TORSOS = ['tee', 'vest', 'armor', 'jacket', 'hoodie', 'operator'] as const;
 export const LEGS = ['pants', 'cargo', 'shorts', 'armored'] as const;
 export const BACKPACKS = ['none', 'pack', 'radio', 'tank', 'bedroll'] as const;
-export const HELMETS = ['none', 'cap', 'combat', 'visor', 'beret', 'headset', 'trilens', 'hood'] as const;
+export const HELMETS = ['none', 'cap', 'combat', 'visor', 'beret', 'headset', 'hood'] as const;
 
-/** Option ids renamed by the v4 avatar overhaul (hard-edged/cartoon parts became smooth, realistic ones). */
+/** Option ids renamed by the v4 avatar overhaul (hard-edged/cartoon parts became smooth, realistic ones).
+ *  (J19 S4, G69) The three-lens goggle left the look: a stored 'trilens' reads as the headset. */
 export const LEGACY_LOOK_IDS: Record<string, Record<string, string>> = {
   body: { slim: 'lean', regular: 'average', heavy: 'broad' },
   head: { square: 'strong', hex: 'oval', tall: 'long' },
   hair: { spikes: 'swept' },
   backpack: { blade: 'bedroll' },
-  helmet: { horns: 'headset' },
+  helmet: { horns: 'headset', trilens: 'headset' },
 };
 export const PATTERNS = ['solid', 'stripes', 'camo', 'digital', 'tiger', 'checker'] as const;
 
@@ -57,7 +58,7 @@ export const PALETTE_COLORS = [
   '#3aa37a', '#2a8fb8', '#3f6fd9', '#5e4bc4', '#a04bc4', '#e35d9c',
 ];
 
-/** The operator (2.0): fitted suit, plate carrier, balaclava and tri-lens goggles, charcoal with an orange accent. */
+/** The operator (2.0): fitted suit, plate carrier and comms headset, charcoal with an orange accent. */
 export function defaultLook(): AvatarLook {
   return {
     body: 'average',
@@ -66,7 +67,7 @@ export function defaultLook(): AvatarLook {
     torso: 'operator',
     legs: 'cargo',
     backpack: 'none',
-    helmet: 'trilens',
+    helmet: 'headset',
     pattern: 'solid',
     colors: {
       skin: '#e0b08a',

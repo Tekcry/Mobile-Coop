@@ -8,6 +8,7 @@
  * input; leaving the studio resets it all (`studioReset`).
  */
 import type { KeyedClip } from './keyed';
+import type { IntroVariant } from './introBreath';
 import type { BodyGroup } from './tune';
 import { stickMagFor } from '../player/speedGears';
 import { MIXAMO_ON } from './mixamo'; // (mixamo-retarget I2) the capture loops' tune text
@@ -44,6 +45,7 @@ import { wrap01 } from './studioDrive';
 import { keyClip, keyCount, keyIdCount, keyNearest, keyPhase, keyStep as keyStep_ } from './keyTimeline';
 import { TEAM_MOVE_LABEL, TEAM_MOVES, TEAM_ROLE_LABEL, type TeamMoveId } from './moveTune';
 import { pairCycle } from './studioPairs';
+import { KNIFE_KILL_IDS, KNIFE_KILLS } from '../game/knifeKill'; // (piano-knife S1) the knife pair rows
 import { travCycle, travEntry, TRAV_ENTRIES, type TravEntry, type TravStep } from './studioTraversal';
 import { MOCAP_SOURCE_NAMES, MOCAP_SOURCE_WORD, mocapSource, type MocapSource } from './mocapSources';
 
@@ -88,6 +90,11 @@ export interface StudioEntry {
   trav: TravEntry | null;
   /** (marlow-bays item 24, track A) A guard puppet's loop (`guard:<name>`: a real guard rig, no AI), else null. */
   gloop: GuardLoop | null;
+  /** (piano-knife S1) A knife kill pair: the `KNIFE_KILLS` row Wren and the guard play on one clock (`studioStage`
+   *  through the game's `KillDrive` and `knifePair`); absent otherwise. */
+  knife?: number;
+  /** (piano-knife S4b) The piano intro pose's variant (IntroPose at the platform's back-to-wall face). */
+  intro?: IntroVariant;
 }
 
 /**
@@ -140,6 +147,16 @@ function teamPair(m: TeamMoveId): StudioEntry {
   return { id: `pair:${m}`, label: `pair: ${TEAM_MOVE_LABEL[m].replace('Co-op: ', '')} (${TEAM_ROLE_LABEL[m][0]}, ${TEAM_ROLE_LABEL[m][1]})`, kind: 'pair', clip: null, pace: 0, cycle: pairCycle(m), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: m, guardClip: null, trav: null, gloop: null };
 }
 
+/** (piano-knife S1) A knife pair's rest (s) after the move before it loops. */
+export const KNIFE_PAIR_REST = 0.5;
+
+/** (piano-knife S1) A knife kill pair (`pair:knife_<id>`): Wren and a guard through the game's kill drive and pairing
+ *  (the real Mixamo pairs since piano-knife S2), the knife shown, looping with `KNIFE_PAIR_REST`. For the look video. */
+function knifePair(k: number): StudioEntry {
+  const id = KNIFE_KILL_IDS[k]!;
+  return { id: `pair:knife_${id}`, label: `pair: knife ${id}`, kind: 'pair', clip: null, pace: 0, cycle: KNIFE_KILLS[k]!.seconds + KNIFE_PAIR_REST, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: null, knife: k };
+}
+
 /** (anim-studio-2) A hold pair: Wren's hold clip and the guard's clip in place on one clock (Wren's keyed cycle). */
 function holdPair(name: string, wren: StudioEntry, guard: StudioEntry): StudioEntry {
   return { ...wren, id: `pair:${name}`, label: `pair: ${wren.clip!.name} + ${guard.clip!.name}`, kind: 'pair', circle: false, guard: false, team: null, guardClip: guard.clip, trav: null, gloop: null };
@@ -171,6 +188,10 @@ const BASE_ENTRIES: readonly StudioEntry[] = [
   state('aimStill', 'aim standing', 0, 'none', false, true, true),
   state('crouchAim', 'crouch aim standing', 0, 'none', true, true, true),
   state('crouchAimFwd', 'crouch aim moving', 0.9, 'fwd', true, true, true),
+  // (piano-knife S4b) the piano intro pose (GameState.introPose at the platform's back-to-wall face)
+  { ...state('intro', 'piano intro (stand)', 0, 'none', false, true), intro: 'stand' },
+  { ...state('introMirror', 'piano intro (mirror)', 0, 'none', false, true), intro: 'mirror' },
+  { ...state('introCrouch', 'piano intro (crouch)', 0, 'none', true, true), intro: 'crouch' },
   keyed(KEYED_IDLE, { cycle: 12 }),
   keyed(KEYED_WALK, { pace: 1.4, step: 0.7, circle: true }),
   keyed(KEYED_JOG, { pace: 3.0, step: 1.1, circle: true }),
@@ -210,17 +231,35 @@ function base(id: string): StudioEntry {
  * (mixamo-retarget M5) Every capture's clip by name: the modules of `clips/mocap` (CMU) and `clips/mixamo` (Mixamo, as M3
  * / M4 generate them), found by file (`import.meta.glob`, as `tuneKeys.ts` finds the keyed clips), so a new module needs
  * only its row in `mocapSources.ts` to show in the loop list. Keyed clips only (a channel clip plays through its prop).
+ * (mixamo-retarget I9 fix round) Batch 1, I4 and I6 load eagerly (the game imports them by path); batch 2's modules,
+ * which no game code names, come in one lazy chunk when the Studio opens (`loadStudioCaptures`, `studioCapturesLazy.ts`).
  */
 const CAPTURE_CLIPS = new Map<string, KeyedClip>();
-for (const mod of [
-  ...Object.values(import.meta.glob('./clips/mocap/*.ts', { eager: true })),
-  ...Object.values(import.meta.glob('./clips/mixamo/*.ts', { eager: true })),
-] as Record<string, unknown>[]) {
-  for (const v of Object.values(mod)) {
-    const c = v as Partial<KeyedClip> | null;
-    if (c && typeof c === 'object' && typeof c.name === 'string' && c.pel instanceof Float32Array) CAPTURE_CLIPS.set(c.name, c as KeyedClip);
+function addCaptures(mods: readonly Record<string, unknown>[]): void {
+  for (const mod of mods) {
+    for (const v of Object.values(mod)) {
+      const c = v as Partial<KeyedClip> | null;
+      if (c && typeof c === 'object' && typeof c.name === 'string' && c.pel instanceof Float32Array) CAPTURE_CLIPS.set(c.name, c as KeyedClip);
+    }
   }
 }
+const MOCAP_MODS = import.meta.glob('./clips/mocap/*.ts', { eager: true });
+// the lazy set's file names negated (studioCapturesLazy.ts holds the same list)
+const MIXAMO_EAGER_MODS = import.meta.glob(
+  [
+    './clips/mixamo/*.ts',
+    '!./clips/mixamo/pistol_*.ts',
+    '!./clips/mixamo/rifle_*.ts',
+    '!./clips/mixamo/aa_*.ts',
+    '!./clips/mixamo/cover_idle.ts',
+    '!./clips/mixamo/stand_cover_to_look.ts',
+    '!./clips/mixamo/crouch_look_around_corner.ts',
+  ],
+  { eager: true },
+);
+/** (I9 fix round) The eager Mixamo modules' paths (batch 1, I4, I6; relative to `src/anim`). */
+export const EAGER_MIXAMO_FILES: readonly string[] = Object.keys(MIXAMO_EAGER_MODS);
+addCaptures([...Object.values(MOCAP_MODS), ...Object.values(MIXAMO_EAGER_MODS)] as Record<string, unknown>[]);
 
 /** (M5) A capture's clip by its name (null: no keyed module of that name). */
 export function captureClip(name: string): KeyedClip | null {
@@ -286,6 +325,52 @@ function captureEntries(): StudioEntry[] {
   return out;
 }
 const CAPTURE_ENTRIES: readonly StudioEntry[] = captureEntries();
+/** (I9 fix round) How many capture loops `STUDIO_ENTRIES` holds now (they sit right after `BASE_ENTRIES`). */
+let captureCount = CAPTURE_ENTRIES.length;
+let lazyCaptures: Promise<void> | null = null;
+let lazyLoaded = false;
+
+/** (I9 fix round) The lazy captures are in (`loadStudioCaptures` finished). */
+export function studioCapturesLoaded(): boolean {
+  return lazyLoaded;
+}
+
+/**
+ * (mixamo-retarget I9 fix round) Loads the captures no game code names (batch 2: `studioCapturesLazy.ts`) as one chunk,
+ * once, then refills the loop list's motion-capture group in table order (an entry already listed keeps its object).
+ * Called when the Studio opens (the stage and the panel); off the frame loop: the fill runs once, in the import's
+ * callback. Later calls return the same promise, unless the load failed (the next call tries again). The promise always
+ * resolves; `studioCapturesLoaded()` says whether the captures are in.
+ */
+export function loadStudioCaptures(): Promise<void> {
+  if (!lazyCaptures) {
+    lazyCaptures = import('./studioCapturesLazy').then((m) => {
+      addCaptures(m.LAZY_CAPTURE_MODULES);
+      const had = new Map<string, StudioEntry>();
+      for (let i = 0; i < captureCount; i++) {
+        const e = ENTRIES[BASE_ENTRIES.length + i]!;
+        had.set(e.id, e);
+      }
+      const next = captureEntries().map((e) => had.get(e.id) ?? e);
+      ENTRIES.splice(BASE_ENTRIES.length, captureCount, ...next);
+      captureCount = next.length;
+      lazyLoaded = true;
+    }, (e: unknown) => {
+      // (I9 polish) a failed chunk is not cached: the next Studio open asks again
+      lazyCaptures = null;
+      console.warn(`Anim Studio: the batch 2 captures did not load (${e instanceof Error ? e.message : String(e)}); opening the Studio again retries`);
+    });
+  }
+  return lazyCaptures;
+}
+
+/**
+ * (I9 polish) Calls `refill` once the lazy captures are in, also when they already are (the panel's first Studio sync
+ * always refills, so a chunk that landed before it is never missed), or `failed` when the load failed.
+ */
+export function whenStudioCaptures(refill: () => void, failed: () => void): Promise<void> {
+  return loadStudioCaptures().then(() => (lazyLoaded ? refill() : failed()));
+}
 
 /** (item 24, track A) The guard puppet's paces (m/s): the grunt's walk x the patrol / investigate paces, its run. */
 export const GUARD_PACE = { patrol: 0.99, alert: 1.08, run: 3.2 } as const;
@@ -294,8 +379,9 @@ export const GUARD_PACE = { patrol: 0.99, alert: 1.08, run: 3.2 } as const;
  * The loop player's list: off, the procedural states, every keyed clip, (mixamo-retarget M5) the motion captures (CMU and
  * Mixamo, the source in each label), then (anim-studio-2) the pairs (each co-op team move with both operators, the holds
  * with the guard) and the traversal loops on the props.
+ * (I9 fix round) The lazy captures join the motion-capture group in place when they load (`loadStudioCaptures`).
  */
-export const STUDIO_ENTRIES: readonly StudioEntry[] = [
+const ENTRIES: StudioEntry[] = [
   ...BASE_ENTRIES,
   ...CAPTURE_ENTRIES,
   ...TEAM_MOVES.map(teamPair),
@@ -303,6 +389,7 @@ export const STUDIO_ENTRIES: readonly StudioEntry[] = [
   holdPair('hold_back', base('keyed:hold_back'), base('keyed:guard_held_stumble')),
   holdPair('hold_choke', base('keyed:hold_choke'), base('keyed:guard_choke_sag')),
   holdPair('hold_knife', base('keyed:hold_knife'), base('keyed:guard_knife_collapse')),
+  ...KNIFE_KILL_IDS.map((_, k) => knifePair(k)),
   ...TRAV_ENTRIES.map(travel),
   // (marlow-bays item 24, track A) the guard puppet's loops (a real guard rig on the spot; Wren stands by, hidden)
   guardLoop('idle', 'idle', { speed: 0, aim: 0.2, crouch: false, wall: false, dash: false }),
@@ -313,6 +400,7 @@ export const STUDIO_ENTRIES: readonly StudioEntry[] = [
   guardLoop('crouchAim', 'crouched aim', { speed: 0, aim: 1, crouch: true, wall: false, dash: false }),
   guardLoop('cover', 'wall cover', { speed: 0, aim: 1, crouch: false, wall: true, dash: false }),
 ];
+export const STUDIO_ENTRIES: readonly StudioEntry[] = ENTRIES;
 
 /** (item 24, track A) A guard puppet's loop: on the guard rig, on the spot (no key table: frames 0). Wren gets no input
  *  (she stands by, hidden): the loop's own stance is in `gloop`. */
@@ -422,7 +510,7 @@ export function studioBodyPin(e: StudioEntry): BodyGroup | '' {
 
 /** (T1a) The weapon class a loop wants in hand ('' : holstered loops keep whatever is selected). */
 export function studioWeaponFor(e: StudioEntry, weapon: StudioWeapon): string {
-  return e.drawn ? weapon : '';
+  return e.intro ? 'pistol' : e.drawn ? weapon : ''; // (piano-knife S4b) the intro rows hold the pistol
 }
 
 /** Front / side / top / back camera snaps (free-view orbit presets). */

@@ -8,7 +8,7 @@ import {
   checkWaitReason, ciLabel, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN, FAST_POLL_LATE_S, LAPTOP_EXPECT_MIN, pendingSince, laptopLate,
   failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase, repeatedSuites, carryLastDrop, AUTODROP_MAX_SUITES, confirmPlan,
   ghRetryable, withRetry, GH_RETRY_S, buildExitState, nothingNewSkip, carryNothingNew, NOTHING_NEW_EXIT, deployPlan, carryDeployWatch, DEPLOY_REPAIR_MIN, SPARE_ID_TAG,
-  splitCandidates, headStatusAgrees, labelTaken, freshPlan, sameMembers, memberChanges,
+  splitCandidates, headStatusAgrees, labelTaken, freshPlan, sameMembers, memberChanges, trainMembers,
   draftNotes, withDrafts,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
@@ -158,7 +158,7 @@ describe('auto-train: parsing', () => {
       { context: 'laptop-e2e', state: 'success', description: '39/39', updated_at: '2026-10-23T09:00:00Z' },
       { context: 'other', state: 'error', updated_at: '2026-10-23T10:00:00Z' }] };
     expect(contextStatus(combined, 'laptop-e2e')).toEqual({ state: 'success', description: '39/39' });
-    expect(contextStatus({ statuses: [{ context: 'laptop-e2e', state: 'error', description: 'crashed' }] }, 'laptop-e2e')).toEqual({ state: 'failure', description: 'crashed' });
+    expect(contextStatus({ statuses: [{ context: 'laptop-e2e', state: 'error', description: 'crashed' }] }, 'laptop-e2e')).toEqual({ state: 'failure', description: 'crashed', error: true });
     expect(contextStatus({ statuses: [] }, 'laptop-e2e')).toEqual({ state: 'missing', description: '' });
     expect(contextStatus(null, 'laptop-e2e').state).toBe('missing');
   });
@@ -476,6 +476,8 @@ describe('auto-train: unlabelled train-ready PRs (F16, #460 missed train 103)', 
     expect(headStatusAgrees(flat, combined('h3', 'success', 'error'))).toBe(false);
     expect(headStatusAgrees(flat, combined('h3', 'success', null))).toBe(false);
     expect(headStatusAgrees({ ...flat, labels: ['no-affected-e2e'] }, combined('h3', 'success', null))).toBe(true);
+    expect(headStatusAgrees({ ...flat, labels: ['no-affected-e2e'] }, combined('h3', 'success', 'error'))).toBe(true); // F55: never ran
+    expect(headStatusAgrees({ ...flat, labels: ['no-affected-e2e'] }, combined('h3', 'success', 'failure'))).toBe(false);
     expect(headStatusAgrees(flat, null)).toBe(false);
   });
 
@@ -1197,5 +1199,43 @@ describe('auto-train: a version commit past gh\'s 100-commit cap (train 112, 202
     const args = releaseArgs(t);
     expect(args).toContain('--resume');
     expect(args.slice(args.indexOf('--head'), args.indexOf('--head') + 2)).toEqual(['--head', H]);
+  });
+});
+
+describe('auto-train: train members past gh\'s 100-commit cap (F44, trains 127-128, 2026-10-26)', () => {
+  const n = 127;
+  const branches = ['feature/a', 'feature/b', 'feature/c'];
+  // gh's PR commits: the oldest 100 of 168, all members' own commits; the train's merges come after them
+  const own = Array.from({ length: 150 }, (_, i) => `member work ${i}`);
+  const merges = [...branches.map((b) => `Merge origin/${b} into train/${n}`), `Merge origin/master into train/${n}`];
+  const vc = `4.120.0: version at merge, train ${n} (G183)`;
+  const ghCapped = [...own.slice(0, 100), vc]; // + the head's subject (openTrain)
+  // git log --first-parent --merges --reverse origin/master..<head>: only the train's merges, no cap
+  const gitLog = `${merges.join('\n')}\n`;
+
+  it('finds every member from the git log when gh\'s list has none', () => {
+    expect([...own, ...merges, vc].length).toBeGreaterThan(100);
+    expect(membersFromSubjects(ghCapped, n)).toEqual([]);
+    expect(trainMembers(gitLog, n, ghCapped)).toEqual(branches);
+    // the version commit at the head (a --merges log never lists it) and a stray CRLF change nothing
+    expect(trainMembers(`${merges.join('\r\n')}\r\n`, n, [...ghCapped, vc])).toEqual(branches);
+    expect(versionFromSubjects(ghCapped, n)).toMatchObject({ version: '4.120.0', index: ghCapped.length - 1 });
+  });
+
+  it('falls back to gh\'s subjects only when git is unreadable or names nobody', () => {
+    const small = [merges[0]!, merges[1]!, vc];
+    expect(trainMembers(null, n, small)).toEqual(['feature/a', 'feature/b']);
+    expect(trainMembers('', n, small)).toEqual(['feature/a', 'feature/b']);
+    expect(trainMembers(gitLog, n, small)).toEqual(branches);
+    expect(trainMembers(gitLog, 128, ghCapped)).toEqual([]); // another train's merges never count
+  });
+
+  it('gives pickDrops a non-empty member list', () => {
+    const files: Record<string, string[]> = { 'feature/a': ['docs/a.md'], 'feature/b': ['src/ai/guard.ts'], 'feature/c': ['src/ui/hud.ts'] };
+    const members = trainMembers(gitLog, n, ghCapped).map((b: string, i: number) => ({ pr: 600 + i, branch: b, files: files[b]!, labeledAt: i }));
+    expect(pickDrops(membersFromSubjects(ghCapped, n).map((b: string) => ({ pr: 1, branch: b, files: [] })), ['e2e-lightbake']).reason).toMatch(/no member with a PR/);
+    const pick = pickDrops(members, ['e2e-lightbake']);
+    expect(pick.drops.length).toBeGreaterThan(0);
+    expect(branches).toContain(pick.drops[0]!.branch);
   });
 });

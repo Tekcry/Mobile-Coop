@@ -29,3 +29,57 @@ in code (no recording).
 
 Size: about 1.06 MB (90 s mono MP3, 96 kbps). Audio in all: score 5.9 MB, foley 0.23 MB, weapons 1.06 MB (about 7.2 MB;
 no audio size limit, G59).
+
+## Piano Escape scene music (`src/assets/music/scene/piano-escape.mp3`)
+The scene's only score (docs/piano-escape/PLAN.md S3). The file is the download as is (134.03 s, 44.1 kHz stereo, 256 kb/s,
+4.29 MB). It is loaded only when the scene starts and is kept out of the offline cache (`PRECACHE_IGNORES`). Licence:
+Pixabay Content License (commercial use allowed, no attribution required; credited anyway).
+
+| Track | Artist | Page | Pixabay id | File SHA-256 |
+| --- | --- | --- | --- | --- |
+| "Investigation Piano" | leberch | https://pixabay.com/music/search/investigation%20piano/ (search URL: no other Pixabay row exists to copy the track page form from, and the page slug was not confirmed) | 611639 | `f4926dfd5294f26335de986f4c10298a15c1a93c3fd992cd41e418d75c81918d` |
+
+### Scene music: the mission track (piano-escape S5; dev picker `?pianomusic=` and the Music Lab "Scene" list)
+Two more files in `src/assets/music/scene/`. The intro always plays "Investigation Piano" above; the EMP press cross-fades
+into the mission track, "Suspense Thriller" by default, "Held Breath" as a dev alternative (`?pianomusic=1`). Same
+handling as the row above: loaded only when the scene starts, out of the offline cache.
+
+One more Pixabay track, the download as is (162.04 s, 44.1 kHz stereo, 256 kb/s, 5.19 MB). Licence: Pixabay Content
+License (commercial use allowed, no attribution required; credited anyway).
+
+| Track | Artist | Page | Pixabay id | File | File SHA-256 |
+| --- | --- | --- | --- | --- | --- |
+| "Suspense Thriller" | Alex Grohl | https://pixabay.com/music/search/suspense%20thriller/ (search URL: the page slug was not confirmed) | 552495 | `src/assets/music/scene/alexgrohl-suspense-thriller-552495.mp3` | `b7b1df7d44176d6b9ab794d65a9fa574f1fa57ac3a6433cfce702826953fafe2` |
+
+One original sketch, made in this repo by `scripts/music/piano.mjs` (a Node synth): original notes, synthesised, no
+samples and no downloads. Rendered to WAV by the script, encoded to MP3 (160 kb/s, 44.1 kHz stereo) with
+`scripts/music/encode-mp3.ps1`. No third-party licence applies.
+
+| Sketch | Source | Length | File | File SHA-256 |
+| --- | --- | --- | --- | --- |
+| 1 "Held Breath" (D minor, 54 bpm) | original, `scripts/music/piano.mjs` | 83.78 s | `src/assets/music/scene/sketch-1-held-breath.mp3` | `d732f1b64f91cdacb9e5ecf31e420d81253f7502c3e73f935ab9678afa761179` |
+
+## Storm mill rain and thunder (`src/assets/sfx/storm/`)
+The storm mill's rain on the roof and its thunder (storm-recording; `src/audio/stormClips.ts`, `src/audio/sceneStorm.ts`).
+Four mono 96 kb/s MP3 files (0.65 MB in all), made once with ffmpeg from the two downloads below (checked on each page,
+2026-10-27). They are loaded only when the scene's storm starts and are kept out of the offline cache (`PRECACHE_IGNORES`,
+`storm-*.mp3`); the WebAudio rain and thunder remain as the fallback while they load or if one fails to load.
+
+| Source | Page | Licence | Download SHA-256 |
+| --- | --- | --- | --- |
+| "Rain in the Gutter Loop" (Ogrebane): rain on a roof running into a gutter, a seamless loop (61.6 s, 44.1 kHz stereo, 192 kb/s, 1.48 MB) | https://opengameart.org/node/4018 (the page slug was not confirmed) | **CC0 1.0** (public domain; no credit needed, given anyway) | `216f57eebace492b1d56226c13a728582735de7282c5cca43059cd3c960f083e` (`rain-gutter-loop_0.mp3`) |
+| "Thunder / Lightning Ambience - Field Recording" (Gregor Quendel): a spring thunder and lightning field recording (11 min 19 s, 48 kHz stereo, 320 kb/s, 27.2 MB) | https://opengameart.org/node/140426 | **CC-BY 4.0** (https://creativecommons.org/licenses/by/4.0/): credit "Gregor Quendel" and the licence; changes: cut, fade, mono, level | `996d34046faa8e3e886f49eda1450c9a501bdec0e02f35804a2f1d0507d1bf78` (`gregor_quendel_-_free_thunder_ambience_-_mp3_0.mp3`) |
+
+| File | From | What was done | Length | Size | File SHA-256 |
+| --- | --- | --- | --- | --- | --- |
+| `storm-rain-roof-loop.mp3` | Ogrebane | the first 34 s, the last 2 s cross-faded (equal power) under the first 2 s so the loop point is clean, mono, level set to -23 dBFS RMS | 32.0 s | 385 KB | `c6107107e4413df714e88069f6013cd5fdfffc859b3c22a83b0d577103fd43ff` |
+| `storm-thunder-1.mp3` | Gregor Quendel | 7.0 s from 536.9 s (a long rumble), mono, 50 ms fade in, 1.5 s fade out | 7.0 s | 85 KB | `7fc5b0e5320b41290d2834b9bc6e07b0d63e4ea0fe5521a33b6f2a019d39486a` |
+| `storm-thunder-2.mp3` | Gregor Quendel | 7.6 s from 295.6 s (a crack with echoes), same | 7.6 s | 92 KB | `56c46f1c407fb8306a69e9fbc1775a0f07bbe57d6b47ce22b76ede3f2be50847` |
+| `storm-thunder-3.mp3` | Gregor Quendel | 7.6 s from 642.3 s (a loud crack and rumble), same, level lowered to match the others | 7.6 s | 92 KB | `6aa451a8c635d8f481713ef99bdc6dedbcc10c6f212bdbce79626f1acd0c9f85` |
+
+Credit line (CC-BY 4.0): Thunder recordings by Gregor Quendel, from "Thunder / Lightning Ambience - Field Recording",
+licensed CC-BY 4.0, cut and faded for the game.
+
+Levels in the game: the rain plays behind `rainGain(y)` (the height curve, 0.005 on the floor to 0.009 on the gallery) with
+a recording trim of 3.0, about 3 dB under the old synthesised bed at the gallery; each thunder roll plays at 0.3 times the
+old roll level.

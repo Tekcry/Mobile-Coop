@@ -72,7 +72,7 @@ export class GadgetWheel {
   private pGun = -2;
   private pGadget = '';
   private pHint = '';
-  // each slot's identity (kind and gun name / gadget id): the ring array is rebuilt every step, so compare contents
+  // each slot's identity (kind and gun name / gadget id): the ring is updated in place and rebuilt when its shape changes, so compare contents
   private pN = -1;
   private readonly pKinds: string[] = [];
   private readonly pKeys: string[] = [];

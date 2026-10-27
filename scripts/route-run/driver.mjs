@@ -127,6 +127,9 @@ function pageDriver(P, o) {
   let navT = -1e9;
   let wrapped = null;
   let noHurt = false;
+  // (SR3) a course interrupt latched for the next `tick`; the placements made (`posN`)
+  let intr = false;
+  let placeN = 0;
   // (R4b pair) The leader (host) reads the guards; the follower (client) trails the host's avatar (R3 `Trail`, steered by
   // R3 `Steer` on a two-point path rebuilt in place), its stuck clock on `lw` (the leader's walked path) minus its
   // distance to the trail point. Its events never stop a tick: they are latched in `fev`.
@@ -567,7 +570,18 @@ function pageDriver(P, o) {
       const end = g.time + maxS;
       let ev = '';
       if (!leader) leaderIdle = lIdle !== false;
-      while (g.time < end - 1e-9) {
+      // (SR3) a course interrupt: the robot stops; the leader's tick ends at once with event 'course', the follower
+      // latches it as its other events
+      if (intr) {
+        intr = false;
+        stopStick();
+        if (aHeld) holdA(false, g.time);
+        if (mode === WALK) walked += lastS;
+        if (leader || mode === WALK) mode = IDLE;
+        if (leader) ev = 'course';
+        else if (fev === '') fev = 'course';
+      }
+      while (ev === '' && g.time < end - 1e-9) {
         ev = pre(g);
         if (ev !== '') {
           if (leader) break;
@@ -600,6 +614,7 @@ function pageDriver(P, o) {
       pad.connect();
       wrapNoise(g.enemyMgr);
       t0 = g.time;
+      intr = false;
       rises.length = 0;
       nCount = 0;
       walked = 0;
@@ -632,6 +647,7 @@ function pageDriver(P, o) {
       stopStick();
       const ok = typeof g.restartCheckpoint === 'function' ? g.restartCheckpoint() : false;
       t0 = g.time;
+      intr = false;
       holdEnd = g.time + o.settle;
       mode = HOLD;
       trailOn = false;
@@ -850,6 +866,7 @@ function pageDriver(P, o) {
       // (follower) out of any team move first, as e2e-ctcourse `moveClient`
       if (!leader && g.team && typeof g.team.end === 'function') g.team.end(true);
       c.teleport(new V(px, py, pz), yaw ?? c.yaw ?? g.player.cam.yaw);
+      placeN++;
       holdEnd = g.time + o.placeSettle;
       watch.idle();
       mode = HOLD;
@@ -872,6 +889,18 @@ function pageDriver(P, o) {
     pos() {
       const p = st().player.position;
       return [p.x, p.y, p.z];
+    },
+
+    /** (SR3) The feet and the placements made so far: a jump with no placement counted is the game's (a restart). */
+    posN() {
+      const p = st().player.position;
+      return [p.x, p.y, p.z, placeN];
+    },
+
+    /** (SR3, course.mjs `onPoll` when it queues an action) Event 'course' on the next `tick`. */
+    interrupt() {
+      intr = true;
+      return true;
     },
 
     /** The rises logged since index `since`. */
@@ -977,9 +1006,14 @@ export class PageDriver {
     this.opts = pageOptions({ pace, forgive, role });
     this.points = points;
     this.onChunk = async () => {};
+    // (SR3, J13 hold restart) a course event no step has taken yet: a leader tick that handed back 'course' outside
+    // `until` (a clock advance under a steps.mjs machine, a stub's hold, a placement's settle, a tick-0 position read).
+    // The next `until` returns it at once; a machine or a stub ends with outcome 'course' on it (`takeCourse`).
+    this.courseHit = null;
   }
 
-  /** (R4b: the steps context's clock advance) Let `s` game seconds pass, whatever the robot is doing. */
+  /** (R4b: the steps context's clock advance) Let `s` game seconds pass, whatever the robot is doing (a course event
+   *  stays pending: `call`). */
   async advance(s) {
     for (let left = s; left > 1e-9; ) {
       const r = await this.call('tick', Math.min(EVAL_S, left));
@@ -992,12 +1026,33 @@ export class PageDriver {
     await this.page.evaluate(pageScript(this.opts));
   }
 
-  call(name, ...args) {
-    return this.page.evaluate(([n, a]) => window.__rr[n](...a), [name, args]);
+  /** A page call. A leader's tick that hands back 'course' leaves it pending (`courseHit`); a run's restart or begin
+   *  drops a stale one. */
+  async call(name, ...args) {
+    if (name === 'restart' || name === 'begin') this.courseHit = null;
+    const r = await this.page.evaluate(([n, a]) => window.__rr[n](...a), [name, args]);
+    if (name === 'tick' && r && r.ev === 'course' && this.opts.role !== 'follower') this.courseHit = r;
+    return r;
   }
 
-  /** Tick until an event (or `capS` game seconds pass: event 'cap'). */
+  /** The pending course event (cleared), or null. */
+  takeCourse() {
+    const c = this.courseHit;
+    this.courseHit = null;
+    return c;
+  }
+
+  /** Tick until an event (or `capS` game seconds pass: event 'cap'). A pending course event is returned at once. */
   async until(capS = RUN_CAP_S) {
+    const c = this.takeCourse();
+    if (c) return c;
+    const r = await this.ticks(capS);
+    if (r.ev === 'course') this.courseHit = null;
+    return r;
+  }
+
+  /** Tick until an event or `capS` game seconds (a hold, a placement's settle): a course event stays pending. */
+  async ticks(capS) {
     let left = capS;
     for (;;) {
       const r = await this.call('tick', Math.min(EVAL_S, left));
@@ -1008,16 +1063,17 @@ export class PageDriver {
     }
   }
 
+  /** Stand still `s` game seconds; a course event (pending or during it) ends it, left pending. */
   async hold(s) {
-    if (!(s > 0)) return;
+    if (!(s > 0) || this.courseHit) return;
     await this.call('holdStart', s);
-    await this.until(s + 1);
+    await this.ticks(s + 1);
   }
 
   async place(pt) {
     if (!pt) return null;
     const at = await this.call('place', pt[0], pt[1], pt[2], null);
-    await this.until(1);
+    await this.ticks(1);
     return at;
   }
 
@@ -1050,6 +1106,8 @@ export async function runOne(ctx, run) {
     log.unplannable = run.unplannable;
     return log;
   }
+  // (the last run's course hook stops here: this run's own restart is not its restart)
+  d.onChunk = async () => {};
   // a run starts from the section's checkpoint; only a fresh page's first run may start without one (the boot's start)
   const restarted = await d.call('restart');
   if (!restarted && ctx.pageUsed) {
@@ -1088,7 +1146,7 @@ export async function runOne(ctx, run) {
         file = null;
       }
     }
-    log.deadStops.push({ t: r2(res.t), robot, at: [r2(res.x), r2(res.y), r2(res.z)], space: spaceAt(d.points, res.x, res.y, res.z) ?? step.space ?? null, link: step.link ?? step.index ?? null, class: cls, shot: file, since: r2(res.since ?? res.t) });
+    log.deadStops.push({ t: r2(res.t), robot, at: [r2(res.x), r2(res.y), r2(res.z)], space: spaceAt(d.points, res.x, res.y, res.z) ?? step.space ?? null, link: step.link ?? step.index ?? null, class: cls, shot: file, since: r2(res.since ?? res.t), ...(typeof res.step_t === 'number' ? { step_t: r2(res.step_t), limit_s: res.limit_s } : {}), ...(typeof res.phase === 'string' ? { phase: res.phase } : {}) });
   };
   if (pair) pair.beginRun(log, stop);
   await runSteps(ctx, log, pair ? run.steps ?? [] : flatSteps(run.steps, ctx.notes), stop);
@@ -1101,14 +1159,27 @@ export async function runOne(ctx, run) {
     const { kind, ...line } = l;
     (kind === 'detection' ? log.detections : log.notices).push(line);
   }
+  // (SR4) the course hook's end of run: its restarts linked to these detection lines
+  await course.onRunEnd?.(ctx, log);
   return log;
 }
 
 /** The steps of a run or of one split leg (`ctx.robot` names the robot of a leg; its `driver` drives that robot only).
- *  Returns 'exit' (the leader is in the section's open connector / extraction), 'cap' or ''. */
+ *  Returns 'exit' (the leader is in the section's open connector / extraction), 'cap', 'course' (a leg ended by a course
+ *  interrupt) or ''. */
 async function runSteps(ctx, log, steps, stop) {
   const d = ctx.driver;
   const skip = new Set();
+  // (SR3) a wait ended by a course interrupt (a restart or retry): course.mjs's queued action, the robots placed (both,
+  // `d.place`), the index to go on from (none queued: the same step again)
+  const onCourse = async (i) => {
+    skip.clear();
+    const r = await course.onRestart(ctx, log, steps, i);
+    if (!r) return i;
+    if (r.place?.leader) await d.place(r.place.leader);
+    if (r.place?.follower && ctx.pair) await ctx.pair.placeFollower(r.place.follower);
+    return r.resume ?? i;
+  };
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
     if (skip.has(i)) continue;
@@ -1124,6 +1195,11 @@ async function runSteps(ctx, log, steps, stop) {
       await d.call('walkStart', to[0], to[1], to[2]);
       const res = await d.until();
       if (res.ev === 'arrived') continue;
+      if (res.ev === 'course') {
+        if (ctx.robot) return 'course';
+        i = (await onCourse(i)) - 1;
+        continue;
+      }
       if (res.ev === 'connector' || res.ev === 'extract') {
         // in the section's open connector / extraction: the walk is done there (not a stop), before its hold fires
         log.exit = res.ev;
@@ -1132,8 +1208,11 @@ async function runSteps(ctx, log, steps, stop) {
       // a dead stop (A4): its class from a nav probe, then the recovery past the link (logged; the run goes on)
       res.since = await d.call('stallSince');
       const cls = res.ev === 'stall' ? await d.call('probe', to[0], to[1], to[2]) : 'step-timeout';
-      await stop(cls, step, res, ctx.robot);
       const next = steps[i + 1];
+      // (J13) stalled at the locked door of the next step's door link: that step takes it (`doorStart` 'locked', then
+      // `course.onLockedDoor` at a course lock; else its own `locked` stop, the same link, past it)
+      if (cls === 'locked' && next?.type === 'link' && next.index === step.link && next.action === 'door') continue;
+      await stop(cls, step, res, ctx.robot);
       if (step.link !== null && step.link !== undefined && next?.type === 'link' && next.index === step.link) {
         log.links.push({ index: next.index, kind: next.kind, outcome: cls, ...(ctx.robot ? { robot: ctx.robot } : {}) });
         skip.add(i + 1);
@@ -1143,17 +1222,36 @@ async function runSteps(ctx, log, steps, stop) {
     }
     if (step.type === 'link') {
       const outcome = await linkStep(ctx, log, step, stop);
+      if (outcome === 'course') {
+        if (ctx.robot) return 'course';
+        i = (await onCourse(i)) - 1;
+        continue;
+      }
       log.links.push({ index: step.index, kind: step.kind, outcome, ...(ctx.robot ? { robot: ctx.robot } : {}) });
       if (outcome === 'walked') log.walkedLinks++;
       continue;
     }
     if (step.type === 'objective') {
-      await objectiveStep(ctx, log, step, stop);
+      if ((await objectiveStep(ctx, log, step, stop)) === 'course') {
+        if (ctx.robot) return 'course';
+        i = (await onCourse(i)) - 1;
+      }
       continue;
     }
     if (step.type === 'split' && ctx.pair && !ctx.robot) {
-      // leader leg a, follower leg b at once; both wait at the rejoin (pair.mjs)
-      if ((await ctx.pair.split(ctx, log, step, (c, legSteps) => runSteps(c, log, legSteps, stop))) === 'exit') return 'exit';
+      // leader leg a, follower leg b at once; both wait at the rejoin (pair.mjs). (SR3) A course interrupt ends both legs
+      // (the leader's ended: the follower's interrupted too), then the split step's queued action.
+      let hit = false;
+      const leg = async (c, legSteps) => {
+        const out = await runSteps(c, log, legSteps, stop);
+        if (out === 'course') {
+          if (!hit && c.robot === 'leader') await ctx.pair.fcall('interrupt');
+          hit = true;
+        }
+        return out;
+      };
+      if ((await ctx.pair.split(ctx, log, step, leg)) === 'exit') return 'exit';
+      if (hit) i = (await onCourse(i)) - 1;
     }
   }
   return '';
@@ -1184,7 +1282,10 @@ async function linkStep(ctx, log, step, stop) {
     const how = await d.call('doorStart', at[0], at[2], limit);
     if (how === 'none' || how === 'open') return 'walked';
     if (how === 'locked') {
-      if (await course.onLockedDoor(ctx, log, step)) return 'walked';
+      const open = await course.onLockedDoor(ctx, log, step);
+      // (J13 hold restart) a restart during the drill hold or the lock poll: the restart, not the door outcome
+      if (d.takeCourse()) return 'course';
+      if (open) return 'walked';
       const p = await d.call('tick', 0);
       await stop('locked', step, p, ctx.robot);
       await d.place(step.past ?? at);
@@ -1192,18 +1293,27 @@ async function linkStep(ctx, log, step, stop) {
     }
     const res = await d.until(limit + 2);
     if (res.ev === 'opened') return 'walked';
+    if (res.ev === 'course') return 'course';
     await stop('step-timeout', step, res, ctx.robot);
     await d.place(step.past ?? at);
     return 'step-timeout';
   }
   const step_ = stepFor(step);
   // (pair, both robots) the follower to its near-side spot beside the leader first; both placed past it (pair.mjs)
-  const r = ctx.pair && !ctx.robot ? await ctx.pair.linkStep(ctx, step, step_) : await step_(ctx, step);
+  const both = !!ctx.pair && !ctx.robot;
+  const r = both ? await ctx.pair.linkStep(ctx, step, step_) : await step_(ctx, step);
+  // (J13 hold restart) a course interrupt during a machine or a stub's hold: no stop, no placement past the link;
+  // `runSteps` hands it to `course.onRestart`
+  if (r.outcome === 'course') return 'course';
   if (r.stub) log.stubs.push(r.stub);
   if (r.outcome !== 'walked' && r.outcome !== 'stub') {
-    const p = await d.call('tick', 0);
-    await stop(r.outcome, step, p, ctx.robot);
-    await d.place(step.past ?? step.at);
+    // the robot the step names (a follower's own stop: its page's position), the step's own time and limit; then both
+    // robots past the link (a follower's stop: the follower alone, the leader took the step)
+    const who = r.robot === 'follower' ? 'follower' : ctx.robot;
+    const p = both ? await ctx.pair.stopPos(who) : await d.call('tick', 0);
+    await stop(r.outcome, step, { ...p, step_t: r.t, limit_s: r.limit_s ?? null, phase: r.phase ?? null }, who);
+    if (both) await ctx.pair.recoverPast(step, who);
+    else await d.place(step.past ?? step.at);
   }
   return r.outcome;
 }
@@ -1230,11 +1340,13 @@ async function objectiveStep(ctx, log, step, stop) {
     from = 'point';
     await d.call('walkStart', pt.x, pt.y, pt.z);
     const w = await d.until();
+    if (w.ev === 'course') return 'course';
     if (w.ev !== 'arrived' && w.ev !== 'stall') return;
     t0 = await d.call('time');
     how = await d.call('objectiveStart', limit, 0);
     res = how === 'started' ? await d.until(limit + 2) : null;
   }
+  if (res?.ev === 'course') return 'course';
   if (how !== 'started' || !res) {
     log.objectives.push({ space: step.space, hold_s: 0, done: true, why: 'already done' });
     return;

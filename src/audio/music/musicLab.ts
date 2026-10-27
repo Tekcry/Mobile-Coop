@@ -2,12 +2,17 @@
  * The music lab: a debug screen for Michael's ears (`?musiclab=1`, or Settings > Audio > Music lab with `?debug=1`).
  * V3 sketch picker: three contrasting 60 s loops, each as calm, caution and alert stems, crossfaded live while they play.
  * The stems are pre-rendered offline (`npm run music:render`) and bundled; nothing here is synthesised.
+ * (piano-escape S5) A "Scene" list plays every Piano Escape scene track (`sceneTracks.ts`, intro and mission slots) one at
+ * a time, each alone through `ScenePiano` with its own loop and the 2 s cross-fade, to A/B them by ear. Each file is
+ * fetched when picked.
  */
 import type { App } from '../../core/app';
 import { h } from '../../ui/dom';
 import { Screen } from '../../ui/screen';
 import { button, section, slider } from '../../ui/widgets';
 import manifest from '../../assets/music/sketches/sketches.json';
+import { ScenePiano, loadTrack } from './scenePiano';
+import { SCENE_TRACKS, type SceneTrack } from './sceneTracks';
 import { SketchPlayer, type SketchFiles } from './sketchPlayer';
 import { STATE_GAINS, threatGains, type StemGains, type ThreatState } from './stemMix';
 
@@ -47,6 +52,8 @@ const DEMO: [ThreatState, number][] = [['calm', 12], ['caution', 14], ['alert', 
 export class MusicLabScreen extends Screen {
   override modal = false;
   private player: SketchPlayer | null = null;
+  private scene: ScenePiano | null = null;
+  private sceneBtns = new Map<string, HTMLButtonElement>();
   private status = h('pre', { class: 'lab-status', text: 'Tap a sketch to start the audio.' });
   private sketchBtns = new Map<string, HTMLButtonElement>();
   private stateBtns = new Map<ThreatState, HTMLButtonElement>();
@@ -69,6 +76,14 @@ export class MusicLabScreen extends Screen {
       picker.push(h('div', { class: 'row-note', text: `${e.id} - ${e.name}: ${e.about}` }), h('div', { class: 'lab-row' }, b));
     }
 
+    const sceneList: HTMLElement[] = [];
+    for (const t of SCENE_TRACKS) {
+      const b = button(`Play ${t.slot} ${t.id}`, () => void this.playScene(t), { sub: `${t.name}, ${t.length.toFixed(1)} s` });
+      this.sceneBtns.set(t.id, b);
+      sceneList.push(h('div', { class: 'lab-row' }, b));
+    }
+    sceneList.push(h('div', { class: 'lab-row' }, button('Stop scene', () => this.stopScene(), { class: 'subtle' })));
+
     const stateRow = h('div', { class: 'lab-row' });
     for (const s of STATES) {
       const b = button(s.label, () => this.setState(s.s), { sub: s.sub });
@@ -90,6 +105,11 @@ export class MusicLabScreen extends Screen {
       h('div', { class: 'screen-title', text: 'Music lab: V3 sketches' }),
       this.status,
       section('Sketch picker', ...picker, h('div', { class: 'row-note', text: 'Each sketch is a 60 s loop made only from recorded CC0 sounds, in three stacked stems. Play one, then move the threat (the Tempo slider speeds the loop up or down live, and the pitch moves with it): the stems crossfade live (up fast, down slowly). Pick one, or tell Claude what to change. Does any remind you of a known track? Say so and it gets rewritten.' })),
+      section(
+        'Scene',
+        ...sceneList,
+        h('div', { class: 'row-note', text: 'Piano Escape scene music. In the scene the intro track plays first (?pianointro=, default Investigation Piano), then the EMP press cross-fades into the mission track (?pianomusic=grohl|1, default Suspense Thriller; pixabay keeps the intro track playing, as before). Here each plays alone from 0 and loops (Investigation Piano from 41 s, the mission tracks whole) with a 2 s cross-fade; each is fetched only when picked.' }),
+      ),
       section(
         'Threat',
         stateRow,
@@ -115,6 +135,7 @@ export class MusicLabScreen extends Screen {
   private async play(e: Entry): Promise<void> {
     const p = this.ensure();
     if (!p) return;
+    this.stopScene();
     this.current = e;
     for (const [id, b] of this.sketchBtns) b.classList.toggle('lab-on', id === e.id);
     this.status.textContent = `Loading ${e.id} - ${e.name}…`;
@@ -123,6 +144,31 @@ export class MusicLabScreen extends Screen {
     this.loading = false;
     // a state picked while it was loading wins
     p.setGains(this.target, 0.05);
+  }
+
+  private async playScene(t: SceneTrack): Promise<void> {
+    this.stop();
+    const ctx = this.app.audio.ensure();
+    if (!ctx) return;
+    void ctx.resume();
+    const p = new ScenePiano(this.app.audio, { intro: () => loadTrack(t), introLoop: t.loopFrom, mission: null });
+    this.scene = p;
+    for (const [id, b] of this.sceneBtns) b.classList.toggle('lab-on', id === t.id);
+    const loop = t.loopFrom;
+    this.status.textContent = `Scene ${t.id} - ${t.name}
+${t.length.toFixed(1)} s, loops ${loop > 0 ? `from ${loop} s` : 'whole from 0'}, loading…`;
+    await p.start();
+    if (this.scene !== p) return; // another pick or a stop came first
+    this.status.textContent = p.active
+      ? `Scene ${t.id} - ${t.name}
+${t.length.toFixed(1)} s, loops ${loop > 0 ? `from ${loop} s` : 'whole from 0'}, playing`
+      : `Scene ${t.id} could not load`;
+  }
+
+  private stopScene(): void {
+    this.scene?.stop();
+    this.scene = null;
+    for (const b of this.sceneBtns.values()) b.classList.remove('lab-on');
   }
 
   private setState(s: ThreatState): void {
@@ -167,6 +213,7 @@ export class MusicLabScreen extends Screen {
 
   private stop(): void {
     this.demo = -1;
+    this.stopScene();
     this.player?.stop();
     for (const b of this.sketchBtns.values()) b.classList.remove('lab-on');
     this.markState(null);

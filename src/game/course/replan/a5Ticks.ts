@@ -1,8 +1,82 @@
 /**
- * (J14 R1 fix round) The re-planned yard's station tick for A5 Substation (station 13's flood window and beams: G-A5).
- * A stub: its set slice fills this file only (`REPLAN_TICKS` in `./ticks.ts` already registers it). Allocation-free:
- * no closures, arrays or vectors per call.
+ * (J14 G-A5) The re-planned yard's station tick for A5 Substation: station 13's flood window and its beam trip (STATIONS
+ * section 5, `a5-inner`; lead decisions ~23:05 (a), ~23:55, D1 / OQ4). Host only, called once per fixed step while A5 is
+ * the current bay (`REPLAN_TICKS` in `./ticks.ts`). Allocation-free: no closures, arrays, objects or template strings per
+ * call; the window state is module-level numbers, reset whenever `epoch()` changes (a retry, a bay restart, a course
+ * start: the epoch never repeats, so nothing survives a match).
+ * - Beam trip: `laser-a5` broken while station 13 is live -> `retry(13, 'seen')` (checked first in a step).
+ * - Flood window: station 13 live and the kiosk flood (light group 52, jam or shot only) going from lit to dark within the
+ *   current attempt (the epoch) arms it; an armed window that sees the flood lit again before the release (`a5-release`) ->
+ *   `retry(13, 'timer')`. No guessed "5 s held + 4 s off" timer: the light registry's own state is the window, so a flood
+ *   shot out stays dark and never fails it. (fix 1) A retry leaves a jam running, so a flood still dark at a new attempt's
+ *   start never arms it (only a lit-to-dark change seen in the attempt does), and the attempt's one retry counts as used
+ *   only when `retry()` takes it (a call refused inside the hold after an earlier retry spends nothing).
+ * - (marlow-play B1) Debounced: a jam starts with a flicker (dark at 0 s, lit again 0.06 s in, `JAM_LIGHT` in `jammer.ts`)
+ *   and ends with one, so a change of the flood counts only once it has held `A5_FLOOD_SETTLE` s in a row (longer than the
+ *   0.5 s flicker): dark that long arms the window, lit that long fails it. The first state seen in an attempt counts at once.
  */
 import type { StationTick } from './ticks';
 
-export const a5Tick: StationTick = () => {};
+/** Station 13 (the throw), its done flag, the kiosk flood's light group and the gateway's beams (`A5_LASER`). */
+export const A5_THROW_N = 13;
+export const A5_THROW_DONE = 'a5-release';
+export const A5_FLOOD_GROUP = 52;
+export const A5_BEAMS = 'laser-a5';
+/** (marlow-play B1) s the flood must stay dark (or lit) in a row before the tick counts the change (the flicker is 0.5 s). */
+export const A5_FLOOD_SETTLE = 0.6;
+
+/** The last epoch the tick saw; the flood as last seen in this attempt (-1 not yet, 0 dark, 1 lit); the window (1 armed);
+ *  the epoch whose one retry `retry()` took. */
+let lastEpoch = Number.NaN;
+let floodWas = -1;
+let armed = 0;
+let calledIn = Number.NaN;
+/** (marlow-play B1) The flood's raw state last step (-1 none, 0 dark, 1 lit) and how long it has held it (s). */
+let rawWas = -1;
+let rawFor = 0;
+
+export const a5Tick: StationTick = (h, dt) => {
+  const ep = h.epoch();
+  if (ep !== lastEpoch) {
+    lastEpoch = ep;
+    floodWas = -1;
+    armed = 0;
+    calledIn = Number.NaN;
+    rawWas = -1;
+    rawFor = 0;
+  }
+  if (h.live() !== A5_THROW_N) {
+    floodWas = -1;
+    armed = 0;
+    rawWas = -1;
+    rawFor = 0;
+    return;
+  }
+  if (calledIn === ep) return;
+  // a beam broken on station 13 is a `seen` retry (before the flood rule in the same step); refused, it is asked again
+  // next step while the trip stands (the hook clears it with the epoch)
+  if (h.tripped(A5_BEAMS)) {
+    armed = 0;
+    if (h.retry(A5_THROW_N, 'seen')) calledIn = ep;
+    return;
+  }
+  // (marlow-play B1) a change of the raw flood counts only after it has held `A5_FLOOD_SETTLE` s (the jam's flicker is shorter)
+  const raw = h.lit(A5_FLOOD_GROUP) ? 1 : 0;
+  if (raw !== rawWas) {
+    rawWas = raw;
+    rawFor = 0;
+  } else rawFor += dt;
+  if (floodWas !== -1 && raw !== floodWas && rawFor < A5_FLOOD_SETTLE - 1e-6) return;
+  const lit = raw === 1;
+  const was = floodWas;
+  floodWas = lit ? 1 : 0;
+  if (!lit) {
+    // only the flood going dark in this attempt opens the window
+    if (was === 1) armed = 1;
+    return;
+  }
+  if (armed === 1 && !h.flag(A5_THROW_DONE)) {
+    armed = 0;
+    if (h.retry(A5_THROW_N, 'timer')) calledIn = ep;
+  }
+};

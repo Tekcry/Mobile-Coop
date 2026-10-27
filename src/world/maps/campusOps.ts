@@ -5,6 +5,7 @@ import type { CampusSectionParts } from './campusParts';
 import { CAMPUS_PARTS } from './campusSections';
 import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from './campusSectors';
 import { dressCampus } from './campusDress';
+import { CAMPUS_MISSION_TEST } from './campusMissionTest';
 
 const T = 0.3;
 const WALL = '#a9a496';
@@ -84,6 +85,7 @@ export const campusOps: MapDef = {
   description: 'A research campus raided in five sections: the gatehouse and car park, the HQ atrium, the labs, the data hall and the Old House.',
   modes: ['sector'],
   sectors: CAMPUS_SECTORS,
+  missions: [CAMPUS_MISSION_TEST],
   navLayers: 5,
   // greybox: no generated skirting, vents or clutter (everything on a wall is placed on purpose)
   detail: false,

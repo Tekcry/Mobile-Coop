@@ -399,8 +399,16 @@ export class PostStack {
     this.onRebuilt?.();
   }
 
+  /** (thermal-read) The scene depth this build reads (fog / TAAU's), or null (no stack: `minimal`). The cinematic pass
+   *  reads it for thermal's and electro's surfaces: no extra pass. */
+  get viewDepth(): DepthSource | null {
+    return this.sceneDepth;
+  }
+  private sceneDepth: DepthSource | null = null;
+
   private makeVolumetric(ratio: number): void {
     const depth = this.depthSource();
+    this.sceneDepth = depth;
     const pp = new PostProcess(
       'volumetric',
       'volumetric',
@@ -507,6 +515,7 @@ export class PostStack {
     this.motion = null;
     this.vol = null;
     this.depth = null;
+    this.sceneDepth = null;
   }
 
   dispose(): void {
@@ -524,7 +533,8 @@ function nearest(reg: LightRegistry, x: number, y: number, z: number, out: Int32
   const ls = reg.lights;
   for (let i = 0; i < ls.length; i++) {
     const l = ls[i]!;
-    if (!l.on || l.destroyed) continue;
+    // ((piano SO5b) a lightning opening's light between strikes takes no slot)
+    if (!l.on || l.destroyed || (l.flash && l.flicker <= 0)) continue;
     const dx = l.x - x;
     const dy = l.y - y;
     const dz = l.z - z;

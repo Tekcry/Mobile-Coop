@@ -835,7 +835,7 @@ export function loopGroups(entry: string, out: LoopGroups = { body: '', clip: ''
     if (name.startsWith('hold_')) {
       out.body = 'hold';
       out.clip = name;
-    } else out.team = `team.${name}.a`;
+    } else if (!name.startsWith('knife_')) out.team = `team.${name}.a`; // (piano-knife S1) a knife pair: no tuner groups
   } else if (kind === 'trav') {
     // (mixamo-retarget M5) a capture's loop `trav:<loop>/<slug>` plays through its prop's loop's groups
     const t = TRAV_LOOP[name.includes('/') ? name.slice(0, name.indexOf('/')) : name];
@@ -916,7 +916,8 @@ export function loopForGroup(section: string, group: string, current: string): s
     return id === current ? '' : id;
   }
   if (section.startsWith('team_')) {
-    const id = seg[1] && seg[0] === 'team' ? `pair:${seg[1]}` : '';
+    // (coop-kit K0) a kit move with no Studio pair yet (the KA slices add them) picks nothing
+    const id = seg[1] && seg[0] === 'team' && PAIR_LOOPS.has(`pair:${seg[1]}`) ? `pair:${seg[1]}` : '';
     return id === current ? '' : id;
   }
   if (section === 'trav') {
@@ -962,6 +963,9 @@ const GUARD_LOOP_ROW: Readonly<Record<string, string>> = {
 export const GUARD_LOOP_GAIT: Readonly<Record<string, string>> = Object.fromEntries(
   STUDIO_ENTRIES.filter((e) => e.gloop).map((e) => [e.id, STEP_GAITS[stepGaitIndex(e.gloop!.speed > 0, e.gloop!.speed, e.gloop!.crouch ? 1 : 0)]!]),
 );
+
+/** (coop-kit K0) The Studio's pair loops (`pair:<move>`), so a tuner team section only picks a loop that exists. */
+const PAIR_LOOPS: ReadonlySet<string> = new Set(STUDIO_ENTRIES.filter((e) => e.id.startsWith('pair:')).map((e) => e.id));
 
 /** (item 24) The guard row a guard loop plays through ('' not a guard loop). */
 export function guardRowOfLoop(loop: string): string {

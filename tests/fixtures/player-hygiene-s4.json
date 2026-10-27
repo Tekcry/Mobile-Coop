@@ -1,0 +1,540 @@
+{
+  "steps": {
+    "open": [
+      {
+        "kind": "vision"
+      },
+      {
+        "kind": "gun",
+        "index": 0,
+        "name": "Pistol",
+        "loaded": 11,
+        "reserve": 20
+      },
+      {
+        "kind": "gun",
+        "index": 1,
+        "name": "Rifle",
+        "loaded": 30,
+        "reserve": 90
+      },
+      {
+        "kind": "gadget",
+        "id": "frag",
+        "name": "Frag",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "gas",
+        "name": "Sleeping gas",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "flash",
+        "name": "Flashbang",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "noise",
+        "name": "Noisemaker",
+        "count": 3
+      },
+      {
+        "kind": "gadget",
+        "id": "stickyCam",
+        "name": "Sticky cam",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "mine",
+        "name": "Prox mine",
+        "count": 0
+      }
+    ],
+    "shot": [
+      {
+        "kind": "vision"
+      },
+      {
+        "kind": "gun",
+        "index": 0,
+        "name": "Pistol",
+        "loaded": 10,
+        "reserve": 20
+      },
+      {
+        "kind": "gun",
+        "index": 1,
+        "name": "Rifle",
+        "loaded": 30,
+        "reserve": 90
+      },
+      {
+        "kind": "gadget",
+        "id": "frag",
+        "name": "Frag",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "gas",
+        "name": "Sleeping gas",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "flash",
+        "name": "Flashbang",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "noise",
+        "name": "Noisemaker",
+        "count": 3
+      },
+      {
+        "kind": "gadget",
+        "id": "stickyCam",
+        "name": "Sticky cam",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "mine",
+        "name": "Prox mine",
+        "count": 0
+      }
+    ],
+    "reload": [
+      {
+        "kind": "vision"
+      },
+      {
+        "kind": "gun",
+        "index": 0,
+        "name": "Pistol",
+        "loaded": 10,
+        "reserve": 20
+      },
+      {
+        "kind": "gun",
+        "index": 1,
+        "name": "Rifle",
+        "loaded": 5,
+        "reserve": 65
+      },
+      {
+        "kind": "gadget",
+        "id": "frag",
+        "name": "Frag",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "gas",
+        "name": "Sleeping gas",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "flash",
+        "name": "Flashbang",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "noise",
+        "name": "Noisemaker",
+        "count": 3
+      },
+      {
+        "kind": "gadget",
+        "id": "stickyCam",
+        "name": "Sticky cam",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "mine",
+        "name": "Prox mine",
+        "count": 0
+      }
+    ],
+    "gadgetUsed": [
+      {
+        "kind": "vision"
+      },
+      {
+        "kind": "gun",
+        "index": 0,
+        "name": "Pistol",
+        "loaded": 10,
+        "reserve": 20
+      },
+      {
+        "kind": "gun",
+        "index": 1,
+        "name": "Rifle",
+        "loaded": 5,
+        "reserve": 65
+      },
+      {
+        "kind": "gadget",
+        "id": "frag",
+        "name": "Frag",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "gas",
+        "name": "Sleeping gas",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "flash",
+        "name": "Flashbang",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "noise",
+        "name": "Noisemaker",
+        "count": 3
+      },
+      {
+        "kind": "gadget",
+        "id": "stickyCam",
+        "name": "Sticky cam",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "mine",
+        "name": "Prox mine",
+        "count": 0
+      }
+    ],
+    "gadgetZero": [
+      {
+        "kind": "vision"
+      },
+      {
+        "kind": "gun",
+        "index": 0,
+        "name": "Pistol",
+        "loaded": 10,
+        "reserve": 20
+      },
+      {
+        "kind": "gun",
+        "index": 1,
+        "name": "Rifle",
+        "loaded": 5,
+        "reserve": 65
+      },
+      {
+        "kind": "gadget",
+        "id": "frag",
+        "name": "Frag",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "gas",
+        "name": "Sleeping gas",
+        "count": 0
+      },
+      {
+        "kind": "gadget",
+        "id": "flash",
+        "name": "Flashbang",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "noise",
+        "name": "Noisemaker",
+        "count": 3
+      },
+      {
+        "kind": "gadget",
+        "id": "stickyCam",
+        "name": "Sticky cam",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "mine",
+        "name": "Prox mine",
+        "count": 0
+      }
+    ],
+    "gunAdded": [
+      {
+        "kind": "vision"
+      },
+      {
+        "kind": "gun",
+        "index": 0,
+        "name": "Pistol",
+        "loaded": 10,
+        "reserve": 20
+      },
+      {
+        "kind": "gun",
+        "index": 1,
+        "name": "Rifle",
+        "loaded": 5,
+        "reserve": 65
+      },
+      {
+        "kind": "gun",
+        "index": 2,
+        "name": "Shotgun",
+        "loaded": 6,
+        "reserve": 24
+      },
+      {
+        "kind": "gadget",
+        "id": "frag",
+        "name": "Frag",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "gas",
+        "name": "Sleeping gas",
+        "count": 0
+      },
+      {
+        "kind": "gadget",
+        "id": "flash",
+        "name": "Flashbang",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "noise",
+        "name": "Noisemaker",
+        "count": 3
+      },
+      {
+        "kind": "gadget",
+        "id": "stickyCam",
+        "name": "Sticky cam",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "mine",
+        "name": "Prox mine",
+        "count": 0
+      }
+    ],
+    "gunRemoved": [
+      {
+        "kind": "vision"
+      },
+      {
+        "kind": "gun",
+        "index": 0,
+        "name": "Pistol",
+        "loaded": 10,
+        "reserve": 20
+      },
+      {
+        "kind": "gun",
+        "index": 1,
+        "name": "Shotgun",
+        "loaded": 6,
+        "reserve": 24
+      },
+      {
+        "kind": "gadget",
+        "id": "frag",
+        "name": "Frag",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "gas",
+        "name": "Sleeping gas",
+        "count": 0
+      },
+      {
+        "kind": "gadget",
+        "id": "flash",
+        "name": "Flashbang",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "noise",
+        "name": "Noisemaker",
+        "count": 3
+      },
+      {
+        "kind": "gadget",
+        "id": "stickyCam",
+        "name": "Sticky cam",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "mine",
+        "name": "Prox mine",
+        "count": 0
+      }
+    ],
+    "gunRenamed": [
+      {
+        "kind": "vision"
+      },
+      {
+        "kind": "gun",
+        "index": 0,
+        "name": "SMG",
+        "loaded": 25,
+        "reserve": 75
+      },
+      {
+        "kind": "gun",
+        "index": 1,
+        "name": "Shotgun",
+        "loaded": 6,
+        "reserve": 24
+      },
+      {
+        "kind": "gadget",
+        "id": "frag",
+        "name": "Frag",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "gas",
+        "name": "Sleeping gas",
+        "count": 0
+      },
+      {
+        "kind": "gadget",
+        "id": "flash",
+        "name": "Flashbang",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "noise",
+        "name": "Noisemaker",
+        "count": 3
+      },
+      {
+        "kind": "gadget",
+        "id": "stickyCam",
+        "name": "Sticky cam",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "mine",
+        "name": "Prox mine",
+        "count": 0
+      }
+    ],
+    "noGuns": [
+      {
+        "kind": "vision"
+      },
+      {
+        "kind": "gadget",
+        "id": "frag",
+        "name": "Frag",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "gas",
+        "name": "Sleeping gas",
+        "count": 0
+      },
+      {
+        "kind": "gadget",
+        "id": "flash",
+        "name": "Flashbang",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "noise",
+        "name": "Noisemaker",
+        "count": 3
+      },
+      {
+        "kind": "gadget",
+        "id": "stickyCam",
+        "name": "Sticky cam",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "mine",
+        "name": "Prox mine",
+        "count": 0
+      }
+    ],
+    "back": [
+      {
+        "kind": "vision"
+      },
+      {
+        "kind": "gun",
+        "index": 0,
+        "name": "Pistol",
+        "loaded": 11,
+        "reserve": 20
+      },
+      {
+        "kind": "gadget",
+        "id": "frag",
+        "name": "Frag",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "gas",
+        "name": "Sleeping gas",
+        "count": 0
+      },
+      {
+        "kind": "gadget",
+        "id": "flash",
+        "name": "Flashbang",
+        "count": 2
+      },
+      {
+        "kind": "gadget",
+        "id": "noise",
+        "name": "Noisemaker",
+        "count": 3
+      },
+      {
+        "kind": "gadget",
+        "id": "stickyCam",
+        "name": "Sticky cam",
+        "count": 1
+      },
+      {
+        "kind": "gadget",
+        "id": "mine",
+        "name": "Prox mine",
+        "count": 0
+      }
+    ]
+  }
+}

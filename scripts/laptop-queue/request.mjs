@@ -5,13 +5,15 @@
 // --affected [--wide]: the suites come from scripts/e2e-affected.mjs affectedPick (DIRECT tier, --wide the cross-area set;
 // the wire rule, the gate, at most 3 closest suites) for the committed diff from the merge-base with origin/master to
 // --sha; a diff that reaches no browser suite is refused. --affected-max N (else env E2E_AFFECTED_MAX): another cap, 0 = no
-// cap; --wide is uncapped unless one is given.
+// cap; --wide is uncapped unless one is given. The LEGACY / AUDIO suites it reaches go in "report" (in the slots the cap
+// leaves; run after the others, REPORT ONLY: J20 T4).
 // --train-rerun (with --pr N and --suites; auto-train, --requester auto-train): a train's failed suites rerun on the
 // laptop at train priority; "trainRerun": true, kind pr. Context laptop-e2e/<set> (no --set: laptop-e2e/rerun-<suites>).
 // A pass also posts laptop-e2e success on the sha.
 // --priority N: "priority": N (integer, default 0): among the same requester's open requests a higher one runs first
 // (else oldest first), e.g. a request a train-ready PR waits on; it never moves the request ahead of other requesters.
 // --pin: "pin": true, never superseded (A/B and baseline runs kept on purpose; queue-audit skips them too).
+// --fix: "fix": true, tested before new-feature requests (the PR's `fix` label does the same; laptop-queue-8).
 // --dry-run: builds the commit but pushes nothing; prints the sha it would push and the JSON.
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -27,7 +29,7 @@ for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (!a.startsWith('--')) { console.error(`unexpected argument ${a}`); process.exit(1); }
   const k = a.slice(2);
-  if (['full', 'alone', 'dry-run', 'train-rerun', 'pin', 'affected', 'wide'].includes(k)) opts[k] = true;
+  if (['full', 'alone', 'dry-run', 'train-rerun', 'pin', 'affected', 'wide', 'fix'].includes(k)) opts[k] = true;
   else if (k === 'step' || k === 'env') opts[k].push(argv[++i]);
   else opts[k] = argv[++i];
 }
@@ -55,18 +57,18 @@ const resolve = (ref) => git(['rev-parse', '--verify', '-q', `${ref}^{commit}`],
 const sha = (isRef && !opts.sha.startsWith('origin/') ? resolve(`origin/${opts.sha}`) : '') || resolve(opts.sha);
 if (!sha) { console.error(`cannot resolve ${opts.sha}`); process.exit(1); }
 
-/** --affected: the suites for the committed diff from the merge-base with origin/master to sha. */
+/** --affected: { suites, report } for the committed diff from the merge-base with origin/master to sha. */
 function prSuites() {
   // lib affectedSuites: the same selection the service's affected pass makes for every PR head
-  // the cap: --affected-max, else E2E_AFFECTED_MAX, else 3; --wide with neither stays uncapped (BRIEF A5)
+  // the cap: --affected-max, else E2E_AFFECTED_MAX, else AFFECTED_MAX (1, G421); --wide with neither stays uncapped (BRIEF A5)
   const given = opts['affected-max'] ?? process.env.E2E_AFFECTED_MAX;
   const max = opts.wide && given === undefined ? undefined : parseAffectedMax(given);
   const got = affectedSuites((args) => git(args), sha, { wide: Boolean(opts.wide), max });
   if (!got) { console.error(`--affected: no merge-base between origin/master and ${sha} (or git diff failed)`); process.exit(1); }
-  const { files, suites } = got;
-  console.error(`affected${opts.wide ? ' (wide)' : ''}: ${files.length} changed file(s), ${suites.length} suite(s) (${max ? `cap ${max}` : 'no cap'}): ${suites.join(' ') || '-'}`);
+  const { files, suites, report } = got;
+  console.error(`affected${opts.wide ? ' (wide)' : ''}: ${files.length} changed file(s), ${suites.length} suite(s) (${max ? `cap ${max}` : 'no cap'}): ${suites.join(' ') || '-'}${report.length ? `; report only: ${report.join(' ')}` : ''}`);
   if (!suites.length) { console.error('--affected: no browser suite reached (docs / unit tests only): nothing to request'); process.exit(1); }
-  return suites;
+  return { suites, report };
 }
 
 // branch and pr filled by default, so a failure comment reaches the right PR (lib pickBranch)
@@ -90,7 +92,11 @@ const id = `${requestId(Date.now(), requester, sha)}-${randomBytes(2).toString('
 const kind = opts.alone ? 'alone' : opts.full ? 'full' : 'pr';
 const req = { id, sha, branch, pr, kind, requester };
 // --suites "a b" or "a,b" (lib splitSuites)
-if (kind === 'pr') req.suites = opts.affected ? prSuites() : splitSuites(opts.suites);
+if (kind === 'pr' && opts.affected) {
+  const { suites, report } = prSuites();
+  req.suites = suites;
+  if (report.length) req.report = report;
+} else if (kind === 'pr') req.suites = splitSuites(opts.suites);
 if (opts['train-rerun']) req.trainRerun = true;
 if (kind === 'alone') {
   req.steps = opts.step;
@@ -100,6 +106,7 @@ if (opts.jobs) req.jobs = Number(opts.jobs);
 if (opts.set) req.set = opts.set;
 if (opts.note) req.note = opts.note;
 if (opts.pin) req.pin = true;
+if (opts.fix) req.fix = true;
 if (opts.priority !== undefined) req.priority = Number(opts.priority);
 // suite names checked against the sha's own scripts/ (lib knownSuites; --full-tree: also from a subdirectory); an
 // unreadable listing refuses a pr request rather than skip the check
