@@ -1013,12 +1013,10 @@ OPEN, in the order to take them if the project resumes:
    C:/NightShift/Mobile-Coop-coop4, last head 28f2e1483; build notes docs/coop4/checks/merge16-build.md, check
    MERGE16-CHECK.md); then the orchestrator labels no-affected-e2e + train-ready (labels big-pr, no-affected-e2e kept).
 2. Mill hunt (docs/guard-ai/mill-hunt/: BRIEF, PLAN rev 2, PLAN-CHECK, H1/H2/H3 reports and checks):
-   - PR 1 = #713 (feature/guard-ai-mill-hunt, ~2.85k counted, big-pr OK'd): checks A (fix round) + B PASS, checker
-     posted, CI green, affected-e2e (3 suites) was queued at the hold. When green it is train-ready.
-   - PR 2 = feature/guard-ai-mill-hunt-h3 (H3 wiring behind flags.millHunt, head 6b3cc3f5d): checks A + B PASS; laptop
-     e2e-piano PASS on 97a26b0c6 (desktop worker: confirm its log shows the hunt checks). Open it (base master; fragment
-     changes/feature-guard-ai-mill-hunt-h3.md exists; post checker "Opus 5.5 PASS x2 (H3-CHECK-A + H3-CHECK-B)") once
-     #713 merges; if master moved, merge it in first. If #713 merged before you read this, do that now.
+   - PR 1 = #713 MERGED (search routes + hunt board).
+   - PR 2 = #725 (feature/guard-ai-mill-hunt-h3, H3 wiring behind flags.millHunt; master merged in clean; 931 counted;
+     checks A + B PASS, checker posted; laptop e2e-piano PASS on 97a26b0c6). CI + affected-e2e were pending at the
+     hold: when green it is train-ready (tell the orchestrator); if it conflicts, merge master in again.
    - H4 (PR 3, reactions: cue, check, targets, radio) NOT STARTED. First fix PR1-CHECK-B's must-fix (a top-ranked
      unit's move stops 3-4 m from a lower-ranked group across a room edge; then sim CLUSTER = HUNT.apart 4 m), decide the
      16-guard gallery density. Walk-card risks: the landing pair holds the landing all run; 16 guards crowd the gallery.
@@ -1027,5 +1025,5 @@ OPEN, in the order to take them if the project resumes:
    slices/G5-TRIAGE.md). Michael judges the cue on a walk; fallback: loosen it.
 4. Polish backlog (only if it helps play): items at "Polish" in this file's history; guard-ai-mission-hooks branches
    rebase after the mill hunt (check their flags are PREVIEW_ON).
-Next: on resume, take OPEN item 1 (#317 merge 19), then item 2 (PR 2 after #713, then H4).
+Next: on resume, take OPEN item 1 (#317 merge 19), then item 2 (#725 to its train, then H4).
 ```
