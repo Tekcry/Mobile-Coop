@@ -1,7 +1,21 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-27 ~11:50 SAVE (Night Shift | Campaign Build; reset 13:50: carry on without waiting)
+## RESUME 2026-10-27 ~14:30 SAVE (Night Shift | Campaign Build; account swap ~14:35)
+Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). Worktrees pushed (CM3 as WIP).
+1. J22 campaign-mode. PR 1 = #708 (feature/campaign-mode e55873c55: flag, campaignOrder, campaignRating,
+   campaignRecord, plan docs; Opus PASS, checker posted): watch CI + affected; train-ready from the watchdog.
+2. CM3 (PR 2) building, Opus, on feature/campaign-mode-cm3 (worktree Mobile-Coop-campaign-mode-cm3, from #708's head).
+   Brief scratch/campaign/cm/CM3-brief.md; report CM3-report.md says the step reached. If the builder is gone: resume
+   from the report's next step (a fresh Opus builder with the same brief). Done -> TWO Opus checkers (src/net) -> PR 2
+   (base feature/campaign-mode until #708 lands, then master) -> tell the orchestrator.
+3. Then CM4 (lobby Mission row, briefing, Continue; Opus), CM5 + CM6 (save hooks + results; PR 4), CM7 (e2e; PR 5 with
+   Job-done). Plan-check polish 3-11 in scratch/campaign/campaign-mode-plan-check.md go into those briefs.
+4. Mill / Tallow: all walk fixes on master (#690 skip, #693 roof, #701 storm recordings). Waiting on Michael's storm
+   level and other notes; mill polish (knife fist, hero framing, glide light) briefs when he asks.
+Next: CM3 report -> two checkers -> PR 2.
+
+## OLD RESUME 2026-10-27 ~11:50 SAVE (Night Shift | Campaign Build; reset 13:50: carry on without waiting)
 Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). All worktrees clean and pushed.
 1. On master now: the storm mill (4.127.0, #631), Tallow Mission 1 (#583), the intro skip hint + tap (#690), the mill
    roof frame + lamp chains (#693), the real rain / thunder recordings (#701, CC0 + CC-BY 4.0, WebAudio fallback).
