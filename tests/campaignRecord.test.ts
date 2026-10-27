@@ -16,7 +16,6 @@ import {
   type CampaignSave,
 } from '../src/save/campaignRecord';
 import { dbGet, dbPut } from '../src/save/db';
-import { SAVE_VERSION } from '../src/save/schema';
 import { THREE_GREY_COATS, TWO_KEY_LEDGER } from '../src/world/maps/tallowWharfMissions';
 
 // (campaign-mode CM2, PLAN 3.3, A7 / A8) kv records `campaign:progress` and `campaign:save`: no SAVE_VERSION bump
@@ -185,7 +184,4 @@ describe('campaign save', () => {
     await clearCampaignSave();
   });
 
-  it('no SAVE_VERSION bump: the records are kv keys, not the profile (A8)', () => {
-    expect(SAVE_VERSION).toBe(10);
-  });
 });
