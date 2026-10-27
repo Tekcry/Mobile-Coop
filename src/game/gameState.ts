@@ -256,6 +256,8 @@ export interface NetAttachment {
   radioLine?(text: string): void;
   /** Host, Sector Ops: revive syringes left this op (co-op only). */
   revivesLeft?(): number;
+  /** (campaign-mode CM5) Host, Sector Ops: revives used this mission (the campaign save's `revivesUsed`, G126). */
+  revivesUsed?(): number;
   /** (section-rating) Host: a rating's syringe grant, added to the op's revive cap. */
   addSyringes?(n: number): void;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */

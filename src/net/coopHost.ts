@@ -907,6 +907,11 @@ export class CoopHost implements NetAttachment {
     return Math.max(0, this.reviveClock.cap - this.reviveClock.used);
   }
 
+  /** (campaign-mode CM5) Sector Ops: the revives used this mission (a Continue's save keeps them, G126). */
+  revivesUsed(): number {
+    return this.reviveClock.used;
+  }
+
   /** (section-rating S3) A rating's syringe reward: `n` (a whole 0-9) more revives this op. (mission-rules R5, G126,
    *  Q19 "None") Nothing in a campaign mission: its 2 revives are never topped up. */
   addSyringes(n: number): void {

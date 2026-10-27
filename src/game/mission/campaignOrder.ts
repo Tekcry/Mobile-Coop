@@ -206,3 +206,12 @@ export function lobbyRows(o: { campaign: boolean; host: boolean; mode: string; e
   rows.push('room');
   return rows;
 }
+
+/**
+ * (campaign-mode CM5, A7, CM4 check note) The host's match start empties `campaign:save` when it starts a campaign entry
+ * (`entryForRoom`) that is not a Continue: another entry ends the saved run (a fresh start of the same entry writes its
+ * own save at its first section's begin). Plain Sector Ops or any other room keeps the save.
+ */
+export function startClearsSave(mode: string, map: string, sm: string | null | undefined, continued: boolean): boolean {
+  return !continued && entryForRoom(mode, map, sm) !== null;
+}

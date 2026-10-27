@@ -61,4 +61,80 @@ export interface CampaignResultView {
   perfect: boolean;
   /** Kills, knock-outs, alarms, times spotted, bodies found, optional objectives, rules kept. */
   rows: CampaignResultRow[];
+  /** (CM5) A Continue: the section number (1-based) the run resumed at; its earlier sections have no section rating. */
+  continuedFrom?: number;
+}
+
+// ---- (campaign-mode CM5 / CM6) the end's counts and the results panel's rows (pure) ----
+
+/** The step shape these read (a `MissionStep` fits). */
+export interface RatedStep {
+  optional?: unknown;
+}
+
+/** (CM5) Optional steps done (from the runner's done bits by step index, `wireDoneBits`) and how many the mission has. */
+export function optionalDone(steps: readonly RatedStep[], doneBits: number): { done: number; total: number } {
+  let done = 0;
+  let total = 0;
+  for (let i = 0; i < steps.length; i++) {
+    if (!steps[i]!.optional) continue;
+    total++;
+    if (i < 31 && (doneBits >>> i) & 1) done++;
+  }
+  return { done, total };
+}
+
+/** What the rows show beyond the tally: optional objectives and rules kept, each as done of total. */
+export interface CampaignRowsInput {
+  /** The op-wide tally (null: not known here, the co-op client: only the optional and rules rows). */
+  tally: CampaignTally | null;
+  optional: { done: number; total: number };
+  rules: { kept: number; total: number };
+}
+
+const ofTotal = (n: number, total: number): string => `${count(n)} / ${count(total)}`;
+
+/**
+ * (CM6, bible 5.8 "Each category is shown") The results panel's rows, in order: kills, knock-outs, alarms raised, times
+ * spotted, bodies found (from the tally), then optional objectives and rules kept ("1 / 2"; a mission with no optional
+ * step or no rule has no such row).
+ */
+export function campaignResultRows(o: CampaignRowsInput): CampaignResultRow[] {
+  const rows: CampaignResultRow[] = [];
+  const t = o.tally;
+  if (t) {
+    rows.push(
+      { key: 'kills', label: 'Kills', value: String(count(t.kills)) },
+      { key: 'knockouts', label: 'Knock-outs', value: String(count(t.knockouts)) },
+      { key: 'alarms', label: 'Alarms raised', value: String(count(t.alarms)) },
+      { key: 'spotted', label: 'Times spotted', value: String(count(t.spotted)) },
+      { key: 'bodies', label: 'Bodies found', value: String(count(t.bodies)) },
+    );
+  }
+  if (o.optional.total > 0) rows.push({ key: 'optional', label: 'Optional objectives', value: ofTotal(o.optional.done, o.optional.total) });
+  if (o.rules.total > 0) rows.push({ key: 'rules', label: 'Rules kept', value: ofTotal(o.rules.kept, o.rules.total) });
+  return rows;
+}
+
+/** (CM6) The panel: the title, the rating and the rows; `continuedFrom` only for a Continue (a section number >= 1). */
+export function campaignResultView(title: string, r: CampaignRating, rows: CampaignResultRow[], continuedFrom?: number): CampaignResultView {
+  const v: CampaignResultView = { title, pct: r.pct, perfect: r.perfect, rows };
+  if (continuedFrom !== undefined && Number.isInteger(continuedFrom) && continuedFrom >= 1) v.continuedFrom = continuedFrom;
+  return v;
+}
+
+/** (CM6) The panel's headline ("87%", "100%  PERFECT") and the Continue line ("Continued from section 3: ..."). */
+export function campaignHeadline(v: CampaignResultView): string {
+  return v.perfect ? `${v.pct}%  PERFECT` : `${v.pct}%`;
+}
+export function continuedLine(v: CampaignResultView): string | null {
+  return v.continuedFrom ? `Continued from section ${v.continuedFrom}: the sections before it have no section rating` : null;
+}
+
+/**
+ * (CM5) The wire's `pc` (`MissionWire.pc`, the host's campaign percent at the end): a whole number 0-100, else null
+ * (absent or junk: no percent, the old behaviour).
+ */
+export function parsePct(v: unknown): number | null {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 100 ? v : null;
 }

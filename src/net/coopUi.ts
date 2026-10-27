@@ -21,7 +21,7 @@ import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
 import { loadCourseRecord, lobbyStartBay, startableBays, type CourseRecord } from '../save/courseRecord';
 import { loadSectorRecord, starsOf, starsText, type SectorRecord } from '../save/sectorRecord';
-import { loadCampaignProgress, loadCampaignSave, type CampaignProgress, type CampaignSave } from '../save/campaignRecord';
+import { clearCampaignSave, loadCampaignProgress, loadCampaignSave, type CampaignProgress, type CampaignSave } from '../save/campaignRecord';
 import {
   CONTINUE_VALUE,
   briefingPanel,
@@ -32,6 +32,7 @@ import {
   entryRowText,
   lobbyRows,
   missionRowOptions,
+  startClearsSave,
   type CampaignEntry,
   type LobbyRow,
 } from '../game/mission/campaignOrder';
@@ -223,6 +224,8 @@ class CoopController {
     this.inGame = true;
     if (!this.recT) this.recT = setInterval(() => this.record(), 2000);
     const session = this.session;
+    // (campaign-mode CM5, A7) the host starting a campaign entry that is not a Continue ends the saved run
+    if (session.isHost && flags.campaign && startClearsSave(s.mode, s.map, s.sectorMission, !!s.campaignResume)) void clearCampaignSave();
     const mission = s.mode === 'infiltration' ? missionById(s.mission) : null;
     const map = getMap(mission?.map ?? s.map);
     this.api.startGame(
