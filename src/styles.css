@@ -1950,6 +1950,98 @@ body {
   top: 14px;
 }
 
+/* (context-prompts S4) the context prompts on the focused target: the marker at the anchor, one row per button under
+   it (PLAN section 5). Fades over --ctx-fade (CTX_FOCUS.fade); text in vh times the HUD size setting. */
+.ctxp {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform, opacity;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--ctx-fade, 0.15s) linear,
+    visibility 0s linear var(--ctx-fade, 0.15s);
+  font-size: calc(2.2 * var(--vh) * var(--hud-scale, 1));
+}
+.ctxp.on {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity var(--ctx-fade, 0.15s) linear,
+    visibility 0s;
+}
+.ctxp.off {
+  visibility: hidden;
+  transition: none;
+}
+.ctxp-rows {
+  position: absolute;
+  left: 50%;
+  top: calc(1.2 * var(--vh));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(0.4 * var(--vh));
+}
+.ctxp-row {
+  --p: 0deg;
+  display: none;
+  align-items: center;
+  gap: 0.35em;
+  white-space: nowrap;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e6f4ff;
+  text-shadow: 0 1px 2px #000;
+  background: rgba(10, 13, 18, 0.45);
+  padding: 0.2em 0.7em 0.2em 0.3em;
+  border-radius: 999px;
+}
+.ctxp-row.shown {
+  display: flex;
+}
+.ctxp-g {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.ctxp .glyph {
+  font-size: 0.8em;
+  min-width: 2em;
+  height: 2em;
+  padding: 0 0.5em;
+  border-radius: 1em;
+}
+.ctxp .glyph.round {
+  width: 2em;
+  padding: 0;
+}
+.ctxp-row .hold-ring {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.2em;
+  height: 2.2em;
+  margin: -1.1em 0 0 -1.1em;
+  border-radius: 50%;
+  background: conic-gradient(#4fdc7c var(--p), rgba(255, 255, 255, 0.18) 0);
+  -webkit-mask: radial-gradient(circle, transparent 0.85em, #000 0.95em);
+  mask: radial-gradient(circle, transparent 0.85em, #000 0.95em);
+}
+.ctxp-row.hold .hold-ring {
+  display: block;
+}
+.ctxp-row.pair:not(.hold) .ctxp-hold {
+  opacity: 0.55;
+}
+.hud-world.ctx-guard .wp-takedown {
+  display: none;
+}
+
 /* PC: the mouse is free during a match (before the first click, or after Esc was refused a re-capture) */
 .mouse-capture-hint {
   position: fixed;
@@ -2296,7 +2388,7 @@ body {
 .hud > .hud-subtitle {
   zoom: var(--hud-scale, 1);
 }
-/* health as the screen-edge vignette only (Blacklist): the bars hidden */
+/* health as the screen-edge vignette only: the bars hidden */
 .hud.no-hbar .bar.health,
 .hud.no-hbar .vital-text {
   display: none;
@@ -2856,7 +2948,7 @@ body {
   border-color: var(--accent);
 }
 
-/* Loadout (Blacklist gear screen): list | operator | details, actions along the bottom */
+/* Loadout (the gear screen): list | operator | details, actions along the bottom */
 .loadout-screen {
   padding: calc(var(--sat) + 6px) calc(var(--sar) + 14px) calc(var(--sab) + 6px) calc(var(--sal) + 14px);
 }
