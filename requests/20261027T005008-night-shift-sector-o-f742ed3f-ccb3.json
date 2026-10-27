@@ -1,0 +1,13 @@
+{
+  "id": "20261027T005008-night-shift-sector-o-f742ed3f-ccb3",
+  "sha": "f742ed3fc23593588461cc5b61dd294e65c3703f",
+  "branch": "feature/char-shadow-meter-s3b2",
+  "pr": 665,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "coopgate"
+}
