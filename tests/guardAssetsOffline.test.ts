@@ -1,14 +1,14 @@
 /**
  * (guard-models PR) The guard figures' files (`src/operators/assets/guards/`, ~29 MB of GLBs) are off by default: never
- * in the service worker's precache, and never fetched while `?guardmodels=1` is absent.
+ * in the service worker's precache, and never fetched with `?guardmodels=0` (the flag is on by default since gm-flip).
  *
  * - Precache: the bundled guard files, named as the build emits them (`assets/<name>-<hash>.glb`), are globbed with the
  *   worker's own lists (`src/pwa/precacheGlobs.ts`, what vite.config.ts hands workbox) through `glob`'s `globSync`, the
  *   call workbox-build makes (`get-file-details.js`): none is precached, the app shell still is; the ignores keep them
  *   out even if a pattern took every `.glb`.
  * - Runtime: the `guards` cache rule matches a built guard file and no other asset.
- * - Flag off (the default, no query): no guard figure is built (`guardModelsFor`), and resolving a base's files or the
- *   shield's yields URL strings only (Vite `?url`), with no fetch.
+ * - The default (no query) is on and builds figures for human guards; `?guardmodels=0`: no guard figure is built
+ *   (`guardModelsFor`), and resolving a base's files or the shield's yields URL strings only (Vite `?url`), with no fetch.
  */
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -80,10 +80,20 @@ describe('guard assets: never precached', () => {
   });
 });
 
-describe('guard assets: nothing fetched with the flag off', () => {
+describe('guard assets: the flag default, and no fetch when resolving', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('the default (no ?guardmodels) is off and builds no figure', async () => {
+  it('the default (no ?guardmodels) is on for human guards, never the dog', async () => {
+    vi.resetModules();
+    const { flags } = await import('../src/core/flags');
+    expect(flags.guardModels).toBe(true);
+    const { guardModelsFor } = await import('../src/ai/guardBody');
+    expect(guardModelsFor({ quadruped: false })).toBe(true);
+    expect(guardModelsFor({ quadruped: true })).toBe(false);
+  });
+
+  it('?guardmodels=0 is off and builds no figure', async () => {
+    vi.stubGlobal('location', { search: '?guardmodels=0', origin: 'http://localhost' });
     vi.resetModules();
     const { flags } = await import('../src/core/flags');
     expect(flags.guardModels).toBe(false);

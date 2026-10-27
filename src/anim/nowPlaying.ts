@@ -248,6 +248,18 @@ export function nowPlayingText(np: Readonly<GraphPlaying>, body: BodyGroup | '',
   return `Now playing: mix, ${t * 10}% ${cap} ${mv}, ${100 - t * 10}% ${KEYED_WORD}`;
 }
 
+/** (mixamo-retarget Toggle) The source names (`animSource.ts` ANIM_SOURCE_LABEL; kept here so this module stays pure). */
+const SOURCE_WORD: Readonly<Record<string, string>> = { hand: 'Hand-made', cmu: 'CMU', mixamo: 'Mixamo' };
+
+/**
+ * (Toggle) The player line with the Animation source in use (Options > Gameplay, or the Anim Studio's switch):
+ * "Now playing: motion-capture (CMU) walk (animation source: CMU)". Built only on a key or source change.
+ */
+export function nowPlayingSourceText(line: string, source: string): string {
+  const w = SOURCE_WORD[source];
+  return w ? `${line} (animation source: ${w})` : line;
+}
+
 /** The guard variant (Who: Guard in the tuner; guards never play the capture): "Now playing (guard): hand-made <loop>". */
 export function nowPlayingGuardText(loop: string): string {
   return `Now playing (guard): ${KEYED_WORD} ${loop}`;

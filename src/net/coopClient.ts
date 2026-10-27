@@ -1,6 +1,7 @@
 import { Vector3 } from '../core/babylon';
 import type { GameState, NetAttachment } from '../game/gameState';
 import type { TakedownVictim } from '../game/takedownController';
+import type { CharacterRig } from '../player/characterRig';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { Body, deathLieOn } from '../ai/body';
 import { newLie } from '../ai/bodyLie';
@@ -14,21 +15,27 @@ import { SWAY } from '../world/lampSway';
 import { lampReachProbe, lightOnRay, type LightDef } from '../world/lights';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
-import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
+import { Interactables, KIND_COLOR, drawsExitBeacon, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
-import { BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, USE_ONLY_GADGETS, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
+import { kitAttemptKey } from './kitNet';
+import { MissionMirror } from './missionMirror';
+import type { TeamId } from '../game/mission/missionDef';
+import type { MissionRunner } from '../game/mission/missionRunner';
+import { MissionFeed, missionObjectiveLines, missionViewerTeam, stepWithPercent } from '../game/mission/missionFeed';
 import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
+import { CharMates, mateOrderInto } from './charMates';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { EnemyPuppet } from './enemyPuppet';
 import { infoAtSpawn } from '../ai/guardInfo';
 import { PartnerTarget } from './partnerTarget';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import type { TeamMate } from '../game/teamController';
-import type { TeamKind } from '../game/teamMoves';
+import type { TeamMoveKind } from '../game/teamMoves';
 import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire, ratingViewsFromRh } from './validate';
 import { RatingCard, type RatingView } from '../ui/hud/ratingCard';
 import { GADGETS } from '../game/gadgets';
@@ -61,11 +68,23 @@ import { placeSlot, startSlotPoints } from '../game/spawnPlace';
 import { practiceFromRh } from '../game/sectorStart';
 import type { SlotPoint } from '../game/spawnSlots';
 import { SectorListMirror } from '../game/sectorObjectives';
+import { PianoScene, isPianoScene, nearestEmpItem, pianoClientWorld } from '../game/pianoScene';
+import { PianoIntroView } from '../game/pianoIntroView';
 import type { ObjectiveLine } from '../ui/screens/pauseScreen';
 
 const SEND_HZ = 20;
 /** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
 const INTERP_DELAY = CLIENT_INTERP_DELAY;
+
+/**
+ * (piano-knife S3) Our takedown's message for the host: `kind` `'knife'` on every phase while our knife switch is on
+ * (the host seizes a guard in the piano scene only for a knife start), else the course kind on `done` only (today's);
+ * no `kind` field when it is empty (the switch off: byte-for-byte today's messages).
+ */
+export function tdOut(target: string, ph: 'start' | 'done' | 'abort', lethal: boolean, knife: boolean, courseKind: string): Extract<Msg, { t: 'td' }> {
+  const kind = knife ? 'knife' : ph === 'done' ? courseKind : '';
+  return kind ? { t: 'td', target, ph, lethal, kind } : { t: 'td', target, ph, lethal };
+}
 
 /**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
@@ -75,8 +94,22 @@ const INTERP_DELAY = CLIENT_INTERP_DELAY;
  */
 export class CoopClient implements NetAttachment {
   private avatars = new Map<string, RemoteAvatar>();
+  /** (NET2) The host start time of this player's latest team move (0 none): its hangEnd carries it as the attempt. */
+  private teamT0 = 0;
+  /** (char-shadow-meter S2c) Our partners in the character contract (`GameState.charMatesInto`, flag on), in the host's
+   *  player order, self skipped; `mateOrder` is the kept list `relistMates` refills. */
+  private readonly mates = new CharMates();
+  private readonly mateOrder: RemoteAvatar[] = [];
   /** (G7 fix) The puppet the partner holds (posed from its MoveState). */
   private heldPuppet: EnemyPuppet | null = null;
+  /** (piano-knife S3) The puppet the partner's knife kill holds (posed from its MoveState, `RemoteKnife`). */
+  private knifePuppet: EnemyPuppet | null = null;
+  /** (piano-knife S3) A partner's knife victim's drawn rig: the puppet, alive and not in our own takedown (one bound
+   *  method, no closure per call). */
+  private readonly knifeRigOf = (tid: string): CharacterRig | null => {
+    const p = this.puppets.get(tid);
+    return p && p.alive && !p.taken ? p.bodyRig : null;
+  };
   private puppets = new Map<string, EnemyPuppet>();
   private puppetList: EnemyPuppet[] = [];
   private targets = new Map<string, PartnerTarget>();
@@ -120,8 +153,19 @@ export class CoopClient implements NetAttachment {
   private readonly crateSpent = new Set<string>();
   /** Sector Ops: the client's mirror of the cameras and lasers. */
   private sec: CtDevices | null = null;
+  /** (piano-escape S4) The piano scene on this page (a scene map in Sector Ops): its own intro, ended by the host's EMP. */
+  private piano: PianoScene | null = null;
   /** (hud-guidance B4, HG8) Sector Ops: the field menu's full list, from the host's live section and objective line. */
   private list: SectorListMirror | null = null;
+  /** (mission NET) The host's mission as applied here (`mission.runner`; null runner: none). */
+  readonly mission = new MissionMirror();
+  /** (mission-rules R6, HG7) The mirrored mission's current step on our objective line, and our team (A9). */
+  private readonly missionFeed = new MissionFeed();
+  private missionViewer: TeamId = 'all';
+  /** (mission-rules R6) A `sector` message came: our team is read again on its next use (`viewer`). */
+  private viewerStale = true;
+  /** (mission-rules R6) The host's objective line as its snapshots last carried it (shown while no mission step is). */
+  private hostObj = '';
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
   private kitSection = 0;
   /** (section-rating S3) The host's last section rating as the HUD card shows it (null before the first). */
@@ -181,7 +225,22 @@ export class CoopClient implements NetAttachment {
     this.carry = new ClientCarry(g, () => this.ints, (id) => this.s.toHost({ t: 'use', id }), () => this.canRagdoll());
     // (G135) the goggle colours follow the host's player order (host green, us cyan as the partner)
     this.recolour();
-    this.offs.push(s.events.on('lobby', () => this.recolour()));
+    this.offs.push(
+      s.events.on('lobby', () => {
+        this.recolour();
+        this.relistMates();
+      }),
+    );
+    // (char-shadow-meter S2c) with the contract on, our partners fill the player slots after ours (one closure, made once)
+    if (g.charOccluders) {
+      const prev = g.charMatesInto;
+      g.charMatesInto = (p, f, m) => this.mates.into(p, f, m);
+      this.offs.push(() => (g.charMatesInto = prev));
+      // (player-j16) and a partner carrying a body loads his slot's shoulder (the same walk, so the same slot)
+      const prevLoads = g.charLoadsInto;
+      g.charLoadsInto = (lin, _refs, nr, n) => this.mates.loadsInto(lin, nr, n);
+      this.offs.push(() => (g.charLoadsInto = prevLoads));
+    }
     // (coop-rejoin, walk item 4) our own slot of the start area (the map's slot point, else a safe spot beside the
     // host's), before our first `pstate` (the host takes a first state anywhere): a course bay-N start's entry airlock
     // (D20), Sector Ops' first section, else the map's spawns. A late join or rejoin is then placed by the host.
@@ -200,6 +259,24 @@ export class CoopClient implements NetAttachment {
       this.sec = ct;
       g.ctDev = ct;
       this.list = new SectorListMirror(g.world.map.sectors ?? []);
+      // (piano-escape S4) a scene map: this page's own intro and empty kit (before the checkpoint records the loadout);
+      // our EMP press goes to the host as a `use` of the nearest EMP item; the host's press (`ep`) ends our intro
+      if (isPianoScene(g.world.map)) {
+        const sc = new PianoScene(
+          g,
+          undefined,
+          pianoClientWorld(g, {
+            view: (intro, onSkip) => new PianoIntroView(g, intro, onSkip),
+            askEmp: () => this.s.toHost({ t: 'use', id: nearestEmpItem(g.world.map, g.player.position.x, g.player.position.z) }),
+          }),
+        );
+        this.piano = sc;
+        sc.start();
+        this.offs.push(() => {
+          sc.dispose();
+          this.piano = null;
+        });
+      }
       // (sector-restart, M9) our loadout as section 1 begins: a checkpoint restart gives it back
       g.weapons.markCheckpoint();
       // (slice L) the host's lamps (`lamps`); our lamp rounds go to the host below
@@ -246,6 +323,13 @@ export class CoopClient implements NetAttachment {
     g.gadgets.onLocal = (kind, at) => {
       if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') s.toHost({ t: 'gadget', kind, x: at.x, y: at.y, z: at.z });
     };
+    // (mission NET) a frag, mine or sticky cam of ours thrown / placed: no effect message carries it, so the host's mode
+    // hears of the use (`gused`: a mission's No gadgets rule)
+    this.offs.push(
+      g.events.on('gadget', (e) => {
+        if ((e.phase === 'throw' || e.phase === 'place') && USE_ONLY_GADGETS.includes(e.kind as UseOnlyGadget)) s.toHost({ t: 'gused', kind: e.kind as UseOnlyGadget });
+      }),
+    );
     g.takedownVictims = () => this.puppetList;
     // (LR16-6 fix) our kept bodies cool as the host's do (render-only body heat)
     g.bodyStamp = (f) => this.stampBodies(f);
@@ -254,7 +338,7 @@ export class CoopClient implements NetAttachment {
     const own = g.interactables;
     if (own) for (const it of own.items.filter((x) => x.kind === 'medkitWall')) own.remove(it);
     if (g.opts.mode !== 'sandbox' || !own) {
-      this.ints = new Interactables(g.scene, g.world.parts);
+      this.ints = new Interactables(g.scene, g.world.parts, drawsExitBeacon(g.opts.mode));
       (g as { interactables: Interactables | null }).interactables = this.ints;
     } else this.ints = own;
     // (free roam mirrors only the host's wall medkits)
@@ -303,7 +387,10 @@ export class CoopClient implements NetAttachment {
         break;
       // (3.2.0 phase 5) team moves the host started / refused / ended for this player
       case 'tstart':
-        if (msg.a === this.s.selfId || msg.b === this.s.selfId) this.g.team.begin(msg, this.s.selfId);
+        if (msg.a === this.s.selfId || msg.b === this.s.selfId) {
+          this.teamT0 = msg.t0;
+          this.g.team.begin(msg, this.s.selfId);
+        }
         break;
       case 'tdeny':
         if (msg.a === this.s.selfId) this.g.team.denied(msg.reason);
@@ -324,8 +411,9 @@ export class CoopClient implements NetAttachment {
   }
 
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: every other player; TDM: the same side). */
-  teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
-    this.s.toHost((kind === 'throw' || kind === 'hang' || kind === 'rope') && lx !== undefined && lz !== undefined ? { t: 'tmove', kind, partner, target, s: ss, gy, lx, lz } : { t: 'tmove', kind, partner, target, s: ss, gy });
+  teamRequest(kind: TeamMoveKind, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
+    // a claimed point (the throw / hang / rope's, the pull-up's catch point) rides as lx, gy, lz
+    this.s.toHost(lx !== undefined && lz !== undefined ? { t: 'tmove', kind, partner, target, s: ss, gy, lx, lz } : { t: 'tmove', kind, partner, target, s: ss, gy });
   }
 
   /** (locomotion step 10, A5) Ask the host for a committed move. */
@@ -333,13 +421,15 @@ export class CoopClient implements NetAttachment {
     this.s.toHost({ t: 'cmove', kind, id, target });
   }
 
-  /** (B5) End the hang-down: `target` 1 = drop, 0 = pull up. */
+  /** (B5) End the hang-down: `target` 1 = drop, 0 = pull up. (NET2) `s`: the attempt (`kitAttemptKey` of the latest
+   *  start's t0; the host ignores an end of an earlier attempt; an old host reads 0 and ignores it). */
   teamHangEnd(k: 'pull' | 'drop'): void {
-    this.s.toHost({ t: 'tmove', kind: 'hangEnd', partner: '', target: k === 'drop' ? 1 : 0, s: 0, gy: 0 });
+    this.s.toHost({ t: 'tmove', kind: 'hangEnd', partner: '', target: k === 'drop' ? 1 : 0, s: kitAttemptKey(this.teamT0), gy: 0 });
   }
 
+  /** (NET3) `s`: the attempt key, as the hangEnd's: the host ignores an end of an earlier attempt. */
   teamEnd(): void {
-    this.s.toHost({ t: 'tmove', kind: 'end', partner: '', target: -1, s: 0, gy: 0 });
+    this.s.toHost({ t: 'tmove', kind: 'end', partner: '', target: -1, s: kitAttemptKey(this.teamT0), gy: 0 });
   }
 
   /** (step 11, D8) The other players with their back to segment `seg` (metres along it), from their MoveStates. */
@@ -383,6 +473,7 @@ export class CoopClient implements NetAttachment {
       if (!info) return null;
       const g = this.g;
       a = new RemoteAvatar(g.world, g.vfx, g.ballistics, info);
+      a.victimRigOf = this.knifeRigOf;
       a.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
       this.avatars.set(st.id, a);
       setPlayerGlow(a.figure, [...this.s.players.values()], st.id);
@@ -395,8 +486,17 @@ export class CoopClient implements NetAttachment {
         t.setSolid(false);
       }
       this.blockers.push({ id: st.id, a, b: new PartnerBlocker(g.scene, st.id) });
+      this.relistMates();
     }
     return a;
+  }
+
+  /** (char-shadow-meter S2c) The contract's partner list: the other players in the host's lobby order (`s.players`),
+   *  self skipped, a held (away) partner skipped as the host's `hold` takes it out of `remoteRefs` (fix round 1), those
+   *  with an avatar (`mateOrderInto`). Not hot (a join, a drop, a lobby change). Nothing with the flag off. */
+  private relistMates(): void {
+    if (!this.g.charOccluders) return;
+    this.mates.set(mateOrderInto(this.s.players.values(), this.s.selfId, this.avatars, this.mateOrder));
   }
 
   /** (coop-rejoin) Our player slot: 1 + our place among the joiners in the host's lobby order (the host is slot 0). */
@@ -410,10 +510,11 @@ export class CoopClient implements NetAttachment {
     return 1;
   }
 
-  /** (coop-rejoin, walk item 4) Our start: our slot of the start area, clear of the host's slot 0 point. */
+  /** (coop-rejoin, walk item 4) Our start: our slot of the start area, clear of the host's slot 0 point. (mission-framework
+   *  NET3) Sector Ops: the start section of the host's mission (`start`'s `sm`), never our own `?mission=`'s. */
   private placeStart(): void {
     const g = this.g;
-    const pts = startSlotPoints(g);
+    const pts = startSlotPoints(g, undefined, this.s.sectorMission || null);
     const base = pts[0];
     if (!base) return;
     const out: SlotPoint = { x: 0, y: 0, z: 0, yaw: 0 };
@@ -446,6 +547,7 @@ export class CoopClient implements NetAttachment {
       this.blockers[i]!.b.dispose();
       this.blockers.splice(i, 1);
     }
+    this.relistMates();
   }
 
   private onSnap(m: Extract<Msg, { t: 'snap' }>): void {
@@ -479,7 +581,8 @@ export class CoopClient implements NetAttachment {
         // he still has intel is the host's `in` flag (stealth-pays client intel, below)
         np.spawnInfo = infoAtSpawn(g.world.layout.course?.squads, e.x, e.z);
         // the kind of our own takedown (its 'start' event) goes with the result: the host ticks the course verb (A23)
-        np.onTakedown = (ph, lethal) => this.s.toHost(ph === 'done' && this.tdKind ? { t: 'td', target: np.id, ph, lethal, kind: this.tdKind } : { t: 'td', target: np.id, ph, lethal });
+        // (piano-knife S3) with our knife switch on every phase says `knife` (the host's gate in the piano scene)
+        np.onTakedown = (ph, lethal) => this.s.toHost(tdOut(np.id, ph, lethal, g.takedown.knife, this.tdKind));
         this.puppets.set(e.id, np);
         p = np;
       }
@@ -513,7 +616,9 @@ export class CoopClient implements NetAttachment {
     }
     this.gotSnap = true;
     this.sinceSnap = 0;
-    const obj = objectiveOnSnap(this.obj, m.obj);
+    // (mission-rules R6) while a mission mirror runs the line is our own current step (our team's, A9), not the host's
+    this.hostObj = m.obj;
+    const obj = objectiveOnSnap(this.obj, this.missionObj());
     if (obj !== null) this.showLine(obj);
     if (m.info !== this.info) {
       this.info = m.info;
@@ -919,6 +1024,8 @@ export class CoopClient implements NetAttachment {
         break;
       case 'revive':
         if (e.player !== me) break;
+        // (marlow-play C4) a station retry / restart ends a rope climb / hang-down / hold (as `back` does)
+        g.team.end(true);
         g.player.controller.override = null;
         g.traversal.reset();
         // (strike-pops, n4d polish 1) a bay or section restart brings an alive partner back too: no strike or kill
@@ -979,6 +1086,29 @@ export class CoopClient implements NetAttachment {
    */
   private onSector(msg: Extract<Msg, { t: 'sector' }>): void {
     const ct = this.sec;
+    // (mission NET) the host's mission state on our runner (never evaluated here); a late joiner's first one with breaks
+    // shows the last rule line (a live client had it as the host's radio line)
+    if (msg.ms) {
+      // (wharf e2e fix) with the live section (`ls`, else our devices' one): the mirrored runner opens its steps
+      const ls = msg.ls ?? ct?.liveSection ?? -1;
+      const line = this.mission.take(this.g.world.map.missions, msg.ms, this.g.world.map.sectors?.[ls]?.id);
+      if (line) this.g.hud.feedItem(line);
+      const mr = this.mission.runner;
+      if (mr) {
+        this.viewerStale = true;
+        // (mission-rules R6) the host's live section is our runner's section, so its steps open here too (the mirror
+        // only applies done and fact bits; without a section no step is ever open on this page). (R6 polish) Two short
+        // connector windows follow from it: for ~1.5 s after the host unloads a section `ls` is -1, so no step is open
+        // and the line is the host's (its exit line); from the next section's load until its far door opens we are
+        // already on that section's first step, while still inside the sealed connector.
+        const sid = msg.ls !== undefined && msg.ls >= 0 ? this.g.world.map.sectors?.[msg.ls]?.id : undefined;
+        const si = sid === undefined ? -1 : mr.sectionIndex(sid);
+        if (si !== mr.section) {
+          mr.snapshot(si);
+          mr.version++;
+        }
+      }
+    }
     // (section-rating fix) the rating first: a top-up in the same message as a new `ls` goes into that checkpoint loadout
     if (!this.sawSector) {
       // (integration) a late join / rejoin: a rating already on the wire was shown and granted before we came; it
@@ -1011,6 +1141,8 @@ export class CoopClient implements NetAttachment {
       if (msg.dn) ct.applyDestroyed(msg.dn);
       if (msg.sec) ct.apply(msg.sec);
     }
+    // (piano-escape S4) the host's EMP press: our intro ends, the lightning's t0 and the music switch (once)
+    if (msg.ep !== undefined) this.piano?.hostEmp(msg.ep);
     if (msg.lk) {
       const doors = this.g.world.doors;
       for (const d of doors.list) {
@@ -1071,6 +1203,12 @@ export class CoopClient implements NetAttachment {
 
   private onEndMsg(raw: EndStats): void {
     this.ended = true;
+    // (piano-escape S4) a scene: no results screen; our page fades with the host's (2 s, the piano with it), then the
+    // host takes both pages back to the room's lobby (the session's `lobby`)
+    if (this.piano) {
+      this.piano.finish();
+      return;
+    }
     const end = clampEnd(raw, this.time);
     // (sector-ops step 3, M7) a completed op fills this player's star too (no best time: the host keeps the clock)
     if (this.g.opts.mode === 'sector' && end.won && !this.practice) void markCompleted(this.g.world.map.id, this.g.opts.difficulty ?? 'normal', 0);
@@ -1093,6 +1231,8 @@ export class CoopClient implements NetAttachment {
 
   fixedUpdate(dt: number): void {
     this.time += dt;
+    // (piano-escape S4) the scene's prompt (our press to the host) and the cut on our own clock
+    this.piano?.step(dt, true);
     this.sendT -= dt;
     // (coop-fix) snapshots stopped (a stalled or gone host): say so on the net-status line until the next one
     this.sinceSnap += dt;
@@ -1158,6 +1298,13 @@ export class CoopClient implements NetAttachment {
     if (this.inCourse) clientCourseFrame(this.g, dt);
     this.sec?.frame(dt);
     this.card?.update(dt);
+    // (mission-rules R6, HG7) the mirrored mission's current step on our objective line, written only when it changes
+    const mr = this.missionRunning();
+    if (this.missionFeed.update(mr, mr ? this.viewer() : 'all', this.g.app.settings.get().gameplay.hints)) {
+      const obj = this.missionObj();
+      if (this.gotSnap && obj !== this.obj) this.showLine(obj);
+      this.g.hud.setObjectiveHint(this.missionFeed.hint);
+    }
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
     // (G7 fix) the partner holding one of the host's guards: his puppet posed from the partner's MoveState (hostage,
@@ -1173,6 +1320,19 @@ export class CoopClient implements NetAttachment {
     }
     if (this.heldPuppet && this.heldPuppet !== held) this.heldPuppet.remoteHeld(-1, 0);
     this.heldPuppet = held;
+    // (piano-knife S3) the partner's knife kill: its guard's root, clip and hands off the partner as drawn here (one
+    // partner: the first); a puppet it no longer holds is let go
+    let kp: EnemyPuppet | null = null;
+    for (const a of this.avatars.values()) {
+      if (!a.knife.posesVictim) continue;
+      const p = this.puppets.get(a.knife.tid);
+      if (!p || !p.alive || p.taken) continue;
+      a.knife.victim(a.rig, p.bodyRig, p);
+      kp = p;
+      break;
+    }
+    if (this.knifePuppet && this.knifePuppet !== kp && this.knifePuppet.alive && !this.knifePuppet.taken) this.knifePuppet.knifeVictim(null, 0, 0);
+    this.knifePuppet = kp;
     for (const tg of this.targets.values()) tg.sync();
     for (let i = 0; i < this.blockers.length; i++) {
       const e = this.blockers[i]!;
@@ -1341,9 +1501,42 @@ export class CoopClient implements NetAttachment {
     for (const p of this.puppetList) if (p.alive) b.add(p.pos.x, p.pos.y, p.pos.z, 0.4 * p.def.scale);
   }
 
-  /** (hud-guidance B4, G343 / HG8) Field Terminal > Objectives in Sector Ops: the host's rows as this client mirrors
-   *  them; null elsewhere or before the host's first section number (GameState then shows its own line). */
+  /** (mission-rules R6) The mirrored mission while it runs in the host's live section (not finished); null otherwise. */
+  private missionRunning(): MissionRunner | null {
+    const mr = this.mission.runner;
+    return mr && !mr.finished && mr.section >= 0 ? mr : null;
+  }
+
+  /** (mission-rules R6, A9) Our team in the mirrored mission: read again once per `sector` message, not per frame. */
+  private viewer(): TeamId {
+    const mr = this.mission.runner;
+    if (this.viewerStale && mr) {
+      this.missionViewer = missionViewerTeam(mr.def, this.slot(), this.s.players.size);
+      this.viewerStale = false;
+    }
+    return this.missionViewer;
+  }
+
+  /**
+   * (mission-rules R6) Our objective line: our current mission step, else (none, or no mission) the host's line. (R6
+   * polish, J7-PLAN section 7 item 1) While the host's line is that same step with its download percent ("<step> NN%"),
+   * the host's line, so the percent shows here too.
+   */
+  private missionObj(): string {
+    const step = this.missionRunning() ? this.missionFeed.text : '';
+    if (!step) return this.hostObj;
+    return stepWithPercent(this.hostObj, step) ? this.hostObj : step;
+  }
+
+  /**
+   * (mission-rules R6, HG8) Field Terminal > Objectives while the host's mission is mirrored here: its rules line and
+   * steps for our team, never the sector rows. (hud-guidance B4, G343 / HG8) Otherwise in Sector Ops the host's rows as
+   * this client mirrors them; null elsewhere or before the host's first section number (GameState then shows its own
+   * line).
+   */
   objectiveLines(): ObjectiveLine[] | null {
+    const mr = this.mission.runner;
+    if (mr) return missionObjectiveLines(mr, this.viewer(), this.g.app.settings.get().gameplay.hints);
     return this.list?.lines() ?? null;
   }
 
@@ -1360,6 +1553,7 @@ export class CoopClient implements NetAttachment {
     this.torches.clear();
     this.helmetDrops?.clear();
     this.puppets.clear();
+    this.knifePuppet = null;
     this.puppetList = [];
     this.dying.length = 0;
     this.kept.clear();

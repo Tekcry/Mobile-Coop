@@ -88,6 +88,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   EMP and shots move the base, the jam only its flicker; at the end of the jam the lamp takes its base as it is then (a
   group switched off or EMPed during the jam stays off). `baseOn` / `groupBaseOn` leave the jam out: the course's mains
   gates read them, so a jam never counts as the group switched off.
+- (piano SO1) `LightRegistry.mainsOff(x, y, z, over = 0.8)`: the mains cut for good. Every electric light (not shot) goes
+  dark nearest first, the farthest at `over` s (the per-step `update` runs the ripple, no allocation); torches and
+  `window` lights stay. No switch, jam end, EMP outage end, `restore` or `resetTo` (a section restart) turns one back on,
+  and `breaker.ts` `darkState` reads it as `DARK_NONE` (no reset walk). The client gets it in the `lamps` snapshot.
 - Gameplay reads only the field: `GameState.updateLight` (10 Hz, the local player and, on the host, every remote player's
   `PlayerRef.light`), `Enemy.perceive`, body light (`EnemyManager`, 1 Hz), `Enemy.torchWanted`.
 - (guard-ai S15) Guards turn circuits back on: a guard who resets a breaker calls `StealthSystems.resetCircuit`, the
@@ -167,7 +171,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 
 ## Per-section lamp bake (section-bake; Saltmarsh Park only)
 Decided, not built yet (G405): the campus lamp bakes ship pre-built with the game instead of baking on the player's PC
-(the map-ready job; `docs/systems/performance.md` "Near-instant loads").
+(the map-ready job; `docs/systems/performance.md` "Near-instant loads"). The pre-built maps are
+`world/shippedBake.ts` `SHIPPED_BAKE_MAPS` (campusOps, thornbeckMill; piano SO2): `scripts/prebake.mjs` bakes each into
+its own `.prebake-cache/<h>/` folder and the game reads `bakes/<map>.json` for each; a map with no section split ships
+one file.
 Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; build report
 `docs/sector-redesign/checks/section-bake-build.md`.
 - Opt-in by map id (`world/sectionBake.ts` `SECTION_BAKE_MAPS`: campusOps; regions in `world/maps/campusBake.ts`, per
@@ -268,7 +275,9 @@ capsules.
   character holding the source, within r + 0.6 m of its axis, skipped, A5; a lamp under `CHAR_LIGHT.minLevel` 0.04 not
   shaded). `capsuleTransmit` is the shaders' `lampCapsule` line for line (`LAMP_CAPSULE_GLSL` is built from the same
   `CAPSULE` numbers). "Every preset darkens a character's shadow on you from the same lamps by the same amount; higher
-  presets draw the real outline from the nearest lamps, the others draw soft round shadows."
+  presets draw the real outline from the nearest lamps, the others draw soft round shadows." A carried body is one
+  capsule on its carrier's shoulder (`fillOperator`, Player J16), owned by the carrier's key, so his own meter skips
+  it; on a co-op page it appears when that page's carry shows the body lifted.
 
   | Preset | Picture under a character | Meter |
   | --- | --- | --- |
@@ -284,10 +293,8 @@ capsules.
   in the meter while the picture still shades it; at Shadows Off the picture draws no moon character shadow while the
   meter counts it (A6).
 - Co-op: each machine uses its own setting and its own nearest lamps; no wire change. With the flag on a client's own
-  meter reads snapshot guard positions, so a shadow edge can lead or trail the host's by up to ~0.3 s (A7). Known
-  limit until slice S2c (must-fix before switch-on): a client's contract holds only its own player, so its meter and
-  round shadows ignore its partners' shadows, while the host's sample of that client, which the guards read, counts
-  them.
+  meter reads snapshot guard positions, so a shadow edge can lead or trail the host's by up to ~0.3 s (A7). A client
+  fills its partners from its own sim view of them (`net/charMates.ts`), in the host's player order.
 - Tests: `tests/charShadowSet.test.ts`, `tests/charOccluders.test.ts`, `tests/charOccluderFill.test.ts`;
   `scripts/e2e-lightbake.mjs` (smooth Epic: on, 4 slots, `LAMP_CSHADOW`
   compiled, maps copied, every shader <= 16 textures with the guards alerted).
@@ -392,3 +399,4 @@ change.
   frame; benchmark lines end with the run's summary, `feedbackContext().spikes`.
 - Tests: `tests/darkCurve.test.ts`, `tests/lampBake.test.ts`, `tests/nightVision.test.ts`, `tests/benchmark.test.ts`;
   `scripts/e2e-darkness.mjs` (GPU list: `npm run e2e:gpu` on Michael's PC), `scripts/e2e-lightbake.mjs`.
+- (guard-models) Guard materials are frozen (`guardFigure.ts:136`, like the S1 skin material): a frozen material binds its lights once per material per pass, so every guard must share one light set. A per-mesh light list (`includedOnlyMeshes`, `requireLightSorting`) would silently mis-light every guard but the first drawn.

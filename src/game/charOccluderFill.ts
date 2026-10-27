@@ -5,6 +5,7 @@
  * contract), the picture's round shadows (`pictureInto`, the `BakedLamps.capsules` hook) and Guard AI's shadow cues
  * read the same capsules (G352, bible P1). Guard AI's `fillOccluders` and Player's `fillOperator` replace these fills
  * later (PLAN section 6).
+ * (player-j16) `fillOperator` adds a carried body: one capsule on its carrier's shoulder, owned by the carrier's key.
  *
  * Pure: no Babylon, no rig, no `src/net` (single player never imports it), no `PlayerRef` / `Enemy` import. Hot: the
  * fills run every sim step and `pictureInto` every render frame, so nothing allocates after module load and no double
@@ -14,6 +15,8 @@
  */
 import { hyp2 } from '../core/mathx';
 import { OCC, OCC_KIND, occKey, type CharOccluders } from '../world/charOccluders';
+import { posedHeadSample } from '../player/wallController';
+import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
 
 /** The interim fill (BRIEF A10): today's `rtCapsule` numbers (gameState.ts `rtCapsule`: radius, the foot lift, the top
  *  below the head, the shortest top), the guard cull (m, horizontal, from any player), player slots (MAX_PLAYERS 4,
@@ -27,6 +30,49 @@ export interface VictimLike {
   readonly alive: boolean;
   readonly pos: { readonly x: number; readonly y: number; readonly z: number };
   readonly def: { readonly height: number };
+}
+
+/** A read-only point. */
+type V3 = { readonly x: number; readonly y: number; readonly z: number };
+
+/**
+ * (char-shadow-meter S2c) A player slot's sim inputs: the host's `PlayerRef` (`RemotePlayer.ref`) fits it structurally,
+ * and so does a co-op client's partner entry (`net/charMates.ts`). Feet, crouched, the body's standing height (absent:
+ * `STANDARD_BODY`), the peek offset, and on a wall the sim body's head (null or absent: the upright sample).
+ */
+export interface MateLike {
+  readonly feet: V3;
+  readonly crouched: boolean;
+  readonly height?: number;
+  readonly peekX?: number;
+  readonly peekZ?: number;
+  readonly head?: V3 | null;
+}
+
+/** `slotInto`'s `posedHeadSample` scratch. */
+const HEAD = { ox: 0, oz: 0, h: 0 };
+
+/**
+ * (char-shadow-meter S2c) One player slot's `pin` inputs (`FILL_IN` doubles at `s * FILL_IN`): feet; on a wall the sim
+ * body's head (`posedHeadSample`: height and offset), else the meter's sample height for the body and stance with the
+ * peek offset. The host's remote slots and a client's partner slots share it. No allocation.
+ */
+export function slotInto(pin: Float64Array, s: number, r: MateLike): void {
+  const o = s * FILL_IN;
+  pin[o] = r.feet.x;
+  pin[o + 1] = r.feet.y;
+  pin[o + 2] = r.feet.z;
+  const rh = r.head;
+  if (rh) {
+    const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, HEAD);
+    pin[o + 3] = hs.h;
+    pin[o + 4] = hs.ox;
+    pin[o + 5] = hs.oz;
+  } else {
+    pin[o + 3] = lightSampleHeight(r.height ?? STANDARD_BODY, r.crouched ? 1 : 0);
+    pin[o + 4] = r.peekX ?? 0;
+    pin[o + 5] = r.peekZ ?? 0;
+  }
 }
 
 /** One capsule's input for `put`: ax ay az bx by bz r. */
@@ -98,6 +144,46 @@ export function fillVictims(occ: CharOccluders, vs: readonly VictimLike[], pin: 
     S[5] = p.z;
     S[6] = FILL.r;
     if (put(occ, OCC_KIND.guard, i) < 0) over++;
+  }
+  return over;
+}
+
+/** (player-j16) The carried body on a carrier's shoulder, one capsule along its torso hanging down his back (CT carry:
+ *  hips on the shoulder, torso down the back, legs down the front inside his own capsule). Fractions / metres:
+ *  the hips' height as a share of the slot's sample height h (crouch lowers it with h), the shoulder's offset to the
+ *  load side, the torso's drop and its lean back, the lowest end over the feet, the radius. */
+export const LOAD = { hip: 0.88, side: 0.14, hang: 0.65, back: 0.25, low: 0.25, r: 0.17 } as const;
+/** `lin` stride per player slot: side (0 no load, 1 right shoulder, -1 left), the carrier's yaw (rad, 0 = +Z). */
+export const LOAD_IN = 2;
+
+/** (player-j16) After `fillPlayers` and the guard fill: per slot s < n with `lin[s*LOAD_IN] !== 0` and `keys[s] >= 0`,
+ *  one capsule written through `put(occ, OCC_KIND.player, s)` (kind player, owner `keys[s]`: the carrier's own key).
+ *  With f = (sin yaw, 0, cos yaw) his forward and rt = (cos yaw, 0, -sin yaw) his right: a (the hips) = feet + rt x
+ *  side x `LOAD.side`, h x `LOAD.hip` up; b (the head end) = a - f x `LOAD.back`, at max(a.y - `LOAD.hang`, y +
+ *  `LOAD.low`); r `LOAD.r`. The peek offset is ignored. Returns how many did not fit. No allocation. */
+export function fillOperator(occ: CharOccluders, pin: Float64Array, lin: Float64Array, n: number, keys: Int32Array): number {
+  let over = 0;
+  for (let s = 0; s < n; s++) {
+    const side = lin[s * LOAD_IN]!;
+    if (side === 0 || keys[s]! < 0) continue;
+    const yaw = lin[s * LOAD_IN + 1]!;
+    const o = s * FILL_IN;
+    const y = pin[o + 1]!;
+    const sn = Math.sin(yaw);
+    const cs = Math.cos(yaw);
+    const ax = pin[o]! + cs * side * LOAD.side;
+    const ay = y + pin[o + 3]! * LOAD.hip;
+    const az = pin[o + 2]! - sn * side * LOAD.side;
+    const by = ay - LOAD.hang;
+    const low = y + LOAD.low;
+    S[0] = ax;
+    S[1] = ay;
+    S[2] = az;
+    S[3] = ax - sn * LOAD.back;
+    S[4] = by > low ? by : low;
+    S[5] = az - cs * LOAD.back;
+    S[6] = LOAD.r;
+    if (put(occ, OCC_KIND.player, s) < 0) over++;
   }
   return over;
 }

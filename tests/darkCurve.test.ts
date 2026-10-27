@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bandOf, BODY_FILL, bodyFillScale, BRIGHTNESS_MAX, BRIGHTNESS_MIN, CALIBRATION_GREY, calibrationGrey, DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, DARK_TARGETS, darkCurve, darkWeight, LEVEL_TO_RENDER, VISION_FLOOR, VISION_GAIN, VISION_TARGETS, visionAmount, visionDark } from '../src/world/darkCurve';
+import { bandOf, BODY_FILL, bodyFillScale, DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, DARK_TARGETS, darkCurve, darkWeight, LEVEL_TO_RENDER, VISION_FLOOR, VISION_GAIN, VISION_TARGETS, visionAmount, visionDark } from '../src/world/darkCurve';
 import { LIGHT } from '../src/world/lights';
 import { LAMP_LEVEL_GAIN, LIGHT_GAIN } from '../src/world/lampMath';
 
@@ -113,15 +113,5 @@ describe('the darkness curve (3.6 Step 4b, bible L5 / L7)', () => {
     expect(DARK_GLSL).toContain('g * nsDarkW(max(s, 1e-4) * g, p)');
     expect(LEVEL_TO_RENDER).toBeCloseTo(LIGHT_GAIN / LAMP_LEVEL_GAIN, 12);
   });
-
-  it('brightness calibration is clamped to a small range', () => {
-    expect(BRIGHTNESS_MIN).toBeLessThan(1);
-    expect(BRIGHTNESS_MAX).toBeGreaterThan(1);
-    // (the dark band's measured top - 6.7% on Epic, 4.3% on standard materials at 0.27 - stays under 9% at the maximum)
-    expect(0.067 * BRIGHTNESS_MAX).toBeLessThanOrEqual(0.09);
-    expect(calibrationGrey(1)).toBe(Math.round(255 * CALIBRATION_GREY));
-    expect(calibrationGrey(9)).toBe(calibrationGrey(BRIGHTNESS_MAX));
-    expect(calibrationGrey(0)).toBe(calibrationGrey(BRIGHTNESS_MIN));
-    expect(calibrationGrey(BRIGHTNESS_MAX)).toBeGreaterThan(calibrationGrey(BRIGHTNESS_MIN));
-  });
+  // (brightness-range) the brightness slider's tests moved to tests/displayBrightness.test.ts
 });

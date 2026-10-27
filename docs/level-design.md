@@ -45,8 +45,10 @@ before Mission 1 (G371).
 - One linear route: side routes are closed and every section is forced (G388). The later sections, those after every
   move of the co-op kit has been taught on its own (6.1), teach split paths and multiple objectives (G292, G363), and
   only there may a side route stay, for training against enemies, built to the campaign's rules for a mission area
-  (G388): such a section follows the campaign route rules (3.2, 3.3, 11.2); outside it they do not bind. The gate reach
-  and no-softlock parts of 11.6 and the forced gate (11.10) do not bind: each exercise teaches its move in place.
+  (G388): such a section follows the campaign route rules (3.2, 3.3, 11.2); outside it they do not bind. The last
+  section that teaches a kit move on its own is the graph's `meta.taught_by` (graph-schema), which the validator uses
+  for the forced-section and side-route checks (G363, G388). The gate reach and no-softlock parts of 11.6 and the
+  forced gate (11.10) do not bind: each exercise teaches its move in place.
 - Guidance: its guidance marks (the screen-edge next-drill pointer included, G383) and the always-on objective list,
   which updates per area; no explainer pads (G277, G292); no maps, minimap, compass or blip (6.4).
 - Strict rules: none, and no fail or send-back anywhere: every failure is a retry (G370; 9.3).
@@ -548,22 +550,25 @@ Wharf walk.
    runs it as an audit; the campus (Sector Ops) is its first run.
 3. **Build** (one storey or area per phase, no guards): geometry, anchors, lights, zones, surfaces, doors, windows, hide
    spots; `scripts/plan-svg.mjs` renders the built level to compare with the approved plans.
-   **Greybox exit gate**: (1) a measured validator pass (V6, open: the measuring step and the validator's
-   `--require-measured` flag; the plan until V6 lands is `docs/archive/level-validator/V6-PLAN.md`; G289 (2), "Yes,
-   require it"; until V6 lands the greybox exit waits for it); (2) bot route-runs: a scripted run walks every declared
+   **Greybox exit gate**: (1) a measured validator pass: `node scripts/level-measure.mjs <graph files> --write`, then
+   `node scripts/level-validate.mjs --require-measured <graph files>` with 0 errors (graph-schema "Schema additions";
+   G289 (2), "Yes, require it"); (2) bot route-runs: a scripted run walks every declared
    route (shadow, high, loud) against live guards, logging time, detections and dead stops (the route-runs job, Marlow
-   Build; G330, "Bot route-runs + your walk"); a run passes when the bot never gets stuck, and its detections go on the
-   walk card (G372); (3) a 10-minute walk card for Michael.
+   Build; G330, "Bot route-runs + your walk"). A map passes its route-runs when no run has a dead stop; the times the
+   robots were seen go on the walk card (G372; Michael, 2026-10-25 ~16:40, Q7, "Never stuck"). What a dead stop is:
+   `docs/systems/testing-tools.md` "Route-runs". (3) A 10-minute walk card for Michael.
 4. **Guards and mission**.
 5. **Dressing, readability and verification**.
 
 ## 15. Acceptance tests every map has [All]
 - The map's connectivity graph passes the validator (`node scripts/level-validate.mjs`, 0 errors, warnings justified)
   and matches the built map. (G284.)
-- Greybox measurements meet the graph's targets: light band (5.5), vantage view (3.1), line-of-sight break (3.4),
-  downed-partner reach (11.6) and split leg times (11.3), measured from the light bake and the nav grid; a measured
-  value that misses its target fails the map. (V6, not live yet: until it lands these are declared targets only.)
-- Every declared route passes its bot route-run (14).
+- Greybox measurements meet the graph's targets: vantage view (3.1), line-of-sight break (3.4), downed-partner reach
+  (11.6) and split leg times (11.3), measured from the light bake and the nav grid by `scripts/level-measure.mjs` and
+  checked under `--require-measured` (14); the shadow share is information only (G329). The light band (5.5) is
+  measured when the lux band check lands (light-realism J10). A measured value that misses its target fails the map.
+- A map passes its route-runs when no run has a dead stop (14); what a dead stop is: `docs/systems/testing-tools.md`
+  "Route-runs".
 - Every planned traversal element engages from its planned approach (pad).
 - `e2e-anchors.mjs` covers the map.
 - The split gaps on the map are exactly the planned ones.
@@ -711,17 +716,19 @@ Before any map leaves Phase 1 or Phase 2 (14), answer each with "none" or a list
 
 ## Rule index
 Metrics keys are in `docs/design/metrics.json` (`rules.*` unless marked `sizes.`); checks are in
-`scripts/level-validate.mjs`, their severities in `docs/level-validator/graph-schema.md`. "Design doc" = checked by
-review, not by the validator. Owner = the job that keeps the rule's number or check current. The index lists the
-checked and owned rules; a rule not listed here still binds as tagged. For the G157 rules, "check later" marks one a
-validator or e2e check could test once added; "review only" marks one only a reviewer or a playtest can judge.
+`scripts/level-validate.mjs` and `scripts/level-checks/`, their severities in `docs/level-validator/graph-schema.md`.
+"Design doc" = checked by review, not by the validator. Owner = the job that keeps the rule's number or check current.
+The index lists the checked and owned rules; a rule not listed here still binds as tagged. For the G157 rules, "check
+later" marks one a validator or e2e check could test once added; "review only" marks one only a reviewer or a playtest
+can judge.
 
 | Rule | Modes | Metrics key | Validator check | Owner |
 | --- | --- | --- | --- | --- |
-| 3.1 Entry vantage; room for two | All; room for two: Campaign | `vantage_min_frac` | `checkEncounters` (+ V6 measured, not live); room for two: design doc (space sheets), check later | level validator (Marlow Build) |
+| Training profile: one route, forced sections | Training | - | `checkTraining` (`taught_by`, teach elements, side routes) | level validator |
+| 3.1 Entry vantage; room for two | All; room for two: Campaign | `vantage_min_frac` | `checkEncounters`, `checkMeasured` (vantage); room for two: design doc (space sheets), check later | level validator (Marlow Build) |
 | 3.2 Three routes plus a secret | Campaign, SectorOps | - | `checkEncounters` (approaches, secret share) | level validator |
 | 3.3 Routes cross | Campaign, SectorOps | - | `checkEncounters` (routes cross) | level validator |
-| 3.4 Loops, LOS break | All | `los_break_max_s`, `dead_end_max_m` | `checkEncounters` (dead ends, LOS target) | level validator |
+| 3.4 Loops, LOS break | All | `los_break_max_s`, `dead_end_max_m` | `checkEncounters` (dead ends, LOS target), `checkMeasured` (LOS break) | level validator |
 | 3.5 Stepping stones | All | scale sheet 5 | design doc (space sheets) | map job |
 | 3.6 Lookouts on high routes | Campaign, SectorOps | - | design doc (guard sheets) | Guard AI |
 | 3.9 Checkpoints | All | - | design doc (checkpoint plan) | map job |
@@ -733,28 +740,29 @@ validator or e2e check could test once added; "review only" marks one only a rev
 | 4.11 Security devices, real placement, weak-spot reasons | All; site summary: Campaign, SectorOps | - | design doc (security register, site security summary), review only | map job |
 | 4.12 Unavoidable guards | SectorOps | - | `checkEncounters` (unavoidable) | level validator |
 | 5.2 Lit chokepoints | All; hardened: Campaign, SectorOps | - | design doc (space sheets) | map job |
-| 5.5 Real light levels | All | scale sheet 9 (light-realism); `shadow_min_frac`, `shadow_max_frac` (INFO) | `checkEncounters` (shadow INFO), V6 (not live) | light-realism (Sector Ops Build) |
+| 5.5 Real light levels | All | scale sheet 9 (light-realism); `shadow_min_frac`, `shadow_max_frac` (INFO) | `checkEncounters` (shadow INFO), `checkMeasured` (shadow INFO); the light band: when the lux band check lands | light-realism (Sector Ops Build) |
 | 5.6 Readable machines, lit windows, weather | All | - | design doc (light and sound plans), review only | map job |
 | 6.1 Finale seen early | Campaign | - | design doc (beat chart), review only | map job |
 | 6.2 Tension and release; minute targets | All; minutes: Campaign | - | `checkPacing`; minutes: design doc (beat chart), playtest, check later (from link times) | level validator |
 | 6.3 Soft windows only; Marlow timed drills | Campaign, SectorOps; Training | - | `checkStructure` (`drill_s`); design doc (objective plan) | mission framework |
-| 6.4 Guidance; two-minute test | All (Training keeps marks); two-minute test: Campaign, SectorOps | - | design doc (objective and lead plan); two-minute test: playtest, review only | mission framework |
-| 7.3 Play styles | All | - | design doc | map job |
+| 6.4 Guidance; two-minute test | All (Training keeps marks); two-minute test: Campaign, SectorOps | - | `checkPerfect` (`mark`: ERR, INFO on Training); design doc (objective and lead plan); two-minute test: playtest, review only | mission framework |
+| 7.3 Play styles | All | - | `checkPerfect` (ghost and no-kill paths); design doc | map job |
 | 8.4 Harmless noises | All | - | design doc (sound plan), playtest, review only | map job |
 | 9.3 Strict rules | All | - | design doc (objective plan) | mission framework |
 | 9.4 Downed | All | - | design doc (checkpoint plan) | mission framework |
 | 11.1 Player counts | All | - | `checkStructure`, `checkReach` | level validator |
 | 11.2 Spine; two routes per section | All; Campaign, SectorOps | - | `checkSpine`; `checkRedundancy` | level validator |
-| 11.3 Splits | All | `split_max_s`, `split_parity_pct`, `split_speed_mps` | `checkCoop` (splits) | level validator |
+| 11.3 Splits | All | `split_max_s`, `split_parity_pct`, `split_speed_mps` | `checkCoop` (splits), `checkMeasured` (legs, reach) | level validator |
 | 11.4 Assist | All | - | `checkCoop` (assist) | level validator |
 | 11.5 Overwatch | All | - | `checkCoop` (overwatch) | level validator |
-| 11.6 Downed partner | All; Campaign gate reach; SectorOps no softlock | `reach_max_s`, `reach_speed_mps` | `checkCoop` (reach), `checkReach` | level validator |
+| 11.6 Downed partner | All; Campaign gate reach; SectorOps no softlock | `reach_max_s`, `reach_speed_mps` | `checkCoop` (reach), `checkReach`, `checkMeasured` (way backs) | level validator |
 | 11.7 Room for two | All | `shared_min_w_m`, `sizes.corridor_w` | `checkCoop`, `checkDimensions` | level validator |
 | 11.8 Co-op reach | All | `sizes.coop_lip` | `checkDimensions`, co-op lip unit test | level validator, map job |
-| 11.9 Co-op kit, coverage | All (coverage: Campaign, SectorOps, G392) | `sizes.pull_lip`, `sizes.hang_lip`, `sizes.rope_span`, `sizes.throw_gap_max`, `sizes.shutter_gap_h` | `checkCoop` (coverage, solo twins), `checkDimensions` (kit bands) | level validator, co-op moves (Player Build) |
+| 11.9 Co-op kit, coverage | All (coverage: Campaign, SectorOps, G392) | `sizes.pull_lip`, `sizes.hang_lip`, `sizes.rope_span`, `sizes.throw_gap_max`, `sizes.throw_long`, `sizes.shutter_gap_h` | `checkCoop` (coverage, solo twins), `checkDimensions` (kit bands; `team_throw` `exception`) | level validator, co-op moves (Player Build) |
 | 11.10 Forced co-op gate | Campaign | - | `checkRedundancy` (forced gate) | level validator |
 | 11.11 Teamwork minimums | Campaign | - | design doc (co-op plan), check later (kit kinds per mission, a joint action at each merge) | level validator, map job |
-| 14 Greybox exit | All | - | V6 `--require-measured` (not live), route-runs | level validator, route-runs (Marlow Build) |
+| 12.1 Nav floor | All | `nav_floor_depth_m` | `checkEngine` | level validator |
+| 14 Greybox exit | All | - | `level-measure --write` + `level-validate --require-measured`, route-runs | level validator, route-runs (Marlow Build) |
 | 15 Two-player tests (unseen pair, revive per team-move surface, beacons) | Campaign; beacons: Campaign, SectorOps | - | e2e and playtest, check later | map job |
 | 16 Level logic | All | scale sheet 3, 7 | `checkDimensions`; review checklist 16.10; two staircases per multi-storey building (16.2.7): check later | map job |
 

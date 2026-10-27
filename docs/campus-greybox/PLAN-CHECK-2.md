@@ -33,10 +33,10 @@ Verdict: FIX
 - A13 vs J12's drift test: the v2 path is right while dark. `tests/levelMeasureCampus.test.ts`
   (`origin/feature/level-validator-v6e2`) reads only `graph/campusOps-S<N>.json` (:37) and builds the campus with
   default flags (:48-53), so a v2 graph under `graph/v2/` is never read and the live graphs stay J12's.
-- A26: ok. sector-marks PLAN "Risks" (`origin/feature/sector-marks` `docs/sector-marks/PLAN.md:89-95`) names the same
+- A26: ok. sector-marks PLAN "Risks" (`origin/feature/sector-marks` `docs/archive/sector-marks/PLAN.md:89-95`) names the same
   carry; `campusV2/s4Dress.ts:177` holds the `Math.hypot` it names; the four labels sit at `campusS1Data.ts:90`,
   `campusS3Data.ts:159`, `campusS4Data.ts:182`, `campusS5Data.ts:171` on this branch.
-- A27: ok against guard-rules (`origin/feature/guard-rules` `docs/guard-rules/PLAN.md:35-40` "J17 order", :103-109 the
+- A27: ok against guard-rules (`origin/feature/guard-rules` `docs/archive/guard-rules/PLAN.md:35-40` "J17 order", :103-109 the
   S4 / S5 data, :251-254 S9). The S4 / S5 briefs carry it (`S4.md:418-421`, `S5.md:340-344`). One narrowing: Fix 4.
 
 ## Claims

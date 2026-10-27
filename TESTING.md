@@ -27,6 +27,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The main menu shows Sector Ops, Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
   `?legacy=1`). Sector Ops opens the op list (Saltmarsh Park and the old Warehouse op, four stars each), then its
   briefing: the sectors listed, Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
+- [ ] (sector-marks) Sector Ops: no green disc or glowing pole at any connector or at the extraction (host and co-op
+  client). Each Saltmarsh Park objective says what and where: S1 the gatehouse, S2 the facilities office, S3 the
+  prototype store, S4 the server cage, S5 the strongroom.
 - [ ] Sector Ops on Saltmarsh Park (`campusOps`): five sections, S1 gatehouse and car park, S2 HQ atrium, S3 labs, S4
   data hall, S5 Old House. Each objective unlocks the connector room's door; standing in the room shuts it behind you,
   the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when there
@@ -58,6 +61,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Section rating: clear a Sector Ops section unseen; as the connector shuts, a card shows four ticks and the
   rewards that land (none with a full kit and health; use a gadget first and it names the charges), then fades. Set off
   an alarm (panel or camera) in the next: No alarms is a cross. The results list one line per section.
+- [ ] (mission-rules) With `?missions=1`, Three Grey Coats on Tallow Wharf: knock Teale out before he talks and the section restarts with him back at his table (no break); kill him or question a decoy and the rule breaks, he moves to the clock-mender's back loft, and the section restarts.
+- [ ] (mission-rules) With `?missions=1`, start Tallow Wharf Sector Ops alone: the Start button is blocked and the lobby says campaign missions need exactly two players. With the partner in, Start works. "Resume hosting" with the partner away waits in the lobby and starts on its own when they rejoin.
+- [ ] (mission-rules) With `?missions=1`, Tallow Wharf in a match: the objective line shows the current step on host and client, and changes once Teale moves. No mission list sits on screen. Field Terminal > Objectives lists the rule first, then the steps as done, current or to do.
+- [ ] (tallow-fixes) With `?missions=1` on Tallow Wharf (open it by URL): sections 1 and 3 read dark only under cover or with the power cut (or after a shot lamp); in section 2 climb the drainpipe from the walkway's west pier to the arcade roof, a second way up; the section 3 roof bulkhead door is bolted on Two-Key Ledger only (in Three Grey Coats it is a plain door).
 - [ ] Marlow Yard rating: clear A2 unseen with a gadget used; as its airlock seals a card shows four ticks and the
   charges. In A3 get seen, restart the set: the card at its exit ignores the sighting. Co-op: both screens show it.
 - [ ] (sector-fixes R) Co-op Sector Ops, each section: leg-up your partner onto a 4.4 m lip (section 1 the high door
@@ -71,6 +78,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   beside the host if that airlock is shut off), with A1-A2 done, the A3 doors as the host has them and the HUD on A3,
   never at the yard start. Same in Sector Ops in section 2 or 3.
 - [ ] (coop-carry) Co-op, two pages: the joiner knocks a guard out, walks to the body and picks it up (Pick up body): the 2 s lift, then it rides on the joiner's shoulder on both screens (the joiner bent, slow); the joiner hides it at a hiding spot (gone on both) or puts it down (a ragdoll on both, a guard nearby hears it). The host's own carry now shows on the joiner's screen too.
+- [ ] (coop-kit A1) Co-op, two pages with `?kitmoves=descent` (or /preview/): one player on a 2.2-6 m edge, standing facing the drop, presses Co-op (rope down); the other, standing beside them, sees "Co-op: rappel down the rope" and presses it: over the edge onto the rope, stick down to the bottom, stick held down steps off and the holder is free. Climbing back up tops out beside the holder. With `?kitmoves=0` no rappel offer; the climb from the bottom works as before.
 - [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
@@ -211,6 +219,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Alarm by radio (guard-ai S6, Sector Ops): get spotted and let the radio calls through: "Command, contact. Send
   backup.", ALARM STAGE about 6.5 s after the spotter saw you, and reinforcements run in hunting. Take the spotter down
   before his first radio line: no alarm, nobody comes.
+- [ ] Barks by cause (guard-rules S4): let a guard glimpse you at the edge of a light: he says a seeing line ("Thought
+  I saw something."); throw a bottle near another: he says a hearing line; neither ever says the other kind.
+- [ ] Lookouts (guard-rules S7 / S9, Sector Ops S5, `?lookouts=1`): throw a bottle near the roof marksman: he only
+  turns and edges within 1 m of his spot and someone else comes. Let him glimpse you lit: a startled line (e.g.
+  "Huh?"), then a radio line, and a calm guard nearby walks to where you stood while he stays put. A second glimpse
+  within 20 s: no second call.
+- [ ] Dog release (guard-rules S8, Sector Ops S4 / S5, `?dogrelease=1`): raise S4 to alarm stage 2: each free dog runs
+  to where you were last seen, searches, then goes back to its handler. A camera or laser alarm (no guard has seen
+  you): the dogs search round their handlers instead.
 - [ ] Squads and dogs (guard-ai S5b, Sector Ops): knock a guard out unseen and wait up to ~40 s: his squad's radio
   check misses him and two squad mates walk to where he went down and wake him. A dog stays with its handler; drop the
   handler and the dog stays by him and barks.
@@ -243,7 +260,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
   comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every
   round); a takedown drops either in one move.
-- [ ] Guard models (guard-models; add `?guardmodels=1` to the URL until G8 makes it the default; `?guardmodels=0` is the old body):
+- [ ] Guard models (guard-models; on by default; `?guardmodels=0` is the old body):
   - Variety: on a map with several guards (Sector Ops, Marlow Yard, the Warehouse) the guards are not clones: three
     builds (grunt, droneOp and officer average; runner and sniper lean; heavy and enforcer broad), different faces, skin
     tones, hair and hair colours, caps, beanies, a boonie on a sniper, a headset on the drone operator, a peaked cap on
@@ -261,8 +278,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   - Co-op, both screens: host and joiner see the same man in each place (face, hair, cap, outfit, vest, helmet), the
     helmet falls on both screens, and a restart keeps the looks on both.
   - First frame: at level start every guard shows as a figure on his first frame, no hitch the first time one comes
-    into view. The bake's guard files are bundled (`src/operators/assets/guards/`) but load only with `?guardmodels=1`;
-    without it nothing changes (the old body, no guard file fetched).
+    into view. The bake's guard files are bundled (`src/operators/assets/guards/`) and load on demand;
+    with `?guardmodels=0` nothing changes from before (the old body, no guard file fetched).
+  - G10a look fixes: the uniforms read as the faction colour (not near black), the lightest skin tone is not chalky, the
+    hair-cap hairline is smooth (no saw teeth), the heavy and enforcer show only their eyes through the balaclava (no
+    skin at the mouth or chin), no green dots on the faces.
 - [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
   they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
   to where his partner was headed.
@@ -436,6 +456,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   line says "motion-capture (CMU) walk clip"; turn a knee in Joints (walk) or move a foot in Hands & feet: the capture
   follows; Arm swing is greyed (hand-made only) and changes nothing on it, as in the game. Walking in a match: "Now
   playing: motion-capture (CMU) walk". On a ledge, Body > foot reach rows are greyed ("Does nothing in this move").
+- [ ] (mixamo-retarget I9) Anim Studio, Set "Mixamo": the batch 2 packs are listed ("Motion capture (Mixamo): rifle walk forward",
+  pistol, shooter, aa ...); each plays on Wren and moves with its tuner rows.
+- [ ] Animation source (mixamo-retarget Toggle): Settings > Gameplay > Animation source. CMU (default) is the game as
+  before; Hand-made: the walk / jog / run are the keyed clips (Now playing "hand-made ... (animation source: Hand-made)");
+  Mixamo: hang on a ledge and shimmy, then top out a ladder: the Mixamo captures ("motion-capture (Mixamo) hang").
+  Restart: the choice is kept. In the Anim Studio the same switch sits over the Loop list, with Set (All / Hand-made /
+  CMU / Mixamo) showing only that set's loops. `?anim=hand|cmu|mixamo` sets it for one page.
+- [ ] (F45) /preview/ with no pick yet: Settings > Gameplay > Animation source shows Mixamo and a ledge hang plays the
+  Mixamo capture; pick CMU, restart: CMU is kept. The live game with no pick: CMU.
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.

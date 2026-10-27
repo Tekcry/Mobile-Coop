@@ -16,6 +16,7 @@ import type { GameState } from './gameState';
 import { DOOR, type DoorState } from '../world/doors';
 import { G, MASK } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
+import { isShutterDevice, SHUTTER_NOTICE, shutterNoticedBy, shutterNoticePoint } from './kit/shutter';
 
 /** Noise radius (m): a bulb shot out (a body put down: `bodyCarry.ts` DROP_NOISE). */
 const SHOT_LIGHT_NOISE = 5;
@@ -28,6 +29,9 @@ const DOOR_NOTICE_RANGE = 9;
 const DOOR_NOTICE_COS = 0.2;
 /** Seconds between notice checks. */
 const DOOR_NOTICE_EVERY = 0.25;
+/** (J9 S2 fix1) A noticed shutter is heard this far off its plane on the noticing guard's own side (m): the plane point
+ *  itself is shut on the nav grid (J9 S1) and snaps to one fixed side whoever heard it. */
+export const SHUTTER_LOOK_OFF = 0.6;
 const DOOR_BASH_NOISE = 10;
 
 /**
@@ -79,6 +83,8 @@ export class StealthSystems implements LocalCarry {
    *  suspicion and then shuts it (the G41 close). */
   private playerOpened = new Set<number>();
   private noticeT = 0;
+  /** (J9 S2) The held-shutter notice's own clock (s; counted down every fixed step while the level has kit devices). */
+  private shutterNoticeT = 0;
   private noticeA = new Vector3();
   /** (polish2) The mount-reach probe's ends (`lampReachProbe`). */
   private readonly reachA = new Vector3();
@@ -531,6 +537,7 @@ export class StealthSystems implements LocalCarry {
     this.playerOpened.clear();
     this.guardOpened.clear();
     this.noticeT = 0;
+    this.shutterNoticeT = 0;
     // (E4, A50) running isolator windows are dropped; the lamps come back from the section's start state, then
     // `syncSwitches` has the boards read them
     this.boards?.cancel();
@@ -646,6 +653,43 @@ export class StealthSystems implements LocalCarry {
     }
   }
 
+  /**
+   * (J9 S2; G41, R39, A18) A held-open shutter is noticed as a door left open is: by sight, not sound (A17). A calm,
+   * alive guard within range, on the same storey, facing a visibly open shutter (`shutterNoticedBy`) with a clear line
+   * to its gap hears it as a noise just off the shutter on his own side (`SHUTTER_LOOK_OFF`, fix1) and comes to look,
+   * once per opening (`noticed` = `opens`). Its own clock (not `noticeT`, which runs only while a player-opened door
+   * exists). Host / solo only: a co-op client builds no `StealthSystems` (`gameState.ts` builds it only when not the
+   * puppet). Index loops over preallocated state: nothing grows or allocates per tick.
+   */
+  private noticeOpenShutters(dt: number): void {
+    const list = this.g.team.devices.list;
+    if (list.length === 0) return;
+    this.shutterNoticeT -= dt;
+    if (this.shutterNoticeT > 0) return;
+    this.shutterNoticeT = DOOR_NOTICE_EVERY;
+    const enemies = this.em.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const d = list[i]!;
+      if (!isShutterDevice(d) || !d.visible || d.opens === d.noticed) continue;
+      shutterNoticePoint(d, this.noticeB);
+      for (let j = 0; j < enemies.length; j++) {
+        const e = enemies[j]!;
+        if (!e.alive || e.alerted) continue;
+        if (!shutterNoticedBy(d, e.pos.x, e.pos.y, e.pos.z, e.yaw)) continue;
+        this.noticeA.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
+        if (!this.g.ballistics.clear(this.noticeA, this.noticeB, MASK.SIGHT)) continue;
+        // (fix1) look at a spot SHUTTER_LOOK_OFF off the plane on his own side (the sign of his offset along the normal
+        // (sin yaw, cos yaw); on the plane = the + side), so the nav snap keeps him on his side. Scalars only.
+        const nx = Math.sin(d.yaw);
+        const nz = Math.cos(d.yaw);
+        const off = (e.pos.x - d.x) * nx + (e.pos.z - d.z) * nz < 0 ? -SHUTTER_LOOK_OFF : SHUTTER_LOOK_OFF;
+        e.hear(d.x + off * nx, d.z + off * nz, SHUTTER_NOTICE.range + 2);
+        d.noticed = d.opens;
+        break;
+      }
+    }
+  }
+
   /** Someone (the player, a co-op partner or an enemy) stands within `r` of (x, z). */
   private occupied(x: number, z: number, r: number): boolean {
     const p = this.g.player.position;
@@ -665,6 +709,7 @@ export class StealthSystems implements LocalCarry {
       if (it.enabled !== use) this.ints.setEnabled(it, use);
     }
     if (this.playerOpened.size) this.noticeOpenDoors(1 / 60);
+    this.noticeOpenShutters(1 / 60);
     // (A3, G97) running into a door does nothing special: bashing is the door menu's (CT)
     // (A3, G41) a door a guard opened is shut behind him on a calm patrol, once he is clear of it
     if (this.guardOpened.size && !this.em.anyAlerted) {

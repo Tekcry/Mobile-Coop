@@ -4,7 +4,7 @@ import type { DamageRegistry, HitInfo } from '../game/damage';
 import type { Ballistics } from '../weapons/ballistics';
 import type { Vfx } from '../vfx/vfx';
 import type { NavGrid } from './navGrid';
-import { Enemy, type AiContext, type PlayerRef } from './enemy';
+import { Enemy, RISE_SIGHT, type AiContext, type PlayerRef } from './enemy';
 import { ENEMIES, type EnemyKind } from './enemyDefs';
 import { BUDGET, G, MASK } from '../physics/groups';
 import type { CharacterRig } from '../player/characterRig';
@@ -15,7 +15,10 @@ import { newLie } from './bodyLie';
 import { BODY } from './bodies';
 import type { LightDef, Occluder } from '../world/lights';
 import { rayOccluder } from '../world/shadowAccuracy';
-import { beamReach, type BeamHit } from '../world/torches';
+import { OCC_KIND, occKey, type CharOccluders } from '../world/charOccluders';
+import type { ShadowCues } from '../world/shadowCues';
+import { putBody, putDog, putGuard } from './guardOccluders';
+import { beamReach, nextTorchSwap, torchKey, type BeamHit } from '../world/torches';
 import { ALARM_CALL, ALARM_REPEAT, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, type DifficultyDef, type HelmetRule } from './archetypes';
@@ -45,9 +48,11 @@ import { HelmetDrops } from './helmetDrops';
 import { MODE_BREAKER } from './incidents';
 import { BREAKER, LATE } from './gear';
 import { BREAKER_WALK, CIRCUIT_KEY, DARK_SHOT, DarkList, LATE_SCAN, type BreakerHost } from './breaker';
-import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
+import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SEED_RADIO, seeded01, SQUAD } from './squadRoles';
 // (guard-ai S10) talking pairs
-import { PairMeet, PAIRS, pickMeet, type MeetPick, type PairGuard } from './pairs';
+import { PairMeet, PAIRS, pickMeet, postedDef, type MeetPick, type PairGuard } from './pairs';
+// (guard-rules S6) posted pairs and the walking-together check, read at load time only (`buildPair`)
+import { flags } from '../core/flags';
 // (guard-ai S14) section alert: missed check-ins and loud shots
 import { MISSING, SHOTS } from './gear';
 // (guard-ai S17, Michael's walk of 4.72 G1) a tripped device is an incident at the device, never the player
@@ -56,7 +61,7 @@ import { MODE_DEVICE } from './incidents';
 // (guard-ai S19, walk 4.72 G3) guards hurry to a dead body the radio reported
 import { MODE_HELP } from './incidents';
 import { URGENT } from './gear';
-import { urgentKind } from './response';
+import { SEARCH_BLACKOUT, urgentKind } from './response';
 import { ALERT_MISSING, ALERT_SHOTS, AlertCallLog, SectionCounters, unitOf, type SectionCounts } from './sectionAlert';
 // (guard-ai S20) doors on the walker's way
 import { DoorGate } from './doorGate';
@@ -65,17 +70,21 @@ import { LockedDoorNav } from './lockedDoors';
 // (guard-ai S22, G6) security consoles switched off: noticed when seen, turned back on (the breaker walk)
 import { CONSOLE_FAULT, CONSOLE_GROUP, ConsoleFaults, consoleInView, isConsoleGroup, V_TAMPER, type ConsoleHost } from './consoleFault';
 // (guard-models G6n) each guard's look seed from his spawn slot
-import { LOOK_MAX, posLook, slotLook, teamLook } from './guardLook';
+import { distinctLooks, freeLook, LOOK_MAX, posLook, slotLook, teamLook } from './guardLook';
 // (guard-ai S24, G139) one last known position per intruder
 import { ALARM_HUNT, alarmHunts, COOP4, FIGHTS4, INTRUDERS, IntruderBoard, type SlotHunted } from './intruders';
 import { MAX_INTRUDERS } from './targetPick';
 import { PLAN_SKIP_SEARCHED, SEARCH_AREA, SearchPlan, areaRadius, orderByScore, pointScore } from './searchArea';
+// (guard-rules S7) lookouts
+import { LOOKOUT, type PostDef } from './posts';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
 export interface TalkPair {
   readonly pm: PairMeet;
   readonly sa: number;
   readonly sb: number;
+  /** (guard-ai piano GA6b, F1) A scene sweep pair's missing-partner watch only (no meetings, no lines). */
+  readonly watchOnly?: boolean;
 }
 
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
@@ -142,6 +151,9 @@ export class EnemyManager {
   readonly enemies: Enemy[] = [];
   /** The live guard cap (M6: per mode). `MAX_ALIVE` everywhere but Sector Ops, which sets `SECTOR.maxAlive`. */
   maxAlive = MAX_ALIVE;
+  /** (gm-look-seeds) Guards given each look seed this section (`beginLooks`, `spawn`, `joinTeam`; zeroed by `clear`).
+   *  Never decreased on a death or despawn: a body still shows its look and a woken guard keeps it. */
+  private readonly lookUse = new Uint16Array(LOOK_MAX + 1);
   private flowField: Float32Array;
   private flowT = 0;
   /** The nav grid's `version` the flow field was built under. */
@@ -166,6 +178,17 @@ export class EnemyManager {
    * chase the shared last known position and search it. Off (Wave): they are sent at the players.
    */
   stealth = false;
+  /**
+   * (guard-ai-j16 G3, G352) The character-occluder contract (`GameState.charOccluders`, set after construction by G4a;
+   * null while `charShadowLight` is off): the guards' light reads (a target without its own sample, a body, a fallen
+   * guard) take the characters' shadows from it. The guards read it through `AiContext.chars` (a getter, so a later set
+   * reaches them). Null: today's light.
+   */
+  chars: CharOccluders | null = null;
+  /** (guard-ai-j16 G3, G379) The players' cast-shadow cues (`GameState.shadowCues`, set by G4b; null on a co-op client,
+   *  which has no manager, and with the flag off): the guards' shadow cue (`Enemy.shadowLook`, through `AiContext.cues`).
+   *  Null: no cue. */
+  cues: ShadowCues | null = null;
   /** Shared last known position of the players (the latest sighting / located noise). (guard-ai S24) The mirror of the
    *  freshest intruder (`intruders.freshest`), written after every report and forget: solo reads it as before; the
    *  guards read their own intruder's (`lkpOf`). */
@@ -178,6 +201,8 @@ export class EnemyManager {
   /** (coop4 AI2) Sight rays every guard's think cast for players during the last `update` (summed from
    *  `Enemy.raysStep`; tests and the Test Runner measure read it). Each guard's own think: `Enemy.raysThink`. */
   raysThisStep = 0;
+  /** (guard-ai play A, check B) This frame's long plan (`AiContext.longPlan`) is not taken yet. */
+  private longPlanFree = true;
   /** (guard-ai S24, A146) One last known position per intruder (player id -> slot); each guard hunts one (`Enemy.hunt`). */
   readonly intruders = new IntruderBoard();
   /** (guard-ai S24) `lkpOf`'s reused vector per slot. */
@@ -323,6 +348,27 @@ export class EnemyManager {
    * gunfire sends everyone in reach to combat (the old rule).
    */
   coordinated = true;
+  /**
+   * (piano escape GA1) The scene's blackout (set by the scene after its EMP, `flags.pianoEscape` only): every guard
+   * who carries a torch has it on in every state (`Enemy.torchWanted`). Off: the torch rule as built.
+   * (guard-ai piano GA6b) And the slow methodical sweep (`sceneSweep.ts`). Every set to true (the EMP, each restart)
+   * restarts the sweep clock at 0, clears the talking pairs and puts every placed guard on his sweep (`sweepify`); while
+   * true a guard placed is swept instead of paired (a sweep pair gets the missing-partner watch only, F1) and a partner
+   * follows a glimpse (`glimpseFollow`). Set false (N4): every guard off his sweep, the watch-only pairs gone.
+   */
+  get sceneDark(): boolean {
+    return this.darkOn;
+  }
+  set sceneDark(on: boolean) {
+    if (on) this.sceneDarkOn();
+    else if (this.darkOn) this.sceneDarkOff();
+    this.darkOn = on;
+  }
+  private darkOn = false;
+  /** (GA6b) The scene's sweep clock (s since the last `sceneDark = true`; ticks in `update` while dark). */
+  sweepClock = 0;
+  /** (GA6b, GA7) Per slot, the last `riseN` the glimpse follow saw (sized at section load, `placeSlot`). */
+  private followSeen = new Int32Array(32);
   /** (guard-ai S1) The map's noisy things (machinery, generators, vents): they mask sounds for guards near them. */
   private noisy: readonly NoisySource[] = [];
   /** (guard-ai S5) The map's own noisy things (`MapLayout.guardAi.noisy`); Sector Ops swaps in a section's
@@ -333,6 +379,11 @@ export class EnemyManager {
   /** Hearing scratch (no allocation per noise): the perceivers' ids (tier-2 hearers, guards who saw a light go) and
    *  every guard's effective reach. */
   private hearWho = new Int32Array(32);
+  /** (guard-rules S7, A9) Lookouts placed this load with the flag on (0: the per-guard check is skipped). */
+  private lookoutN = 0;
+  /** (guard-rules S7) Per awareness key: the lookout's `riseN` last seen, and his radio cooldown (s). Fixed size. */
+  private readonly lookRise = new Int32Array(MAX_KEYS);
+  private readonly lookCd = new Float32Array(MAX_KEYS);
   /** (polish2 A185) A searcher already barked "I heard something." for the noise `hear` is handling. */
   private hearBarked = false;
   private hearR = new Float32Array(32);
@@ -589,7 +640,10 @@ export class EnemyManager {
       if (l.kind !== 'flashlight') continue;
       this.torches.push(l);
       this.torchOwner.push(null);
+      // (piano SO3 fix) the shadowed slots come first (`addTorchSlots`): their count
+      if (!l.beamCut) this.torchShadowed++;
     }
+    this.torchKeys = new Float64Array(this.torches.length);
     this.flowField = new Float32Array(nav.walk.length);
     // (guard-ai S8) the cover as typed arrays and its grid (indices match `reserveCover`)
     this.coverSet = coverSetFrom(world.level.cover);
@@ -611,6 +665,11 @@ export class EnemyManager {
       lkpOf: (slot) => this.lkpOf(slot),
       intruderId: (slot) => this.intruders.idOf(slot),
       enemies: () => this.enemies,
+      longPlan: () => {
+        if (!this.longPlanFree) return false;
+        this.longPlanFree = false;
+        return true;
+      },
       cover: world.level.cover,
       coverSegments: world.level.coverSegments,
       rooms: world.layout.rooms ?? [],
@@ -657,6 +716,10 @@ export class EnemyManager {
       },
       stealth: () => this.stealth,
       coordinated: () => this.coordinated,
+      sceneDark: () => this.sceneDark,
+      // (guard-ai-j16 G3, plan check 1 item 1) getters, never values: G4a / G4b set the fields after construction
+      chars: () => this.chars,
+      cues: () => this.cues,
       lkp: this.lkp,
       lkpValid: () => this.lkpValid,
       // (guard-ai S24) his intruder's slot (by player id): its last known position follows him; the guard hunts it
@@ -672,7 +735,8 @@ export class EnemyManager {
           const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
           const d = Vector3.Distance(o.pos, e.pos);
-          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + Math.random() * 0.3) * this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1), e.hunt);
+          // (guard-ai seed-random) replayable jitter per listener per engagement (hard rule 8)
+          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + seeded01(this.matchSeed, SEED_RADIO ^ Math.imul(this.engagement, 2654435761), o.num) * 0.3) *this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1), e.hunt);
         }
       },
       shout: (e) => {
@@ -685,7 +749,8 @@ export class EnemyManager {
         for (let i = 0; i < list.length; i++) {
           const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
-          if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + Math.random() * 0.3, e.hunt);
+          // (guard-ai seed-random) replayable jitter (hard rule 8)
+          if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + seeded01(this.matchSeed, SEED_RADIO ^ Math.imul(this.engagement, 2654435761), o.num) * 0.3, e.hunt);
         }
       },
       radioCall: (e, inc, kind) => {
@@ -775,6 +840,32 @@ export class EnemyManager {
       if (k < 0) break;
       this.removeBody(this.bodies[k]!);
     }
+  }
+
+  /**
+   * (guard-ai-j16 G1 / G3, BRIEF A7-A9) The guard side of the character-occluder contract, after `fillPlayers`: every
+   * living guard and dog in list order (`putGuard` / `putDog`), then every lying body (`present`: not carried, hidden or
+   * gone; `putBody`), each culled to `FILL.reach` of the `n` player slots in `pin` (`FILL_IN` stride). Owner keys come
+   * from `Enemy.num` / `Body.num`, never list indexes. Note: `occKey` keeps the low 16 bits of the number, so two
+   * characters of one kind share a key only 65,536 spawns apart in one page session (the contract's layout, Sector Ops';
+   * a long sandbox session is the only way there). Returns how many did not fit (a writer's -1; `OCC_FAR`, beyond every
+   * player, is a normal skip). Runs every sim step once G4a calls it: no allocation.
+   */
+  fillOccluders(occ: CharOccluders, pin: Float64Array, n: number): number {
+    let over = 0;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (!e.alive) continue;
+      if ((e.dog !== null ? putDog(occ, e, pin, n) : putGuard(occ, e, pin, n)) === -1) over++;
+    }
+    const bodies = this.bodies;
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i]!;
+      if (!b.present) continue;
+      if (putBody(occ, b, pin, n) === -1) over++;
+    }
+    return over;
   }
 
   removeBody(b: Body): void {
@@ -1176,8 +1267,11 @@ export class EnemyManager {
     e.crew = t;
     // (guard-models G6n) his look is his team slot's (section, the team's order in it: its alarm, his place in the
     // team; distinct within the team), set in the step he spawns (every caller joins him straight after `spawn`),
-    // before he is drawn or sent
-    e.look = teamLook(this.lookMap, t.section, t.index, t.members.indexOf(e));
+    // before he is drawn or sent. (gm-look-seeds) The seed `spawn` gave him is given back, and the team seed moves on
+    // to the next free one when another guard of the section has it.
+    if (this.lookUse[e.look]! > 0) this.lookUse[e.look]!--;
+    e.look = freeLook(teamLook(this.lookMap, t.section, t.index, t.members.indexOf(e)), this.lookUse);
+    this.lookUse[e.look]!++;
     // (coop4 AI5, A174 / A176) one intruder per team: the first member's alarm draw is the team's; a later member is
     // told the team's in place of his own draw, which goes back to the round robin (the next team takes it). 1-2
     // players: every draw is `alarmHunt` already (today, untouched).
@@ -1235,6 +1329,34 @@ export class EnemyManager {
   }
 
   /**
+   * (piano escape GA3) The scene blackout's one reaction: each of `guards` (the scene's G1-G4, just spawned on the intro
+   * actors' spots) starts the search round (x, z) at once (`SEARCH_BLACKOUT`: rings out to ~6 m, the plain search's
+   * length), no radio, no board; when it ends each goes back to his fixed round as built. The rest keep their posts and
+   * rounds. Not hot (once, at the EMP). Returns how many started.
+   */
+  blackoutSearch(guards: readonly Enemy[], x: number, z: number): number {
+    let n = 0;
+    for (let i = 0; i < guards.length; i++) {
+      const e = guards[i]!;
+      if (!e.alive || e.alerted || e.taken) continue;
+      e.searchAt(x, z, null, SEARCH_BLACKOUT);
+      n++;
+    }
+    return n;
+  }
+
+  /** (piano escape GA3, check B) `blackoutSearch` by the live section's slot indices (its guard list order: the plan's
+   *  `mill:0`-`mill:3` are slots 0-3); an empty slot is skipped. Not hot. Returns how many started. */
+  blackoutSearchSlots(slots: readonly number[], x: number, z: number): number {
+    const list: Enemy[] = [];
+    for (let i = 0; i < slots.length; i++) {
+      const e = this.slotGuard[slots[i]!];
+      if (e) list.push(e);
+    }
+    return this.blackoutSearch(list, x, z);
+  }
+
+  /**
    * Lights went out at a point (a lamp shot out, a wall switch, a circuit cut; every lights-out path comes here).
    * (x, y, z): the fixture (or the switch: where guards walk to); `lightId` the lamp that went (registry id) or
    * `group` the circuit (-1 none: the point itself is the fixture).
@@ -1249,6 +1371,8 @@ export class EnemyManager {
    * 14 m look).
    */
   lightsOut(x: number, z: number, y = Number.NaN, lightId = -1, group = -1): void {
+    // (piano escape GA3) in a scene blackout the scene's one reaction (`blackoutSearch`) is the only one: no incident
+    if (this.sceneDark) return;
     if (!this.coordinated) {
       this.lightsOutOld(x, z, y);
       return;
@@ -1649,7 +1773,8 @@ export class EnemyManager {
     const list = this.enemies;
     for (let i = 0; i < list.length; i++) {
       const e = list[i]!;
-      if (!e.alive || !e.alerted || e.def.melee) continue;
+      // (guard-ai play A, P2-1) not a guard who gave a run up this fight (no way to the panel)
+      if (!e.alive || !e.alerted || e.def.melee || e.alarmBarred) continue;
       const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, 2, e.pos.y);
       if (!p) continue;
       // (guard-ai S5, A10) a high-security post never runs to a panel outside his leash
@@ -1692,6 +1817,8 @@ export class EnemyManager {
       this.torchOwner[k] = e;
       reg.setOn(ts[k]!.id, true);
     }
+    // (piano SO3 fix) a map with beamCut slots: the shadowed ones go to the lowest guard keys (the co-op client's rule)
+    if (this.torchShadowed < ts.length) this.balanceTorches();
     // follow; the beam stops at the first wall (rays along the centre and the cone's edges, round robin at 15 Hz
     // per torch), so it never lights the room behind
     this.torchTick = (this.torchTick + 1) % ts.length;
@@ -1705,6 +1832,40 @@ export class EnemyManager {
   }
 
   private torchTick = 0;
+  /** (piano SO3 fix) Flashlight slots without `beamCut` (the first ones) and a scratch of each slot's holder key. */
+  private torchShadowed = 0;
+  private torchKeys = new Float64Array(0);
+
+  /** (piano SO3 fix) `nextTorchSwap` until it holds: the lit guards with the lowest `torchKey` hold the shadowed slots,
+   *  as `TorchMirror` keeps them on the co-op client, so a guard's torch is shadowed or beam-cut alike on both pages.
+   *  A moved torch takes its beam's reach again (the follow step). Allocation-free. */
+  private balanceTorches(): void {
+    const ts = this.torches;
+    const own = this.torchOwner;
+    const keys = this.torchKeys;
+    const n = ts.length;
+    const reg = this.world.level.lights;
+    for (let k = 0; k < n; k++) {
+      const o = own[k];
+      keys[k] = o ? torchKey(o.id) : -1;
+    }
+    for (let it = 0; it < n; it++) {
+      const p = nextTorchSwap(keys, n, this.torchShadowed);
+      if (p < 0) break;
+      const i = p >> 6;
+      const j = p & 63;
+      const oi = own[i] ?? null;
+      own[i] = own[j] ?? null;
+      own[j] = oi;
+      const ki = keys[i]!;
+      keys[i] = keys[j]!;
+      keys[j] = ki;
+      reg.setOn(ts[i]!.id, !!own[i]);
+      reg.setOn(ts[j]!.id, !!own[j]);
+      ts[i]!.reach = undefined;
+      ts[j]!.reach = undefined;
+    }
+  }
 
   /** (shadow audit, `shadowAccuracy.ts`) A body's light for the guards: flashlights tested against static
    *  geometry, as the player's light is (`GameState.lightOccluder`), so a torch behind a wall does not light a body. */
@@ -1742,6 +1903,8 @@ export class EnemyManager {
     e.health.damage(e.health.maxHp * 0.4);
     if (old) {
       e.inherit(old, b.age);
+      // (guard-rules S7) a woken lookout is a new `Enemy` (his `riseN` starts again at 0): his last-seen copy follows
+      if (this.lookoutN > 0 && e.key >= 0) this.lookRise[e.key] = e.riseN;
       this.swapSquad(old, e);
       this.swapSlot(old, e);
       // (guard-ai S13) a response team member takes his place in the team again and never calms (he had fought)
@@ -1779,6 +1942,9 @@ export class EnemyManager {
   private swapSlot(old: Enemy, e: Enemy): void {
     const k = e.slotIdx;
     if (k >= 0 && k < this.slotGuard.length && this.slotGuard[k] === old) this.slotGuard[k] = e;
+    // (GA6b) his sweep partner's skip follows him; the glimpse follow starts from his own rise count
+    if (old.sweepMate && old.sweepMate.sweepMate === old) old.sweepMate.sweepMate = e;
+    if (this.darkOn && k >= 0 && k < this.followSeen.length) this.followSeen[k] = e.riseN;
     const list = this.enemies;
     for (let i = 0; i < list.length; i++) {
       const d = list[i]!;
@@ -1836,7 +2002,12 @@ export class EnemyManager {
     const vx = v.pos.x;
     const vy = v.pos.y;
     const vz = v.pos.z;
-    const light = this.world.lightField.totalAt(vx, vy + 0.2, vz, this.bodyOccluder);
+    // (guard-ai-j16 G3) with the character contract: his own capsule (still in this step's fill) skipped
+    const chars = this.chars;
+    const light =
+      chars === null
+        ? this.world.lightField.totalAt(vx, vy + 0.2, vz, this.bodyOccluder)
+        : this.world.lightField.totalAt(vx, vy + 0.2, vz, this.bodyOccluder, chars, occKey(v.dog ? OCC_KIND.dog : OCC_KIND.guard, v.num));
     let mask = 0;
     let n = 0;
     let first: Enemy | null = null;
@@ -1965,6 +2136,11 @@ export class EnemyManager {
     this.radioNet.cut(e.num);
     // (guard-ai S4) gone for good: out of every hold, as if dead
     if (e.key >= 0) this.awareness.onDown(e.key, true);
+    // (guard-rules S7) and his key's lookout state (the next guard on the key starts clean)
+    if (this.lookoutN > 0 && e.key >= 0) {
+      this.lookRise[e.key] = 0;
+      this.lookCd[e.key] = 0;
+    }
     if (this.alarmRunner === e) this.alarmRunner = null;
     if (this.flanker === e) this.flanker = null;
     for (let i = 0; i < this.torchOwner.length; i++) {
@@ -2054,6 +2230,25 @@ export class EnemyManager {
     return slotLook(this.lookMap, section, slot);
   }
 
+  /** (gm-look-seeds) A section's authored seeds (its slot guards', before any of them spawns): the seeds in use start
+   *  again from these, so a runtime spawn (a response team, a reinforcement) never takes an authored guard's seed,
+   *  whatever the spawn order. Replaces what was counted. */
+  beginLooks(seeds: ArrayLike<number>): void {
+    this.lookUse.fill(0);
+    for (let i = 0; i < seeds.length; i++) this.lookUse[seeds[i]! & LOOK_MAX]!++;
+  }
+
+  /** (gm-look-seeds) The seeds of a set of authored points (Course squads, Infiltration rooms), in data order:
+   *  `posLook` each, made distinct (`distinctLooks`: the first point keeps a shared seed), then `beginLooks` with them.
+   *  The same points give the same seeds on every load and restart. Load time only. */
+  pointLooks(pts: readonly { x: number; z: number }[]): number[] {
+    const seeds: number[] = [];
+    for (const p of pts) seeds.push(posLook(this.lookMap, p.x, p.z));
+    distinctLooks(seeds);
+    this.beginLooks(seeds);
+    return seeds;
+  }
+
   /**
    * (coop4 AI4, A174) The intruder slot the next reinforcement hunts (-1 none). From 3 live players (A170) and
    * `ALARM_HUNT.split`: round robin (`alarmK`, reset by `resetAlarm` and on the alarm) over `alarmHunts`: the alarm's
@@ -2087,19 +2282,23 @@ export class EnemyManager {
     return responseShape(stage, perStage, this.players().length, this.maxAlive - this.alive, out, this.shapeOver);
   }
 
-  /** (guard-models G6n) `look`: his look seed from the caller's slot key (`guardLook.ts`, 0-127); omitted (-1): from
-   *  the authored point `pos` (`posLook`), the same on every load of the map. */
+  /** (guard-models G6n) `look`: his look seed from the caller's slot key (`guardLook.ts`, 0-127), kept as it is;
+   *  omitted (-1): from the authored point `pos` (`posLook`), moved on to the next seed no guard of the section has
+   *  (gm-look-seeds, `freeLook`). Either way counted in the section's seeds in use. */
   spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0, look = -1): Enemy | null {
     if (this.alive >= this.maxAlive) return null;
     const c = this.nav.nearestWalkable(pos.x, pos.z, 8, pos.y);
     if (c < 0) return null;
     const [x, z] = this.nav.center(c);
     const e = new Enemy(this.ctx, ENEMIES[kind], new Vector3(x, this.nav.height[c]!, z), yaw);
-    e.look = look >= 0 ? look & LOOK_MAX : posLook(this.lookMap, pos.x, pos.z);
+    e.look = look >= 0 ? look & LOOK_MAX : freeLook(posLook(this.lookMap, pos.x, pos.z), this.lookUse);
+    this.lookUse[e.look]!++;
     // (guard-ai S4) his stable key: a clean slate in the awareness roster
     e.key = this.freeKey();
     if (e.key >= 0) this.awareness.resetKey(e.key);
     if (alerted) this.sendIn(e);
+    // (piano SO3) dev / the GPU check (`?torches=all`): every carrier's torch on (a dog's stays off: `torchWanted`)
+    if (flags.torchesAll) e.torchOverride = true;
     this.enemies.push(e);
     if (kind === 'droneOp') this.drones.push(new ReconDrone(this.scene, this.world.parts, this.registry, this.ballistics, this.vfx, e));
     return e;
@@ -2140,8 +2339,15 @@ export class EnemyManager {
     this.ruleHelmet(e, true);
     // (guard-ai S8, A25) the squad-roles profile: a posted guard holds and watches (never point / flank), an aggressive
     // slot bounds first
-    e.tacticsProfile = slot.post ? P_POST : slot.profile === 'aggressive' ? P_AGGRESSIVE : P_STANDARD;
-    e.setPost(slot.post ?? null, slot.yaw);
+    // (guard-rules S7) the post the slot gives (a lookout's: a high-security copy with the flag on, else no post)
+    const post = this.slotPost(slot.post, e.dog !== null);
+    e.tacticsProfile = post ? P_POST : slot.profile === 'aggressive' ? P_AGGRESSIVE : P_STANDARD;
+    e.setPost(post, slot.yaw);
+    if (post && post.lookout && e.key >= 0) {
+      this.lookoutN++;
+      this.lookRise[e.key] = e.riseN;
+      this.lookCd[e.key] = 0;
+    }
     // (guard-ai S5b) the tags
     e.zone = slot.zone ?? '';
     e.job = slot.role ?? '';
@@ -2150,12 +2356,14 @@ export class EnemyManager {
     e.pairSlot = slot.pair ?? -1;
     e.zoneX = e.pos.x;
     e.zoneZ = e.pos.z;
-    e.zoneR = isSecureZone(slot.zone) ? zoneRadius({ zone: slot.zone, post: slot.post, x: slot.x ?? e.pos.x, z: slot.z ?? e.pos.z, route: slot.route }) : 0;
+    e.zoneR = isSecureZone(slot.zone) ? zoneRadius({ zone: slot.zone, post: post ?? undefined, x: slot.x ?? e.pos.x, z: slot.z ?? e.pos.z, route: slot.route }) : 0;
     const inList = slots !== undefined && index >= 0 && index < slots.length;
     let sq = -1;
     if (inList) {
       if (slots !== this.tagSlots) {
         if (this.tagSquad.length < slots.length) this.tagSquad = new Int32Array(slots.length);
+        // (GA6b, GA7) the glimpse follow's buffer, at section load
+        if (this.followSeen.length < slots.length) this.followSeen = new Int32Array(slots.length);
         slotSquads(slots, e.section, this.tagSquad);
         this.tagSlots = slots;
         // (guard-ai S10) a new section's list: its own pairs (nobody left standing in an old pair's hold)
@@ -2187,8 +2395,125 @@ export class EnemyManager {
         if (d.dog && d.handlerSlot === index && d.handler === null) this.bindDog(d, e);
       }
     }
-    // (guard-ai S10) the second of a talking pair placed: the pair is built
-    if (inList) this.buildPair(e, index);
+    // (guard-ai S10) the second of a talking pair placed: the pair is built; (GA6b) in the scene's dark: his sweep, a
+    // sweep pair's watch only (no meetings, no lines)
+    if (this.darkOn) this.sweepify(e, inList ? index : -1);
+    else if (inList) this.buildPair(e, index);
+  }
+
+  /** (GA6b) `sceneDark = true` (every set: the EMP, each restart): the clock from 0, no talking pairs, everyone swept. */
+  private sceneDarkOn(): void {
+    this.darkOn = true;
+    this.sweepClock = 0;
+    for (let k = 0; k < this.pairs.length; k++) {
+      const p = this.pairs[k]!;
+      const a = this.guardAtSlot(p.sa);
+      const b = this.guardAtSlot(p.sb);
+      if (a) a.pairFace = Number.NaN;
+      if (b) b.pairFace = Number.NaN;
+    }
+    this.pairs.length = 0;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      const k = e.slotIdx;
+      this.sweepify(e, k >= 0 && k < this.slotGuard.length && this.slotGuard[k] === e ? k : -1);
+    }
+  }
+
+  /** (GA6b, N4) `sceneDark = false`: every guard off his sweep (his route rules, rejoined as built), the watch-only pairs
+   *  and the follow buffer cleared. */
+  private sceneDarkOff(): void {
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) list[i]!.stopSweep();
+    for (let k = this.pairs.length - 1; k >= 0; k--) if (this.pairs[k]!.watchOnly) this.pairs.splice(k, 1);
+    this.followSeen.fill(0);
+  }
+
+  /** (GA6b) His sweep partner: the slot his `pair` tag names, or a placed guard whose tag names him (as `buildPair`). */
+  private sweepPartner(e: Enemy, index: number): Enemy | null {
+    const sg = this.slotGuard;
+    let j = e.pairSlot !== index ? e.pairSlot : -1;
+    if (j < 0 || j >= sg.length || !sg[j])
+      for (let k = 0; k < sg.length; k++) {
+        const o = sg[k];
+        if (k !== index && o && o.pairSlot === index) {
+          j = k;
+          break;
+        }
+      }
+    const o = j >= 0 && j < sg.length ? (sg[j] ?? null) : null;
+    return o && o !== e && !o.dog ? o : null;
+  }
+
+  /**
+   * (GA6b) Put `e` (slot `index`, -1 none) on his scene sweep at the sweep clock: the lower slot of a sweep pair pans left
+   * first (+1), his partner right first (-1); both get the partner and the side (N5: the second may be placed late);
+   * the pair gets the missing-partner watch (F1: a `PairMeet` whose window never opens, `watch` on; GA6-A10: on the
+   * scene whatever `flags.guardPairs` says). A dog heels his handler: not swept. Load time / the EMP only.
+   */
+  private sweepify(e: Enemy, index: number): void {
+    if (e.dog) return;
+    const m = index >= 0 ? this.sweepPartner(e, index) : null;
+    const j = m ? m.slotIdx : -1;
+    const side = m && j < index ? -1 : 1;
+    e.sweepMate = m;
+    e.startSweep(this.sweepClock, side);
+    if (index >= 0 && index < this.followSeen.length) this.followSeen[index] = e.riseN;
+    if (!m) return;
+    m.sweepMate = e;
+    if (m.sweepSide !== -side || !m.sweeping) m.startSweep(this.sweepClock, -side);
+    const lo = Math.min(index, j);
+    const hi = Math.max(index, j);
+    for (let k = 0; k < this.pairs.length; k++) {
+      const p = this.pairs[k]!;
+      if (p.sa === lo && p.sb === hi) {
+        this.pairs.splice(k, 1);
+        break;
+      }
+    }
+    const A = index === lo ? e : m;
+    const B = index === lo ? m : e;
+    const pa = A.postPoint;
+    const pb = B.postPoint;
+    const pm = new PairMeet({ id: e.section * 100 + lo, period: 1, t0: 0, open: 0, close: 0, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]], watch: true });
+    this.pairs.push({ pm, sa: lo, sb: hi, watchOnly: true });
+  }
+
+  /**
+   * (GA6b, GA7: a player seen in a flash) At the board tick while dark: a guard whose rise (`riseN`) moved on sight
+   * (`RISE_SIGHT`) and who is suspicious or investigating sends his sweep partner, if the partner is calm, up and within
+   * `PAIRS.togetherR` (walking with him), to the same spot (`Enemy.followGlimpse`). No allocation.
+   */
+  private glimpseFollow(): void {
+    const sg = this.slotGuard;
+    const seen = this.followSeen;
+    const n = sg.length < seen.length ? sg.length : seen.length;
+    for (let k = 0; k < n; k++) {
+      const e = sg[k];
+      if (!e) continue;
+      const r = e.riseN;
+      if (r === seen[k]) continue;
+      seen[k] = r;
+      const m = e.sweepMate;
+      if (!m || e.riseCause !== RISE_SIGHT || !e.alive || e.taken) continue;
+      const lv = e.level;
+      if (lv !== 'suspicious' && lv !== 'investigating') continue;
+      const ml = m.level;
+      if (!m.alive || m.taken || (ml !== 'unaware' && ml !== 'cooldown')) continue;
+      if (hyp2(m.pos.x - e.pos.x, m.pos.z - e.pos.z) > PAIRS.togetherR) continue;
+      m.followGlimpse(e.stimX, e.stimZ);
+    }
+  }
+
+  /** (guard-rules S7, A9) The post a slot gives: a lookout's (flag on) is a high-security copy, so `Enemy.secure`, the
+   *  lure and the board's `GV_POSTED` hold him with no `enemy.ts` change; flag off it is no post (today). A dog is never
+   *  a lookout (his smell counts as sight, S4): on a lookout post he gets no post either way. Load time; the copy is the
+   *  only allocation. */
+  private slotPost(p: PostDef | undefined, dog: boolean): PostDef | null {
+    if (!p) return null;
+    if (!p.lookout) return p;
+    return flags.lookouts && !dog ? { ...p, highSecurity: true } : null;
   }
 
   /**
@@ -2198,6 +2523,9 @@ export class EnemyManager {
    * overlap, at the slower walker's speed: a timed loop walks at `walkSpeed`). The two walkers' loop times now line the
    * clocks up (they may have been placed at different moments). No window (no timed loop, periods differ, no overlap):
    * logged (`pairSkips`, a console warning) and skipped. Load time only.
+   * (guard-rules S6, A10, A11; `flags.guardPairs`, read here only) A timed-loop pair also gets the walking-together
+   * check (`PairDef.watch`); two standing guards (`postedWhyNot`) whose posts are within `PAIRS.meetMax` become a posted
+   * pair (`postedDef`: meet points at the posts, a fixed clock). Flag off: today's path, nothing new read.
    */
   private buildPair(e: Enemy, index: number): void {
     const sg = this.slotGuard;
@@ -2231,7 +2559,18 @@ export class EnemyManager {
     const id = e.section * 100 + lo;
     const why = this.pairWhyNot(A, B);
     if (why) {
-      const msg = `section ${e.section} slots ${lo} + ${hi}: ${why}`;
+      let pw = '';
+      if (flags.guardPairs) {
+        pw = this.postedWhyNot(A, B);
+        if (!pw) {
+          const pa = A.postPoint;
+          const pb = B.postPoint;
+          const pm = new PairMeet(postedDef(id, [pa[0], pa[1]], [pb[0], pb[1]]));
+          this.pairs.push({ pm, sa: lo, sb: hi });
+          return;
+        }
+      }
+      const msg = pw ? `section ${e.section} slots ${lo} + ${hi}: ${why} (posted pair: ${pw})` : `section ${e.section} slots ${lo} + ${hi}: ${why}`;
       this.pairSkips.push(msg);
       console.warn(`guard-ai pairs: ${msg}`);
       return;
@@ -2252,7 +2591,7 @@ export class EnemyManager {
     }
     const pa = ra.points[m.stopA]!;
     const pb = rb.points[m.stopB]!;
-    const pm = new PairMeet({ id, period: ra.loop!.period, t0: ta, open: m.open, close: m.close, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]] });
+    const pm = new PairMeet({ id, period: ra.loop!.period, t0: ta, open: m.open, close: m.close, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]], watch: flags.guardPairs });
     this.pairs.push({ pm, sa: lo, sb: hi });
   }
 
@@ -2266,15 +2605,34 @@ export class EnemyManager {
     return '';
   }
 
-  /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). No allocation. */
-  private fillPair(g: PairGuard, e: Enemy | null): void {
+  /**
+   * (guard-rules S6, A11, S6-a) Why two guards cannot be a posted pair ('' when they can): each stands (no route at all,
+   * or a post with an untimed route) and their posts are within `PAIRS.meetMax`. Load time only (`flags.guardPairs`).
+   */
+  private postedWhyNot(A: Enemy, B: Enemy): string {
+    if (A.dog || B.dog) return 'a dog does not talk';
+    const ra = A.patrolRoute;
+    const rb = B.patrolRoute;
+    const standA = ra === null || (A.postDef !== null && !ra.loop);
+    const standB = rb === null || (B.postDef !== null && !rb.loop);
+    if (!standA || !standB) return 'not both standing a post';
+    const pa = A.postPoint;
+    const pb = B.postPoint;
+    const d = hyp2(pa[0] - pb[0], pa[1] - pb[1]);
+    if (d > PAIRS.meetMax) return `posts ${d.toFixed(1)} m apart (over ${PAIRS.meetMax} m)`;
+    return '';
+  }
+
+  /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). (GA6 fix round, check A FIX 1) A sweep pair's
+   *  watch (`sweep`): calm = walking his sweep (`Enemy.sweepCalm`; cooldown and caution count). No allocation. */
+  private fillPair(g: PairGuard, e: Enemy | null, sweep: boolean): void {
     if (!e || !e.alive || e.taken) {
       g.present = false;
       g.calm = false;
       return;
     }
     g.present = true;
-    g.calm = e.pairCalm;
+    g.calm = sweep ? e.sweepCalm : e.pairCalm;
     g.x = e.pos.x;
     g.z = e.pos.z;
     const p = e.routePoint(this.pairTmp);
@@ -2296,8 +2654,9 @@ export class EnemyManager {
       const pm = p.pm;
       const A = this.guardAtSlot(p.sa);
       const B = this.guardAtSlot(p.sb);
-      this.fillPair(pm.a, A);
-      this.fillPair(pm.b, B);
+      const sw = p.watchOnly === true;
+      this.fillPair(pm.a, A, sw);
+      this.fillPair(pm.b, B, sw);
       if ((pm.state === 'waiting' || pm.state === 'meeting') && ((pm.a.present && A!.disturbed) || (pm.b.present && B!.disturbed))) pm.interrupt();
       pm.step(dt);
       const meet = pm.state === 'meeting';
@@ -2511,6 +2870,32 @@ export class EnemyManager {
       // (guard-ai S5b) his role class and secure zone
       v.setTags(i, e.roleFlags | 0, e.zoneX, e.zoneZ, e.zoneR > 0 ? e.zoneR : 0);
     }
+  }
+
+  /**
+   * (guard-rules S7, A9) A lookout who grows suspicious by sight (a rise into suspicious or investigating, S7-a) radios
+   * it (`spotCall`) and reports a `noise` incident at what he saw with no perceivers, so the board sends a calm guard
+   * within `INCIDENT.callR` (he is `GV_POSTED`, never picked). A radioed sighting, not a sound (ai.md). At most every
+   * `LOOKOUT.callCd` s. The spot is his stimulus (`stimX` / `stimZ`): the seen player's feet at his last look while he
+   * sees him, or a later thing he turned to in the same moment (a noise that tipped the meter, a body); ai.md "Posts".
+   * Runs per guard per step only while `lookoutN > 0`: field reads, no allocation.
+   */
+  private lookoutStep(e: Enemy, dt: number): void {
+    const p = e.postDef;
+    const k = e.key;
+    if (p === null || p.lookout !== true || k < 0 || e.dog !== null) return;
+    if (this.lookCd[k]! > 0) this.lookCd[k] = this.lookCd[k]! - dt;
+    const n = e.riseN;
+    if (n === this.lookRise[k]) return;
+    this.lookRise[k] = n;
+    if (!e.alive || !this.coordinated || e.riseCause !== RISE_SIGHT || this.lookCd[k]! > 0) return;
+    const lv = e.level;
+    if (lv !== 'suspicious' && lv !== 'investigating') return;
+    this.lookCd[k] = LOOKOUT.callCd;
+    e.bark('spotCall');
+    const x = e.stimX;
+    const z = e.stimZ;
+    this.report('noise', x, this.nav.heightAt(x, z), z, -1, 0);
   }
 
   /** (guard-ai S2) Report an event to the board with the `n` perceivers in `hearWho`, assign at once. */
@@ -3696,6 +4081,11 @@ export class EnemyManager {
 
   update(dt: number): void {
     this.raysThisStep = 0;
+    // (guard-ai play A, check B) one long plan (`GIVE_UP.homeExpand` A*) per frame across the guards
+    this.longPlanFree = true;
+    // (check FIX 1) the sliced long plan's idle count is in frames
+    this.nav.sliceTick();
+    if (this.darkOn) this.sweepClock += dt;
     this.sightT += dt;
     this.intruders.step(dt);
     // (guard-ai S20) the door gate, built once (the door list is fixed for the map)
@@ -3759,6 +4149,8 @@ export class EnemyManager {
         // (guard-ai S4) timed caution counts down with the board; every guard's caution follows the table
         this.awareness.tick(0.2);
         this.syncCaution();
+        // (GA6b, GA7) a sweep partner follows a glimpse
+        if (this.darkOn) this.glimpseFollow();
       }
       // (guard-ai S3) the section radio net at 10 Hz: calls complete, receivers hear them staggered
       this.netT -= dt;
@@ -3803,6 +4195,8 @@ export class EnemyManager {
     for (let i = 0; i < list.length; i++) {
       const e = list[i]!;
       e.update(dt);
+      // (guard-rules S7) a lookout's sighting goes on the radio
+      if (this.lookoutN > 0) this.lookoutStep(e, dt);
       // (coop4 AI2) the sight rays his think cast this update
       this.raysThisStep += e.raysStep;
       e.raysStep = 0;
@@ -3820,24 +4214,35 @@ export class EnemyManager {
     }
     this.updateTorches();
     this.spottedStep();
-    // bodies: settle, and sample the light on them now and then (how findable they are)
-    const field = this.world.lightField;
-    const bodies = this.bodies;
-    for (let i = 0; i < bodies.length; i++) {
-      const b = bodies[i]!;
-      b.update(dt);
-      b.lightT -= dt;
-      if (b.lightT <= 0 && b.present) {
-        b.lightT = 1;
-        b.light = field.totalAt(b.pos.x, b.pos.y + 0.2, b.pos.z, this.bodyOccluder);
-      }
-    }
+    this.stepBodies(dt);
     // drop dead entries (a dog keeps its own body: kept to draw and dispose)
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i]!;
       if (e.alive) continue;
       if (e.dog) this.dogCorpses.push(e);
       this.enemies.splice(i, 1);
+    }
+  }
+
+  /** Bodies: settle, and sample the light on them now and then (how findable they are). (guard-ai-j16 G3) With the
+   *  character contract the body's own capsule is skipped (its owner key, never a list index). */
+  private stepBodies(dt: number): void {
+    const field = this.world.lightField;
+    const bodies = this.bodies;
+    const chars = this.chars;
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i]!;
+      b.update(dt);
+      b.lightT -= dt;
+      // (guard-ai-j16 fix 2, check B polish 4) with the contract, not on its first step: a guard who died inside this
+      // `update` is still in this step's fill as a standing guard (his key, not the body's), and would shade his body
+      if (b.lightT <= 0 && b.present && (chars === null || b.age > dt)) {
+        b.lightT = 1;
+        b.light =
+          chars === null
+            ? field.totalAt(b.pos.x, b.pos.y + 0.2, b.pos.z, this.bodyOccluder)
+            : field.totalAt(b.pos.x, b.pos.y + 0.2, b.pos.z, this.bodyOccluder, chars, occKey(OCC_KIND.body, b.num));
+      }
     }
   }
 
@@ -3945,6 +4350,8 @@ export class EnemyManager {
   }
 
   clear(): void {
+    // (gm-look-seeds) a section load or restart: no look seed in use
+    this.lookUse.fill(0);
     for (const e of this.enemies) e.dispose();
     this.enemies.length = 0;
     for (const e of this.dogCorpses) e.dispose();
@@ -3960,6 +4367,12 @@ export class EnemyManager {
     this.pairs.length = 0;
     this.pairSkips.length = 0;
     this.pairT = 0;
+    // (GA6 fix round, check B Polish 2) the sweep clock from 0 (`darkOn` kept: the scene's own setter turns it off)
+    this.sweepClock = 0;
+    // (guard-rules S7) and the lookouts
+    this.lookoutN = 0;
+    this.lookRise.fill(0);
+    this.lookCd.fill(0);
     this.lastCheckCaller = null;
     // (guard-ai S2) nobody left to send: the incidents go too; (S3) and every call and queued reception
     this.board.clear();

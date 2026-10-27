@@ -90,7 +90,7 @@ const masterPick = (f: string): string[] => MASTER_QUICK.find(([p]) => f.startsW
 const OPTIC_CABLE = ['TESTING.md', 'changes/feature-optic-cable.md', 'docs/optic-cable/CHECK.md', 'docs/systems/ct-toolkit.md', 'docs/systems/testing-tools.md', 'scripts/e2e-stealth-ai.mjs', 'src/config/tools.ts', 'src/game/doorMenu.ts', 'src/game/gameState.ts', 'src/game/opticSystem.ts', 'src/player/opticCable.ts', 'src/world/anchors.ts', 'tests/opticCable.test.ts'];
 const GUARD_CARRY_FIX = ['changes/feature-guard-ai-carry-fix.md', 'docs/guard-ai/slices/CARRY-FIX-CHECK.md', 'docs/systems/testing-tools.md', 'docs/systems/world-and-characters.md', 'scripts/e2e-guard-carry.mjs', 'scripts/run-e2e.mjs', 'src/core/babylon.ts', 'src/player/bodyEffectRecovery.ts', 'src/player/smoothBody.ts', 'tests/bodyEffectRecovery.test.ts'];
 // jobs on the laptop: a suite in parts is one job per part (run-e2e.mjs PARTS)
-const PARTS: Record<string, number> = { 'e2e-desktop': 3, 'e2e-ctcourse': 4, 'e2e-sectorops': 6 };
+const PARTS: Record<string, number> = { 'e2e-desktop': 3, 'e2e-ctcourse': 8, 'e2e-sectorops': 9 };
 const jobs = (suites: string[]): number => suites.reduce((n, s) => n + (PARTS[s] ?? 1), 0);
 
 describe('--quick keeps master picks', () => {
@@ -172,9 +172,9 @@ describe('--affected: the DIRECT tier (default)', () => {
     for (const [f, suites] of rows) expect(select([f]), f).toEqual([...suites, 'smoke'].sort());
   });
 
-  it('light, lamp and voxel files pick the bake suite, the desktop and the GPU darkness read-back', () => {
+  it('light, lamp and voxel files pick the bake suite, the desktop and the GPU light read-backs', () => {
     for (const f of ['src/world/lights.ts', 'src/world/lightBake.ts', 'src/world/lampMath.ts', 'src/world/bakedLamps.ts', 'src/world/ambientGrid.ts', 'src/world/darkCurve.ts', 'src/voxel/lampBake.ts']) {
-      expect(select([f]), f).toEqual(['e2e-darkness', 'e2e-desktop', 'e2e-lightbake', 'smoke']);
+      expect(select([f]), f).toEqual(['e2e-darkness', 'e2e-desktop', 'e2e-lightbake', 'e2e-parity', 'smoke']);
     }
   });
 
@@ -227,6 +227,7 @@ describe('--affected: the DIRECT tier (default)', () => {
       ['src/player/shoulderCamera.ts', 'e2e-camera-bounds'],
       ['src/config/camera.ts', 'e2e-camera-bounds'],
       ['src/world/lightBake.ts', 'e2e-darkness'],
+      ['src/world/lightBake.ts', 'e2e-parity'],
       ['src/net/remoteAvatar.ts', 'e2e-coop-gpu'],
     ];
     for (const [f, s] of rows) {
@@ -253,13 +254,13 @@ describe('--affected --wide: the cross-area readers', () => {
       const w = select(files, wide);
       for (const s of select(files)) expect(w, s).toContain(s);
     }
-    expect(jobs(select(OPTIC_CABLE, wide))).toBe(30); // e2e-ctcourse is 4 parts since marlow-final 0d
+    expect(jobs(select(OPTIC_CABLE, wide))).toBe(37); // e2e-ctcourse is 8 parts (marlow-final 0d + the J14 re-plan parts 5-8), e2e-sectorops 9 since F33
     expect(jobs(select(GUARD_CARRY_FIX, wide))).toBe(15);
   });
 
   it('keeps the cross-area rules', () => {
     expect(select(['src/weapons/playerWeapons.ts'], wide)).toEqual(expect.arrayContaining(['e2e-stealth-ai', 'e2e-sectorops:1', 'e2e-gadgets', 'e2e-clip']));
-    expect(select(['src/ai/hearing.ts'], wide)).toEqual(expect.arrayContaining(['e2e-weapons-carry', 'e2e-takedown', 'e2e-coop', 'e2e-sectorops:6']));
+    expect(select(['src/ai/hearing.ts'], wide)).toEqual(expect.arrayContaining(['e2e-weapons-carry', 'e2e-takedown', 'e2e-coop', 'e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9']));
     expect(select(['src/world/lights.ts'], wide)).toEqual(expect.arrayContaining(['e2e-stealth-ai', 'e2e-security', 'e2e-darkness', 'e2e-levels']));
     expect(select(['src/save/schema.ts'], wide)).toEqual(expect.arrayContaining(['e2e-coop', 'e2e-park', 'e2e-offline']));
   });
@@ -292,11 +293,17 @@ describe('affected requests skip GPU and legacy suites (testing-tools: GPU never
     for (const s of [...(LEGACY as string[]), ...(GPU as string[])]) expect(gate([s, 'smoke']), s).toEqual(['smoke']);
     expect(gate([])).toEqual([]);
   });
-  it('the lamp files no longer gate an affected request on e2e-darkness (GPU) or e2e-security (legacy)', () => {
+  it('parity-lib.mjs reruns both GPU light suites, and the gate keeps neither (light jobs request e2e-parity by name)', () => {
+    const picked = select(['scripts/parity-lib.mjs']);
+    expect(picked).toEqual(expect.arrayContaining(['e2e-darkness', 'e2e-parity']));
+    for (const s of ['e2e-darkness', 'e2e-parity']) expect(gate(picked)).not.toContain(s);
+  });
+  it('the lamp files no longer gate an affected request on e2e-darkness / e2e-parity (GPU) or e2e-security (legacy)', () => {
     const picked = select(['src/world/lightBake.ts'], wide);
-    expect(picked).toEqual(expect.arrayContaining(['e2e-darkness']));
+    expect(picked).toEqual(expect.arrayContaining(['e2e-darkness', 'e2e-parity']));
     const got = gate(picked);
     expect(got).not.toContain('e2e-darkness');
+    expect(got).not.toContain('e2e-parity');
     expect(got).not.toContain('e2e-security');
     expect(got).toContain('e2e-lightbake');
   });
@@ -332,9 +339,15 @@ describe('J20', () => {
   it('campus map files pull the campus suite', () => {
     for (const f of ['src/world/maps/campusS4.ts', 'src/world/maps/campusBake.ts']) {
       const got = select([f]);
-      for (const s of ['e2e-sectorops:6', 'e2e-levels', 'e2e-anchors']) expect(got, `${f} ${s}`).toContain(s);
+      for (const s of ['e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9', 'e2e-levels', 'e2e-anchors']) expect(got, `${f} ${s}`).toContain(s);
     }
     expect(forFile('src/world/maps/campusS4.ts', wide)).toContain('e2e-sectorops');
+  });
+  it('a campus map file maps to all four campus parts (F33: part 6 was split into 6-9; a dropped part fails here)', () => {
+    for (const f of ['src/world/maps/campusS2.ts', 'src/world/maps/campusOps.ts']) {
+      const got = select([f]);
+      expect(got.filter((s) => s.startsWith('e2e-sectorops:')).sort(), f).toEqual(['e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9']);
+    }
   });
   it('the gate drops audio, the report list keeps LEGACY and AUDIO only', () => {
     const gate = affectedGateSuites(['e2e-foley', 'e2e-coop']) as string[];
@@ -343,7 +356,7 @@ describe('J20', () => {
   });
 });
 
-describe('affected-cap: at most 3 closest suites', () => {
+describe('affected-cap: the closest suites, at most the cap (the cases below use a cap of 3; the default is 1, G421)', () => {
   type Pick = (files: string[], o?: { max?: number; wide?: boolean; protocolTs?: string; times?: Record<string, number> }) => string[];
   type Cap = (files: string[], suites: string[], o?: { max?: number; map?: Covers; times?: Record<string, number>; wire?: boolean }) => string[];
   const pickAll = pickUntyped as Pick;
@@ -363,7 +376,8 @@ describe('affected-cap: at most 3 closest suites', () => {
     'e2e-sectorops:3': 24, 'e2e-sectorops:4': 40, 'e2e-sectorops:5': 36, 'e2e-stealth': 17, 'e2e-stealth-ai': 29, 'e2e-studio': 35,
     'e2e-tactics': 12, 'e2e-takedown': 10, 'e2e-traverse': 34, 'e2e-tuner-phone': 16, 'e2e-wall': 13, 'e2e-weapons-carry': 14, smoke: 8,
   });
-  const pick = (files: string[], o: { max?: number; wide?: boolean; protocolTs?: string } = {}) => pickAll(files, { ...o, times: T });
+  // a cap of 3 keeps the ranking visible in the picks below (the default, AFFECTED_MAX 1, takes the first of each)
+  const pick = (files: string[], o: { max?: number; wide?: boolean; protocolTs?: string } = {}) => pickAll(files, { max: o.wide ? undefined : 3, ...o, times: T });
   const bases = (s: string[]) => new Set(s.map((x) => x.split(':')[0]));
   const protocol = readFileSync(new URL('../src/net/protocol.ts', import.meta.url), 'utf8');
 
@@ -376,7 +390,7 @@ describe('affected-cap: at most 3 closest suites', () => {
     [['src/ai/a.ts', 'src/ai/b.ts', 'src/game/team.ts'], ['e2e-guard-carry', 'e2e-sectorops:1', 'e2e-stealth-ai']],
     [['src/weapons/w.ts'], ['e2e-combat', 'e2e-stealth-ai', 'e2e-weapons-carry']],
     [['src/player/smoothBody.ts'], ['e2e-clip', 'e2e-guard-carry', 'e2e-stealth']],
-    [['src/world/maps/campusS4.ts'], ['e2e-anchors', 'e2e-levels', 'e2e-sectorops:6']],
+    [['src/world/maps/campusS4.ts'], ['e2e-anchors', 'e2e-levels', 'e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9']],
     [['src/world/lightBake.ts'], ['e2e-desktop', 'e2e-lightbake']],
     [['src/world/maps/bunker.ts'], ['e2e-course']],
     [['src/save/ratingRecord.ts'], ['e2e-section-rating']],
@@ -387,8 +401,20 @@ describe('affected-cap: at most 3 closest suites', () => {
     [['scripts/run-e2e.mjs', 'scripts/e2e-verdict.mjs'], ['e2e-anim', 'e2e-combat', 'e2e-move']],
     [['docs/RULES.md', 'changes/x.md'], []],
   ];
+  it('the default cap is one suite (G421): the closest of the 3-cap pick; the co-op group and parts of one suite stay whole', () => {
+    expect(AFFECTED_MAX).toBe(1);
+    const one = (files: string[]) => pickAll(files, { times: T });
+    expect(one(['src/player/traversal.ts'])).toEqual(['e2e-traverse']);
+    expect(one(['src/net/remoteAvatar.ts'])).toEqual(group);
+    expect(one(['src/world/maps/campusS4.ts'])).toEqual(['e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9']);
+    expect(one(['docs/RULES.md'])).toEqual([]);
+    for (const [files, want] of EXPECTED) {
+      const got = one(files);
+      expect(new Set(got.map((s) => s.split(':')[0])).size, files.join(',')).toBeLessThanOrEqual(want === group ? 3 : 1);
+      for (const s of got) expect(want, files.join(',')).toContain(s);
+    }
+  });
   it('picks the closest suites for each change (PLAN expected picks)', () => {
-    expect(AFFECTED_MAX).toBe(3);
     for (const [files, want] of EXPECTED) expect(pick(files), files.join(',')).toEqual(want);
   });
   it('file order never changes the pick', () => {
@@ -416,7 +442,7 @@ describe('affected-cap: at most 3 closest suites', () => {
     expect(five).not.toContain('smoke');
   });
   it('parseAffectedMax: a whole number >= 0, else the default', () => {
-    const cases: [unknown, number][] = [[undefined, 3], ['', 3], ['0', 0], ['5', 5], ['x', 3], ['-1', 3], ['2.5', 3], [0, 0]];
+    const cases: [unknown, number][] = [[undefined, 1], ['', 1], ['0', 0], ['5', 5], ['x', 1], ['-1', 1], ['2.5', 1], [0, 0]];
     for (const [v, want] of cases) expect(parseMax(v), String(v)).toBe(want);
   });
   it('a src/net file beats any number of hits elsewhere: the co-op group', () => {
@@ -437,7 +463,7 @@ describe('affected-cap: at most 3 closest suites', () => {
     expect(pick(['src/ai/archetypes.ts'])).toEqual(['e2e-guard-carry', 'e2e-sectorops:1', 'e2e-stealth-ai']);
   });
   it('two parts of one suite from two files take one slot, both kept', () => {
-    expect(pick(['src/world/maps/campusS4.ts', 'src/weapons/w.ts'])).toEqual(['e2e-combat', 'e2e-sectorops:1', 'e2e-sectorops:6', 'e2e-weapons-carry']);
+    expect(pick(['src/world/maps/campusS4.ts', 'src/weapons/w.ts'])).toEqual(['e2e-combat', 'e2e-sectorops:1', 'e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9', 'e2e-weapons-carry']);
   });
   it('rankAffected: hits beat depth, depth beats time, time beats name, a part counts for its base', () => {
     const map: Covers = { 'src/a/deep': ['s-deep', 's-x'], 'src/a/': ['s-x', 's-fast', 's-slow', 's-tie'], 'src/b/': ['s-x', 's-b'], 'src/c/': ['s-p:1'], 'src/d/': ['s-p:2', 's-q'] };
@@ -460,7 +486,7 @@ describe('affected-cap: at most 3 closest suites', () => {
     expect(bases(pick(files, { wide: true })).size).toBeGreaterThan(3);
     expect(bases(pick(files, { wide: true, max: 3 })).size).toBe(3);
     // a row naming the whole group under another map does not force the group (the DIRECT row of src/ui does not name it)
-    expect(cap(['src/ui/y.ts'], ['e2e-coop', 'e2e-ctcourse', 'e2e-netmove', 'e2e-pad'], { map: { 'src/ui/': [...group, 'e2e-pad'] }, times: T })).toEqual(['e2e-coop', 'e2e-netmove', 'e2e-pad']);
+    expect(cap(['src/ui/y.ts'], ['e2e-coop', 'e2e-ctcourse', 'e2e-netmove', 'e2e-pad'], { max: 3, map: { 'src/ui/': [...group, 'e2e-pad'] }, times: T })).toEqual(['e2e-coop', 'e2e-netmove', 'e2e-pad']);
   });
   it('auto-drop still sees every suite a change reaches (suiteSetFor uncapped)', () => {
     const got = [...(suiteSetFor(['src/player/traversal.ts', 'src/weapons/w.ts']) as Set<string>)].sort();

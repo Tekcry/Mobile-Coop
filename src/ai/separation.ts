@@ -86,12 +86,24 @@ export function steerOff(x: number, z: number, gx: number, gz: number, speed: nu
   out.z -= sgn * gx * m;
 }
 
-/** `steerOff` from every solid guard in `list` but `self` on his storey, added into `out`. */
-export function steerFrom(self: SepBody, gx: number, gz: number, speed: number, list: readonly SepBody[], out: SepOut): void {
+/**
+ * `steerOff` from every solid guard in `list` but `self` on his storey, added into `out`. (guard-ai piano GA6) `skip`: a
+ * guard left out of the soft push and sidestep (a sweeping guard's partner on a lane beside him); the hard floor
+ * (`stepApart`) still holds against him.
+ */
+export function steerFrom(
+  self: SepBody,
+  gx: number,
+  gz: number,
+  speed: number,
+  list: readonly SepBody[],
+  out: SepOut,
+  skip: SepBody | null = null,
+): void {
   const p = self.pos;
   for (let k = 0; k < list.length; k++) {
     const o = list[k]!;
-    if (o === self || !o.solid) continue;
+    if (o === self || o === skip || !o.solid) continue;
     const q = o.pos;
     if (Math.abs(q.y - p.y) > SEPARATION.dy) continue;
     steerOff(p.x, p.z, gx, gz, speed, q.x, q.z, out);

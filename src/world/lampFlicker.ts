@@ -18,7 +18,11 @@ import type { LightRegistry } from './lights';
 export const FLICKER_NONE = 0;
 export const FLICKER_FIRE = 1;
 export const FLICKER_STUTTER = 2;
-export type FlickerMode = typeof FLICKER_NONE | typeof FLICKER_FIRE | typeof FLICKER_STUTTER;
+/** (piano SO5b) A lightning opening's light (`LightDef.flash`): its multiplier is the flash now, set by
+ *  `LightRegistry.setSkyFlash` (`World.setFlash`); `tickFlicker` leaves it alone. Listed in `flickering` so the
+ *  renderers' flicker path re-writes it as any moving light. */
+export const FLICKER_FLASH = 3;
+export type FlickerMode = typeof FLICKER_NONE | typeof FLICKER_FIRE | typeof FLICKER_STUTTER | typeof FLICKER_FLASH;
 
 /** The sim's fixed step rate (`core/loop.ts` FIXED_DT = 1 / 60): `LightRegistry.tickFlicker` snaps its time to it. */
 export const FLICKER_STEP_HZ = 60;
@@ -202,6 +206,9 @@ export const STUTTER_TUBES: Readonly<Record<string, readonly StutterTube[]>> = {
   ],
 };
 
+/** (J14) The map whose lamp tables (stutter tube, sway pendants) and flicker seed a map uses: the Marlow re-plan is the same yard. */
+export const lampMapId = (mapId: string): string => (mapId === 'ctcourseReplan' ? 'ctcourse' : mapId);
+
 /** A stutter tube's match tolerance (m, each axis). */
 export const TUBE_TOL = 0.05;
 
@@ -222,6 +229,7 @@ export function findTube(reg: LightRegistry, t: StutterTube): number {
  * Returns the tube's registry id, or -1 when the map has none (or none of its candidates matched).
  */
 export function applyMapFlicker(reg: LightRegistry, mapId: string, seed: number): number {
+  mapId = lampMapId(mapId);
   reg.flickerSeed = mapFlickerSeed(mapId, seed);
   const list = STUTTER_TUBES[mapId];
   if (!list) return -1;

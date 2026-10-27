@@ -1,6 +1,6 @@
 // Marlow Yard (`ctcourse`, marlow-final): the co-op training course on two pages over
-// `?net=local&autostart=ctcourse&mode=course` (the first tab hosts, the second joins). The runner (slice 0d) owns the
-// shared helpers and the part dispatch; each set's steps live in `scripts/e2e-ctcourse/<set>.mjs` (owned by its set
+// `?net=local&autostart=ctcourse&mode=course` (the first tab hosts, the second joins with `&autojoin=1`). The runner
+// (slice 0d) owns the shared helpers and the part dispatch; each set's steps live in `scripts/e2e-ctcourse/<set>.mjs` (owned by its set
 // slice), called in route order. Between sets both players stand on the holding room's pad: the near door locks behind
 // them, the far door unlocks on both pages and the course moves to the next set. Every part checks the join (both
 // avatars drawn, the objective line); part 1 also the host-only pause restart at A1; part 4 ends with a revive in the
@@ -8,8 +8,9 @@
 // co-op surface (A1 yard, A2 staging, A6 gallery, A8 gallery) and revived from that level (`e2e-ctcourse/revive.mjs`);
 // after every set the bay's ghost ledger (detections, alarms, knock-outs, kills, bodies) is logged (report only).
 //
-// `--part=N` runs one pair of sets (the runner runs the four as parallel jobs): 1 A1-A2, 2 A3-A4, 3 A5-A6, 4 A7-A8
-// (SPEC 16). Named alone the suite runs all eight sets. A part after the first starts the course at its first set (the
+// `--part=N` runs one pair of sets (the runner runs the parts as parallel jobs): 1 A1-A2, 2 A3-A4, 3 A5-A6, 4 A7-A8
+// (SPEC 16). (J14 re-plan) Parts 5-8 are the same pairs on the re-planned yard (map `ctcourseReplan`, `?autostart=ctcourseReplan`),
+// walking `scripts/e2e-ctcourse/replan/<set>.mjs` (S0: stubs re-exporting the built walks until each set slice replaces its own). Named alone the suite runs all eight sets. A part after the first starts the course at its first set (the
 // host session's `courseBay`, the lobby's "Start at"); every set still ends through its exit holding room, so the parts
 // together cover the whole run.
 //
@@ -19,6 +20,8 @@
 // starts with the course at that set and must leave both players free to be moved onto the exit pad. The old bunker
 // stations' steps (camera hallway, security room, laser and panel, throw, hang-down, scanners, rope) are in git at
 // 5920cce5 (scripts/e2e-ctcourse.mjs) for the set slices to adapt.
+// Debug only: `E2E_STALL_HOST_MS=3000` blocks the host page's thread that long when the client tab reaches the room
+// (the boot-deadlock proof, F7); unset (the default) it does nothing.
 import { launch, openPage, assert } from './e2e-lib.mjs';
 import { until, waitSim, waitHostSim, setSimPages, NET_VIEWPORT, LOAD_MS, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
 import * as a1Gate from './e2e-ctcourse/a1Gate.mjs';
@@ -29,16 +32,30 @@ import * as a5Substation from './e2e-ctcourse/a5Substation.mjs';
 import * as a6PumpHouse from './e2e-ctcourse/a6PumpHouse.mjs';
 import * as a7DataHall from './e2e-ctcourse/a7DataHall.mjs';
 import * as a8Strongroom from './e2e-ctcourse/a8Strongroom.mjs';
-import { SURFACES, reviveOn, freeRevive } from './e2e-ctcourse/revive.mjs';
+import * as r1Gate from './e2e-ctcourse/replan/a1Gate.mjs';
+import * as r2CarriageShed from './e2e-ctcourse/replan/a2CarriageShed.mjs';
+import * as r3OfficeRange from './e2e-ctcourse/replan/a3OfficeRange.mjs';
+import * as r4GoodsShed from './e2e-ctcourse/replan/a4GoodsShed.mjs';
+import * as r5Substation from './e2e-ctcourse/replan/a5Substation.mjs';
+import * as r6PumpHouse from './e2e-ctcourse/replan/a6PumpHouse.mjs';
+import * as r7DataHall from './e2e-ctcourse/replan/a7DataHall.mjs';
+import * as r8Strongroom from './e2e-ctcourse/replan/a8Strongroom.mjs';
+import { SURFACES, REPLAN_SURFACES, reviveOn, freeRevive } from './e2e-ctcourse/revive.mjs';
 
-const SETS = [a1Gate, a2CarriageShed, a3OfficeRange, a4GoodsShed, a5Substation, a6PumpHouse, a7DataHall, a8Strongroom];
+const BUILT_SETS = [a1Gate, a2CarriageShed, a3OfficeRange, a4GoodsShed, a5Substation, a6PumpHouse, a7DataHall, a8Strongroom];
+const REPLAN_SETS = [r1Gate, r2CarriageShed, r3OfficeRange, r4GoodsShed, r5Substation, r6PumpHouse, r7DataHall, r8Strongroom];
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
 /** Revives done this run (each surface and the dock): the end screen's team count. */
 let revivesDone = 0;
-const Q = 'net=local&autostart=ctcourse&mode=course';
 const PART = Number(process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? 0);
-const GROUPS = { 1: [1, 2], 2: [3, 4], 3: [5, 6], 4: [7, 8] };
+// (J14) parts 5-8: the re-planned yard, its own map id and walks
+const REPLAN = PART >= 5;
+const MAP_ID = REPLAN ? 'ctcourseReplan' : 'ctcourse';
+const SETS = REPLAN ? REPLAN_SETS : BUILT_SETS;
+// (J14 S0 fix 1) the re-plan parts carry the flag too, as a host on the re-plan does
+const Q = `net=local&autostart=${MAP_ID}&mode=course${REPLAN ? '&marlowreplan=1' : ''}`;
+const GROUPS = { 1: [1, 2], 2: [3, 4], 3: [5, 6], 4: [7, 8], 5: [1, 2], 6: [3, 4], 7: [5, 6], 8: [7, 8] };
 const [FIRST, LAST] = GROUPS[PART] ?? [1, 8];
 
 // (co-op test fix) `until` and the pauses are e2e-net-lib's: polled from Node (G13), timed on both pages' sim clocks
@@ -248,6 +265,40 @@ async function throughHoldingRoom(n) {
   await until(B, ([nd, fd]) => window.__course.wire.locks.includes(nd) && !window.__course.wire.locks.includes(fd), [near, far], 15000, `the client sees ${a.nearDoor} locked and ${a.farDoor} open`);
 }
 
+/**
+ * (F7 fix B) The thrown client's own arc over a beam line at x = `beamX`, recorded on every client fixed step (Node
+ * polling under load skipped the line: "0 samples", A5). Call before the throw press, await the returned function after
+ * it: it resolves once the client is free again more than 1 m past the line on the `dir` side (-1: towards -x, +1:
+ * towards +x), with `max` (the feet height in the +-0.3 m band, and the height interpolated between the two steps
+ * either side of the line) and `n` (steps inside the band; 0 means the arc was never seen there). The hook keeps
+ * numbers only: nothing is allocated per step.
+ */
+async function arcOverLine(beamX, dir, what, timeout = 20000) {
+  const key = await onHostStep(B, (g, [bx, d], st) => {
+    const c = g.player.controller;
+    const x = c.pos.x;
+    const y = c.pos.y;
+    if (st.n === undefined) {
+      st.n = 0;
+      st.max = 0;
+      st.px = NaN;
+      st.py = 0;
+    }
+    if (Math.abs(x - bx) < 0.3) {
+      st.n++;
+      if (y > st.max) st.max = y;
+    }
+    if (st.px === st.px && (st.px - bx) * (x - bx) < 0) {
+      const h = st.py + ((y - st.py) * (st.px - bx)) / (st.px - x);
+      if (h > st.max) st.max = h;
+    }
+    st.px = x;
+    st.py = y;
+    return g.team.state === 'none' && (x - bx) * d > 1 ? { max: st.max, n: st.n } : null;
+  }, [beamX, dir]);
+  return () => hostStepResult(B, key, timeout, `${what}: the throw lands past the line`);
+}
+
 /** The set helpers a set module's `walk(t, n)` gets. */
 const t = {
   get A() {
@@ -259,7 +310,9 @@ const t = {
   GA, GB, until, assert, waitSim, sleep: waitSim, use, hostDebug, moveHost, moveClient, doorIndex, point, stepLine,
   RB, holdUntil, padReady, P5, crouch, legUp, pullUp, dev, drawPistol, holster, aimAt, lt, avatarDrawn, stubWalk,
   // (load-audit, load-latent-net) host-clock windows and presses on the host's own fixed step (synced pairs)
-  waitHostSim, onHostStep, offHostStep, hostStepResult,
+  waitHostSim, onHostStep, offHostStep, hostStepResult, arcOverLine,
+  // (J14 S0) parts 5-8 walk the re-plan yard (`ctcourseReplan`): set modules skip steps for rules it drops
+  replan: REPLAN,
 };
 
 /** (B8, G126) The finale in the cash dock: the client goes down and the host revives it inside the 30 s window. */
@@ -302,11 +355,35 @@ try {
   await until(A, () => window.__coop?.session?.isHost === true, null, 30000, 'first tab hosts');
   // (the match starts once the client tab joins: the start set is set before it opens)
   if (FIRST > 1) await GA((n) => (window.__coop.session.courseBay = n), FIRST);
-  const opened = await openPage(ctx, url, Q);
+  const stallMs = Number(process.env.E2E_STALL_HOST_MS ?? 0);
+  if (stallMs > 0) {
+    // on the client tab's first peer join (its session opening the room), before the host answers it
+    console.log(`  (E2E_STALL_HOST_MS: the host page's thread blocks ${stallMs} ms when the client tab reaches the room)`);
+    await GA((ms) => {
+      const tr = window.__coop.session.transport;
+      const f = tr.onPeerJoin;
+      tr.onPeerJoin = (id) => {
+        tr.onPeerJoin = f;
+        const t0 = performance.now();
+        while (performance.now() - t0 < ms);
+        f?.(id);
+      };
+    }, stallMs);
+  }
+  // (F7) the second tab joins as a client with no probe deadline (`&autojoin=1`): a busy host page that answered the
+  // 1.5 s probe late made it host too, and the two hosts never started (the boot deadlock)
+  const opened = await openPage(ctx, url, `${Q}&autojoin=1`);
   B = opened.page;
   eB = opened.errors;
   setSimPages([A, B]);
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'ctcourse', null, LOAD_MS, `${tag} in the ctcourse match`);
+  try {
+    for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (id) => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === id, MAP_ID, LOAD_MS, `${tag} in the ${MAP_ID} match`);
+  } catch (e) {
+    // both tabs' sessions: two hosts is the deadlock; a client with no hostId never heard the host
+    const s = (P) => P.evaluate(() => { const x = window.__coop?.session; return x ? { isHost: x.isHost, phase: x.phase, players: x.players.size, hostId: x.hostId } : null; }).catch((err) => String(err));
+    console.log(`  (boot timeout: host tab ${JSON.stringify(await s(A))}, client tab ${JSON.stringify(await s(B))})`);
+    throw e;
+  }
   pumpOn = true;
   await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state) && !!window.__course?.state, null, 20000, 'host course running');
   await until(B, () => !!window.__course?.wire, null, 30000, 'client has the course state');
@@ -373,7 +450,8 @@ try {
     await mod.walk(t, n);
     const led = await GA((i) => { const s = window.__course.state.stats?.[i]; return s ? { detections: s.detections, alarms: s.alarms, knockouts: s.knockouts, kills: s.kills, bodies: s.bodies } : null; }, n - 1);
     console.log(`  (ghost ledger A${n} after the walk: ${JSON.stringify(led)})`);
-    if (SURFACES[n]) revivesDone += await reviveOn(t, SURFACES[n]);
+    const surf = (REPLAN ? REPLAN_SURFACES : SURFACES)[n];
+    if (surf) revivesDone += await reviveOn(t, surf);
     if (n < 8) await throughHoldingRoom(n);
   }
 

@@ -8,6 +8,7 @@ import { GadgetWheel } from './gadgetWheel';
 import { PingView } from './pings';
 import { BarkView } from './barks';
 import { ContextMenuView } from './contextMenuView';
+import type { CtxPromptSink } from '../../game/contextPrompts';
 import { OBJECTIVE_POPUP, ObjectivePopup } from './objectivePopup';
 
 export interface HudFrame {
@@ -55,6 +56,8 @@ export class Hud {
   private objText = '';
   /** (hud-guidance A7) The co-op connection notice, its own small line under the objective (empty: hidden). */
   private netStatus: HTMLElement;
+  /** (mission-rules R6) The objective's hint line (`setObjectiveHint`), made on first use. */
+  private objHint: HTMLElement | null = null;
   private modeInfo: HTMLElement;
   private weaponEl!: HTMLElement;
   private roomEl: HTMLElement;
@@ -62,6 +65,9 @@ export class Hud {
   private interactEl: HTMLElement;
   /** (G5) The CT context action menu, top right. */
   readonly ctx = new ContextMenuView();
+  /** (context-prompts S3 / S4) The context prompts' view, under `flags.contextPrompts`: the game calls it every step
+   *  (absent: nothing drawn). S4 sets it. */
+  ctxPrompts?: CtxPromptSink;
   /** Cover / vault prompts, the cover badge and the cover-to-cover marker, on the world surfaces. */
   readonly world: WorldPrompts;
   private feed: HTMLElement;
@@ -295,6 +301,27 @@ export class Hud {
 
   get netStatusText(): string {
     return this.netStatus.textContent ?? '';
+  }
+
+  /**
+   * (mission-rules R6, HG7) The hint line under the objective (a mission's current step, the hint layer on); null or ''
+   * hides it. Made on the first non-empty call, right after the objective line; it shares `hud-objective`, so once
+   * hud-guidance B1's popup is in it shows and fades with the objective. Cached: a repeat call writes nothing. (R6
+   * polish) Its size is its own, in px as the objective's 13px (`.hud-objective`): about 0.8 of it (an `em` would scale
+   * from the parent, not from the objective line).
+   */
+  setObjectiveHint(text: string | null): void {
+    const t = text ?? '';
+    if (!this.objHint) {
+      if (!t) return;
+      this.objHint = h('div', { class: 'hud-objective hud-objective-hint', style: { fontSize: '10.5px', opacity: '0.8' } });
+      this.objective.after(this.objHint);
+    }
+    const el = this.objHint;
+    this.set('objHint', t, () => {
+      el.textContent = t;
+      el.hidden = !t;
+    });
   }
 
   /** Room tag at the top (close-quarters maps); `cleared` marks it as secured. */

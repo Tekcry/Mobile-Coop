@@ -19,16 +19,18 @@ import type { CampusDresser } from '../../campusArt/dresser';
 import { boxAt, boxesIn, rectsOverlap } from '../../campusArt/geometry';
 import { blocked, overlapsGreybox, placementMount, shapesOf } from '../../campusArt/keepouts';
 import { PROP_LOOK } from '../../props/facilityProps';
+import { hyp2 } from '../../../core/mathx';
 import { S4_BASKET, S4_BOX, S4_DECK, S4_GROUPS, S4_NOC, S4_PODS } from './s4';
 
 /** Every room of `S4_ROOMS` -> its tag (brief section 1). */
 export const S4_ART_TAGS: Record<string, ArtTag> = {
   's4-dock': 'dock',
-  's4-sc': 'corridor',
   's4-lobby': 'lobby',
-  's4-lobby-b': 'lobby',
-  's4-lobby-c': 'lobby',
+  's4-lobby-e': 'lobby',
+  's4-lobby-a': 'lobby',
   's4-mantrap': 'mantrap',
+  // (G4.1) the return-air plenum: 'riser', the nearest existing tag for a service void (report B2)
+  's4-plenum': 'riser',
   's4-batt': 'battery',
   's4-cc': 'corridor',
   's4-ups': 'ups',
@@ -174,7 +176,7 @@ function around(c: Cand, rx: number, rz: number, step: number, yaws: readonly nu
   const out: { d: number; c: Cand }[] = [];
   for (let dx = -rx; dx <= rx + 1e-9; dx += step) {
     for (let dz = -rz; dz <= rz + 1e-9; dz += step) {
-      for (const yaw of yaws) out.push({ d: Math.hypot(dx, dz) + (yaw === c.yaw ? 0 : 0.01), c: { x: c.x + dx, y: c.y, z: c.z + dz, yaw } });
+      for (const yaw of yaws) out.push({ d: hyp2(dx, dz) + (yaw === c.yaw ? 0 : 0.01), c: { x: c.x + dx, y: c.y, z: c.z + dz, yaw } });
     }
   }
   return out.sort((a, b) => a.d - b.d).map((o) => o.c);
@@ -246,10 +248,12 @@ export function dressS4(d: CampusDresser): void {
   const [cx0, cz0, cx1, cz1] = S4_BOX.crac;
   d.skinRow('H4:cracUnit', boxAt(bx, (cx0 + cx1) / 2, 1.0, (cz0 + cz1) / 2), true, -1, { why: 'CRAC units, fronts to the cage side; the status displays are on the cold-aisle circuit', group: S4_GROUPS.cold1 });
 
-  // ---- the battery room racks and the UPS cabinets
-  const batt = S4_BOX.batteryRacks;
-  d.skinRow('K:batteryRack', boxAt(bx, (batt[0][0] + batt[0][2]) / 2, 0.6, (batt[0][1] + batt[0][3]) / 2), false, 1, { why: 'battery rack string, west row' });
-  d.skinRow('K:batteryRack', boxAt(bx, (batt[1][0] + batt[1][2]) / 2, 0.6, (batt[1][1] + batt[1][3]) / 2), false, -1, { why: 'battery rack string, east row' });
+  // ---- the battery room racks and the UPS cabinets. (G4.2 C11) The racks are 2.0 high now: `K:batteryRack` is a 1.2 m piece
+  // that fits to 1.3 only (`campusKit.ts` fitRange), so the two rows are left unskinned (logged; an art decision for the lead)
+  for (const [n, row] of [['west', S4_BOX.batteryRacks[0]], ['east', S4_BOX.batteryRacks[1]]] as const) {
+    boxAt(bx, (row[0] + row[2]) / 2, 1.0, (row[1] + row[3]) / 2);
+    S4_HERO_LOG.push(`battery rack string, ${n} row (2.0 high, C11): not skinned, K:batteryRack (1.2) fits to 1.3 only`);
+  }
   const [ux0, uz0, ux1, uz1] = S4_BOX.upsCabinets;
   d.skinRow('H4:upsCabinet', boxAt(bx, (ux0 + ux1) / 2, 1.0, (uz0 + uz1) / 2), false, 1, { why: 'UPS cabinet line-up, fronts the room; the mimic LEDs are on the UPS circuit', group: S4_GROUPS.ups });
 
@@ -289,12 +293,15 @@ function heroes(d: CampusDresser): void {
   const PI = Math.PI;
   const N = S4_NOC;
 
-  // the NOC video wall: the north wall's inner face is over the stair opening (the flight rises along it), so it goes on the
-  // east wall's inner face (x 7.9, the security room / corridor partition), facing the operators
-  place(d, 'F:monitorWall', around({ x: 7.9, y: N, z: 44.6, yaw: -PI / 2 }, 0, 1.5, 0.1), { cls: 'solid', why: 'the NOC video wall the operators watch', group: S4_GROUPS.noc, label: 'NOC video wall' });
-  // the NOC operators' desks: the strip south of the stair rail, outside the guards' takedown spots and the nav seed
-  place(d, 'F:securityDesk', around({ x: 0, y: N, z: 46.0, yaw: PI }, 3, 0.6, 0.1, [PI, 0]), { cls: 'solid', why: 'NOC operator desk', group: S4_GROUPS.noc, label: 'NOC desk 1' });
-  place(d, 'F:securityDesk', around({ x: 4, y: N, z: 46.0, yaw: PI }, 3, 0.6, 0.1, [PI, 0]), { cls: 'solid', why: 'NOC operator desk', group: S4_GROUPS.noc, label: 'NOC desk 2' });
+  // the NOC video wall: the north wall's inner face is over the stair well (the flights rise along it), so it goes on the
+  // east wall's inner face (x 7.9, the security room / corridor partition), facing the operators; (G4.4 C18) the escape door
+  // and its platform leave that wall no 3 m run, so the west wall's inner face (x -3.85) is the fallback
+  place(d, 'F:monitorWall', [...around({ x: 7.9, y: N, z: 44.6, yaw: -PI / 2 }, 0, 1.5, 0.1), ...around({ x: -3.85, y: N, z: 45.0, yaw: PI / 2 }, 0, 1.5, 0.1)], { cls: 'solid', why: 'the NOC video wall the operators watch', group: S4_GROUPS.noc, label: 'NOC video wall' });
+  // the NOC operators' desks: the strip south of the stair well, outside the guards' takedown spots and the nav seed. (G4.4 C16)
+  // The dog-leg stair well (x 0..4.2, z 45.1..47.85) and the roof-hatch ladder's foot (x 5.9..7.6, z 46.5..47.9) are no floor
+  const nocFloor = (c: Cand): boolean => !(c.x > -1.0 && c.x < 5.3 && c.z > 44.3) && !(c.x > 5.3 && c.x < 7.8 && c.z > 45.8);
+  place(d, 'F:securityDesk', around({ x: 0, y: N, z: 46.0, yaw: PI }, 3, 0.6, 0.1, [PI, 0]).filter(nocFloor), { cls: 'solid', why: 'NOC operator desk', group: S4_GROUPS.noc, label: 'NOC desk 1' });
+  place(d, 'F:securityDesk', around({ x: 4, y: N, z: 46.0, yaw: PI }, 3, 0.6, 0.1, [PI, 0]).filter(nocFloor), { cls: 'solid', why: 'NOC operator desk', group: S4_GROUPS.noc, label: 'NOC desk 2' });
   // the security room's second desk
   place(d, 'F:securityDesk', around({ x: 2, y: 0, z: 46.2, yaw: PI }, 4, 0.8, 0.1, [PI, 0]), { cls: 'solid', why: 'security room desk', group: S4_GROUPS.sec, label: 'security room desk' });
 

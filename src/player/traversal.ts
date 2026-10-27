@@ -296,7 +296,12 @@ export class TraversalController {
     // standing room on top (mantle)
     const mx = feet.x + dx * (front + 0.4);
     const mz = feet.z + dz * (front + 0.4);
-    const topClear = this.ray(this.a.set(mx, topY + 0.05, mz), this.b.set(mx, topY + MOVEMENT.standHeight, mz)) === null && this.ray(this.a.set(feet.x, topY + 0.5, feet.z), this.b.set(mx, topY + 0.5, mz)) === null;
+    // (mantle-rise-fix) and air to rise through: chest to over the top at the feet, so a crawl space under a slab never
+    // mantles up through the slab (the top cast from feet + 2.0 reads the slab's top; the committed move ignores collision)
+    const topClear =
+      this.ray(this.a.set(mx, topY + 0.05, mz), this.b.set(mx, topY + MOVEMENT.standHeight, mz)) === null &&
+      this.ray(this.a.set(feet.x, topY + 0.5, feet.z), this.b.set(mx, topY + 0.5, mz)) === null &&
+      this.ray(this.a.set(feet.x, feet.y + 0.9, feet.z), this.b.set(feet.x, topY + 0.5, feet.z)) === null;
     const pi = this.pickIn;
     pi.height = height;
     pi.depth = depth;

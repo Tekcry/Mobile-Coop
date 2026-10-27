@@ -24,7 +24,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { selectSuites, suitesForFile, affectedPick, parseAffectedMax, QUICK_COVERS, LEGACY, GPU, AUDIO } from './e2e-affected.mjs';
-import { classify, status, reportSet, isReport } from './e2e-verdict.mjs';
+import { classify, status, reportSet, isReport, slowLine } from './e2e-verdict.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4179);
 // Windows: `localhost` can resolve to ::1, which a VPN adapter on the PC blocks (EACCES): bind and browse the IPv4 loopback there
@@ -47,9 +47,19 @@ const NEEDS_LEGACY_FLAG = new Set(['e2e-progression', 'e2e-cosmetics', 'e2e-clea
 const REPORT = ['anim-audit'];
 // A suite that is several independent sections (each its own browser) runs as one job per section: `e2e-desktop` =
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
-// (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages.
-// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6 (campusOps: S1-S3 greybox routes)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
+// (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages. (J14) Parts 5-8
+// are the same four pairs on the re-planned yard (map `ctcourseReplan`, `scripts/e2e-ctcourse/replan/`).
+// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6-9 (campusOps, solo: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5; split in F33 so no part nears the kill)
+// (mission-framework EN2) e2e-sectorops:mission = the campus test mission (`scripts/e2e-sectorops-mission.mjs`, its own script: PART_SCRIPT)
+// (mission-framework GB6) e2e-sectorops:wharf-tgc / :wharf-tkl = the Tallow Wharf missions in co-op (scripts/e2e-sectorops-wharf.mjs --mission=<id>)
+// (light-parity C2) e2e-parity = 1 campus S1-S2, 2 campus S3-S5, 3 Marlow Yard, 4 Warehouse (GPU only; trains via laptop-queue TRAIN_PARITY)
+const PARTS = { 'e2e-parity': ['1', '2', '3', '4'], 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'mission', 'wharf-tgc', 'wharf-tkl'] };
+/** A part that lives in its own script (run with no `--part`): the script name, or `[script, ...args]`. */
+const PART_SCRIPT = {
+  'e2e-sectorops:mission': 'e2e-sectorops-mission',
+  'e2e-sectorops:wharf-tgc': ['e2e-sectorops-wharf', '--mission=threeGreyCoats'],
+  'e2e-sectorops:wharf-tkl': ['e2e-sectorops-wharf', '--mission=twoKeyLedger'],
+};
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
@@ -150,7 +160,7 @@ function affectedSuites() {
   } catch (e) {
     console.error(`affected: no src/net/protocol.ts at HEAD (${String(e.stderr || e.message).trim()}): the wire rule is skipped`);
   }
-  // (affected-cap) the pick the laptop queue requests: --affected-max=N, else E2E_AFFECTED_MAX, else 3; --wide with neither is uncapped
+  // (affected-cap) the pick the laptop queue requests: --affected-max=N, else E2E_AFFECTED_MAX, else AFFECTED_MAX (1, G421); --wide with neither is uncapped
   const given = opt('affected-max') ?? process.env.E2E_AFFECTED_MAX;
   const max = wide && given === undefined ? undefined : parseAffectedMax(given);
   const suites = affectedPick(files, { wide, max, protocolTs });
@@ -160,7 +170,7 @@ function affectedSuites() {
 
 // (sector-fixes-r e2e fix) a named suite with parts expands too (`e2e-sectorops` -> `:1`-`:5`, one job each); `name:N`
 // names one part. Before, a named list ran the suite whole as one job.
-const all = named.length ? expand(named) : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : affected ? affectedSuites() : quick ? quickSuites() : expand(REQUIRED);
+const all = named.length ? expand(named) : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? expand(GPU) : affected ? affectedSuites() : quick ? quickSuites() : expand(REQUIRED);
 const fullRun = !named.length && !selective && !legacyRun && !audioRun && !gpuRun;
 // REPORT ONLY: anim-audit always; in a quick / affected run every suite outside REQUIRED; in any run the E2E_REPORT
 // suites (J20 T4: the laptop queue names an affected request's LEGACY / AUDIO suites there, so a named run never gates on them)
@@ -220,7 +230,9 @@ async function runOne(s) {
   else console.log(`[start] ${s}`);
   const [script, part] = s.split(':');
   const childEnv = NEEDS_LEGACY_FLAG.has(script) ? { ...env, LEGACY: '1' } : env;
-  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(selective && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
+  const own = PART_SCRIPT[s];
+  const [ownName, ...ownArgs] = Array.isArray(own) ? own : own ? [own] : [];
+  const child = spawn(process.execPath, [`scripts/${ownName ?? script}.mjs`, url, ...ownArgs, ...(part && !own ? [`--part=${part}`] : []), ...(selective && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
   let log = '';
   if (!streamed) {
     child.stdout.on('data', (d) => (log += d));
@@ -274,6 +286,8 @@ const wall = (Date.now() - t00) / 1000;
 const sum = results.reduce((a, r) => a + r.sec, 0);
 console.log(`\ntimes (${process.env.E2E_GPU === '1' ? 'GPU' : 'software GL'}, ${jobs} at a time):\n  ${results.sort((a, b) => b.sec - a.sec).map((r) => `${r.s} ${status(r, verdictOpts)} ${r.sec.toFixed(0)}s`).join('\n  ')}`);
 console.log(`\nwall ${wall.toFixed(0)}s, suites summed ${sum.toFixed(0)}s${jobs > 1 ? ` (x${(sum / wall).toFixed(1)})` : ''}`);
+// (F33-c) a part that passes but used over 75% of the kill limit is drifting toward KILLED: say so before it gets there
+for (const r of results) { const slow = slowLine(r, SUITE_TIMEOUT / 1000); if (slow) console.log(slow); }
 if (fullRun && !allFailed.length) {
   // keep the schedule current (the file is committed: a fresh checkout starts with a good order)
   for (const r of results) known[r.s] = Math.round(r.sec);
