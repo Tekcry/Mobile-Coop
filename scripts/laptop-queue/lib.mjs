@@ -1907,9 +1907,10 @@ export function claimSkipStatuses(r, why, head = '') {
 
 /**
  * Light parity on every train (J20 S7, Q27, BRIEF A7): the suites appended to the train's full list on both workers
- * (E2E_GPU=1). e2e-darkness until Sector Ops Build's per-map parity cards (J11) replace it; `[]` turns it off for good.
+ * (E2E_GPU=1). Light parity (G391, Q27): J11's per-map grey cards and meter rows (e2e-parity parts, sharded by e2e-times)
+ * and e2e-darkness (night vision, thermal). `[]` turns it off for good.
  */
-export const TRAIN_PARITY = ['e2e-darkness'];
+export const TRAIN_PARITY = ['e2e-parity:1', 'e2e-parity:2', 'e2e-parity:3', 'e2e-parity:4', 'e2e-darkness'];
 
 /**
  * The train's parity suites, pure. env = LQ_TRAIN_PARITY (`off` -> none, wins over the file); text = the run-time

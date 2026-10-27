@@ -415,9 +415,10 @@ describe('K0: the per-id gate on each page', () => {
     unregisterKitMove('pull');
   });
 
-  it('the URL: an unbuilt id is dropped (no KIT_BUILT change in K0), so `?kitmoves=deadweight` turns no pull-up on', () => {
+  it('the URL: `?kitmoves=deadweight` turns Deadweight on (in KIT_BUILT from K1) and no pull-up', () => {
     const k = readKitMoves('deadweight', false, null);
-    expect(k.has('deadweight')).toBe(false);
+    expect(k.has('deadweight')).toBe(true);
+    expect(k.has('pull')).toBe(false);
     expect(readCoopKit(null, k)).toBe(false);
     const c = readKitMoves(null, false, '1');
     expect(readCoopKit('1', c)).toBe(true);

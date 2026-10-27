@@ -64,7 +64,7 @@ This page lists the suites and how they are picked.
   on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, `e2e-bunker` (these four get `LEGACY=1`, so
   `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
   `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-music`, `e2e-score`, `e2e-foley`,
-  `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-desktop:3`, `e2e-coop-gpu`. REPORT: `anim-audit`
+  `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-parity` (parts 1-4), `e2e-desktop:3`, `e2e-coop-gpu`. REPORT: `anim-audit`
   (never fails a run; quick picks it for `src/anim`, `src/player`, `src/net`).
 - Flaky and quarantined suites: "Flakes and quarantine" below.
 - The two-page suites (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-course) wait on the pages' own sim clocks
@@ -188,12 +188,12 @@ behind a VPN adapter).
   `docs/archive/anim-rework/METRICS.md`). The same metrics show live in the debug overlay (F3)
 - `e2e-lightbake` the Warehouse under `?gfx=min`, `?gfx=low` and `?gfx=epic` bakes the same canonical shapes and the
   same lamp / moon / ambient bytes (cache keys and a content hash from `World.lightInfo()`); Epic draws the bake
-- `e2e-darkness` (GPU list) display brightness targets (bible L5): on the Warehouse a matte 50% grey card (`World.addLightProbe`)
-  at field levels ~0.12 / 0.27 / 0.40 / 0.70, the camera 0.8 m in front, the HUD hidden; the screenshot centre as Rec.
-  709 luma at Epic, night vision off and on (`REPORT=1` prints without asserting); turning with night vision on reads
-  as moving every frame; night vision's bloom runs every frame; (LR16-6) thermal: the button cuts on the first frame
-  both ways, a guard placed 1.2 m behind a shut hinged door shows one silhouette that reads dim blue at his chest as
-  projected on screen against the same pixels with him gone, none with the door open
+- `e2e-parity` (GPU list, trains via `TRAIN_PARITY`): campus S1-S5 (parts 1-2), Marlow Yard (3), Warehouse (4), Low and Epic;
+  grey cards found by field level per `DARK_TARGETS` row (0.27 row: within 0.02 and under 0.28), moving lights held still,
+  meter = field within 0.02 at every card; `KNOWN` entries (in the script: owner, a date at most 7 days out) print and pass
+  until the date; one `PARITY-SUMMARY` line per part; not in affected runs: light jobs request it by name
+- `e2e-darkness` (GPU list): night vision (on) at the 0.12 / 0.70 points, the turning check, (LR16-6) thermal: the button cuts
+  on the first frame both ways, a guard behind a shut door shows one dim blue silhouette, none with the door open
 - `e2e-coop-gpu` (GPU list, port 4189) the real menu flow, two players (shared and separate contexts at High, shared at Epic; `COOPGPU_ALL=1` adds separate at Epic): fails on a "failed to load" console message, no host avatar or LOD on the joiner, the host not drawn (body mesh enabled, visible, active, bounds over 0.5 m), or "Connecting to host" still shown; `scripts/repro-coop-avatar.mjs` is the diagnostic version
 - `e2e-combat` weapons (rifle, `pistolSd` magazine 15), hits, headshots, reload, swap, grenades, barrels, death / respawn
 - `e2e-modes` (LEGACY) mission flow, ragdolls on Mission, enemy types on `proving&mode=mission`, Infiltration
@@ -671,7 +671,7 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
-- Light parity on every train (Michael 2026-10-25, Q27; J20): each train run adds `e2e-darkness` (lib `TRAIN_PARITY`), so a
+- Light parity on every train (Michael 2026-10-25, Q27; J20): each train run adds the four `e2e-parity` parts and `e2e-darkness` (lib `TRAIN_PARITY`), so a
   light-meter-vs-picture failure fails `laptop-e2e` and holds the release. Off with no release: `config/train-parity.json`
   `{ "off": true, "why", "by" }` on `laptop-queue` (pending says "; parity off"; delete to undo; tell Sector Ops) or `LQ_TRAIN_PARITY=off`.
 - Affected e2e on every PR head (process audit 2026-10-24; laptop only, every `LQ_AFFECTED_POLL_MIN` (2; 0 = off) min): each
