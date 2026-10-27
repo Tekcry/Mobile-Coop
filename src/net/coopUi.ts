@@ -21,6 +21,7 @@ import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
 import { loadCourseRecord, lobbyStartBay, startableBays, type CourseRecord } from '../save/courseRecord';
 import { loadSectorRecord, starsOf, starsText, type SectorRecord } from '../save/sectorRecord';
+import { loadCampaignSave } from '../save/campaignRecord';
 import { courseAllBaysFlag } from '../game/modes/courseMode';
 import { CAMPAIGN_TWO_PLAYERS } from '../game/mission/campaign';
 import { registeredBayCount } from '../game/course/courseDef';
@@ -194,7 +195,9 @@ class CoopController {
       return;
     }
     const s = this.session;
-    const r: RejoinRecord = { code: s.code, role: s.role, at: Date.now(), mode: s.mode, map: s.map, difficulty: s.difficulty, mission: s.mission, weather: s.weather, bay: g.mode?.resumeBay?.() ?? s.courseBay };
+    // (campaign-mode CM3, A11) a Sector Ops record keeps the campaign mission (`sm`, the flag on)
+    const sm = flags.campaign && s.mode === 'sector' ? s.sectorMission : '';
+    const r: RejoinRecord = { code: s.code, role: s.role, at: Date.now(), mode: s.mode, map: s.map, difficulty: s.difficulty, mission: s.mission, weather: s.weather, bay: g.mode?.resumeBay?.() ?? s.courseBay, ...(sm ? { sm } : {}) };
     saveRejoin(r);
   }
 
@@ -804,6 +807,9 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
   }
   const wait = new ConnectingScreen(role === 'host' ? 'Opening room…' : `Joining ${code}…`);
   app.screens.push(wait);
+  // (campaign-mode CM3, A11) "Resume hosting" a campaign mission: its save, read before the room opens (no lobby goes
+  // out while it loads)
+  const save = role === 'host' && resume?.mode === 'sector' && resume.sm && flags.campaign && flags.missions ? await loadCampaignSave() : null;
   let transport: Transport;
   try {
     transport = await openTransport(code);
@@ -830,6 +836,8 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     session.mission = resume.mode === 'infiltration' ? resume.mission : '';
     session.weather = resume.weather;
     session.courseBay = resume.bay;
+    // (campaign-mode CM3, A11) Sector Ops resumes at its section (a campaign mission at its save's)
+    session.resumeSector(resume.bay, resume.sm, save);
     adopt(app, api, session);
     // (mission-rules R4) a campaign room does not start alone: the host waits in the lobby. (PR E fix) The partner is
     // still in the match, waiting on the code with no Ready button (a lobby never takes a waiting joiner back to the

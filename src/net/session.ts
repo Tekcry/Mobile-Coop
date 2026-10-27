@@ -496,6 +496,19 @@ export class NetSession {
   }
 
   /**
+   * (campaign-mode CM3, A11, host) "Resume hosting" a Sector Ops match (after its mode, map and difficulty are set from
+   * the record; fields only, no lobby broadcast): plain Sector Ops resumes at the record's section `bay`; a campaign
+   * mission `sm` (both flags) at its save's section when `save` is that mission's (`sectorStartBay`), else at its own
+   * start. Nothing with `flags.campaign` off (a resume restarts at section 1, as before).
+   */
+  resumeSector(bay: number, sm: string | undefined, save: CampaignSave | null): void {
+    if (!this.isHost || !flags.campaign || this.mode !== 'sector') return;
+    this.sectorBay = bay;
+    if (flags.missions && sm) this.sectorMission = sectorMissionId(sm);
+    this.campaignResume = save;
+  }
+
+  /**
    * (campaign-mode CM3, A9, host) Continue a campaign save: the room goes to its map, difficulty and mission
    * (`setSettings`, which drops any earlier Continue), and the next start resumes at its section. Nothing with
    * `flags.campaign` or `flags.missions` off.
