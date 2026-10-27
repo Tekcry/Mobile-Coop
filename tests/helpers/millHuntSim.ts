@@ -228,6 +228,12 @@ export class HuntWorld {
   }
 }
 
+/** The cap check's window after an admission (s): a room it put over must be back at the cap within this. The cluster
+ *  check skips any group holding a guard admitted within it (the start spread, a late joiner, a rejoin). */
+export const SPREAD_WIN = 15;
+/** Michael's "not bunch up into groups bigger than 2": no guard has 2 or more others within this (m, by positions). */
+export const CLUSTER = 3;
+
 export interface HuntRunOpts {
   /** Run time (s). */
   T: number;
@@ -250,6 +256,8 @@ export interface HuntRunReport {
   trace: number[];
   /** Room counts above the cap at t = 0 (room id -> count). */
   startOver: Record<string, number>;
+  /** Most guards (him included) within `CLUSTER` of one guard, outside the admission window. */
+  maxNear: number;
 }
 
 /**
@@ -257,7 +265,8 @@ export interface HuntRunReport {
  * step: the room cap by member positions (a room an admission put over may only fall and is at the cap within 15 s of
  * it, plan fold-in 5); a unit's line distance to its target never grows except in spread, regroup, loop or a target
  * step (fold-in 4); no unit holds while its wanted stop is free of higher-ranked units and its room has space (no
- * deadlock, check 2 item 1); reversals of move legs per member.
+ * deadlock, check 2 item 1); reversals of move legs per member; (check A FIX 1) no guard has 2 or more others of his
+ * line within `CLUSTER` m by positions, unless one of them was admitted within `SPREAD_WIN` s (the start spread).
  */
 export function runHunt(def: HuntDef, set: readonly SimSlot[], opts: HuntRunOpts): HuntRunReport {
   const w = new HuntWorld(def);
@@ -271,11 +280,15 @@ export function runHunt(def: HuntDef, set: readonly SimSlot[], opts: HuntRunOpts
   const lastDir = new Map<number, number>();
   const revs = new Map<number, number>();
   const phases: number[] = [];
+  const joined = new Map<number, number>();
+  let clusterOn = new Set<string>();
+  let maxNear = 0;
   const grow = (st: number): boolean => st === H_SPREAD || st === H_REGROUP || st === H_LOOP;
 
   const admit = (k: number): void => {
     const g = w.gs[k] ?? w.spawn(set, k);
     expect(b.admit(g)).toBe(true);
+    joined.set(k, w.t);
     prevD.delete(k);
     countRooms(true);
   };
@@ -309,13 +322,36 @@ export function runHunt(def: HuntDef, set: readonly SimSlot[], opts: HuntRunOpts
       if (!o) fails.push(`t ${w.t.toFixed(1)}: ${b.roomIds[r]} holds ${n}`);
       else {
         if (n > o.n) fails.push(`t ${w.t.toFixed(1)}: ${b.roomIds[r]} rose to ${n}`);
-        if (w.t - o.t0 > 15 + 1e-6)
+        if (w.t - o.t0 > SPREAD_WIN + 1e-6)
           fails.push(
             `t ${w.t.toFixed(1)}: ${b.roomIds[r]} still ${n} ${(w.t - o.t0).toFixed(1)} s after the admission`,
           );
         o.n = n;
       }
     }
+  };
+
+  /** (check A FIX 1) Groups of 3 or more within `CLUSTER` m (a guard and the others near him), by positions. */
+  const clusterCheck = (): void => {
+    const now = new Set<string>();
+    for (let k = 0; k < w.gs.length; k++) {
+      const g = w.gs[k];
+      if (!g || b.unitOf(g) < 0) continue;
+      const near = [k];
+      for (let q = 0; q < w.gs.length; q++) {
+        const o = w.gs[q];
+        if (q === k || !o || b.unitOf(o) < 0 || b.nearestLine(o.pos.y) !== b.nearestLine(g.pos.y)) continue;
+        if (hyp2(o.pos.x - g.pos.x, o.pos.z - g.pos.z) < CLUSTER) near.push(q);
+      }
+      if (near.length < 3) continue;
+      if (near.some((q) => w.t - (joined.get(q) ?? -Infinity) <= SPREAD_WIN + 1e-6)) continue;
+      maxNear = Math.max(maxNear, near.length);
+      const key = near.sort((x, y) => x - y).join(',');
+      now.add(key);
+      if (!clusterOn.has(key))
+        fails.push(`t ${w.t.toFixed(1)}: ${near.map((q) => `G${q + 1}`).join(' ')} within ${CLUSTER} m of G${k + 1}`);
+    }
+    clusterOn = now;
   };
 
   /** Right after the board's tick (the positions it decided on). */
@@ -354,6 +390,7 @@ export function runHunt(def: HuntDef, set: readonly SimSlot[], opts: HuntRunOpts
     holdCheck();
     w.move();
     countRooms(false);
+    clusterCheck();
     opts.onStep?.(w);
     if (Math.abs(w.t / 60 - Math.round(w.t / 60)) < DT / 120) phases.push(b.phase);
     // line distance, reversals
@@ -388,7 +425,7 @@ export function runHunt(def: HuntDef, set: readonly SimSlot[], opts: HuntRunOpts
   for (const g of w.gs)
     if (g) trace.push(Math.round(g.pos.x * 1e4), Math.round(g.pos.z * 1e4), Math.round(g.yaw * 1e4));
   trace.push(b.phase);
-  return { world: w, fails, maxRev, phases, trace, startOver };
+  return { world: w, fails, maxRev, phases, trace, startOver, maxNear };
 }
 
 /**
