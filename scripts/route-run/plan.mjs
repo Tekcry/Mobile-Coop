@@ -361,6 +361,7 @@ function linkStep(ctx, arc) {
  *  problems } (arcs: every arc walked, legs included). */
 function buildSteps(ctx, items, end, soloArcs) {
   const steps = [];
+  const rejoined = new Set();
   const walked = [];
   const problems = [];
   const pushArc = (list, a) => {
@@ -375,6 +376,7 @@ function buildSteps(ctx, items, end, soloArcs) {
       continue;
     }
     const leg = ctx.legOf.get(it.to);
+    if (leg && rejoined.has(leg.id)) { pushArc(steps, it); continue; }
     if (!leg || ctx.legOf.get(it.from)?.id === leg.id) {
       pushArc(steps, it);
       continue;
@@ -408,6 +410,7 @@ function buildSteps(ctx, items, end, soloArcs) {
       }
     }
     steps.push(block);
+    rejoined.add(leg.id);
     // objectives met inside the skipped leg arcs are not dropped
     for (let k = i; k <= j; k++) if (items[k].objective) steps.push({ type: 'walk', to: ctx.centre(items[k].objective), space: items[k].objective, link: null }, { type: 'objective', space: items[k].objective });
     i = j;
