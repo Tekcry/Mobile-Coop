@@ -46,11 +46,11 @@ PC run" and stay as the goal until that run replaces them. Every number is a sta
   - per-guard buffers: `gvis` 4 B a vertex (~150 KB) plus the visible-piece index buffer (up to ~180 KB), a 33 x 64 B bone
     upload per posed frame; static buffers shared per (base, LOD);
   - download (KTX2 UASTC + Zstd) <= 75 MB for every guard file, cached by the service worker (`guards` cache); level
-    load awaits LOD2 only (~1 MB a base).
+    load awaits every game LOD, LOD2 first (`?gfx=min`: LOD2 only; F59), within the loading screen's cap.
   Section 6 of the plan fits this to the 24-guard baselines: draws neutral, GPU +0.3 to +0.8 ms typical and +1.5 to +2.5
   ms worst (all 24 inside 8 m), frame CPU within +0.5 ms of `?guardmodels=0`. `scripts/guard-cap.mjs` measures it (G8).
   The enforcer's figure shield shares its materials and buffers per scene (a LOD switch allocates nothing); per scene one
-  disabled warm mesh per guard base stays loaded, never drawn (`ai/guardWarm.ts`).
+  disabled warm mesh per guard base and LOD and one merged S1 body (F59) stay loaded, never drawn (`ai/guardWarm.ts`).
 
 ## Perf script checks (`scripts/perf.mjs`)
 Warehouse, 10 guards (`STEALTH=1`: unaware and perceiving). Options: `docs/systems/testing-tools.md`, "Helper scripts".

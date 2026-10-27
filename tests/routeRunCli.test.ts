@@ -13,6 +13,8 @@ import { lineOf } from '../scripts/route-run/causes.mjs';
 // @ts-expect-error plain .mjs tool script without types
 import { stepFor, stub, STUB_WHY_COOP, STUB_WHY_SOLO } from '../scripts/route-run/steps.mjs';
 // @ts-expect-error plain .mjs tool script without types
+import { coopBoost } from '../scripts/route-run/coop.mjs';
+// @ts-expect-error plain .mjs tool script without types
 import { onLockedDoor } from '../scripts/route-run/course.mjs';
 // @ts-expect-error plain .mjs tool script without types
 import { paceFor } from '../scripts/route-run/progress.mjs';
@@ -232,7 +234,9 @@ describe('route-run seams (R4a: every link a stub, no course hooks, inferred cau
   it('every kind is a stub; co-op and solo stubs say why', async () => {
     const calls: unknown[] = [];
     const ctx = { driver: { hold: async (s: number) => calls.push(['hold', s]), place: async (p: unknown) => calls.push(['place', p]) } };
-    expect(stepFor({ kind: 'coop_boost' })).toBe(stub);
+    // (R9) a co-op boost goes to coop.mjs, A1's stub when the run has one robot
+    expect(stepFor({ kind: 'coop_boost' })).toBe(coopBoost);
+    expect(stepFor({ kind: 'shutter' })).toBe(stub);
     expect(stepFor({ kind: 'ladder' })).toBe(stub);
     expect(stepFor({ kind: 'something_new' })).toBe(stub);
     const r = await stub(ctx, { index: 17, kind: 'coop_boost', at: [-20, 0, -40.5], past: [-20, 4.4, -39.3], hold_s: 6 });
