@@ -1,0 +1,13 @@
+{
+  "id": "20261027T041045-affected-e2e-5a75dcc4-e9d5",
+  "sha": "5a75dcc45e5d7adf7a010f344ddfdcfb1f389617",
+  "branch": "feature/player-j19-s5",
+  "pr": 563,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-move"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #563"
+}
