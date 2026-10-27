@@ -864,7 +864,9 @@ describe('SectorMission EN4: per-mission guard lists (A23)', () => {
     const load = (mission: SectorMission | null): number[] => {
       const self = {
         run: { defs, alarm: 0 },
-        g: { world: {}, interactables: null, stealth: null, enemyMgr: null },
+        // (coop4 merge 16) coop4's team size at load (`teamSizeOf`): an empty team list, every guard for a team of 0-2
+        g: { world: {}, interactables: null, stealth: null, enemyMgr: null, playerRefsInto: (o: unknown[]) => ((o.length = 0), o) },
+        refs: [] as unknown[],
         ct: null,
         desks: { reset: () => undefined },
         deskApply: () => undefined,
