@@ -18,7 +18,8 @@ const PI = Math.PI;
  * (campus-greybox S2-G6a, `S2-detail.md:247-276`, C7) 18 guards, none dormant; list order #1-#14 then #18-#21 (the plan's
  * numbers: the index stops being the number minus one after #14), each number in its comment. Squads by area: 0 G,
  * 1 the east wing, 2 the L1 plan, 3 L2. New guards' first yaw faces their second route point (BA11). The torch round
- * (#19, AS14) is the archetype's flashlight: no new gear. Two tagged 3-4 player extras come with TAG-2 (#317).
+ * (#19, AS14) is the archetype's flashlight: no new gear. Two tagged 3-4 player extras (coop4 A8, TAG-2's rows) follow the 18:
+ * index 18 (3+) and 19 (4+); a team of 1-2 spawns the 18.
  */
 export const S2_GUARDS: SectorGuard[] = [
   // #1 (0) the reception officer: at the desk, facing the turnstiles; watches cam-turnstile / cam-lift; answers the atrium panel
@@ -86,6 +87,12 @@ export const S2_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: 1.2, z: -2.7, y: 4.4, yaw: Math.atan2(-5.7, 0.5), route: [[1.2, -2.7], [-4.5, -2.2]], waits: [7, 7], takedownSpot: [1.2, -2.7], role: 'patrol', zone: 'wing', squad: 1, reason: 'Relieves the bridge officer and chats with the comms checker' },
   // #21 (17) NEW the L2 north strip: the exec east door (Q2: from x -29 to -27) to the east wing north door, 4 s stops, 44.4 s
   { kind: 'grunt', x: -27, z: -1.5, y: 8.4, yaw: PI / 2, route: [[-27, -1.5], [-9, -1.5]], waits: [4, 4], takedownSpot: [-9, -1.5], role: 'patrol', zone: 'l2-north', squad: 3, reason: 'North strip round: the board room door and the executive suite' },
+  // coop4 A8: spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base list keeps its numbers (TAG-2 rows,
+  // `briefs/S2.md` 6b; merge 7 re-placed coop4's two rows on this layout)
+  // tag 3 (18) the second lobby patrol (3+): #2's lobby round reversed, from the lift lobby end, 42.4 s
+  { kind: 'grunt', x: -29, z: -8.5, yaw: PI, route: [[-29, -8.5], [-24, -24.8]], waits: [4, 4], faces: [0, PI / 2], takedownSpot: [-24, -24.8], role: 'patrol', zone: 'lobby', squad: 0, minPlayers: 3, reason: 'Loud route (turnstiles, feature stair): 3+ players rush the foyer from both ends, so a second lobby patrol walks it from the lift lobby' },
+  // tag 4 (19) the bridge officer's second (4+): stands in the bridge landing by the card door, 3.1 m NNE of #11's post, facing the landing (moved off the north door (1, -10.5))
+  { kind: 'grunt', x: 2.8, z: -13.0, y: 4.4, yaw: PI, takedownSpot: [2.8, -12.5], role: 'backup', zone: 'c2', squad: 1, minPlayers: 4, reason: 'Bridge landing (the only way to the labs): with 4 players a pair holds the officer while the other goes on, so a second guard covers the landing' },
 ];
 
 /** Section 2's cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */

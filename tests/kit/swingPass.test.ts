@@ -522,6 +522,7 @@ function host(c1: Who, c2: Who, puppet = false) {
     kitPairs: new Map(),
     pairT0: new Map(),
     teamLast: new Map(),
+    teamActive: new Map(), // (coop4 merge 18) coop4's team-move busy map (as kitApi.test.ts)
     teamMv: emptyMoveState(),
     time: 20,
   });

@@ -10,7 +10,7 @@ import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { PATROL } from '../src/ai/patrol';
 import { hyp2, hyp3 } from '../src/core/mathx';
-import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
+import { SECTOR, checkSectorGuards, checkSectors, exitZone, guardForTeam, inZone, type SectorGuard } from '../src/game/sectors';
 import { SightWorld, isolatedInTime, longestIsolation, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, distToGuard, type CheckGuard } from '../src/game/sectorCheck';
 import { runtimeNav } from './helpers/runtimeNav';
 
@@ -133,7 +133,11 @@ const nearNav = (x: number, z: number, y: number, r = 1.1): boolean => {
   return false;
 };
 
-const G = S4.guards;
+/** The base list (1-2 players: the 25 of the table); coop4's two 3-4 player extras (A8) are appended after it. */
+const G = S4.guards.filter((g) => g.minPlayers === undefined);
+const TAGS = S4.guards.filter((g) => g.minPlayers !== undefined);
+/** Every guard a team of 4 spawns: the nav checks take them all. */
+const ALL = S4.guards;
 const floorOf = (g: { y?: number }): number => g.y ?? 0;
 const pathLen = (a: readonly number[], c: readonly number[]): number | null => {
   const path = nav.findPath([a[0]!, a[1]!], [c[0]!, c[1]!], 200000, a[2] ?? 0, c[2] ?? 0);
@@ -185,11 +189,11 @@ describe('G4.6 the 25 guards (brief table, D:103-114)', () => {
     for (const [i, g] of G.entries()) if (!ENEMIES[g.kind].quadruped) expect(ENEMIES[g.kind].weapon, `#${i + 1}`).toBeTruthy();
     expect(G.length + SECTOR.alarmMax * S4.perStage).toBe(31);
     expect(G.length + SECTOR.alarmMax * S4.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
-    expect(G.some((g) => (g as { minPlayers?: number }).minPlayers !== undefined)).toBe(false);
+    expect(ALL.slice(0, 25)).toEqual(G);
     // job BRIEF A27: no section gear, body armour as 'armour' on #6, #14, #15 (no 'helmet' / 'both')
     expect(S4.gear).toBeUndefined();
     expect((S4 as { shieldTeams?: boolean }).shieldTeams).toBe(true);
-    const gear = G.map((g) => (g as { gear?: string }).gear);
+    const gear = ALL.map((g) => (g as { gear?: string }).gear);
     expect(gear.map((v, i) => (v ? i + 1 : 0)).filter((n) => n > 0)).toEqual([6, 14, 15]);
     expect(gear.filter((v) => v !== undefined && v !== 'armour')).toEqual([]);
   });
@@ -258,8 +262,8 @@ describe('G4.6 the 25 guards (brief table, D:103-114)', () => {
     }
   });
 
-  it('every slot is >= 7 m from the start and on the nav grid (its floor); every route point, takedown spot, reinforce and sweep point too; every walked patrol leg has a path', () => {
-    for (const [i, g] of G.entries()) {
+  it('every slot is >= 7 m from the start and on the nav grid (its floor); every route point, takedown spot, reinforce and sweep point too; every walked patrol leg has a path (the 3-4 player extras too)', () => {
+    for (const [i, g] of ALL.entries()) {
       const y = floorOf(g);
       expect(hyp2(g.x - S4.start.x, g.z - S4.start.z), `#${i + 1}`).toBeGreaterThanOrEqual(7);
       expect(onNav(g.x, g.z, y), `#${i + 1} slot (${g.x}, ${y}, ${g.z})`).toBe(true);
@@ -289,6 +293,34 @@ describe('G4.6 the 25 guards (brief table, D:103-114)', () => {
     for (const g of S4.pairGates!) for (const s of [g.a, g.b]) expect(nearNav(s.at[0], s.at[1], s.y ?? 0), `key switch ${s.at}`).toBe(true);
     for (const n of S4.intel!) if (n.kind === 'board') expect(nearNav(n.at[0], n.at[2], 0), 'intel board').toBe(true);
     for (const d of lay.security!.desks!) expect(nearNav(d.at[0], d.at[1], d.y ?? 0), 'desk').toBe(true);
+  });
+});
+
+describe('coop4 A8: the two 3-4 player extras (re-placed by merge 7 on the G4.6 layout)', () => {
+  it('appended after the 25 (index 25 minPlayers 3, index 26 minPlayers 4): 25 / 25 / 26 / 27 spawned, each list within maxAlive; no post, pair, handler, dormant or desk operator; 25-45 s', () => {
+    expect(ALL.length).toBe(27);
+    expect(TAGS.map((g) => g.minPlayers)).toEqual([3, 4]);
+    expect([1, 2, 3, 4].map((n) => ALL.filter((g) => guardForTeam(g, n)).length)).toEqual([25, 25, 26, 27]);
+    expect(ALL.length).toBeLessThanOrEqual(SECTOR.maxAlive);
+    for (const [k, g] of TAGS.entries()) {
+      const n = `tag ${k + 3}`;
+      expect(g.post === undefined && g.pair === undefined && g.handler === undefined && !g.dormant, n).toBe(true);
+      expect((g.reason ?? '').length, n).toBeGreaterThan(30);
+      expect(g.kind, n).toBe('grunt');
+      const c = cycle(g);
+      if (c !== null) {
+        expect(c, `${n} cycle ${c}`).toBeGreaterThanOrEqual(25);
+        expect(c, `${n} cycle ${c}`).toBeLessThanOrEqual(45);
+      }
+    }
+    expect(lay.security!.desks!.filter((d) => d.section === 3).map((d) => d.operator)).toEqual([4]);
+    // tag 3 watches the rear gate (pg-cage) from the north strip, facing it; tag 4 walks #12's battery round from the other end
+    const [t3, t4] = [TAGS[0]!, TAGS[1]!];
+    expect(Math.sin(t3.yaw) * (S4_DOORS.pgCage[0] - t3.x) + Math.cos(t3.yaw) * (S4_DOORS.pgCage[1] - t3.z)).toBeGreaterThan(7);
+    expect(t4.route!.length).toBe(G[11]!.route!.length);
+    expect(new Set(t4.route!.map((p) => p.join()))).toEqual(new Set(G[11]!.route!.map((p) => p.join())));
+    expect(t4.route![0]).toEqual([-5.5, 37.0]);
+    expect(cycle(t4)).toBeCloseTo(cycle(G[11]!)!, 6);
   });
 });
 

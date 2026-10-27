@@ -44,6 +44,8 @@ function setup() {
     // the open line is clear (level-flat), a ray down meets a floor
     ballistics: { clear: (a: Vector3, b: Vector3) => a.y <= b.y },
     world: { level: { boxes: [], cylinders: [], anchors: null, coverSegments: null, opticPoints: [] }, doors: { list: [] } },
+    // (coop4 OUT) `fixedUpdate`'s follow step reads who is out (no one here)
+    outIds: new Set<string>(),
   };
   const r = {
     id: 'C',
@@ -66,7 +68,8 @@ function setup() {
   const queue: { e: string; player?: string; x?: number; z?: number }[] = [];
   Object.assign(h, {
     g,
-    s: { selfId: 'H' },
+    // (coop4 A19) the session's slot table: the one client is slot 1
+    s: { selfId: 'H', slotOf: () => 1 },
     remotes: new Map([['C', r]]),
     joins,
     rejoining: new Set<string>(),

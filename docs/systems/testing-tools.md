@@ -39,7 +39,7 @@ This page lists the suites and how they are picked.
   `scripts/e2e-times.json` holds 150 s per part as an estimate; it changes only when someone commits a rewrite.
   `e2e-sectorops` runs as `e2e-sectorops:1` to `:9` (sector-fixes-r RE: the suite before slice R, the solo route checks,
   the co-op routes of sections 1-3, and parts 6-9 the solo campusOps (Saltmarsh Park) checks: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5 (split from one part 6 in F33: it ran near the 900 s kill); `PARTS` in `scripts/run-e2e.mjs`);
-  named alone its nine parts run as parallel jobs.
+  named alone its nine parts run as parallel jobs; `:10` to `:12` (coop4) only alone: `docs/systems/coop.md`.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`). The laptop queue sets it per run (the numbers:
   `docs/RULES.md` "Machines"); cloud VMs use `E2E_JOBS=2`.
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails, quarantined or not: a quarantine forgives an assert (exit 1)
@@ -73,7 +73,7 @@ This page lists the suites and how they are picked.
   at least 60 s; `E2E_SIM_CAP`) is the hang guard, and a timeout names each page's sim seconds, sim rate and fps.
   e2e-netmove and e2e-ctcourse open at 960 x 480; e2e-coop and e2e-course keep 1280 x 640 (they click through the
   lobby, which lays out at 1280 x 720 at least). Match loads (map build, light bake, both pages joining) run outside
-  the sim clock: they wait up to `LOAD_MS` (`e2e-net-lib`, 120 s wall, `E2E_LOAD_MS`). Timed in-page input chains use
+  the sim clock: they wait up to `LOAD_MS` (`e2e-net-lib`, 120 s wall, `E2E_LOAD_MS`; 3+ pages: `LOAD_MS_4`, 240 s). Timed in-page input chains use
   `window.__afterSim(sec, fn)` (`e2e-lib`): `fn` runs once the match clock has moved `sec` on, never an in-page
   `setTimeout`.
 - Load safety (test-speed, 2026-10-20): every suite's browser launches without background throttling (a two-page
@@ -273,7 +273,7 @@ behind a VPN adapter).
   P6) the host's team takedown on that hostage, a dual takedown, a client
   reviving the host, the team wipe), validated hits, revive, results; Infiltration objectives on the client; the host's
   fixed difficulty level read-only on the client and running on both; a client using the host's wall medkit station;
-  host leaving, offline (known flaky)
+  host leaving, offline (known flaky). (coop4) Its "lobby caps" block: `docs/systems/coop.md` "coop4 e2e parts".
 - `e2e-netmove` two pages, Free Roam on Proving: the client on a ladder, drainpipe, pipe, ledge, duct (hands / feet /
   head within 10 cm on the host), zipline and a roll mirrored; CT moves (split, wall jump, pipe legs up / inverted,
   rappel + rope, fence); team moves (the client braces and boosts the host onto the 4.2 m lip, the human ladder, a

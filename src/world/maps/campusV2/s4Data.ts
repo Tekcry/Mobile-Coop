@@ -31,7 +31,7 @@ const DOCK_LOOP = { period: 42, leave: [4, 25], t0: 0 };
 export type GearGuard = SectorGuard & { gear?: GearTag };
 
 /**
- * Section 4's guards (25, the base list for 1 and 2 players; officer = pistolSd, grunt = rifle, enforcer = pistolSd + shield, dog = melee at the
+ * Section 4's guards (25, the base list for 1 and 2 players, then coop4's two 3-4 player extras at indices 25-26; officer = pistolSd, grunt = rifle, enforcer = pistolSd + shield, dog = melee at the
  * handler's heel). The 0-based index in this list is the guard's number minus one. Dormant (A64 / A99, data only): #10, #11 (the hot-aisle
  * checkers) and #16 (the north corridor tour); none is posted, paired, a handler or a dog. (G4.6) Gear: no section `gear` (job BRIEF A27: the
  * guard-rules PR1 drops the section helmet; the lane writes no 'helmet'), body armour as `'armour'` where the plan says both.
@@ -88,6 +88,13 @@ export const S4_GUARDS: GearGuard[] = [
   { kind: 'grunt', x: 18, y: DECK, z: 30.0, yaw: PI / 2, takedownSpot: [17.5, 30.0], role: 'watch', zone: 'deck', squad: 5, reason: 'Chiller watch: waiting on the chiller engineer' },
   // 25 (G4.6, D:111, P10) the night runner: the desk to the side door and up to the NOC, 6 s at each end; cycle 14.01 / 0.935 + 12 = 27.0 s
   { kind: 'officer', x: 0, z: 43.2, yaw: PI / 2, route: [[0, 43.2], [7, 43.5]], waits: [6, 6], takedownSpot: [7, 43.5], role: 'runner', zone: 'sec', squad: 2, reason: 'Night runner: carries the log from the desk to the side door and up to the NOC' },
+  // coop4 A8: spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base list keeps its numbers (the desk operator is #5,
+  // never tagged). Merge 7 re-placed coop4's two rows on the G4.6 layout (TAG-4, `briefs/S4.md`, plans their v2 replacement)
+  // 26 (tag 3) the rear-gate watch (3+): #22 now walks the cage as the second keyholder (dual custody), so coop4's second guard at the front
+  // gate moves to the rear gate (pg-cage, the team door): standing in the north strip 3 m east of #22's NE corner, facing west along the cage's north wall
+  { kind: 'grunt', x: 25.5, z: 40.8, yaw: -PI / 2, takedownSpot: [26.0, 40.8], role: 'sentry', zone: 'cage', squad: 3, minPlayers: 3, reason: 'Cage pair gate (the team door): with 3+ players one pair works the rear gate while another holds the keyholders, so a guard watches the rear gate' },
+  // 27 (tag 4) the second battery checker (4+): #12's round reversed, from the UPS room's north end (battCC, the colonnade, ccUps); 42.1 s
+  { kind: 'grunt', x: -5.5, z: 37.0, yaw: PI, route: [[-5.5, 37.0], [-5.5, 30.0], [-8.3, 28.4], [-7.4, 26.9], [-7.0, 21.0], [-7.4, 26.9], [-8.3, 28.4], [-5.5, 30.0]], waits: [3, 0, 0, 0, 3, 0, 0, 0], takedownSpot: [-5.5, 35.4], role: 'checker', zone: 'batt', squad: 4, minPlayers: 4, reason: 'Stealth route (service corridor, battery room, kp-batt): 4 players clear it from both ends, so a second checker walks the battery round from the UPS end' },
 ];
 
 /** The exit legs every S4 route shares from the objective: the cage front, the build-out area, the UPS room, the colonnade (past K3), C4 (G4.6, AS11). */

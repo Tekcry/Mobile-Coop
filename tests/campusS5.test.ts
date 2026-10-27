@@ -56,7 +56,9 @@ const lay = campusOps.build(b, 0);
 const bG = new LevelBuilder();
 buildCampus(bG, { dress: false });
 const S5 = CAMPUS_SECTORS[4]!;
-const G = S5.guards;
+/** The base list (the coop4 minPlayers tags are appended and checked in sectorGuardTags.test.ts); ALL = base + tags. */
+const G = S5.guards.filter((g) => g.minPlayers === undefined);
+const ALL = S5.guards;
 /** The S5 footprint and the C4 box. */
 const FOOT = { x0: -70, x1: -26, z0: 18, z1: 70 };
 const inFoot = (x: number, z: number): boolean => x >= FOOT.x0 && x <= FOOT.x1 && z >= FOOT.z0 && z <= FOOT.z1;
@@ -198,7 +200,7 @@ describe('S5 registration, shape and the shared blocks', () => {
     expect(S5.start).toEqual(CAMPUS_SECTORS[3]!.connector!.checkpoint);
     expect(S5.extract!.box).toEqual([-50, 60, -40, 66]);
     expect(S5.connector).toBeUndefined();
-    expect(G.length + SECTOR.alarmMax * S5.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
+    expect(ALL.length + SECTOR.alarmMax * S5.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
   });
 
   it('checkSectors and checkStageActions are clean (the kitchen and the hall stay open)', () => {
@@ -276,7 +278,7 @@ describe('S5 guards (brief table)', () => {
   });
 
   it('slots, route points, takedown spots and reinforce points are on the nav grid (their floor); legs have nav paths', () => {
-    for (const [i, g] of G.entries()) {
+    for (const [i, g] of ALL.entries()) {
       const y = floorOf(g);
       expect([0, S5_L1, 8.4]).toContain(y);
       expect(onNav(g.x, g.z, y), `#${i + 1} slot (${g.x}, ${y}, ${g.z})`).toBe(true);
@@ -723,7 +725,7 @@ describe('A99: the screen count (no player point sees more than CAMPUS_SCREEN_CA
   /** Shut leaves on every door no guard route passes (open: the control room door, the side door, the kitchen and plant doors). */
   const open = [S5_DOORS.hallWest, S5_DOORS.anteSide, S5_DOORS.lobbyNorth, S5_DOORS.lobbySouth];
   const routePasses = (cx: number, cz: number, y: number): boolean =>
-    G.some((g) => {
+    ALL.some((g) => {
       if (Math.abs(floorOf(g) - y) > 1) return false;
       const pts = [[g.x, g.z], ...(g.route ?? []), ...(g.route ? [g.route[0]!] : [])];
       for (let i = 0; i + 1 < pts.length; i++) {
@@ -749,7 +751,7 @@ describe('A99: the screen count (no player point sees more than CAMPUS_SCREEN_CA
   const HALF = ((CAMERA_VIEW.fov / 2) * PI) / 180;
   const YAWS = Array.from({ length: 32 }, (_, k) => (k * PI) / 16);
   it('at every walkable nav cell (0.5 m) on every S5 level, 32 facings: at most CAMPUS_SCREEN_CAP guards (dogs and dormant guards count) in the 86 deg view with a clear line within 40 m', () => {
-    const awake = G.map((g, i) => ({ g, i }));
+    const awake = ALL.map((g, i) => ({ g, i }));
     const pts = awake.map(({ g }) => guardPoints({ x: g.x, z: g.z, y: g.y, route: g.route as readonly (readonly [number, number])[] | undefined }).map(([px, py, pz]) => [px, py + 1.2, pz] as const));
     let worst = { n: -1, at: '', who: [] as number[] };
     let samples = 0;

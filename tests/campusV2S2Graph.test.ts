@@ -198,22 +198,24 @@ describe('S2-G6b graph matches the build (LD 15)', () => {
     expect(n).toBe(graph.links.filter((q) => q.kind === 'door').length);
   });
 
-  it('the guard sums per key equal the spawned list: every guard counts in the space whose area holds his slot on his floor; each guarded space has keys 1-4, all equal; the section sums to 18 at every key', () => {
-    const want = new Map<string, number>();
+  it('the guard sums per key equal the spawned list: every guard counts in the space whose area holds his slot on his floor; each guarded space has keys 1-4 (key k = the guards a team of k spawns); the section sums to 18 / 18 / 19 / 20', () => {
+    // key k counts the guards a team of k spawns: the base 18, plus coop4's 3-4 player extras (A8) from their minPlayers up
+    const want = new Map<string, Record<string, number>>();
     for (const g of G) {
       const sp = spaceAt(g.x, g.z, floorOf(g));
       expect(sp, `guard slot (${g.x}, ${g.z}) on ${floorOf(g)}`).toBeTruthy();
-      want.set(sp!, (want.get(sp!) ?? 0) + 1);
+      const w = want.get(sp!) ?? { '1': 0, '2': 0, '3': 0, '4': 0 };
+      for (const k of [1, 2, 3, 4]) if ((g.minPlayers ?? 1) <= k) w[String(k)]!++;
+      want.set(sp!, w);
     }
-    // the spawned list at 1-4 players: no tagged extras yet (TAG-2 adds them after #317), so every key spawns the 18
-    const spawned = (k: number): number => G.filter((g) => ((g as { minPlayers?: number }).minPlayers ?? 1) <= k).length;
-    for (const k of [1, 2, 3, 4]) expect(spawned(k)).toBe(18);
+    const spawned = (k: number): number => G.filter((g) => (g.minPlayers ?? 1) <= k).length;
+    expect([1, 2, 3, 4].map(spawned)).toEqual([18, 18, 19, 20]);
     for (const s of graph.spaces) {
-      const n = want.get(s.id);
-      if (n === undefined) expect(s.guards, `${s.id} has no guard`).toBeUndefined();
-      else expect(s.guards, s.id).toEqual({ '1': n, '2': n, '3': n, '4': n });
+      const w = want.get(s.id);
+      if (w === undefined) expect(s.guards, `${s.id} has no guard`).toBeUndefined();
+      else expect(s.guards, s.id).toEqual(w);
     }
-    for (const k of ['1', '2', '3', '4']) expect(graph.spaces.reduce((t, s) => t + (s.guards?.[k] ?? 0), 0), `sum at key ${k}`).toBe(18);
+    expect(['1', '2', '3', '4'].map((k) => graph.spaces.reduce((t, s) => t + (s.guards?.[k] ?? 0), 0))).toEqual([18, 18, 19, 20]);
     // K2 #11 counts in s2-l1-landing, tagged unavoidable with the justified note
     expect(spaceAt(G[10]!.x, G[10]!.z, floorOf(G[10]!))).toBe('s2-l1-landing');
     expect(spaceOf('s2-l1-landing').tags).toEqual(['exit', 'unavoidable']);

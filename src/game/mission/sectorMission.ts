@@ -37,6 +37,7 @@ import { flags } from '../../core/flags';
 import type { GameEvents } from '../gameEvents';
 import type { GameState } from '../gameState';
 import type { SectorMode } from '../modes/sectorMode';
+import { slotOfId, teamSizeOf } from '../playerSlots';
 import { SECTOR, type SectorDef, type SectorPhase, type SectorRun } from '../sectors';
 import { missionSpawnsGuard, spookFact, teamForSlot, type MissionDef, type MissionEvent, type TeamId } from './missionDef';
 import { INTERROGATE_DECOY, MissionRunner } from './missionRunner';
@@ -658,13 +659,10 @@ export function bindSectorMission(g: GameState, mode: SectorMode, slotEnemy: (En
     index: () => run.index,
     phase: () => run.phase,
     cycling: () => run.conn.state === 'cycling',
-    players: () => g.playerRefsInto(refs).length,
-    slotOf: (id) => {
-      if (id === 'local' || id === '') return 0;
-      const rs = g.playerRefsInto(refs);
-      for (let i = 0; i < rs.length; i++) if (rs[i]!.id === id) return i;
-      return 1;
-    },
+    // (coop4 merge 9, check FIX 1) the team size and a player's fixed slot, never his list index: an OUT or held player
+    // leaves the list, and the teams (`teamForSlot`, slot parity) must not shift under the players still in it
+    players: () => teamSizeOf(g, refs),
+    slotOf: (id) => slotOfId(g, refs, id, 1),
     detections: () => g.style.detections,
     guards: () => g.enemyMgr?.enemies ?? none,
     slotGuard: (k) => slotEnemy[k] ?? null,

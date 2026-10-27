@@ -56,6 +56,8 @@ export interface Flags {
   weaponLab: boolean;
   /** Sector Ops, dev and tests (`?sectorGuards=N`): at most N guards per section spawn (alarm reinforcements on top). */
   sectorGuards: number | null;
+  /** Dev and tests (`?players=2..4`, clamped): the same-device autostart room (`?net=local`) waits for this many players before it starts; undefined when absent. */
+  players: number | undefined;
   /** (piano SO3) Dev and the GPU check (`?torchSlots=8`): the map's guard torch slots over its `MapDef.torchSlots`
    *  (`torches.torchSlotCount`: 4 or 8); null when absent. A co-op client needs the same parameter as its host. */
   torchSlots: number | null;
@@ -279,6 +281,7 @@ export const flags: Flags = {
   foleyLab: params.get('foleylab') === '1',
   weaponLab: params.get('weaponlab') === '1',
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
+  players: /^\d{1,2}$/.test(params.get('players') ?? '') ? Math.min(4, Math.max(2, Number(params.get('players')))) : undefined,
   torchSlots: /^\d{1,2}$/.test(params.get('torchSlots') ?? '') ? Number(params.get('torchSlots')) : null,
   torchShadows: /^\d{1,2}$/.test(params.get('torchShadows') ?? '') ? Number(params.get('torchShadows')) : null,
   torchesAll: params.get('torches') === 'all',

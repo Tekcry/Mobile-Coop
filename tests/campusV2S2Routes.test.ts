@@ -4,7 +4,7 @@
  * and takedown spot on the nav grid on its floor, every leg with a path (the analytic and the runtime nav grids), the nav flood from
  * `S2_NAV_SEEDS` into every plan graph space, the M8 isolation check (3 s at each guard's spot, the kitchen pair excepted), K2's cone
  * (comms door in focus, pg-brg door 90 degrees off and out of it) and the screen cap (no walkable point sees more than
- * `CAMPUS_SCREEN_CAP` guards, all 18 counted).
+ * `CAMPUS_SCREEN_CAP` guards, all 20 of a 4-player team counted: the 18 and coop4's two extras, A8).
  */
 import { describe, expect, it, vi } from 'vitest';
 import type { BoxPiece, LevelBuilder as LB } from '../src/world/levelBuilder';
@@ -122,7 +122,10 @@ const onNav = (x: number, z: number, y = 0): boolean => nav.isWalkable(nav.cellO
 
 const L1 = 4.4;
 const SEC: SectorDef = m.s2Data.S2_SECTOR;
+/** Every guard a team of 4 spawns (the base 18 and coop4's two 3-4 player extras, A8); the nav and screen checks take them all. */
 const G = SEC.guards;
+/** The base list (1-2 players): M8 isolation is the base list's (the extras walk beside a base guard by design, `tests/sectors.test.ts`). */
+const BASE = G.filter((g) => g.minPlayers === undefined);
 const floorOf = (g: { y?: number }): number => g.y ?? 0;
 const graph = JSON.parse(readFileSync(path.resolve(__dirname, '../docs/sector-redesign/graph/v2/campusOps-S2.json'), 'utf8')) as { spaces: { id: string; area: [number, number, number, number]; storey: number }[] };
 
@@ -240,7 +243,7 @@ describe('S2-G6b the runtime nav grid (what the guards and the e2e walk)', () =>
 
 describe('S2-G6b M8: isolation in time at each takedown spot (sectorCheck, the live S2 test\'s check)', () => {
   const world = new SightWorld(b.boxes, b.cylinders);
-  const timed: CheckGuard[] = G.map((g) => {
+  const timed: CheckGuard[] = BASE.map((g) => {
     const speed = ENEMIES[g.kind].walkSpeed * (g.loop ? 1 : CHECK_PATROL_PACE);
     return { x: g.x, z: g.z, y: floorOf(g), route: g.route as readonly (readonly [number, number])[] | undefined, wait: g.wait, waits: g.waits, speed, loop: g.loop, start: g.start };
   });
@@ -250,7 +253,7 @@ describe('S2-G6b M8: isolation in time at each takedown spot (sectorCheck, the l
   // fixes the takedown spots, `D:259-273`); the test fails when one of them starts to hold 3 s, so the entry goes when the data is fixed
   const SHORT = new Set([1, 2, 13, 14]);
   it('every guard but the kitchen pair (#5 / #6, overlap partners, LS 4.5) and the four recorded short guards (F-G6b-1) holds 3 s isolated at his takedown spot', () => {
-    const rows = G.map((g, i) => ({ n: i + 1, run: longestIsolation(world, timed, i, 15, g.takedownSpot), ok: isolatedInTime(world, timed, i, g.takedownSpot) }));
+    const rows = BASE.map((g, i) => ({ n: i + 1, run: longestIsolation(world, timed, i, 15, g.takedownSpot), ok: isolatedInTime(world, timed, i, g.takedownSpot) }));
     // eslint-disable-next-line no-console
     if (process.env.CAMPUS_PRINT) console.log(rows.map((r) => `index ${r.n - 1} ${r.run}s ${r.ok ? 'ok' : 'NOT isolated'}`).join('\n'));
     const must = rows.filter((r) => ![5, 6].includes(r.n) && !SHORT.has(r.n - 1));
@@ -259,7 +262,7 @@ describe('S2-G6b M8: isolation in time at each takedown spot (sectorCheck, the l
   });
 
   it('the recorded short guards are still short (F-G6b-1): #2 0 s, #3 1.25 s, #14 0 s, #18 0 s at their spots', () => {
-    const runs = [...SHORT].sort((a, c) => a - c).map((i) => longestIsolation(world, timed, i, 15, G[i]!.takedownSpot));
+    const runs = [...SHORT].sort((a, c) => a - c).map((i) => longestIsolation(world, timed, i, 15, BASE[i]!.takedownSpot));
     expect(runs).toEqual([0, 1.25, 0, 0]);
   });
 });
@@ -293,7 +296,7 @@ describe('S2-G6b K2 (M12): the bridge officer faces the comms door', () => {
   });
 });
 
-describe('S2-G6b the screen cap (A99, Q5): no walkable point sees more than CAMPUS_SCREEN_CAP guards, all 18 counted', () => {
+describe('S2-G6b the screen cap (A99, Q5): no walkable point sees more than CAMPUS_SCREEN_CAP guards, all 20 counted (the 4-player list)', () => {
   it('a 2 m grid on every floor and stair, a clear static line within 40 m to any point of a guard\'s post or route', () => {
     const world = new SightWorld(b.boxes, b.cylinders);
     const guards = G.map((g, i) => ({ i: i + 1, pts: guardPoints({ x: g.x, z: g.z, y: floorOf(g), route: g.route as readonly (readonly [number, number])[] | undefined }) }));

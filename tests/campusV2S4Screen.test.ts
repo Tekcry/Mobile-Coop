@@ -176,7 +176,7 @@ describe('G4.6 A99: the screen count (no player point sees more than CAMPUS_SCRE
     }
     // eslint-disable-next-line no-console
     if (process.env.CAMPUS_PRINT) console.log(`A99 worst ${worst.n} at ${worst.at}: #${worst.who.join(', #')} (${samples} points, ${baskets} on the baskets, ${deck} on the deck, ${over} over ${CAMPUS_SCREEN_CAP}); histogram ${JSON.stringify([...hist.entries()].sort((p, q) => p[0] - q[0]))}`);
-    expect(G.length).toBe(25);
+    expect(G.length).toBe(27); // the 25 and coop4's two 3-4 player extras (A8): the 4-player list
     expect(samples).toBeGreaterThan(4000);
     expect(baskets).toBeGreaterThan(50);
     expect(deck).toBeGreaterThan(200);

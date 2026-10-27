@@ -173,7 +173,8 @@ describe('NET3: the client starts in the host mission\'s start section', () => {
       ['H', { id: 'H', host: true }],
       ['C', { id: 'C', host: false }],
     ]);
-    Object.assign(c, { g: p.g, s: { selfId: 'C', players, sectorMission: sm } });
+    // (coop4 A19, merge 10) the client's slot is the one the host's lobby gave it (`NetSession.selfSlot`)
+    Object.assign(c, { g: p.g, s: { selfId: 'C', players, sectorMission: sm, selfSlot: 1 } });
     (c as unknown as { placeStart(): void }).placeStart();
     return p.teleport;
   };
@@ -216,7 +217,8 @@ describe('NET3: the host places a remote whose first state is outside the curren
     const h = Object.create(CoopHost.prototype) as CoopHost;
     const r = { id: 'c1', held: false, alive: true, feet: { x: 2, y: 0, z: 0 }, allowTeleport: vi.fn() };
     const joins = new JoinWatch();
-    Object.assign(h, { g, joins, remotes: new Map([['c1', r]]), time: 5 });
+    // (coop4 A19, merge 10) c1's slot comes from the session's slot table
+    Object.assign(h, { g, joins, remotes: new Map([['c1', r]]), time: 5, s: { slotOf: (id: string) => (id === 'c1' ? 1 : -1) } });
     const place = (x: number): void => (h as unknown as { firstPlace(r: unknown, x: number, y: number, z: number): void }).firstPlace(r, x, 0, 0);
     return { joins, r, place };
   };

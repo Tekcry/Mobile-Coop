@@ -8,13 +8,14 @@
 // and a client deflect (helmet off on both screens). (guard-ai S23) Every player is seen: a calm guard spots the client
 // in his light while the host hides nearer behind a wall, and in combat keeps his target and line on the client.
 // (guard-ai S24) Two intruders: two guard pairs each hunt the player they saw, and close on his last known position only.
+// (coop4 AI6) Four pages: three intruders (each guard pair hunts the player it saw, a client leaves and rejoins into his slot, a crouch-walk is silent and a run is heard), reading guard-ai #319's hooks (SKIP when absent).
 // (guard-models G9, M3) A guard's look seed (and, with the guard models on, his visible pieces) is equal on the host and
 // the client; after a course bay restart the same slot has the same seed on both; the helmet bit drops on both.
 // (co-op test fix, process audit section 2) The pages open legacy-off: the matches are Infiltration (the Ledger
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until as untilNet, waitSim, waitHostSim, setSimPages, LOAD_MS } from './e2e-net-lib.mjs';
+import { until as untilNet, waitSim, waitHostSim, setSimPages, hostAndJoin, LOAD_MS, LOAD_MS_4, eachPage, pumpPages, onHostStep, offHostStep } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 // (guard-models G9, gm-flip) The guard models are on by default, so the guard figures exist and the visible-piece asserts
@@ -2213,6 +2214,761 @@ try {
 } finally {
   errs.push(...eA, ...eB);
   await browser.close();
+}
+
+// (coop4 L1) Lobby caps. A mode's seats are `capacity(mode)`: Sector Ops up to 4 (after slice N1; 2 until then), the
+// campaign (Marlow Yard) 2. The room is hosted in a legacy 4-seat mode so a 3rd page can join now, then switched.
+console.log('lobby caps: slots by mode, Start blocked over the cap, Room full, Marlow lobby for 2');
+{
+  let lb = null;
+  /** Live error arrays (each page's, filled as errors come), flattened at the end. */
+  const lerrs = [];
+  try {
+    const H = await hostAndJoin(url, 1, { viewport: { width: 1280, height: 640 } });
+    lb = H.browser;
+    lerrs.push(...H.errors);
+    const LA = H.A;
+    const LG = (f, a) => LA.evaluate(f, a);
+    const rows = (P) => P.evaluate(() => ({ all: document.querySelectorAll('.lobby-screen .lobby-player').length, empty: document.querySelectorAll('.lobby-screen .lobby-player.empty').length }));
+    const lcode = await LG(() => window.__coop.session.code);
+    /** Open a page and join the room by its code (the Join with code screen). */
+    const joinPage = async () => {
+      const o = await openPage(H.ctx, url, 'net=local');
+      lerrs.push(o.errors);
+      await o.page.click('.main-menu .btn:has-text("Co-op")');
+      await o.page.click('.btn:has-text("Join with code")');
+      await o.page.keyboard.type(lcode.toLowerCase());
+      await o.page.keyboard.press('Enter');
+      return o.page;
+    };
+
+    // Marlow Yard (Campaign), one player: two slots, one open; the host is told Marlow needs two and to invite teammates (J14 F1)
+    assert((await LG(() => window.__coop.session.mode)) === 'course', 'lobby caps: a new room is Campaign');
+    const r1 = await rows(LA);
+    assert(r1.all === 2 && r1.empty === 1, `lobby caps: Campaign lobby with one player shows 2 slots, 1 open (${JSON.stringify(r1)})`);
+    const st1 = await LG(() => document.querySelector('.lobby-screen .lobby-status')?.textContent ?? '');
+    assert(st1 === 'Marlow Yard needs two players. Share the code to invite your partner.', `lobby caps: host status line (${st1})`);
+
+    // a 2nd page joins: Marlow's lobby for 2 is full, no open slot
+    const LB = await joinPage();
+    await until(LA, () => window.__coop.session.players.size === 2, null, 15000, 'lobby caps: host sees page 2');
+    await until(LB, () => window.__coop.session.hostId && window.__coop.session.players.size === 2, null, 15000, 'lobby caps: page 2 sees the lobby');
+    for (const [n, P] of [['host', LA], ['joiner', LB]]) {
+      const r = await rows(P);
+      assert(r.all === 2 && r.empty === 0, `lobby caps: Campaign lobby for 2 shows 2 players, no open slot, on the ${n} (${JSON.stringify(r)})`);
+    }
+
+    // a 3rd page joining a Campaign room is refused: Room full, with the cap
+    const LX = await joinPage();
+    await until(LX, () => /Room full/.test(document.querySelector('.dialog-screen .dialog-title')?.textContent ?? ''), null, 15000, 'lobby caps: the 3rd page gets Room full');
+    const fullMsg = await LX.evaluate(() => document.querySelector('.dialog-screen .dialog-msg')?.textContent ?? '');
+    assert(/2 players/.test(fullMsg), `lobby caps: Room full names the cap (${fullMsg})`);
+    assert((await LG(() => window.__coop.session.players.size)) === 2, 'lobby caps: the full room still has its 2 players');
+    await LX.close();
+
+    // a 4-seat room (Free Roam) takes a 3rd page; then the host switches the room to Campaign, then Sector Ops
+    await LG(() => window.__coop.session.setSettings('sandbox', 'warehouse', 'normal', ''));
+    const LC = await joinPage();
+    const trio = [LA, LB, LC];
+    setSimPages(trio);
+    await until(LA, () => window.__coop.session.players.size === 3, null, 15000, 'lobby caps: host sees page 3');
+    for (const P of trio.slice(1)) await until(P, () => window.__coop.session.hostId && window.__coop.session.players.size === 3, null, 15000, 'lobby caps: pages see 3 players');
+
+    await LG(() => window.__coop.session.setSettings('course', 'ctcourse', 'normal', ''));
+    await until(LA, () => window.__coop.session.overCapacity && document.querySelector('.lobby-actions [data-key="start"]')?.classList.contains('blocked'), null, 10000, 'lobby caps: Start blocked with 3 in a Campaign room');
+    const lock = await LG(() => document.querySelector('.lobby-actions [data-key="start"]').dataset.locked);
+    assert(lock === 'Too many players for this mode (2)', `lobby caps: Campaign blocks Start with 3 players (${lock})`);
+    await LA.click('.lobby-actions [data-key="start"]');
+    await LA.waitForTimeout(500);
+    assert(await LG(() => window.__coop.session.phase === 'lobby' && !window.__coop.inGame), 'lobby caps: Start does nothing while blocked');
+
+    await LG(() => window.__coop.session.setSettings('sector', 'warehouseOps', 'normal', ''));
+    for (const P of trio) await until(P, () => window.__coop.session.mode === 'sector', null, 10000, 'lobby caps: the room shows Sector Ops');
+    // the page's own capacity('sector'): 3 players over the cap means 2 (before N1), else the 4 seats
+    const sectorCap = (await LG(() => window.__coop.session.overCapacity)) ? 2 : 4;
+    if (sectorCap !== 4) {
+      console.log(`  SKIP until N1: capacity('sector') is ${sectorCap}, not 4 (the 4-slot lobby and the 3-page Sector Ops start are not asserted)`);
+    } else {
+      for (const [n, P] of [['host', LA], ['page 2', LB], ['page 3', LC]]) {
+        await until(P, () => document.querySelectorAll('.lobby-screen .lobby-player').length === 4, null, 10000, `lobby caps: ${n} shows 4 slots`);
+        const r = await rows(P);
+        assert(r.all === 4 && r.empty === 1, `lobby caps: Sector Ops lobby shows 4 slots, 1 open, on ${n} (${JSON.stringify(r)})`);
+      }
+      for (const P of trio.slice(1)) await P.evaluate(() => window.__coop.session.setReady(true));
+      await until(LA, () => window.__coop.session.allReady && !document.querySelector('.lobby-actions [data-key="start"]')?.classList.contains('blocked'), null, 10000, 'lobby caps: Start unblocked for 3 ready players');
+      await LA.click('.lobby-actions [data-key="start"]');
+      for (const P of trio) await until(P, () => window.__app.current?.opts?.mode === 'sector' && !!window.__app.current.net && !window.__app.current.isEnded, null, LOAD_MS, 'lobby caps: Sector Ops match on every page');
+      assert(true, 'lobby caps: a 3-page Sector Ops room starts');
+    }
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    errs.push(...lerrs.flat());
+    await lb?.close();
+  }
+}
+
+// (coop4 AI6, guard-ai #319, docs/coop4/briefs/AI6-E2E-SPEC.md "e2e-coop with 3 clients") Four pages (host A, clients B, C, D)
+// over ?net=local in the Ledger mission on the Warehouse, the mission's guards statues (the S24 staging: hitboxes parked,
+// panels off, a pinned light per player). (1) Three rooms with no line between them, two calm grunts each facing his room's
+// player (host, B, C; D far away, dark, never seen): each guard hunts the slot of the player he saw while all three hide,
+// no guard walks to another room's last known position, rays per guard per think stay <= 9. (2) B closes his game and
+// rejoins with his token: same slot, last known position kept until his first report; a hold that runs out
+// (`NetSession.expireAway`, the host's `removeRemote`) marks the slot gone. (3) C behind a calm guard: a crouch-walk is
+// silent, a standing run is heard and locates C's slot (never the host's), a noisy hold's pulse (`em.hear(item, r, .., id)`,
+// what coopHost's `onHoldPulse` calls) locates C at the item. Every read of a guard-ai #319 hook is guarded: a build
+// without it prints "SKIP: guard-ai #319 hook <name> missing" and the rest runs (on feature/coop4 alone the block only
+// proves four pages start the mission with four players in the guards' list).
+// Deviations from the spec, with the reason: (a) the net layer holds a dropped joiner (`r.held`, out of `remotePlayers()`),
+// `removeRemote` runs only when the hold ends, so (2) drops B with `__coop.leave()` + `Rejoin` and the `gone` / `removeRemote`
+// read is its own step (2c); (b) CT has no sprint, a standing run is a jog (reach ~3 m, S26), so (3) runs C 2.6 m behind the
+// guard (past the 1.8 m close range), not 4-6 m.
+console.log('coop4 guard AI (AI6): three intruders over four pages - each pair hunts its own player, a client leaves and rejoins into its slot, a crouch-walk is silent and a run is heard');
+{
+  let ab = null;
+  const aerrs = [];
+  let stopPump = () => {};
+  /** Every guard the block spawned. */
+  let spawned = [];
+  let hookKey = 0;
+  try {
+    const H = await hostAndJoin(url, 4);
+    ab = H.browser;
+    aerrs.push(...H.errors);
+    const HA = H.A;
+    const P4 = H.pages;
+    stopPump = pumpPages(() => P4);
+    const GH = (f, a) => HA.evaluate(f, a);
+    const ids4 = await eachPage(P4, (P) => P.evaluate(() => window.__coop.session.selfId));
+    const [idB, idC, idD] = [ids4[1], ids4[2], ids4[3]];
+    const skipped = new Set();
+    const skip = (hook) => {
+      if (skipped.has(hook)) return;
+      skipped.add(hook);
+      console.log(`  SKIP: guard-ai #319 hook ${hook} missing`);
+    };
+    // ---- start: the Ledger mission, four pages ----
+    await GH(([m, mp, mi]) => window.__coop.session.setSettings(m, mp, 'normal', mi), MISSION);
+    for (const P of P4.slice(1)) await P.evaluate(() => window.__coop.session.setReady(true));
+    await until(HA, () => window.__coop.session.allReady, null, 8000, 'AI6: everyone ready');
+    await GH(() => window.__coop.session.startMatch());
+    for (const P of P4) await until(P, (m) => window.__app.current?.opts?.mode === m && !!window.__app.current.net && !window.__app.current.isEnded, MISSION[0], LOAD_MS_4, 'AI6: the Ledger mission on every page');
+    await until(HA, () => { const rs = [...window.__app.current.net.remotes.values()]; return rs.length === 3 && rs.every((r) => r.state); }, null, 30000, 'AI6: the three client states reach the host');
+    await GH(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+    const idHost = await GH(() => window.__app.current.localRef?.id ?? 'local');
+    const nPl = await GH(() => { const em = window.__app.current.enemyMgr; return typeof em.players === 'function' ? em.players().length : window.__app.current.teamRefsInto([]).length; });
+    assert(nPl === 4, `AI6: four players are in the guards' list (${nPl})`);
+
+    // ---- which #319 hooks this build has ----
+    const hooks = await GH(() => {
+      const em = window.__app.current.enemyMgr;
+      return { coop4: typeof em.coop4 === 'function', find: typeof em.intruders?.find === 'function', ghostOf: typeof em.ghostOf === 'function', rays: typeof em.raysThisStep === 'number', idOf: typeof em.intruders?.idOf === 'function' };
+    });
+    if (!hooks.coop4) skip('em.coop4');
+    if (!hooks.find) skip('em.intruders.find');
+    if (hooks.coop4) assert(await GH(() => window.__app.current.enemyMgr.coop4() === true), 'AI6: em.coop4() is on with four players');
+    if (!hooks.coop4 || !hooks.find) {
+      console.log('  SKIP: guard-ai #319 AI6 blocks (1)-(3) not run without em.coop4 / em.intruders.find (they run on the train head)');
+    } else {
+      const jl = (v) => JSON.stringify(v);
+      const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : String(v));
+      /** Snap (x, z) to the nav (host). */
+      const snap = (x, z) => GH(([x, z]) => { const nav = window.__app.current.enemyMgr.nav; const c = nav.nearestWalkable(x, z, 2, 0); return c >= 0 ? nav.center(c) : [x, z]; }, [x, z]);
+      /** Page i to (x, z) facing yaw; returns when the host has it there, still. */
+      const teleP = async (i, x, z, yaw, y = 0.1) => {
+        const tp = ([x, y, z, w]) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(x, y, z), w); g.player.cam.yaw = w; g.player.cam.pitch = 0; };
+        if (i === 0) {
+          await HA.evaluate(tp, [x, 0.05, z, yaw]);
+          await until(HA, ([x, z]) => { const p = window.__app.current.player.controller.pos; return Math.hypot(p.x - x, p.z - z) < 0.5; }, [x, z], 15000, `AI6: the host at ${f2(x)}, ${f2(z)}`);
+          return;
+        }
+        await GH(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+        await P4[i].evaluate(tp, [x, y, z, yaw]);
+        await until(HA, ([id, x, z]) => { const r = window.__app.current.net.remotes.get(id); return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6 && r.ref.speed < 0.15; }, [ids4[i], x, z], 15000, `AI6: the host sees page ${i} at ${f2(x)}, ${f2(z)}`);
+      };
+      const lit = (map) => GH((m) => { window.__ai6Lit = m; }, map);
+
+      // ---- the staging (the S24 pattern): mission guards statues, panels off, light pinned per player, room for 8 more guards ----
+      await GH(() => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        em.maxAlive = Math.max(em.maxAlive, em.alive + 8);
+        for (const x of em.enemies) {
+          x.update = () => {};
+          x['ai6Statue'] = true;
+          if (x.alive && !x.taken) x.aware.set('unaware');
+          if (x.alive) x['hitboxes']?.setEnabled(false);
+        }
+        for (const d of em.drones) d.update = () => true;
+        for (const p of em.alarms) p.disabled = true;
+        // (ai6 triage 3) no radio alarm either (the S26 coop triage r2 staging, line ~1620): the panels are off, but a
+        // contact call still owes the command call (`RADIO_ALARM`); its response team (3 guards, `RESPONSE.liveTeam`)
+        // spawns alerted at the reinforce point furthest from the host, (18, -24.5) in the yard lane, sees every lane
+        // hide (B's is 9.25 m west) and reports that player there (`takeSighting`), and it fills the block's 8-guard
+        // headroom (6 in (1) + 2 of the team), so (3)'s grunt never spawned
+        em.alarmRaised = true;
+        window.__ai6Lit = {};
+        g['updateLight'] = () => {
+          const L = window.__ai6Lit;
+          g.localRef.light = g.lightLevel = L[g.localRef.id] ? 1 : 0;
+          for (const r of g.remotePlayers()) r.light = L[r.id] ? 1 : 0;
+        };
+      });
+      /** Spawn calm grunts [x, z, yaw] on the host; returns their ids (null: one did not spawn). */
+      const spawnGuards = (list) => GH((list) => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const V = g.player.position.constructor;
+        const out = [];
+        for (const [x, z, yaw] of list) {
+          const e = em.spawn('grunt', new V(x, 0, z), false, yaw);
+          if (!e) return null;
+          e.meter = 0;
+          out.push(e.id);
+        }
+        return out;
+      }, list);
+      const despawn = (ids) => GH((ids) => { const em = window.__app.current?.enemyMgr; if (!em) return; for (const id of ids) { const e = em.enemies.find((x) => x.id === id); if (e) em.despawn(e); } }, ids);
+      /** Install a host step hook (`onHostStep`): `fn(g, arg, st)` runs every fixed step; `st` is `window.__ai6s`. */
+      const hook = async (fn, arg) => {
+        hookKey = await onHostStep(HA, fn, arg);
+      };
+      const unhook = async () => {
+        if (hookKey) await offHostStep(HA, hookKey).catch(() => {});
+        hookKey = 0;
+      };
+      const faceTo = (a, b) => Math.atan2(b[0] - a[0], b[1] - a[1]);
+      // the three rooms: the host's and B's are S24's (racking hall aisle, factory floor); C's the Warehouse corner with
+      // the fewest lines to either (`hitDistance` between every body point of two rooms; a count of 0 is asserted).
+      // (ai6-lkp triage) The workshop's hide is in the dark lane west of the x 14.5 fence (2.75, -24.75): a SightWorld
+      // probe finds 0 of 4468 interior points with a line to it. The old east-lot spot (20, -24.75) is seen from 41 of
+      // 330 workshop points (through the facade door x 17..18.1 and the open window x 11.5), so the pair saw C hide there.
+      const R0 = { player: [-14.5, 5.2], guards: [[-15, -2.5], [-14, -2.5]] };
+      const R1 = { player: [9, 3], guards: [[8, -6], [9.2, -6]] };
+      const R2S = [
+        { name: 'workshop', player: [21, -14.5], guards: [[14, -14.5], [14, -13.3]], lane: [2.75, -24.75] },
+        { name: 'dock', player: [-21, -14], guards: [[-14, -14], [-14, -12.8]], lane: [-16, -24.75] },
+        { name: 'mezzanine', player: [22, 15], guards: [[15, 15], [15, 16.2]], lane: [20, -24.75] },
+      ];
+      const LANE = { host: [-3.75, -24.75], b: [8.75, -24.75] };
+      R0.player = await snap(R0.player[0], R0.player[1]);
+      const pick = await GH(([R0, R1, C]) => {
+        const g = window.__app.current;
+        const V = g.player.position.constructor;
+        const pts = (R) => [R.player, ...R.guards].map((p) => new V(p[0], 1.6, p[1]));
+        const unblocked = (A, B) => { let n = 0; for (const a of A) for (const b of B) if (g.ballistics.hitDistance(a, b, 1) >= V.Distance(a, b) - 0.35) n++; return n; };
+        const p0 = pts(R0);
+        const p1 = pts(R1);
+        return { base: unblocked(p0, p1), res: C.map((c) => { const pc = pts(c); return { name: c.name, open: unblocked(pc, p0) + unblocked(pc, p1) }; }) };
+      }, [R0, R1, R2S]);
+      const best = pick.res.reduce((a, b) => (b.open < a.open ? b : a));
+      const R2 = R2S.find((c) => c.name === best.name);
+      console.log(`    (AI6: rooms host / B: ${pick.base} unblocked body-point lines; room 3 = ${R2.name}, unblocked lines ${jl(pick.res)})`);
+      assert(best.open === 0, `AI6 setup: three rooms with no line between any two (room 3 ${R2.name}; unblocked lines ${jl(pick.res)}; host / B ${pick.base})`);
+      const laneD = R2.lane[0] > 0 ? [-16, -24.75] : [20, -24.75];
+      const snapped = { hostHide: await snap(...LANE.host), bHide: await snap(...LANE.b), cHide: await snap(...R2.lane), dHide: await snap(...laneD) };
+
+      // ============ (1) each guard pair hunts the player it saw ============
+      console.log('  AI6 (1): three rooms, each pair hunts the player it saw (D unseen)');
+      let sB = -1;
+      let lkpB = null;
+      try {
+        // D far away in the dark, still; the three lit in their rooms
+        await teleP(3, snapped.dHide[0], snapped.dHide[1], 0);
+        await teleP(0, R0.player[0], R0.player[1], Math.PI);
+        await teleP(1, R1.player[0], R1.player[1], Math.PI);
+        await teleP(2, R2.player[0], R2.player[1], faceTo(R2.player, R2.guards[0]));
+        await lit({ [idHost]: 1, [idB]: 1, [idC]: 1 });
+        const gl = [...R0.guards.map((p) => [p[0], p[1], faceTo(p, R0.player)]), ...R1.guards.map((p) => [p[0], p[1], faceTo(p, R1.player)]), ...R2.guards.map((p) => [p[0], p[1], faceTo(p, R2.player)])];
+        const gids = await spawnGuards(gl);
+        assert(!!gids, 'AI6 (1): six calm grunts spawn, two per room');
+        spawned.push(...gids);
+        const room = [0, 0, 1, 1, 2, 2];
+        const hasThink = await GH((ids) => window.__app.current.enemyMgr.enemies.filter((e) => ids.includes(e.id)).every((e) => 'raysThink' in e), gids);
+        if (!hasThink) skip('Enemy.raysThink');
+        if (!hooks.rays) skip('em.raysThisStep');
+        await hook((g, a, st) => {
+          window.__ai6s = st;
+          try {
+            const em = g.enemyMgr;
+            const b = em.intruders;
+            if (!st.init) {
+              st.init = true;
+              st.guards = em.enemies.filter((e) => a.gids.includes(e.id));
+              Object.assign(st, { next: 0, n: 0, hide: false, badSlots: 0, badHunt: 0, lkpMax: 0, lkpWorst: null, minPos: 1e9, minKnown: 1e9, dSeen: 0, maxRays: 0, maxThink: 0, lv: [], hunts: [], slots: [], err: '', extraMax: 0, extra: null, per: null, firstOff: null, offReports: [] });
+              // (ai6 triage 3) every board report that puts a player's slot more than 2 m off his room spot: when, where,
+              // sight or a located noise, before or after the hide (removed after the block's reads: `delete b.report`)
+              const orig = b.report;
+              b.report = function (slot, x, y, z, seen) {
+                try {
+                  const i = a.ids.indexOf(b.idOf(slot));
+                  if (i >= 0 && Math.hypot(x - a.stand[i][0], z - a.stand[i][1]) > 2 && st.offReports.length < 20) st.offReports.push({ t: +g.time.toFixed(2), p: ['host', 'B', 'C'][i], slot, at: [+x.toFixed(2), +z.toFixed(2)], seen, hide: st.hide });
+                } catch {}
+                return orig.call(this, slot, x, y, z, seen);
+              };
+            }
+            const gs = st.guards;
+            // (ai6 triage 3) any live guard that is neither a statue nor one of the six (a response team, a reinforcement):
+            // it perceives and reports like the six but is in none of the per-guard reads below
+            const live = () => em.enemies.filter((x) => x.alive && !x['ai6Statue']);
+            const pIdx = () => { const ps = em.players(); return a.ids.map((id) => { const j = ps.findIndex((r) => r.id === id); return j < 0 ? -1 : (ps[j].slot ?? j); }); };
+            const guardRow = (x, idx) => ({ id: x.id, six: gs.indexOf(x), kind: x.def?.kind, at: [+x.pos.x.toFixed(1), +x.pos.z.toFixed(1)], lv: x.level, hunt: x.hunt, sees: idx.map((j) => (j >= 0 && typeof x.seesIndex === 'function' ? +x.seesIndex(j) : -1)) });
+            {
+              const ex = live().filter((x) => !a.gids.includes(x.id));
+              if (ex.length > st.extraMax) {
+                st.extraMax = ex.length;
+                const idx = pIdx();
+                st.extra = { t: +g.time.toFixed(2), hide: st.hide, guards: ex.map((x) => guardRow(x, idx)) };
+              }
+            }
+            st.lv = gs.map((e) => (e.alive ? e.level : 'down'));
+            st.hunts = gs.map((e) => e.hunt);
+            st.slots = a.ids.map((id) => b.find(id));
+            if (b.find(a.idD) !== -1) st.dSeen++;
+            if (typeof em.raysThisStep === 'number') st.maxRays = Math.max(st.maxRays, em.raysThisStep / gs.length);
+            for (const e of gs) if (typeof e.raysThink === 'number') st.maxThink = Math.max(st.maxThink, e.raysThink);
+            if (!st.hide || g.time < st.next) return;
+            st.next = g.time + 0.25;
+            st.n++;
+            const s = st.slots;
+            if (!(new Set(s).size === 3 && s.every((v) => v >= 0 && b.valid[v] === 1))) st.badSlots++;
+            for (let i = 0; i < 3; i++) {
+              if (s[i] < 0) continue;
+              const dk = Math.hypot(b.x[s[i]] - a.stand[i][0], b.z[s[i]] - a.stand[i][1]);
+              if (dk > st.lkpMax) {
+                st.lkpMax = dk;
+                st.lkpWorst = { player: i, at: [+b.x[s[i]].toFixed(2), +b.z[s[i]].toFixed(2)], seenT: +b.seenT[s[i]].toFixed(2), locT: +b.locT[s[i]].toFixed(2) };
+              }
+            }
+            // (ai6 triage 3) per player: where he stood when seen (his room spot), where he hides, his slot's LKP and
+            // clocks; the first sample with an LKP off its spot also keeps every live guard (who could have reported it)
+            st.per = [0, 1, 2].map((i) => {
+              const v = s[i];
+              if (v < 0) return { p: ['host', 'B', 'C'][i], slot: v };
+              const lx = b.x[v];
+              const lz = b.z[v];
+              return { p: ['host', 'B', 'C'][i], slot: v, valid: b.valid[v], stand: a.stand[i], hide: a.hide[i], lkp: [+lx.toFixed(2), +lz.toFixed(2)], dStand: +Math.hypot(lx - a.stand[i][0], lz - a.stand[i][1]).toFixed(2), dHide: +Math.hypot(lx - a.hide[i][0], lz - a.hide[i][1]).toFixed(2), seenT: +b.seenT[v].toFixed(2), locT: +b.locT[v].toFixed(2) };
+            });
+            if (!st.firstOff && st.per.some((r) => r.dStand > 2)) {
+              const idx = pIdx();
+              st.firstOff = { n: st.n, t: +g.time.toFixed(2), per: st.per, guards: live().map((x) => guardRow(x, idx)) };
+            }
+            for (let k = 0; k < gs.length; k++) {
+              const e = gs[k];
+              const r = a.room[k];
+              if (e.hunt !== s[r]) st.badHunt++;
+              for (let j = 0; j < 3; j++) {
+                if (j === r || s[j] < 0) continue;
+                st.minPos = Math.min(st.minPos, Math.hypot(e.pos.x - b.x[s[j]], e.pos.z - b.z[s[j]]));
+                const kp = e.knownPt;
+                if (kp) st.minKnown = Math.min(st.minKnown, Math.hypot(kp[0] - b.x[s[j]], kp[1] - b.z[s[j]]));
+              }
+            }
+          } catch (e) {
+            st.err = String(e?.stack ?? e);
+          }
+        }, { gids, room, ids: [idHost, idB, idC], idD, stand: [R0.player, R1.player, R2.player], hide: [snapped.hostHide, snapped.bHide, snapped.cHide] });
+        // in combat on their own player (their own sight; by hand after 10 s of the host's sim)
+        const ready = () => { const s = window.__ai6s; return s.lv.length === 6 && s.lv.every((l) => l === 'alert') && s.slots.every((v) => v >= 0) && s.hunts.every((h, k) => h === s.slots[[0, 0, 1, 1, 2, 2][k]]); };
+        const self = await until(HA, ready, null, 10000, 'AI6 (1): all three pairs in combat on their own player').then(() => true, () => false);
+        if (!self) {
+          console.log(`    (AI6 (1): not all in combat by themselves: ${jl(await GH(() => ({ lv: window.__ai6s.lv, h: window.__ai6s.hunts, s: window.__ai6s.slots })))}; alerted by hand)`);
+          await GH((ids) => { for (const e of window.__app.current.enemyMgr.enemies) if (ids.includes(e.id) && !e.alerted) e.alert(); }, gids);
+          await until(HA, ready, null, 15000, 'AI6 (1): all three pairs in combat on their own player (by hand)').catch(() => {});
+        }
+        const c0 = await GH(() => { const s = window.__ai6s; return { lv: s.lv, hunts: s.hunts, slots: s.slots, err: s.err }; });
+        assert(!c0.err, `AI6 (1): the sampling hook ran (${c0.err})`);
+        assert(c0.lv.every((l) => l === 'alert'), `AI6 (1): all six guards in combat (${jl(c0)})`);
+        assert(new Set(c0.slots).size === 3 && c0.slots.every((v) => v >= 0), `AI6 (1): three distinct slots, one per player (${jl(c0.slots)})`);
+        assert(c0.hunts.every((h, k) => h === c0.slots[room[k]]), `AI6 (1): every guard hunts the slot of the player in his room (${jl(c0)})`);
+        sB = c0.slots[1];
+        // the three hide: each 6 m or more away behind a wall (the dark yard lane, S24's spots), unlit
+        await lit({});
+        await teleP(0, snapped.hostHide[0], snapped.hostHide[1], 0);
+        await teleP(1, snapped.bHide[0], snapped.bHide[1], 0);
+        await teleP(2, snapped.cHide[0], snapped.cHide[1], 0);
+        lkpB = await GH((id) => { const b = window.__app.current.enemyMgr.intruders; const s = b.find(id); return s >= 0 ? [b.x[s], b.z[s]] : null; }, idB);
+        await GH(() => { const s = window.__ai6s; s.hide = true; s.next = window.__app.current.time; });
+        const hid = await waitHostSim(HA, 6000);
+        const c1 = await GH(() => ({ ...window.__ai6s, guards: undefined }));
+        await GH(() => { delete window.__app.current.enemyMgr.intruders.report; });
+        const why = jl({ hid: Math.round(hid), n: c1.n, badSlots: c1.badSlots, badHunt: c1.badHunt, lkpMax: f2(c1.lkpMax), lkpWorst: c1.lkpWorst, minPos: f2(c1.minPos), minKnown: f2(c1.minKnown), dSeen: c1.dSeen, maxRays: f2(c1.maxRays), maxThink: c1.maxThink, lv: c1.lv, hunts: c1.hunts, slots: c1.slots, err: c1.err });
+        assert(hid >= 6000, `AI6 (1): 6 s of the host's sim with all three hidden (${why})`);
+        assert(!c1.err && c1.n >= 20, `AI6 (1): sampled every 0.25 s (${c1.n} samples) (${why})`);
+        assert(c1.badSlots === 0, `AI6 (1): the three slots stay distinct and valid at every sample (${why})`);
+        // (ai6 triage 3) the per-player table (stand / hide / LKP / clocks, last sample), the first sample off its spot with
+        // every live guard then (`six` -1: not one of the six; `sees` per player host / B / C), and any extra guard
+        const whyLkp = jl({ lkpMax: f2(c1.lkpMax), lkpWorst: c1.lkpWorst, per: c1.per, offReports: c1.offReports, firstOff: c1.firstOff, extra: c1.extra, hunts: c1.hunts, slots: c1.slots, lv: c1.lv });
+        assert(c1.extraMax === 0, `AI6 (1): no live guard but the six and the statues (no response team, no reinforcement) (${c1.extraMax} more) (${whyLkp})`);
+        assert(c1.lkpMax <= 2, `AI6 (1): each last known position within 2 m of where its player stood when last seen (worst ${f2(c1.lkpMax)} m) (${whyLkp})`);
+        assert(c1.badHunt === 0, `AI6 (1): every guard hunts the player in his room at every sample (${why})`);
+        assert(c1.minPos > 3 && c1.minKnown > 3, `AI6 (1): no guard's position or working point comes within 3 m of another room's last known position (A148) (${f2(c1.minPos)} / ${f2(c1.minKnown)} m)`);
+        assert(c1.dSeen === 0, `AI6 (1): D (never seen or reported) has no slot throughout (${c1.dSeen} steps with one)`);
+        if (hooks.rays && hasThink) {
+          assert(c1.maxRays <= 9, `AI6 (1): em.raysThisStep per update per guard <= 9 (worst ${f2(c1.maxRays)})`);
+          assert(c1.maxThink <= 9, `AI6 (1): rays per guard per think <= 9 (worst ${c1.maxThink})`);
+        }
+      } catch (e) {
+        failed = true;
+        console.error(`  AI6 (1) FAIL: ${String(e)}`);
+      }
+
+      // ============ (2) B leaves and rejoins: the same slot, the last known position kept ============
+      console.log('  AI6 (2): a client closes his game and rejoins: same slot, last known position kept');
+      try {
+        if (sB < 0 || !lkpB) throw new Error('(1) left no slot for B; (2) not run');
+        const code = await GH(() => window.__coop.session.code);
+        const others0 = await GH(([ids]) => { const b = window.__app.current.enemyMgr.intruders; return ids.map((id) => b.find(id)); }, [[idHost, idC, idD]]);
+        await P4[1].evaluate(() => window.__coop.leave());
+        await until(HA, (id) => { const r = window.__app.current.net.remotes.get(id); return !r || r.held === true; }, idB, 30000, 'AI6 (2): the host holds (or removes) the dropped client');
+        const d1 = await GH((id) => {
+          const g = window.__app.current;
+          const em = g.enemyMgr;
+          const b = em.intruders;
+          const r = g.net.remotes.get(id);
+          const s = b.find(id);
+          return { removed: !r, held: !!r?.held, s, gone: s >= 0 ? b.gone[s] : -1, valid: s >= 0 ? b.valid[s] : -1, lkp: s >= 0 ? [b.x[s], b.z[s]] : null, players: typeof em.players === 'function' ? em.players().length : -1, coop4: em.coop4(), hunting: em.enemies.some((e) => e.alive && e.hunt === s) };
+        }, idB);
+        const why = jl(d1);
+        assert(d1.s === sB && d1.valid === 1, `AI6 (2): while he is away his slot is kept and still valid (slot ${d1.s} / ${sB}) (${why})`);
+        assert(d1.lkp && Math.hypot(d1.lkp[0] - lkpB[0], d1.lkp[1] - lkpB[1]) < 0.01, `AI6 (2): his last known position is unchanged (${why})`);
+        assert(d1.players === 3 && d1.coop4, `AI6 (2): three players in the guards' list, coop4 still on (${why})`);
+        if (d1.removed) assert(d1.gone === 1, `AI6 (2): removeRemote marked the slot gone (${why})`);
+        else console.log(`    (AI6 (2): the net layer HOLDS a dropped joiner (held, in remotes); removeRemote and intruderLeft run when the hold ends: gone[sB] ${d1.gone}; see (2c))`);
+        // back in with the same id
+        await until(P4[1], (c) => (document.querySelector('.main-menu [data-key="rejoin"]')?.textContent ?? '').includes(`Rejoin ${c}`), code, 60000, 'AI6 (2): the dropped page offers Rejoin <code>');
+        await P4[1].evaluate(() => document.querySelector('.main-menu [data-key="rejoin"]').click());
+        await until(P4[1], () => !!window.__app.current?.net && !!window.__app.current.puppet, null, LOAD_MS_4, 'AI6 (2): the dropped page is back in the match');
+        assert((await P4[1].evaluate(() => window.__coop.session.selfId)) === idB, 'AI6 (2): the rejoin is the same player id');
+        await until(HA, (id) => { const r = window.__app.current.net.remotes.get(id); return !!r && !r.held && !!r.state; }, idB, 60000, 'AI6 (2): the host has him back in play');
+        await P4[1].evaluate(() => { window.__app.current.target.damageMul = 0; });
+        await GH(() => { for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+        const d2 = await GH((id) => {
+          const b = window.__app.current.enemyMgr.intruders;
+          const s = b.find(id);
+          return { s, gone: s >= 0 ? b.gone[s] : -1, lkp: s >= 0 ? [b.x[s], b.z[s]] : null };
+        }, idB);
+        assert(d2.s === sB && d2.gone === 0, `AI6 (2): rejoined into the same slot, no longer gone (${jl(d2)})`);
+        assert(d2.lkp && Math.hypot(d2.lkp[0] - lkpB[0], d2.lkp[1] - lkpB[1]) < 0.01, `AI6 (2): before his first report the last known position is still the old one (${jl(d2)})`);
+        // he reports once: one loud shot by his id (what coopHost's remoteNoise calls)
+        const pos = await GH((id) => { const r = window.__app.current.net.remotes.get(id); return [r.feet.x, r.feet.y, r.feet.z]; }, idB);
+        await GH(([id, p]) => { const g = window.__app.current; g.enemyMgr.noise(new g.player.position.constructor(p[0], p[1], p[2]), 60, id); }, [idB, pos]);
+        await until(HA, ([id, p]) => { const b = window.__app.current.enemyMgr.intruders; const s = b.find(id); return s >= 0 && Math.hypot(b.x[s] - p[0], b.z[s] - p[2]) < 2.5; }, [idB, pos], 5000, 'AI6 (2): his shot locates his slot at his new position');
+        const d3 = await GH(([id, others]) => {
+          const g = window.__app.current;
+          const em = g.enemyMgr;
+          const b = em.intruders;
+          const V = g.player.position.constructor;
+          const s = b.find(id);
+          const gh = typeof em.ghostOf === 'function' ? em.ghostOf(id, new V(0, 0, 0)) : null;
+          return { s, gone: b.gone[s], ghost: gh, others: others.map((o) => b.find(o)) };
+        }, [idB, [idHost, idC, idD]]);
+        assert(d3.s === sB && d3.gone === 0, `AI6 (2): after his report the same slot, not gone (${jl(d3)})`);
+        if (hooks.ghostOf) assert(d3.ghost >= 1, `AI6 (2): em.ghostOf(B) >= 1 on the host (${d3.ghost})`);
+        else skip('em.ghostOf');
+        assert(d3.others.every((v, i) => v === others0[i]), `AI6 (2): no other slot changed (${jl(d3.others)} vs ${jl(others0)})`);
+
+        // (2c) a hold that runs out: removeRemote -> intruderLeft -> gone, the position kept
+        const s0 = await GH((id) => { const b = window.__app.current.enemyMgr.intruders; const s = b.find(id); return { s, lkp: [b.x[s], b.z[s]], valid: b.valid[s] }; }, idB);
+        await P4[1].evaluate(() => window.__coop.leave());
+        await until(HA, (id) => window.__coop.session.players.get(id)?.away === true, idB, 30000, 'AI6 (2c): the host holds the dropped slot');
+        await GH(() => window.__coop.session.expireAway(Date.now() + 3600e3));
+        await until(HA, (id) => !window.__app.current.net.remotes.has(id), idB, 15000, 'AI6 (2c): the host removed him (removeRemote)');
+        const d4 = await GH((id) => {
+          const em = window.__app.current.enemyMgr;
+          const b = em.intruders;
+          const s = b.find(id);
+          return { s, gone: s >= 0 ? b.gone[s] : -1, valid: s >= 0 ? b.valid[s] : -1, lkp: s >= 0 ? [b.x[s], b.z[s]] : null, players: typeof em.players === 'function' ? em.players().length : -1, coop4: em.coop4() };
+        }, idB);
+        assert(d4.s === s0.s && d4.gone === 1, `AI6 (2c): removeRemote marks his slot gone, same slot (${jl(d4)})`);
+        assert(!(s0.valid === 1 && d4.valid === 1) || Math.hypot(d4.lkp[0] - s0.lkp[0], d4.lkp[1] - s0.lkp[1]) < 0.01, `AI6 (2c): his last known position is kept while valid (${jl([s0, d4])})`);
+        assert(d4.players === 3 && d4.coop4, `AI6 (2c): three players left, coop4 still on (${jl(d4)})`);
+      } catch (e) {
+        failed = true;
+        console.error(`  AI6 (2) FAIL: ${String(e)}`);
+      }
+      await unhook();
+      await despawn(spawned);
+      spawned = [];
+
+      // ============ (3) a crouch-walk is silent, a run is heard and located by id ============
+      console.log("  AI6 (3): C behind a calm guard: crouch-walk silent, run heard and located on C's slot, a noisy hold too");
+      try {
+        // (ai6 triage 3) "one calm grunt" (spec (3)): (1)'s six guards (searching B's and the host's rooms, the leg is in
+        // B's) and any other live non-statue guard leave first, so nobody else hears or sees C and the live cap has room
+        await despawn(spawned);
+        spawned = [];
+        await GH(() => { const em = window.__app.current.enemyMgr; for (const x of [...em.enemies]) if (x.alive && !x['ai6Statue']) em.despawn(x); });
+        // (ai6 triage 5) the statues' section radio goes quiet for (3): fix4's grunt went unaware -> cooldown 4.5 s after his
+        // spawn with meter 0 (no sight, no hearing), i.e. `AlertInput.cautious` (`alertState.ts:162`): a section alert
+        // reached him. His key is a clean slate at spawn (`resetKey`, enemyManager.ts:1872-1873) and the radio queues only
+        // guards alive when a call completes (radioNet.ts header), so a call completed after his spawn: the statues still
+        // run the manager-level section checks (squad radio checks every 40 +- 8 s, `radioCheckNow`; talking pairs,
+        // `pairStep` -> `pairMissing`, a partner that never walks to the meet), whose `missing` call makes every receiver
+        // cautious 180 s (`radioDeliver` -> `alertHold`). Open calls and queued receivers dropped, no check, no pair.
+        await GH(() => {
+          const em = window.__app.current.enemyMgr;
+          window.__ai6Quiet = { radioT: em['radioT'], pairs: em.pairs.splice(0) };
+          em['radioT'] = 1e9;
+          em.radioNet.clear();
+        });
+        // fresh slots: nothing known about anybody (the board's public fields)
+        await GH(() => { const b = window.__app.current.enemyMgr.intruders; for (let s = 0; s < b.valid.length; s++) { b.forget(s); b.seenT[s] = 99; b.locT[s] = 99; } });
+        await lit({});
+        await teleP(0, snapped.hostHide[0], snapped.hostHide[1], 0);
+        await teleP(3, snapped.dHide[0], snapped.dHide[1], 0);
+        // the guard at the first spot facing the z -8.8 wall with a walkable leg 2.6 m behind him (in a jog's reach, past the close range)
+        // (ai6 triage 4) The leg is built round the guard's SPAWNED feet (em.spawn snaps (gx, gz) to the nav cell centre, enemyManager.ts:1866-1868,
+        // (gx + 0.25, gz - 0.15)), and the hearing check uses a jog's step reach, `noiseRadius(GEARS.stand[3] 3.0, false)`
+        // = 1.2 + (3.0 - 1.4) * 1.6 = 3.76 m (`src/player/movement.ts:152`, `src/config/movement.ts` GEARS; C's full-stick
+        // run is 4.0 m/s, 5.36 m). It was a fixed 3 m round (gx, gz): the leg ends sat 3.0 m off before the snap and 3.26 m
+        // after, never inside a 3 m reach, so every spot failed the check with cell, leg and cap fine.
+        const GS = [[9, -7.6], [14, -7.6], [4, -7.6], [-8, -7.6]];
+        const JOG_REACH = 1.2 + (3.0 - 1.4) * 1.6;
+        let legWhy = null;
+        const leg = await GH(([GS, R]) => {
+          const g = window.__app.current;
+          const em = g.enemyMgr;
+          const nav = em.nav;
+          const V = g.player.position.constructor;
+          const walk = (x, z) => { const c = nav.cellOf(x, z, 0); return c >= 0 && nav.isWalkable(c); };
+          const legClear = (a, b) => { let ok = true; for (let k = 0; k <= 12 && ok; k++) ok = walk(a[0] + (b[0] - a[0]) * (k / 12), a[1] + (b[1] - a[1]) * (k / 12)); return ok; };
+          // (ai6 triage 3) why each spot was skipped: the guard cell, the leg, the live cap, the hearing check
+          const tried = [];
+          for (const [gx, gz] of GS) {
+            const row = { g: [gx, gz], cell: walk(gx, gz), leg: true, cap: [em.alive, em.maxAlive] };
+            tried.push(row);
+            row.leg = row.cell && legClear([gx - 1.5, gz + 2.6], [gx + 1.5, gz + 2.6]);
+            if (!row.leg) continue;
+            const e = em.spawn('grunt', new V(gx, 0, gz), false, Math.PI);
+            if (!e) {
+              row.spawn = 'null (live cap or no floor)';
+              return { tried };
+            }
+            e.meter = 0;
+            row.at = [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)];
+            // the leg round where he really stands
+            const mx = e.pos.x;
+            const mz = e.pos.z + 2.6;
+            const a = [mx - 1.5, mz];
+            const b = [mx + 1.5, mz];
+            if (!legClear(a, b)) { row.legAt = false; em.despawn(e); continue; }
+            let heard = true;
+            try {
+              em['hearRoom'](em.enemies.length);
+              const i = em.enemies.indexOf(e);
+              // (ai6 triage 4) per leg point: distance, tier, effective reach (masking / wall), so a miss names its cause
+              row.pts = [a, [mx, mz], b].map((p) => { const d = Math.hypot(e.pos.x - p[0], e.pos.z - p[1]); const t = em['tierOf'](e, i, new V(p[0], 0, p[1]), R, d, false); return { d: +d.toFixed(2), tier: t, r: +em['hearR'][i].toFixed(2) }; });
+              heard = row.pts.every((p) => p.d > 1.9 && p.tier >= 1);
+            } catch (x) {
+              row.hearErr = String(x);
+            }
+            row.heard = heard;
+            if (!heard) { em.despawn(e); continue; }
+            return { id: e.id, g: [gx, gz], at: row.at, a, b, tried };
+          }
+          return { tried, reach: R };
+        }, [GS, JOG_REACH]).then((r) => (r && r.id ? r : (legWhy = r, null)));
+        assert(!!leg, `AI6 (3): a calm grunt facing the wall with a walkable leg behind him spawns (${jl(legWhy)})`);
+        spawned.push(leg.id);
+        // C's index in the guards' list (the bit `seesIndex` reads: the ref's slot when it has one)
+        const idxC = await GH((id) => { const ps = window.__app.current.enemyMgr.players(); const i = ps.findIndex((r) => r.id === id); return i < 0 ? -1 : (ps[i].slot ?? i); }, idC);
+        await hook((g, a, st) => {
+          window.__ai6s = st;
+          try {
+            const em = g.enemyMgr;
+            const b = em.intruders;
+            const e = em.enemies.find((x) => x.id === a.gid);
+            if (!st.init) { st.init = true; Object.assign(st, { phase: 'crouch', maxMeter: 0, nonCalm: 0, cautionSteps: 0, turnSteps: 0, cValid: 0, hostSlot: 0, tTurn: -1, turnBy: '', loc: null, sawC: false, err: '', runT0: -1, searchT0: -1, searchSteps: 0, minHeardAt: 99, cSpd: { crouch: 0, run: 0, search: 0 }, dMin: { crouch: 99, run: 99, search: 99 }, levels: [], lastLv: '' }); }
+            if (!e) return;
+            const s = b.find(a.idC);
+            st.maxMeter = Math.max(st.maxMeter, e.meter);
+            // (ai6 triage 4) per phase: C's sent speed as the host hears it (`clientStepNoise` reads it), his least distance
+            // to the guard, and the guard's level changes (time, level, meter), so a miss in a never-run leg names its cause
+            const rC = g.net?.remotes?.get(a.idC);
+            if (rC?.state) {
+              st.cSpd[st.phase] = Math.max(st.cSpd[st.phase] ?? 0, rC.state.speed ?? 0);
+              st.dMin[st.phase] = Math.min(st.dMin[st.phase] ?? 99, Math.hypot(rC.feet.x - e.pos.x, rC.feet.z - e.pos.z));
+            }
+            // (ai6 triage 5) and what could have caused each change: his caution (0 / 1 timed / 2 held), his timed section
+            // alert (kind 1 missing / 2 shots, s left), his board incident, the section's radio counters and open calls
+            if (e.level !== st.lastLv && st.levels.length < 24) {
+              st.lastLv = e.level;
+              const aw = em.awareness;
+              st.levels.push([st.phase, +g.time.toFixed(2), e.level, +e.meter.toFixed(2), { caution: e.caution, alert: e.key >= 0 ? aw.alertOf(e.key) : -1, alertLeft: e.key >= 0 ? +aw.alertLeft(e.key).toFixed(1) : -1, inc: e.incident, turnT: +(e.turnT ?? 0).toFixed(2), checks: em.radioChecks, misses: em.radioMisses, pairMisses: em.pairMisses, calls: em.radioNet.openCalls, bodiesFound: em.bodiesFound, cam: em.camReports }]);
+            }
+            // calm = the alert machine's own `calmNow` (unaware or cooldown, `alertState.ts:127`): a cautious guard is on
+            // edge but calm by design (docs/systems/ai.md "Caution per guard"); counted apart so a stray caution shows
+            const calm = e.level === 'unaware' || e.level === 'cooldown';
+            if (e.level === 'cooldown') st.cautionSteps++;
+            if ((e.turnT ?? 0) > 0) st.turnSteps++;
+            if (a.idxC >= 0 && e.seesIndex(a.idxC)) st.sawC = true;
+            const hs = b.find(a.idHost);
+            if (hs >= 0 && b.valid[hs] === 1) st.hostSlot++;
+            if (st.phase === 'crouch') {
+              if (!calm) st.nonCalm++;
+              if (s >= 0 && b.valid[s] === 1) st.cValid++;
+            } else {
+              // (ai6 triage 5) "turns / investigates": a heard step at tier 1 only turns him (`Enemy.hearTurn`: `turnT`
+              // set, meter capped under `suspicious`, the level kept), tier 2 gets him sent (investigating); either counts
+              if (st.phase === 'run' && st.tTurn < 0 && (!calm || (e.turnT ?? 0) > 0)) { st.tTurn = g.time - st.runT0; st.turnBy = !calm ? e.level : 'turn'; }
+              // (ai6 triage 7) the search leg: his level and his re-aim clock (`heardAt`, 99 none) per step
+              if (st.phase === 'search') {
+                if (e.level === 'searching') st.searchSteps++;
+                st.minHeardAt = Math.min(st.minHeardAt, e.heardAt ?? 99);
+              }
+              if (!st.loc && s >= 0 && b.valid[s] === 1 && b.locT[s] < 1) {
+                const x0 = a.a[0], z0 = a.a[1], x1 = a.b[0], z1 = a.b[1];
+                const t = Math.max(0, Math.min(1, ((b.x[s] - x0) * (x1 - x0) + (b.z[s] - z0) * (z1 - z0)) / ((x1 - x0) ** 2 + (z1 - z0) ** 2)));
+                st.loc = { s, owner: b.idOf ? b.idOf(s) : null, locT: b.locT[s], seenT: b.seenT[s], dPath: Math.hypot(b.x[s] - (x0 + (x1 - x0) * t), b.z[s] - (z0 + (z1 - z0) * t)), phase: st.phase, t: g.time - (st.phase === 'search' ? st.searchT0 : st.runT0), level: e.level, sawC: st.sawC };
+              }
+            }
+          } catch (e) {
+            st.err = String(e?.stack ?? e);
+          }
+        }, { gid: leg.id, idC, idHost, idxC, a: leg.a, b: leg.b });
+        // C at the leg's start, dark, then the pad: crouch, left stick forward along the leg, back and forth
+        await teleP(2, leg.a[0], leg.a[1], faceTo(leg.a, leg.b));
+        const padReady = (P) => P.evaluate(() => { window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); window.__app.current.player.controller.clearCrouchToggle(); });
+        // (ai6 triage 6) `padReady` clears the crouch toggle, which by itself stands a crouched C up on his NEXT frame
+        // (`crouchWanted` -> `applyCrouch`, playerController.ts:537-541 / :745-751). Read before that frame, `crouched` was
+        // still true, so the press re-toggled him crouched (:525) and "C stands" waited 6 s on a crouch that held. Let a
+        // few of C's frames run after the clear, then press only if still not there; up to 3 tries (each press flips)
+        const crouchSt = (P) => P.evaluate(() => { const c = window.__app.current.player.controller; let head = null; try { head = c['hasHeadroom'](); } catch { /* private */ } return { crouched: c.crouched, toggled: c['crouchToggled'], intent: c.crouchIntent, pend: c.crouchPend, auto: c.autoCrouch, frozen: c.frozen, grounded: c.grounded, head, pos: [+c.pos.x.toFixed(2), +c.pos.y.toFixed(2), +c.pos.z.toFixed(2)] }; });
+        const setCrouch = async (want) => {
+          await padReady(P4[2]);
+          const tries = [];
+          for (let k = 0; k < 3; k++) {
+            await waitSim(150);
+            if ((await P4[2].evaluate(() => window.__app.current.player.controller.crouched)) === want) break;
+            await P4[2].evaluate(() => window.__pad.set(1, 1));
+            try {
+              await until(P4[2], (w) => window.__app.current.player.controller.crouched === w, want, 3000, `AI6 (3): C ${want ? 'crouches' : 'stands'}`);
+            } catch (x) {
+              tries.push({ k, ...(await crouchSt(P4[2])), err: String(x).slice(0, 400) });
+            } finally {
+              await P4[2].evaluate(() => window.__pad.set(1, 0));
+            }
+          }
+          const st = await crouchSt(P4[2]);
+          if (st.crouched !== want) throw new Error(`AI6 (3): C ${want ? 'crouches' : 'stands'}: still ${st.crouched ? 'crouched' : 'standing'} after 3 presses (${jl({ st, tries })})`);
+          await waitSim(200);
+        };
+        const stop = () => P4[2].evaluate(() => { for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); });
+        let tgt = leg.b;
+        /** One steering poll: face the target end of the leg and hold the stick forward; the other end once there. */
+        const steer = async (mag = 1) => {
+          const r = await P4[2].evaluate(([t, mag]) => {
+            const g = window.__app.current;
+            const p = g.player.controller.pos;
+            const dx = t[0] - p.x;
+            const dz = t[1] - p.z;
+            g.player.cam.yaw = Math.atan2(dx, dz);
+            g.player.cam.pitch = 0;
+            window.__pad.axis(1, -mag);
+            return { d: Math.hypot(dx, dz), crouched: g.player.controller.crouched, speed: g.player.controller.speed };
+          }, [tgt, mag]);
+          if (r.d < 0.5) tgt = tgt === leg.b ? leg.a : leg.b;
+          return r;
+        };
+        // crouch-walk 4 s
+        // (ai6 triage 4) at a crouch WALK: a full stick crouched is the crouch run, 2.6 m/s (`GEARS.crouch[4]`), whose steps
+        // carry 1 + (2.6 - 1.8) * 1.5 = 2.2 m (`noiseRadius`, NOISE_QUIET.crouch 1.9), 0.5 m short of the leg's nearest point.
+        // Raw axis 0.78 -> radial dead zone 0.15 / 0.98 -> 0.76 -> past the 0.05 dead zone u 0.75 -> ~1.64 m/s crouched
+        // (`stickSpeed`, between the sneak 1.3 at 0.45 and the walk 1.7 at 0.8): silent (<= 1.9) with any dead zone 0..0.15.
+        const CROUCH_MAG = 0.78;
+        await setCrouch(true);
+        let cMoved = 0;
+        let cCrouch = 0;
+        let cN = 0;
+        const hc = await waitHostSim(HA, 4000, async () => { const r = await steer(CROUCH_MAG); cN++; if (r.crouched) cCrouch++; cMoved = Math.max(cMoved, r.speed); });
+        await stop();
+        const c2 = await GH(() => ({ ...window.__ai6s }));
+        const why = jl({ hc: Math.round(hc), cN, cCrouch, cMoved: f2(cMoved), idxC, ...c2 });
+        assert(hc >= 4000 && cCrouch >= cN * 0.8 && cMoved > 0.3, `AI6 (3): C crouch-walked 4 s of the host's sim (${why})`);
+        assert(!c2.err && c2.maxMeter < 0.3, `AI6 (3): the guard's meter stays under 0.3 over the crouch-walk (${f2(c2.maxMeter)}) (${why})`);
+        assert(c2.nonCalm === 0, `AI6 (3): the guard stays calm over the crouch-walk (${c2.nonCalm} steps not calm) (${why})`);
+        assert(c2.cValid === 0, `AI6 (3): C has no valid slot after the crouch-walk (${c2.cValid} steps) (${why})`);
+        // the standing run, the same path
+        await setCrouch(false);
+        await GH(() => { const s = window.__ai6s; s.phase = 'run'; s.runT0 = window.__app.current.time; });
+        const hr = await waitHostSim(HA, 10000, async () => { await steer(); });
+        await stop();
+        const c3 = await GH(() => ({ ...window.__ai6s }));
+        const loc = c3.loc;
+        const why3 = jl({ hr: Math.round(hr), tTurn: f2(c3.tTurn), turnBy: c3.turnBy, turnSteps: c3.turnSteps, cautionSteps: c3.cautionSteps, loc, sawC: c3.sawC, hostValidSteps: c3.hostSlot, err: c3.err, cSpd: c3.cSpd, dMin: c3.dMin, levels: c3.levels, at: leg.at });
+        assert(c3.tTurn >= 0 && c3.tTurn <= 2.5, `AI6 (3): within 2 s the guard turns / investigates (not calm after ${f2(c3.tTurn)} s of the run) (${why3})`);
+        // (ai6 triage 7) "once in a search or fight a heard step locates C" (AI6-E2E-SPEC (3)): a calm guard never locates
+        // by ear. `EnemyManager.hear` sends only an alerted or searching guard to `hearFight` -> `reportHeard`
+        // (enemyManager.ts:2724-2727, :2777); a calm one turns (tier 1) or goes to the board (tier 2, investigating, still
+        // no locate) (:2728-2743). The run above gave tier 1 only: C peaked at 3.07 m/s (the 3 m leg turns him round
+        // before full speed), a 1.2 + (3.07 - 1.4) * 1.6 = 3.87 m reach (`noiseRadius`, movement.ts:152), and tier 2 is
+        // inside half of it (`investigateDb` 6, hearing.ts:26), 1.94 m; he came no closer than 2.33 m. So the locate gets its
+        // own leg, as the spec stages it: the guard searches round his own feet (`Enemy.searchAt`, the plain search a
+        // body or a cut light starts; `searching` at his next step, alertState.ts:155) and C runs the same leg. In a
+        // search any body noise from tier 1 locates its maker (`combatHearAct`, hearing.ts:122-127), and C's run steps
+        // already reached tier 1 here (he turned).
+        await GH(([gid, idc]) => {
+          const em = window.__app.current.enemyMgr;
+          const b = em.intruders;
+          const s = b.find(idc);
+          if (s >= 0) { b.forget(s); b.seenT[s] = 99; b.locT[s] = 99; }
+          const e = em.enemies.find((x) => x.id === gid);
+          if (e) e.searchAt(e.pos.x, e.pos.z);
+        }, [leg.id, idC]);
+        await until(HA, (gid) => window.__app.current.enemyMgr.enemies.find((x) => x.id === gid)?.level === 'searching', leg.id, 5000, 'AI6 (3): the guard searches (searchAt)');
+        await GH(() => { const s = window.__ai6s; s.phase = 'search'; s.searchT0 = window.__app.current.time; s.loc = null; });
+        const hsr = await waitHostSim(HA, 8000, async () => { await steer(); });
+        await stop();
+        const c4 = await GH(() => ({ ...window.__ai6s }));
+        const loc4 = c4.loc;
+        const why4 = jl({ hs: Math.round(hsr), loc: loc4, sawC: c4.sawC, searchSteps: c4.searchSteps, minHeardAt: f2(c4.minHeardAt), hostValidSteps: c4.hostSlot, err: c4.err, cSpd: c4.cSpd, dMin: c4.dMin, levels: c4.levels, stealth: await GH(() => window.__app.current.enemyMgr.stealth), at: leg.at });
+        assert(!!loc4 && loc4.locT < 1, `AI6 (3): searching, a heard step locates C's slot (locT < 1) (${why4})`);
+        if (loc4) {
+          assert(loc4.dPath <= 2.5, `AI6 (3): the located position is within 2.5 m of C's run path (${f2(loc4.dPath)} m) (${why4})`);
+          if (hooks.idOf) assert(loc4.owner === idC, `AI6 (3): the located slot is C's (owner ${loc4.owner}) (${why4})`);
+          else skip('IntruderBoard.idOf');
+          if (!loc4.sawC) assert(loc4.seenT === 99, `AI6 (3): located, not seen: seenT of C's slot is 99 (${loc4.seenT}) (${why4})`);
+          else console.log('    (AI6 (3): the guard saw C, seenT not asserted)');
+        }
+        assert(c4.hostSlot === 0, `AI6 (3): the host never has a valid slot (${c4.hostSlot} steps) (${why4})`);
+        // a noisy hold: the pulse coopHost's onHoldPulse makes (`em.hear(item, r, 'noise', null, id)`), in a fight
+        // (ai6 triage 5) the holder stands at his item: C (wherever the run left him, 0-3 m along the leg) goes to the leg's
+        // end and the item is there (walkable, checked). The guard in a fight needs no light, so if he sees C the sighting
+        // puts C's slot at C's feet: before, up to 4.5 m from an item 1.6 m past the leg's end, failing `dItem < 2.5`
+        // whether or not the hold was heard. The teleport also outlasts the 1.5 s re-aim gap (`COMBAT_HEAR.gap`).
+        const item = [leg.b[0], leg.b[1]];
+        await teleP(2, item[0], item[1], faceTo(leg.a, leg.b));
+        await GH((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); if (e && !e.alerted) e.alert(); }, leg.id);
+        await GH((id) => { const b0 = window.__app.current.enemyMgr.intruders; const s = b0.find(id); if (s >= 0) { b0.forget(s); b0.seenT[s] = 99; b0.locT[s] = 99; } }, idC);
+        await GH(([id, it]) => { const g = window.__app.current; g.enemyMgr.hear(new g.player.position.constructor(it[0], 0.1, it[1]), 8, 'noise', null, id); }, [idC, item]);
+        await waitHostSim(HA, 600);
+        const d5 = await GH(([idc, idh, it, gid]) => {
+          const b = window.__app.current.enemyMgr.intruders;
+          const s = b.find(idc);
+          const hs = b.find(idh);
+          const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === gid);
+          return { s, valid: s >= 0 ? b.valid[s] : -1, locT: s >= 0 ? b.locT[s] : 99, seenT: s >= 0 ? b.seenT[s] : 99, dItem: s >= 0 ? Math.hypot(b.x[s] - it[0], b.z[s] - it[1]) : 99, hostValid: hs >= 0 ? b.valid[hs] : 0, level: e?.level, sees: e?.seesTarget, heardAt: e?.heardAt };
+        }, [idC, idHost, item, leg.id]);
+        assert(d5.s >= 0 && d5.valid === 1 && d5.dItem < 2.5 && d5.hostValid === 0, `AI6 (3): in a fight a noisy hold by C is located on C's slot at the item, never the host's (${jl(d5)})`);
+      } catch (e) {
+        failed = true;
+        console.error(`  AI6 (3) FAIL: ${String(e)}`);
+      }
+      await unhook();
+      await despawn(spawned);
+      spawned = [];
+      await GH(() => { const em = window.__app.current?.enemyMgr; const q = window.__ai6Quiet; if (!em || !q) return; em['radioT'] = q.radioT; em.pairs.push(...q.pairs); window.__ai6Quiet = null; }).catch(() => {});
+    }
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    stopPump();
+    errs.push(...aerrs.flat());
+    await ab?.close().catch(() => {});
+  }
 }
 
 console.log('offline state');

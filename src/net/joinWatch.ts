@@ -70,6 +70,16 @@ export class JoinWatch {
     this.pending.delete(id);
   }
 
+  /** (coop4 round fix) Held client `id`'s place moved while it was away (an OUT return at the connector): the held
+   *  restore and an open watch's held spot point at `at`. Unlike `hold`, a watch its rejoin already opened stays open
+   *  (its first state still resyncs the section). */
+  rehold(id: string, at: SlotPoint): void {
+    const r = this.restores.get(id);
+    this.restores.set(id, { x: at.x, y: at.y, z: at.z, yaw: at.yaw, sent: -1, until: r?.until ?? 0 });
+    const p = this.pending.get(id);
+    if (p) p.held = { x: at.x, y: at.y, z: at.z, yaw: at.yaw };
+  }
+
   /** (R2) The held client's first state: its restore repeats from now. */
   resume(id: string, now: number): void {
     const at = this.restores.get(id);

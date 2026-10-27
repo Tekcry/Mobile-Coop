@@ -71,6 +71,11 @@ export const S2_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: 1, z: -14, y: 4.4, yaw: -PI / 2, takedownSpot: [2, -14], post: { leash: 5, guards: 'c2-door' }, role: 'posted', zone: 'c2', squad: 1, reason: 'The only internal link to the lab block: he checks every card' },
   // 12 the mailroom guard: posted at the goods door, facing into the room
   { kind: 'grunt', x: -42.5, z: -16, yaw: PI / 2, takedownSpot: [-43.2, -16], role: 'post', dormant: true, zone: 'goods', squad: 0, reason: "Takes the courier's paperwork at the goods door" },
+  // coop4 A8: spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base list keeps its numbers
+  // 13 the second lobby patrol (3+): the lobby round from the lift lobby end
+  { kind: 'grunt', x: -29, z: -8.5, yaw: 0, route: [[-29, -8.5], [-24, -24.8]], waits: [4, 4], faces: [0, PI / 2], takedownSpot: [-24, -24.8], role: 'patrol', zone: 'lobby', squad: 0, minPlayers: 3, reason: 'Loud route (turnstiles, feature stair): 3+ players rush the foyer from both ends, so a second lobby patrol walks it from the lift lobby' },
+  // 14 the bridge officer's second (4+): on the L1 landing's approach, 2.8 m north of the posted bridge officer, facing the landing
+  { kind: 'grunt', x: 1, z: -11.2, y: 4.4, yaw: PI, takedownSpot: [1, -10.8], role: 'post', zone: 'c2', squad: 1, minPlayers: 4, reason: 'Bridge landing (the only way to the labs): with 4 players a pair holds the officer while the other pair goes on, so a second guard covers the landing approach' },
 ];
 
 /** Section 2's cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */

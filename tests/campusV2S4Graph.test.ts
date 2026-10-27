@@ -195,22 +195,29 @@ describe('G4.6 graph matches the build (LD 15)', () => {
     for (const g of S4.pairGates!) expect(doorAt(g.door[0], g.door[1]), `pair gate ${g.door}`).toBeTruthy();
   });
 
-  it('the guard sums per key, computed from S4_GUARDS (a guard counts in the smaller area holding his slot on his storey), equal the graph at every key (25 / 25 / 25 / 25: no tagged rows yet)', () => {
-    const sums = new Map<string, number>();
-    G.forEach((g, i) => {
-      const y = g.y ?? 0;
-      const hit = graph.spaces
-        .filter((s) => Math.abs(s.storey - y) < 0.05 && g.x >= s.area[0] && g.x <= s.area[2] && g.z >= s.area[1] && g.z <= s.area[3])
-        .sort((p, q) => (p.area[2] - p.area[0]) * (p.area[3] - p.area[1]) - (q.area[2] - q.area[0]) * (q.area[3] - q.area[1]));
-      expect(hit.length, `#${i + 1} (${g.x}, ${g.z}, ${y}) in a space`).toBeGreaterThan(0);
-      sums.set(hit[0]!.id, (sums.get(hit[0]!.id) ?? 0) + 1);
-    });
-    expect([...sums.values()].reduce((p, q) => p + q, 0)).toBe(25);
+  it('the guard sums per key, computed from S4_GUARDS (a guard counts in the smaller area holding his slot on his storey), equal the graph at every key (25 / 25 / 26 / 27: the coop4 3-4 player extras in s4-hall and s4-ups)', () => {
+    // key k counts the guards a team of k spawns: coop4's 3-4 player extras (A8) from their minPlayers up
+    const sumsAt = (team: number): Map<string, number> => {
+      const sums = new Map<string, number>();
+      G.forEach((g, i) => {
+        if ((g.minPlayers ?? 1) > team) return;
+        const y = g.y ?? 0;
+        const hit = graph.spaces
+          .filter((s) => Math.abs(s.storey - y) < 0.05 && g.x >= s.area[0] && g.x <= s.area[2] && g.z >= s.area[1] && g.z <= s.area[3])
+          .sort((p, q) => (p.area[2] - p.area[0]) * (p.area[3] - p.area[1]) - (q.area[2] - q.area[0]) * (q.area[3] - q.area[1]));
+        expect(hit.length, `#${i + 1} (${g.x}, ${g.z}, ${y}) in a space`).toBeGreaterThan(0);
+        sums.set(hit[0]!.id, (sums.get(hit[0]!.id) ?? 0) + 1);
+      });
+      return sums;
+    };
+    const sums = sumsAt(1);
+    const byKey = [1, 2, 3, 4].map(sumsAt);
+    expect(byKey.map((q) => [...q.values()].reduce((p, n) => p + n, 0))).toEqual([25, 25, 26, 27]);
     expect(graph.meta.players).toEqual([1, 2, 3, 4]);
     for (const s of graph.spaces) {
-      const want = sums.get(s.id) ?? 0;
-      if (want === 0) expect(s.guards, s.id).toBeUndefined();
-      else expect(s.guards, s.id).toEqual({ '1': want, '2': want, '3': want, '4': want });
+      const want = byKey.map((q) => q.get(s.id) ?? 0);
+      if (want[3] === 0) expect(s.guards, s.id).toBeUndefined();
+      else expect(s.guards, s.id).toEqual({ '1': want[0], '2': want[1], '3': want[2], '4': want[3] });
     }
     expect(Object.fromEntries([...sums.entries()].sort())).toEqual({ 's4-batt': 1, 's4-cc': 1, 's4-deck': 2, 's4-dock': 2, 's4-hall': 7, 's4-lobby': 2, 's4-nc': 1, 's4-noc': 2, 's4-sec': 3, 's4-yard': 4 });
     // A18: K3 #19's space is a connector, tagged unavoidable

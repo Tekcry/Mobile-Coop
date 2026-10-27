@@ -16,7 +16,7 @@ import { ENEMIES } from '../src/ai/enemyDefs';
 import { PATROL } from '../src/ai/patrol';
 import { hyp2, hyp3 } from '../src/core/mathx';
 import { CAMERA } from '../src/config/camera';
-import { SECTOR, checkSectorCodes, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
+import { SECTOR, checkSectorCodes, checkSectorGuards, checkSectors, exitZone, guardForTeam, inZone, type SectorGuard } from '../src/game/sectors';
 import { SightWorld, guardPoints, isolatedInTime, longestIsolation, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, distToGuard, type CheckGuard } from '../src/game/sectorCheck';
 
 const PI = Math.PI;
@@ -40,7 +40,11 @@ async function loadV2S3() {
 const m = await loadV2S3();
 const { S3_BOX, S3_DOORS, S3_FLIGHTS, S3_L1, S3_ROOMS } = m.s3;
 const S3 = m.sectors.CAMPUS_SECTORS[2]!;
-const G = S3.guards;
+/** The base list (1-2 players: the 20 of the R5 table); coop4's two 3-4 player extras (A8) are appended after it. */
+const G = S3.guards.filter((g) => g.minPlayers === undefined);
+const TAGS = S3.guards.filter((g) => g.minPlayers !== undefined);
+/** Every guard a team of 4 spawns: the nav and screen checks take them all. */
+const ALL = S3.guards;
 const Y1 = S3_L1;
 /** The S3 footprint. */
 const FOOT = { x0: 10, x1: 64, z0: -30, z1: 0 };
@@ -109,10 +113,42 @@ describe('R5 the 20 guards (brief R5 table, D:167-191)', () => {
     expect(S3.perStage).toBe(2);
     expect(G.length + SECTOR.alarmMax * S3.perStage).toBe(26);
     expect(G.length + SECTOR.alarmMax * S3.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
-    // job BRIEF A27: no section gear tags (J15 PR1 is not on master); TAG-3's extras come later (B10)
+    // job BRIEF A27: no section gear tags (J15 PR1 is not on master); coop4's two 3-4 player extras follow the 20 (merge 7)
     expect(S3.gear).toBeUndefined();
-    expect(G.some((g) => (g as { gear?: string }).gear !== undefined)).toBe(false);
-    expect(G.some((g) => (g as { minPlayers?: number }).minPlayers !== undefined)).toBe(false);
+    expect(ALL.some((g) => (g as { gear?: string }).gear !== undefined)).toBe(false);
+    expect(ALL.slice(0, 20)).toEqual(G);
+  });
+
+  it('coop4 A8: two 3-4 player extras appended (index 20 minPlayers 3, index 21 minPlayers 4): 20 / 20 / 21 / 22 spawned; no post, pair, dormant; 25-45 s; spots beside or behind them; >= 7 m from the start', () => {
+    expect(ALL.length).toBe(22);
+    expect(TAGS.map((g) => g.minPlayers)).toEqual([3, 4]);
+    expect([1, 2, 3, 4].map((n) => ALL.filter((g) => guardForTeam(g, n)).length)).toEqual([20, 20, 21, 22]);
+    expect(ALL.length + SECTOR.alarmMax * S3.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
+    // tag 3 walks #6's chamber round from the fourth corner (his stops); tag 4 walks the dock's north strip from the gas cage (#10's stops)
+    expect(TAGS[0]!.route).toEqual([[37, -23], [28, -23], [28, -13], [37, -13]]);
+    expect(TAGS[0]!.waits).toEqual([G[5]!.waits![3], ...G[5]!.waits!.slice(0, 3)]);
+    expect(TAGS[1]!.waits).toEqual(G[9]!.waits);
+    expect(hyp2(TAGS[1]!.x - G[9]!.route![1]![0], TAGS[1]!.z - G[9]!.route![1]![1])).toBeLessThanOrEqual(1);
+    for (const [k, g] of TAGS.entries()) {
+      const n = `tag ${k + 3}`;
+      expect(g.post === undefined && g.pair === undefined && g.handler === undefined && !g.dormant, n).toBe(true);
+      expect((g.reason ?? '').length, n).toBeGreaterThan(30);
+      expect(hyp2(g.x - S3.start.x, g.z - S3.start.z), n).toBeGreaterThanOrEqual(7);
+      expect(hyp2(g.route![0]![0] - g.x, g.route![0]![1] - g.z), `${n} starts on his route`).toBeLessThan(0.1);
+      expect(g.y ?? 0, n).toBe(0);
+      const c = cycle(g)!;
+      expect(c, `${n} cycle ${c}`).toBeGreaterThanOrEqual(25);
+      expect(c, `${n} cycle ${c}`).toBeLessThanOrEqual(45);
+      const [sx, sz] = g.takedownSpot;
+      const ok = g.route!.some((p, i) => {
+        const yaw = g.faces?.[i] ?? g.yaw;
+        const d = hyp2(sx - p[0], sz - p[1]);
+        return d <= 1.0 + 1e-9 && (d < 1e-9 || (Math.sin(yaw) * (sx - p[0]) + Math.cos(yaw) * (sz - p[1])) / d <= 1e-9);
+      });
+      expect(ok, `${n} takedown spot (${sx}, ${sz})`).toBe(true);
+      expect(inFoot(sx, sz) && inFoot(g.x, g.z), n).toBe(true);
+    }
+    expect(checkSectorGuards(S3)).toEqual([]);
   });
 
   it('every slot, yaw and space is the table row; each guard has a role, a reason and a squad (hall 2, dock 3, L1 1, #12 / #14 / #19 4)', () => {
@@ -372,8 +408,8 @@ const pathLen = (a: readonly number[], c: readonly number[]): number | null => {
 };
 
 describe.skipIf(!MERGED)('R5 on the merged lane (pending lead merge of r1-r4 into r5)', () => {
-  it('every slot, route point and takedown spot is on the nav grid of its storey, and every walked leg has a nav path', () => {
-    for (const [i, g] of G.entries()) {
+  it('every slot, route point and takedown spot is on the nav grid of its storey, and every walked leg has a nav path (the 3-4 player extras too)', () => {
+    for (const [i, g] of ALL.entries()) {
       const y = g.y ?? 0;
       expect(onNav(g.x, g.z, y), `#${i + 1} slot (${g.x}, ${y}, ${g.z})`).toBe(true);
       for (const p of g.route ?? []) expect(onNav(p[0], p[1], y), `#${i + 1} route (${p[0]}, ${p[1]})`).toBe(true);
@@ -393,7 +429,7 @@ describe.skipIf(!MERGED)('R5 on the merged lane (pending lead merge of r1-r4 int
     const cores = S3_ROOMS.filter((r) => ['s3-wstair', 's3-nstair', 's3-estair'].includes(r.id));
     expect(cores.map((r) => r.id)).toEqual(['s3-wstair', 's3-nstair', 's3-estair']);
     const inCore = (x: number, z: number): string | undefined => cores.find((r) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ)?.id;
-    for (const [i, g] of G.entries()) {
+    for (const [i, g] of ALL.entries()) {
       expect(inCore(g.x, g.z), `#${i + 1} slot (${g.x}, ${g.z})`).toBeUndefined();
       for (const p of g.route ?? []) expect(inCore(p[0], p[1]), `#${i + 1} route (${p[0]}, ${p[1]})`).toBeUndefined();
     }
@@ -448,12 +484,12 @@ describe.skipIf(!MERGED)('R5 on the merged lane (pending lead merge of r1-r4 int
     expect(CHECK_ISOLATION).toBe(3);
   }, 120_000);
 
-  it('A99: no walkable S3 point at 32 facings sees more than CAMPUS_SCREEN_CAP guards (every guard on its post and route, 86 deg, clear line within 40 m)', () => {
+  it('A99: no walkable S3 point at 32 facings sees more than CAMPUS_SCREEN_CAP guards (every guard a team of 4 spawns on its post and route, 86 deg, clear line within 40 m)', () => {
     const near = (p: BoxPiece): boolean => p.c[0] + p.s[0] > FOOT.x0 - 2 && p.c[0] - p.s[0] < FOOT.x1 + 2 && p.c[2] + p.s[2] > FOOT.z0 - 2 && p.c[2] - p.s[2] < FOOT.z1 + 2;
     const world = new SightWorld(b.boxes.filter(near), b.cylinders);
     const HALF_FOV = ((CAMERA.fov / 2) * PI) / 180;
     const YAWS = Array.from({ length: 32 }, (_, k) => (k * PI) / 16);
-    const pts = G.map((g) => guardPoints({ x: g.x, z: g.z, y: g.y, route: g.route as readonly (readonly [number, number])[] | undefined }).map(([px, py, pz]) => [px, py + 1.2, pz] as const));
+    const pts = ALL.map((g) => guardPoints({ x: g.x, z: g.z, y: g.y, route: g.route as readonly (readonly [number, number])[] | undefined }).map(([px, py, pz]) => [px, py + 1.2, pz] as const));
     let worst = { n: -1, at: '', who: [] as number[] };
     let samples = 0;
     for (let col = 0; col < nav!.cols; col++) {
@@ -466,7 +502,7 @@ describe.skipIf(!MERGED)('R5 on the merged lane (pending lead merge of r1-r4 int
         if (h > 7) continue;
         samples++;
         const eye = h + 1.6;
-        const seen = G.map((_, k) => ({
+        const seen = ALL.map((_, k) => ({
           n: k + 1,
           at: pts[k]!.filter(([px, py, pz]) => hyp2(px - x, pz - z) <= 40 && world.clear(x, eye, z, px, py, pz)).map(([px, , pz]) => Math.atan2(px - x, pz - z)),
         }));

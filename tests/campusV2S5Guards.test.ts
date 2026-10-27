@@ -38,7 +38,11 @@ const b: LB = new m.LevelBuilder();
 const lay = m.buildCampus(b, { dress: false });
 const SECTORS = m.sectors.CAMPUS_SECTORS;
 const S5 = SECTORS[4]!;
-const G = S5.guards as readonly SectorGuard[];
+/** Every guard a team of 4 spawns (the 26 and coop4's two 3-4 player extras, A8): the nav checks take them all. */
+const ALL = S5.guards as readonly SectorGuard[];
+/** The base list (1-2 players: the 26 of P3). */
+const G = ALL.filter((g) => (g as { minPlayers?: number }).minPlayers === undefined);
+const TAGS = ALL.filter((g) => (g as { minPlayers?: number }).minPlayers !== undefined);
 /** The plan number of guard index i (#1-#24, then #28, #34). */
 const num = (i: number): number => (i < 24 ? i + 1 : i === 24 ? 28 : 34);
 const FOOT = { x0: -70, x1: -26, z0: 18, z1: 70 };
@@ -171,9 +175,10 @@ function cycle(g: SectorGuard, navLegs: boolean): number | null {
 }
 
 describe('S5 v2 P3 guards (26: #1-#24, #28, #34)', () => {
-  it('26 guards: kinds and guns, two dogs with handlers #5 and #7, checkSectors and checkSectorGuards clean, every guard role / zone / reason / squad; no section gear, armour (never helmet / both) on the response team and the keyholders; no 3-4 player row', () => {
+  it('26 guards: kinds and guns, two dogs with handlers #5 and #7, checkSectors and checkSectorGuards clean, every guard role / zone / reason / squad; no section gear, armour (never helmet / both) on the response team and the keyholders; the 3-4 player rows after them', () => {
     expect(G.length).toBe(26);
-    expect(G).toBe(m.s5Data.S5_GUARDS);
+    expect(ALL).toBe(m.s5Data.S5_GUARDS);
+    expect(ALL.slice(0, 26)).toEqual(G);
     expect(G.map((g) => g.kind)).toEqual([
       'grunt', 'grunt', 'grunt', 'grunt', 'grunt', 'dog', 'grunt', 'dog', 'officer', 'officer', 'officer', 'officer',
       'grunt', 'grunt', 'officer', 'officer', 'grunt', 'grunt', 'grunt', 'grunt', 'grunt', 'officer', 'grunt', 'officer',
@@ -260,8 +265,8 @@ describe('S5 v2 P3 guards (26: #1-#24, #28, #34)', () => {
     expect(G[6]!.loop).toEqual(G[7]!.loop);
   });
 
-  it('slots, route points, takedown spots and reinforce points are on the nav grid (their floor); legs have nav paths', () => {
-    for (const [i, g] of G.entries()) {
+  it('slots, route points, takedown spots and reinforce points are on the nav grid (their floor); legs have nav paths (the 3-4 player extras too)', () => {
+    for (const [i, g] of ALL.entries()) {
       const y = floorOf(g);
       expect([0, S5_L1, S5_ROOF]).toContain(y);
       expect(onNav(g.x, g.z, y), `#${num(i)} slot (${g.x}, ${y}, ${g.z})`).toBe(true);
@@ -308,6 +313,28 @@ describe('S5 v2 P3 guards (26: #1-#24, #28, #34)', () => {
     expect(S5.perStage).toBe(2);
     expect(G.length + SECTOR.alarmMax * S5.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
     expect(G.length + SECTOR.alarmMax * S5.perStage).toBe(32);
+  });
+});
+
+describe('coop4 A8: the two 3-4 player extras (re-placed by merge 7 on the P3 layout)', () => {
+  it('appended after the 26 (index 26 minPlayers 3, index 27 minPlayers 4): 26 / 26 / 27 / 28 spawned; no post, pair, handler, dormant; 25-45 s by nav path; >= 7 m from the start; tag 4 is the round of #21 reversed', () => {
+    expect(ALL.length).toBe(28);
+    expect(TAGS.map((g) => (g as { minPlayers?: number }).minPlayers)).toEqual([3, 4]);
+    expect([1, 2, 3, 4].map((n) => ALL.filter((g) => ((g as { minPlayers?: number }).minPlayers ?? 0) <= n).length)).toEqual([26, 26, 27, 28]);
+    expect(ALL.length).toBeLessThanOrEqual(SECTOR.maxAlive);
+    for (const [k, g] of TAGS.entries()) {
+      const n = `tag ${k + 3}`;
+      expect(g.post === undefined && g.pair === undefined && g.handler === undefined && !g.dormant, n).toBe(true);
+      expect((g.reason ?? '').length, n).toBeGreaterThan(30);
+      expect(g.kind, n).toBe('grunt');
+      expect(g.gear, n).toBeUndefined();
+      expect(hyp2(g.x - S5.start.x, g.z - S5.start.z), n).toBeGreaterThanOrEqual(7);
+      const c = cycle(g, true)!;
+      expect(c, `${n} cycle ${c}`).toBeGreaterThanOrEqual(25);
+      expect(c, `${n} cycle ${c}`).toBeLessThanOrEqual(45);
+    }
+    expect([TAGS[0]!.y, TAGS[0]!.zone]).toEqual([S5_L1, 'archive']);
+    expect(TAGS[1]!.route).toEqual([...G[20]!.route!].reverse());
   });
 });
 

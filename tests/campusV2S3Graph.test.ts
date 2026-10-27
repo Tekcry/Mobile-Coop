@@ -141,23 +141,25 @@ describe('R6 the v2 graph: meta, ids, J17 guard keys', () => {
     expect(graph.syncs.length).toBe(4);
   });
 
-  it('every guard counts in exactly one space (his slot\'s area on his storey); the keys "1".."4" equal that count; the section sums to 20 at every key', () => {
-    const counts = new Map<string, number>();
+  it('every guard counts in exactly one space (his slot\'s area on his storey); key k counts the guards a team of k spawns (coop4\'s 3-4 player extras from their minPlayers up); the section sums to 20 / 20 / 21 / 22', () => {
+    const counts = new Map<string, number[]>();
     for (const [i, g] of S3_GUARDS.entries()) {
       const in1 = spacesOf(g.x, g.y ?? 0, g.z);
       expect(in1.map((s) => s.id), `#${i + 1} at (${g.x}, ${g.y ?? 0}, ${g.z})`).toHaveLength(1);
       const id = in1[0]!.id;
-      counts.set(id, (counts.get(id) ?? 0) + 1);
+      const c = counts.get(id) ?? [0, 0, 0, 0];
+      for (let k = 1; k <= 4; k++) if ((g.minPlayers ?? 1) <= k) c[k - 1]!++;
+      counts.set(id, c);
     }
     for (const s of graph.spaces) {
-      const n = counts.get(s.id) ?? 0;
-      if (n === 0) {
+      const c = counts.get(s.id);
+      if (!c) {
         expect(s.guards, `${s.id} has no guard`).toBeUndefined();
         continue;
       }
-      expect(s.guards, `${s.id} keys`).toEqual({ 1: n, 2: n, 3: n, 4: n });
+      expect(s.guards, `${s.id} keys`).toEqual({ 1: c[0], 2: c[1], 3: c[2], 4: c[3] });
     }
-    for (const k of ['1', '2', '3', '4']) expect(graph.spaces.reduce((a, s) => a + (s.guards?.[k] ?? 0), 0), `key ${k}`).toBe(20);
+    expect(['1', '2', '3', '4'].map((k) => graph.spaces.reduce((a, s) => a + (s.guards?.[k] ?? 0), 0))).toEqual([20, 20, 21, 22]);
     // the brief's reading: #15 in s3-view, #8 / #11 / #16 in s3-hall, nobody in a stair room
     expect(spacesOf(S3_GUARDS[14]!.x, S3_GUARDS[14]!.y ?? 0, S3_GUARDS[14]!.z)[0]!.id).toBe('s3-view');
     for (const n of [8, 11, 16]) expect(spacesOf(S3_GUARDS[n - 1]!.x, S3_GUARDS[n - 1]!.y ?? 0, S3_GUARDS[n - 1]!.z)[0]!.id, `#${n}`).toBe('s3-hall');

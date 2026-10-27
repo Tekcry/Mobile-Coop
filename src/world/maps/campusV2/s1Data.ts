@@ -150,6 +150,12 @@ export const S1_GUARDS: SectorGuard[] = [
   // 16 (G5, D:252) the second smoker, #6's talking pair: the shelter front <-> the ash bin, 12.5 s stops (A20), 30.3 s;
   // a 3 m post round the shelter front (its route inside it) so the pair forms as a posted pair (Guard AI play pass)
   { kind: 'officer', x: 7, z: -50.8, yaw: -PI / 2, route: [[7, -50.8], [4.5, -50.8]], waits: [12.5, 12.5], takedownSpot: [4.5, -50.8], post: { leash: 3, guards: 'smoking' }, role: 'smoker', zone: 'smoking', squad: 2, pair: 5, reason: 'On his break with the smoker' },
+  // coop4 A8 (campus-greybox TAG-1, briefs/S1.md): spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base
+  // list keeps its numbers
+  // 17 (tag 3, 3+) the second fence patrol: the west margin, 4 s stops, 44.4 s; dark at the SW corner
+  { kind: 'grunt', x: -37, z: -56, yaw: PI, route: [[-37, -56], [-37, -74]], waits: [4, 4], faces: [PI, 0], takedownSpot: [-37, -74], role: 'patrol', zone: 'perimeter', squad: 3, minPlayers: 3, reason: 'Shadow route (west margin, yard board): 3+ players cut the west half at once, so a second fence patrol walks the margin' },
+  // 18 (tag 4, 4+) the doorman's colleague: posted beside K1 at the C1 staff door
+  { kind: 'officer', x: -18.6, z: -35.2, yaw: PI, takedownSpot: [-18.6, -34.7], role: 'backup', zone: 'c1', squad: 2, minPlayers: 4, reason: 'C1 staff door: with 4 players one pair lures the doorman while the other works the door, so a colleague backs him up' },
 ];
 
 /** Section 1's cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */

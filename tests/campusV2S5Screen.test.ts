@@ -173,7 +173,7 @@ describe('P4 A99: the screen count (no player point sees more than CAMPUS_SCREEN
       }
     }
     console.info(`A99 S5 worst ${worst.n} at ${worst.at}: #${worst.who.join(', #')}; roof NW corner ${roofNW.n} at ${roofNW.at}: #${roofNW.who.join(', #')} (D:148-150 expects 8); ${samples} points ${JSON.stringify([...perLevel.entries()])}, ${over} over ${CAMPUS_SCREEN_CAP}; histogram ${JSON.stringify([...hist.entries()].sort((p, q) => p[0] - q[0]))}`);
-    expect(G.length).toBe(26);
+    expect(G.length).toBe(28); // the 26 and coop4's two 3-4 player extras (A8): the 4-player list
     expect(samples).toBeGreaterThan(4000);
     expect(perLevel.get('roof') ?? 0).toBeGreaterThan(500);
     expect(perLevel.get('L1 / low roof') ?? 0).toBeGreaterThan(500);

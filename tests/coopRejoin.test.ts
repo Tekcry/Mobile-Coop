@@ -261,3 +261,109 @@ describe('X4 (walk item 4): the client never starts or rejoins on the host', () 
     expect([cli.x, cli.z]).toEqual([2, 12]);
   });
 });
+
+describe('coop4 N1: slots across join, leave, drop and rejoin (A18, A19)', () => {
+  const hello = (s: NetSession, name: string, tok = '') => s.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name, tag: {}, look: {}, tok }, 'H');
+  const four = () => {
+    const h = hub();
+    const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    host.setSettings('sector', 'campusOps', 'normal', '');
+    const a = sess(h.make('A'), 'client', 'ABCDE', prof('A'), 'tokA');
+    const b = sess(h.make('B'), 'client', 'ABCDE', prof('B'), 'tokB');
+    const c = sess(h.make('C'), 'client', 'ABCDE', prof('C'), 'tokC');
+    return { h, host, a, b, c };
+  };
+
+  it('four players take slots 0-3; slots 2 and 3 drop mid-match and come back with their tokens into the same slots', async () => {
+    const { h, host, b, c } = four();
+    expect([host.slotOf('H'), host.slotOf('A'), host.slotOf('B'), host.slotOf('C')]).toEqual([0, 1, 2, 3]);
+    host.startMatch();
+    await b.transport.leave();
+    await c.transport.leave();
+    expect(host.players.get('B')?.away).toBe(true);
+    expect(host.players.get('C')?.away).toBe(true);
+    // held: their slots stay theirs
+    expect(host.slotOf('B')).toBe(2);
+    expect(host.slotOf('C')).toBe(3);
+    // C comes back first on a new connection (its token), then B
+    const c2 = sess(h.make('C2'), 'client', 'ABCDE', prof('C'), 'tokC');
+    hello(c2, 'C', 'tokC');
+    const b2 = sess(h.make('B2'), 'client', 'ABCDE', prof('B'), 'tokB');
+    hello(b2, 'B', 'tokB');
+    expect(c2.selfId).toBe('C');
+    expect(b2.selfId).toBe('B');
+    expect(host.players.get('B')?.away).toBe(false);
+    expect(host.players.get('C')?.away).toBe(false);
+    expect(host.slotOf('B')).toBe(2);
+    expect(host.slotOf('C')).toBe(3);
+    expect(b2.selfSlot).toBe(2);
+    expect(c2.selfSlot).toBe(3);
+    expect(host.players.size).toBe(4);
+  });
+
+  it('a tokenless hello in a full room with two slots held is refused ("Room is full"); with one held it takes that slot', async () => {
+    const { h, host, b, c } = four();
+    host.startMatch();
+    await b.transport.leave();
+    await c.transport.leave();
+    const x = sess(h.make('X'), 'client', 'ABCDE', prof('X'));
+    let full = false;
+    x.events.on('full', () => (full = true));
+    hello(x, 'X');
+    expect(full).toBe(true);
+    expect(x.mode).toBe('sector');
+    expect(host.players.has('X')).toBe(false);
+    // both holds end: slots 2 and 3 are free again and the next joiner takes slot 2
+    host.expireAway(Date.now() + 11 * 60 * 1000);
+    expect(host.players.size).toBe(2);
+    const z = sess(h.make('Z'), 'client', 'ABCDE', prof('Z'));
+    expect(z.selfSlot).toBe(2);
+  });
+
+  it('one slot held in a full room: a tokenless hello takes it (slot and player id)', async () => {
+    const { h, host, b } = four();
+    host.startMatch();
+    await b.transport.leave();
+    const y = sess(h.make('Y'), 'client', 'ABCDE', prof('Y'));
+    hello(y, 'Y');
+    expect(y.selfId).toBe('B');
+    expect(y.selfSlot).toBe(2);
+    expect(host.players.size).toBe(4);
+  });
+
+  it('a lobby leave frees slot 1 for the next joiner (the lowest free); slots compact at the match start', async () => {
+    const { h, host, a } = four();
+    await a.leave();
+    expect(host.players.has('A')).toBe(false);
+    expect(host.slotOf('A')).toBe(-1);
+    const d = sess(h.make('D'), 'client', 'ABCDE', prof('D'));
+    expect(host.slotOf('D')).toBe(1);
+    expect(d.selfSlot).toBe(1);
+    // a gap: B (2) leaves; C keeps 3 in the lobby, then the start closes the gap (slot order kept, host 0)
+    const bs = sessions.find((s) => s.selfId === 'B')!;
+    await bs.leave();
+    expect(host.slotOf('C')).toBe(3);
+    host.startMatch();
+    expect([host.slotOf('H'), host.slotOf('D'), host.slotOf('C')]).toEqual([0, 1, 2]);
+    const cs = sessions.find((s) => s.selfId === 'C')!;
+    expect(cs.selfSlot).toBe(2);
+    // the lobby list is in slot order
+    expect([...cs.players.values()].map((p) => p.id)).toEqual(['H', 'D', 'C']);
+    void h;
+  });
+
+  it('course: the join gate stays 2 (a third hello is refused, the refused page reads the course cap)', () => {
+    const h = hub();
+    const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    host.setSettings('course', 'ctcourse', 'normal', '');
+    sess(h.make('A'), 'client', 'ABCDE', prof('A'));
+    const b = sess(h.make('B'), 'client', 'ABCDE', prof('B'));
+    let full = false;
+    b.events.on('full', () => (full = true));
+    hello(b, 'B');
+    expect(full).toBe(true);
+    expect(b.mode).toBe('course');
+    expect(host.players.size).toBe(2);
+    expect(host.slotOf('A')).toBe(1);
+  });
+});

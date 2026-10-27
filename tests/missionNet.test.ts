@@ -111,6 +111,8 @@ describe('mission NET: ms on the sector message', () => {
       mission: new MissionMirror(),
       sawSector: false,
       sec: null,
+      // (coop4 OUT, merge 10) nobody out: onSector reads the host's OUT mask first
+      outMask: 0,
     });
     const on = (m: Extract<Msg, { t: 'sector' }>): void => (c as unknown as { onSector(m: unknown): void }).onSector(m);
     const w = hostWire();
@@ -140,7 +142,8 @@ describe('mission NET: ms on the sector message', () => {
       missionFeed: new MissionFeed(),
       viewerStale: true,
       missionViewer: 'all',
-      s: { selfId: 'c1', players: new Map([['h', { id: 'h', host: true }], ['c1', { id: 'c1', host: false }]]) },
+      // (coop4 A19, merge 10) our slot is the session's (`selfSlot`), not a lobby list place
+      s: { selfId: 'c1', selfSlot: 1, players: new Map([['h', { id: 'h', host: true }], ['c1', { id: 'c1', host: false }]]) },
       gotSnap: true,
       hostObj: 'Hold at the gate',
       obj: 'Hold at the gate',
@@ -150,6 +153,9 @@ describe('mission NET: ms on the sector message', () => {
       avatars: new Map(),
       puppets: new Map(),
       heldPuppet: null,
+      // (coop4 merge 15) the partners' knife victims (one per partner)
+      knifePuppets: [],
+      knifeNow: [],
       targets: new Map(),
       blockers: [],
       puppetList: [],
@@ -212,6 +218,8 @@ describe('mission NET: ms on the sector message', () => {
       mission: new MissionMirror(),
       sawSector: false,
       sec: null,
+      // (coop4 OUT, merge 10) nobody out: onSector reads the host's OUT mask first
+      outMask: 0,
     });
     const on = (m: Extract<Msg, { t: 'sector' }>): void => (c as unknown as { onSector(m: unknown): void }).onSector(m);
     on(received({ ms: { ...hostWire(), rb: 0, rl: '' } }));

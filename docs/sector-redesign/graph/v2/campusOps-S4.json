@@ -443,8 +443,8 @@
       "guards": {
         "1": 7,
         "2": 7,
-        "3": 7,
-        "4": 7
+        "3": 8,
+        "4": 8
       },
       "note": "BUILT G4.6 (guards #7-#11, #20, #22 count here: 7 at every key; routes s4Data.ts:94-125 (EXIT :94, S4_ROUTES :105), the twist path (-2.5, 33) -> (17, 33.5) held open by a test; hallCC walled s4.ts:549-550, G4.3). x -4..34, z 22..42 unchanged (pods, cage, baskets). Size and ceiling over server_room: WARNs, as built. hallCC (-4,29) is walled up (it faced C4 across the colonnade). The cage downlight (18, 2.8, 37) turns warm (the objective lamp). shadow 0.46 as estimated by V5d (pending V6). Vantage: the basket run (dark, above the cones): B1/B2/B3 look straight down the cold aisles, B-cage's south end down the centre aisle, B-N's ends down the west and east margins; hidden: the 48 m2 of roofed hot aisle and short strips behind the spare rack and CRAC units: ~0.75-0.85 of the ~600 m2 walkable floor (declared 0.75, measured in greybox V6; V5d's 0.45 read one eye point). Split s4r leg b (Vault). Code Relay twist: on the release #20 walks the west aisle and the north strip (z 33) to the cage front; the path stays open (no new piece on it). Guards #7, #8 cold-aisle loops, #9 keyholder (front gate), #10-11 hot-aisle checkers (dormant), #20 mobile supervisor, #22 second keyholder (new, loop round the cage)."
     },
@@ -468,6 +468,12 @@
       ],
       "tension": 2,
       "tags": [],
+      "guards": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 1
+      },
       "note": "BUILT G4.3 (ccUps s4.ts:484; the staff door to the security room s4.ts:478, S4_DOORS.upsSec (-4, 46.5); console z 43.2..45.6 s4.ts:542; alarm-sec4 s4Data.ts:161 (-3.85, 43.0); room s4.ts:251). x -10..-4, z 31..48 (was 30.2: the colonnade widens). ccUps moves to (-5.5, 31); new door to the security room (-4, 46.5). Ceiling 7.0 (WARN). Rejoin space of split s4r. #12 crosses it (counted in s4-batt, as V5f)."
     },
     {

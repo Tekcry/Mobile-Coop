@@ -48,6 +48,9 @@ import { MIN_LODS } from '../operators/runtime/playerFigure';
 import { LOD_0, LOD_1, LOD_2 } from '../operators/runtime/manifest';
 import { sectionBakeFor } from '../world/sectionBake';
 import type { PlayerRef } from '../ai/enemy';
+import type { PlayerSlot, TeamFields, TeamRef } from './playerSlots';
+import { localMoveState } from './localMoveState';
+import { emptyMoveState } from '../player/moveState';
 import type { Difficulty } from '../ai/enemyDefs';
 import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
@@ -116,6 +119,7 @@ import type { LocalCarry, NetCarry } from './bodyCarry';
 import { SecuritySystem } from '../security/securitySystem';
 import type { CtDevices, SecWire } from './ctDevices';
 import type { SectorNetExtra } from './sectors';
+import { isOutRef } from './sectorOut';
 import { SecurityView } from '../security/securityView';
 import { TakedownController, type TakedownVictim } from './takedownController';
 import { StrikeController } from './strikeController';
@@ -207,6 +211,8 @@ export interface NetAttachment {
   onLocalDeath(): boolean;
   /** Host: the session ended (broadcast results). */
   onEnd?(won: boolean, subtitle: string): void;
+  /** (coop4 A10) Players in the session, connected plus held (dropped, slot kept): `GameState.teamSize`. */
+  teamSize?(): number;
   /** (hud-guidance B4, HG8) Client: Field Terminal > Objectives rows; null: none (GameState shows its own). */
   objectiveLines?(): ObjectiveLine[] | null;
   /** Host: revive every downed player (wave cleared). */
@@ -249,6 +255,9 @@ export interface NetAttachment {
   radioLine?(text: string): void;
   /** Host, Sector Ops: revive syringes left this op (co-op only). */
   revivesLeft?(): number;
+  /** (coop4 OUT) Host, Sector Ops: the out operators `ids` ('local' = the host) come back at the checkpoint on their
+   *  slots (beside the team), full health. */
+  returnOut?(ids: readonly string[]): void;
   /** (section-rating) Host: a rating's syringe grant, added to the op's revive cap. */
   addSyringes?(n: number): void;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
@@ -332,6 +341,12 @@ export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTM
 const NO_REMOTES: readonly PlayerRef[] = Object.freeze([]);
 /** (char-shadow-meter S2c) Solo and host: no client partner slots (`charMatesInto`). */
 const NO_MATES = (): number => 0;
+
+/** (coop4) A player ref's slot (`TeamRef.slot`), or `place` (its list index) for a ref without one. */
+function refSlot(r: PlayerRef, place: number): number {
+  const s = (r as Partial<TeamFields>).slot;
+  return s === undefined ? place : s;
+}
 /** (char-shadow-meter S3b-2) Seconds between cue fills (the meter tick); a module constant, so the fill call boxes no
  *  double. */
 const CUE_DT = 1 / LIGHT.playerHz;
@@ -429,6 +444,9 @@ export class GameState implements AppState {
   private readonly charKeys = new Int32Array(FILL.players);
   /** (char-shadow-meter S2) `playerRefsInto` order (slot 0 local); S3b-2 reuses it. */
   private readonly charRefs: PlayerRef[] = [];
+  /** (coop4 merge 6 F1) Per player slot: the `charRefs` index whose light it writes, -1 for none (slot 0 is the local
+   *  sample; an out local player is not in `charRefs`, so slots are not `charRefs` indices). */
+  private readonly charRefAt = new Int8Array(FILL.players).fill(-1);
   private charN = 0;
   /** (char-shadow-meter S3b-2) The players' shadow cues, filled at `LIGHT.playerHz` right after the meter (slot s =
    *  `charRefs[s]`, slot 0 the host / solo player); null with the flag off and on a co-op client (`shadowCuesFor`). */
@@ -537,6 +555,9 @@ export class GameState implements AppState {
   private readonly grabInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
   remotePlayers: () => readonly PlayerRef[] = () => NO_REMOTES;
+  /** (coop4 OUT, Sector Ops host) Ids of the operators out waiting for the next connector ('local' = this player); while
+   *  down they leave `playerRefsInto`. Written by `SectorMode` only. */
+  readonly outIds = new Set<string>();
   /** (char-shadow-meter S2c) Co-op client: writes its partners' slot inputs (`slotInto`) into `pin` slots from..max-1
    *  and returns how many. Set by `CoopClient` with the flag on. Solo and host: none. Read only by `fillChars`. */
   charMatesInto: (pin: Float64Array, from: number, max: number) => number = NO_MATES;
@@ -648,13 +669,29 @@ export class GameState implements AppState {
    *  event; a co-op client: the host's `feed` events, `coopClient.ts`). A new match is a new GameState: empty. */
   readonly notes = new FieldNotes();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
-  private localRef: PlayerRef;
+  private localRef: TeamRef;
+  /** (coop4) The local player's MoveState for `localRef.mv` (host and solo, once per fixed step before the AI; reused). */
+  private readonly localMv = emptyMoveState();
   /** (guard-ai S26) The local player's id (his own noises locate him: `EnemyManager.hear`'s `by`). */
   get localId(): string {
     return this.localRef.id;
   }
-  /** (guard-ai S1) The guards' and cameras' per-step player list, refilled in place (`playerRefsInto`, no allocation). */
-  private readonly aiRefs: PlayerRef[] = [];
+  /** (guard-ai S1) The guards' and cameras' per-step player list, refilled in place (`playerRefsInto`, no allocation;
+   *  coop4: in slot order). */
+  private readonly aiRefs: TeamRef[] = [];
+  /** (coop4 A19) The local player's slot this match: 0 the host / solo; a client the one its host gave it. */
+  get localSlot(): PlayerSlot {
+    return this.localRef.slot;
+  }
+  /** (coop4, the net layer) Our slot (`NetSession.selfSlot`): the player list's order and our beacon colour (slot + 1). */
+  setLocalSlot(slot: PlayerSlot): void {
+    this.localRef.slot = slot;
+    this.player.rig.setBeacon(slot + 1);
+  }
+  /** (coop4 A10) Players in the session, connected plus held: 1 in single player. */
+  teamSize(): number {
+    return this.net?.teamSize?.() ?? 1;
+  }
   /** The local operator has been seen by a guard in combat (no takedowns on guards in combat). */
   get spottedLocal(): boolean {
     return this.localRef.spotted === true || this.net?.spotted?.() === true;
@@ -705,6 +742,8 @@ export class GameState implements AppState {
       crouched: false,
       cover: null,
       coverT: 0,
+      slot: 0,
+      mv: null,
       suppress: (from, to, hit) => {
         if (hit || !this.player.alive) return;
         const head = this.target.headPoint(this.headTmp);
@@ -836,7 +875,7 @@ export class GameState implements AppState {
     } else if (opts.mode !== 'sandbox') {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.nav = buildNavGrid(this.scene, world.level, spawn.pos, world.map.navLayers, world.layout.navSeeds);
-      w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, this.diff, () => this.playerRefsInto(this.aiRefs));
+      w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, this.diff, () => this.teamRefsInto(this.aiRefs));
       w.enemyMgr.onKilled = (e, h) => {
         // own kills only (coop teammates are credited by the net layer); barrels count for whoever is local
         if (h.attackerId === 'local' || h.attackerId === '') {
@@ -928,7 +967,7 @@ export class GameState implements AppState {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.security = new SecuritySystem(
         world.layout.security,
-        { ballistics: this.ballistics, players: () => this.playerRefsInto(this.aiRefs) },
+        { ballistics: this.ballistics, players: () => this.teamRefsInto(this.aiRefs) },
         new SecurityView(this.scene, world.parts),
       );
       // (sector-redesign E8; marlow-final S10's Marlow cameras too) a round off a bulletproof camera: the bullet-impact sparks and sound at the lens (the
@@ -1231,15 +1270,40 @@ export class GameState implements AppState {
     return [this.localRef, ...this.remotePlayers()];
   }
 
-  /** `playerRefs()` into a reused array (per-tick callers: no allocation). */
+  /** `playerRefs()` into a reused array (per-tick callers: no allocation). (coop4) In slot order: the connected players,
+   *  downed included, held ones left out (the host's remotes); a ref without a slot sorts by its place. */
   playerRefsInto(out: PlayerRef[]): PlayerRef[] {
     this.localRef.speed = this.player.controller.speed;
     this.localRef.crouched = this.player.controller.crouched;
-    out.length = 0;
-    out.push(this.localRef);
+    // (F27) written by index, then trimmed: `length = 0` + push let V8 drop and regrow the backing store every step
+    // (coop4 OUT) an operator out waiting for the next connector (Sector Ops host, 3-4 players) is left out: not a
+    // target, not in the connector or extraction count
+    const ot = this.outIds;
+    let n = 0;
+    if (!isOutRef(ot, this.localRef.id, this.localRef.target.alive)) out[n++] = this.localRef;
     const rs = this.remotePlayers();
-    for (let i = 0; i < rs.length; i++) out.push(rs[i]!);
+    for (let i = 0; i < rs.length; i++) {
+      const r = rs[i]!;
+      if (!isOutRef(ot, r.id, r.target.alive)) out[n++] = r;
+    }
+    if (out.length !== n) out.length = n;
+    // insertion sort by slot over <= 4 refs (no allocation)
+    for (let i = 1; i < n; i++) {
+      const p = out[i]!;
+      const ps = refSlot(p, i);
+      let j = i - 1;
+      while (j >= 0 && refSlot(out[j]!, j) > ps) {
+        out[j + 1] = out[j]!;
+        j--;
+      }
+      out[j + 1] = p;
+    }
     return out;
+  }
+
+  /** (coop4) `playerRefsInto` typed as the team list (`TeamRef`: slot and MoveState), for Guard AI and the modes. */
+  teamRefsInto(out: TeamRef[]): TeamRef[] {
+    return this.playerRefsInto(out as PlayerRef[]) as TeamRef[];
   }
 
   anyPlayerAlive(): boolean {
@@ -2021,7 +2085,10 @@ export class GameState implements AppState {
         if (s === 0) {
           this.lightLevel = v;
           this.localRef.light = v;
-        } else if (s < this.charRefs.length) this.charRefs[s]!.light = v;
+        } else {
+          const k = s < FILL.players ? this.charRefAt[s]! : -1;
+          if (k >= 0) this.charRefs[k]!.light = v;
+        }
       }
       // (S3b-2) the cues from the same contract and players (solo / host only; no allocation)
       const sc = this.shadowCues;
@@ -2111,10 +2178,19 @@ export class GameState implements AppState {
     const occ = this.charOccluders;
     if (!occ) return;
     const refs = this.playerRefsInto(this.charRefs);
-    const nr = refs.length < FILL.players ? refs.length : FILL.players;
     this.localSampleInto(0);
     const L = this.lightIn;
-    for (let s = 1; s < nr; s++) slotInto(L, s, refs[s]!);
+    // (coop4 merge 6 F1) slots 1+ take the other refs in slot order: with the local player out (left out of `refs`)
+    // the lowest-slot partner is refs[0], not the local player
+    const at = this.charRefAt;
+    let nr = 1;
+    for (let i = 0; i < refs.length && nr < FILL.players; i++) {
+      const r = refs[i]!;
+      if (r === this.localRef) continue;
+      slotInto(L, nr, r);
+      at[nr++] = i;
+    }
+    for (let s = nr; s < FILL.players; s++) at[s] = -1;
     const n = nr + this.charMatesInto(L, nr, FILL.players);
     this.charN = n;
     fillPlayers(occ, L, n, this.charKeys);
@@ -2536,6 +2612,8 @@ export class GameState implements AppState {
     this.updateCoverRef();
     this.updateExposure(dt);
     this.updateRoomTag(dt);
+    // (coop4) what the local player is doing, for the guards (host and solo; a co-op client's guards are the host's)
+    if (!this.puppet) this.localRef.mv = localMoveState(this, this.localMv);
     this.enemyMgr?.update(dt);
     // detection: an enemy went to combat on the operator (stealth rules only)
     const em = this.enemyMgr;

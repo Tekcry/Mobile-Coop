@@ -38,7 +38,9 @@ const lay = campusOps.build(b, 0);
 const bG = new LevelBuilder();
 buildCampus(bG, { dress: false });
 const S4 = CAMPUS_SECTORS[3]!;
-const G = S4.guards;
+/** The base list (the coop4 minPlayers tags are appended and checked in sectorGuardTags.test.ts); ALL = base + tags. */
+const G = S4.guards.filter((g) => g.minPlayers === undefined);
+const ALL = S4.guards;
 const FOOT = { x0: -10, x1: 40, z0: 16, z1: 48 };
 const inFoot = (x: number, z: number): boolean => x >= FOOT.x0 && x <= FOOT.x1 && z >= FOOT.z0 && z <= FOOT.z1;
 const floorOf = (g: { y?: number }): number => g.y ?? 0;
@@ -175,7 +177,7 @@ describe('S4 shape and registration', () => {
     expect(CAMPUS_SECTORS[4]!.start).toEqual(S4.connector!.checkpoint);
     expect(S4.connector).toMatchObject({ box: [-26, 26, -10, 32], nearAt: [-10, 29], farAt: [-26, 29], checkpoint: { x: -18, y: 0, z: 29, yaw: -PI / 2 } });
     expect(S4.reinforce).toEqual([[28, 20.5], [-7, 40]]);
-    expect(G.length + SECTOR.alarmMax * S4.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
+    expect(ALL.length + SECTOR.alarmMax * S4.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
     expect(checkSectors(CAMPUS_SECTORS, undefined, lay.security)).toEqual([]);
     const s3 = CAMPUS_SECTORS[2]!;
     expect(checkStageActions([s3, S4], { nav, doorAt: doorFinder(b.anchors.doors) })).toEqual([]);
@@ -263,7 +265,7 @@ describe('S4 guards (brief table)', () => {
   });
 
   it('every slot is >= 7 m from the start and on the nav grid (its floor); every route point, takedown spot and reinforce point too', () => {
-    for (const [i, g] of G.entries()) {
+    for (const [i, g] of ALL.entries()) {
       const y = floorOf(g);
       expect(hyp2(g.x - S4.start.x, g.z - S4.start.z), `#${i + 1}`).toBeGreaterThanOrEqual(7);
       expect(onNav(g.x, g.z, y), `#${i + 1} slot (${g.x}, ${y}, ${g.z})`).toBe(true);
@@ -757,7 +759,7 @@ describe('K3 (M12): the colonnade sentry is an unavoidable posted guard at the C
 
 describe('A99: the screen count (no player point sees more than CAMPUS_SCREEN_CAP guards, every guard counted)', () => {
   const near = (p: BoxPiece): boolean => p.c[0] + p.s[0] > FOOT.x0 - 2 && p.c[0] - p.s[0] < FOOT.x1 + 2 && p.c[2] + p.s[2] > FOOT.z0 - 2 && p.c[2] - p.s[2] < FOOT.z1 + 2;
-  const awake = G.map((g, i) => ({ g, i }));
+  const awake = ALL.map((g, i) => ({ g, i }));
   /** A shut leaf for every door no guard route passes (the pod end doors of P1 and P4 and the doors (-7, 30.2) / (-7, 27.8) stay open). */
   const leaves: BoxPiece[] = [];
   for (const d of b.anchors.doors) {

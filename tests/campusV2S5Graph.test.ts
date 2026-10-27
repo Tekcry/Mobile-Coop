@@ -144,9 +144,11 @@ const space = (id: string): GSpace => graph.spaces.find((s) => s.id === id)!;
 const doorCentre = (d: (typeof b.anchors.doors)[number]): [number, number] => [d.hinge.x + Math.sin(d.yaw) * d.width * 0.5, d.hinge.z + Math.cos(d.yaw) * d.width * 0.5];
 
 /** The guard counts by the rule of job BRIEF A16-A17: each guard in the space whose area holds his slot on his storey (the smaller area when two do). */
-function guardSums(): Map<string, number> {
+function guardSums(team = 1): Map<string, number> {
   const sums = new Map<string, number>();
   G.forEach((g, i) => {
+    // key k counts the guards a team of k spawns: coop4's 3-4 player extras (A8) from their minPlayers up
+    if ((g.minPlayers ?? 1) > team) return;
     const y = g.y ?? 0;
     const hit = graph.spaces
       .filter((s) => Math.abs(s.storey - y) < 0.05 && g.x >= s.area[0] && g.x <= s.area[2] && g.z >= s.area[1] && g.z <= s.area[3])
@@ -216,15 +218,16 @@ describe('P4 graph matches the build (LD 15)', () => {
     for (const g of S5.pairGates!) expect(b.anchors.doors.some((d) => Math.abs(d.hinge.y - S5_L1) < 0.05 && hyp2(doorCentre(d)[0] - g.door[0], doorCentre(d)[1] - g.door[1]) < 0.1), `pair gate ${g.door}`).toBe(true);
   });
 
-  it('the guard sums per key computed from S5_GUARDS equal the graph at every key (26 / 26 / 26 / 26: no tagged rows yet); s5-ante is unavoidable (K4, A18)', () => {
+  it('the guard sums per key computed from S5_GUARDS equal the graph at every key (26 / 26 / 27 / 28: the coop4 3-4 player extras in s5-arch and s5-plant); s5-ante is unavoidable (K4, A18)', () => {
     const sums = guardSums();
-    expect([...sums.values()].reduce((p, q) => p + q, 0)).toBe(26);
-    expect(G.length).toBe(26);
+    const byKey = [1, 2, 3, 4].map((k) => guardSums(k));
+    expect(byKey.map((q) => [...q.values()].reduce((p, n) => p + n, 0))).toEqual([26, 26, 27, 28]);
+    expect(G.length).toBe(28);
     expect(graph.meta.players).toEqual([1, 2, 3, 4]);
     for (const s of graph.spaces) {
-      const want = sums.get(s.id) ?? 0;
-      if (want === 0) expect(s.guards, s.id).toBeUndefined();
-      else expect(s.guards, s.id).toEqual({ '1': want, '2': want, '3': want, '4': want });
+      const want = byKey.map((q) => q.get(s.id) ?? 0);
+      if (want[3] === 0) expect(s.guards, s.id).toBeUndefined();
+      else expect(s.guards, s.id).toEqual({ '1': want[0], '2': want[1], '3': want[2], '4': want[3] });
     }
     expect(Object.fromEntries([...sums.entries()].sort())).toEqual({
       's5-ante': 4, 's5-arch': 1, 's5-board': 1, 's5-ceo': 2, 's5-ctl': 3, 's5-gal': 2, 's5-garden': 2, 's5-hall': 3, 's5-kitchen': 1, 's5-lawn': 5, 's5-lobby': 1, 's5-roof': 1,

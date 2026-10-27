@@ -33,6 +33,9 @@ const url = `http://${HOST}:${PORT}/`;
 const TIMES_FILE = 'scripts/e2e-times.json';
 // no suite may hang a run: past this it is killed (browsers included) and counts as failed (seconds; `E2E_SUITE_TIMEOUT`)
 const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
+// (coop4 E2E) the 4-page parts load four pages, cycle connectors and run team moves: 1800 s unless `E2E_SUITE_TIMEOUT` is set
+const PART_TIMEOUT = { 'e2e-sectorops:10': 1800, 'e2e-sectorops:11': 1800, 'e2e-sectorops:12': 1800 };
+const timeoutOf = (s) => (process.env.E2E_SUITE_TIMEOUT ? SUITE_TIMEOUT : (PART_TIMEOUT[s] ?? 600) * 1000);
 
 // (process audit, 2026-10-19, approved by Michael) REQUIRED = what `npm run e2e` runs: the co-op training level
 // (Marlow Yard) and the systems it stands on. Everything else has its own list, outside the full run:
@@ -49,11 +52,14 @@ const REPORT = ['anim-audit'];
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
 // (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages. (J14) Parts 5-8
 // are the same four pairs on the re-planned yard (map `ctcourseReplan`, `scripts/e2e-ctcourse/replan/`).
-// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6-9 (campusOps, solo: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5; split in F33 so no part nears the kill)
+// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6-9 (campusOps, solo: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5; split in F33 so no part nears the kill),
+// (coop4 E2E) 10 (campusOps, four pages: slots, beacons, spawns, light, jam, crate, revive, connector, pair gate, tagged guards), 11 (warehouseOps: drop and rejoin, a late fourth page, two pairs of team moves), (coop4 OUT) 12 (campusOps, three pages: an operator out waits for the connector); 10-12 run alone in a laptop slot (`E2E_GPU=1`, `E2E_LOAD_MS=240000`)
 // (mission-framework EN2) e2e-sectorops:mission = the campus test mission (`scripts/e2e-sectorops-mission.mjs`, its own script: PART_SCRIPT)
 // (mission-framework GB6) e2e-sectorops:wharf-tgc / :wharf-tkl = the Tallow Wharf missions in co-op (scripts/e2e-sectorops-wharf.mjs --mission=<id>)
 // (light-parity C2) e2e-parity = 1 campus S1-S2, 2 campus S3-S5, 3 Marlow Yard, 4 Warehouse (GPU only; trains via laptop-queue TRAIN_PARITY)
 const PARTS = { 'e2e-parity': ['1', '2', '3', '4'], 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'mission', 'wharf-tgc', 'wharf-tkl'] };
+// (coop4 release check B 2) parts 10-12 (3-4 pages) are named only (`e2e-sectorops:10`): never in a full, quick or affected
+// expansion, so they run alone on the laptop queue as the docs say.
 /** A part that lives in its own script (run with no `--part`): the script name, or `[script, ...args]`. */
 const PART_SCRIPT = {
   'e2e-sectorops:mission': 'e2e-sectorops-mission',
@@ -244,12 +250,12 @@ async function runOne(s) {
     // (the suite's browsers are its children: the whole tree goes)
     if (process.platform === 'win32') spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
     else child.kill('SIGKILL');
-  }, SUITE_TIMEOUT);
+  }, timeoutOf(s));
   let code = await new Promise((res) => child.on('exit', res));
   clearTimeout(timer);
   if (timedOut) {
     code = 124;
-    const killed = `KILLED: ${s} ran past ${SUITE_TIMEOUT / 1000}s`;
+    const killed = `KILLED: ${s} ran past ${timeoutOf(s) / 1000}s`;
     // (test-chores-13) streamed (--serial / --jobs=1): the output went straight to the console, so the KILLED line
     // goes there too (before, a timed-out suite there ended silently, with only FAIL in the times table)
     if (streamed) console.log(`\n${killed}`);

@@ -25,6 +25,7 @@ const HALF = (S3_L1 * 13) / 27;
  * door 2.5 m behind him (D:101, the reversal of SPEC A60). Plain routes walk at grunt 0.99 / officer 0.935 m/s, the timed
  * loop (#2-#3) at 0.9 / 0.85 (CS:28). Squads per space as built: hall 2, dock 3, L1 1, #12 / #14 / #19 4. Takedown spots
  * (derived): on nav within 1.0 m of the post or a route end, beside or behind the guard, never in front of him.
+ * Then coop4's two 3-4 player extras (A8, `minPlayers`), indices 20-21: a team of 1-2 spawns the 20.
  */
 export const S3_GUARDS: SectorGuard[] = [
   // 1 the bridge landing officer (L1): posted facing the C2 door (yaw atan2(10 - 12.8, -14 + 17), derived; D:175, P45:120)
@@ -103,6 +104,15 @@ export const S3_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: 41, z: -9.6, yaw: PI, takedownSpot: [41, -9.1], role: 'console', zone: 's3-control', squad: 4, reason: 'Minds the test consoles through the control-room windows' },
   // 20 the courier escort (new): talks with #9 at the desk (28.5 s), checks the C3 door (6 s), 40 s (D:177, P0:133)
   { kind: 'officer', x: 26, z: -2.2, yaw: -2.06, route: [[26, -2.2], [24, -0.6]], waits: [28.5, 6], faces: [-2.06, 0], takedownSpot: [24, -1.1], role: 'escort', zone: 's3-dock', squad: 3, reason: 'Escorts the 03:00 courier: talks with the desk, checks the goods door' },
+  // coop4 A8: spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base list keeps its numbers (merge 7 re-placed
+  // coop4's two rows on the re-laid block; TAG-3, B10, places the v2 pair)
+  // 21 (tag 3) the third hall patrol (3+): #6 / #7's chamber round, the same direction, from the fourth corner (37, -23); 42.0 s
+  { kind: 'grunt', x: 37, z: -23, yaw: -PI / 2, route: [[37, -23], [28, -23], [28, -13], [37, -13]], waits: [1.5, 0.3, 0.3, 1.5], faces: [-PI / 2, 0, PI / 2, PI], takedownSpot: [37, -13], role: 'patrol', zone: 's3-hall', squad: 2, minPlayers: 3, reason: 'Hall crossing (the loud route, the south strip of the stealth one): 3+ players cross it together, so a third patrol walks the chamber round from the fourth corner' },
+  // 22 (tag 4) the second dock patrol (4+): the dock's north strip, from the gas cage's SE corner (facing its east face) to the dock desk's west
+  // side (facing the desk and the C3 door), 9.85 s stops as #10; 32.0 s. Not #10's line reversed: the crane walkway sees the dock
+  // south of z -4.5 through the open roller door, and a fourth guard there puts 13 in one view (A99 cap 12); north of z -4 he is hidden
+  // from it. Yaw atan2(6, 1) to the desk stop (derived); the spot 0.5 m behind him at the cage
+  { kind: 'grunt', x: 14.5, z: -3.5, yaw: 1.406, route: [[14.5, -3.5], [20.5, -2.5]], waits: [9.85, 9.85], faces: [-PI / 2, PI / 2], takedownSpot: [15.0, -3.5], role: 'patrol', zone: 's3-dock', squad: 3, minPlayers: 4, reason: 'The dock is the exit leg of every route (the C3 door): with 4 players two hold the dock desk while two run the goods door, so a second dock patrol walks it from the cage end to the desk' },
 ];
 
 /** (brief R5 "Routes") Into the lab block from C2: the bridge, the C2 far door, the landing (every route opens with it). */

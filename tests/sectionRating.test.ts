@@ -145,6 +145,84 @@ describe('SyncedDetector', () => {
     expect(d.synced).toBe(0);
     expect(d.onTakedown(1, 1.1)).toBe(false);
   });
+
+  // (coop4 A13) any pair of 4 slots
+  it('pairs across 4 slots: 0+2, 1+3', () => {
+    const d = new SyncedDetector();
+    expect(d.onTakedown(0, 10)).toBe(false);
+    expect(d.onTakedown(2, 10.5)).toBe(true);
+    expect(d.onTakedown(1, 20)).toBe(false);
+    expect(d.onTakedown(3, 21)).toBe(true);
+    expect(d.synced).toBe(2);
+  });
+  it('a triple in the window counts once; a fourth pairs the third', () => {
+    const d = new SyncedDetector();
+    d.onTakedown(0, 10);
+    expect(d.onTakedown(2, 10.2)).toBe(true);
+    expect(d.onTakedown(3, 10.4)).toBe(false);
+    expect(d.synced).toBe(1);
+    expect(d.onTakedown(1, 10.6)).toBe(true);
+    expect(d.synced).toBe(2);
+  });
+  it('pairs with the unused takedown inside the window, not an older one outside it', () => {
+    const d = new SyncedDetector();
+    d.onTakedown(1, 10);
+    expect(d.onTakedown(2, 10 + SYNC_WINDOW + 0.5)).toBe(false);
+    expect(d.onTakedown(3, 10 + SYNC_WINDOW + 0.8)).toBe(true);
+    // slot 1's stays unused (out of the window): a later one by slot 0 does not pair with it
+    expect(d.onTakedown(0, 10 + SYNC_WINDOW + 2)).toBe(false);
+    expect(d.synced).toBe(1);
+  });
+  it('reset clears every slot; an out-of-range player reads as slot 1 (as before)', () => {
+    const d = new SyncedDetector();
+    d.onTakedown(3, 1);
+    d.reset();
+    expect(d.onTakedown(0, 1.1)).toBe(false);
+    expect(d.onTakedown(7, 1.2)).toBe(true);
+    expect(d.onTakedown(1, 5)).toBe(false);
+    expect(d.onTakedown(-1, 5.1)).toBe(false);
+  });
+  it('2 slots: the same results as the 2-player detector it replaced (the course, courseMarks)', () => {
+    // master's detector, verbatim logic
+    const oldDet = () => {
+      const last = [-Infinity, -Infinity];
+      let count = 0;
+      return {
+        on(player: number, t: number): boolean {
+          const me = player === 0 ? 0 : 1;
+          const other = me === 0 ? 1 : 0;
+          const o = last[other]!;
+          if (t >= o && t - o <= SYNC_WINDOW) {
+            last[other] = -Infinity;
+            last[me] = -Infinity;
+            count++;
+            return true;
+          }
+          last[me] = t;
+          return false;
+        },
+        get synced() {
+          return count;
+        },
+      };
+    };
+    let seed = 7;
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    for (let run = 0; run < 20; run++) {
+      const a = oldDet();
+      const b = new SyncedDetector();
+      let t = 0;
+      for (let k = 0; k < 60; k++) {
+        t += rnd() * 2.5;
+        const p = rnd() < 0.5 ? 0 : 1;
+        expect(b.onTakedown(p, t)).toBe(a.on(p, t));
+      }
+      expect(b.synced).toBe(a.synced);
+    }
+  });
 });
 
 describe('labels', () => {

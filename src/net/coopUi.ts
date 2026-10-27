@@ -11,7 +11,7 @@ import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { MISSIONS, missionById } from '../game/missions';
-import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
+import { capacity, CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { NetSession, resumeMap, roomMap, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
@@ -97,7 +97,7 @@ class CoopController {
     this.offs.push(
       ev.on('start', (s) => this.start(s)),
       ev.on('hostLeft', () => this.hostLost()),
-      ev.on('full', () => this.fail('Room full', 'That room already has its two players. Ask the host to free a slot, or host your own room.')),
+      ev.on('full', () => this.fail('Room full', `That room already has its ${capacity(session.mode)} players. Ask the host to free a slot, or host your own room.`)),
       ev.on('lobby', () => {
         // (server browser) the player count changed: the notice now (a full room is taken off)
         this.dir?.post();
@@ -498,8 +498,8 @@ class LobbyScreen extends MenuScreen {
   private renderPlayers(): void {
     const s = this.c.session;
     const ps = [...s.players.values()].sort((a, b) => Number(b.host) - Number(a.host));
-    // (G2) two players: two slots, whatever the mode's wire cap is
-    const slots = Math.max(2, ps.length);
+    // one slot per seat the mode takes (Sector Ops up to 4, Campaign 2)
+    const slots = Math.max(s.cap, ps.length);
     const hostName = ps.find((p) => p.host)?.name ?? '';
     this.head.textContent = `Room ${s.code} · ${s.isHost ? 'you host' : hostName ? `host: ${hostName}` : 'connecting'}`;
     this.list.replaceChildren(
@@ -518,10 +518,10 @@ class LobbyScreen extends MenuScreen {
     const cap = s.cap;
     const block = s.isHost ? s.campaignBlock : null;
     if (!s.hostId) this.status.textContent = 'Connecting to host…';
-    else if (s.overCapacity) this.status.textContent = `${s.campaign ? 'The campaign' : MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
+    else if (s.overCapacity) this.status.textContent = `${s.campaign ? 'The campaign' : s.sceneRoom ? 'This scene' : MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
     // (mission-rules R4) why the campaign cannot start yet
     else if (block) this.status.textContent = block === CAMPAIGN_TWO_PLAYERS && ps.length < 2 ? `${block}. Share the code to invite your partner.` : `${block}.`;
-    else if (s.isHost) this.status.textContent = ps.length < 2 ? `${courseStartBlock(s.mode, ps.length) ? `${COURSE_TWO_PLAYERS}. ` : ''}Share the code to invite your partner.` : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
+    else if (s.isHost) this.status.textContent = ps.length < 2 ? `${courseStartBlock(s.mode, ps.length) ? `${COURSE_TWO_PLAYERS}. ` : ''}Share the code to invite your ${cap > 2 ? 'teammates' : 'partner'}.` : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
     else this.status.textContent = s.phase === 'playing' ? 'Match in progress - joining…' : 'Waiting for the host to start.';
   }
 
@@ -656,7 +656,7 @@ class LobbyScreen extends MenuScreen {
         desc: 'Start the mission for everyone in the room.',
         // (mission-rules R4) a campaign start needs exactly two players and a campaign mission; (J14 F1, R36) Course mode
         // needs two players
-        blocked: s.overCapacity ? `Too many players for ${s.campaign ? 'the campaign' : 'this mode'} (${s.cap})` : (s.campaignBlock ?? courseStartBlock(s.mode, s.players.size) ?? (!solo && !s.allReady ? 'Waiting for players to ready up' : undefined)),
+        blocked: s.overCapacity ? `Too many players for ${s.campaign ? 'the campaign' : s.sceneRoom ? 'this scene' : 'this mode'} (${s.cap})` : (s.campaignBlock ?? courseStartBlock(s.mode, s.players.size) ?? (!solo && !s.allReady ? 'Waiting for players to ready up' : undefined)),
       });
     } else {
       const me = s.players.get(s.selfId);
@@ -918,7 +918,7 @@ export async function autoLocalCourse(app: App, api: CoopApi, map: string, mode:
   session.setSettings(mode, map, session.difficulty, '');
   adopt(app, api, session);
   const off = session.events.on('lobby', () => {
-    if (session.phase !== 'lobby' || session.players.size < 2 || !session.allReady || session.overCapacity || session.campaignBlock !== null) return;
+    if (session.phase !== 'lobby' || session.players.size < (flags.players ?? 2) || !session.allReady || session.overCapacity || session.campaignBlock !== null) return;
     off();
     // (after the lobby handler that announced the partner: the match starts on the next task)
     setTimeout(() => session.startMatch(), 0);

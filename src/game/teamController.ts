@@ -1280,7 +1280,7 @@ export class TeamController implements KitHost {
     this.count.denied++;
     this.lastDenied = reason;
     this.refused(
-      reason === 'far' ? 'Too far from your partner for that' : reason === 'noTarget' || reason === 'tooHigh' ? 'No ledge to reach from here' : reason === 'notBraced' || reason === 'notOffering' ? 'Your partner is no longer offering' : 'Not now',
+      reason === 'far' ? 'Too far from your partner for that' : reason === 'noTarget' || reason === 'tooHigh' ? 'No ledge to reach from here' : reason === 'notBraced' || reason === 'notOffering' ? 'Your partner is no longer offering' : reason === 'taken' ? 'Your partner is busy with someone else' : 'Not now',
     );
   }
 

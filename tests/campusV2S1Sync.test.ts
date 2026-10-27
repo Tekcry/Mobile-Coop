@@ -82,15 +82,20 @@ describe('campus v2 S1 sync contract (SYNC.md 7c021f01, SY:9-10)', () => {
     for (const q of [fore, canopy]) expect(Math.abs(q.pos.z + 40.3)).toBeLessThan(0.01);
   });
 
-  it('graph guards match the data: every key sums to 15; players 1-4; the section list; the forecourt is unavoidable', () => {
+  it('graph guards match the data: keys sum to 15 / 15 / 16 / 17 (TAG-1 extras); players 1-4; the section list; the forecourt is unavoidable', () => {
+    const want: Record<string, number> = { '1': 15, '2': 15, '3': 16, '4': 17 };
     for (const k of ['1', '2', '3', '4']) {
-      expect(s1Spaces.reduce((n, s) => n + (s.guards?.[k] ?? 0), 0), `key ${k}`).toBe(15);
+      expect(s1Spaces.reduce((n, s) => n + (s.guards?.[k] ?? 0), 0), `key ${k}`).toBe(want[k]);
+      expect(S1.guards.filter((g) => (g.minPlayers ?? 1) <= Number(k)).length, `spawned ${k}`).toBe(want[k]);
     }
-    expect(S1.guards.length).toBe(15);
     // the campus guards do not scale by player count: every guarded space carries the same n at every key
     for (const s of s1Spaces) {
       if (!s.guards) continue;
-      expect(new Set(['1', '2', '3', '4'].map((k) => s.guards![k])).size, s.id).toBe(1);
+      // (TAG-1) the 1-2 player counts are equal everywhere; the car park and the forecourt take the extras
+      expect(s.guards['1'], s.id).toBe(s.guards['2']);
+      if (s.id === 's1-carpark') expect([s.guards['3'], s.guards['4']]).toEqual([s.guards['1']! + 1, s.guards['1']! + 1]);
+      else if (s.id === 's1-forecourt') expect([s.guards['3'], s.guards['4']]).toEqual([s.guards['1'], s.guards['1']! + 1]);
+      else expect(new Set(['1', '2', '3', '4'].map((k) => s.guards![k])).size, s.id).toBe(1);
     }
     expect(graph.meta.players).toEqual([1, 2, 3, 4]);
     expect(graph.meta.sections).toEqual(['S1', 'S2', 'S3', 'S4', 'S5']);

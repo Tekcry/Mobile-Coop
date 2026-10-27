@@ -34,7 +34,7 @@ type GearGuard = SectorGuard & { gear?: GearTag };
  * pistolSd, grunt = rifle, two dogs). Dormant (A64 / A99, data only): the response team's standing three (#1-#3) and the
  * boardroom officer (#15). Each entry carries its plan number (#1-#24, then #28, #34: index = number - 1 up to #24,
  * #28 = 24, #34 = 25). No section gear (guard-rules PR1, job BRIEF A27): body armour (`'armour'`) on the response team and
- * the keyholders. The base list only: the 3-4 player rows are TAG-5's.
+ * the keyholders. Then coop4's two 3-4 player extras (A8, `minPlayers`) at indices 26-27: a team of 1-2 spawns the 26.
  */
 export const S5_GUARDS: GearGuard[] = [
   // #1-#3 the response team's standing force in the control room, for the ceremony
@@ -82,6 +82,15 @@ export const S5_GUARDS: GearGuard[] = [
   { kind: 'officer', x: -42.5, z: 33.4, yaw: 0, takedownSpot: [-42.5, 32.9], post: { leash: 3, guards: 'token' }, role: 'audit', zone: 'token', squad: 2, reason: 'Audit officer: checks the token against the register at the audit table' },
   // #34 the jetty sentry (P3, D:140, P10): at the deck foot on the ground, facing S
   { kind: 'grunt', x: -43.5, z: 57.4, yaw: PI, takedownSpot: [-43.5, 57.9], role: 'sentry', zone: 'lane', squad: 4, reason: "Jetty sentry: holds the deck foot for the response team's boat" },
+  // coop4 A8: spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base list keeps its numbers. Merge 7 re-placed coop4's
+  // two rows on the P3 layout (TAG-5, `briefs/S5.md`, plans their v2 replacement)
+  // tag 3 (index 26) the second archive round (3+): #18 is now an out-and-back up the 1.5 m aisle between the free-standing row and the
+  // cage, so a second guard on his line would walk head-on into him; this round crosses the archive's open south half instead, from the
+  // pg-hoist / pg-arch side (facing the cage's pair gate) to the SE corner by kp-arch (facing the cage), 6 s stops; 29.2 s
+  { kind: 'grunt', x: -45.0, y: Y1, z: 39.5, yaw: 2.439, route: [[-45.0, 39.5], [-39.5, 33.0]], waits: [6, 6], faces: [PI / 2, 0], takedownSpot: [-45.5, 39.5], role: 'patrol', zone: 'archive', squad: 3, minPlayers: 3, reason: 'Archive pair gates (pg-arch, pg-hoist: the team doors): with 3+ players one pair works a gate while another clears the stacks, so a second round walks the archive' },
+  // tag 4 (index 27) the second service round (4+): #21's wing round reversed, from the hall (south) end; 2 s stops (#21's 3 s
+  // give 46.4 s by nav path through the lobby doors, recorded for #21 only): 42.4 s straight, 44.4 s by nav path
+  { kind: 'grunt', x: -29, z: 23.5, yaw: 0, route: [[-29, 23.5], [-29, 42.5]], waits: [2, 2], takedownSpot: [-30.4, 23.3], role: 'patrol', zone: 'wing', squad: 5, minPlayers: 4, reason: 'Loud route (hall, kitchen, terrace gate): 4 players run the service wing and the hall at once, so a second service round walks the wing from the hall end' },
 ];
 
 /** The ways in (M8): stealth by the screens passage, the side door and the garden; loud by the hall front, the anteroom's hall door and the kitchen; high by the service stair, the archive, the roof and the light well. */

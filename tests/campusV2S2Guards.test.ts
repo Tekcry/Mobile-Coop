@@ -5,14 +5,16 @@
  */
 import { describe, expect, it } from 'vitest';
 import { S2_GUARDS, S2_SECTOR } from '../src/world/maps/campusV2/s2Data';
-import { SECTOR, checkSectorGuards, type SectorGuard } from '../src/game/sectors';
+import { SECTOR, checkSectorGuards, guardForTeam, type SectorGuard } from '../src/game/sectors';
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { PATROL } from '../src/ai/patrol';
 import { CHECK_PATROL_PACE } from '../src/game/sectorCheck';
 import { hyp2 } from '../src/core/mathx';
 
 const PI = Math.PI;
-const G = S2_GUARDS;
+/** The base list (1-2 players); coop4's two 3-4 player extras (A8) are appended after it and checked below. */
+const G = S2_GUARDS.filter((g) => g.minPlayers === undefined);
+const TAGS = S2_GUARDS.filter((g) => g.minPlayers !== undefined);
 /** The plan's guard numbers in list order (#1-#14, then #18-#21). */
 const NUM = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 18, 19, 20, 21];
 const floorOf = (g: { y?: number }): number => g.y ?? 0;
@@ -46,7 +48,7 @@ function cycle(g: SectorGuard): number | null {
 describe('S2-G6a the 18 guards (C7)', () => {
   it('18 guards: kinds and guns as the D table (officer = pistolSd, grunt = rifle), no dogs; checkSectorGuards passes', () => {
     expect(G.length).toBe(18);
-    expect(S2_SECTOR.guards).toBe(G);
+    expect(S2_SECTOR.guards).toBe(S2_GUARDS);
     const kinds = ['officer', 'grunt', 'officer', 'grunt', 'grunt', 'officer', 'officer', 'grunt', 'officer', 'grunt', 'officer', 'grunt', 'grunt', 'officer', 'grunt', 'officer', 'officer', 'grunt'];
     expect(G.map((g) => g.kind)).toEqual(kinds);
     expect(G.map((g) => ENEMIES[g.kind].gun)).toEqual(kinds.map((k) => (k === 'officer' ? 'pistolSd' : 'rifle')));
@@ -151,5 +153,33 @@ describe('S2-G6a the 18 guards (C7)', () => {
     expect(G.length + SECTOR.alarmMax * S2_SECTOR.perStage).toBe(24);
     expect(G.length + SECTOR.alarmMax * S2_SECTOR.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
     expect(S2_SECTOR.reinforce).toEqual([[-40, -16.5], [-36, -7]]);
+  });
+});
+
+describe('coop4 A8: the two 3-4 player extras (TAG-2 rows, `briefs/S2.md` 6b; re-placed by merge 7)', () => {
+  it('appended after the 18: index 18 minPlayers 3, index 19 minPlayers 4; teams of 1 / 2 / 3 / 4 spawn 18 / 18 / 19 / 20; every list within maxAlive', () => {
+    expect(S2_GUARDS.length).toBe(20);
+    expect(S2_GUARDS.map((g) => g.minPlayers ?? 0)).toEqual([...Array(18).fill(0), 3, 4]);
+    expect([1, 2, 3, 4].map((n) => S2_GUARDS.filter((g) => guardForTeam(g, n)).length)).toEqual([18, 18, 19, 20]);
+    expect(S2_GUARDS.length + SECTOR.alarmMax * S2_SECTOR.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
+  });
+
+  it('tag 3 doubles #2 (his lobby round reversed, from the lift lobby end), 25-45 s; tag 4 stands in the bridge landing on L1; no post, pair, handler or dormant', () => {
+    const [t3, t4] = [TAGS[0]!, TAGS[1]!];
+    const two = G[1]!;
+    expect(t3.route).toEqual([...two.route!].reverse());
+    expect(t3.faces).toEqual([...two.faces!].reverse());
+    expect(t3.waits).toEqual(two.waits);
+    expect([t3.x, t3.z, floorOf(t3), t3.zone, t3.squad]).toEqual([-29, -8.5, 0, 'lobby', 0]);
+    const c = cycle(t3)!;
+    expect(c).toBeGreaterThanOrEqual(25);
+    expect(c).toBeLessThanOrEqual(45);
+    expect([t4.x, t4.z, floorOf(t4), t4.zone, t4.squad, t4.route]).toEqual([2.8, -13.0, 4.4, 'c2', 1, undefined]);
+    for (const g of TAGS) {
+      expect(g.post === undefined && g.pair === undefined && g.handler === undefined && !g.dormant).toBe(true);
+      expect((g.reason ?? '').length).toBeGreaterThan(30);
+      expect(hyp2(g.x - S2_SECTOR.start.x, g.z - S2_SECTOR.start.z)).toBeGreaterThanOrEqual(7);
+    }
+    expect(checkSectorGuards(S2_SECTOR)).toEqual([]);
   });
 });

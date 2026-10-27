@@ -106,6 +106,8 @@ function host(c1: { x: number; y: number; z: number; m: string; sub?: number; s?
     g: { team, mode, player: { alive: true, controller: { crouched: false } }, world: { level: { anchors: { get: () => null } } } },
     remotes,
     teamPairs: new Map(),
+    // (coop4 A20, merge 10) the busy table coop4's host keeps beside the pairs
+    teamActive: new Map(),
     kitPairs: new Map(),
     pairT0: new Map(),
     teamLast: new Map(),
@@ -230,6 +232,26 @@ describe('kit NET2: stale pairs and ends', () => {
     t.h.onTeamMove('c2', 'hangEnd', '', 0, kitAttemptKey(21.5), 0);
     expect(t.sent.at(-1)).toEqual({ t: 'tend', a: 'c2', b: 'c1', k: 'pull' });
     expect(t.h.teamPairs.size).toBe(0);
+  });
+
+  it('(coop4 A20, merge 10) a third player cannot take a holder in a kit pair (taken); once the pair lapses he can', () => {
+    const t = pullUpSetup();
+    t.h.onTeamMove('c1', 'pull', 'c2', -1, 0, H, 0.85, 0);
+    expect(t.sent.at(-1)).toMatchObject({ t: 'tstart', kind: 'pull', a: 'c1', b: 'c2' });
+    const c3 = { id: 'c3', alive: true, held: false, feet: { x: 1.2, y: 0, z: 0 }, state: { f: PF.grounded, mv: { ...emptyMoveState(), m: 'ground' } } };
+    (t.remotes as Map<string, unknown>).set('c3', c3);
+    t.h.time = 20.5;
+    t.h.onTeamMove('c3', 'pull', 'c2', -1, 0, H, 0.85, 0);
+    expect(t.sent.at(-1)).toEqual({ t: 'tdeny', a: 'c3', reason: 'taken' });
+    // c1's pair is untouched (before the merge fix the kit path's `unpairOf(partner)` ended it silently)
+    expect(t.h.teamPairs.get('c2')).toBe('c1');
+    expect(t.h.kitPairs.size).toBe(2);
+    // past the pair's life the holder is free again
+    t.h.time = 20 + PULL_PAIR_S + 1;
+    t.h.onTeamMove('c3', 'pull', 'c2', -1, 0, H, 0.85, 0);
+    expect(t.sent.at(-1)).toMatchObject({ t: 'tstart', kind: 'pull', a: 'c3', b: 'c2' });
+    expect(t.h.teamPairs.get('c2')).toBe('c3');
+    expect(t.h.teamPairs.has('c1')).toBe(false);
   });
 
   it('a stale end of the earlier attempt is ignored; the current one is judged; key 0 (an old peer, the host) counts', () => {

@@ -6,6 +6,7 @@ import { capacity, parseMessage, PROTOCOL_VERSION, sectorMissionId, type Difficu
 import type { Transport } from './transport';
 import type { WeaponId } from '../weapons/weaponDefs';
 import { REJOIN_HOLD_S } from '../core/rejoin';
+import { isPlayerSlot, PLAYER_SLOTS, SlotTable, type PlayerSlot } from '../game/playerSlots';
 import { MAPS } from '../world/maps';
 import type { MissionDef } from '../game/mission/missionDef';
 import { CAMPAIGN_PLAYERS, campaignStartBlock, isCampaignMap, isCampaignMission } from '../game/mission/campaign';
@@ -99,6 +100,9 @@ export class NetSession {
   weather: WeatherChoice = 'clear';
   /** Course mode: "Start at bay N" (host, 1-based; D20). */
   courseBay = 1;
+  /** (coop4 D4, FOLDED-PLAN J4) Host: a room cap below the mode's, set by what is played (a campaign mission is exactly
+   *  2 players, G2); 0 = the mode's `capacity`. Host side only: a client's lobby still shows the mode's slots. */
+  roomCap = 0;
   /** (coop-rejoin, host) The course bay a match going to one player starts it at: the current bay, so its load lands
    *  near the checkpoint (`CoopHost` sets it); null: the match's start bay. */
   lateBay: (() => number) | null = null;
@@ -116,6 +120,12 @@ export class NetSession {
   private holdTimer: ReturnType<typeof setInterval> | null = null;
   /** (R2) Client: refused by a full room; that room's lobbies are no longer ours to take. */
   private refused = false;
+  /** (coop4 A19, host) The slot rules: the host 0, a joiner the lowest free slot, a held player keeps its slot until its
+   *  rejoin or the hold ends, a lobby leave frees it, compacted at `startMatch`. `PlayerInfo.slot` mirrors it. */
+  private readonly slots = new SlotTable(PLAYER_SLOTS);
+  /** (coop4 A18, host) Connections that got the lobby instead of a refusal (a tokenless first hello while two or more
+   *  slots are held: the token goes only to a host the page knows, so it learns this one first). */
+  private readonly probed = new Set<string>();
   /** (PR E fix) Host: removes the pending auto start's listeners (`startWhenUnblocked`); null when none is pending. */
   private autoOff: (() => void) | null = null;
 
@@ -130,8 +140,12 @@ export class NetSession {
     this.hostId = role === 'host' ? transport.selfId : null;
     // (FLG) as `missionParam()`: no mission id on the wire while `flags.missions` is off
     this.sectorMission = role === 'host' && flags.missions ? sectorMissionId(flags.mission ?? '') : '';
-    this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host', away: false });
-    if (role === 'host') this.holdTimer = setInterval(() => this.expireAway(Date.now()), 5000);
+    // (coop4) a client's own slot is the host's to give (its lobby); 1 until then
+    this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host', away: false, slot: role === 'host' ? 0 : 1 });
+    if (role === 'host') {
+      this.slots.host(transport.selfId);
+      this.holdTimer = setInterval(() => this.expireAway(Date.now()), 5000);
+    }
     transport.onMessage = (raw, from) => this.receive(raw, from);
     transport.onPeerJoin = (id) => {
       // introduce ourselves to every newcomer
@@ -150,6 +164,21 @@ export class NetSession {
 
   get isHost(): boolean {
     return this.role === 'host';
+  }
+
+  /** (coop4 A19) Player `id`'s slot this match (host: the slot table; client: the host's lobby), -1 when not in the
+   *  room. Allocates nothing. */
+  slotOf(id: string): PlayerSlot | -1 {
+    if (this.isHost) return this.slots.slotOf(id);
+    const s = this.players.get(id)?.slot;
+    return isPlayerSlot(s) ? s : -1;
+  }
+
+  /** (coop4) Our own slot: the host 0; a client the one the host's lobby gives us (1 until it arrives). */
+  get selfSlot(): PlayerSlot {
+    const s = this.slotOf(this.selfId);
+    if (s === -1) return this.isHost ? 0 : 1;
+    return s;
   }
 
   /** Our hello; the rejoin token only in the one sent to the host (`withTok`): a broadcast would hand it to anyone in
@@ -202,6 +231,7 @@ export class NetSession {
           if (fresh) {
             this.players.delete(conn);
             this.tokOf.delete(conn);
+            this.slots.release(conn);
           }
           pid = held;
           // the slot's earlier connection (if it is still around) is stale from here on
@@ -210,12 +240,23 @@ export class NetSession {
           this.route.set(held, conn);
         }
       }
-      if (!this.players.has(pid) && this.players.size >= this.cap) {
-        this.send({ t: 'bye', reason: 'Room is full' }, conn);
+      // (coop4 A19) a new player takes the lowest free slot; a held one (its rejoin) or a known one keeps its own
+      const slot = !this.players.has(pid) && this.players.size >= this.cap ? -1 : this.slots.assign(pid);
+      if (slot < 0) {
+        // (coop4 A18) two or more slots held: a page's first hello is tokenless (its token goes only to the host it
+        // knows), so it gets the lobby once (it learns the host and sends its token); its next tokenless hello is refused
+        if (!msg.tok && this.slots.heldCount() >= 2 && !this.probed.has(conn)) {
+          this.probed.add(conn);
+          this.send(this.lobbyMsg(this.bySlot()), conn);
+          return;
+        }
+        // (coop4) the refusal names the room's mode: the refused page shows its cap
+        this.send({ t: 'bye', reason: 'Room is full', mode: this.mode }, conn);
         return;
       }
+      this.slots.unhold(pid);
       const prev = this.players.get(pid);
-      this.players.set(pid, { id: pid, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false, away: false });
+      this.players.set(pid, { id: pid, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false, away: false, slot });
       if (msg.tok) this.tokOf.set(pid, msg.tok);
       this.awayAt.delete(pid);
       this.broadcastLobby();
@@ -280,6 +321,8 @@ export class NetSession {
     // a full room's host refuses us before we ever see its lobby
     if (msg.t === 'bye' && !this.hostId && /full/i.test(msg.reason)) {
       this.refused = true;
+      // (coop4) the refusing room's mode (its cap shows on the "Room full" text)
+      if (msg.mode) this.mode = msg.mode;
       this.events.emit('full', {});
       return;
     }
@@ -296,6 +339,7 @@ export class NetSession {
       if (/full/i.test(msg.reason)) {
         this.refused = true;
         this.hostId = null;
+        if (msg.mode) this.mode = msg.mode;
         this.events.emit('full', {});
       } else {
         // (R3) a host that quits: the session stays open for the next host of the room
@@ -314,6 +358,7 @@ export class NetSession {
       this.events.emit('hostLeft', {});
       return;
     }
+    this.probed.delete(conn);
     const id = this.alias.get(conn) ?? conn;
     this.alias.delete(conn);
     // a connection replaced by a rejoin: nothing left
@@ -326,6 +371,8 @@ export class NetSession {
     if (this.isHost && this.phase === 'playing' && !p.host) {
       if (p.away) return;
       p.away = true;
+      // (coop4 A18) its slot is kept for the rejoin
+      this.slots.hold(id);
       this.awayAt.set(id, Date.now());
       this.events.emit('away', { id, name: p.name });
       this.broadcastLobby();
@@ -345,15 +392,39 @@ export class NetSession {
     this.tokOf.delete(id);
     if (!p) return;
     this.players.delete(id);
+    // (coop4 A19) a lobby leave or a hold's end frees the slot for the next joiner
+    if (this.isHost) this.slots.release(id);
     this.events.emit('peerLeft', { id, name: p.name });
     if (this.isHost) this.broadcastLobby();
     else this.events.emit('lobby', { players: [...this.players.values()] });
   }
 
+  /** (coop4, host) The players in slot order, each `slot` from the table (the lobby list: its order is the slot order,
+   *  so a peer without slots reads the same from the list order). A new array (lobby changes only). */
+  private bySlot(): PlayerInfo[] {
+    const out = [...this.players.values()];
+    for (const p of out) p.slot = Math.max(0, this.slots.slotOf(p.id));
+    // insertion sort over <= MAX_PLAYERS entries
+    for (let i = 1; i < out.length; i++) {
+      const p = out[i]!;
+      let j = i - 1;
+      while (j >= 0 && out[j]!.slot > p.slot) {
+        out[j + 1] = out[j]!;
+        j--;
+      }
+      out[j + 1] = p;
+    }
+    return out;
+  }
+
+  private lobbyMsg(players: PlayerInfo[]): Msg {
+    return { t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission, weather: this.weather };
+  }
+
   broadcastLobby(): void {
     if (!this.isHost) return;
-    const players = [...this.players.values()];
-    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission, weather: this.weather });
+    const players = this.bySlot();
+    this.send(this.lobbyMsg(players));
     this.events.emit('lobby', { players });
   }
 
@@ -398,9 +469,18 @@ export class NetSession {
     return isCampaignMap(missions) || isCampaignMission(missions?.find((m) => m.id === this.sectorMission));
   }
 
-  /** Players this room takes: `CAMPAIGN_ROOM` (2) for the campaign, else the mode's `capacity`. */
+  /**
+   * (coop4 merge 15 check) The room plays a scene map in Sector Ops (`MapDef.scene`: the piano escape, G426; its PLAN
+   * A2 "1-2 players, built and tuned for 2"). It holds two like the campaign; one may still play it alone (no start block).
+   */
+  get sceneRoom(): boolean {
+    return this.mode === 'sector' && MAPS.find((m) => m.id === this.map)?.scene !== undefined;
+  }
+
+  /** Players this room takes: `CAMPAIGN_ROOM` (2) for the campaign and a scene map, else the mode's `capacity`; `roomCap` when that is lower (coop4 D4). */
   get cap(): number {
-    return this.campaign ? CAMPAIGN_ROOM : capacity(this.mode);
+    const m = this.campaign || this.sceneRoom ? CAMPAIGN_ROOM : capacity(this.mode);
+    return this.roomCap > 0 ? Math.min(this.roomCap, m) : m;
   }
 
   /**
@@ -412,7 +492,7 @@ export class NetSession {
     return missions ? campaignStartBlock(missions, this.sectorMission || null, this.players.size) : null;
   }
 
-  /** Too many players for the chosen mode (co-op takes 4) or for the campaign (2). */
+  /** Too many players for the chosen mode (co-op takes 4), the campaign (2) or the room cap. */
   get overCapacity(): boolean {
     return this.players.size > this.cap;
   }
@@ -424,6 +504,10 @@ export class NetSession {
     // the partner is in (before, a lone host was left in `playing` and never started)
     if (this.overCapacity || this.campaignBlock !== null) return null;
     this.phase = 'playing';
+    // (coop4 A19) slots close their gaps at a match start (in slot order; the host stays 0), then never move in it
+    const order: string[] = [];
+    for (const p of this.bySlot()) order.push(p.id);
+    this.slots.compact(order);
     // (NET3) a Sector Ops match carries the host's mission (none: the start as before)
     const sm = this.mode === 'sector' ? this.sectorMission : '';
     this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1, ...(sm ? { sectorMission: sm } : {}) };

@@ -40,7 +40,8 @@ const { S1_ART_TAGS } = await import('../src/world/maps/campusV2/s1Dress');
 const b = new LevelBuilder();
 const lay = campusOps.build(b, 0);
 const S1 = CAMPUS_SECTORS[0]!;
-const G = S1.guards;
+// (coop4 A8, campus-greybox TAG-1) the base list (1-2 players): the two 3-4 player extras are appended after it
+const G = S1.guards.filter((g) => g.minPlayers === undefined);
 /** A guard by its plan number (#1-#9, then #11-#16: no #10). */
 const guard = (n: number): SectorGuard => G[n <= 9 ? n - 1 : n - 2]!;
 
@@ -854,7 +855,9 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     expect(checkSectors(CAMPUS_SECTORS)).toEqual([]);
     expect(S1.dogs ?? 0).toBe(0);
     expect(S1.perStage).toBe(2);
-    expect(S1.guards.length + SECTOR.alarmMax * S1.perStage).toBe(21);
+    expect(G.length + SECTOR.alarmMax * S1.perStage).toBe(21);
+    // with 4 players (the extras in): still within the cap
+    expect(S1.guards.length).toBe(17);
     expect(S1.guards.length + SECTOR.alarmMax * S1.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
     for (const [i, g] of G.entries()) {
       expect((g as { dormant?: unknown }).dormant, `guard ${i}`).toBeUndefined();
@@ -902,11 +905,12 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
 
   it('G6 M8 isolation: #7 and the rest of the loners hold their 3 s; the dual-takedown pairs #1-#4, #6, #16 are exempt; the recorded design findings (F8) are exactly #5, #8, #9, #12, #14', () => {
     const world = new SightWorld(b.boxes, b.cylinders);
-    const timed: CheckGuard[] = S1.guards.map((g) => {
+    // (TAG-1) measured on the base list: the 3-4 player extras spawn only for a team of 3 / 4
+    const timed: CheckGuard[] = G.map((g) => {
       const speed = ENEMIES[g.kind].walkSpeed * (g.loop ? 1 : CHECK_PATROL_PACE);
       return { x: g.x, z: g.z, route: g.route as readonly (readonly [number, number])[] | undefined, wait: g.wait, waits: g.waits, speed, loop: g.loop };
     });
-    const rows = S1.guards.map((g, i) => ({ n: i < 9 ? i + 1 : i + 2, run: longestIsolation(world, timed, i, 15, g.takedownSpot), ok: isolatedInTime(world, timed, i, g.takedownSpot) }));
+    const rows = G.map((g, i) => ({ n: i < 9 ? i + 1 : i + 2, run: longestIsolation(world, timed, i, 15, g.takedownSpot), ok: isolatedInTime(world, timed, i, g.takedownSpot) }));
     // eslint-disable-next-line no-console
     if (process.env.CAMPUS_PRINT) console.log(rows.map((r) => `#${r.n} ${r.run}s ${r.ok ? 'ok' : 'NOT isolated'}`).join('\n'));
     // D:214: the pairs are each other's overlap partner, their takedowns come by a lure; every other guard must have his

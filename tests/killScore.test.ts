@@ -14,7 +14,9 @@ import type { HitInfo } from '../src/game/damage';
 function sector() {
   const m = Object.create(SectorMode.prototype) as SectorMode;
   const stats = { score: 0 };
-  Object.assign(m, { g: { stats }, secStats: newSectionStats(), syncDet: new SyncedDetector(), t: 0 });
+  // (coop4 A13) the knock-out's attacker slot reads the player list: none listed = slot 1, as before
+  const playerRefsInto = (out: unknown[]) => ((out.length = 0), out);
+  Object.assign(m, { g: { stats, playerRefsInto }, refs: [], secStats: newSectionStats(), syncDet: new SyncedDetector(), t: 0 });
   return { m, stats };
 }
 

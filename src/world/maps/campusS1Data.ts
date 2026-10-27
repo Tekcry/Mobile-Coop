@@ -60,6 +60,11 @@ export const S1_GUARDS: SectorGuard[] = [
   { kind: 'grunt', x: -38, z: -66, yaw: PI, route: [[-38, -66], [-34, -50]], waits: [4, 4], faces: [PI, 0], takedownSpot: [-34, -50.6], role: 'patrol', zone: 'perimeter', squad: 3, reason: 'Fence-line check after the break-ins' },
   // 8 the delivery sentry: a sweep at the dock door, +-60 degrees, 12 s each way
   { kind: 'grunt', x: -34, z: -41.6, yaw: PI - 1.05, route: [[-34, -41.6], [-32, -41.6]], waits: [12, 12], faces: [PI - 1.05, PI + 1.05], takedownSpot: [-33, -42.2], role: 'sentry', zone: 'dock', squad: 3, reason: 'Waits for the courier with a cage trolley' },
+  // coop4 A8: spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base list keeps its numbers
+  // 9 the second fence patrol (3+): the same west fence <-> bin store round, from the bin store end
+  { kind: 'grunt', x: -34, z: -50, yaw: 0, route: [[-34, -50], [-38, -66]], waits: [4, 4], faces: [0, PI], takedownSpot: [-38, -66], role: 'patrol', zone: 'perimeter', squad: 3, minPlayers: 3, reason: 'Shadow route (feeder board, bin store): 3+ players cut the west half at once, so a second fence patrol walks it from the bin store end' },
+  // 10 the doorman's colleague (4+): beside the doorman at the C1 badge door, 1.4 m east, same facing
+  { kind: 'officer', x: -18.6, z: -35, yaw: PI, takedownSpot: [-18.6, -34.7], role: 'post', zone: 'c1', squad: 2, minPlayers: 4, reason: 'C1 badge door (the team door): with 4 players one pair lures the doorman while the other works the lock, so a colleague backs him up' },
 ];
 
 /** Section 1's cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */
