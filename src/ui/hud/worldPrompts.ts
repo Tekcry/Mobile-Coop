@@ -1,7 +1,9 @@
 import { h } from '../dom';
 import { keyLabels, verbPromptHtml } from '../prompts';
+import type { ContextPromptView } from './contextPromptView';
+import { clampX, clampY, newBox, pushApart, roundPos, type CtxProjector, type PromptBox } from './promptLayout';
 
-/** Prompts drawn on the world surface they act on (Splinter Cell: Blacklist style). */
+/** Prompts drawn on the world surface they act on. */
 export type WorldPromptId = 'vault' | 'state' | 'jumpTo' | 'drop' | 'takedown' | 'coop';
 
 interface Item {
@@ -15,10 +17,10 @@ interface Item {
 }
 
 const PROMPT_IDS: readonly WorldPromptId[] = ['vault', 'state', 'jumpTo', 'drop', 'takedown', 'coop'];
-/** Overlap estimate: label width per character, padding (glyph or icon), and the row height (vw / vh). */
-const CHAR_VW = 1.25;
-const PAD_VW = 4;
-const MIN_DY = 7;
+/** The boxes of the overlap pass: 0-5 the prompts in `PROMPT_IDS` order, 6 and 7 the two context clusters. */
+const TAKEDOWN_BOX = 4;
+const CLUSTER_BOX = 6;
+const BOXES = 8;
 
 /** Pad glyph and the bound key per prompt (keys follow the player's bindings). */
 function glyph(id: WorldPromptId): string {
@@ -46,9 +48,13 @@ function glyph(id: WorldPromptId): string {
 export class WorldPrompts {
   readonly el: HTMLElement;
   private items = {} as Record<WorldPromptId, Item>;
+  /** (context-prompts S4) The context prompt clusters on the focused target; set by the HUD. */
+  ctx: ContextPromptView | null = null;
+  private readonly boxes: PromptBox[] = [];
 
   constructor(parent: HTMLElement) {
     this.el = h('div', { class: 'hud-world' });
+    for (let i = 0; i < BOXES; i++) this.boxes.push(newBox());
     for (const id of PROMPT_IDS) {
       const el = h('div', { class: `wp wp-${id}` });
       el.dataset.prompt = id;
@@ -74,41 +80,50 @@ export class WorldPrompts {
     }
     if (!label) return;
     // labels stay readable at the screen edges (the anchor slides in a little)
-    it.x = Math.max(8, Math.min(92, xPct));
-    it.y = Math.max(10, Math.min(97, yPct));
+    it.x = clampX(xPct);
+    it.y = clampY(yPct);
   }
 
   /**
    * Apply this frame's positions: prompts that would overlap on screen are pushed apart sideways (e.g.
-   * take cover and vault on the same low wall), then written as transforms only when they moved.
+   * take cover and vault on the same low wall), then written as transforms only when they moved. With a projector
+   * the context clusters (S4) are placed and pushed too: a cluster stays on its target and the other prompts move.
    */
-  flush(): void {
+  flush(p?: CtxProjector): void {
     const ids = PROMPT_IDS;
+    const bx = this.boxes;
     for (let i = 0; i < ids.length; i++) {
-      const a = this.items[ids[i]!];
-      if (!a.key) continue;
-      for (let j = i + 1; j < ids.length; j++) {
-        const b = this.items[ids[j]!];
-        if (!b.key || Math.abs(a.y - b.y) > MIN_DY) continue;
-        const dx = b.x - a.x;
-        const gap = (a.key.length + b.key.length) * CHAR_VW * 0.5 + PAD_VW;
-        if (Math.abs(dx) >= gap) continue;
-        const push = (gap - Math.abs(dx)) / 2;
-        const sgn = dx >= 0 ? 1 : -1;
-        a.x -= push * sgn;
-        b.x += push * sgn;
-      }
+      const it = this.items[ids[i]!];
+      const b = bx[i]!;
+      b.on = !!it.key;
+      b.x = it.x;
+      b.y = it.y;
+      b.h = 0;
+      b.chars = it.key.length;
+      b.pinned = false;
     }
-    for (const id of ids) {
-      const it = this.items[id];
+    const ctx = this.ctx;
+    if (ctx && ctx.foldsTakedown()) bx[TAKEDOWN_BOX]!.on = false;
+    if (ctx && p) ctx.place(p, bx[CLUSTER_BOX]!, bx[CLUSTER_BOX + 1]!);
+    else {
+      bx[CLUSTER_BOX]!.on = false;
+      bx[CLUSTER_BOX + 1]!.on = false;
+    }
+    pushApart(bx, BOXES);
+    for (let i = 0; i < ids.length; i++) {
+      const it = this.items[ids[i]!];
       if (!it.key) continue;
-      const x = Math.round(it.x * 10) / 10;
-      const y = Math.round(it.y * 10) / 10;
+      const b = bx[i]!;
+      it.x = b.x;
+      it.y = b.y;
+      const x = roundPos(it.x);
+      const y = roundPos(it.y);
       if (x === it.sx && y === it.sy) continue;
       it.sx = x;
       it.sy = y;
       it.el.style.transform = `translate(${x}vw, ${y}vh)`;
     }
+    if (ctx && p) ctx.write(bx[CLUSTER_BOX]!, bx[CLUSTER_BOX + 1]!);
   }
 
   /** Current label of a prompt ('' = hidden), for tests. */
