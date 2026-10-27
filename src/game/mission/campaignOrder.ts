@@ -88,3 +88,121 @@ export function spoiler(key: string, progress: CampaignProgressLike): boolean {
   const next = CAMPAIGN_ORDER.findIndex((e) => progress.done[e.key] === undefined);
   return next >= 0 && i > next;
 }
+
+// ---- (campaign-mode CM4, PLAN 3.5) the lobby's Mission row and briefing panel: pure helpers for coopUi and the tests ----
+
+/** The Mission row's value for a Continue (A9); every other value is an entry key. */
+export const CONTINUE_VALUE = 'continue';
+/** The briefing panel's players line (G2). */
+export const TWO_PLAYERS_LINE = 'Needs exactly two players';
+/** The spoiler line of an entry past the reader's own progress (bible 5.8, A3). */
+export const SPOILER_LINE = 'Story spoilers ahead';
+/**
+ * The prologue's briefing (Marlow Yard has no `MissionDef`): written to be voiced later (G82). A6: no percent, finishing
+ * it records it as completed.
+ */
+export const PROLOGUE_BRIEFING: readonly string[] = [
+  'Marlow Yard. The training yard, bay by bay, the two of you together.',
+  'Every move the missions ask for is learned here first.',
+  'Training: no rating. Finishing it records it as completed.',
+];
+
+/** An entry's row text ("Mission 1: Three Grey Coats"). */
+export function entryRowText(e: CampaignEntry): string {
+  return `${e.label}: ${e.title}`;
+}
+
+/** The save shape the lobby helpers read (`CampaignSave` fits). */
+export interface CampaignSaveLike {
+  key: string;
+  section: number;
+  difficulty: string;
+}
+
+/** The section names the Continue row reads (a map's `sectors`, in run order: the save's `section` is a run index). */
+export type SectionNames = readonly { name: string }[] | undefined;
+
+/** The Continue row ("Continue: Three Grey Coats, Arcade lofts"); a section the map does not name reads "Section N". */
+export function continueRowText(save: CampaignSaveLike, sections: SectionNames): string {
+  const title = campaignEntry(save.key)?.title ?? save.key;
+  return `Continue: ${title}, ${sections?.[save.section]?.name ?? `Section ${save.section + 1}`}`;
+}
+
+/**
+ * The host's Mission row options: the Continue row first when there is a save whose entry is listed (A9), then every
+ * listed entry in order.
+ */
+export function missionRowOptions(entries: readonly CampaignEntry[], save: CampaignSaveLike | null, sections: SectionNames): { value: string; label: string }[] {
+  const out = entries.map((e) => ({ value: e.key as string, label: entryRowText(e) }));
+  if (save && entries.some((e) => e.key === save.key)) out.unshift({ value: CONTINUE_VALUE, label: continueRowText(save, sections) });
+  return out;
+}
+
+/** (A9) The difficulty a Continue locks the room to (the save's), or null (not a Continue: the row is the host's). */
+export function lockedDifficulty(resume: { difficulty: string } | null | undefined): string | null {
+  return resume ? resume.difficulty : null;
+}
+
+/** The briefing panel (A4): what both peers read in the context panel for the picked entry. */
+export interface BriefingPanel {
+  /** The entry's row text, or the Continue row's. */
+  title: string;
+  /** "Story spoilers ahead" past the reader's own progress, else null (A3, plan check polish 5). */
+  spoiler: string | null;
+  /** The briefing lines (a mission's `briefingLines()`, the prologue's `PROLOGUE_BRIEFING`). */
+  lines: string[];
+  /** The rules line ("Rules: No kills"), '' with none. */
+  rules: string;
+  /** "Needs exactly two players" (G2). */
+  players: string;
+  /** "Difficulty: Normal", "(kept from the save)" on a Continue. */
+  difficulty: string;
+}
+
+/**
+ * The briefing panel of `e`. `text` is the mission's (`briefingLines`, `rulesLine`; the caller reads the `MissionDef`, so
+ * this module keeps no mission imports); null or absent for the prologue. `progress` is the reader's OWN
+ * `campaign:progress` (each peer passes its own; a client never takes the host's), null while it loads (no spoiler line
+ * yet). `cont`: the Continue row's text when the room continues a save (the difficulty is the save's).
+ */
+export function briefingPanel(
+  e: CampaignEntry,
+  text: { lines: readonly string[]; rules: string } | null,
+  progress: CampaignProgressLike | null,
+  difficultyLabel: string,
+  cont: string | null = null,
+): BriefingPanel {
+  return {
+    title: cont ?? entryRowText(e),
+    spoiler: progress && spoiler(e.key, progress) ? SPOILER_LINE : null,
+    lines: e.mission !== undefined && text ? text.lines.slice() : PROLOGUE_BRIEFING.slice(),
+    rules: e.mission !== undefined && text ? text.rules : '',
+    players: TWO_PLAYERS_LINE,
+    difficulty: `Difficulty: ${difficultyLabel}${cont ? ' (kept from the save)' : ''}`,
+  };
+}
+
+/** The panel's lines in reading order: the spoiler line first, the briefing, the rules, the players, the difficulty. */
+export function briefingPanelLines(p: BriefingPanel): string[] {
+  return [...(p.spoiler ? [p.spoiler] : []), ...p.lines, ...(p.rules ? [p.rules] : []), p.players, p.difficulty];
+}
+
+/** A lobby options row (`coopUi` builds them in this order). */
+export type LobbyRow = 'mode' | 'map' | 'mission' | 'campaign' | 'difficulty' | 'difficultyLocked' | 'weather' | 'bay' | 'room';
+
+/**
+ * The lobby's option rows, in order. With `campaign` off (`flags.campaign`) the rows are exactly today's: host Mode,
+ * Map (Infiltration: Mission), Difficulty, Weather (a map with weathers), Start at (Course mode), Room; client the
+ * same as locked rows without Start at and Room. With it on and the room on a campaign entry (`entry`) the Map row is
+ * the campaign's Mission row ('campaign'), and a Continue (`continued`, host) locks the difficulty (A9).
+ */
+export function lobbyRows(o: { campaign: boolean; host: boolean; mode: string; entry: CampaignEntry | null; continued: boolean; weather: boolean }): LobbyRow[] {
+  const camp = o.campaign && o.entry !== null;
+  const rows: LobbyRow[] = ['mode', camp ? 'campaign' : o.mode === 'infiltration' ? 'mission' : 'map'];
+  rows.push(camp && o.host && o.continued ? 'difficultyLocked' : 'difficulty');
+  if (o.weather) rows.push('weather');
+  if (!o.host) return rows;
+  if (o.mode === 'course') rows.push('bay');
+  rows.push('room');
+  return rows;
+}
