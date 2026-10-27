@@ -1,7 +1,22 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-27 ~07:50 SAVE (Night Shift | Campaign Build; 5-hour reset 08:50)
+## RESUME 2026-10-27 ~11:50 SAVE (Night Shift | Campaign Build; reset 13:50: carry on without waiting)
+Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). All worktrees clean and pushed.
+1. On master now: the storm mill (4.127.0, #631), Tallow Mission 1 (#583), the intro skip hint + tap (#690), the mill
+   roof frame + lamp chains (#693), the real rain / thunder recordings (#701, CC0 + CC-BY 4.0, WebAudio fallback).
+2. Waiting on Michael: the storm level (the new rain may be very faint: he listens once); his other walk notes. Mill
+   polish ready to brief when he asks: knife as a fist at the flash, hero framed larger, light through the glide (S8
+   worktree -s8, S8-report.md / S8-check-2.md).
+3. NEXT: J22 campaign-mode BUILD. PLAN on feature/campaign-mode 7080a46f7 (worktree Mobile-Coop-campaign-mode), plan
+   check FIX applied (a Continue keeps kills / alarms / stage: G146); 11 polish items in
+   scratch/campaign/campaign-mode-plan-check.md (fold the cheap ones into the slice briefs). Start CM1 (Sonnet: flag,
+   order, 0-100% rating) then CM2 (Opus: campaign:progress / campaign:save kv records), PR 1 = CM1 + CM2. One agent at
+   a time unless the orchestrator says more. Tallow's ids are on master now (#583): CM7 is unblocked.
+   Q1 for Michael by day: the lobby listing of Tallow's two missions (build on "Both as Mission 1, in order").
+Next: brief CM1 from the PLAN's CM1 + the check polish; build; checker; then CM2.
+
+## OLD RESUME 2026-10-27 ~07:50 SAVE (Night Shift | Campaign Build; 5-hour reset 08:50)
 Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). All worktrees clean and pushed at this save.
 1. Storm mill SHIPPED in 4.127.0 (PR #631; #606 / #616 / #617 / #618 closed). Michael walks ~09:00 (walk lines sent; draft
    scratch/campaign/piano/walk-items.md). HOLD all mill tuning for his walk notes. Ready to brief after them: the knife as
