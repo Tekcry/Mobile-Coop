@@ -110,6 +110,7 @@ any commit (only the art-credits licence sentence, A11 cleared, stays: 9433a960c
   broken); tests assert the shipped rows with hard caps (bone step 25 deg, planted slide). I4-REPORT.md.
 - At the save: left = full CLIPS.md re-emit (partial runs keep it), the stance leg-channel check the I3 checker asked
   (knee readings equal the hand-made blend, not traced in mixKeyed), the animGraph `./mixamo` import fold, laptop e2e.
+
 ## I5 (2026-10-26, feature/mixamo-i5, worktree -m2): carry and strike on Wren
 - Done: WREN_CARRY / WREN_STRIKE + rows, animGraph carryShot / strikeShot, strikeBodyAt scale + 1 line in characterRig
   (strikeCap), tests/mixamoCarryStrike.test.ts, I5-REPORT.md, changes/feature-mixamo-i5.md. Merged feature/mixamo-i4
@@ -134,6 +135,35 @@ At the save (00:44, 2026-10-26, branch feature/mixamo-i6):
 I6 built (2026-10-26, feature/mixamo-i6):
 - Done: 17 dumped (heavy2.lock), 17 emitted (turn kind, strafe band, faceTake, jog cycles), 17 Studio rows, CLIPS.md, 11 in `MIXAMO_LOCO`; rows on: walking, jogging, start / stop walking, right_turn, walking turns L / R, strafes L / R; off: running, fast_run (knees cross). Credits, I6-REPORT.md, changes/feature-mixamo-i6.md. mixamoLoco 16/16, related vitest 118 pass.
 - Left: laptop run (affected-e2e src/anim, e2e-anim, e2e-move, anim-audit, e2e-studio), checker.
+
+## Source wire (feature/mixamo-source-wire, stacked on the toggle 4286b7215)
+G400 (Michael Q39: "yes players must look exact in everyones games"): replaces A13 (per-viewer). Each player's own
+Animation source rides `PlayerState.an` (0 hand / 2 mixamo; no field = CMU, also an older sender; PROTOCOL_VERSION not
+bumped); every screen draws that player with the OWNER's source. Undo: drop the field (back to per-viewer).
+- `AnimGraph.animSource` (get / set; `followPageSource()`): a graph no one hands a source reads the page's live tables
+  (`PAGE_TABLES` = LOCO / WREN_TRAV / WREN_KEYED / WREN_STANCE, overrides and the Studio pick included: default game
+  byte-identical); `RemoteAvatar` hands the owner's, which reads `SOURCE_TABLES[s]` (that source alone). Tables rewritten
+  in place once per change (`addMixamoResolver`); the graph re-picks on a compare. characterRig reads its graph's table.
+- Senders: coopHost `selfState`, coopClient pstate (`animSourceWire(wireAnimSource(ANIM_SOURCE))`); the host relays by spread.
+
+### Built (builder, 2026-10-26)
+- Done: per-graph tables, rig, wire (host, client, remote); laptop e2e on faa1041ab GREEN 7/7 (set mixamo-wire);
+  tsc + eslint clean; override gap closed: the senders send `wireAnimSource(ANIM_SOURCE)` (the source this page draws,
+  `?anim=` / `?mocap=` / `?mixamo=` / the tuner box in; default no field); the Studio pick stays local (A entry).
+  tests/animSourceWire.test.ts 9/9 (+ animSource 21/21), net / coopFix / coopCarry 114/114. The no-allocation check
+  reads both on one graph (two graphs read V8's tier: 1744 B vs 171 B, 1 run in 3). Report: WIRE-REPORT.md.
+- Next: two Opus checkers on the head.
+
+### Merge of feature/mixamo-on 9a326d4e4 (I5 carry / strike, I6 locomotion), 2026-10-26
+- Per-source coverage extended to the new tables (a remote partner is drawn in the OWNER's source for these too):
+  `SourceTables` gained `carry` / `strike` (`PAGE_TABLES` = WREN_CARRY / WREN_STRIKE; `SOURCE_TABLES[s]` filled by
+  `fillWrenCarryStrike`), and each source's `loco.set` now carries every I6 `MIXAMO_LOCO` capture the source's rows
+  let play, not only the I1 crouched walk (`fillMixamoLoco` + mocap.ts `fillMocapSetMx`, the same two the page's
+  `setMocapMixamo` uses). The graph reads `srcTab.carry` / `srcTab.strike` (no per-frame allocation). The local path
+  is unchanged: `resolveMixamoKeyed` = `fillWrenKeyed` + `fillMixamoLoco` -> `setMocapMixamo`.
+- Still page-global (local-player reads only, not drawn per remote): `LOCO` in playerController (`mocapSide`, the
+  local driver), the tuner's Now playing line (`noteMoveSources`), main.ts `__mocapOn`. None draws a remote partner.
+- Tests: tests/animSourceWire.test.ts carry / strike / I6 slot checks added.
 
 ## I7
 Pack driver (2026-10-26, feature/mixamo-i7; plan: [BATCH2-PLAN.md](BATCH2-PLAN.md) "(2) Driver change"):

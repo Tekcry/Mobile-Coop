@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.137.0 - Train 176: Co-op: each player is drawn with their own Animation source (2026-10-27, PR #723; #498)
+- In co-op every screen now draws each player with that player's own Animation source (Hand-made, CMU or Mixamo), so
+  your partner looks the same on your screen as on theirs. A partner on an older build, or on the default, is drawn with
+  CMU. Your own choice still only changes how you look; timing and reach are unchanged.
+
 ## 4.136.0 - Train 175: Campaign records and rating (preview only) (2026-10-27, PR #722; #708)
 - In the preview (or with `?campaign=1`), the campaign now has its order (Marlow Yard prologue, then Mission 1), a 0-100% mission rating and saved progress and a mission save; nothing uses them yet and the live game is unchanged.
 
