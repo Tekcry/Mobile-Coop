@@ -2376,14 +2376,20 @@ console.log('char-shadow-meter: the client\'s light with a guard\'s and the part
     assert(dGuard >= 0.01, `charshadow: the parked guard shades the client in the field (${dGuard.toFixed(3)})`);
     assert(Math.abs(withGuard.host - withGuard.client) <= 0.02, `charshadow: host's and client's light for the client agree within 0.02 under a parked guard (${withGuard.host.toFixed(3)} / ${withGuard.client.toFixed(3)})`);
     // the partner's shadow (S2c): the guard to the side, the host where he stood
+    // (S4 triage) his solid hit capsule (`G.ENEMY`, which the host's controller collides with) moves with him: it follows
+    // `pos` only in `update`, stubbed here, so it stayed on the spot and pushed the host out of the lamp's path
     await A2.evaluate((p) => {
       const g = window.__app.current;
       const e = window.__csGuard;
       e.pos.set(p.guardAway[0], p.guardAway[1], p.guardAway[2]);
       e['prevPos'].copyFrom(e.pos);
+      e['syncHitboxes'](0);
       g.player.controller.teleport(new g.player.position.constructor(p.g[0], p.g[1] + 0.05, p.g[2]), Math.atan2(p.g[0] - p.x, p.g[2] - p.z));
     }, pick);
     await wait(1500);
+    const hostAt = await A2.evaluate(() => { const q = window.__app.current.player.position; return [q.x, q.y, q.z]; });
+    const hostOff = Math.hypot(hostAt[0] - pick.g[0], hostAt[2] - pick.g[2]);
+    assert(hostOff <= 0.1, `charshadow: the host stands on the guard's spot in the lamp's path (${hostOff.toFixed(2)} m off; at ${hostAt.map((v) => v.toFixed(2))}, spot ${pick.g.map((v) => v.toFixed(2))})`);
     const withHost = await lights();
     const dHost = await fieldDrop();
     console.log(`  partner: host ${withHost.host.toFixed(3)} client ${withHost.client.toFixed(3)} (field drop ${dHost.toFixed(3)}; ${JSON.stringify(withHost)})`);
