@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.135.1 - Train 173: Route-run planner: a split entered through a co-op link; Laptop queue: hung runs killed, fail fast, fronted requests kept, quarantine keys (laptop-queue-10) (2026-10-27, PR #717; #714, #570)
+
+### Laptop queue: no hung runs, fairer desktop and order
+- A test run where no suite finishes for 17 minutes is stopped and reported, so it no longer holds a test slot for an
+  hour.
+- When a test fails on the desktop, the laptop gets the rerun straight away instead of waiting for the whole desktop
+  run to end; a desktop run that gives no result is also rerun on the laptop instead of counting as a fail.
+- The desktop judges a request by how long its real parts take, so long requests stay on the laptop.
+- The desktop leaves room for a train that is about to start, and its log now shows how busy the PC really was,
+  counting the test browsers.
+- Updates that can go out next are tested before ones that wait on another update.
+- Fixes and Michael's priority work are tested before a long measurement that has been waiting.
+- A request moved to an earlier place in the queue keeps its run instead of being cancelled.
+- A request taken off the queue during a fix freeze stops its run at once and runs again when it is put back.
+- A test on the known-flaky list only hides the failure it was listed for; any other failure shows up as normal.
+- Each try of a test run keeps its own logs, so a rerun no longer mixes with the first try.
+
+### Route-run planner: a split entered through a co-op link
+- The route-run planner now forks a split where the two robots part: when the space a run enters a leg from leads into
+  the other leg by no solo link, the fork lies back along the run's own path, and the path's links from it open the
+  entered leg (a co-op link only as its first). Marlow Yard's A8 high route plans: B boosts A from the banking hall onto
+  the gallery and keeps to the counters, A walks the gallery and the office alone.
+
 ## 4.135.0 - Train 172: Prompts on the thing you face (preview only); Co-op kit: Deadweight (2026-10-27, PR #715; #703, #653)
 
 ### Prompts on the thing you face (preview only)

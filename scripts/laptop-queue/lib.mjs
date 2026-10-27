@@ -213,23 +213,36 @@ export function cpuTotalPct(before, after) {
  * time between the snapshots). Returns { bgMs, elapsedMs }: CPU ms the background processes used in the window, summed
  * over pids in both snapshots (a pid in only one started, ended or changed priority in the window and is skipped, so
  * the gate leans toward counting load). elapsedMs is NaN when the el line is missing or not positive.
+ * laptop-queue-10 A9 (F24): a line may carry a 4th token, the process name or `e2e` (a Playwright browser: they run at
+ * Idle priority; old 3-token lines name ''). With countE2e (LQ_CPU_COUNT_E2E) the e2e rows stay out of bgMs: they are
+ * the queue's own load. Also returns e2eMs (their ms) and top: the 3 heaviest subtracted names by ms.
  */
-export function backgroundCpuMs(text) {
+export function backgroundCpuMs(text, { countE2e = true } = {}) {
   const a = new Map();
   const b = new Map();
   let elapsedMs = NaN;
   for (const line of String(text ?? '').split(/\r?\n/)) {
-    const m = /^\s*([ab])\s+(\d+)\s+(\d+(?:\.\d+)?)\s*$/.exec(line);
+    const m = /^\s*([ab])\s+(\d+)\s+(\d+(?:\.\d+)?)(?:\s+(\S+))?\s*$/.exec(line);
     if (m) {
-      if (m[2] !== '0') (m[1] === 'a' ? a : b).set(m[2], Number(m[3]));
+      if (m[2] !== '0') (m[1] === 'a' ? a : b).set(m[2], { ms: Number(m[3]), name: m[4] ?? '' });
       continue;
     }
     const e = /^\s*el\s+(\d+(?:\.\d+)?)\s*$/.exec(line);
     if (e && Number(e[1]) > 0) elapsedMs = Number(e[1]);
   }
   let bgMs = 0;
-  for (const [pid, ms] of b) if (a.has(pid)) bgMs += Math.max(0, ms - a.get(pid));
-  return { bgMs, elapsedMs };
+  let e2eMs = 0;
+  const byName = new Map();
+  for (const [pid, { ms, name }] of b) {
+    if (!a.has(pid)) continue;
+    const d = Math.max(0, ms - a.get(pid).ms);
+    if (name === 'e2e') e2eMs += d;
+    if (name === 'e2e' && countE2e) continue;
+    bgMs += d;
+    if (name) byName.set(name, (byName.get(name) ?? 0) + d);
+  }
+  const top = [...byName].filter(([, ms]) => ms > 0).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([name, ms]) => ({ name, ms }));
+  return { bgMs, elapsedMs, e2eMs, top };
 }
 
 /**
@@ -251,14 +264,38 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
 export const gateCpu = (c, mode) => (mode === 'total' ? c?.total : c?.gated);
 
 /**
- * The desktop leaves a request to the laptop when its expected wall at E2E_JOBS=1 is over maxS (laptop-queue-8 A9,
- * LQ_DESKTOP_MAX_MIN 15): times = the seed merged with the desktop's times.json; unknown (NaN) is taken; maxS <= 0 = no
- * limit.
+ * The CPU reading a desktop start or refusal logs (laptop-queue-10 A9, F24): c = service cpuGated { gated, total, top,
+ * elapsedMs, cores }. "cpu <gated>% gated / <total>% total (<mode>)", plus the top subtracted processes ("; subtracted:
+ * <name> <pct>%, ...", pct of the whole machine) when total - gated >= 20.
  */
-export function desktopTooLong(r, times, maxS) {
-  if (!(maxS > 0)) return false;
-  const w = expectedWallS(keptPlan(r, r?.sha, times).rest, times, 1); // only what still runs (A10 kept suites)
-  return Number.isFinite(w) && w > maxS;
+export function cpuNote(c, mode) {
+  const pct = (v) => (Number.isFinite(v) ? `${v}%` : '?');
+  const out = `cpu ${pct(c?.gated)} gated / ${pct(c?.total)} total (${mode})`;
+  if (!(c?.total - c?.gated >= 20) || !(c?.elapsedMs > 0) || !(c?.cores > 0) || !c?.top?.length) return out;
+  return `${out}; subtracted: ${c.top.map((x) => `${x.name} ${Math.round((x.ms / (c.elapsedMs * c.cores)) * 100)}%`).join(', ')}`;
+}
+
+/**
+ * The desktop leaves a request to the laptop when its wall at E2E_JOBS=1 (lib desktopWallS) is over maxS (laptop-queue-8
+ * A9, LQ_DESKTOP_MAX_MIN 15): times = the seed merged with the desktop's times.json; parts = what still runs (A10 kept
+ * suites) as run-e2e lists it (service partsOf; default lib suiteParts over times). A part with no time weighs the
+ * median, so an unknown request is no longer taken (laptop-queue-10 A6, F14); maxS <= 0 = no limit.
+ */
+export function desktopTooLong(r, times, maxS, parts = suiteParts(keptPlan(r, r?.sha, times).rest, times)) {
+  return maxS > 0 && desktopWallS(parts, times, 1) > maxS;
+}
+
+/**
+ * A desktop run's wall in s (laptop-queue-10 A6): the heaviest of `jobs` bins (lib shard) of its parts, a part weighing
+ * its times.json value, else the median of every time there (60 s when none: run-e2e's own default). 0 for no parts,
+ * never NaN (lib expectedWallS is NaN for any suite with no time: tallow-prg1's 17 parts, ~60 min, were taken).
+ */
+export function desktopWallS(parts, times, jobs = 1) {
+  if (!(parts ?? []).length) return 0;
+  const m = median(Object.values(times ?? {}));
+  const fill = Number.isFinite(m) ? m : 60;
+  const w = Object.fromEntries(parts.map((p) => [p, Number.isFinite(times?.[p]) ? times[p] : fill]));
+  return Math.max(...shard(parts, w, Math.max(1, Number(jobs) || 1)).map((b) => b.weight));
 }
 
 /** Front tier of lib pick (laptop-queue-7): a branch naming a LQ_FRONT_BRANCHES entry (case-insensitive substring), or an early-id re-file (no id time, or before 2020). */
@@ -267,6 +304,16 @@ export function isFront(r, frontBranches = []) {
   if (!Number.isFinite(t) || t < Date.UTC(2020, 0, 1)) return true;
   const b = String(r?.branch ?? '').toLowerCase();
   return Boolean(b) && (frontBranches ?? []).some((f) => f && b.includes(String(f).toLowerCase()));
+}
+
+/**
+ * laptop-queue-10 (F39): a pr / full request of pick's front tiers, which go before an aged alone when
+ * queue.frontBeforeAlone: order.fix (tier 0) or isFront (order.frontBranches, early ids). Never an alone, spare or
+ * train rerun request. order absent = the early ids only.
+ */
+export function isFrontTier(r, order) {
+  if (!r || (r.kind !== 'pr' && r.kind !== 'full') || r.trainRerun || r.requester === SPARE_REQUESTER) return false;
+  return Boolean(order?.fix?.has(r.id)) || isFront(r, order?.frontBranches ?? []);
 }
 
 /**
@@ -323,6 +370,11 @@ export function greenIds(requests, board) {
  * sorted by id: the front tier, the starvation check (the place's time), green ties and the arrival rule.
  * order.smallest (the desktop, laptop-queue-8 A8) replaces the front / green / arrival tiers after the fix tier: the
  * smallest order.wallS first (the service fills it for every request at E2E_JOBS=1), unknown wall last, ties by place.
+ * laptop-queue-10 A8 (F22): order.stacked (a Set of ids whose PR's base is not master, lib prBoard) runs after every
+ * master-based request in the green / arrival tiers (the same rules among them, no wait bound) and after them in the
+ * desktop's smallest order; the fix and front tiers ignore it.
+ * laptop-queue-10 (F39): queue.frontBeforeAlone (LQ_FRONT_BEFORE_ALONE) starts a fix / front request (lib isFrontTier)
+ * on a free slot before an aged or preempted alone request (the 15:00 audit: 0 fix minutes behind two aged alone sets).
  */
 export function pick(queue, now, slots) {
   const all = [...queue.requests].sort(sortById);
@@ -352,30 +404,38 @@ function pickFrom(queue, now, slots) {
   const front = queue.front ?? new Set();
   const alone = reqs.filter((r) => r.kind === 'alone').sort((a, b) => Number(front.has(b.id)) - Number(front.has(a.id)));
   const aged = alone.find((r) => front.has(r.id)) ?? agedAlone(alone, now);
+  // laptop-queue-10 (F39, LQ_FRONT_BEFORE_ALONE): a front-tier request (lib isFrontTier: fixes first, then front, by
+  // place) takes a free slot before an aged or preempted alone; the alone still waits for both slots
+  const first = aged && queue.frontBeforeAlone && idle[0] ? reqs.filter((r) => isFrontTier(r, queue.order)).sort((a, b) => Number(Boolean(queue.order?.fix?.has(b.id))) - Number(Boolean(queue.order?.fix?.has(a.id))) || sortByPlace(a, b))[0] : null;
+  if (first) return { kind: 'request', request: first, slot: idle[0].port };
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
   const nonAlone = reqs.filter((r) => r.kind !== 'alone').sort(sortByPlace);
   const order = queue.order;
   if (order && idle[0]) {
     const fix = nonAlone.find((r) => order.fix?.has(r.id)); // laptop-queue-8 tier 0: fixes, smallest place first
     if (fix) return { kind: 'request', request: fix, slot: idle[0].port };
+    const stacked = (r) => Number(Boolean(order.stacked?.has(r.id))); // laptop-queue-10 A8: stacked PRs after master-based
     if (order.smallest) { // laptop-queue-8 A8 (the desktop): smallest expected wall first, unknown last, ties by place
       const wall = (r) => { const w = order.wallS?.[r.id]; return Number.isFinite(w) ? w : Infinity; };
-      const small = [...nonAlone].sort((a, b) => wall(a) - wall(b) || sortByPlace(a, b))[0];
+      const small = [...nonAlone].sort((a, b) => stacked(a) - stacked(b) || wall(a) - wall(b) || sortByPlace(a, b))[0];
       return small ? { kind: 'request', request: small, slot: idle[0].port } : arrivalNext([], alone, idle, bothIdle);
     }
     const early = nonAlone.find((r) => isFront(r, order.frontBranches));
     const rest = nonAlone.filter((r) => r !== early && !isFront(r, order.frontBranches));
+    // laptop-queue-10 A8: the green and arrival tiers run over the master-based requests while any is open, else the stacked
+    const main = order.stacked?.size ? rest.filter((r) => !stacked(r)) : rest;
+    const tier = main.length ? main : rest;
     let chosen = early;
     if (!chosen) {
-      const oldest = rest.find((r) => Number.isFinite(idTime(placeKey(r))));
+      const oldest = tier.find((r) => Number.isFinite(idTime(placeKey(r))));
       const starved = order.maxWaitMs > 0 && oldest && now - idTime(placeKey(oldest)) > order.maxWaitMs;
       if (!starved) {
         const wall = (r) => { const w = order.wallS?.[r.id]; return Number.isFinite(w) ? w : Infinity; };
-        chosen = rest.filter((r) => order.green?.has(r.id)).sort((a, b) => wall(a) - wall(b) || sortByPlace(a, b))[0];
+        chosen = tier.filter((r) => order.green?.has(r.id)).sort((a, b) => wall(a) - wall(b) || sortByPlace(a, b))[0];
       }
     }
     if (chosen) return { kind: 'request', request: chosen, slot: idle[0].port };
-    return arrivalNext(rest, alone, idle, bothIdle);
+    return arrivalNext(tier, alone, idle, bothIdle);
   }
   return arrivalNext(nonAlone, alone, idle, bothIdle);
 }
@@ -819,18 +879,24 @@ export function yieldTo(r, started, trains) {
  * 'superseded' (laptop-queue-8 A6) when `superseded` names the newer request lib supersededRunning paired with it, at any
  * stage (lock wait, prepare, suites); 'withdrawn' wins over it. 'taken' (laptop-queue-8 G, checker FIX 1) first of
  * all when `taken` names the worker that now holds the run's claim (a heartbeat push found it blocking, e.g. after a
- * long push outage): the run stops and posts nothing, that worker's run owns the head.
+ * long push outage): the run stops and posts nothing, that worker's run owns the head. 'hung' (laptop-queue-10 A3, F10)
+ * when `hung` (lib idleStep: no suite event for the idle limit), after 'withdrawn' and 'superseded', before the spare and
+ * train rules. 'parked' (laptop-queue-10 F40) right after 'withdrawn' when `parked` (lib stoppedRuns: the fix freeze moved
+ * its file to parked/).
  */
 export const ALONE_PREEMPT_MIN = 10;
 /** A pr run this far through its expected wall (runProgress) finishes instead (Orchestrator audit 2026-10-24: a coop4 run cut at 15/15 shards). */
 export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
-export function cutShort(r, { taken = '', withdrawn = false, superseded = '', trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false } = {}) {
+export function cutShort(r, { taken = '', withdrawn = false, superseded = '', trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false, hung = false, parked = false } = {}) {
   if (taken) return 'taken';
   if (withdrawn) return 'withdrawn';
+  if (parked) return 'parked';
   // laptop-queue-8 A6: a newer head of the same PR is queued (lib supersededRunning; the id): stop at any stage
   if (superseded) return 'superseded';
+  // laptop-queue-10 A3: no suite event for the idle limit (#317 held 4192 for 65 min); a hung run frees its slot
+  if (hung) return 'hung';
   // spare work (laptop-queue-5) never holds a train or a real request: cut whatever its kind, age or progress (the
   // service marks it done); realOpen = a non-spare request waits on the branch (lib realWaiting)
   if (r?.requester === SPARE_REQUESTER && (trains ?? []).length) return 'train';
@@ -901,6 +967,80 @@ export function finishedSuites(text) {
     if (m) out.push({ s: m[1], ok: m[2] === 'ok', report: m[2].startsWith('REPORT'), sec: +m[3] });
   }
   return out;
+}
+
+/**
+ * The suite events in a run-e2e log (laptop-queue-10 A3): its result lines (lib finishedSuites) plus its streamed start
+ * headers ("=== s ===", "=== s (REPORT ONLY: never fails the run) ===", run-e2e at E2E_JOBS=1). The times table is not
+ * an event. A count that grows means the run is alive.
+ */
+const START_HEADER = /^=== \S+( \(REPORT ONLY: never fails the run\))? ===\s*$/;
+const RESULT_LINE = /^=== \S+ \((ok|FAIL|REPORT ONLY, exit -?\d+), \d+s\) ===\s*$/;
+export function suiteEvents(text) {
+  let n = 0;
+  for (const l of String(text ?? '').split('\n')) if (START_HEADER.test(l) || RESULT_LINE.test(l)) n++;
+  return n;
+}
+
+/**
+ * The hung-run limit in ms (laptop-queue-10 A3): 0 (off) unless idleMin > 0, else the longer of idleMin and run-e2e's
+ * own suite timeout plus 2 min, so a legal suite that runs to its timeout is never cut (17 min at 15 and 900 s).
+ */
+export function idleLimitMs(idleMin, suiteTimeoutS) {
+  if (!(idleMin > 0)) return 0;
+  return Math.max(idleMin * 60_000, (suiteTimeoutS + 120) * 1000);
+}
+
+/**
+ * One tick of the hung watch: prev = the last { count, at, hung } (null: the clock starts now), count = the attempt's
+ * suite events (lib suiteEvents). `at` moves to now when the count grows; hung once limitMs > 0 and now - at >= limitMs.
+ */
+export function idleStep(prev, count, now, limitMs) {
+  const at = !prev || count > prev.count ? now : prev.at;
+  return { count, at, hung: limitMs > 0 && now - at >= limitMs };
+}
+
+/** The parts (run-e2e names, in order) that have no finished row (lib finishedSuites) yet. */
+export function unfinishedParts(parts, rows) {
+  const done = new Set((rows ?? []).map((x) => x.s));
+  return (parts ?? []).filter((p) => !done.has(p));
+}
+
+/**
+ * A desktop run's fail fast (laptop-queue-10 A5, F11): null until a result row (lib finishedSuites) failed that is not
+ * REPORT ONLY and not quarantined (isQuarantined(s), any key); then { failed, rerun }: the failed suites in log order
+ * and those plus the parts with no row yet (lib unfinishedParts), the laptop rerun's list. Passed suites are not rerun.
+ */
+export function failFast(rows, parts, isQuarantined) {
+  const failed = [...new Set((rows ?? []).filter((x) => !x.ok && !x.report && !isQuarantined(x.s)).map((x) => x.s))];
+  if (!failed.length) return null;
+  return { failed, rerun: [...new Set([...failed, ...unfinishedParts(parts, rows)])] };
+}
+
+/**
+ * A hung train's laptop-e2e description (laptop-queue-10 A4): "<ok>/<parts> pass, <wall> s; hung <min> min; FAIL:
+ * <failed + unfinished>", prefix first (the desktop's "desktop: "), cut to 140 with "..." (auto-train failSuites then
+ * reads no list). A later row of a suite wins (a flake rerun that passed); a REPORT ONLY row never fails.
+ */
+export function hungTrainDesc(rows, parts, wallS, min, prefix = '') {
+  const last = new Map();
+  for (const x of rows ?? []) last.set(x.s, x);
+  let ok = 0;
+  const bad = [];
+  for (const x of last.values()) { if (x.ok || x.report) ok++; else bad.push(x.s); }
+  const d = `${prefix}${ok}/${(parts ?? []).length} pass, ${Math.round(wallS)} s; hung ${min} min; FAIL: ${[...bad, ...unfinishedParts(parts, rows)].join(',')}`;
+  return d.length > 140 ? `${d.slice(0, 137)}...` : d;
+}
+
+/**
+ * The folder of a new run attempt (laptop-queue-10 A12, F27): base when free, else the first free base-2, base-3, ...
+ * so a rerun of the same train or request never mixes its logs into an earlier attempt's. exists = fs.existsSync.
+ */
+export function attemptDir(base, exists) {
+  if (!exists(base)) return base;
+  let n = 2;
+  while (exists(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
 }
 
 /**
@@ -1078,9 +1218,10 @@ export function readyHeads(prs, inTrain = () => false) {
 }
 
 /**
- * The open PR board (one `gh pr list` of number, headRefOid, mergeable, statusCheckRollup, labels rows): Map pr number ->
- * { head, conflicting, green, fix }; fix = the PR carries the `fix` label. conflicting = mergeable CONFLICTING (UNKNOWN, MERGEABLE or missing is not); green = the
- * `check` run concluded SUCCESS and the `checker` status context is SUCCESS. A row without a number or head is skipped.
+ * The open PR board (one `gh pr list` of number, headRefOid, mergeable, statusCheckRollup, labels, baseRefName rows): Map
+ * pr number -> { head, conflicting, green, fix, base, stacked }; fix = the PR carries the `fix` label. conflicting = mergeable CONFLICTING (UNKNOWN, MERGEABLE or missing is not); green = the
+ * `check` run concluded SUCCESS and the `checker` status context is SUCCESS. stacked (laptop-queue-10 A8) = a base other
+ * than master (a missing base is not stacked). A row without a number or head is skipped.
  */
 export function prBoard(rows) {
   const out = new Map();
@@ -1090,12 +1231,15 @@ export function prBoard(rows) {
     const roll = p.statusCheckRollup ?? [];
     const check = roll.find((s) => s?.name === 'check');
     const checker = roll.find((s) => s?.context === 'checker');
+    const base = String(p.baseRefName ?? '');
     out.set(Number(p.number), {
       head,
       ...(p.isDraft === true ? { draft: true } : {}), // F34: a desktop failure on a draft files no laptop rerun (laptopRerunFor)
       conflicting: String(p.mergeable ?? '').toUpperCase() === 'CONFLICTING',
       green: String(check?.conclusion ?? '').toUpperCase() === 'SUCCESS' && String(checker?.state ?? '').toUpperCase() === 'SUCCESS',
       fix: (p.labels ?? []).some((l) => l?.name === 'fix'), // laptop-queue-8 A2: the fix tier (lib isFix)
+      base,
+      stacked: base !== '' && base !== 'master', // laptop-queue-10 A8: queues after master-based PRs (lib pick order.stacked)
     });
   }
   return out;
@@ -1150,12 +1294,12 @@ export function nextTrain({ building = null, releasing = null, lastMerge = null,
 
 /**
  * Whether request r may start under nextTrain's hold: a pr run (not alone / full) whose expected wall is known
- * (expectedWallS over r.jobs ?? 2 jobs) and whose prep (prepS) + FIT_SLACK x wall ends by etaMs. A fitted run an early
- * train catches falls to cutShort's 80% rule.
+ * (expectedWallS over jobs ?? r.jobs ?? 2 jobs; the desktop passes 1, laptop-queue-10 A1) and whose prep (prepS) +
+ * FIT_SLACK x wall ends by etaMs. A fitted run an early train catches falls to cutShort's 80% rule.
  */
-export function fitsBeforeTrain(r, { now, etaMs, times, prepS }) {
+export function fitsBeforeTrain(r, { now, etaMs, times, prepS, jobs }) {
   if (r?.kind !== 'pr') return false;
-  const wallS = expectedWallS(r.suites, times, r.jobs ?? 2);
+  const wallS = expectedWallS(r.suites, times, jobs ?? r.jobs ?? 2);
   return Number.isFinite(wallS) && now + (prepS + FIT_SLACK * wallS) * 1000 <= etaMs;
 }
 
@@ -1188,6 +1332,31 @@ export function holdClears(hold) {
  */
 export function assertKey(line) {
   return String(line ?? '').replace(/\[[^\]]*\]/g, '').replace(/\d+(?:\.\d+)?/g, '#').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * laptop-queue-10 A10 (F26): the unique non-empty keys (lib assertKey) of flakes ({ suite, key, date }) for this exact
+ * suite (a part stays a part) dated at or after since ('' = all), in first-seen order: an auto quarantine's `keys`.
+ */
+export function quarantineKeys(flakes, suite, since = '') {
+  const from = Date.parse(since);
+  const out = [];
+  for (const f of flakes ?? []) {
+    if (f?.suite !== suite || !f.key || out.includes(f.key) || Date.parse(f.date) < from) continue;
+    out.push(f.key);
+  }
+  return out;
+}
+
+/**
+ * laptop-queue-10 A10, A11 (F26; e2e-pad rode 6 trains under a quarantine that forgave any failure, PR #548): whether a
+ * quarantine entry forgives a failure with this key. No entry: false. An entry with a non-empty `keys` array: only a key
+ * in it. A keyless entry: while now < keylessUntil (Infinity = until its own expiry).
+ */
+export function quarantineForgives(entry, key, { now, keylessUntil = Infinity }) {
+  if (!entry) return false;
+  if (Array.isArray(entry.keys) && entry.keys.length) return entry.keys.includes(key);
+  return now < keylessUntil;
 }
 
 // ---------- flake budget and quarantine (process audit 2026-10-24 finding 5; replaces "flake stands") ----------
@@ -1758,6 +1927,47 @@ export function withdrawnStatuses(old) {
   const description = 'withdrawn by the requester (not run)';
   if (old.laptopRerun) out.push({ sha: old.sha, state: 'error', context: contextName(old.kind, old.set, old.suites ?? []), description });
   if (old.requester === AFFECTED_REQUESTER) out.push({ sha: old.sha, state: 'error', context: AFFECTED_CTX, description });
+  return out;
+}
+
+/**
+ * laptop-queue-10 A7 (F15): a request file renamed on the branch (e.g. fronted to an early id) is a move, not a
+ * withdrawal. gone = requests whose file left the branch (running here, or open and tracked), candidates = request
+ * files new since the last listing (any claim state). A gone request pairs with a candidate under another id that runs
+ * the same thing (lib dupKey: sha, kind, sorted suites, set, ...) for the same queue requester (lib queueRequester: an
+ * affected request per branch); one-to-one, candidates by id, the earliest first. -> Map(gone id -> candidate id). Pure.
+ */
+export function movedRequests(gone, candidates) {
+  const key = (r) => JSON.stringify([dupKey(r), queueRequester(r) ?? '']);
+  const cands = [...(candidates ?? [])].filter((c) => c?.id).sort(sortById);
+  const used = new Set();
+  const out = new Map();
+  for (const g of [...(gone ?? [])].filter((x) => x?.id).sort(sortById)) {
+    const k = key(g);
+    const c = cands.find((x) => !used.has(x.id) && x.id !== g.id && key(x) === k);
+    if (c) { used.add(c.id); out.set(g.id, c.id); }
+  }
+  return out;
+}
+
+/**
+ * laptop-queue-10 (F40): the requests running here that stop because their file left requests/. running = the running
+ * requests (an entry with no id, e.g. a train, is skipped), listed = the ids in requests/ now (the caller skips an empty
+ * listing), parked = the ids in parked/ (the fix freeze), moved = Map(running id -> the id its file was renamed to, lib
+ * movedRequests: read under that id, so a move never stops), misses = Map(id -> listings missed so far). parked: in
+ * parked/ and gone from requests/, at once (the freeze names it); withdrawn: gone two listings in a row (one bad listing
+ * never counts). -> { parked: Set, withdrawn: Set, misses: the new Map } (an id listed again starts over). Pure.
+ */
+export function stoppedRuns(running, { listed = new Set(), parked = new Set(), moved = new Map(), misses = new Map() } = {}) {
+  const out = { parked: new Set(), withdrawn: new Set(), misses: new Map() };
+  for (const r of running ?? []) {
+    if (!r?.id) continue;
+    const fid = moved.get(r.id) ?? r.id;
+    if (listed.has(fid)) continue;
+    if (parked.has(fid)) { out.parked.add(r.id); continue; }
+    const n = (misses.get(r.id) ?? 0) + 1;
+    if (n >= 2) out.withdrawn.add(r.id); else out.misses.set(r.id, n);
+  }
   return out;
 }
 
