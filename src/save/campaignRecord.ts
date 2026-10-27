@@ -187,34 +187,49 @@ export function recordFinish(key: string, pct: number, intel: number): Promise<v
   return next;
 }
 
-/** The host's save slot, or null (none, or junk). Never throws. */
-export async function loadCampaignSave(): Promise<CampaignSave | null> {
-  try {
-    return sanitizeCampaignSave(await dbGet('kv', CAMPAIGN_SAVE_KEY));
-  } catch (e) {
-    console.warn('campaign save load failed', e);
-    return null;
-  }
+/** The host's save slot, or null (none, or junk). Never throws. (CM5) Read after any write or clear still pending. */
+export function loadCampaignSave(): Promise<CampaignSave | null> {
+  return onSlot(async () => {
+    try {
+      return sanitizeCampaignSave(await dbGet('kv', CAMPAIGN_SAVE_KEY));
+    } catch (e) {
+      console.warn('campaign save load failed', e);
+      return null;
+    }
+  });
+}
+
+/** (campaign-mode CM5) The slot's writes and clears run one at a time, in call order: a clear at a match start (another
+ *  entry) never lands after the new run's first autosave, and the end's clear never before the last section's save. */
+let slotChain: Promise<unknown> = Promise.resolve();
+function onSlot<T>(job: () => Promise<T>): Promise<T> {
+  const next = slotChain.then(job);
+  slotChain = next.catch(() => undefined);
+  return next;
 }
 
 /** Write the save slot (sanitised first: a record that would read back as no save is not written). True when written. */
-export async function writeCampaignSave(s: CampaignSave): Promise<boolean> {
+export function writeCampaignSave(s: CampaignSave): Promise<boolean> {
   const clean = sanitizeCampaignSave(s);
-  if (!clean) return false;
-  try {
-    await dbPut('kv', CAMPAIGN_SAVE_KEY, clean);
-    return true;
-  } catch (e) {
-    console.warn('campaign save write failed', e);
-    return false;
-  }
+  if (!clean) return Promise.resolve(false);
+  return onSlot(async () => {
+    try {
+      await dbPut('kv', CAMPAIGN_SAVE_KEY, clean);
+      return true;
+    } catch (e) {
+      console.warn('campaign save write failed', e);
+      return false;
+    }
+  });
 }
 
 /** Empty the save slot (the mission's end, or the host starts another entry). Never throws. */
-export async function clearCampaignSave(): Promise<void> {
-  try {
-    await dbDelete('kv', CAMPAIGN_SAVE_KEY);
-  } catch (e) {
-    console.warn('campaign save clear failed', e);
-  }
+export function clearCampaignSave(): Promise<void> {
+  return onSlot(async () => {
+    try {
+      await dbDelete('kv', CAMPAIGN_SAVE_KEY);
+    } catch (e) {
+      console.warn('campaign save clear failed', e);
+    }
+  });
 }

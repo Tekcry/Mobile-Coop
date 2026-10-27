@@ -5,12 +5,27 @@
 // other maps and Marlow Yard keep their capacity.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WeaponId } from '../src/weapons/weaponDefs';
-import { CAMPAIGN_ROOM, NetSession, type StartInfo } from '../src/net/session';
+import { CAMPAIGN_ROOM, NetSession, sectorStartOpts, type StartInfo } from '../src/net/session';
 import type { Transport } from '../src/net/transport';
 import { defaultLook } from '../src/cosmetics/avatarLook';
-import { clearRejoin } from '../src/core/rejoin';
+import { clearRejoin, loadRejoin, saveRejoin, type RejoinRecord } from '../src/core/rejoin';
 import { CAMPAIGN_PICK_MISSION, CAMPAIGN_TWO_PLAYERS } from '../src/game/mission/campaign';
 import type * as Protocol from '../src/net/protocol';
+import { parseMessage } from '../src/net/protocol';
+import { flags } from '../src/core/flags';
+import { matchRevives } from '../src/net/coopHost';
+import { ReviveClock } from '../src/game/reviveClock';
+import type { CampaignSave } from '../src/save/campaignRecord';
+import { campaignRating } from '../src/game/mission/campaignRating';
+import type { MissionDef } from '../src/game/mission/missionDef';
+import { MissionRunner } from '../src/game/mission/missionRunner';
+import { applyMissionResume, applyMissionStart, boundMissionId, missionCarry, SectorMission, type SectorMissionHost } from '../src/game/mission/sectorMission';
+import { SectorMode } from '../src/game/modes/sectorMode';
+import { SectorRun, type SectorDef, type SectorPhase } from '../src/game/sectors';
+import { sectorResumePoints, startSlotPoints } from '../src/game/spawnPlace';
+import type { GameState } from '../src/game/gameState';
+import { THREE_GREY_COATS, TWO_KEY_LEDGER, WHARF_MISSIONS } from '../src/world/maps/tallowWharfMissions';
+import { WHARF_SECTORS } from '../src/world/maps/tallowWharfSectors';
 
 /** Sector Ops' room capacity in this file: 2 (this branch) or 4 (coop4's `SECTOR_MAX`); other modes as they are. */
 const cap = vi.hoisted(() => ({ sector: 2 }));
@@ -327,5 +342,380 @@ describe('PR E fix: a resumed campaign host starts once the partner is back, no 
     await tick();
     expect(r.host.phase).toBe('lobby');
     expect(r.hostStarts()).toBe(0);
+  });
+});
+
+// ---- (campaign-mode CM3, PLAN 3.4) the mission in the session, resume at a section, rejoin ----
+
+const flagSave = { campaign: flags.campaign, missions: flags.missions, mission: flags.mission };
+function setFlags(campaign: boolean, missions = campaign): void {
+  flags.campaign = campaign;
+  flags.missions = missions;
+  flags.mission = null;
+}
+afterEach(() => {
+  flags.campaign = flagSave.campaign;
+  flags.missions = flagSave.missions;
+  flags.mission = flagSave.mission;
+  vi.unstubAllGlobals();
+});
+
+const W = (id: string): number => WHARF_SECTORS.findIndex((s) => s.id === id);
+const stepIdx = (def: MissionDef, id: string): number => def.steps.findIndex((s) => s.id === id);
+/** The fact bits (`MissionWire.f`) of `gives` flags, in the runner's fact order. */
+function factBits(def: MissionDef, gives: string[]): number {
+  const facts = new MissionRunner(def, 2).facts;
+  let f = 0;
+  for (const g of gives) f |= 1 << facts.indexOf(g);
+  return f;
+}
+/** Done bits for team 'all' steps (both Tallow missions are all-team). */
+const doneBits = (def: MissionDef, ids: string[]): number => ids.reduce((b, id) => b | (1 << stepIdx(def, id)), 0);
+
+/** Three Grey Coats saved at W3's begin after W1 and W2 (Teale questioned), a kill and an alarm on the way. */
+function tgcSave(over: Partial<CampaignSave> = {}): CampaignSave {
+  return {
+    v: 1,
+    key: 'threeGreyCoats',
+    map: 'tallowWharf',
+    mission: 'threeGreyCoats',
+    difficulty: 'normal',
+    section: W('W3'),
+    st: [0, 0, doneBits(THREE_GREY_COATS, ['tgc-1', 'tgc-2', 'tgc-3'])],
+    f: factBits(THREE_GREY_COATS, ['tgc-courier', 'tgc-chest']),
+    revivesUsed: 1,
+    breaks: 1,
+    alarm: 2,
+    tally: { kills: 1, knockouts: 2, alarms: 1, spotted: 3, bodies: 1, optional: 0 },
+    time: 300,
+    at: 1,
+    ...over,
+  };
+}
+
+/** A small fake SectorMode for the adapter (the real Tallow sections; no guards spawned). */
+class Mode implements SectorMissionHost {
+  idx = 0;
+  ph: SectorPhase = 'objective';
+  readonly codes = new Set<string>();
+  readonly log: string[] = [];
+  m!: SectorMission;
+  constructor(readonly defs: readonly SectorDef[]) {}
+  enter(i: number): void {
+    this.idx = i;
+    this.ph = 'objective';
+    this.m.begin(i);
+  }
+  index = (): number => this.idx;
+  phase = (): SectorPhase => this.ph;
+  cycling = (): boolean => false;
+  players = (): number => 2;
+  slotOf = (id: string): number => (id === 'local' || id === '' ? 0 : 1);
+  detections = (): number => 0;
+  guards = (): readonly [] => [];
+  slotGuard = (): null => null;
+  hasCode = (f: string): boolean => this.codes.has(f);
+  keypadOpen = (): boolean => false;
+  gateOpen = (): boolean => false;
+  boltOpen = (): boolean => false;
+  regrant = (f: string): void => void this.codes.add(f);
+  openExit(): void {
+    if (this.m.gate()) return;
+    this.log.push('exit');
+    this.ph = this.idx === this.defs.length - 1 ? 'extract' : 'connector';
+  }
+  restart = (): void => undefined;
+  finish(): void {
+    this.log.push('finish');
+    this.m.extracted();
+  }
+  say = (): void => undefined;
+  banner = (): void => undefined;
+  bolt = (): null => null;
+  emit = (): void => undefined;
+}
+function mission(def: MissionDef): { mode: Mode; run: SectorRun; m: SectorMission } {
+  const mode = new Mode(WHARF_SECTORS);
+  mode.m = new SectorMission(def, mode);
+  return { mode, run: new SectorRun(WHARF_SECTORS), m: mode.m };
+}
+
+/** Every message `s` sends from now on. */
+function tap(s: NetSession): Record<string, unknown>[] {
+  const sent: Record<string, unknown>[] = [];
+  const send = s.transport.send.bind(s.transport);
+  s.transport.send = (msg, to) => {
+    sent.push(msg as Record<string, unknown>);
+    send(msg, to);
+  };
+  return sent;
+}
+
+describe('CM3: the lobby pick sets the session mission; the lobby carries it as sm', () => {
+  it("flags on: the host pick sets sectorMission, the partner's lobby shows it, its match mission still comes from start.sm", () => {
+    setFlags(true);
+    const h = hub();
+    const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    const cli = sess(h.make('C'), 'client', 'ABCDE', prof('Cli'));
+    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', 'threeGreyCoats');
+    expect(host.sectorMission).toBe('threeGreyCoats');
+    expect(host.campaignPick).toBe('threeGreyCoats');
+    expect(cli.campaignPick).toBe('threeGreyCoats');
+    expect(cli.sectorMission).toBe('');
+    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', 'twoKeyLedger');
+    expect(cli.campaignPick).toBe('twoKeyLedger');
+    expect(host.startMatch()?.sectorMission).toBe('twoKeyLedger');
+    expect(cli.sectorMission).toBe('twoKeyLedger');
+    // junk is no mission; the prologue (course) shows none
+    host.backToLobby();
+    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', '<b>');
+    expect(host.sectorMission).toBe('');
+    host.setSettings('course', 'ctcourse', 'normal', '', 'clear', 'threeGreyCoats');
+    expect(host.campaignPick).toBe('');
+    expect(cli.campaignPick).toBe('');
+  });
+
+  it('a new pick cancels a pending auto start; the same pick keeps it', () => {
+    setFlags(true);
+    const host = sess(hub().make('H'), 'host', 'ABCDE', prof('Host'));
+    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', 'threeGreyCoats');
+    host.startWhenUnblocked(() => host.campaignBlock);
+    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', 'threeGreyCoats');
+    expect(host.autoStarting).toBe(true);
+    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', 'twoKeyLedger');
+    expect(host.autoStarting).toBe(false);
+  });
+
+  it('lobby sm parse: a mission id passes; junk is dropped; absent is the lobby as before', () => {
+    const lobby = { t: 'lobby', players: [], mode: 'sector', map: 'tallowWharf', difficulty: 'normal', phase: 'lobby', mission: '', weather: 'clear' };
+    expect(parseMessage({ ...lobby, sm: 'threeGreyCoats' })).toMatchObject({ t: 'lobby', sm: 'threeGreyCoats' });
+    for (const bad of ['', 'a b', 'x'.repeat(65), 7, null, { id: 'x' }]) expect('sm' in (parseMessage({ ...lobby, sm: bad }) as object)).toBe(false);
+    expect(parseMessage(lobby)).toEqual(lobby);
+  });
+
+  it('flags off: the pick is ignored, no sm on the lobby, no Continue; a sector start at bay 1 (campaign alone: plain Sector Ops at its section)', () => {
+    for (const [c, m] of [
+      [false, true],
+      [true, false],
+      [false, false],
+    ] as const) {
+      setFlags(c, m);
+      const h = hub();
+      const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
+      const cli = sess(h.make('C'), 'client', 'ABCDE', prof('Cli'));
+      const sent = tap(host);
+      host.setSettings('sector', 'campusOps', 'normal', '', 'clear', 'threeGreyCoats');
+      expect(host.sectorMission).toBe('');
+      expect(host.campaignPick).toBe('');
+      expect(cli.campaignPick).toBe('');
+      expect(sent.some((x) => x.t === 'lobby' && 'sm' in x)).toBe(false);
+      host.sectorBay = 3;
+      host.resumeSector(3, 'threeGreyCoats', tgcSave());
+      host.continueCampaign(tgcSave());
+      expect([host.map, host.sectorMission]).toEqual(['campusOps', '']);
+      const s = host.startMatch()!;
+      expect(s.bay).toBe(c ? 3 : 1);
+      expect('campaignResume' in s).toBe(false);
+      expect(sectorStartOpts(s)).toEqual(c ? { sectorStart: 3 } : {});
+    }
+  });
+});
+
+describe('CM3: a sector campaign start carries the section in bay', () => {
+  it("Continue: the start goes at the save's section (bay = section + 1) on both peers; the save stays on the host, used once", () => {
+    setFlags(true);
+    const h = hub();
+    const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    const save = tgcSave();
+    host.continueCampaign(save);
+    expect([host.mode, host.map, host.difficulty, host.sectorMission]).toEqual(['sector', 'tallowWharf', 'normal', 'threeGreyCoats']);
+    const cli = sess(h.make('C'), 'client', 'ABCDE', prof('Cli'));
+    let got: StartInfo | null = null;
+    cli.events.on('start', (s) => (got = s));
+    const sent = tap(host);
+    const s = host.startMatch()!;
+    expect(s.bay).toBe(W('W3') + 1);
+    expect(s.campaignResume).toBe(save);
+    expect(got!).toMatchObject({ mode: 'sector', bay: W('W3') + 1, sectorMission: 'threeGreyCoats' });
+    expect('campaignResume' in got!).toBe(false);
+    const wireStart = sent.find((x) => x.t === 'start')!;
+    expect(Object.keys(wireStart).sort()).toEqual(['bay', 'difficulty', 'map', 'mission', 'mode', 'seed', 'sm', 't', 'time', 'weather']);
+    expect(sectorStartOpts(s)).toEqual({ sectorStart: 3, sectorMission: 'threeGreyCoats', campaignResume: save });
+    expect(sectorStartOpts(got!)).toEqual({ sectorStart: 3, sectorMission: 'threeGreyCoats' });
+    // used once: the room's next start is the mission from its own start
+    host.backToLobby();
+    expect(host.startMatch()!.bay).toBe(1);
+  });
+
+  it('a Continue is dropped by another mission or difficulty; a mission never takes its section from sectorBay', () => {
+    setFlags(true);
+    const host = sess(hub().make('H'), 'host', 'ABCDE', prof('Host'));
+    host.continueCampaign(tgcSave());
+    host.setSettings('sector', 'tallowWharf', 'realistic', '', 'clear', 'threeGreyCoats');
+    expect(host.campaignResume).toBeNull();
+    expect(host.sectorStartBay()).toBe(1);
+    host.continueCampaign(tgcSave());
+    host.setSettings('sector', 'tallowWharf', 'normal', '', 'rain', 'threeGreyCoats');
+    expect(host.campaignResume).not.toBeNull();
+    expect(host.sectorStartBay()).toBe(3);
+    host.setSettings('sector', 'tallowWharf', 'normal', '', 'rain', 'twoKeyLedger');
+    expect(host.campaignResume).toBeNull();
+    // its earlier steps would be missing (PLAN risk 1)
+    host.sectorBay = 3;
+    expect(host.sectorStartBay()).toBe(1);
+  });
+
+  it("(A11) Resume hosting: plain Sector Ops at the record's section; a mission at its save's section, else its own start", () => {
+    setFlags(true);
+    const plain = sess(hub().make('H'), 'host', 'ABCDE', prof('Host'));
+    plain.mode = 'sector';
+    plain.map = 'campusOps';
+    plain.resumeSector(3, undefined, null);
+    expect(plain.sectorStartBay()).toBe(3);
+    const m = sess(hub().make('H2'), 'host', 'FGHJK', prof('Host'));
+    m.mode = 'sector';
+    m.map = 'tallowWharf';
+    m.resumeSector(3, 'threeGreyCoats', tgcSave());
+    expect(m.sectorMission).toBe('threeGreyCoats');
+    expect(m.sectorStartBay()).toBe(3);
+    m.resumeSector(4, 'threeGreyCoats', null);
+    expect(m.sectorStartBay()).toBe(1);
+    m.resumeSector(4, 'threeGreyCoats', tgcSave({ mission: 'twoKeyLedger', key: 'twoKeyLedger' }));
+    expect(m.sectorStartBay()).toBe(1);
+  });
+});
+
+describe('CM3: resume at a section', () => {
+  it('a Continue after a kill and an alarm: W3 at the saved alarm stage, earlier steps done, breaks back; it finishes with the carried tally, not perfect', () => {
+    const { mode, run, m } = mission(THREE_GREY_COATS);
+    const save = tgcSave();
+    expect(applyMissionResume(run, m, save)).toBe(true);
+    expect(run.index).toBe(W('W3'));
+    const w3 = WHARF_SECTORS[W('W3')]!.start;
+    expect(run.checkpoint).toMatchObject({ x: w3.x, z: w3.z });
+    for (const id of ['tgc-1', 'tgc-2', 'tgc-3']) expect(m.runner.isDone(stepIdx(THREE_GREY_COATS, id))).toBe(true);
+    expect(m.runner.isDone(stepIdx(THREE_GREY_COATS, 'tgc-opt'))).toBe(false);
+    expect(m.runner.hasFlag('tgc-chest')).toBe(true);
+    expect(m.tracker.breaks).toBe(1);
+    expect([run.alarm, run.alarmAtStart, run.alarmsRaised]).toEqual([2, 2, 1]);
+    const carried = missionCarry(save);
+    expect(carried).toEqual({ kills: 1, knockouts: 2, spotted: 3, bodies: 1, time: 300 });
+    // the section's begin snapshots the restored state; W4's objective, then the extraction, finish the mission
+    mode.enter(W('W3'));
+    mode.enter(W('W4'));
+    mode.openExit();
+    expect(mode.log).toContain('exit');
+    expect(mode.ph).toBe('extract');
+    mode.finish();
+    expect(m.finished).toBe(true);
+    // no kill and no alarm after the Continue: the rating still counts the run's (G146)
+    const r = campaignRating({ kills: carried.kills + 0, alarms: run.alarmsRaised, optional: 0 });
+    expect(r.perfect).toBe(false);
+    expect(r.pct).toBeLessThanOrEqual(99);
+  });
+
+  it("(PLAN risk 1) without the save's steps the same start never opens W4's exit", () => {
+    const { mode, run } = mission(THREE_GREY_COATS);
+    applyMissionStart(run, W('W3'));
+    mode.enter(W('W3'));
+    mode.enter(W('W4'));
+    mode.openExit();
+    expect(mode.log).not.toContain('exit');
+  });
+
+  it("Two-Key Ledger resumed at W3 holds its W2 code again (heldCodes); its W2 start is unchanged with no save", () => {
+    const { run, m } = mission(TWO_KEY_LEDGER);
+    const save = tgcSave({ key: 'twoKeyLedger', mission: 'twoKeyLedger', st: [0, 0, doneBits(TWO_KEY_LEDGER, ['tkl-1'])], f: factBits(TWO_KEY_LEDGER, ['tkl-gate-code']) });
+    expect(applyMissionResume(run, m, save)).toBe(true);
+    expect(m.heldCodes([])).toEqual(['tkl-gate-code']);
+    const fresh = mission(TWO_KEY_LEDGER);
+    expect(fresh.m.heldCodes([])).toEqual([]);
+    // a save of another mission, before the mission's start or off the run: not applied, the run untouched
+    expect(applyMissionResume(fresh.run, fresh.m, tgcSave())).toBe(false);
+    expect(applyMissionResume(fresh.run, fresh.m, { ...save, section: W('W1') })).toBe(false);
+    expect(applyMissionResume(fresh.run, fresh.m, { ...save, section: WHARF_SECTORS.length })).toBe(false);
+    expect([fresh.run.index, fresh.run.alarm, fresh.run.alarmsRaised, fresh.m.tracker.breaks]).toEqual([0, 0, 0, 0]);
+    applyMissionStart(fresh.run, fresh.m.startIndex);
+    expect(fresh.run.index).toBe(W('W2'));
+    // a run that has moved takes no resume
+    expect(applyMissionResume(fresh.run, fresh.m, save)).toBe(false);
+  });
+
+  it('revives used come back for that campaign mission only (G126: 2 per mission)', () => {
+    const used = (missionId: string, resume: Parameters<typeof matchRevives>[5]): number => {
+      const c = new ReviveClock();
+      matchRevives(c, 'sector', 'normal', WHARF_MISSIONS, missionId, resume);
+      return c.used;
+    };
+    expect(used('threeGreyCoats', tgcSave())).toBe(1);
+    expect(used('threeGreyCoats', tgcSave({ revivesUsed: 2 }))).toBe(2);
+    expect(used('twoKeyLedger', tgcSave())).toBe(0);
+    expect(used('threeGreyCoats', null)).toBe(0);
+    expect(used('', tgcSave())).toBe(0);
+  });
+
+  it('boundMissionId: the start\'s mission wins ("" none); absent: ?mission=; flags.missions off: none', () => {
+    setFlags(true);
+    flags.mission = 'twoKeyLedger';
+    expect(boundMissionId({ sectorMission: 'threeGreyCoats' })).toBe('threeGreyCoats');
+    expect(boundMissionId({ sectorMission: '' })).toBeNull();
+    expect(boundMissionId({})).toBe('twoKeyLedger');
+    flags.missions = false;
+    expect(boundMissionId({ sectorMission: 'threeGreyCoats' })).toBeNull();
+  });
+});
+
+describe('CM3: spawns at the section (spawnPlace)', () => {
+  const page = (sectorStart: number | undefined) =>
+    ({
+      opts: { mode: 'sector', sectorStart },
+      world: { map: { sectors: WHARF_SECTORS, missions: WHARF_MISSIONS }, layout: { playerSpawns: [] } },
+    }) as unknown as GameState;
+  const xs = (pts: readonly { x: number }[] | null): number[] | null => pts?.map((p) => p.x) ?? null;
+  const start = (id: string): number[] => {
+    const s = WHARF_SECTORS[W(id)]!;
+    return s.start2 ? [s.start.x, s.start2.x] : [s.start.x];
+  };
+
+  it("a mission at a later section: that section's start; plain Sector Ops: the connector checkpoint before it", () => {
+    expect(xs(sectorResumePoints(WHARF_SECTORS, WHARF_MISSIONS, 'threeGreyCoats', 3))).toEqual(start('W3'));
+    const c = WHARF_SECTORS[W('W2')]!.connector!;
+    expect(xs(sectorResumePoints(WHARF_SECTORS, WHARF_MISSIONS, null, 3))).toEqual(c.checkpoint2 ? [c.checkpoint.x, c.checkpoint2.x] : [c.checkpoint.x]);
+    expect(sectorResumePoints(WHARF_SECTORS, WHARF_MISSIONS, 'threeGreyCoats', 1)).toBeNull();
+    expect(sectorResumePoints(WHARF_SECTORS, WHARF_MISSIONS, 'threeGreyCoats', 9)).toBeNull();
+    expect(sectorResumePoints([{ id: 'A' }, { id: 'B' }] as unknown as SectorDef[], undefined, null, 2)).toBeNull();
+  });
+
+  it("startSlotPoints follows the start's section with the flag on (host and client alike); off: the mission's start", () => {
+    setFlags(true);
+    expect(xs(startSlotPoints(page(3), undefined, 'threeGreyCoats'))).toEqual(start('W3'));
+    expect(xs(startSlotPoints(page(1), undefined, 'twoKeyLedger'))).toEqual(start('W2'));
+    expect(xs(startSlotPoints(page(undefined), undefined, 'threeGreyCoats'))).toEqual(start('W1'));
+    setFlags(false, true);
+    expect(xs(startSlotPoints(page(3), undefined, 'threeGreyCoats'))).toEqual(start('W1'));
+  });
+});
+
+describe('CM3: rejoin (A11)', () => {
+  it('SectorMode.resumeBay: the current section with flags.campaign; off: 1 (plain Sector Ops unchanged)', () => {
+    const resumeBay = (SectorMode.prototype as unknown as { resumeBay(this: unknown): number }).resumeBay;
+    const self = { run: { index: 2 } };
+    setFlags(true);
+    expect(resumeBay.call(self)).toBe(3);
+    setFlags(false);
+    expect(resumeBay.call(self)).toBe(1);
+  });
+
+  it('RejoinRecord keeps sm through tab storage; junk sm is dropped; absent as before', () => {
+    const m = new Map<string, string>();
+    vi.stubGlobal('sessionStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
+    const rec: RejoinRecord = { code: 'ABCDE', role: 'host', at: Date.now(), mode: 'sector', map: 'tallowWharf', difficulty: 'normal', mission: '', weather: 'clear', bay: 3, sm: 'threeGreyCoats' };
+    saveRejoin(rec);
+    expect(loadRejoin()).toEqual(rec);
+    saveRejoin({ ...rec, sm: 'a b<' });
+    expect('sm' in loadRejoin()!).toBe(false);
+    const { sm: _sm, ...old } = rec;
+    saveRejoin(old);
+    expect(loadRejoin()).toEqual(old);
   });
 });

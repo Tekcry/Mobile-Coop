@@ -75,8 +75,12 @@ import {
 } from '../rating/sectionRating';
 import { packRated } from '../course/courseWire';
 import { RatingCard } from '../../ui/hud/ratingCard';
-import { applyMissionStart, bindSectorMission, type SectorMission } from '../mission/sectorMission';
+import { applyMissionResume, applyMissionStart, bindSectorMission, missionCarry, type MissionCarry, type SectorMission } from '../mission/sectorMission';
 import { CAMPAIGN, campaignGrant, campaignResponseKinds, isCampaignMission, missionSectionLine } from '../mission/campaign';
+import { campaignEntry, entryForRoom, type CampaignKey } from '../mission/campaignOrder';
+import { campaignHeadline, campaignRating, campaignResultRows, campaignResultView, optionalDone, type CampaignResultView, type CampaignTally } from '../mission/campaignRating';
+import { rulesKeptCount, wireDoneBits, type MissionWire } from '../mission/missionWire';
+import { clearCampaignSave, intelDone, recordFinish, writeCampaignSave } from '../../save/campaignRecord';
 import { MissionFeed, missionDoneLine, missionObjectiveLines, missionStepReads } from '../mission/missionFeed';
 
 /** (section-rating S2) The last rated section, as the rating card reads it (S4's `RatingView` shape). */
@@ -288,6 +292,27 @@ export class SectorMode implements GameMode {
 
   /** (mission-framework EN2) The `?mission=<id>` mission (host / solo); null: none, Sector Ops as before. */
   readonly mission: SectorMission | null;
+  /**
+   * (campaign-mode CM3, PLAN 3.4) A Continue's carried tally (host, `flags.campaign`): the kills, knock-outs, times
+   * spotted, bodies found and mission time before the save, which CM5's rating adds to this run's live counts (kills
+   * `g.stats.kills - g.stats.knockouts`, spotted `g.style.detections + camAlarms`, `t`). The alarms raised before it are
+   * already in `run.alarmsRaised`. Null: not a Continue.
+   */
+  readonly carried: MissionCarry | null;
+  /**
+   * (campaign-mode CM5) The campaign entry this run plays (`flags.campaign`, a bound mission that is a campaign entry on
+   * this map): its sections autosave, its end is rated (no Sector stars). Null: not a campaign mission.
+   */
+  readonly campaignKey: CampaignKey | null;
+  /** (CM5, PLAN risk 2) Op-wide team counts (every player's, read by the campaign rating): a section restart keeps them,
+   *  unlike `secStats` (`freshCounters`). */
+  private opKills = 0;
+  private opKnockouts = 0;
+  private opBodies = 0;
+  /** (CM5) A Continue's section number (1-based) for the results; 0: not a Continue. */
+  private readonly resumedAt: number;
+  /** (CM5) The campaign mission's rating once it ended (the last `ms` carries it as `pc`); -1 before (tests read it). */
+  campaignPct = -1;
   /** (mission-rules R6, HG7) The mission's current step on this machine's objective line (host / solo; the client has its own). */
   private readonly feed = new MissionFeed();
   /** (mission-rules R6 polish) The live section's `<section>-obj` flag (`setup`) and the download percent last written
@@ -324,7 +349,26 @@ export class SectorMode implements GameMode {
       },
     });
     this.mission = bindSectorMission(g, this, this.slotEnemy, (s) => this.objectiveDone(s), () => this.complete());
-    if (this.mission) applyMissionStart(this.run, this.mission.startIndex); // (mission-framework EN4, A23) a later start section
+    // (campaign-mode CM3, PLAN 3.4) a Continue (host, `flags.campaign`): the run resumes at the save's section with the
+    // earlier steps done, the breaks, the alarm stage and the alarms raised back; its other tallies are carried
+    const resume = flags.campaign ? g.opts.campaignResume : undefined;
+    this.carried = this.mission && resume && applyMissionResume(this.run, this.mission, resume) ? missionCarry(resume) : null;
+    if (this.mission && !this.carried) applyMissionStart(this.run, this.mission.startIndex); // (mission-framework EN4, A23) a later start section
+    this.resumedAt = this.carried ? this.run.index + 1 : 0;
+    this.campaignKey = flags.campaign && this.mission ? (entryForRoom('sector', g.world.map.id, this.mission.def.id)?.key ?? null) : null;
+  }
+
+  /** (campaign-mode CM3, A11) Plain Sector Ops (no mission) started at a later section by its co-op start (`sectorStart`,
+   *  "Resume hosting"), with `flags.campaign`: that section's run index (the start-at-section path), else 0. */
+  private resumeStartIndex(): number {
+    if (this.mission || !flags.campaign) return 0;
+    return sectorStartIndex(this.run.defs, this.g.opts.sectorStart ?? null);
+  }
+
+  /** (campaign-mode CM3, A11) "Resume hosting" restarts at the current section (1-based) with `flags.campaign`; flag
+   *  off: 1 (plain Sector Ops is live and restarts from section 1, as before). */
+  resumeBay(): number {
+    return flags.campaign ? this.run.index + 1 : 1;
   }
 
   /** (sector-fixes-r RT) The bolts' state (tests, e2e). */
@@ -359,6 +403,11 @@ export class SectorMode implements GameMode {
       },
     });
     g.ctDev = this.ct;
+    // (campaign-mode CM3) a Continue enters its section at the saved alarm stage: the devices too
+    if (this.carried) this.ct.alarm = this.run.alarm;
+    // (campaign-mode CM5, CM3 check note) the Continue is applied (the net layer read its revives at attach, before
+    // `start`): it leaves the options, so a later start from the same options is a fresh run, never the Continue again
+    if (g.opts.campaignResume) delete g.opts.campaignResume;
     // (the occlusion rays: static geometry only, so glass and fences never hide a guard; fix round: the static bodies the
     // camera sees through - a door leaf not shut, an unbroken breakable pane, a roof sheet - are stepped past. Render
     // only: gameplay rays keep G.STATIC whole; frzpol: a door that stops hiding the view or a pane that opens re-tests
@@ -380,6 +429,7 @@ export class SectorMode implements GameMode {
       }),
       g.events.on('bodyFound', () => {
         this.secStats.bodiesFound++;
+        this.opBodies++;
       }),
     );
     this.detSeen = g.style.detections;
@@ -393,7 +443,13 @@ export class SectorMode implements GameMode {
     this.findCrates();
     this.findStageDoors();
     // (campus-greybox A28) `?sectorStart=N`: the run begins at section N as its connectors leave it (practice)
-    this.startAt(sectorStartIndex(this.run.defs, flags.sectorStart));
+    this.startAt(sectorStartIndex(this.run.defs, flags.sectorStart) || this.resumeStartIndex());
+    // (campaign-mode CM3) a Continue: the codes the earlier sections gave are the team's again, held for the section
+    // before (a restart of this one keeps them)
+    if (this.carried && this.mission) {
+      for (const f of this.mission.heldCodes([])) this.codes.grantCode(f, this.run.index - 1);
+      this.keypadLabels();
+    }
     const s = this.run.current;
     if (s) {
       const cp = this.run.checkpoint;
@@ -853,6 +909,8 @@ export class SectorMode implements GameMode {
       }
     }
     this.mission?.begin(this.run.index);
+    // (campaign-mode CM5, A7) the section checkpoint is the campaign save (a restart's begin too: its tallies moved on)
+    this.autosave();
     // (mission-rules R2, G336 / A12) in a mission the banner names the mission's step here (none: the title only), never
     // the sector label of another mission's objective
     const sub = this.mission ? missionSectionLine(this.mission.runner, this.mission.viewer()) : s.objective.label;
@@ -1192,13 +1250,17 @@ export class SectorMode implements GameMode {
     }
     // (section-rating S2) the last section is rated at the extraction (nothing follows it to grant)
     this.rate(this.run.index, false);
+    // (campaign-mode CM5) a campaign mission is rated (its percent rides the last `ms` below), recorded and its save cleared
+    const camp = this.campaignEnd();
     // co-op: the last rating goes now (the sector sends stop once the op ends), ahead of the end message
     const ct = this.ct;
     if (ct && g.net?.sector) g.net.sector(ct.wire(), this.netExtra(ct));
     g.events.emit('operationComplete', {});
-    // M7: the op's star for this difficulty (and the best time), solo or the co-op host; never on a practice run (A28)
-    if (!this.practiceFrom) void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
-    g.hud.banner('SECTORS CLEAR', resultBadge(this.result()), 2600);
+    // M7: the op's star for this difficulty (and the best time), solo or the co-op host; never on a practice run (A28);
+    // (CM5, MF11) never for a campaign mission: its record is the campaign's
+    if (!this.practiceFrom && !camp) void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
+    if (camp) g.hud.banner('MISSION COMPLETE', campaignHeadline(camp), 2600);
+    else g.hud.banner('SECTORS CLEAR', resultBadge(this.result()), 2600);
     g.slowBeat(0.4, 0.5);
     g.letterbox(2.6);
     this.endT = 2.6;
@@ -1209,6 +1271,84 @@ export class SectorMode implements GameMode {
   result(): ReturnType<typeof sectorResult> {
     const g = this.g;
     return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, alarms: this.run.alarmsRaised, marks: this.run.marks, skipped: this.mission?.startIndex ?? 0 });
+  }
+
+  /**
+   * (campaign-mode CM5, PLAN 3.4 / risk 2) The campaign mission's op-wide tally: a Continue's carried counts plus this
+   * run's. Kills and knock-outs are the team's (every player's, from `onEnemyKilled`; G146 is the team's), alarms the
+   * run's `alarmsRaised` (a Continue seeded it: never added again), times spotted as the result line counts them
+   * (`detections + camAlarms`), bodies found every `bodyFound`, optional objectives from the runner's done bits. A
+   * section restart keeps all of them. Not hot (a section begin, the end).
+   */
+  campaignTally(doneBits: number): CampaignTally {
+    const c = this.carried;
+    return {
+      kills: (c?.kills ?? 0) + this.opKills,
+      knockouts: (c?.knockouts ?? 0) + this.opKnockouts,
+      alarms: this.run.alarmsRaised,
+      spotted: (c?.spotted ?? 0) + this.g.style.detections + this.camAlarms,
+      bodies: (c?.bodies ?? 0) + this.opBodies,
+      optional: this.mission ? optionalDone(this.mission.def.steps, doneBits).done : 0,
+    };
+  }
+
+  /**
+   * (campaign-mode CM5, PLAN 3.6) A campaign mission's end (host / solo, not a practice run; once): the rating from the
+   * op-wide tally (`campaignRating`), the results panel (`g.campaignResult`), the host's own record (`recordFinish`
+   * with the intel found) and the save cleared. `campaignPct` is set for the last `ms` (`pc`). Null, nothing done: not a
+   * campaign mission.
+   */
+  campaignEnd(): CampaignResultView | null {
+    const key = this.campaignKey;
+    const m = this.mission;
+    const e = key ? campaignEntry(key) : null;
+    if (!m || !e || this.practiceFrom || this.campaignPct >= 0) return null;
+    const w = m.wire();
+    const done = wireDoneBits(w);
+    const tally = this.campaignTally(done);
+    const r = campaignRating(tally);
+    this.campaignPct = r.pct;
+    const rows = campaignResultRows({ tally, optional: optionalDone(m.def.steps, done), rules: { kept: rulesKeptCount(w), total: m.def.rules.length } });
+    const view = campaignResultView(e.title, r, rows, this.resumedAt || undefined);
+    this.g.campaignResult = view;
+    void recordFinish(e.key, r.pct, intelDone(m.def.steps, done));
+    void clearCampaignSave();
+    return view;
+  }
+
+  /** (CM5) Mission time so far (s): a Continue's carried time plus this run's. */
+  private campaignTime(): number {
+    return (this.carried?.time ?? 0) + this.t;
+  }
+
+  /**
+   * (campaign-mode CM5, A7) The host's `campaign:save` at a section's begin: the entry, the difficulty, the section (run
+   * index), the runner's done and fact bits, revives used, rule breaks, the alarm stage carried into the section and the
+   * op-wide tally. A campaign mission only, never on a practice run; the co-op client runs no mode (never saves).
+   */
+  private autosave(): void {
+    const key = this.campaignKey;
+    const m = this.mission;
+    const e = key ? campaignEntry(key) : null;
+    if (!m || !e || e.mission === undefined || this.practiceFrom) return;
+    const g = this.g;
+    const w = m.wire();
+    void writeCampaignSave({
+      v: 1,
+      key: e.key,
+      map: e.map,
+      mission: e.mission,
+      difficulty: g.opts.difficulty ?? 'normal',
+      section: this.run.index,
+      st: w.st,
+      f: w.f,
+      revivesUsed: g.net?.revivesUsed?.() ?? 0,
+      breaks: m.tracker.breaks,
+      alarm: this.run.alarm,
+      tally: this.campaignTally(wireDoneBits(w)),
+      time: this.campaignTime(),
+      at: Date.now(),
+    });
   }
 
   /**
@@ -1553,9 +1693,11 @@ export class SectorMode implements GameMode {
     st.bodiesMade++;
     if (!e.ko) {
       st.kills++;
+      this.opKills++;
       return;
     }
     st.knockouts++;
+    this.opKnockouts++;
     const p = h.attackerId === 'local' || h.attackerId === '' ? 0 : 1;
     if (this.syncDet.onTakedown(p, this.t)) st.synced = this.syncDet.synced;
   }
@@ -1582,7 +1724,14 @@ export class SectorMode implements GameMode {
     const lk: number[] = [];
     for (const d of this.g.world.doors.list) if (d.anchor.locked) lk.push(d.index);
     const rh = this.rt.sec >= 0 ? packRated(this.run.marks, this.ratedSynced) : undefined;
-    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}), ...(this.mission ? { ms: this.mission.wire() } : {}), ...(this.scene && this.scene.t0 >= 0 ? { ep: this.scene.t0 } : {}) };
+    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}), ...(this.mission ? { ms: this.missionWire(this.mission) } : {}), ...(this.scene && this.scene.t0 >= 0 ? { ep: this.scene.t0 } : {}) };
+  }
+
+  /** The wire's `ms` (allocates, as before); (campaign-mode CM5) the campaign percent once the mission ended (`pc`). */
+  private missionWire(m: SectorMission): MissionWire {
+    const w = m.wire();
+    if (this.campaignPct >= 0) w.pc = this.campaignPct;
+    return w;
   }
 
   /** (mission-framework EN2) Co-op host: a client's gadget took effect (a mission's no-gadgets rule, by its slot). */

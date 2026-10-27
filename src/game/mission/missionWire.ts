@@ -7,6 +7,7 @@
 import { MISSION } from './missionDef';
 import type { MissionRunner } from './missionRunner';
 import { SCOPE_A, SCOPE_B, SCOPE_MISSION, type RuleTracker } from './ruleTracker';
+import { parsePct } from './campaignRating';
 
 export interface MissionWire {
   /** MissionDef id. */
@@ -21,6 +22,9 @@ export interface MissionWire {
   rl: string;
   /** Rules never broken, bits by rule index, per scope: [mission, a, b]. */
   rk: number[];
+  /** (campaign-mode CM5) A campaign mission's rating, 0-100, set once in the last `ms` at the end (the client records
+   *  its own progress from it). Absent: none (every other send, and every older host). */
+  pc?: number;
 }
 
 /** Wire limits (`parseMissionWire` clamps / rejects past them). */
@@ -81,7 +85,11 @@ export function parseMissionWire(raw: unknown): MissionWire | null {
   if (!st || f === null || !rk) return null;
   if (typeof o.rb !== 'number' || !Number.isInteger(o.rb) || o.rb < 0) return null;
   if (typeof o.rl !== 'string') return null;
-  return { id: o.id, st, f, rb: Math.min(o.rb, MISSION_WIRE.rbMax), rl: o.rl.slice(0, MISSION_WIRE.lineMax), rk };
+  const w: MissionWire = { id: o.id, st, f, rb: Math.min(o.rb, MISSION_WIRE.rbMax), rl: o.rl.slice(0, MISSION_WIRE.lineMax), rk };
+  // (campaign-mode CM5) a percent that is not a whole 0-100 is dropped, the rest of the wire kept
+  const pc = parsePct(o.pc);
+  if (pc !== null) w.pc = pc;
+  return w;
 }
 
 /** Every done bit of a wire (its teams' bits together). */
@@ -110,4 +118,14 @@ export function applyMissionWire(runner: MissionRunner, w: MissionWire): boolean
 /** Was rule `i` kept in `scope` (SCOPE_MISSION / SCOPE_A / SCOPE_B) per the wire? (The rating card's `rules` row.) */
 export function wireKept(w: MissionWire, scope: number, i: number): boolean {
   return (((w.rk[scope] ?? 0) >>> i) & 1) === 1;
+}
+
+/** (campaign-mode CM5) How many of the mission's rules were never broken, from the wire's `rk` (each rule's bit sits in
+ *  its own scope's word, so the words OR together). */
+export function rulesKeptCount(w: Pick<MissionWire, 'rk'>): number {
+  let b = 0;
+  for (let i = 0; i < w.rk.length; i++) b |= w.rk[i]!;
+  let n = 0;
+  for (; b; b &= b - 1) n++;
+  return n;
 }

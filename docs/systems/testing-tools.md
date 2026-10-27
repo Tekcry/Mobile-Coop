@@ -273,7 +273,7 @@ behind a VPN adapter).
   P6) the host's team takedown on that hostage, a dual takedown, a client
   reviving the host, the team wipe), validated hits, revive, results; Infiltration objectives on the client; the host's
   fixed difficulty level read-only on the client and running on both; a client using the host's wall medkit station;
-  host leaving, offline (known flaky)
+  host leaving, offline (known flaky). Parts: `e2e-coop:1` (the above), `e2e-coop:campaign` (`scripts/e2e-coop-campaign.mjs`: campaign lobby to a 100% end, Continue, both profiles' records)
 - `e2e-netmove` two pages, Free Roam on Proving: the client on a ladder, drainpipe, pipe, ledge, duct (hands / feet /
   head within 10 cm on the host), zipline and a roll mirrored; CT moves (split, wall jump, pipe legs up / inverted,
   rappel + rope, fence); team moves (the client braces and boosts the host onto the 4.2 m lip, the human ladder, a

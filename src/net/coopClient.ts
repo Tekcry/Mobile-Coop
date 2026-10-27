@@ -21,7 +21,7 @@ import type { NetSession } from './session';
 import { animSourceWire, BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, USE_ONLY_GADGETS, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
 import { ANIM_SOURCE, wireAnimSource } from '../anim/animSource'; // (mixamo-retarget Source wire)
 import { kitAttemptKey } from './kitNet';
-import { MissionMirror } from './missionMirror';
+import { MissionMirror, campaignFinishFromWire } from './missionMirror';
 import type { TeamId } from '../game/mission/missionDef';
 import type { MissionRunner } from '../game/mission/missionRunner';
 import { MissionFeed, missionObjectiveLines, missionViewerTeam, stepWithPercent } from '../game/mission/missionFeed';
@@ -56,6 +56,10 @@ import { localMoveState } from '../game/localMoveState';
 import { dropBadOpticMove, dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
 import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
+import { intelDone, recordFinish } from '../save/campaignRecord';
+import { flags } from '../core/flags';
+import type { MissionWire } from '../game/mission/missionWire';
+import { PROLOGUE_PCT, entryForRoom, prologueFinish } from '../game/mission/campaignOrder';
 import { HoldPulseWatch } from './holdPulse';
 import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan, type SectorRatingWire } from '../game/sectors';
 import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
@@ -191,6 +195,8 @@ export class CoopClient implements NetAttachment {
   };
   /** (integration) A sector message has arrived since this client connected (the first one's rating is history). */
   private sawSector = false;
+  /** (campaign-mode CM5) This page recorded the campaign mission's end (from the host's `pc`). */
+  private campaignDone = false;
   /** (campus-greybox A28) The host's run never rated section 1 (its `?sectorStart` link): practice, no star. */
   private practice = false;
   /** (integration) Sector Ops: the section rating card on our HUD (null elsewhere). */
@@ -1094,6 +1100,8 @@ export class CoopClient implements NetAttachment {
       const ls = msg.ls ?? ct?.liveSection ?? -1;
       const line = this.mission.take(this.g.world.map.missions, msg.ms, this.g.world.map.sectors?.[ls]?.id);
       if (line) this.g.hud.feedItem(line);
+      // (campaign-mode CM5) the host's campaign percent at the end: our own record and our results panel, once
+      if (msg.ms.pc !== undefined && !this.campaignDone) this.campaignFinish(msg.ms);
       const mr = this.mission.runner;
       if (mr) {
         this.viewerStale = true;
@@ -1202,6 +1210,19 @@ export class CoopClient implements NetAttachment {
     if (rt.sec < defs.length - 1) this.onRating?.(c, name);
   }
 
+  /**
+   * (campaign-mode CM5, bible 5.8) A campaign mission ended on the host (`ms.pc`): this player's own `campaign:progress`
+   * records it with the host's percent and the intel found, and our results show the panel. Flag off, or not a
+   * campaign entry: nothing.
+   */
+  private campaignFinish(w: MissionWire): void {
+    const f = campaignFinishFromWire(flags.campaign, this.g.world.map.id, w, this.mission.runner?.def ?? null);
+    if (!f) return;
+    this.campaignDone = true;
+    this.g.campaignResult = f.view;
+    void recordFinish(f.key, f.pct, intelDone(f.steps, f.doneBits));
+  }
+
   private onEndMsg(raw: EndStats): void {
     this.ended = true;
     // (piano-escape S4) a scene: no results screen; our page fades with the host's (2 s, the piano with it), then the
@@ -1212,10 +1233,14 @@ export class CoopClient implements NetAttachment {
     }
     const end = clampEnd(raw, this.time);
     // (sector-ops step 3, M7) a completed op fills this player's star too (no best time: the host keeps the clock)
-    if (this.g.opts.mode === 'sector' && end.won && !this.practice) void markCompleted(this.g.world.map.id, this.g.opts.difficulty ?? 'normal', 0);
+    // (campaign-mode CM5, MF11) never for a campaign mission: its record is the campaign's (`campaignFinish`)
+    const campaign = this.campaignDone || (flags.campaign && entryForRoom('sector', this.g.world.map.id, this.s.sectorMission) !== null);
+    if (this.g.opts.mode === 'sector' && end.won && !this.practice && !campaign) void markCompleted(this.g.world.map.id, this.g.opts.difficulty ?? 'normal', 0);
     Object.assign(this.g.stats, coopSessionStats(this.g.stats, end, this.s.selfId));
     if (this.practice) this.g.stats.practice = true;
     if (this.inCourse) this.g.stats.course = clientCourseSummary(this.g) ?? undefined;
+    // (campaign-mode CM5, A6) the campaign's prologue finished: this player's own record too, no percent
+    if (this.inCourse && end.won && prologueFinish(flags.campaign, true, this.g.world.map.id)) void recordFinish('prologue', PROLOGUE_PCT, 0);
     this.g.endSession(end.won, end.subtitle);
   }
 
