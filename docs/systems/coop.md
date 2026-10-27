@@ -213,7 +213,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   revive show the same on both screens. A local spend is not undone while the flag is still set.
     - Tests: `tests/guardLook.test.ts` (round trip of every seed with every other bit, parser clamp, restart, team
       distinctness, a peer at `PROTOCOL_VERSION - 1` refused); `e2e-coop` (seed equal on both screens, same seed after a
-      course bay restart, helmet bit drop on both; the visible-piece asserts with `E2E_GUARDMODELS=1`).
+      course bay restart, helmet bit drop on both; the visible-piece asserts unless `E2E_GUARDMODELS=0`).
   - `bark` event: `{ id, b, n, u, r, t? }`. The host wraps `EnemyManager.onBark` / `onCameraLine`
     (`CoopHost.hookCombat`): a table line goes as `b` = its `BARK_EVENTS` index, `n` = `BarkVoice.lastLine`, `u` = the
     unit it names; a talking pair's line as `BARK_TEXT` 255 and the desk's camera line as `BARK_CAM` 254 with the text
@@ -402,10 +402,14 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   | --- | --- | --- | --- | --- | --- | --- | --- |
   | Deadweight (K1) | `deadweight` | 64 | chainGrab, chainHang, chainDrop | grateUnder | ledge hang / crouched walk | host tick (pass under the grate) | 9 `a4-deadweight` |
   | Drop Catch (K2) | `dropCatch` | 128 | catchOffer, catchTake | dropInto | brace / drop | b (catcher) | 16 `a6-dropcatch` |
-  | Chimney Pair (K3) | `chimneyPair` | 256 | chimneyOffer, chimneyBrace, chimneyClimb, chimneyTop | chimneyJoin, chimneyPush, chimneyRise, chimneyOut | brace / climb | a | 11 `a5-chimney` |
+  | Chimney Pair (K3) | `chimneyPair` | 256 | chimneyOffer, chimneyBrace, chimneyClimb, chimneyTop | chimneyJoin, chimneyPush, chimneyRise, chimneyOut | ladder climb / climb | a (when both are out) | 11 `a5-chimney` |
   | Swing Pass (K4) | `swingPass` | 512 | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
   | Plank Bridge (K5a, K5b) | `plankBridge` | 1024 | plankOffer, plankLift, plankCarry, plankDrop, plankLay | plankJoin, plankLiftA, plankCarryA, plankDropA, plankLayA | brace / walk | host tick (a crossing) | 5 `a2-plank` |
   | (K5a built, `game/kit/plankBridge.ts`, `world/plankBridge.ts` `PlankBoards`) | `s` -(spot index + 1) offering, spot index + 1 lifting / carrying, 0 putting down | | offer, lift, carry, put down (lay K5b) | lift, carry, put down (`plankJoin` unused: free until the start) | board drawn between the two bodies' hand points on every page (no board pose on the wire) | ends: 'drop' only; restart: `checkpointRestart` -> every board back on its stack | no station change (lay K5b) |
+
+  Chimney Pair (K3): marked spots only (no free shaft until the walk); wire `s` is -width while offering, the height
+  over the start floor while climbing (each page caps its own climb 0.15 m either side of the partner's), `h` while
+  topping out. With the id on, a spot's shaft is no solo split jump (`splitJump.ts` `setNoSplit`).
 - Partners block each other (training D49, A49, G52: every co-op mode): each page gives each partner a
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the

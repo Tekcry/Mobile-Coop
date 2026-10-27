@@ -1,0 +1,21 @@
+ERROR: link w2-pawn-loft -> w2-reading-room (team_throw): gap 4.9 m above the 2.7 m throw (kit.throwDist 3.2 less the 0.5 m landing margin)
+ERROR: link w2-arcade-roof -> w3-roof (team_throw): gap 4.9 m above the 2.7 m throw (kit.throwDist 3.2 less the 0.5 m landing margin)
+WARN:  w1-canal-steps: room_class custom (justify the size in the design doc)
+WARN:  w2-arcade-roof: room_class custom (justify the size in the design doc)
+WARN:  w3-roof: room_class custom (justify the size in the design doc)
+WARN:  w3-chute: size 1.2 is off the 0.5 m grid
+WARN:  w3-chute: room_class custom (justify the size in the design doc)
+WARN:  w4-boat: room_class custom (justify the size in the design doc)
+WARN:  link w2-pawn-loft -> w2-reading-room (door): length 12.4 is off the 0.5 m grid
+WARN:  link w2-lane-window -> w2-clock-loft (door): length 9.8 is off the 0.5 m grid
+INFO:  w1-market: pending V6 (no measured values)
+INFO:  w1-fish-hall: pending V6 (no measured values)
+INFO:  w2-arcade: pending V6 (no measured values)
+INFO:  w2-reading-room: pending V6 (no measured values)
+INFO:  w3-east-yard: pending V6 (no measured values)
+INFO:  w3-east-wing: pending V6 (no measured values)
+INFO:  w3-west-wing: pending V6 (no measured values)
+INFO:  w4-shed-three: pending V6 (no measured values)
+INFO:  w4-shed-yard: pending V6 (no measured values)
+
+2 error(s), 8 warning(s).

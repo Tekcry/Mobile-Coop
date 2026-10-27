@@ -12,7 +12,7 @@
  * and the objective lines. The built A6 is `tests/ctcourse/a6PumpHouse.test.ts` (its `GREY` proves the flag-off build
  * unchanged).
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { hyp2, hyp3 } from '../../../src/core/mathx';
 import { effectiveReach, hearTier, wallMatters, WALL_FACTOR, ambientDb, type HearTier } from '../../../src/ai/hearing';
 import { LANDING, landingKind, landingNoise } from '../../../src/player/movement';
@@ -27,7 +27,7 @@ import { LevelBuilder, type BoxPiece } from '../../../src/world/levelBuilder';
 import { MARLOW_CIRCUITS_REPLAN } from '../../../src/world/lighting/marlowCircuits';
 import { buildCtcourse } from '../../../src/world/maps/ctcourse';
 import { INTERACT_DY, INTERACT_REACH } from '../../../src/world/maps/ctcourseGreybox';
-import { A6_ATTENDANT, A6_CAGE, A6_CAGE_DOOR, A6_DEAD_FITTINGS, A6_DECK, A6_EXIT, A6_GALLERY_LIP, A6_LIP_X, A6_MARK, A6_OUTFALL_DOOR, A6_PANEL, A6_SHELL, A6_SUMP } from '../../../src/world/maps/ctcourseSets/a6PumpHouse';
+import { A6_ATTENDANT, A6_CAGE, A6_CAGE_DOOR, A6_DEAD_FITTINGS, A6_DECK, A6_EXIT, A6_GALLERY_LIP, A6_HANG, A6_LIP_X, A6_MARK, A6_OUTFALL_DOOR, A6_PANEL, A6_SHELL, A6_SUMP } from '../../../src/world/maps/ctcourseSets/a6PumpHouse';
 import {
   A6_ATTENDANT_FACES_REPLAN,
   A6_ATTENDANT_ROUTE_REPLAN,
@@ -51,7 +51,14 @@ import {
   A6_PUMP_HOUSE_STATIONS,
   A6_RETRY_LINES,
   FLOOR_HOLES,
+  A6_DROP_CATCH,
+  A6_PIT_Y,
+  A6_PIT_LADDER_AT,
+  A6_DROP_KIT_OBJECTIVE,
+  A6_DROPCATCH_KIT_RETRY,
 } from '../../../src/world/maps/ctcourseSets/replan/a6PumpHouse';
+import { kitSpotsOf } from '../../../src/game/kit/kitApi';
+import { flags } from '../../../src/core/flags';
 import { checkSetPart, inBox, SET_GUARDS_MAX } from '../../../src/world/maps/ctcourseSets/types';
 import { downCast, runtimeNav } from '../../helpers/runtimeNav';
 
@@ -315,22 +322,24 @@ describe('Marlow re-plan A6: the guard and the stations (STATIONS sections 3, 6,
         expect(t.toLowerCase()).not.toContain('fail');
       }
     }
-    expect(part.objectives[3]!.text).toMatch(/outfall culvert/);
+    // (marlow-play C8) station 14's B line: the leg-up first, then the rope offered standing at the open edge (never "brace":
+    // crouched it is a hang-down offer)
+    expect(part.objectives[0]!.b).toBe('Take the leg-up, then press Co-op standing at the open edge.');
+    expect(part.objectives[0]!.b!.toLowerCase()).not.toMatch(/brace|crouch/);
+    expect(part.objectives[3]!.text).toMatch(/culvert/);
     expect(part.objectives[3]!.text).toMatch(/holding room six/);
-    // (fix 1) until `dropCatch` ships station 16's way down is the stand-in ladder: the drop step's lines name it through the
-    // bridge opening into the drive pit (both go down it), never a catch; the retry line sends them to it too
+    // (fix 1) until `dropCatch` ships station 16's way down is the stand-in ladder: the drop step's lines name it into the
+    // drive pit (both go down it), never a catch
     const drop = part.objectives[2]!;
     expect(drop.id).toBe('a6-drop');
     for (const t of [drop.text, drop.a!, drop.b!]) {
       expect(t, t).toMatch(/cage ladder/);
-      expect(t, t).toMatch(/bridge opening/);
-      expect(t, t).toMatch(/drive pit/);
       expect(t.toLowerCase(), t).not.toMatch(/catch|drop/);
       expect(/[–—]/.test(t), t).toBe(false);
     }
     expect(drop.text).toMatch(/^Both of you/);
     const dropRetry = A6_RETRY_LINES.find((r) => r.id === 'a6-dropcatch')!.text;
-    expect(dropRetry).toMatch(/cage ladder/);
+    expect(drop.a).toMatch(/drive pit/);
     expect(dropRetry.toLowerCase()).not.toContain('catch');
   });
 });
@@ -640,5 +649,44 @@ describe('Marlow re-plan A6: circuit 69 (Q2) and the sump switch', () => {
     // a body on the floor in front of it (the L5 door is at x 52.1-53.9: the entry)
     expect(blockedAt(sw.pos.x, A6_SHELL.south + 0.4)).toEqual([]);
     expect(hyp2(sw.pos.x - sw.pos.x, sw.pos.z - (A6_SHELL.south + 0.4))).toBeLessThan(DEVICE_REACH);
+  });
+});
+
+describe('station 16 kit spot (marlow-kit-wire)', () => {
+  const saved = flags.kitMoves;
+  afterEach(() => {
+    flags.kitMoves = saved;
+  });
+
+  it('one dropCatch spot, a6-dropcatch, in the drop opening at the deck (from A6_DROP_CATCH), placed with the id off', () => {
+    expect(flags.kitMoves.has('dropCatch')).toBe(false);
+    const spots = kitSpotsOf(b, 'dropCatch');
+    expect(spots.length).toBe(1);
+    expect(spots[0]).toEqual({ id: 'a6-dropcatch', kind: 'dropCatch', x: A6_DROP_CATCH.x, y: A6_HANG.deck, z: A6_DROP_CATCH.z, yaw: Math.PI / 2 });
+    expect(def.bays[5]!.stations!.find((s) => s.kit === 'dropCatch')!.id).toBe('a6-dropcatch');
+  });
+
+  it('the PLAN band: the drop 2.5-6.5 m; the point 0.3 m clear of the opening\'s edges and of the stand-in ladder\'s rails', () => {
+    const s = kitSpotsOf(b, 'dropCatch')[0]!;
+    const h = s.y - A6_PIT_Y;
+    expect(h).toBeGreaterThanOrEqual(2.5);
+    expect(h).toBeLessThanOrEqual(6.5);
+    const [x0, z0, x1, z1] = A6_DROP;
+    for (const d of [s.x - x0, x1 - s.x, s.z - z0, z1 - s.z]) expect(d).toBeGreaterThanOrEqual(0.3);
+    // the ladder's rails stand 0.06 m off its line toward -z, 0.05 m thick
+    expect(A6_PIT_LADDER_AT.z - 0.06 - 0.025 - s.z).toBeGreaterThanOrEqual(0.3);
+  });
+
+  it('kit on: station 16 is the drop and the catch (objective, a / b lines, retry line); off: the cage ladder lines', () => {
+    flags.kitMoves = new Set(['dropCatch']);
+    const on = buildCtcourse(new LevelBuilder(), { replan: true }).layout.course!.def;
+    const o = on.objectives!.find((q) => q.id === 'a6-drop')!;
+    expect({ text: o.text, a: o.a, b: o.b }).toEqual({ ...A6_DROP_KIT_OBJECTIVE });
+    expect(on.bays[5]!.radio.find((r) => r.at === retryKey('a6-dropcatch'))!.text).toBe(A6_DROPCATCH_KIT_RETRY);
+    for (const t of [A6_DROPCATCH_KIT_RETRY, ...Object.values(A6_DROP_KIT_OBJECTIVE)]) expect(t.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+    flags.kitMoves = new Set();
+    const off = buildCtcourse(new LevelBuilder(), { replan: true }).layout.course!.def;
+    expect(off.objectives!.find((q) => q.id === 'a6-drop')!.text).toBe('Both of you down the cage ladder');
+    expect(off.bays[5]!.radio.find((r) => r.at === retryKey('a6-dropcatch'))!.text).toBe('The attendant heard the landing. Back to the bridge.');
   });
 });

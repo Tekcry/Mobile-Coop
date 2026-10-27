@@ -403,3 +403,68 @@ describe('S3 the active plan never aliases the scan scratch', () => {
     expect(act.plan.approach).toBe(TD.GRAB.approach);
   });
 });
+
+// (piano-knife S1) a knife kill's steps allocate nothing: the approach and the grab (the guard pulled to the row's spot),
+// the move (both clips, the buckle) and the tail after `limp`, each held at its phase while it is measured
+describe('piano-knife S1: a knife run allocates nothing per step', () => {
+  it('approach, move and tail', async () => {
+    const { loadKnifeClips, knifeClipsReady, KNIFE_KILLS } = await import('../src/game/knifeKill');
+    await loadKnifeClips();
+    expect(knifeClipsReady()).toBe(true);
+    // the victim's knife half a class method, as `Enemy.knifeVictim` (it keeps what it is given, as his drive does)
+    class KV {
+      n = 0.5;
+      knifeVictim(_c: unknown, p: number, b: number): void {
+        this.n = p + b;
+      }
+    }
+    const v = Object.assign(new KV(), facing('k0', 0, 0.8, false, 'grunt')) as unknown as Victim;
+    const s = stage([v]);
+    const gm = s.g as unknown as { weapons: unknown; player: { rig: Record<string, unknown> } };
+    gm.weapons = { drawPhase: 0, knife: { show: () => undefined } };
+    gm.player.rig.graph = { kill: null };
+    s.td.fixedUpdate(DT, false, false);
+    expect(s.td.offer?.plan.kind).toBe('behind');
+    s.td.setKnifeScene(true);
+    s.td.start();
+    expect(s.td.kr).toBe(0);
+    const td = s.td;
+    const act = td.active!;
+    const R = KNIFE_KILLS[0]!;
+    const priv = td as unknown as { kt: number };
+    const at = (t: number, kt: number): ((n: number) => void) => (n) => {
+      for (let k = 0; k < n; k++) {
+        act.t = t;
+        priv.kt = kt;
+        td.fixedUpdate(DT, false, false);
+      }
+    };
+    const perAp = await bytesPerCall(at(act.plan.approach * 0.8, 0), HEAP_NUMBER);
+    const perMove = await bytesPerCall(at(act.plan.approach + 0.3, R.contact * R.seconds + 0.05), HEAP_NUMBER);
+    // (piano-knife S2) the move samples the real clip through `sampleKeyed`, whose own cost (~32 B) is not this slice's:
+    // the move may cost what that call alone costs on the same clip, as killDrive.test.ts allows
+    const { sampleKeyed, newKeyedPose } = await import('../src/anim/keyed');
+    const { MOCAP_LAYERS } = await import('../src/anim/mocap');
+    const { knifeClip } = await import('../src/game/knifeKill');
+    const kc = knifeClip(0, false)!;
+    const kp = newKeyedPose();
+    const perSample = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) sampleKeyed(kc, (k % 97) / 97, 1, kp, MOCAP_LAYERS);
+    }, HEAP_NUMBER);
+    console.info(`(piano-knife S1) knife run: ${perAp.toFixed(1)} B per step in the grab, ${perMove.toFixed(1)} in the move (sampleKeyed alone ${perSample.toFixed(1)})`);
+    expect(perAp).toBeLessThanOrEqual(HEAP_NUMBER);
+    expect(perMove).toBeLessThanOrEqual(perSample + HEAP_NUMBER);
+    // run it to limp, then the tail held mid-way
+    for (let k = 0; k < 200 && td.active; k++) td.fixedUpdate(DT, false, false);
+    expect(td.active).toBeNull();
+    expect(td.kr).toBe(0);
+    const perTail = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) {
+        priv.kt = R.seconds * 0.9;
+        td.fixedUpdate(DT, false, false);
+      }
+    }, HEAP_NUMBER);
+    console.info(`(piano-knife S1) knife tail: ${perTail.toFixed(1)} B per step`);
+    expect(perTail).toBeLessThanOrEqual(HEAP_NUMBER);
+  }, 120_000);
+});

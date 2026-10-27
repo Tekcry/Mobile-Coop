@@ -26,10 +26,13 @@
 //     builds them (AUTO_TRAIN_UNLABELLED=0: labelled only). Plus feature/menu when it differs from master in docs only,
 //     riding along -> `merge-train build <n+1> <version> "<title>" ...`, paced: only once the last release is
 //     --min-interval min old (default 60) or the laptop queue is idle (no open laptop claim other than spare work; desktop
-//     claims and unclaimed requests never hold a train); held (state "holding") up to AUTO_TRAIN_CHECK_WAIT_MIN (3) min
-//     per head while a candidate's check still runs; the candidates are re-read right before the build, at build start
-//     and once more after its plan (AUTO_TRAIN_REREAD=0: the first re-read only). merge-train build exit 6 (nothing new
-//     to release) -> idle with `nothingNew` in the status, no build until a member head or master moves.
+//     claims and unclaimed requests never hold a train); held (state "holding") per head while a candidate's check
+//     still runs: F50, to its expected CI finish (its CI run's start + the median CI time of the open PRs' green
+//     checks, typicalCiMin, + AUTO_TRAIN_CHECK_WAIT_MARGIN_MIN 2), at most AUTO_TRAIN_CHECK_WAIT_CAP_MIN (20) min, else
+//     (start or median unknown) AUTO_TRAIN_CHECK_WAIT_MIN (3) min from first seen; the candidates are re-read right
+//     before the build, at build start and once more after its plan (AUTO_TRAIN_REREAD=0: the first re-read only).
+//     merge-train build exit 6 (nothing new to release) -> idle with `nothingNew` in the status, no
+//     build until a member head or master moves.
 // It calls scripts/merge-train.mjs (next to this file) only through its CLI, with cwd = the train worktree
 // (--worktree, default C:/NightShift/Mobile-Coop-train). It reads GitHub through gh / ls-remote (no fetch of its own),
 // never forces a push, never touches dev or master; every write (gh or merge-train) goes through act(), which only
@@ -272,14 +275,54 @@ export function ciLabel(rollup, name = 'check') {
 }
 const isOwnContext = (c) => String(c).startsWith(LAPTOP_CONTEXT) || String(c).startsWith('auto-train/') || c === 'checker';
 
+/** F50: the hard cap (min from first seen waiting) of a hold to a PR's expected CI finish (AUTO_TRAIN_CHECK_WAIT_CAP_MIN). */
+export const CHECK_WAIT_CAP_MIN = 20;
+/** F50: minutes added to the expected CI finish (AUTO_TRAIN_CHECK_WAIT_MARGIN_MIN). */
+export const CHECK_WAIT_MARGIN_MIN = 2;
+
+/**
+ * F50: when the head's current CI run started (ms) or null: the earliest startedAt of the check runs `name` and its
+ * siblings (CHECK_SIBLINGS, the jobs of the same workflow run) in a gh statusCheckRollup.
+ */
+export function ciRunStartedAt(rollup, name = 'check', siblings = CHECK_SIBLINGS) {
+  const names = new Set([name, ...siblings]);
+  const t = (rollup ?? []).filter((r) => r?.__typename !== 'StatusContext' && names.has(r?.name)).map((r) => Date.parse(r.startedAt ?? '')).filter((x) => x > 0);
+  return t.length ? Math.min(...t) : null;
+}
+
+/**
+ * F50: the typical CI time (min) from the open PR list already read (gh pr list ... statusCheckRollup): the median of
+ * completedAt of a successful `name` check run minus ciRunStartedAt, over heads where that is over 1 and at most 60 min.
+ * null under `minSamples` such heads (holdForChecks then holds the flat wait).
+ */
+export function typicalCiMin(prs, { name = 'check', minSamples = 3 } = {}) {
+  const d = [];
+  for (const p of prs ?? []) {
+    const roll = p?.statusCheckRollup ?? [];
+    const c = roll.find((r) => r?.__typename !== 'StatusContext' && r?.name === name && String(r.conclusion).toUpperCase() === 'SUCCESS');
+    const end = Date.parse(c?.completedAt ?? '');
+    const start = ciRunStartedAt(roll, name);
+    if (!(end > 0) || start == null) continue;
+    const min = (end - start) / 60_000;
+    if (min > 1 && min <= 60) d.push(min);
+  }
+  if (d.length < minSamples) return null;
+  d.sort((a, b) => a - b);
+  const m = d.length >> 1;
+  return d.length % 2 ? d[m] : (d[m - 1] + d[m]) / 2;
+}
+
 /**
  * Audit 2 item 1: hold the build while a train-ready PR's `check` is still running, so it rides this train.
- * `waiting` = [{ pr, branch, head, why }] (train-ready PRs whose check is not success, `why` = checkWaitReason, null
- * when not running); `firstSeen` = { [head]: ISO } from the last status (`checkWait`). Each head waits at most `waitMin`
- * from when it was first seen waiting. -> { hold, reason, waiting: [{ ...c, waitedMin, expired }], firstSeen } (the new
- * map: only heads still waiting, so a green or failed head drops out).
+ * `waiting` = [{ pr, branch, head, why, ciStartedAt? }] (train-ready PRs whose check is not success, `why` =
+ * checkWaitReason, null when not running; `ciStartedAt` = ciRunStartedAt ms); `firstSeen` = { [head]: ISO } from the
+ * last status (`checkWait`). F50 (train 131 gave up on #591 71 s before its CI finished): with `typicalMin`
+ * (typicalCiMin) and a head's `ciStartedAt`, the head waits until its expected CI finish (ciStartedAt + typicalMin +
+ * `marginMin`), at least `waitMin` and at most `capMin` from when it was first seen waiting; otherwise `waitMin` from
+ * first seen (the old flat wait). waitMin 0: no hold. -> { hold, reason, waiting: [{ ...c, waitedMin, expired, untilMs }],
+ * firstSeen } (the new map: only heads still waiting, so a green or failed head drops out).
  */
-export function holdForChecks(waiting, now, firstSeen = {}, waitMin = CHECK_WAIT_MIN) {
+export function holdForChecks(waiting, now, firstSeen = {}, waitMin = CHECK_WAIT_MIN, { typicalMin = null, marginMin = CHECK_WAIT_MARGIN_MIN, capMin = CHECK_WAIT_CAP_MIN } = {}) {
   const next = {};
   const list = [];
   for (const c of waiting ?? []) {
@@ -287,12 +330,17 @@ export function holdForChecks(waiting, now, firstSeen = {}, waitMin = CHECK_WAIT
     const t0 = Date.parse(firstSeen?.[c.head] ?? '') || now;
     next[c.head] = new Date(t0).toISOString();
     const waitedMin = Math.max(0, (now - t0) / 60_000);
-    list.push({ ...c, waitedMin, expired: waitedMin >= waitMin });
+    const flat = t0 + waitMin * 60_000;
+    const expected = typicalMin > 0 && c.ciStartedAt > 0 ? c.ciStartedAt + (typicalMin + marginMin) * 60_000 : null;
+    const untilMs = waitMin <= 0 ? t0 : expected == null ? flat : Math.min(Math.max(expected, flat), t0 + Math.max(capMin, waitMin) * 60_000);
+    list.push({ ...c, waitedMin, expired: now >= untilMs, untilMs, ...(expected != null ? { expectedAt: expected } : {}) });
   }
   const live = list.filter((c) => !c.expired);
+  const left = (c) => (c.expectedAt != null ? `, expected CI finish in ${Math.max(0, Math.ceil((c.untilMs - now) / 60_000))} min` : '');
+  const anyExp = list.some((c) => c.expectedAt != null);
   const reason = live.length
-    ? `holding the build up to ${waitMin} min for ${live.map((c) => `#${c.pr} (${c.why}, ${Math.floor(c.waitedMin * 60)} s)`).join(', ')}`
-    : list.length ? `not waiting longer for ${list.map((c) => `#${c.pr}`).join(', ')} (${waitMin} min passed)` : '';
+    ? `holding the build ${anyExp ? `to the expected CI finish (CI start + ${Math.round(typicalMin * 10) / 10} + ${marginMin} min, cap ${capMin} min; else ${waitMin} min)` : `up to ${waitMin} min`} for ${live.map((c) => `#${c.pr} (${c.why}, ${Math.floor(c.waitedMin * 60)} s${left(c)})`).join(', ')}`
+    : list.length ? `not waiting longer for ${list.map((c) => `#${c.pr}`).join(', ')} (${anyExp ? 'expected CI finish or cap passed' : `${waitMin} min passed`})` : '';
   return { hold: live.length > 0, reason, waiting: list, firstSeen: next };
 }
 
@@ -302,7 +350,7 @@ export function contextStatus(combined, context) {
     .sort((a, b) => (Date.parse(b.updated_at || b.created_at || '') || 0) - (Date.parse(a.updated_at || a.created_at || '') || 0));
   if (!list.length) return { state: 'missing', description: '' };
   const s = String(list[0].state).toLowerCase();
-  return { state: s === 'error' ? 'failure' : s, description: list[0].description ?? '' };
+  return { state: s === 'error' ? 'failure' : s, description: list[0].description ?? '', ...(s === 'error' ? { error: true } : {}) };
 }
 
 /**
@@ -466,7 +514,7 @@ export function headStatusAgrees(pr, combined, { requireAffected = true } = {}) 
   for (const ctx of [tr.CHECKER_CONTEXT, tr.AFFECTED_CONTEXT]) {
     const s = contextStatus(combined, ctx);
     if (s.state === 'missing') delete statuses[ctx];
-    else statuses[ctx] = { state: s.state, description: s.description };
+    else statuses[ctx] = { state: s.state, description: s.description, ...(s.error ? { error: true } : {}) };
   }
   return tr.trainReady({ ...pr, statuses }, { requireAffected }).ready;
 }
@@ -1055,6 +1103,8 @@ const envMin = (name, dflt) => { const v = Number(process.env[name]); return pro
 const LAPTOP_MISSING = envMin('AUTO_TRAIN_LAPTOP_MISSING_MIN', LAPTOP_MISSING_MIN);
 const RERUN_STALE = envMin('AUTO_TRAIN_RERUN_STALE_MIN', RERUN_STALE_MIN);
 const CHECK_WAIT = envMin('AUTO_TRAIN_CHECK_WAIT_MIN', CHECK_WAIT_MIN);
+const CHECK_WAIT_CAP = envMin('AUTO_TRAIN_CHECK_WAIT_CAP_MIN', CHECK_WAIT_CAP_MIN);
+const CHECK_WAIT_MARGIN = envMin('AUTO_TRAIN_CHECK_WAIT_MARGIN_MIN', CHECK_WAIT_MARGIN_MIN);
 const POLL_S = envMin('AUTO_TRAIN_FAST_POLL_S', FAST_POLL_S);
 const POLL_MAX_MIN = envMin('AUTO_TRAIN_FAST_POLL_MAX_MIN', FAST_POLL_MAX_MIN);
 const POLL_LATE_S = envMin('AUTO_TRAIN_FAST_POLL_LATE_S', FAST_POLL_LATE_S);
@@ -1305,14 +1355,17 @@ function candidates() {
   for (const h of s.held) log(`  #${h.pr} ${h.branch}: train-ready by rule on ${short(h.head)} but left out: ${h.why}`);
   for (const r of s.ruleReady) log(`  #${r.pr} ${r.branch}: train-ready by rule on ${short(r.head)} (no label)`);
   const out = s.cands;
-  const waiting = s.waiting;
+  // F50: each waiting head's CI start and the typical CI time from this same list (holdForChecks' expected finish)
+  const rollOf = new Map(prs.map((p) => [p.number, p.statusCheckRollup]));
+  const waiting = s.waiting.map((w) => ({ ...w, ciStartedAt: ciRunStartedAt(rollOf.get(w.pr)) }));
+  const typicalMin = typicalCiMin(prs);
   if (!out.some((c) => c.branch === MENU_BRANCH)) {
     const cmp = api(`repos/{owner}/{repo}/compare/master...${MENU_BRANCH}`, '{ahead: .ahead_by, files: [.files[].filename]}');
     const c = cmp && JSON.parse(cmp);
     if (c && c.ahead > 0 && c.files.length < 300 && docsOnly(c.files)) out.push({ pr: null, branch: MENU_BRANCH, head: undefined, title: null });
     else if (c && c.ahead > 0) log(`  ${MENU_BRANCH}: ${c.ahead} commit(s) ahead but not docs-only, left for the orchestrator`);
   }
-  return { cands: out, waiting };
+  return { cands: out, waiting, typicalMin };
 }
 
 /** Members with fragments read at their heads, stacked bases marked build:false; then the plan. */
@@ -1542,13 +1595,13 @@ async function noTrain(o, labelExists, { exclude = [], afterDrop = false } = {})
     const r = candidates();
     return { ...r, cands: r.cands.filter((c) => !exclude.includes(c.branch)), waiting: r.waiting.filter((c) => !exclude.includes(c.branch)) };
   };
-  const { cands, waiting } = pick();
+  const { cands, waiting, typicalMin } = pick();
   const queue = laptopQueue();
   const paceReason = afterDrop ? null : pacing({ now: Date.now(), releases: releaseTimes(), minIntervalMin: o.minInterval, maxPerDay: o.maxPerDay, queue });
   const d = decide({ train: null, candidates: cands, paceReason });
-  // audit 2 item 1: a train-ready PR whose check is still running holds the build up to CHECK_WAIT per head (first
-  // seen waiting: `checkWait` in the status, carried across ticks)
-  const h = holdForChecks(waiting, Date.now(), readStatus(FILES.realStatus)?.checkWait ?? {}, CHECK_WAIT);
+  // audit 2 item 1: a train-ready PR whose check is still running holds the build per head (first seen waiting:
+  // `checkWait` in the status, carried across ticks); F50: to its expected CI finish (capped), else CHECK_WAIT
+  const h = holdForChecks(waiting, Date.now(), readStatus(FILES.realStatus)?.checkWait ?? {}, CHECK_WAIT, { typicalMin, marginMin: CHECK_WAIT_MARGIN, capMin: CHECK_WAIT_CAP });
   const checkWait = Object.keys(h.firstSeen).length ? { checkWait: h.firstSeen } : {};
   if (d.action === 'build' && h.hold) {
     log(`decision: holding - ${h.reason}`);

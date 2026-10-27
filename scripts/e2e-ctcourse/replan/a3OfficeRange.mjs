@@ -68,13 +68,14 @@ export async function walk(t, n) {
       return JSON.stringify({ att: g.traversal.attached, kind: c.m?.anchor?.kind ?? null, phase: c.m?.phase ?? null, vent: c.vent ? +c.vent.progress.toFixed(2) : null, feet: [p.x, p.y, p.z].map((v) => +v.toFixed(2)), grate: d ? g.world.breakables?.isOpen(`grate:${d.id}:entry`) : 'no duct', t: +g.time.toFixed(2) });
     });
   /**
-   * Settle the aim on the camera itself (the corridor panel at x 96 is a jam target 0.6 m in front of the lens): aim from the game
-   * camera's eye a few thousandths of a radian under the lens, lower on each retry, until this page's pick is the camera.
+   * Settle the aim on the camera itself, straight at the lens, until this page's pick is the camera. (marlow-play C1) The corridor
+   * panel at x 96 sits 0.6 m in front of the lens inside the jammer's cone; a camera in the cone now wins over a light, so the
+   * old aim a few thousandths of a radian under the lens is gone (the pick must be the camera aimed dead on).
    */
   async function aimPick(P, what) {
     let pick = '';
     for (let k = 0; k < 10; k++) {
-      const under = 0.003 * (1 + Math.min(k, 4));
+      const under = 0;
       await P.evaluate(([x, y, z, under]) => {
         const c = window.__app.current.player.cam;
         const p = c.gamePos;
@@ -126,7 +127,7 @@ export async function walk(t, n) {
   await GA(() => { for (const r of window.__app.current.net.remotes.values()) { r.damageMul = 0; r.protectT = 0; } });
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stationLive(P, 6, `A3: station 6 is live on the ${tag} page`);
-    await sees(P, /Riser cupboard, west lobby/, `A3: the ${tag} reads station 6's step line`);
+    await sees(P, /Crawl the riser to the fire door/, `A3: the ${tag} reads station 6's step line`);
     assert(!!(await cam(P)), `A3: the ${tag} has the corridor camera ${CAM_ID}`);
   }
   assert((await GA(() => window.__app.current.enemyMgr.enemies.filter((e) => e.alive).length)) === 0, 'A3: no guard in the set (the cleaner is gone)');
@@ -196,7 +197,7 @@ export async function walk(t, n) {
   await moveClient(SEEN[0], SEEN[1], 0.1, Math.PI / 2);
   await until(A, (r) => window.__course.state.restarts > r && window.__course.state.lastRetry?.st === 7, r0, 90000, 'A3: the camera has the client: station 7 retries');
   assert((await GA(() => window.__course.state.lastRetry.cause)) === 'seen', 'A3: the retry\'s cause is seen');
-  await until(B, () => /Back to the corridor's west end; jam it again/.test(window.__course.wire.rl ?? ''), null, 30000, "A3: LANTERN's station 7 retry line reaches the client");
+  await until(B, () => /Back to the corridor's west end/.test(window.__course.wire.rl ?? ''), null, 30000, "A3: LANTERN's station 7 retry line reaches the client");
   const roleA = (await roleOf(0)) === 'a' ? 0 : 1;
   const want = roleA === 0 ? [ST7[0], ST7[1]] : [ST7[1], ST7[0]];
   await until(A, (w) => { const f = window.__course.state.feet; return Math.hypot(f[0] - w[0][0], f[2] - w[0][1]) < 0.6 && Math.hypot(f[3] - w[1][0], f[5] - w[1][1]) < 0.6; }, want, 20000, 'A3: the host sees both players on station 7\'s marks').catch(async (e) => {

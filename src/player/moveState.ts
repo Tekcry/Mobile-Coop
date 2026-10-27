@@ -76,6 +76,21 @@ export const KIT_A_BITS: readonly number[] = [64, 128, 256, 512, 1024];
 /** (pose-parity, protocol 36) `takedown` `sub` bit: the blow is running (`ph` its phase); clear = a choke or the lethal
  *  approach (the owner's `blowPh` -1: no arc). */
 export const TAKEDOWN_SUB_BLOW = 1;
+/** (piano-knife S3) takedown sub bit: a knife kill (the knife in hand); bits 4-16 its row (KNIFE_KILLS index, 7 =
+ *  KNIFE_ROW_NONE: the switch-on move without a row); ph the move's phase over knifeSpan, s the approach's progress. */
+export const TAKEDOWN_SUB_KNIFE = 2;
+export const KNIFE_ROW_NONE = 7;
+
+/** (piano-knife S3) A knife kill's `takedown` sub: the knife bit and the row (0-6 a `KNIFE_KILLS` index; anything else
+ *  `KNIFE_ROW_NONE`) in bits 4-16. */
+export function knifeSub(row: number): number {
+  return TAKEDOWN_SUB_KNIFE | ((row >= 0 && row < KNIFE_ROW_NONE ? row : KNIFE_ROW_NONE) << 2);
+}
+
+/** (piano-knife S3) The knife row of a `takedown` sub: -1 without the knife bit, else 0-7 (`KNIFE_ROW_NONE`: no row). */
+export function knifeRowOfSub(sub: number): number {
+  return (sub & TAKEDOWN_SUB_KNIFE) === 0 ? -1 : (sub >> 2) & 7;
+}
 
 export const isAttachedMode = (m: MoveMode): boolean => ATTACHED_MODES.includes(m);
 export const isCommittedMode = (m: MoveMode): boolean => COMMITTED_MODES.includes(m);
@@ -309,10 +324,13 @@ export interface MovePose {
   leftHand: boolean;
   /** (doorPeek parity) Still, the feet settle on the stance spots (`RigPose.settleFeet`): the door peek. */
   settle: boolean;
+  /** (piano-knife S4b) The piano intro pose (WALL_SUB.intro 32): both hands on the low-ready gun, the captured breath, the
+   *  slide locked back. */
+  intro: boolean;
 }
 
 export function emptyMovePose(): MovePose {
-  return { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false, leftHand: false, settle: false };
+  return { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false, leftHand: false, settle: false, intro: false };
 }
 
 /**
@@ -331,12 +349,15 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
   out.tumble = 0;
   out.drawn = mv.dw !== 0;
   out.settle = false;
+  out.intro = false;
   // (pose-parity) the left-shoulder aim off the wall is the player flag `PF.aimLeft` (every mode), read by the remote
   out.leftHand = false;
   switch (mv.m) {
     case 'wall':
       // (step 11) the flat-back stance, facing along the slide (WALL_SUB.faceRight = 2)
       out.wall = true;
+      // (piano-knife S4b) the piano intro pose (WALL_SUB.intro 32)
+      out.intro = (mv.sub & 32) !== 0;
       // (F4) at an edge the side is the open side (edgeL 4 = the body's left), as the owner's `wallFacing`
       out.wallSide = mv.sub & 4 ? -1 : mv.sub & 8 ? 1 : mv.sub & 2 ? 1 : -1;
       // (step 12, A3) at an edge: the head-first peek (WALL_SUB.peek 16); the edge at b (edgeL 4) is the body's left
@@ -346,8 +367,8 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
         // (G6) the owner's `rigLean` (WALL.peekLean, AUDIT-WALLS row 9)
         out.lean = side * WALL.peekLean * pe;
       }
-      // (step 12b, D9) the open-left weapon hand (only with the left edge bit)
-      out.leftHand = (mv.sub & 128) !== 0 && (mv.sub & 4) !== 0;
+      // (step 12b, D9) the open-left weapon hand (only with the left edge bit); (piano-knife S4b) or the mirror intro
+      out.leftHand = (mv.sub & 128) !== 0 && (mv.sub & (4 | 32)) !== 0;
       return out;
     case 'doorPeek':
       // (step 13) the ground stance at the frame; the hand on the handle is a reach the remote sets from the door

@@ -34,18 +34,18 @@ is a retry (Q5, G370); two players everywhere (Michael ~21:42, PLAN F1); chimney
 | 2 | 2 | A1 | `a1-ladder` | `human_ladder` | `a1-walltop` | none | - | `a1-top`* | - |
 | 3 | 3 | A2 | `a2-shutter` | `shutter_hold` | `a2-lane` | station | - | `a2-lane`* | - |
 | 4 | 4 | A2 | `a2-lights` | `timed_light_cut` | `a2-neck` | station | 15 | `a2-east` | no kit / `g-a2-shutter-open`* (the roller door's latch) |
-| 5 | 5 | A2 | `a2-plank` | `plank_bridge` | `a2-pitside` | station | - | `a2-across`* | `plankBridge` / `g-a2-walkway`* |
+| 5 | 5 | A2 | `a2-plank` | `plank_bridge` | `a2-pitside` | station | - | `a2-across`* | `plankBridge` / `g-a2-walkway`*; spot `a2-plank` |
 | 6 | 6 | A3 | `a3-vent` | `vent_unlock` | `a3-corridor` | station | - | `a3-fire`* | - |
 | 7 | 7 | A3 | `a3-jam` | `jam_relay` | `a3-corridor` | station | - | `a3-far` | - |
-| 9 | 9 | A4 | `a4-deadweight` | `deadweight` | `a4-cross` | station | - | `a4-grille`* | `deadweight` / `g-a4-grille-motor`* |
+| 9 | 9 | A4 | `a4-deadweight` | `deadweight` | `a4-cross` | station | - | `a4-grille`* | `deadweight` / `g-a4-grille-motor`*; spot `a4-deadweight` |
 | 8 | 8 | A4 | `a4-camloop` | `camera_loop` | `a4-main-aisle` | station | 60 | `a4-west` | - |
 | 10 | 10 | A4 | `a4-takedown` | `synced_takedown` | `a4-dock` | station | 1.5 | `a4-wicket`* | - |
-| 11 | 11 | A5 | `a5-chimney` | `chimney_pair` | `a5-walltop` | none | - | `a5-apron-e`* | `chimneyPair` / `g-a5-wicket`* |
-| 12 | 12 | A5 | `a5-swing` | `swing_pass` | `a5-apron` | none | - | `a5-apron-w`* | `swingPass` / `g-a5-footbridge`* |
+| 11 | 11 | A5 | `a5-chimney` | `chimney_pair` | `a5-walltop` | none | - | `a5-apron-e`* | `chimneyPair` / `g-a5-wicket`*; spot `a5-chimney` |
+| 12 | 12 | A5 | `a5-swing` | `swing_pass` | `a5-apron` | none | - | `a5-apron-w`* | `swingPass` / `g-a5-footbridge`*; spot `a5-swing` |
 | 13 | 13 | A5 | `a5-throw` | `throw` | `a5-inner` | station | 9 | `a5-release` | - |
 | 14 | 14 | A6 | `a6-rope` | `rope` | `a6-gallery` | station | - | `a6-gal` | - |
 | 15 | 15 | A6 | `a6-hangdown` | `hang_down` | `a6-bridge` | station | - | `a6-drive` | - |
-| 16 | 16 | A6 | `a6-dropcatch` | `drop_catch` | `a6-pit` | station | - | `a6-pit`* | `dropCatch` / `g-a6-pit-ladder`* |
+| 16 | 16 | A6 | `a6-dropcatch` | `drop_catch` | `a6-pit` | station | - | `a6-pit`* | `dropCatch` / `g-a6-pit-ladder`*; spot `a6-dropcatch` |
 | 17 | 17 | A7 | `a7-split` | `synced_hack` | `a7-hall` | station | - | `a7-sync` | - |
 | 18 | 18a | A8 | `a8-c2run` | `jam_relay` | `a8-gallery` | caught | - | `a8-office-in`* | - |
 | 19 | 18b | A8 | `a8-loopset` | `camera_loop` | `a8-office` | caught | - | `a8-loop` | - |
@@ -109,7 +109,7 @@ const a4GoodsShedStations: StationDef[] = [
 // A5: replan/a5Substation.ts
 const a5SubstationStations: StationDef[] = [
   { n: 11, id: 'a5-chimney', lesson: 'chimney_pair', retry: 'none', doneFlag: 'a5-apron-e', kit: 'chimneyPair', standIn: 'g-a5-wicket',
-    marks: [{ x: 69.0, z: 32.0, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 34.0, y: 0, yaw: -Math.PI / 2 }],
+    marks: [{ x: 69.0, z: 32.3, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 33.7, y: 0, yaw: -Math.PI / 2 }],
     guards: [], gates: ['g-a5-wicket'] },
   { n: 12, id: 'a5-swing', lesson: 'swing_pass', retry: 'none', doneFlag: 'a5-apron-w', kit: 'swingPass', standIn: 'g-a5-footbridge',
     marks: [{ x: 67.0, z: 33.0, y: 0, yaw: -Math.PI / 2 }, { x: 67.0, z: 34.5, y: 0, yaw: -Math.PI / 2 }],
@@ -145,10 +145,10 @@ const a8StrongroomStations: StationDef[] = [
     marks: [{ x: 135.0, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console'] },
   { n: 20, id: 'a8-isolate', lesson: 'timed_light_cut', retry: 'caught', doneFlag: 'a8-grille-in', drillS: 25,
-    marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
+    marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-night', 'g-a8-grille'] },
   { n: 21, id: 'a8-locks', lesson: 'synced_hack', retry: 'caught', doneFlag: 'a8-sync', drillS: 60,
-    marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
+    marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
     guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console', 'g-a8-vault', 'laser-a8'] },
 ];
 ```
@@ -191,27 +191,27 @@ a guard or camera, a `timer` line for a drill window, an `other` line for A1's e
 
 | n | id | Seen / caught | Timer | Other |
 | --- | --- | --- | --- | --- |
-| 1 | `a1-boost` | (none: nothing can be seen) | - | Into the yard too soon. The wicket stays shut till you are both up. Back to the mark. |
-| 2 | `a1-ladder` | (none: nothing can be seen) | - | Into the yard too soon. The wicket stays shut till you are both up. Back to the wall. |
+| 1 | `a1-boost` | (none: nothing can be seen) | - | Into the yard too soon. Back to the striped mark. |
+| 2 | `a1-ladder` | (none: nothing can be seen) | - | Into the yard too soon. Back to the wall. |
 | 3 | `a2-shutter` | Seen at the roller door. Back to the stores bay. | - | - |
-| 4 | `a2-lights` | The shunter saw you in the neck. Back to the cabin and the lane. | Lights came back with you in the neck. Back to the cabin and the lane. | - |
-| 5 | `a2-plank` | The shunter saw the board. Back to the board stack at the east end. | - | - |
+| 4 | `a2-lights` | Seen in the neck. Back to the cabin and the lane. | Lights came back on you. Back to the cabin and the lane. | - |
+| 5 | `a2-plank` | Seen on the board. Back to the east end board stack. | - | - |
 | 6 | `a3-vent` | The camera had you. Back to the west lobby. | - | - |
-| 7 | `a3-jam` | The camera had you. Back to the corridor's west end; jam it again. | - | - |
+| 7 | `a3-jam` | The camera had you. Back to the corridor's west end. | - | - |
 | 9 | `a4-deadweight` | The duty officer saw you. Back to the security room door. | - | - |
-| 8 | `a4-camloop` | Seen on the shop floor. Back to the security room; loop it again. | The cameras came back. Back to the security room; loop it again. | - |
-| 10 | `a4-takedown` | The loaders saw you. Back behind the pallet stacks at the dock. | Both loaders at once, or the other one sees. Back behind the stacks. | - |
+| 8 | `a4-camloop` | Seen on the shop floor. Back to the security room. | The cameras came back. Back to the security room. | - |
+| 10 | `a4-takedown` | The loaders saw you. Back behind the pallet stacks at the dock. | Not together, so the other loader saw. Back behind the stacks. | - |
 | 11 | `a5-chimney` | (none: nothing can fail) | - | - |
 | 12 | `a5-swing` | (none: nothing can fail) | - | - |
 | 13 | `a5-throw` | Seen in the floodlight. Back behind the transformer. | The floodlight came back. Back behind the transformer. | - |
 | 14 | `a6-rope` | The attendant saw you. Back to the sump bay, behind the kerb. | - | - |
-| 15 | `a6-hangdown` | The attendant saw you on the bridge. Back to the bridge's north end. | - | - |
-| 16 | `a6-dropcatch` | The attendant heard the landing. Back to the bridge; catch your partner. | - | - |
+| 15 | `a6-hangdown` | Seen on the bridge. Back to the bridge's north end. | - | - |
+| 16 | `a6-dropcatch` | The attendant heard the landing. Back to the bridge. (kit on: The attendant heard the landing. Back to the bridge to catch again.) | - | - |
 | 17 | `a7-split` | Seen in the data hall. Back to the entry lobby. | - | - |
 | 18a | `a8-c2run` | Caught in the banking hall. Back to the vestibule. | - | - |
-| 18b | `a8-loopset` | Caught at the security office. Back to the office door and the board. | - | - |
+| 18b | `a8-loopset` | Caught at the security office. Back to the office door. | - | - |
 | 18c | `a8-isolate` | Caught at the lighting board. Back to the board. | The hall lights came back. Back to the lighting board. | - |
-| 18d | `a8-locks` | Caught in the vault lobby. Back to the office console and the lobby. | The cameras came back. Loop them again from the office console. | - |
+| 18d | `a8-locks` | Caught in the vault lobby. Back to the office console. | The cameras came back. Loop them again from the office console. | - |
 
 ## 7. Start marks and their space boxes
 Each mark is checked against its graph space's `area` box (G0, 7bc609ba2; rechecked at the D1 check, J14 wave 2). All 42
@@ -259,9 +259,9 @@ geometry at G1 (A2 pit, A5 trench: SA9, SA10).
 | 18a | B | 107.5 | 65.5 | 0 | PI/2 | `a8-vestibule` | yes |
 | 18b | A | 135.0 | 76.5 | 4.4 | PI/2 | `a8-office` | yes |
 | 18b | B | 126.5 | 76.5 | 0 | 0 | `a8-board` | yes |
-| 18c | A | 141.5 | 73.5 | 4.4 | PI/2 | `a8-office` | yes |
+| 18c | A | 137.5 | 76.5 | 4.4 | PI/2 | `a8-office` | yes |
 | 18c | B | 126.5 | 76.5 | 0 | 0 | `a8-board` | yes |
-| 18d | A | 141.5 | 73.5 | 4.4 | PI/2 | `a8-office` | yes |
+| 18d | A | 137.5 | 76.5 | 4.4 | PI/2 | `a8-office` | yes |
 | 18d | B | 135.5 | 66.5 | 0 | PI/2 | `a8-lobby-outer` | yes |
 
 | Space | Box [minX, minZ, maxX, maxZ] | y | Source |
@@ -293,6 +293,8 @@ geometry at G1 (A2 pit, A5 trench: SA9, SA10).
 Each is a pass zone the set slice adds (`PassZone`, `src/game/passZones.ts`): `any` = one player is enough, else both.
 The other done flags exist on master: `a2-east`, `a3-far` (its zone loses `hall` on the re-plan: no send-back), `a4-west`,
 `a5-release`, `a6-gal`, `a6-drive`, `a7-sync`, `a8-loop`, `a8-sync`.
+While a station's kit id is on (Player's `kitMoves`), its done flag also needs the kit credit `kit:<station id>`
+(`CourseState.kitDone`, from `CourseMode.onKitDone`); see SA16.
 
 | Flag | Zone [x0, z0, x1, z1] | floorY | Who | Means |
 | --- | --- | --- | --- | --- |
@@ -320,7 +322,7 @@ lesson that needs his eyes or ears (Q11). A1, A2 and A6 have no camera or beam. 
 | `cam-a3-hall` | A3 | IR ceiling camera at (96.6, 2.8, 10.75), facing west, range 14, armoured (`ARMOURED_FROM_SET`) | the office corridor to the east lift lobby | the landlord's out-of-hours CCTV on the floor's only corridor | the jam relay (5 s jam, 1.5 s reboot); the services crawl and the fire door sit past its 14 m | 6, 7 |
 | `cam-a4-c1` | A4 | wall camera (111.5, 39.8), facing 270, range 14, on the loop flag `a4-loop` | the main aisle's east half | warehouse CCTV down the main aisle | the 60 s console loop | 8 |
 | `cam-a4-c2` | A4 | mezzanine-face camera (96.75, 43.6), facing 180, range 14, `a4-loop` | the cross aisle | the one aisle between the rack runs | the loop; the grille and back aisle (z 24-27) are 16 m out, so station 9 is out of its range | 8 |
-| `cam-a4-c3` | A4 | camera over the wicket (76.4, 33.0), facing 90, range 14, `a4-loop` | the dock, the loaders' desk, the main aisle's west end | dock CCTV over the yard door | the loop; the crouch spots behind the pallet stacks (SA12) | 8, 10 |
+| `cam-a4-c3` | A4 | camera over the wicket (76.4, 33.0), facing 90, range 14, off for good on `a4-grille` (station 9 done; B2) | the dock, the loaders' desk, the main aisle's west end | dock CCTV over the yard door | off once the grille is passed; the crouch spots behind the pallet stacks (SA12) | none (off from 8 on) |
 | `laser-a5` | A5 | three IR beams at 0.35 / 0.9 / 1.45 m across the 6 m cable gateway (x 58, z 33-39) | the inner zone | a substation's perimeter detection at its vehicle gateway | the throw over them; switched off for good by the far-side release `sw-a5-release` | 13 |
 | `a7-cam1` | A7 | wall camera (86.5, 71.5), facing 195, range 12, short aim | the front aisle's north mouth, the cage's north apron | colocation CCTV on the client's cage | the technicians' rounds; the rack-light panel cut | 17 |
 | `a7-cam2` | A7 | camera at the corridor's east end (99.6, 54.0), sweep 220-320, range 14 | the plant corridor and the pod door | the plant corridor's CCTV | slip the sweep in the cooling units' lees | 17 |
@@ -380,25 +382,41 @@ rule (a heavy landing retries the station).
   by the mode.
 - **SA9 A2 pit at x 66.0-69.0.** The drawing's 66.5-69.5 leaves 0.25 m before the L2 door's wall; at 66.0-69.0 (still
   3 m) the far landing is 0.75 m and `a2-across` fits. The near-side marks (x 65.5, in the road 2 / 3 van gap) fit
-  both. Undo: keep 66.5-69.5 and make `a2-across` the L2 door seal.
+  both. Undo: keep 66.5-69.5 and make `a2-across` the L2 door seal. (marlow-kit-geo Q1) Plank Bridge's board lands at
+  the barrier's board slot opposite the lane strip (z 12.7-13.7, `A2_BOARD_SLOT`, register A2-40): the panel there stands
+  0.25-1.1 m over the landing, so a laid 3.9 m board slides under it and bears 0.45 m each end, and the crosser climbs
+  the panel off the board's end; alone, the panel still stops the hop and the mantle. An open slot cannot work (a hop
+  reaches 3.2 m from the feet plus ~0.23 m past the edge, the board spans at most 3.3 m). Undo: drop A2-40 / A2-41 and
+  run the barrier's north piece from z 12.7 again.
 - **SA10 A5 gap and wall.** The gap is closed at z 30 and 36 (graph size 6 m) and 1.4 m clear (A19): the new wall x
   67.85-68.35 (east face 68.35). The 1.4 m gap left the apron's east strip only 0.85 m (G0, 82ea0134d), so the 3.5 m
   trench moves 1.15 m west to x 62.35-65.85 (lead, J14 wave 2): east strip x 65.85-67.85 (2 m), west strip x
   58.15-62.35; station 12's marks at x 67.0, 0.85 m off the wall face (graph `area` follows at G1). Undo: 1 m gap (A19's
-  undo) and the trench back at x 63.5-67; marks at x 69.0 still fit, 0.25 m off the wall.
+  undo) and the trench back at x 63.5-67; marks at x 69.0 still fit, 0.25 m off the wall. (marlow-kit-geo Q2) Swing
+  Pass's anchor is the swing bar on the trench's east edge (`A5_SWING_BAR`, register A5-R10: posts at z 42.4 and 43.6
+  on x 65.85-66.0, the bar at 2.6 m), its line z 43.0 clear to the west strip's wall (4.2 m of landing); on the
+  gantry's line (z 44.6) its posts stood on both edges and the drums left 0.55 m of landing (band 0.75 m), so the gantry
+  is dressing. The trench's 3.5 m is the band's top. Undo: drop A5-R10 (and the swing spot goes back to the gantry once
+  its posts and the drums move). (marlow-kit-geo Q3) The gap's east side is the set wall to the gallery floor (4.5 m)
+  and the gallery's glazing to 7.5 m, set back 0.2 m (shaft 1.4 m, then 1.6 m): the chimney has a back to its 6 m top
+  and L4's lid (3.6 m) is behind the wall, so no face is added (one would cover the gallery's glazing).
 - **SA11 New ids and kinds.** `g-a2-shutter` (hold, door `A2-shutter`); `g-a2-shutter-open` (egress latch on the roller door, station 4's stand-in: open for good once station 3 passes);
   `g-a2-walkway` (stand-in, door `A2-walkway`);
-  `g-a3-fire` (bolt, door `A3-fire`, push bar on the corridor side); `g-a4-grille` (the deadweight grille, KS1's hookup)
-  and `g-a4-grille-motor` (stand-in: the motor button); `g-a5-wicket` and `g-a5-footbridge` (stand-ins, doors
+  `g-a3-fire` (bolt, door `A3-fire`, push bar on the corridor side); `g-a4-grille` (an egress gate on the grille's door)
+  and `g-a4-grille-motor` (stand-in: the motor button), both held while `deadweight` is on (SA16: the move drives the
+  door through the spot `a4-deadweight`); `g-a5-wicket` and `g-a5-footbridge` (stand-ins, doors
   `A5-wicket`, `A5-footbridge`); `g-a5-plates` (the trench plates, laid from the west side); `g-a6-edge` (the gallery's
   self-closing edge gate); `g-a6-pit-ladder` (stand-in: `anchorLock` on the cage ladder `a6-pit-ladder`); squads
   `a5-watcher`, `a7-tech2` (fallback `a6-listener`). Undo: rename in the set slice and here together.
-- **SA12 Station 10 and C3.** C3 watches the loaders' desk, so the takedown lands inside the loop. The marks are the
+- **SA12 Station 10 and C3.** C3 watches the loaders' desk. The marks are the
   crouch spots behind the two pallet stacks (`A4_SPOT_N` / `A4_SPOT_S` on the grid), about 40-48 degrees off C3's axis;
   C3 is fixed at facing 90 down the wicket line, so both marks sit outside its frame (lead call, PLAN A28). Undo: marks
-  at the main aisle's west end (85.5, 37.0 / 38.0).
+  at the main aisle's west end (85.5, 37.0 / 38.0). (marlow-play B2) C3's `offFlag` is `a4-grille`, not the loop flag:
+  it is off for the rest of the set once station 9 is done. On the loop flag it came back when the 60 s ran out and saw
+  every takedown at the desk (the attackers stand 27-29 degrees off its axis, 4 m out), and station 10's retry never
+  re-runs the loop, so the pair retried forever. Undo: back on `a4-loop` with station 10's retry re-pressing the loop.
 - **SA13 No-fail stations.** 1, 2, 11 and 12 have no guard, camera or drill, so they stay `retry: 'none'`. The cable
-  trench has step irons on its east face at both ends, so a fall is a walk back, never a soft-lock. A1 has one way out of
+  trench has step irons on its east face at both ends and between its two decks (marlow-play-2 C18), so a fall is a walk back, never a soft-lock. A1 has one way out of
   its own: a player who drops into the yard before the ladder is done (the wicket stays shut till both have been on the
   wall top) is retried after 5 s with nobody on or climbing the wall, cause `other`, both back at the live station's
   marks with its `:other` line (PLAN A26, Q5). Station 15: a hanger who lets go before the key drops into the pit and
@@ -413,6 +431,18 @@ rule (a heavy landing retries the station).
   side, so A can walk down into the lobby and either stand in `a8-grille-in` or press the request-to-exit to let B in.
   Station 20 is then done without the board's 25 s dark. Accepted as the Q24 side route working (PLAN A28 / A30). Undo:
   tie 20's done flag to the dark.
+- **SA16 Kit wiring** (marlow-kit-wire). `kitMoveOn(kit)` is Player's `flags.kitMoves.has(kit)` (`stationDef.ts`): a
+  station switches the moment its move's K slice adds the id to `KIT_BUILT`. Off: as today (the stand-in opens as the
+  station goes live and is kept; the place flag ends it). On: the stand-in stays shut, and it and every gate of the station
+  on its doors are held (a press is refused: "No power here. This one takes the co-op move."); the station is done when
+  its place flag and its kit credit `kit:<station id>` are both set, the credit set by `CourseMode.onKitDone` only for the
+  live station's own kind and spot id; a station retry drops the credit and resets the kit on the host
+  (`g.team.resetKit()`). Spots (placed unconditionally, inert while off): `a2-plank` (`plankBridge`, the board stack's
+  middle 62.85, 0, 13.455, w 3.9), `a4-deadweight` (`deadweight`, chains 101.75, 2.4, 22.5 and 25.5, the grille's door),
+  `a5-chimney` (`chimneyPair`, the gap 69.05, 0, 33.0, w 1.4, h 6, exit x 68.1), `a5-swing` (`swingPass`, the gantry
+  pipe 65.85, 2.6, 44.6, w 3.5, far floor 0), `a6-dropcatch` (`dropCatch`, 52.5, 4.4, 65.4). Kit-on objective and retry
+  lines are picked as the set builds. Undo: A1-A4 of the marlow-kit-wire brief (`kitIdOn`; `kitDone` sets the done flag;
+  accept `''` for `dropCatch`; drop the held gates).
 
 **Open questions for the lead** (assumed as above meanwhile; none blocks a set slice). Lead answers (J14 wave 2, sent to
 S0 / R1): OQ1 the listed guards plus any guard alerted in the bay (SA1); OQ2 `StationDef` keeps its shape, each set file

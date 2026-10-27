@@ -8,7 +8,7 @@
 //   3. one seen retry: the client is put in the pod at T2's spot while a7-tech2 waits at his look stop over the cage's
 //      north-east corner (route index 1): he sees the client through the mesh; LANTERN's retry line, `lastRetry` 17 / seen,
 //      both players land on station 17's marks in the lobby (A the host at (74, 62), B the client at (72.5, 57)), the
-//      claim and the split cleared, both technicians reset;
+//      split cleared (the claim stays: marlow-play-2 C11), both technicians reset;
 //   4. the split again: the client to the pod through the corridor in cam2's blind windows while a7-tech2 reads the pod panel
 //      (route index 0, facing the pod's solid north wall); the host into the hall while a7-tech stands at R0 facing the rack
 //      screen, then to T1 once he walks west behind row 1; both at their terminals light the ready lamps;
@@ -62,8 +62,8 @@ export async function walk(t) {
   const pauseAt220 = (what) =>
     until(A, ([id, cyc]) => { const c = window.__ctdev.debug().cams.find((q) => q.id === id); const u = ((c.clock % cyc) + cyc) % cyc; return !c.frozen && u < 0.4; }, [CAM2, CAM2_CYCLE], 40000, `${what}: cam2 at the start of its 220 deg pause`);
   /** a7-tech2 waiting at route stop `idx` (not alerted). */
-  const tech2At = (idx, [x, z], what, timeout = 60000) =>
-    until(A, ([idx, x, z]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive && q.pos.x >= 90); return !!e && !e.alerted && e.walker?.idx === idx && Math.hypot(e.pos.x - x, e.pos.z - z) < 0.5; }, [idx, x, z], timeout, what);
+  const tech2At = (idx, [x, z], what, timeout = 60000, minWait = 0) =>
+    until(A, ([idx, x, z, minWait]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive && q.pos.x >= 90); return !!e && !e.alerted && e.walker?.idx === idx && Math.hypot(e.pos.x - x, e.pos.z - z) < 0.5 && (e.walker.waiting ?? 0) > minWait; }, [idx, x, z, minWait], timeout, what);
   /** The client through the corridor into the pod (lee to lee in cam2's blind windows, the pod door in the 220 window). */
   async function clientToPod(what) {
     await moveClient(72.8, 56.5, 0.1, Math.PI);
@@ -86,7 +86,7 @@ export async function walk(t) {
   await moveHost(72.5, 61.4, 0.1, Math.PI / 2);
   await moveClient(72.5, 62.6, 0.1, Math.PI / 2);
   await GA(() => { window.__app.current.target.damageMul = 0; });
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /Split up: one through the hall/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A7: the ${tag} sees the split step`);
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /Split up: hall and plant corridor/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A7: the ${tag} sees the split step`);
   assert((await GA(() => window.__course.station())) === 17, 'A7: station 17 is live');
   const g0 = await techs();
   assert(g0.n === 2 && !!g0.tech && !!g0.tech2 && !g0.tech.passive && !g0.tech2.passive, `A7: both technicians alive and armed (${JSON.stringify(g0)})`);
@@ -103,7 +103,7 @@ export async function walk(t) {
   // ---- 3. one seen retry: a7-tech2 at his look stop sees the client at T2's spot through the mesh ----
   console.log('  A7 (re-plan): a7-tech2 sees the pod leg: the station retry');
   const r0 = await GA(() => window.__course.restarts);
-  await tech2At(1, TECH2_LOOK, 'A7 retry: a7-tech2 waits at his look stop');
+  await tech2At(1, TECH2_LOOK, 'A7 retry: a7-tech2 has just arrived at his look stop', 60000, 6);
   await moveClient(SPOT2[0], SPOT2[1], 0.1, -Math.PI / 2);
   await until(A, (n0) => window.__course.restarts > n0 && window.__course.lastRetry?.st === 17 && window.__course.lastRetry?.cause === 'seen', r0, 20000, 'A7 retry: a7-tech2 sees the client: station 17 retries (seen)');
   await until(A, ([ax, az, bx, bz]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - ax, f[2] - az) < 0.8 && Math.hypot(f[3] - bx, f[5] - bz) < 0.8; }, [...MARK_A, ...MARK_B], 15000, 'A7 retry: both land on station 17\'s marks in the lobby');

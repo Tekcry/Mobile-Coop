@@ -54,7 +54,7 @@ function tshadowBranch(): string {
 }
 
 describe('torch shadow set (LR16t)', () => {
-  it('slots equal FLASHLIGHTS and TORCH_DRAW_SLOTS', () => {
+  it('slots equal FLASHLIGHTS and TORCH_DRAW_SLOTS (the default; piano SO3: a map may ask for up to 16)', () => {
     expect(TORCH_SHADOW.slots).toBe(FLASHLIGHTS);
     expect(TORCH_SHADOW.slots).toBe(TORCH_DRAW_SLOTS);
     // (the 4th vec4 of each drawn torch: its doors)

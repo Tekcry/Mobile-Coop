@@ -557,7 +557,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit, opts: { rep
     {
       id: 'a8-split',
       bay: 'A8',
-      text: 'Split up: one onto the gallery, one stays on the floor.',
+      text: 'Split up: gallery and floor',
       a: 'Take the boost to the gallery at the dark west end.',
       b: 'Boost your partner up, then keep to the counters.',
       done: { flag: A8_GAL_FLAG },
@@ -565,7 +565,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit, opts: { rep
     {
       id: 'a8-office',
       bay: 'A8',
-      text: 'Get to the security office unseen and loop the cameras.',
+      text: 'Loop the cameras in the security office',
       a: "Reach the office on your partner's jam, then take the officer.",
       b: 'Jam the gallery camera from the floor for your partner.',
       done: { flag: A8_LOOP_FLAG },
@@ -573,16 +573,16 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit, opts: { rep
     {
       id: 'a8-grille',
       bay: 'A8',
-      text: 'Kill the hall lights to open the grille. Sixty seconds on the loop.',
+      text: 'Cut the hall lights, open the grille',
       a: 'Come down the office stair into the vault lobby.',
-      b: 'Isolate the hall lights at the board, then slip through the grille.',
+      b: 'Cut the hall lights at the board, then slip through the grille.',
       done: { flag: A8_LOBBY_FLAG },
       timer: A8_CONSOLE_GATE,
     },
     {
       id: 'a8-beams',
       bay: 'A8',
-      text: 'Over the beam curtain to the second time lock.',
+      text: 'Cross the beams to time lock two',
       a: 'Throw your partner over the beams.',
       b: 'Land by the vault door and take time lock two.',
       done: { flag: A8_INNER_FLAG },
@@ -591,16 +591,16 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit, opts: { rep
     {
       id: 'a8-sync',
       bay: 'A8',
-      text: 'Both time locks together, on the ready lamps.',
+      text: 'Hack both time locks on the lamps',
       a: "Hack time lock one on your partner's count.",
       b: "Hack time lock two on your partner's count.",
       done: { flag: A8_SYNC_FLAG },
       timer: A8_CONSOLE_GATE,
     },
-    { id: 'a8-out', bay: 'A8', text: 'The vault is open. Both of you out to the cash dock.' },
+    { id: 'a8-out', bay: 'A8', text: 'Both out to the cash dock' },
   );
   p.bay.radio.push(
-    { at: 'enter', text: "Last one. Everything you've done tonight, in one room. Take your time." },
+    { at: 'enter', text: 'Last one: everything from tonight in one room. Take your time.' },
     // (joint-interrogation, G148) the teach, as A reaches the gallery
     { at: 'a8-split', text: 'The duty officer clams up with one of you. Two of you, he might say more.' },
     { at: `warn:${A8_NIGHT_GATE}`, text: 'Lights back in five.' },

@@ -101,12 +101,18 @@ describe('volumetric pass per-light values (vol-cone-fix)', () => {
     expect(volBeam({ kind: 'flashlight', cone: makeCone(0, -1, 0, 0.3), fixture: null }, false)).toBe(true);
   });
 
-  it('(fog triage) the maps that keep lampBeams (default) are unchanged: Marlow Yard and the base Warehouse floods still beam', () => {
-    expect(ctcourse.theme.lampBeams).toBeUndefined();
+  it('(fog triage) the base Warehouse keeps lampBeams (default) and its floods still beam', () => {
     expect(warehouse.theme.lampBeams).toBeUndefined();
     const b = new LevelBuilder();
+    warehouse.build(b, 0);
+    expect(b.lights.lights.filter((l) => volBeam(l, warehouse.theme.lampBeams ?? true)).length).toBeGreaterThan(0);
+  });
+
+  it("(4.119 walk, Epic glare) Marlow Yard sets lampBeams false: no set lamp beams, only torches", () => {
+    expect(ctcourse.theme.lampBeams).toBe(false);
+    const b = new LevelBuilder();
     ctcourse.build(b, 0);
-    expect(b.lights.lights.filter((l) => volBeam(l, ctcourse.theme.lampBeams ?? true)).length).toBeGreaterThan(0);
+    expect(b.lights.lights.filter((l) => volBeam(l, ctcourse.theme.lampBeams ?? true)).length).toBe(0);
   });
 
   it('writes only its own slot', () => {

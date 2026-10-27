@@ -54,6 +54,8 @@ function rig(): { mode: CourseMode; items: FakeItem[]; despawned: unknown[]; spa
   const em = {
     stealth: false,
     enemies: [] as unknown[],
+    // (gm-look-seeds) a set's look seeds (`spawnSquad`): none here, `spawn` picks
+    pointLooks: () => [],
     spawn: (kind: string) => {
       const e = { kind, alive: true, setPatrol: () => undefined };
       spawned.push(e);
@@ -61,6 +63,11 @@ function rig(): { mode: CourseMode; items: FakeItem[]; despawned: unknown[]; spa
     },
     despawn: (e: unknown) => despawned.push(e),
     placeSlot: () => undefined, // (guard-ai S5, master) post, profile, section
+    // (marlow-play-2 C17) a new set clears the guards' shared memory (`forgetSighting`)
+    radioNet: { clear: () => undefined },
+    board: { clear: () => undefined },
+    intruders: { clear: () => undefined },
+    resetAlarm: () => undefined,
   };
   const g = {
     interactables: {

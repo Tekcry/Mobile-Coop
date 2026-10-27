@@ -367,7 +367,7 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit, opts: { repl
   ];
   p.objectives.push(...steps);
   p.bay.radio.push(
-    { at: 'enter', text: 'The drive panel is inside the cage. The gland plate is your way in. Mind the attendant.' },
+    { at: 'enter', text: 'The drive panel is inside the cage, through the gland plate. Mind the attendant.' },
     { at: 'enter', text: 'The key buzzes while it is held. Lower him when the attendant is at his desk.' },
     { at: 'a6-hang', text: 'Pump is running down. Interlock is green.' },
   );

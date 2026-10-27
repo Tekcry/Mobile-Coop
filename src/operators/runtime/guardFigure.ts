@@ -6,8 +6,9 @@
  *   vertex buffers shared by every guard of that base in the scene (guard-render S7 style), its material (the operator
  *   PBR, `operatorMaterial`, plus `GuardFigurePlugin`) and its poser setup.
  * - `GuardFigure` (one per guard): over a CharacterRig, as Wren's `OperatorFigure` minus the hero and the goggle: per
- *   loaded LOD its own skeleton posed every frame by the non-allocating `OperatorPoser` (the rig stays the pose
- *   authority); LOD0 / 1 / 2 by camera distance (`pickLod` on the guards' own bands, `GUARD_LOD` in guardLod.ts: 6 /
+ *   loaded LOD its own skeleton posed by the non-allocating `OperatorPoser` (the rig stays the pose authority), (perf
+ *   F2) lazily: `update` picks the LOD and marks the skeleton, the pose runs in the skeleton's compute, so only for a
+ *   guard some pass draws this frame; LOD0 / 1 / 2 by camera distance (`pickLod` on the guards' own bands, `GUARD_LOD` in guardLod.ts: 6 /
  *   25 m, S11; Wren's hysteresis, A8), LOD2 loaded first. (S11) LOD1 / LOD2 fold the fingers (LOD2 also toes and
  *   clavicles) at load, and LOD2 poses every other frame, staggered per guard.
  *   Per guard only the skeleton, one RGBA8 `gvis` vertex buffer per LOD primitive (tint rgb, a = piece visible with
@@ -39,6 +40,7 @@ import { loadModel, operatorMaterial, readRig, rigNodes, type RigLike } from './
 import { GuardFigurePlugin } from './guardFigurePlugin';
 import { GUARD_LOD, guardFolds, guardPosesNow } from './guardLod';
 import { pickLod } from './lodPick';
+import { newEffectWatch, watchBodyEffect, type EffectWatch } from '../../player/bodyEffectRecovery';
 import { LOD_0, LOD_1, LOD_2, LOD_NAMES, REQUIRED_JOINTS } from './manifest';
 import { OperatorPoser, poserSetup, RIG_JOINTS, RIG_PARENT, TRS, type PoserSetup } from './pose';
 
@@ -125,6 +127,14 @@ export function buildGuardLod(scene: Scene, model: GlbModel, manifest: GuardMani
     if (p.albedoTexture) p.albedoTexture.hasAlpha = false;
     p.useAlphaFromAlbedoTexture = false;
     new GuardFigurePlugin(p);
+    // (perf F1) frozen, as the S1 body's skin material (partLibrary): an unfrozen PBR re-runs its whole define
+    // preparation (every plugin's prepareDefines, the light defines) for every guard mesh in every pass, every frame -
+    // CPU and garbage. Frozen, each submesh is checked until its first ready frame, then never again. Nothing in the
+    // figure changes a define at run time (GUARDFIG follows the mesh's gvis buffer, fixed per mesh; tint, flash and
+    // heat are vertex data); the game's define changes go through an unfreeze / mark / freeze (`World.refreshMaterials`
+    // on shadow / post changes, `LightRig.fitMaterial`, `BakedLamps.attach`), and freeze / unfreeze reset every
+    // submesh's ready state. Uniform plugins (the lamps' night-vision gain) still bind once per pass.
+    p.freeze();
     return p;
   });
   const box = new Float32Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
@@ -239,6 +249,8 @@ interface GuardPart {
   count: number;
   /** The rest box for the submesh (its own: `setIndexBuffer` rebuilds the submesh). */
   subBox: BoundingInfo;
+  /** (gm-watchdog) Its main-pass effect, timed while unready (`drawState`, the S1 body's watchdog). */
+  watch: EffectWatch;
 }
 
 interface GuardLod {
@@ -259,6 +271,8 @@ interface GuardLod {
   tintVer: number;
   flash: number;
   heat: number;
+  /** (perf F2) `update` asked for a pose this frame: the skeleton's next compute runs it (`posePending`). */
+  pending: boolean;
 }
 
 export interface GuardFigureOptions {
@@ -480,13 +494,17 @@ export class GuardFigure {
       m.receiveShadows = true;
       m.alwaysSelectAsActiveMesh = this.loose;
       m.setEnabled(false);
-      parts.push({ prim, mesh: m, gvis, gvisVb, count: -1, subBox: new BoundingInfo(bmin, bmax) });
+      parts.push({ prim, mesh: m, gvis, gvisVb, count: -1, subBox: new BoundingInfo(bmin, bmax), watch: newEffectWatch() });
       meshes.push(m);
     });
     const inst: GuardLod = {
       asset: a, root, skeleton, bones, parts, meshes, poser, off, drv, abs,
-      fingIn: new Float64Array(FING_LEN).fill(Number.NaN), visVer: -1, tintVer: -1, flash: -1, heat: -1,
+      fingIn: new Float64Array(FING_LEN).fill(Number.NaN), visVer: -1, tintVer: -1, flash: -1, heat: -1, pending: false,
     };
+    // (perf F2) the pose runs where Babylon computes this skeleton (as the S1 body's, smoothBody.ts): only when a mesh
+    // on it is drawn by some pass this frame (camera, cascade, lamp or torch list), never for a culled guard. One
+    // closure per guard LOD, made at load
+    skeleton.onBeforeComputeObservable.add(() => this.posePending(inst));
     this.sync(inst);
     // the rest box plus margins, root-local (the S1 body's when given): culled like any mesh (skinned bounds never refresh)
     for (const m of meshes) m.setBoundingInfo(new BoundingInfo(bmin, bmax));
@@ -611,8 +629,9 @@ export class GuardFigure {
 
   /**
    * Per frame, after the rig's update: the LOD for `camera` (distance with hysteresis, `GUARD_LOD.edges`), the culling
-   * mode, the pose (local retarget, or the world path while a joint is re-parented); (S11) from `GUARD_LOD.halfRateFrom`
-   * the pose every other frame, staggered by `slot` (a LOD switch and a ragdoll pose at once). No allocation.
+   * mode, and whether to pose this frame: (S11) from `GUARD_LOD.halfRateFrom` every other frame, staggered by `slot` (a
+   * LOD switch and a ragdoll pose at once). (perf F2) The pose itself (local retarget, or the world path while a joint
+   * is re-parented) runs in the skeleton's compute (`posePending`), only if a pass draws the guard. No allocation.
    */
   update(camera: Camera | null): void {
     if (this.disposed) return;
@@ -653,10 +672,66 @@ export class GuardFigure {
     const frame = this.lib.scene.getFrameId();
     if (!loose && !switched && !guardPosesNow(this.current, this.slot, frame, this.posedAt)) return;
     this.posedAt = frame;
-    this.poses++;
-    if (loose) this.poseWorld(l);
-    else this.poseLocal(l);
+    // (perf F2) lazy: mark the skeleton and leave the joint read and the solve to its compute (`posePending`), which
+    // Babylon runs only if a pass draws this guard this frame. Off screen and in no shadow list: no pose, no upload.
+    // A pending pose left over (not drawn) runs from the rig as it is when the guard is next drawn
+    l.pending = true;
     l.bones[0]?.markAsDirty();
+  }
+
+  /**
+   * (gm-watchdog) Once per render, after `update`: the shown LOD's main-pass effects. Each drawn part's effect is
+   * watched (`watchBodyEffect`, logged as 'guard figure': a timed-out, failed or disposed compile is recompiled at once,
+   * one that never finishes after STUCK_MS and STUCK_FRAMES, at most MAX_RECOMPILES per variant). 1: every drawn
+   * part's effect is ready; -1: one is unready; 0: nothing to judge (disposed, disabled, no LOD shown, or no effect
+   * asked for yet: culled since it was shown, or just dropped by a recompile). No allocation.
+   * An effect the watch recompiles this render counts as unready (it was; the drop leaves the sub-mesh without one).
+   */
+  drawState(now: number): number {
+    if (this.disposed || !this.enabled) return 0;
+    const l = this.current >= 0 ? this.lods[this.current] : null;
+    if (!l) return 0;
+    let unready = false;
+    let ready = false;
+    for (let i = 0; i < l.parts.length; i++) {
+      const p = l.parts[i]!;
+      if (p.count === 0) continue; // no visible piece: never drawn
+      if (watchBodyEffect(p.mesh, p.watch, now, 'guard figure')) {
+        unready = true;
+        continue;
+      }
+      const e = p.mesh.subMeshes?.[0]?.effect;
+      if (!e || e.isDisposed) continue;
+      if (e.isReady()) ready = true;
+      else unready = true;
+    }
+    return unready ? -1 : ready ? 1 : 0;
+  }
+
+  /**
+   * (GM-PERF-CHECK 6, S11-CHECK P2) Runs the pose `update` asked for now, not at the skeleton's next compute: Babylon
+   * computes a skeleton once per render id, so a pose asked for after this render's compute (a thaw, a death while
+   * frozen) would draw a frame late. For those rare events only (one compute; the render's own compute then finds the
+   * skeleton clean). No allocation.
+   */
+  poseNow(): void {
+    if (this.disposed) return;
+    const l = this.current >= 0 ? this.lods[this.current] : null;
+    if (!l || !l.pending) return;
+    l.skeleton.prepare(true);
+  }
+
+  /**
+   * (perf F2) The skeleton's compute (`onBeforeComputeObservable`, during the active-mesh evaluation or a shadow pass):
+   * the pose `update` asked for, from the rig now (local retarget, or the world path while a joint is re-parented).
+   * Nothing when no pose is pending. No allocation.
+   */
+  private posePending(l: GuardLod): void {
+    if (!l.pending || this.disposed) return;
+    l.pending = false;
+    this.poses++;
+    if (this.loose) this.poseWorld(l);
+    else this.poseLocal(l);
   }
 
   /** (S11, tests) The bone count of LOD `lod` (0 when not loaded): what is posed and uploaded per posed frame. */

@@ -41,7 +41,8 @@ describe('readCampusV2 with the preview default', () => {
 describe('live defaults under tests (no preview constants)', () => {
   it('PREVIEW_ON is false and the five feature flags keep their off defaults', () => {
     expect(PREVIEW_ON).toBe(false);
-    expect(flags.guardModels).toBe(false);
+    // (gm-flip, Michael 2026-10-26 ~23:55 "Just switch them on") the guard models are on everywhere, not a dark flag
+    expect(flags.guardModels).toBe(true);
     expect(flags.charShadowLight).toBe(false);
     expect(flags.mapReady).toBe(false);
     expect(flags.marlowReplan).toBe(false);
@@ -50,6 +51,8 @@ describe('live defaults under tests (no preview constants)', () => {
     expect(flags.lookouts).toBe(false);
     expect(flags.dogRelease).toBe(false);
     expect(flags.campusV2).toEqual(CAMPUS_V2_ON);
+    // (context-prompts S2) dark until Michael's walk
+    expect(flags.contextPrompts).toBe(false);
   });
 });
 
@@ -85,7 +88,7 @@ describe('(coop-kit A1) kitMoves: the kit list flag', () => {
   it('?coopkit=1 / 0 adds / removes pull and shutter', () => {
     expect(ids(readKitMoves(null, false, '1'))).toEqual(['pull', 'shutter']);
     expect(ids(readKitMoves('descent', false, '1'))).toEqual(['descent', 'pull', 'shutter']);
-    expect(ids(readKitMoves(null, true, '0'))).toEqual(['descent']);
+    expect(ids(readKitMoves(null, true, '0'))).toEqual(KIT_BUILT.filter((id) => id !== 'pull' && id !== 'shutter').sort());
     expect(ids(readKitMoves(null, true, 'x'))).toEqual([...KIT_BUILT].sort());
   });
 
@@ -119,7 +122,7 @@ describe('source guard', () => {
   const body = src.slice(src.indexOf('export const flags'));
 
   it('the five feature flags read through the preview default', () => {
-    expect(body).toMatch(/guardModels: darkFlag\(params\.get\('guardmodels'\), PREVIEW_ON\)/);
+    expect(body).toMatch(/guardModels: params\.get\('guardmodels'\) !== '0'/);
     expect(body).toMatch(/charShadowLight: darkFlag\(params\.get\('charlight'\), PREVIEW_ON\)/);
     expect(body).toMatch(/mapReady: darkFlag\(params\.get\('mapready'\), PREVIEW_ON\)/);
     expect(body).toMatch(/marlowReplan: darkFlag\(params\.get\('marlowreplan'\), PREVIEW_ON\)/);
@@ -127,6 +130,7 @@ describe('source guard', () => {
     expect(body).toMatch(/lookouts: darkFlag\(params\.get\('lookouts'\), PREVIEW_ON\)/);
     expect(body).toMatch(/dogRelease: darkFlag\(params\.get\('dogrelease'\), PREVIEW_ON\)/);
     expect(body).toMatch(/campusV2: readCampusV2\(params\.get\('campusv2'\), PREVIEW_ON\)/);
+    expect(body).toMatch(/contextPrompts: darkFlag\(params\.get\('ctxprompts'\), PREVIEW_ON\)/);
   });
 
   it('the mission-framework flags read through the preview default (mission-c2-rules)', () => {

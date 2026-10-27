@@ -279,3 +279,17 @@ describe('the shoulder swap on the wire (anim-cleanup; pose-parity: now PF.aimLe
     expect(poseFromMoveState(mv, 1, emptyMovePose()).leftHand).toBe(false);
   });
 });
+
+// (piano-knife S3) the knife takedown sub: its bit and the row's bits apart from the blow bit (every bit a `takedown` sub
+// had before); row 7 the move without a row
+describe('piano-knife S3: the knife takedown sub bits', () => {
+  it('TAKEDOWN_SUB_KNIFE and the row bits are distinct from TAKEDOWN_SUB_BLOW', async () => {
+    const M = await import('../src/player/moveState');
+    expect(M.TAKEDOWN_SUB_KNIFE).not.toBe(M.TAKEDOWN_SUB_BLOW);
+    expect(M.TAKEDOWN_SUB_KNIFE & M.TAKEDOWN_SUB_BLOW).toBe(0);
+    expect(M.KNIFE_ROW_NONE).toBe(7);
+    for (let r = -1; r < M.KNIFE_ROW_NONE; r++) expect(M.knifeSub(r) & M.TAKEDOWN_SUB_BLOW).toBe(0);
+    // the whole knife sub fits the wire's sub clamp (0..0xffff)
+    expect(M.knifeSub(-1) | M.TAKEDOWN_SUB_BLOW).toBeLessThanOrEqual(0xffff);
+  });
+});

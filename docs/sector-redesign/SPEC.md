@@ -214,7 +214,8 @@ and x -40 / x 26; the HQ south facade (z -30) and the lab block's west flank clo
 | C1 | Staff entrance vestibule (connector) | -24..-16, -34..-30 | 3.0 | Near door (-20, -34) badge door; far door (-20, -30) into S2 reception; checkpoint, ambient 0.30 |
 
 **Objective.** Download (10 s, within 4 m) tonight's visitor list and the courier badge template from the gatehouse PC
-(19.3, -76), through the open rear window from the dark verge. Opens C1 (the cloned courier badge).
+(19.3, -77.3; F42: its desk stands south of the rear window, off the vault landing), through the open rear window from
+the dark verge. Opens C1 (the cloned courier badge).
 
 **Routes.**
 - Stealth (solo): verge -> rear window download -> along the dark east fence to (24, -52) -> the forecourt's east end

@@ -1,8 +1,10 @@
-import { Vector3, type InstancedMesh, type Scene } from '../core/babylon';
+import { Vector3, type AbstractMesh, type InstancedMesh, type Scene } from '../core/babylon';
 import type { CharacterRig, FkPose } from '../player/characterRig';
 import type { WeaponModel } from '../weapons/weaponModel';
 import { GuardCq, koCurve, seedOf, type GuardCqMode, type KoState } from '../game/closeQuarters';
 import { buildEnemyRig, GuardGunCarry } from '../ai/enemyRig';
+import type { KeyedClip } from '../anim/keyed';
+import { newKillDrive, type KillDriveState } from '../anim/killDrive'; // (piano-knife S3)
 import { Hitboxes } from '../ai/hitboxes';
 import { DogModel } from '../ai/dogModel';
 import { ENEMIES, type EnemyDef } from '../ai/enemyDefs';
@@ -96,7 +98,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   private shield: InstancedMesh | null = null;
   /** The S12 placeholder parts, built the first time his bits ask for them, then shown or hidden. */
   private helmetPart: InstancedMesh | null = null;
-  private armourParts: InstancedMesh[] | null = null;
+  private armourParts: AbstractMesh[] | null = null;
   private gearHex = '';
   /** The `al` his gear was last set from (-1: none yet). */
   private gearAl = -1;
@@ -339,7 +341,51 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     this.yaw = yaw;
   }
 
+  /** (piano-knife S3) The paired knife kill's drive on his graph (allocated on first use) and whether a knife kill places
+   *  his drawn root itself (`update` then leaves it: the takedown's `frameLate`, or the partner's pair `RemoteKnife`). */
+  private killDrv: KillDriveState | null = null;
+  private knifePinned = false;
+
+  /**
+   * (piano-knife S3) His side of a paired knife kill, as the host's `Enemy.knifeVictim`: the client's own kill (the
+   * takedown) or the partner's (`RemoteKnife`). `clip` at `ph` on his graph (full weight), `buckle` the fold (rad, +
+   * forward); his struggle pose off, his gun hidden, his drawn root the kill's. A null `clip` clears it: the drive off,
+   * both hands' reach off, the gun shown again unless he is held (ours or the partner's). No allocation after the first.
+   */
+  knifeVictim(clip: KeyedClip | null, ph: number, buckle: number): void {
+    const rig = this.rig;
+    if (!clip || !rig) {
+      this.knifeClear(true);
+      return;
+    }
+    const d = this.killDrv ?? (this.killDrv = newKillDrive());
+    d.clip = clip;
+    d.phase = ph;
+    d.w = 1;
+    d.buckle = 1;
+    d.bucklePitch = buckle;
+    rig.graph.kill = d;
+    if (!this.knifePinned) this.gun?.setVisible(false);
+    this.knifePinned = true;
+    if (rig.emote === this.cqEmote) rig.emote = null;
+  }
+
+  /** (piano-knife S3) The knife kill's hold on him ends (pinned or the drive ours): `showGun` false at death (the host's
+   *  guard keeps his gun hidden from the seize into the ragdoll, as today's takedown kill). */
+  private knifeClear(showGun: boolean): void {
+    const rig = this.rig;
+    const ours = !!rig && !!this.killDrv && rig.graph.kill === this.killDrv;
+    if (!this.knifePinned && !ours) return;
+    if (rig) {
+      if (ours) rig.graph.kill = null;
+      rig.reachL.w = rig.reachR.w = 0;
+    }
+    this.knifePinned = false;
+    if (showGun && !this.taken && !this.remoteHold) this.gun?.setVisible(true);
+  }
+
   releaseTakedown(): void {
+    this.knifeClear(true);
     if (!this.seized) return;
     this.seized = this.taken = false;
     this.hitboxes?.setSolid(true);
@@ -405,6 +451,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
 
   /** The host refused (or the enemy broke free there): let go locally. */
   deny(): void {
+    this.knifeClear(true);
     this.seized = this.taken = false;
     this.hitboxes?.setSolid(true);
     if (this.rig) this.rig.emote = null;
@@ -472,8 +519,12 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       return;
     }
     const r = this.rig.root;
-    r.position.copyFrom(this.pos);
-    r.rotation.y = this.yaw;
+    // (piano-knife S3) a knife kill placed his drawn root (the takedown's `frameLate`, the partner's pair): left there
+    const pinned = this.knifePinned;
+    if (!pinned) {
+      r.position.copyFrom(this.pos);
+      r.rotation.y = this.yaw;
+    }
     this.rig.setFlash(this.flash * 0.75);
     const gb = this.gbody;
     if (gb) {
@@ -485,13 +536,14 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     const cy = Math.cos(this.yaw);
     const inv = moved > 1e-4 ? 1 / moved : 0;
     const rp = this.rp;
-    rp.speed = this.speed;
-    rp.localX = (lx * cy - lz * sy) * inv;
-    rp.localZ = (lx * sy + lz * cy) * inv;
+    // (piano-knife S3) pinned: feet planted, as the kill drive keeps them
+    rp.speed = pinned ? 0 : this.speed;
+    rp.localX = pinned ? 0 : (lx * cy - lz * sy) * inv;
+    rp.localZ = pinned ? 1 : (lx * sy + lz * cy) * inv;
     rp.grounded = true;
     rp.crouch = this.crouch;
     rp.aimPitch = 0;
-    rp.aim = this.def.melee || this.taken || this.remoteHold ? 0 : this.aim;
+    rp.aim = this.def.melee || this.taken || this.remoteHold || pinned ? 0 : this.aim;
     // (rig-pose-fix S3, G7) the head on these inputs (the raise before the carry, as the host's head reads it)
     puppetHeadIn(this.headIn, this.pos.x, this.pos.y, this.pos.z, this.yaw, this.crouch, this.speed, rp.localX, rp.localZ, rp.aim);
     rp.kick = this.def.melee ? 0 : this.kick;
@@ -503,7 +555,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     if (pc && gc) {
       pc.step(dt, this.carryWire);
       const cs = pc.c;
-      if (!this.taken && !this.remoteHold) gc.apply(cs);
+      if (!this.taken && !this.remoteHold && !pinned) gc.apply(cs);
       rp.aim = carryRaise(rp.aim, cs);
       rp.ready = cs.holstered;
       rp.swap = cs.swapClip();
@@ -512,7 +564,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     }
     this.rig.animate(dt, rp);
     const cq = this.cq;
-    emoteStep(this.emoteSt, this.headIn, this.taken || this.remoteHold, false, cq.mode, cq.delay, cq.k, dt);
+    emoteStep(this.emoteSt, this.headIn, this.taken || this.remoteHold || pinned, false, cq.mode, cq.delay, cq.k, dt);
     guardHead(this.headIn, this.headRest, this.head);
     this.hitboxes?.sync(this.pos, this.head);
   }
@@ -520,6 +572,8 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   /** Host confirmed the kill: drop hit volumes and hand the rig to a ragdoll (or remove it; a dog lies down). */
   die(): CharacterRig | null {
     if (this.dead) return null;
+    // (piano-knife S3) a knife kill's hold off before the rig goes to the ragdoll (it keeps the last drawn pose)
+    this.knifeClear(false);
     this.dead = true;
     this.taken = false;
     this.hitboxes?.dispose();
@@ -548,6 +602,8 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   }
 
   dispose(): void {
+    // (piano-knife S3) a knife kill's hold off first
+    this.knifeClear(false);
     // (course-restart-hold) gone: never alive again, so a stale reference (a takedown, a hold) lets go of it
     this.dead = true;
     this.taken = this.seized = this.remoteHold = false;

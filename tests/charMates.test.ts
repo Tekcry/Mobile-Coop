@@ -10,6 +10,9 @@
  * - (d) `into` allocates nothing per call;
  * - (e) two machines agree: the host's `RemotePlayer.ref` through `slotInto` and the client's `CharMates` from the same
  *   sim view give the same slot and the same capsule (real Havok on a NullEngine, the real `pstate` parse).
+ * - (player-j16) loads: `loadsInto` walks as `into` does (same slot per partner), `hostLoadsInto` writes only the
+ *   carrying refs' slots, host and client give the same load capsule, the hooks are set only with the contract and read
+ *   only in `fillLoads`, and neither allocates.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -18,8 +21,8 @@ import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { HavokPlugin, Scene, Vector3 } from '../src/core/babylon';
 import { GRAVITY } from '../src/physics/havok';
-import { CharMates, mateOrderInto, type MateSource } from '../src/net/charMates';
-import { FILL, FILL_IN, fillPlayers, slotInto } from '../src/game/charOccluderFill';
+import { CharMates, hostLoadsInto, mateOrderInto, type MateSource } from '../src/net/charMates';
+import { FILL, FILL_IN, fillOperator, fillPlayers, LOAD_IN, slotInto, type MateLike } from '../src/game/charOccluderFill';
 import { lightSampleHeight } from '../src/game/bodyHeight';
 import { posedHeadSample } from '../src/player/wallController';
 import { emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody, type PlayerBodyIn } from '../src/player/playerVolumes';
@@ -424,4 +427,196 @@ describe('CharMates: two machines agree (e)', () => {
     expect(r.worst).toBeLessThanOrEqual(1e-6);
     expect(r.head).toBe(true);
   });
+});
+
+// (player-j16) Last in the file: its sources are a second shape at `into`'s loads, which (d)'s reading must not inherit.
+describe('loads (player-j16)', () => {
+  /** A `MateSource` with the optional carry fields (`RemoteAvatar`'s): carrying while `carryKnees` is set. */
+  class Carrier extends Src {
+    yaw = 0;
+    carrySide = 1;
+    carryKnees: object | null = null;
+  }
+  const linOf = (fill = 0): Float64Array => new Float64Array(FILL.players * LOAD_IN).fill(fill);
+  const loadOf = (lin: Float64Array, s: number): number[] => [lin[s * LOAD_IN]!, lin[s * LOAD_IN + 1]!];
+  /** Capsule `i` of a contract as its 7 floats and kind. */
+  const capAll = (c: CharOccluders, i: number): number[] => Array.from(c.cap.subarray(i * OCC.stride, (i + 1) * OCC.stride));
+  const code = (f: string): string => lf(readFileSync(f, 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/ .*$/gm, '');
+  const method = (src: string, sig: string): string => {
+    const i = src.indexOf(sig);
+    expect(i, sig).toBeGreaterThanOrEqual(0);
+    const j = src.indexOf('\n  }\n', i);
+    expect(j).toBeGreaterThan(i);
+    return src.slice(i, j);
+  };
+
+  it('(9) loadsInto walks as into: the carrying third partner (the middle one unshown) gets slot 2 with (-1, 0.7) there, every other slot 0; max caps both alike', () => {
+    const m = new CharMates();
+    const plain = new Src(1, 0, 1);
+    const hidden = new Carrier(2, 0, 2);
+    hidden.shown = false;
+    hidden.carryKnees = {};
+    const third = new Carrier(3, 0, 3);
+    third.carryKnees = {};
+    third.carrySide = -1;
+    third.yaw = 0.7;
+    m.set([plain, hidden, third]);
+    const pin = pinWithLocal();
+    expect(m.into(pin, 1, 4)).toBe(2);
+    expect(slotOf(pin, 2).slice(0, 3)).toEqual([3, 0, 3]);
+    const lin = linOf();
+    m.loadsInto(lin, 1, 4);
+    expect(loadOf(lin, 2)).toEqual([-1, 0.7]);
+    for (const s of [0, 1, 3]) expect(loadOf(lin, s), `slot ${s}`).toEqual([0, 0]);
+    // (a source without the optional fields, and one with them but not carrying: nothing written)
+    const idle = new Carrier(4, 0, 4);
+    m.set([plain, idle]);
+    const l2 = linOf(Number.NaN);
+    m.loadsInto(l2, 1, 4);
+    expect(Array.from(l2).every((v) => Number.isNaN(v))).toBe(true);
+    // (any side but -1 is the right shoulder; the yaw as shown)
+    idle.carryKnees = {};
+    idle.carrySide = 1;
+    idle.yaw = -2.5;
+    m.loadsInto(l2, 1, 4);
+    expect(loadOf(l2, 2)).toEqual([1, -2.5]);
+    // max: into and loadsInto stop at the same slot (the carrier past it gets nothing)
+    m.set([plain, hidden, third]);
+    pin.fill(Number.NaN, FILL_IN);
+    expect(m.into(pin, 1, 2)).toBe(1);
+    expect(slotOf(pin, 2).every((v) => Number.isNaN(v))).toBe(true);
+    const l3 = linOf();
+    m.loadsInto(l3, 1, 2);
+    expect(Array.from(l3).every((v) => v === 0)).toBe(true);
+    // (from 2: the carrier takes slot 3 in both)
+    expect(m.into(pin, 2, 4)).toBe(2);
+    expect(slotOf(pin, 3).slice(0, 3)).toEqual([3, 0, 3]);
+    m.loadsInto(l3, 2, 4);
+    expect(loadOf(l3, 3)).toEqual([-1, 0.7]);
+    expect(loadOf(l3, 2)).toEqual([0, 0]);
+  });
+
+  it('(10) hostLoadsInto: refs [local, A, B], a carry view for B (side 1, yaw -1.2): slot 2 written, slots 0 and 1 left; an id not in refs ignored', () => {
+    const refs = [{ id: 'me' }, { id: 'A' }, { id: 'B' }];
+    const carries = new Map([
+      ['B', { avatar: { carrySide: 1, yaw: -1.2 } }],
+      ['Z', { avatar: { carrySide: -1, yaw: 3 } }],
+    ]);
+    const lin = linOf(9);
+    hostLoadsInto(lin, refs, 3, carries);
+    expect(loadOf(lin, 2)).toEqual([1, -1.2]);
+    expect([...loadOf(lin, 0), ...loadOf(lin, 1), ...loadOf(lin, 3)]).toEqual([9, 9, 9, 9, 9, 9]);
+    // (the host's own carry is slot 0's, never read from the map; side -1 is the left; nr caps the slots)
+    carries.set('me', { avatar: { carrySide: -1, yaw: 1 } });
+    carries.set('A', { avatar: { carrySide: -1, yaw: 0.25 } });
+    const l2 = linOf(9);
+    hostLoadsInto(l2, refs, 2, carries);
+    expect(loadOf(l2, 0)).toEqual([9, 9]);
+    expect(loadOf(l2, 1)).toEqual([-1, 0.25]);
+    expect(loadOf(l2, 2)).toEqual([9, 9]);
+  });
+
+  it('(11) two machines: the host slot from hostLoadsInto and the client partner slot from loadsInto give the same load capsule', () => {
+    for (const [f, side, yaw] of [[PF.grounded, -1, 0.9], [PF.crouch | PF.grounded, 1, -2.4]] as const) {
+      // host: client X is ref slot 1 (`RemotePlayer.ref`'s fields), its carry view's avatar
+      const refX: MateLike & { id: string } = { id: 'X', feet: { x: 4, y: 0.5, z: -3 }, crouched: (f & PF.crouch) !== 0, height: 1.68 };
+      const pinH = pinWithLocal();
+      slotInto(pinH, 1, refX);
+      const linH = linOf();
+      hostLoadsInto(linH, [{ id: 'me' }, refX], 2, new Map([['X', { avatar: { carrySide: side, yaw } }]]));
+      // client: X is a partner (the same feet, flags, rig height), its avatar carrying with the same side and yaw
+      const src = new Carrier(4, 0.5, -3);
+      src.flags = f;
+      src.carryKnees = {};
+      src.carrySide = side;
+      src.yaw = yaw;
+      const m = new CharMates();
+      m.set([src]);
+      const pinC = pinWithLocal();
+      const n = 1 + m.into(pinC, 1, FILL.players);
+      expect(n).toBe(2);
+      const linC = linOf();
+      m.loadsInto(linC, 1, n);
+      expect(Array.from(linC)).toEqual(Array.from(linH));
+      const occH = new CharOccluders();
+      const occC = new CharOccluders();
+      const kH = new Int32Array(FILL.players);
+      const kC = new Int32Array(FILL.players);
+      fillPlayers(occH, pinH, 2, kH);
+      fillPlayers(occC, pinC, 2, kC);
+      expect(fillOperator(occH, pinH, linH, 2, kH)).toBe(0);
+      expect(fillOperator(occC, pinC, linC, 2, kC)).toBe(0);
+      expect(occH.n).toBe(3);
+      expect(occC.n).toBe(3);
+      expect(capAll(occC, 2)).toEqual(capAll(occH, 2));
+      expect(occH.owner[2]).toBe(occKey(OCC_KIND.player, 1));
+      expect(occC.owner[2]).toBe(occH.owner[2]);
+    }
+  });
+
+  it('(12) source: charLoadsInto only in its declaration and in fillLoads after `if (!occ) return;`; fillLoads right after fillChars; the hosts set it only inside `if (g.charOccluders`', () => {
+    const gs = code('src/game/gameState.ts');
+    expect(gs.match(/\bcharLoadsInto\b/g)?.length).toBe(2);
+    expect(gs).toMatch(/\n\s*charLoadsInto: \(\(lin: Float64Array, refs: readonly PlayerRef\[\], nr: number, n: number\) => void\) \| null = null;/);
+    const fl = method(gs, 'private fillLoads(): void {');
+    const ret = fl.indexOf('if (!occ) return;');
+    expect(ret).toBeGreaterThan(0);
+    expect(fl.indexOf('this.charLoadsInto?.(')).toBeGreaterThan(ret);
+    expect(fl.indexOf('fillOperator(')).toBeGreaterThan(ret);
+    expect(gs).toMatch(/\n(\s*)this\.fillChars\(\);\n\1this\.fillLoads\(\);\n/);
+    expect(gs.match(/this\.fillLoads\(\);/g)?.length).toBe(1);
+    expect(method(gs, 'private fillChars(): void {')).not.toContain('fillOperator');
+    for (const f of ['src/net/coopHost.ts', 'src/net/coopClient.ts']) {
+      const src = code(f);
+      const sets = [...src.matchAll(/g\.charLoadsInto =/g)].map((x) => x.index);
+      expect(sets.length, f).toBe(2);
+      for (const at of sets) {
+        const open = src.lastIndexOf('if (g.charOccluders) {', at);
+        expect(open, f).toBeGreaterThan(0);
+        expect(src.indexOf('\n    }\n', open), f).toBeGreaterThan(at);
+      }
+    }
+    // (gameState.ts and charOccluderFill.ts import nothing from src/net: the (c) case above, unedited)
+  });
+
+  it('(13) loadsInto(lin, 1, 4) with three partners and hostLoadsInto with three refs read under one HeapNumber per call', async () => {
+    const m = new CharMates();
+    const ss = [new Carrier(3, 0, 4), new Carrier(-6, 0, 2), new Carrier(1, 3, -9)];
+    ss[0]!.carryKnees = {};
+    ss[0]!.yaw = 1.1;
+    ss[2]!.carryKnees = {};
+    ss[2]!.carrySide = -1;
+    ss[2]!.yaw = -0.4;
+    m.set(ss);
+    const lin = linOf();
+    const refs = [{ id: 'me' }, { id: 'A' }, { id: 'B' }, { id: 'C' }];
+    const carries = new Map([
+      ['A', { avatar: { carrySide: 1, yaw: 0.3 } }],
+      ['C', { avatar: { carrySide: -1, yaw: 2.2 } }],
+    ]);
+    const N = 2000;
+    const per = (fn: (n: number) => void, goal: number): Promise<number> => bytesPerCall(fn, goal, { n: N, warm: 100000 });
+    const mates = await per((n) => {
+      for (let i = 0; i < n; i++) m.loadsInto(lin, 1, 4);
+    }, 0);
+    const host = await per((n) => {
+      for (let i = 0; i < n; i++) hostLoadsInto(lin, refs, 4, carries);
+    }, 0);
+    const P = inputs(N * 3, (k) => k * 0.5);
+    const ring: object[] = new Array<object>(64);
+    const ctl = await per((n) => {
+      for (let i = 0; i < n; i++) {
+        const v = { x: P[i * 3]!, y: P[i * 3 + 1]!, z: P[i * 3 + 2]! };
+        ring[i & 63] = v;
+      }
+    }, -Infinity);
+    console.info(`bytes per call: CharMates.loadsInto (3 partners, 2 carrying) ${mates.toFixed(1)}, hostLoadsInto (3 refs, 2 carrying) ${host.toFixed(1)}, control with a vector ${ctl.toFixed(1)}`);
+    const l2 = linOf();
+    m.loadsInto(l2, 1, 4);
+    expect([...loadOf(l2, 1), ...loadOf(l2, 2), ...loadOf(l2, 3)]).toEqual([1, 1.1, 0, 0, -1, -0.4]);
+    sink[0] = lin[2]!;
+    expect(mates).toBeLessThan(HEAP_NUMBER);
+    expect(host).toBeLessThan(HEAP_NUMBER);
+    expect(ctl).toBeGreaterThanOrEqual(32);
+  }, 120_000);
 });
