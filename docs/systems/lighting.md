@@ -275,7 +275,9 @@ capsules.
   character holding the source, within r + 0.6 m of its axis, skipped, A5; a lamp under `CHAR_LIGHT.minLevel` 0.04 not
   shaded). `capsuleTransmit` is the shaders' `lampCapsule` line for line (`LAMP_CAPSULE_GLSL` is built from the same
   `CAPSULE` numbers). "Every preset darkens a character's shadow on you from the same lamps by the same amount; higher
-  presets draw the real outline from the nearest lamps, the others draw soft round shadows."
+  presets draw the real outline from the nearest lamps, the others draw soft round shadows." A carried body is one
+  capsule on its carrier's shoulder (`fillOperator`, Player J16), owned by the carrier's key, so his own meter skips
+  it; on a co-op page it appears when that page's carry shows the body lifted.
 
   | Preset | Picture under a character | Meter |
   | --- | --- | --- |
@@ -397,3 +399,4 @@ change.
   frame; benchmark lines end with the run's summary, `feedbackContext().spikes`.
 - Tests: `tests/darkCurve.test.ts`, `tests/lampBake.test.ts`, `tests/nightVision.test.ts`, `tests/benchmark.test.ts`;
   `scripts/e2e-darkness.mjs` (GPU list: `npm run e2e:gpu` on Michael's PC), `scripts/e2e-lightbake.mjs`.
+- (guard-models) Guard materials are frozen (`guardFigure.ts:136`, like the S1 skin material): a frozen material binds its lights once per material per pass, so every guard must share one light set. A per-mesh light list (`includedOnlyMeshes`, `requireLightSorting`) would silently mis-light every guard but the first drawn.

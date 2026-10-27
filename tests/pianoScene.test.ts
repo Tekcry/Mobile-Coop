@@ -753,7 +753,8 @@ describe('S2: the view and the gameState render-override seam', () => {
     const g = src('src/game/gameState.ts');
     expect(g).toContain('export interface SceneView {');
     expect(g).toContain('sceneView: SceneView | null = null;');
-    expect(g).toContain("if (realIn.pressed('pause') && !sv?.ownsPause) {");
+    expect(g).toContain('const svPause = !!sv?.ownsPause;');
+    expect(g).toContain("if (realIn.pressed('pause') && !svPause) {");
     expect(g).toContain('const real = this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp');
     const fu = g.indexOf('sv?.frame(dt);');
     expect(fu).toBeGreaterThan(g.indexOf('this.player.frameUpdate(dt, alpha, look'));
@@ -771,5 +772,21 @@ describe('S2: the view and the gameState render-override seam', () => {
     // Babylon only through core/babylon; never src/net
     expect(v).not.toMatch(/@babylonjs/);
     expect(v).not.toMatch(/from '\.\.\/net|from '\.\/net/);
+  });
+});
+
+describe('(walk ~09:42) the intro skip is shown', () => {
+  it('a hint with a hold bar while the skip is live; a tap skips once the intro has played before on this page', () => {
+    const v = src('src/game/pianoIntroView.ts');
+    expect(v).toContain("'HOLD BACK / ESC   SKIP'");
+    expect(v).toContain('this.tapSkip = introsSeen > 1;');
+    expect(v).toContain('if (held >= SKIP_HOLD_S && intro.skip()) {');
+    // the tap is read in the fixed step (where the button edge lives), never in the render frame
+    expect(v).toContain('if (!this.tapSkip || !this.ownsPause || this.disposed || this.isCut) return;');
+    const g = src('src/game/gameState.ts');
+    const t = g.indexOf("if (svPause && (realIn.pressed('pause') || realIn.pressed('objective'))) sv?.tap?.();");
+    expect(t).toBeGreaterThan(0);
+    expect(t).toBeLessThan(g.indexOf("if (realIn.pressed('pause') && !svPause) {"));
+    expect(v).toContain('this.hint?.remove();');
   });
 });

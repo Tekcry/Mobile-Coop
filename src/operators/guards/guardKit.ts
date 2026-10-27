@@ -267,6 +267,12 @@ export function validateGuardKit(kit: GuardKit): string[] {
   };
   for (const c of kit.hairColours) colour(c, 'hairColour');
   for (const c of kit.skinTones) colour(c, 'skinTone');
+  // (G10a D2) SPEC 8 tints by target / neutral, clamped to [0, 1]: a channel above its slot's neutral clamps and greys
+  const underNeutral = (c: ColourDef, what: string, slot: string, neutral: number) => {
+    if (c.rgb.some((v) => v > neutral + 1e-9)) err.push(`${what} ${c.id}: rgb ${c.rgb.join(', ')} has a channel above the ${slot} neutral ${neutral} (would clamp: target / neutral is clamped to 1)`);
+  };
+  for (const c of kit.hairColours) underNeutral(c, 'hairColour', 'hair', kit.tintNeutral.hair);
+  for (const c of kit.skinTones) underNeutral(c, 'skinTone', 'skin', kit.tintNeutral.skin);
   const slots = new Set(kit.tintSlots);
 
   // Bases.

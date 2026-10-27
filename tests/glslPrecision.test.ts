@@ -23,7 +23,7 @@ describe('(LR16-L Part B) GLSL precision for Low / phones', () => {
     const expected: Record<string, number> = {
       taauFragmentShader: 3, // textureSampler, historySampler, depthSampler
       volumetricFragmentShader: 2, // textureSampler, depthSampler
-      cinematicFragmentShader: 3, // textureSampler, glowSampler, exposureSampler
+      cinematicFragmentShader: 4, // textureSampler, glowSampler, exposureSampler, depthSampler (thermal-read)
       paniniFragmentShader: 1, // textureSampler
     };
     for (const [name, n] of Object.entries(expected)) {

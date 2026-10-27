@@ -9,6 +9,7 @@ import { createVariant, guardVariant } from '../src/operators/guards/guardVarian
 import { guardTints, srgbToLinear, tintByte, TINT_SLOTS } from '../src/operators/guards/guardTints';
 import { FACTIONS } from '../src/ai/factions';
 import { guardHelmetDrop, HELMET_STD_DROP } from '../src/ai/helmetDrops';
+import kitRaw from '../scripts/operators/data/guards.json';
 
 const WREN: [string, string, string, string] = ['/wren-hero.glb', '/wren-lod0.glb', '/wren-lod1.glb', '/wren-lod2.glb'];
 const DATA: GuardFileData = { pieces: ['average', 'average-1', 'helmet_std', 'vest_soft', 'uniform'], tintSlots: 6, refHeight: 1.77 };
@@ -114,6 +115,23 @@ describe('guard tint table (SPEC 8)', () => {
     expect(rgb(t, 'hair')).toEqual([0.58, 0.57, 0.55].map((x) => tintByte(x / 0.6)));
     expect(rgb(t, 'uniform')).toEqual([0, 1, 2].map((i) => tintByte((lin(FACTIONS.urban.torso, i) / 0.4) * 1.06)));
     expect(Array.from(t.slice(18))).toEqual([255, 255, 255, 255, 255, 255]);
+  });
+
+  // (G10a D2) tone 0 used to clamp red at 1 (0.98 / 0.75) and land grey-white; every tone now keeps its hue
+  it('every skin tone decodes to target / 0.75 within a byte step, none clamped', () => {
+    const dec = (b: number): number => (Math.min(255, Math.max(0, b)) / 255) ** 2.2;
+    for (let tone = 0; tone < kitRaw.skinTones.length; tone++) {
+      const v = guardVariant(3, 'grunt', 'ctcourse', createVariant());
+      v.skinTone = tone;
+      const got = rgb(guardTints(v, 'grunt', 'urban', own, new Uint8Array(18)), 'skin');
+      const target = kitRaw.skinTones.find((s) => s.id === tone)!.rgb.map((x) => x / kitRaw.tintNeutral.skin);
+      for (let i = 0; i < 3; i++) {
+        const b = got[i]!;
+        expect(target[i]!, `tone ${tone} ch ${i} unclamped`).toBeLessThanOrEqual(1 + 1e-9);
+        const step = Math.max(dec(b + 1) - dec(b), dec(b) - dec(b - 1));
+        expect(Math.abs(dec(b) - target[i]!), `tone ${tone} ch ${i}`).toBeLessThanOrEqual(step);
+      }
+    }
   });
 });
 

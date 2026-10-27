@@ -1,10 +1,12 @@
 /**
- * (piano-escape S6) The storm's sound for the piano scene: rain on the roof and thunder, all WebAudio synthesis on the
- * `sfx` bus (no audio files, no downloads; a real recording is a walk-card question).
+ * (piano-escape S6) The storm's sound for the piano scene: rain on the roof and thunder on the `sfx` bus. (storm-recording)
+ * The sound is a real recording (`stormClips.ts`: a rain-on-a-roof loop and three thunder clips, bundled, credits in
+ * docs/audio-credits.md); the WebAudio synthesis below plays until the files have loaded and for any part whose file
+ * failed to load (no rain file: the synthesised bed stays; no thunder file: the synthesised roll).
  *
- * - Rain: a looping noise bed with a light patter layer, from the scene's first intro frame. Louder on the gallery
+ * - Rain: the recorded loop (a looping noise bed with a light patter layer until it is ready), from the scene's first intro frame. Louder on the gallery
  *   (nearer the roof): `rainGain(y)` of the local operator's feet height, smooth and clamped, set once per sim step.
- * - Thunder: one low roll `THUNDER_DELAY` s after each flash, driven only from the scene clock (`simTime - t0`, the
+ * - Thunder: one roll (a recorded clip, picked by `thunderClipIndex`; else a low synthesised roll) `THUNDER_DELAY` s after each flash, driven only from the scene clock (`simTime - t0`, the
  *   clock SO5's `Lightning.flashAt` reads; never a music time or a page timer). A double flash gives ONE roll, 2.0 s
  *   after its first entry. Before the EMP (`t0` = +Infinity) there is none. The variation of each roll (its length and
  *   pitch) comes from the flash index, so it is the same every run.
@@ -14,6 +16,7 @@
  * re-seeks the index without firing the missed rolls.
  */
 import type { AudioEngine } from './audioEngine';
+import { loadStormClips, THUNDER_CLIP_COUNT, type StormClips } from './stormClips';
 import { DECK_Y } from '../world/maps/thornbeckMill';
 import type { Flash } from '../world/lightning';
 
@@ -24,9 +27,9 @@ export const DOUBLE_GAP = 0.5;
 /** A clock step bigger than this (s) is a jump (a seek, a late join, a stalled page): re-seek, fire nothing. */
 export const JUMP_S = 1;
 
-/** The rain's level on the ground floor and on the gallery (nearer the roof). */
-export const RAIN_GROUND = 0.1;
-export const RAIN_GALLERY = 0.17;
+/** The rain's level on the ground floor and on the gallery (nearer the roof). Michael 2026-10-27 ~09:10 "the rain is defening", then ~09:40 "still way too loud": now about a twentieth of the first level (-26 dB). */
+export const RAIN_GROUND = 0.005;
+export const RAIN_GALLERY = 0.009;
 /** The two heights the level runs between (m): the floor and the gallery deck (thornbeckMill.ts). */
 export const RAIN_GROUND_Y = 0;
 export const RAIN_GALLERY_Y = DECK_Y;
@@ -37,6 +40,37 @@ export function rainGain(y: number): number {
   if (y >= RAIN_GALLERY_Y) return RAIN_GALLERY;
   const u = (y - RAIN_GROUND_Y) / (RAIN_GALLERY_Y - RAIN_GROUND_Y);
   return RAIN_GROUND + (RAIN_GALLERY - RAIN_GROUND) * u * u * (3 - 2 * u);
+}
+
+/**
+ * The recorded rain's own level (it sits behind `rainGain(y)`, so the height curve still applies). The loop is stored at
+ * -23 dBFS RMS; the synthesised bed measures about -51 dBFS RMS at the gallery level (0.009), so 3.0 puts the recording at
+ * about -54 dBFS there (3 dB under it; when unsure, quieter: Michael found the synthesis too loud twice).
+ */
+export const RAIN_REC_TRIM = 3;
+/** The recorded thunder's trim on the roll level (the clips are stored near full scale; the synthesised roll peaks near 0.25). */
+export const THUNDER_REC_TRIM = 0.3;
+/** Seconds the synthesised rain takes to give way to the recording once it has loaded. */
+const REC_SWAP_S = 1.5;
+
+/** The deterministic 0..1 variation of roll `i` and `salt` (no random: the same every run). */
+export function rollVar(i: number, salt: number): number {
+  let h = Math.imul(i + 1, 0x9e3779b1) ^ Math.imul(salt + 7, 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
+  h ^= h >>> 12;
+  return (h >>> 0) / 4294967296;
+}
+
+/** Which of `n` thunder clips roll `i` plays: 0..n-1, the same every run (from `rollVar`, salt 8). */
+export function thunderClipIndex(i: number, n: number = THUNDER_CLIP_COUNT): number {
+  if (!(n >= 1)) return 0;
+  return Math.min(n - 1, Math.floor(rollVar(i, 8) * n));
+}
+
+/** The recorded clip for roll `i`, or null when it is not there (not loaded, failed, none given): the synthesised roll plays. */
+export function pickThunderClip<T>(clips: readonly (T | null | undefined)[] | null | undefined, i: number): T | null {
+  if (!clips || clips.length === 0) return null;
+  return clips[thunderClipIndex(i, clips.length)] ?? null;
 }
 
 /** One thunder roll: `t` s on the scene clock (within one period), `peak` its loudness 0..1, `i` its group's index. */
@@ -149,21 +183,17 @@ export interface PianoStorm {
   dispose(): void;
 }
 
-/** The deterministic 0..1 variation of roll `i` and `salt` (no random: the same every run). */
-export function rollVar(i: number, salt: number): number {
-  let h = Math.imul(i + 1, 0x9e3779b1) ^ Math.imul(salt + 7, 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
-  h ^= h >>> 12;
-  return (h >>> 0) / 4294967296;
-}
-
 /** Seconds of noise in the storm's own buffer (long enough that the rain bed's loop does not read as a loop). */
 const NOISE_S = 6;
 /** The rain's gain moves toward its target with this time constant (s). */
 const RAIN_TC = 0.25;
 
 /** Build the storm for `engine` with the map's lightning `data` (null: rain only). Nodes are made at `start()`. */
-export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: readonly Flash[]; readonly period?: number } | null): PianoStorm {
+export function createSceneStorm(
+  engine: AudioEngine,
+  data: { readonly flashes: readonly Flash[]; readonly period?: number } | null,
+  loadClips: () => Promise<StormClips> = loadStormClips,
+): PianoStorm {
   const period = data?.period && data.period > 0 ? data.period : 0;
   const clock = new ThunderClock(thunderRolls(data?.flashes ?? [], period), period);
   let started = false;
@@ -173,10 +203,14 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
   let rainOut: GainNode | null = null;
   let buf: AudioBuffer | null = null;
   let nodes: AudioScheduledSourceNode[] = [];
+  /** The synthesised rain's own gain (it hands over to the recording). */
+  let synthRain: GainNode | null = null;
+  /** The recordings once loaded (null until then: the synthesis plays). */
+  let clips: StormClips | null = null;
   let lastGain = -1;
   /** Every roll plays through this one gain, so the end fade and dispose reach a roll in flight. */
   let thunderOut: GainNode | null = null;
-  /** The live rolls' sources (a ring: a roll lasts at most ~6.4 s, so 8 slots never wrap onto a live one). */
+  /** The live rolls' sources (a ring: a roll lasts at most ~7.6 s, so 8 slots never wrap onto a live one). */
   const live: (AudioScheduledSourceNode | null)[] = [null, null, null, null, null, null, null, null];
   let liveAt = 0;
   const keep = (n: AudioScheduledSourceNode): void => {
@@ -219,6 +253,8 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
     buf = makeNoise(ctx);
     out.gain.value = rainGain(0);
     lastGain = rainGain(0);
+    synthRain = ctx.createGain();
+    synthRain.connect(out);
     // the bed: a broad hiss, the roof's wash
     const bed = source(ctx, 0, true);
     const hp = ctx.createBiquadFilter();
@@ -229,7 +265,7 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
     lp.frequency.value = 7000;
     const bedG = ctx.createGain();
     bedG.gain.value = 0.55;
-    bed.connect(hp).connect(lp).connect(bedG).connect(out);
+    bed.connect(hp).connect(lp).connect(bedG).connect(synthRain);
     // a slow gust on the bed
     const gust = ctx.createOscillator();
     gust.frequency.value = 0.13;
@@ -243,7 +279,7 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
     bl.frequency.value = 420;
     const bodyG = ctx.createGain();
     bodyG.gain.value = 0.5;
-    body.connect(bl).connect(bodyG).connect(out);
+    body.connect(bl).connect(bodyG).connect(synthRain);
     // the patter: drops on the boards, a band of noise chopped by a fast tremolo
     const pat = source(ctx, 4.3, true);
     const pb = ctx.createBiquadFilter();
@@ -252,7 +288,7 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
     pb.Q.value = 1.1;
     const patG = ctx.createGain();
     patG.gain.value = 0.3;
-    pat.connect(pb).connect(patG).connect(out);
+    pat.connect(pb).connect(patG).connect(synthRain);
     const trem = ctx.createOscillator();
     trem.type = 'triangle';
     trem.frequency.value = 11;
@@ -266,6 +302,46 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
       out.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
       thunderOut?.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
     }
+    // the recordings: fetched and decoded once, never a per-frame cost; until they are there (or if they fail) the synthesis plays
+    void loadClips().then(
+      (c) => {
+        if (dead) return;
+        clips = c;
+        if (c.rain) useRecordedRain(c.rain);
+      },
+      () => {
+        // never rejects (stormClips.ts); the synthesis stays
+      },
+    );
+  };
+
+  /** The recorded rain loop takes over from the synthesised bed (a short cross-fade), on the same `rainOut` gain. */
+  const useRecordedRain = (rain: AudioBuffer): void => {
+    const c = ctx;
+    if (!c || !rainOut || !synthRain || dead || fading) return;
+    const t = c.currentTime;
+    const rec = c.createBufferSource();
+    rec.buffer = rain;
+    rec.loop = true;
+    rec.loopStart = 0;
+    rec.loopEnd = rain.duration;
+    const recG = c.createGain();
+    recG.gain.setValueAtTime(0, t);
+    recG.gain.linearRampToValueAtTime(RAIN_REC_TRIM, t + REC_SWAP_S);
+    rec.connect(recG).connect(rainOut);
+    rec.start(t);
+    // the synthesised bed fades out and its sources stop once it is silent
+    synthRain.gain.cancelScheduledValues(t);
+    synthRain.gain.setValueAtTime(synthRain.gain.value, t);
+    synthRain.gain.linearRampToValueAtTime(0, t + REC_SWAP_S);
+    for (const n of nodes) {
+      try {
+        n.stop(t + REC_SWAP_S + 0.1);
+      } catch {
+        // already stopped
+      }
+    }
+    nodes = [rec];
   };
 
   /** One roll: a slow-attack low body with a long tail, and a short mid growl; the variation from the roll's index. */
@@ -273,6 +349,20 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
     const c = ctx;
     if (!c || c.state !== 'running' || !buf || !thunderOut || fading || dead) return;
     const t = c.currentTime;
+    const clip = pickThunderClip(clips?.thunder, r.i);
+    if (clip) {
+      // a recorded roll: the same per-roll gain into `thunderOut` (the end fade and dispose still reach it)
+      const rg = c.createGain();
+      rg.gain.value = (0.55 + 0.35 * r.peak) * (0.85 + 0.3 * rollVar(r.i, 3)) * THUNDER_REC_TRIM;
+      rg.connect(thunderOut);
+      const src = c.createBufferSource();
+      src.buffer = clip;
+      src.connect(rg);
+      src.start(t);
+      keep(src);
+      src.onended = () => rg.disconnect();
+      return;
+    }
     const tail = 3.6 + rollVar(r.i, 1) * 2.4;
     const att = 0.35 + rollVar(r.i, 2) * 0.3;
     const level = (0.55 + 0.35 * r.peak) * (0.85 + 0.3 * rollVar(r.i, 3));
@@ -372,6 +462,9 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
       rainOut = null;
       thunderOut?.disconnect();
       thunderOut = null;
+      synthRain?.disconnect();
+      synthRain = null;
+      clips = null;
       buf = null;
     },
   };

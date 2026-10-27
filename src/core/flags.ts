@@ -78,9 +78,8 @@ export interface Flags {
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
   /** (guard-models G7, A10) Guards draw as the operator-pipeline figure (`src/ai/guardBody.ts`); `?guardmodels=0` keeps
-   *  the merged S1 body (comparisons, and the fallback while a guard's files load). DEFAULT OFF on the guard-models
-   *  branch until G8 measures (`?guardmodels=1` turns it on); G8 flips the default. On /preview/ default on
-   *  (preview-flags). */
+   *  the merged S1 body (comparisons, and the fallback while a guard's files load). Default ON everywhere since gm-flip
+   *  (the G8 gate passed after gm-perf, the gm-look fixes are baked; Michael ~23:55 2026-10-26 "Just switch them on"). */
   guardModels: boolean;
   /** (guard-render S4) Guard anim tiers (off-screen every `ANIM_TIER_OFFSCREEN` th frame, far every 2nd:
    *  `src/ai/animTier.ts`); `?animtier=0` off. */
@@ -145,6 +144,10 @@ export interface Flags {
    *  adds / removes `pull` and `shutter`. The host's rules and each page's offers read it (`has()` allocates nothing).
    *  Tests set `flags.kitMoves` in `beforeAll` and restore it. */
   kitMoves: ReadonlySet<string>;
+  /** (context-prompts, `docs/context-prompts/PLAN.md` section 7; owner Night Shift | Player Build, switch-on at Michael's
+   *  walk, target 2026-10-31) The context prompts: one button per action on the thing it acts on (tap / hold), in place
+   *  of the hold-A list. `?ctxprompts=1` on, `?ctxprompts=0` off; default off. On /preview/ default on (preview-flags). */
+  contextPrompts: boolean;
 }
 
 /** (coop-kit A1, BRIEF A8) Every kit move id that exists in the game (each slice adds its id in the PR that makes the
@@ -283,8 +286,8 @@ export const flags: Flags = {
   mixamo: onOffFlag(params.get('mixamo')),
   anim: ((v) => (v === 'hand' || v === 'cmu' || v === 'mixamo' ? v : null))(params.get('anim')),
   guardMerge: params.get('guardmerge') !== '0',
-  // (guard-models G7) default off until G8's budget run: `?guardmodels=1` on; G8 makes it `!== '0'`
-  guardModels: darkFlag(params.get('guardmodels'), PREVIEW_ON),
+  // (guard-models G7, gm-flip) default on: `?guardmodels=0` keeps the merged S1 body
+  guardModels: params.get('guardmodels') !== '0',
   animTier: params.get('animtier') !== '0',
   animShadow: params.get('animshadow') !== '0',
   animOff: Number(params.get('animoff')) | 0,
@@ -304,4 +307,5 @@ export const flags: Flags = {
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
   campusV2: readCampusV2(params.get('campusv2'), PREVIEW_ON),
+  contextPrompts: darkFlag(params.get('ctxprompts'), PREVIEW_ON),
 };

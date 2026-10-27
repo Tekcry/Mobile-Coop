@@ -105,6 +105,8 @@ export class SmoothBody {
   private parents: unknown[] = [];
   /** Sticky: the rest box no longer bounds the body. */
   loose = false;
+  /** (guard-models perf S13) Other meshes skinned on this skeleton with the rest box (merged gear): freed with the body. */
+  readonly extras: Mesh[] = [];
   private ranges: Uint32Array[] = [];
   /** Per mesh: the vertex colours as built (lens glow writes them), the flash buffer and `pattern` (w = heat). */
   private baseColors: Float32Array[] = [];
@@ -317,6 +319,7 @@ export class SmoothBody {
         if (nodes[i]!.parent === body.parents[i]) continue;
         body.loose = true;
         for (const m of body.meshes) m.alwaysSelectAsActiveMesh = true;
+        for (const m of body.extras) m.alwaysSelectAsActiveMesh = true;
         break;
       }
     }
