@@ -264,7 +264,8 @@ clip in `src/anim/mixamo.ts`; owner Player Build; switch-on date in the PR body 
   `tests/tunerReachProbe.test.ts`, `tests/nowPlaying.test.ts`, `tests/animStudio.test.ts`, `docs/art-credits.md`, `TESTING.md` (one line: the Studio's
   motion-capture group and `?mixamo=1`), `.gitignore` (comment). Read only: `scripts/operators/blender.mjs`,
   `scripts/operators/export-joints.mjs`, `src/anim/keyed.ts`, `src/anim/clip.ts`, `src/player/attachController.ts`.
-- Not touched: `src/player/*`, `src/anim/clips/team.ts`, kit clips, `src/game/*` carry / takedown code (hand-offs),
-  `src/net/*`.
-- Maps: none. Wire: none (no `PROTOCOL_VERSION` change). Save: none.
+- Not touched: `src/anim/clips/team.ts`, kit clips, `src/game/*` carry / takedown code (hand-offs). The source wire
+  (Toggle + wire slices, G400) touches `src/net/protocol.ts`, `coopHost.ts`, `coopClient.ts`, `remoteAvatar.ts` and
+  `src/player/characterRig.ts` (WIRE-REPORT.md).
+- Maps: none. Wire: the source wire adds the 2-bit `an` field (the train bumps `PROTOCOL_VERSION` once). Save: none.
 - Sizes: every PR under ~1.5k changed lines (above).

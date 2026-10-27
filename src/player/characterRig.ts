@@ -14,7 +14,7 @@ import { emptyPlannerInput, FootPlanner, type FootState } from '../anim/footPlan
 import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
 import { newStrikeBody, strikeBodyAt, strikeBodyPhase, type StrikeBodyOut } from '../anim/strikeBody'; // (anim-natural N4c) the elbow strike's hips and trunk
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
-import { LOCO, MOCAP_FEET, MOCAP_LAYERS, MOCAP_RUN_POSE, mocapLayerK } from '../anim/mocap'; // (mocap-trial; afp-af2 the run pose)
+import { MOCAP_FEET, MOCAP_LAYERS, MOCAP_RUN_POSE, mocapLayerK } from '../anim/mocap'; // (mocap-trial; afp-af2 the run pose)
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
@@ -1214,9 +1214,11 @@ export class CharacterRig {
   private footPitchR = 0;
   /** (mocap-trial, fix 2) The switch as last frame (turned off: the planner gets its feet back clean, `clipFootOff`). */
   private mocapWas = false;
-  /** (mt2-guardgate, CHECK-6 R1) The switch for this rig this frame: `LOCO.mocap` on a carrier (the player, a remote player)
+  /** (mt2-guardgate, CHECK-6 R1) The switch for this rig this frame: its graph source's `loco.mocap` on a carrier (the player, a remote player)
    *  only; guards and the menu preview keep the hand-keyed set and the planner's feet whatever the switch says. */
   private mOn = false;
+  /** (mixamo-retarget Source wire) Its set has a crouched-walk capture (`loco.set.crouchWalk`), this frame. */
+  private mCrouchCap = false;
   /** (mt2-fixB, CHECK-3 item 5) The switch's cross-fade: the skeleton's nodes (built on the first frame), their local
    *  rotations the last two frames (x, y, z, w each) and the hips' local position, the frames seen (to 2), the offsets
    *  a toggle eases out (rotations pre-multiplied, the hips' position added), seconds into it (-1: none). */
@@ -1796,7 +1798,10 @@ export class CharacterRig {
   /** (anim-joints J1) One solved frame of `animate` (after the LOD skip; inside the rig's tuner window when it has one). */
   private animateFrame(dt: number, s: RigPose): void {
     const i = this.input;
-    this.mOn = LOCO.mocap && this.carrier;
+    // (mixamo-retarget Source wire) the switch of this rig's graph's source (the page's, or a remote owner's)
+    const loco = this.graph.sourceTables().loco;
+    this.mOn = loco.mocap && this.carrier;
+    this.mCrouchCap = loco.set.crouchWalk !== null;
     i.mocapOk = this.carrier;
     i.speed = s.speed;
     i.localX = s.localX;
@@ -2756,7 +2761,7 @@ export class CharacterRig {
     // the foot keeps the planner's yaw and pitch (its pitch already turns at most MOCAP_FEET.pitchRate), its Joints offset on top
     // (mt2-fixC, CHECK-3 item 6c) also on the mocap share (`poleM`) and in the crouched capture (switch on, crouchWalk set):
     // a crouched sneak flick's toe-off turned the limited leg's foot off the planner's and its ball slid 2.1 cm
-    if ((lh || rh) && (this.pin.clipFeet || poleM || (this.mOn && LOCO.set.crouchWalk !== null && this.input.crouch > 0)) && !legKeyed && !HANDS_CUR.ikOn) {
+    if ((lh || rh) && (this.pin.clipFeet || poleM || (this.mOn && this.mCrouchCap && this.input.crouch > 0)) && !legKeyed && !HANDS_CUR.ikOn) {
       const ly = Number.isNaN(this.legYaw);
       if (lh) {
         Quaternion.RotationYawPitchRollToRef(ly ? L.yaw : this.legYaw, L.pitch + st.lPitch, 0, tmpQ3);

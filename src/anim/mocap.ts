@@ -212,7 +212,7 @@ export const LOCO: { set: LocoClipSet; mocap: boolean; slots: boolean } = { set:
  * capture under `?mixamo=1`; `mixamo.ts` hands it over, this module never imports that one): a copy of `MOCAP_SET` made
  * once, and the set the switch's ON side uses (`MOCAP_SET` itself, untouched, unless a crouched walk is handed over).
  */
-const MOCAP_SET_MX: { -readonly [K in keyof LocoClipSet]: LocoClipSet[K] } = { ...MOCAP_SET };
+const MOCAP_SET_MX: LocoClipSetMx = { ...MOCAP_SET };
 let mocapActive: LocoClipSet = MOCAP_SET;
 
 /**
@@ -236,14 +236,26 @@ const MX_TAKEN: Record<MixamoLocoSlot, KeyedClip | null> = {
  */
 export function setMocapMixamo(slots: Partial<Record<MixamoLocoSlot, KeyedClip | null>>): void {
   for (const k of MX_SLOTS) if (slots[k] !== undefined) MX_TAKEN[k] = slots[k] ?? null;
-  Object.assign(MOCAP_SET_MX, MOCAP_SET);
+  mocapActive = fillMocapSetMx(MOCAP_SET_MX, MX_TAKEN) ? MOCAP_SET_MX : MOCAP_SET;
+  if (LOCO.mocap) setMocapLocomotion(true);
+}
+
+/** A writable locomotion set (a copy of `MOCAP_SET` with captures in its slots). */
+export type LocoClipSetMx = { -readonly [K in keyof LocoClipSet]: LocoClipSet[K] };
+
+/**
+ * (source wire) Rebuild `out` from `MOCAP_SET` as it is now with each taken slot's capture in place; true when any slot
+ * is taken (then `out` is the set to play, else `MOCAP_SET` itself). The page's set (`setMocapMixamo`) and each Animation
+ * source's own (`animSource.ts` SOURCE_TABLES) are built by it. Once per change, never per frame.
+ */
+export function fillMocapSetMx(out: LocoClipSetMx, taken: Readonly<Record<MixamoLocoSlot, KeyedClip | null>>): boolean {
+  Object.assign(out, MOCAP_SET);
   let any = false;
   for (const k of MX_SLOTS) {
-    const c = MX_TAKEN[k];
-    if (c) { MOCAP_SET_MX[k] = c; any = true; }
+    const c = taken[k];
+    if (c) { out[k] = c; any = true; }
   }
-  mocapActive = any ? MOCAP_SET_MX : MOCAP_SET;
-  if (LOCO.mocap) setMocapLocomotion(true);
+  return any;
 }
 
 /** (mixamo-retarget I1) The crouched walk in the mocap set's slot (null: the CMU 136_09 back); once per change. */
