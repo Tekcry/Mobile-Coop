@@ -1018,7 +1018,8 @@ STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano
 builders; 00:59 pace: up to 2 agents, piano first.
 SHIP 4-PLAYER (Michael after the walk, ~10:40): #317 merge 16 head 2d8fa5a0e, MERGE16-CHECK.md PASS, checker
 posted, LABELLED by the orchestrator (11:30); CI red guardAiAlloc D1 = CI Node 22 (#696). If it
-conflicts again before its train: merge 17 at once. #694 train-ready (train 166
+conflicts again before its train: merge again at once. Merge 17 62e4f2c09 (lead: gameState.ts both kept + a
+shadowCuesGame stand-in field), checker carried, orchestrator asked to re-add train-ready. #694 train-ready (train 166
 failed on another test). J16 G4 PR may open once Sector Ops #665 lands.
 TOP PRIORITY (Michael's mill walk ~10:00, via the orchestrator; J16 HELD): (A) guards fire while facing away:
 fix everywhere = PR #694 (label fix; 58bbbdab2, FIRE_CONE 15 deg, faceFor 110 deg/s; AIM-FIX-REPORT.md):
@@ -1038,7 +1039,7 @@ and H2 Opus (feature/guard-ai-mill-hunt-h2, worktree -mill-hunt-h2, src/ai/millH
 10 gallery stops, H1-REPORT.md). Next: lead merges both into
 feature/guard-ai-mill-hunt, adds the sims on the real THORNBECK_HUNT, two Opus checkers, PR 1. Then PR 1 = H1 (Sonnet data) + H2 (Opus pure board) in parallel; PR 2 = H3 after #694; PR 3 = H4. Asked Michael via the orchestrator: gallery
 answered.
-Open (2026-10-27 ~11:35 SAVE; meter resets 13:50; carry on with the mill hunt after it without waiting; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
+Open (2026-10-27 ~14:05, window to ~18:50, up to 2 agents; weekly meter ~83%, save at ~92%; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
      4bb733e14 committed ad3c1afd9 (A FIX 2: watch deaf in cooldown / caution, deck sweep leaves his storey; B PASS).
@@ -1057,9 +1058,9 @@ Open (2026-10-27 ~11:35 SAVE; meter resets 13:50; carry on with the mill hunt af
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: mill-hunt H1 + H2 merged into feature/guard-ai-mill-hunt 8c12cb397 (64 tests pass; H2-REPORT.md: sims clean,
-phaseMin 60, a guard at 'alert' drops off and H3 / H4 must re-admit, no stuck timeout yet). Counted ~2.2k: the
-orchestrator OKd big-pr (add the label at PR open). After 13:50: (1) move the sim helpers to tests/helpers/ and add the 12 / 16 sims on
-the real THORNBECK_HUNT (assert hall-facing gallery aims); (2) two Opus checkers (confirm PLAN rev 2 items 1-3);
-(3) PR 1 (dark); (4) H3 wiring: #694 MERGED 12:13, so H3 can start. Watch #694 / #317 trains. J16: G4 PR after #665; G5 to ctcourse later.
+Next: RUNNING (2 agents): (a) real-map sims on feature/guard-ai-mill-hunt (helpers to tests/helpers/millHuntSim.ts,
+tests/millHuntThornbeck.test.ts, data fixes) -> "## Real-map sims" in H2-REPORT.md; (b) H3 wiring on
+feature/guard-ai-mill-hunt-h3 (worktree -mill-hunt-h3, from master 4.132.0 + mill-hunt) -> H3-REPORT.md. Then two
+Opus checkers on PR 1 (H1 + H2 + sims; confirm PLAN rev 2 items 1-3) -> PR 1 (big-pr OK); then H3 checkers -> PR 2
+after PR 1; H4 (PR 3). J16: G4 PR after #665; G5 to ctcourse later.
 ```
