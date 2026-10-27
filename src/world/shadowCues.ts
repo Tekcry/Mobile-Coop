@@ -15,6 +15,9 @@
  *              (level(q): `totalAt` with the contract, the player's own capsule skipped)
  *   sources:   the `CUE.sources` strongest set members at the chest giving at least `CUE.minLevel`, skipping a source
  *              at or below the feet plane (no floor shadow) and one the player holds (`CAPSULE.holder`, A5)
+ *   speed:     the far point's move since the last fill / dt, matched by source id; 0 on a reset: the slot's first fill,
+ *              a new owner (slotOf changed), no capsule last fill, or the feet moved more than `CUE_JUMP` (a teleport:
+ *              respawn, checkpoint restart, section start); the next fill reads from the new position
  */
 import { hyp2, hyp3 } from '../core/mathx';
 import { CAPSULE, OCC, type CharOccluders } from './charOccluders';
@@ -29,6 +32,10 @@ export const CUE_AT = [0.35, 0.65, 1] as const;
 export const CUE_NONE = -2;
 /** Floor of the contrast's denominator (a source in the dark is not infinitely contrasted). */
 export const CUE_LEVEL_FLOOR = 0.02;
+/** Feet moved further than this (m, horizontal) in one fill: a teleport, read as a reset (speed 0), never a speed. The
+ *  fastest real move is the sprint, `MOVEMENT.sprintSpeed` 5 m/s (the run gear 4 m/s): 0.5 m per 0.1 s fill; 2 m is 4x
+ *  that (a fill late by up to 0.3 s still reads its speed) and under any respawn, checkpoint or section-start jump. */
+export const CUE_JUMP = 2;
 
 /** Set members read from `sourcesQ` per player (strongest first; more than `CUE.sources` so a skipped one leaves
  *  room for the next). */
@@ -94,7 +101,8 @@ export class ShadowCues {
   readonly count = new Int8Array(CUE.players);
   /** [slot][source][point] x, y, z, contrast (stride 4); contrast 0 = no shadow there. */
   readonly pts = new Float32Array(CUE.players * SLOT_STRIDE);
-  /** [slot][source] m/s of the footprint's far point since the last fill (0 for a new footprint). */
+  /** [slot][source] m/s of the footprint's far point since the last fill (0 for a new footprint or a reset,
+   *  `CUE_JUMP`). */
   readonly speed = new Float32Array(CUE.players * CUE.sources);
   /** [slot][source] registry light id, -1 the moon, `CUE_NONE` unused. */
   readonly source = new Int32Array(CUE.players * CUE.sources).fill(CUE_NONE);
@@ -111,6 +119,11 @@ export class ShadowCues {
   /** [slot][source] far point x, z of this fill and the last (doubles: a still footprint reads speed 0 exactly). */
   private readonly far = new Float64Array(CUE.players * CUE.sources * 2);
   private readonly prevFar = new Float64Array(CUE.players * CUE.sources * 2);
+  /** [slot] feet x, z of this fill and the last, and whether the slot had a capsule (the teleport test, `CUE_JUMP`). */
+  private readonly feet = new Float64Array(CUE.players * 2);
+  private readonly prevFeet = new Float64Array(CUE.players * 2);
+  private readonly hasFeet = new Int8Array(CUE.players);
+  private readonly prevHasFeet = new Int8Array(CUE.players);
   private readonly sid = new Int32Array(SCAN);
   private readonly slv = new Float32Array(SCAN);
   /** The slot's capsule for `footprint` (G_*), and its result: direction and length. Passed through this array, not as
@@ -151,6 +164,8 @@ export class ShadowCues {
     }
     this.prevSource.set(this.source);
     this.prevFar.set(this.far);
+    this.prevFeet.set(this.feet);
+    this.prevHasFeet.set(this.hasFeet);
     const m = n < P ? n : P;
     this.dt = dt;
     for (let s = 0; s < P; s++) {
@@ -166,6 +181,7 @@ export class ShadowCues {
 
   private clearSlot(s: number): void {
     this.count[s] = 0;
+    this.hasFeet[s] = 0;
     const p0 = s * SLOT_STRIDE;
     for (let i = p0; i < p0 + SLOT_STRIDE; i++) this.pts[i] = 0;
     const f0 = s * CUE.sources;
@@ -226,7 +242,15 @@ export class ShadowCues {
     qp[2] = fz + (tz - fz) * 0.6;
     const k = field.sourcesQ(this.sid, this.slv, SCAN, occluded);
     const lift = feetY + CUE.floorLift;
-    const same = this.prevIds[s] === this.ids[s];
+    // speeds carry over only for the same owner, seen last fill, whose feet did not jump (a teleport: `CUE_JUMP`)
+    const fe = s * 2;
+    const same =
+      this.prevIds[s] === this.ids[s] &&
+      this.prevHasFeet[s] === 1 &&
+      hyp2(fx - this.prevFeet[fe]!, fz - this.prevFeet[fe + 1]!) <= CUE_JUMP;
+    this.feet[fe] = fx;
+    this.feet[fe + 1] = fz;
+    this.hasFeet[s] = 1;
     let c = 0;
     for (let i = 0; i < k && i < SCAN && c < CUE.sources; i++) {
       if (this.slv[i]! < CUE.minLevel) break;

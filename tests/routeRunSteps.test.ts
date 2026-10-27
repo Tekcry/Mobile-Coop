@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs tool script without types
 import * as S from '../scripts/route-run/steps.mjs';
 // @ts-expect-error plain .mjs tool script without types
+import * as C from '../scripts/route-run/coop.mjs';
+// @ts-expect-error plain .mjs tool script without types
 import { COOP_KINDS } from '../scripts/level-validate.mjs';
 // @ts-expect-error plain .mjs tool script without types
 import { addPast, checkSelftest, stepsForPath } from '../scripts/route-run.mjs';
@@ -113,9 +115,10 @@ describe('route-run R5 step table', () => {
     }
   });
 
-  it('co-op kinds stay stubs (R9); door and walk are the driver own (as R4a); no action is the stub', () => {
-    for (const k of COOP_KINDS) expect(S.stepFor({ kind: k, action: 'stub' }), k).toBe(S.stub);
-    expect(S.stepFor({ kind: 'coop_boost', action: 'ladder' })).toBe(S.stub);
+  it('co-op kinds go to coop.mjs (R9: the boost and the human ladder real, the rest stubs); door and walk are the driver own (as R4a); no action is the stub', () => {
+    const real: Record<string, unknown> = { coop_boost: C.coopBoost, human_ladder: C.humanLadder };
+    for (const k of COOP_KINDS) expect(S.stepFor({ kind: k, action: 'stub' }), k).toBe(real[k] ?? S.stub);
+    expect(S.stepFor({ kind: 'coop_boost', action: 'ladder' })).toBe(C.coopBoost);
     expect(Object.hasOwn(S.STEPS, 'door')).toBe(false);
     expect(Object.hasOwn(S.STEPS, 'walk')).toBe(false);
     expect(S.stepFor({ kind: 'door', action: 'door' })).toBe(S.stub);
@@ -672,7 +675,7 @@ describe('route-run R5 selftest fixture', () => {
     for (const i of [12, 22]) expect(S.stepFor(byIndex.get(i))).toBe(S.ladder);
     for (const i of [19, 20]) expect(S.stepFor(byIndex.get(i))).toBe(S.drop);
     for (const i of [0, 2]) expect(S.stepFor(byIndex.get(i))).toBe(S.windowStep);
-    for (const i of [17, 18]) expect(S.stepFor(byIndex.get(i))).toBe(S.stub);
+    for (const i of [17, 18]) expect(S.stepFor(byIndex.get(i))).toBe(C.coopBoost);
     // the fixture ladder's far side is on the plant roof, its point on open lawn far from the real ladder
     const fix = byIndex.get(22)!;
     expect(Math.hypot(fix.at[0] + 38, fix.at[2] + 40.4)).toBeGreaterThan(50);
