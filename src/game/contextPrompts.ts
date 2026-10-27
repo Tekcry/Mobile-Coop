@@ -316,9 +316,28 @@ export class ContextPrompts implements CtxPromptModel {
 
   /** One step after the providers: the focus, then A and Y. True when an action runs now (read `run`). */
   step(i: CtxPromptInput, dt: number): boolean {
+    this.focus(i, dt);
+    return this.resolve(i, dt);
+  }
+
+  /** (S3) `step`'s first half: pick the focus this step keeps. The caller then judges the Y rule against it (`kind`,
+   *  `focusRow`) before `resolve`, so a jump press is never judged against last step's focus (a guard offer taking the
+   *  focus from a door in the step of the press). Reads `a.down`, `y.down` and `rtDown`; `y.pressed` and `yLive` only
+   *  matter to `resolve`. */
+  focus(i: CtxPromptInput, dt: number): void {
     if (!i.a.down) this.swallowA = false;
     if (!i.y.down) this.swallowY = false;
     this.pickFocus(i, dt);
+  }
+
+  /** The focused candidate's row on `slot` this step (after `focus`); an off row when nothing is focused. */
+  focusRow(slot: CtxSlot): Readonly<CtxRow> {
+    const at = this.find(this.kind, this.ref);
+    return at >= 0 ? this.cands[at]!.rows[slot]! : BLANK_ROW;
+  }
+
+  /** `step`'s second half (after `focus`): the model's rows, then A and Y. True when an action runs now (read `run`). */
+  resolve(i: CtxPromptInput, dt: number): boolean {
     let ch = false;
     if (i.yLive !== this.yLive) {
       this.yLive = i.yLive;
