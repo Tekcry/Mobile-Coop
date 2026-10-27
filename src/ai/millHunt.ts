@@ -536,10 +536,607 @@ export class HuntBoard<M extends HuntMember> {
     return this.ordN[l]!;
   }
 
-  // WIP: admission, states and tick follow.
-  protected wip(): number {
-    return sweepTurnTime(wrapAng(0)) + this.mMask[0]! + this.mAim[0]! + this.mAimT[0]! + this.mHold[0]! + this.mDone[0]! +
-      this.uFull[0]! + this.uNeed[0]! + this.out.length + (this.gone as unknown as number) + (this.settled as unknown as number) +
-      (this.stayLoad as unknown as number) + (this.rankAll as unknown as number);
+  // ---- admission (plan check 2 item 2) and the start spread (FIX 2) ----------------------------------------------
+
+  /**
+   * Put m on the board: the spawn after the dark, a late spawn, a rejoin after a fight (each time he joins). His line is
+   * the one whose `floorY` is nearest his y, his stop the line's nearest (ties: the lower index); he pairs with his
+   * partner (the map's pair data) when the partner is on the board as a solo on the same line (else the first tick both
+   * can), and a room this puts over `roomCap` sends a unit out at once (`spreadRoom`). False: he cannot join (down,
+   * taken, in a fight, or the board is full). Allocates nothing.
+   */
+  admit(m: M): boolean {
+    if (this.gone(m)) return false;
+    let i = this.memberIndex(m);
+    if (i < 0) {
+      for (let k = 0; k < this.cap; k++)
+        if (this.ms[k] === null) {
+          i = k;
+          break;
+        }
+      if (i < 0) return false;
+      this.ms[i] = m;
+      this.mPartner[i] = -1;
+      for (let k = 0; k < this.cap; k++) {
+        const o = this.ms[k];
+        if (k !== i && o && this.mPartner[k]! < 0 && pairOf(o, m)) {
+          this.mPartner[i] = k;
+          this.mPartner[k] = i;
+          break;
+        }
+      }
+    }
+    if (this.mOn[i]) return true;
+    let u = -1;
+    for (let k = 0; k < this.cap; k++)
+      if (!this.uLive[k]) {
+        u = k;
+        break;
+      }
+    if (u < 0) return false;
+    const l = this.nearestLine(m.pos.y);
+    const s = this.nearestStop(l, m.pos.x, m.pos.z);
+    const dir = this.tgt[l]! >= s ? 1 : -1;
+    this.mOn[i] = 1;
+    this.mUnit[i] = u;
+    this.mFrom[i] = s;
+    this.mTo[i] = s;
+    this.mLead[i] = 1;
+    this.mYaw[i] = this.lineHeading(s, dir);
+    this.uLive[u] = 1;
+    this.uA[u] = i;
+    this.uB[u] = -1;
+    this.uLine[u] = l;
+    this.uFrom[u] = s;
+    this.uTo[u] = s;
+    this.uDir[u] = dir;
+    this.uLooped[u] = 0;
+    this.uDest[u] = -1;
+    this.uWant[u] = -1;
+    this.uWalker[u] = -1;
+    this.uNeed[u] = 0;
+    this.uState[u] = H_CLEAR;
+    this.startCycle(u, HUNT.aimHold);
+    this.rankAll();
+    const j = this.mPartner[i]!;
+    if (j >= 0 && this.mOn[j] && this.tryPair(i, j)) this.rankAll();
+    this.spreadRoom(this.stopRoom[s]!);
+    const uu = this.mUnit[i]!;
+    if (this.uLive[uu] && this.stopRoom[this.uTo[uu]!] !== this.stopRoom[s]) this.spreadRoom(this.stopRoom[this.uTo[uu]!]!);
+    return true;
   }
+
+  /**
+   * (FIX 2) While room r holds more than `roomCap` (units already spreading out of it not counted), its lowest-ranked solo
+   * (else its lowest-ranked unit) spreads out along the line away from the target (in the target room: towards the
+   * line's longer end).
+   */
+  private spreadRoom(r: number): void {
+    for (let it = 0; it < 4 && this.stayLoad(r) > HUNT.roomCap; it++) {
+      const v = this.lowestIn(r, true, -1);
+      if (v < 0 || !this.spreadUnit(v, this.awayDir(r), 0)) break;
+    }
+    this.rankAll();
+  }
+
+  /** Room r's lowest-ranked unit that may be sent out (not spreading, regrouping or checking); `soloFirst`: a solo first. */
+  private lowestIn(r: number, soloFirst: boolean, skip: number): number {
+    let best = -1;
+    let solo = -1;
+    for (let u = 0; u < this.cap; u++) {
+      if (!this.uLive[u] || u === skip || this.stopRoom[this.uTo[u]!] !== r) continue;
+      const st = this.uState[u]!;
+      if (st === H_SPREAD || st === H_REGROUP || st === H_CHECK) continue;
+      if (best < 0 || this.rank[u]! > this.rank[best]!) best = u;
+      if (this.uB[u]! < 0 && (solo < 0 || this.rank[u]! > this.rank[solo]!)) solo = u;
+    }
+    return soloFirst && solo >= 0 ? solo : best;
+  }
+
+  /** Away from the line's target from room r; in the target room towards the line's longer end (ties: up the line). */
+  private awayDir(r: number): number {
+    const l = this.roomLine[r]!;
+    const tr = this.targetRoom(l);
+    if (r !== tr) return r > tr ? 1 : -1;
+    const up = this.lineEnd[l]! - 1 - this.roomLast[r]!;
+    const dn = this.roomFirst[r]! - this.lineFirst[l]!;
+    return up >= dn ? 1 : -1;
+  }
+
+  /**
+   * Send unit v one room on in `dir`, to that room's first stop on the way. A room without space for it first sends its
+   * own lowest-ranked unit one room on (and so on along the line). v walks stop by stop and enters the next room only
+   * once it has space (`spreadStep`), so the cap holds by positions on the way.
+   */
+  private spreadUnit(v: number, dir: number, depth: number): boolean {
+    const l = this.uLine[v]!;
+    const r = this.stopRoom[this.uTo[v]!]! + dir;
+    if (r < this.lineRoom0[l]! || r >= this.lineRoomEnd[l]! || depth > this.nRooms) return false;
+    if (this.stayLoad(r) + this.unitSize(v) > HUNT.roomCap) {
+      const w = this.lowestIn(r, false, v);
+      if (w >= 0) this.spreadUnit(w, dir, depth + 1);
+    }
+    this.uState[v] = H_SPREAD;
+    this.uDest[v] = dir > 0 ? this.roomFirst[r]! : this.roomLast[r]!;
+    this.uNeed[v] = 0;
+    if (this.uFrom[v] === this.uTo[v]) this.startCycle(v, HUNT.holdAim);
+    return true;
+  }
+
+  /**
+   * Pair members i and j (A6): the member nearer the target walks to his partner's stop (`regroup`). Only when both are
+   * standing solos on one line, not spreading or checking, and every room on the walker's way (the meeting room
+   * included) takes one more: those rooms are then kept for him (`roomLoad`), so he never waits on the way.
+   */
+  private tryPair(i: number, j: number): boolean {
+    const ui = this.mUnit[i]!;
+    const uj = this.mUnit[j]!;
+    if (ui === uj || this.uB[ui]! >= 0 || this.uB[uj]! >= 0 || this.uLine[ui] !== this.uLine[uj]) return false;
+    if (!this.pairable(ui) || !this.pairable(uj)) return false;
+    const t = this.tgt[this.uLine[ui]!]!;
+    const di = this.lineDist(this.uFrom[ui]!, t);
+    const dj = this.lineDist(this.uFrom[uj]!, t);
+    const iWaits = di > dj || (di === dj && this.ms[i]!.slotIdx < this.ms[j]!.slotIdx);
+    const v = iWaits ? i : j;
+    const w = iWaits ? j : i;
+    const uv = this.mUnit[v]!;
+    const meet = this.mFrom[v]!;
+    const ws = this.mFrom[w]!;
+    const rw = this.stopRoom[ws]!;
+    const rm = this.stopRoom[meet]!;
+    if (rw !== rm) {
+      const d = rm > rw ? 1 : -1;
+      for (let r = rw + d; ; r += d) {
+        if (this.roomLoad(r, this.mUnit[w]!) + 1 > HUNT.roomCap) return false;
+        if (r === rm) break;
+      }
+    }
+    const keep = ui < uj ? ui : uj;
+    const drop = ui < uj ? uj : ui;
+    const looped = this.uLooped[uv]!;
+    const dir = this.uDir[uv]!;
+    this.uLive[drop] = 0;
+    this.uA[drop] = -1;
+    this.uB[drop] = -1;
+    const a = this.ms[i]!.slotIdx <= this.ms[j]!.slotIdx ? i : j;
+    const b = a === i ? j : i;
+    this.uA[keep] = a;
+    this.uB[keep] = b;
+    this.mLead[a] = 1;
+    this.mLead[b] = 0;
+    this.mUnit[i] = keep;
+    this.mUnit[j] = keep;
+    this.uFrom[keep] = meet;
+    this.uTo[keep] = meet;
+    this.uLooped[keep] = looped;
+    this.uDir[keep] = dir;
+    this.uNeed[keep] = 0;
+    this.uWant[keep] = -1;
+    this.uDest[keep] = -1;
+    if (ws === meet) {
+      this.uWalker[keep] = -1;
+      this.uState[keep] = H_CLEAR;
+      this.startCycle(keep, HUNT.aimHold);
+    } else {
+      this.uWalker[keep] = w;
+      this.uState[keep] = H_REGROUP;
+      this.startCycle(keep, HUNT.holdAim);
+    }
+    return true;
+  }
+
+  private pairable(u: number): boolean {
+    const st = this.uState[u]!;
+    return this.uFrom[u] === this.uTo[u] && (st === H_CLEAR || st === H_HOLD || st === H_LOOP);
+  }
+
+  /** A down, taken or fighting member leaves the board; his partner goes on as a solo (a regroup ends where it is). */
+  private drop(i: number): void {
+    const u = this.mUnit[i]!;
+    this.mOn[i] = 0;
+    this.mUnit[i] = -1;
+    if (u < 0) return;
+    const r = this.uA[u] === i ? this.uB[u]! : this.uA[u]!;
+    this.uB[u] = -1;
+    if (r < 0) {
+      this.uLive[u] = 0;
+      this.uA[u] = -1;
+      return;
+    }
+    this.uA[u] = r;
+    this.mLead[r] = 1;
+    if (this.uState[u] === H_REGROUP) {
+      const walker = this.uWalker[u] === r;
+      this.uWalker[u] = -1;
+      if (walker && this.mFrom[r] !== this.mTo[r]) {
+        this.uState[u] = H_SPREAD;
+        this.uFrom[u] = this.mFrom[r]!;
+        this.uTo[u] = this.mTo[r]!;
+        this.uDest[u] = this.mTo[r]!;
+      } else {
+        this.uFrom[u] = this.mFrom[r]!;
+        this.uTo[u] = this.mFrom[r]!;
+        this.mTo[r] = this.mFrom[r]!;
+        this.uState[u] = H_CLEAR;
+        this.startCycle(u, HUNT.aimHold);
+      }
+    }
+  }
+
+  // ---- the order (A4, FIX 1) -------------------------------------------------------------------------------------
+
+  /** Every line with a live unit has had every stop of its target room cleared once in this phase. */
+  allCleared(): boolean {
+    for (let l = 0; l < this.nLines; l++) {
+      let any = false;
+      for (let u = 0; u < this.cap; u++) if (this.uLive[u] && this.uLine[u] === l) any = true;
+      if (!any) continue;
+      const r = this.targetRoom(l);
+      for (let s = this.roomFirst[r]!; s <= this.roomLast[r]!; s++) if (!this.done[s]) return false;
+    }
+    return true;
+  }
+
+  /** The phase steps on once every target room is cleared and `phaseMin` has run, or at `phaseMax`; the last holds. */
+  private orderStep(): void {
+    if (this.phase >= this.nPhases - 1) return;
+    if (this.phaseT >= HUNT.phaseMax || (this.phaseT >= HUNT.phaseMin && this.allCleared())) this.stepPhase();
+  }
+
+  /** Next row: each line's target = its new phase room's stop nearest the previous target. */
+  private stepPhase(): void {
+    this.phase++;
+    this.phaseT = 0;
+    this.done.fill(0);
+    const L = this.nLines;
+    for (let l = 0; l < L; l++) {
+      const r = this.phaseRoom[this.phase * L + l]!;
+      if (r < 0) continue;
+      const t = this.tgt[l]!;
+      this.setLineTarget(l, this.nearestStop(l, this.sx[t]!, this.sz[t]!, r));
+    }
+  }
+
+  private setLineTarget(l: number, s: number): void {
+    if (this.stopRoom[s] !== this.stopRoom[this.tgt[l]!]) for (let u = 0; u < this.cap; u++) if (this.uLine[u] === l) this.uLooped[u] = 0;
+    if (s !== this.tgt[l]) {
+      this.tgt[l] = s;
+      this.tgtGen[l]!++;
+    }
+  }
+
+  /**
+   * (H4 calls it: a contact call that gets through, a body found, a fight's end) Jump the order to point (x, z) at
+   * height y: that line's target = its stop nearest the point; the phase = the first row naming that stop's room on the
+   * line (none, e.g. the landing: 0); every other line's target = its stop in its new phase room nearest (x, z). The
+   * phase clock restarts and the order runs on from there.
+   */
+  setTarget(x: number, z: number, y: number): void {
+    const L = this.nLines;
+    const l = this.nearestLine(y);
+    const s = this.nearestStop(l, x, z);
+    const r = this.stopRoom[s]!;
+    let p = 0;
+    for (let q = 0; q < this.nPhases; q++)
+      if (this.phaseRoom[q * L + l] === r) {
+        p = q;
+        break;
+      }
+    this.phase = p;
+    this.phaseT = 0;
+    this.done.fill(0);
+    this.setLineTarget(l, s);
+    for (let k = 0; k < L; k++) {
+      if (k === l) continue;
+      const rk = this.phaseRoom[p * L + k]!;
+      if (rk >= 0) this.setLineTarget(k, this.nearestStop(k, x, z, rk));
+    }
+  }
+
+  // ---- aims (A8, A9, fold-in 9) ------------------------------------------------------------------------------------
+
+  /**
+   * The aims a unit uses at stop s facing `fwd` (the line towards its target; looping: its way round): those within
+   * `aimSide` of it; in the target room (`full`) also the first one outside (at most one look back a stop). None within:
+   * the nearest one. Bit k = the stop's aim k.
+   */
+  aimMask(s: number, fwd: number, full: boolean): number {
+    let mask = 0;
+    let back = -1;
+    let best = 0;
+    let bd = Infinity;
+    const f = this.aimFirst[s]!;
+    for (let k = 0; k < this.aimN[s]!; k++) {
+      const d = Math.abs(wrapAng(this.aims[f + k]! - fwd));
+      if (d <= HUNT.aimSide) mask |= 1 << k;
+      else if (back < 0) back = k;
+      if (d < bd) {
+        bd = d;
+        best = k;
+      }
+    }
+    if (full && back >= 0) mask |= 1 << back;
+    if (mask === 0 && this.aimN[s]! > 0) mask = 1 << best;
+    return mask;
+  }
+
+  /** A new aim cycle at the unit's stop, `hold` s on each aim; a pair: the leader the even ones, his partner the odd. */
+  private startCycle(u: number, hold: number): void {
+    const l = this.uLine[u]!;
+    const t = this.tgt[l]!;
+    const s = this.uFrom[u]!;
+    const inRoom = this.stopRoom[s] === this.stopRoom[t];
+    const ud = this.uDir[u]! >= 0 ? 1 : -1;
+    const dir = inRoom && (s === t || this.uLooped[u]) ? ud : t > s ? 1 : t < s ? -1 : ud;
+    this.uFull[u] = inRoom ? 1 : 0;
+    const all = this.aimMask(s, this.lineHeading(s, dir), inRoom);
+    const a = this.uA[u]!;
+    const b = this.uB[u]!;
+    if (b < 0) {
+      this.memberCycle(a, all, hold);
+      return;
+    }
+    let even = 0;
+    let odd = 0;
+    let c = 0;
+    let first = 0;
+    for (let k = 0; k < this.aimN[s]!; k++) {
+      if (!(all & (1 << k))) continue;
+      if (c === 0) first = 1 << k;
+      if (c & 1) odd |= 1 << k;
+      else even |= 1 << k;
+      c++;
+    }
+    this.memberCycle(a, even, hold);
+    this.memberCycle(b, odd !== 0 ? odd : first, hold);
+  }
+
+  private memberCycle(i: number, mask: number, hold: number): void {
+    this.mMask[i] = mask;
+    this.mAim[i] = -1;
+    this.mAimT[i] = 0;
+    this.mHold[i] = hold;
+    this.mDone[i] = 0;
+  }
+
+  /** His aims at his stop in mask order: the calm turn onto each (`sweepTurnTime`), then `mHold` s. */
+  private advanceAims(i: number, dt: number): void {
+    if (this.mDone[i]) return;
+    const f = this.aimFirst[this.mFrom[i]!]!;
+    const mask = this.mMask[i]!;
+    let t = this.mAimT[i]! - dt;
+    while (t <= 0) {
+      let k = this.mAim[i]! + 1;
+      while (k < 31 && !(mask & (1 << k))) k++;
+      if (k >= 31) {
+        this.mDone[i] = 1;
+        this.mAimT[i] = 0;
+        return;
+      }
+      this.mAim[i] = k;
+      const yaw = this.aims[f + k]!;
+      t += sweepTurnTime(wrapAng(yaw - this.mYaw[i]!)) + this.mHold[i]!;
+      this.mYaw[i] = yaw;
+    }
+    this.mAimT[i] = t;
+  }
+
+  // ---- the states and the tick ----------------------------------------------------------------------------------
+
+  /** The state's name (tests, debug). */
+  stateName(u: number): string {
+    return HUNT_STATES[this.uState[u]!] ?? '?';
+  }
+
+  /**
+   * One board tick (the manager's 0.2 s): fights, downs and takedowns leave the board; arrivals and aims run; the order
+   * steps; the lines are ranked; pairs that can meet start their regroup; each line's units decide in rank order (higher
+   * ranks first, so lower ranks see their new stops); last every member's goal goes out. Allocates nothing.
+   */
+  tick(dt: number): void {
+    this.phaseT += dt;
+    const cap = this.cap;
+    for (let i = 0; i < cap; i++) if (this.mOn[i] && this.gone(this.ms[i]!)) this.drop(i);
+    for (let u = 0; u < cap; u++) if (this.uLive[u]) this.advanceUnit(u, dt);
+    this.orderStep();
+    this.rankAll();
+    let paired = false;
+    for (let i = 0; i < cap; i++) {
+      const j = this.mPartner[i]!;
+      if (j > i && this.mOn[i] && this.mOn[j] && this.mUnit[i] !== this.mUnit[j] && this.tryPair(i, j)) paired = true;
+    }
+    if (paired) this.rankAll();
+    for (let l = 0; l < this.nLines; l++) {
+      const n = this.ordN[l]!;
+      for (let k = 0; k < n; k++) this.decide(this.ord[l * cap + k]!);
+    }
+    for (let i = 0; i < cap; i++) if (this.mOn[i]) this.emit(i);
+  }
+
+  private arriveMember(i: number): void {
+    if (this.mFrom[i] === this.mTo[i] || !this.settled(i)) return;
+    this.mYaw[i] = this.legHdg(this.mFrom[i]!, this.mTo[i]!);
+    this.mFrom[i] = this.mTo[i]!;
+  }
+
+  private advanceUnit(u: number, dt: number): void {
+    const a = this.uA[u]!;
+    const b = this.uB[u]!;
+    this.arriveMember(a);
+    if (b >= 0) this.arriveMember(b);
+    let w = -1;
+    if (this.uState[u] === H_REGROUP) {
+      w = this.uWalker[u]!;
+      const meet = this.uTo[u]!;
+      if (this.mFrom[w] === meet && this.mTo[w] === meet) {
+        this.uState[u] = H_CLEAR;
+        this.uWalker[u] = -1;
+        w = -1;
+        this.startCycle(u, HUNT.aimHold);
+      }
+    } else if (this.uFrom[u] !== this.uTo[u]) {
+      if (this.mFrom[a] !== this.mTo[a] || (b >= 0 && this.mFrom[b] !== this.mTo[b])) return;
+      this.uFrom[u] = this.uTo[u]!;
+      this.onArrive(u);
+    }
+    // H_CHECK (H4): the check's look runs here.
+    let all = true;
+    if (a !== w) {
+      const ok = this.settled(a);
+      if (ok) this.advanceAims(a, dt);
+      if (!ok || !this.mDone[a]) all = false;
+    }
+    if (b >= 0 && b !== w) {
+      const ok = this.settled(b);
+      if (ok) this.advanceAims(b, dt);
+      if (!ok || !this.mDone[b]) all = false;
+    }
+    if (all) this.onCycleDone(u);
+  }
+
+  /** A walked leg ends: a move clears its new stop (at the target the unit starts its loop), a loop clears, a spread
+   *  clears at its last stop and otherwise waits for its next step. */
+  private onArrive(u: number): void {
+    this.uNeed[u] = 0;
+    switch (this.uState[u]) {
+      case H_MOVE:
+        this.uState[u] = H_CLEAR;
+        if (this.uFrom[u] === this.tgt[this.uLine[u]!]) this.uLooped[u] = 1;
+        this.startCycle(u, HUNT.aimHold);
+        break;
+      case H_SPREAD:
+        if (this.uFrom[u] === this.uDest[u]) {
+          this.uState[u] = H_CLEAR;
+          this.startCycle(u, HUNT.aimHold);
+        } else this.startCycle(u, HUNT.holdAim);
+        break;
+      default:
+        this.startCycle(u, HUNT.aimHold);
+    }
+  }
+
+  /** An aim cycle ends: a full cycle in the target room marks its stop done; a clear (or a loop stop) decides next; a
+   *  hold, a spread waiting for space and a regroup's waiting member go round again. */
+  private onCycleDone(u: number): void {
+    const s = this.uFrom[u]!;
+    if (this.uFull[u] && this.stopRoom[s] === this.targetRoom(this.uLine[u]!)) this.done[s] = 1;
+    const st = this.uState[u]!;
+    if (st === H_CLEAR || st === H_LOOP) this.uNeed[u] = 1;
+    else if (st === H_HOLD || st === H_SPREAD || st === H_REGROUP) this.startCycle(u, HUNT.holdAim);
+  }
+
+  private decide(u: number): void {
+    switch (this.uState[u]) {
+      case H_CLEAR:
+      case H_LOOP:
+        if (this.uNeed[u]) this.stepOrHold(u);
+        break;
+      case H_HOLD:
+        this.stepOrHold(u);
+        break;
+      case H_SPREAD:
+        if (this.uFrom[u] === this.uTo[u] && this.uFrom[u] !== this.uDest[u]) this.spreadStep(u);
+        break;
+      case H_REGROUP: {
+        const w = this.uWalker[u]!;
+        if (this.mFrom[w] === this.mTo[w] && this.mTo[w] !== this.uTo[u]) this.regroupStep(u);
+        break;
+      }
+      // H_CHECK (H4): the check's steps (its line to the spot's stop under the cap, the room edge) go here.
+    }
+  }
+
+  /**
+   * The step rules (A6, A9). At its target, or once it has reached it, a unit loops its target room's stops in line
+   * order, turning at the room's ends (fold-in 6: the way back clears every stop too). Otherwise it steps one stop
+   * towards the target when `canStep`. A unit that may not step holds (re-clears its aims at `holdAim`).
+   */
+  private stepOrHold(u: number): void {
+    const l = this.uLine[u]!;
+    const t = this.tgt[l]!;
+    const s = this.uFrom[u]!;
+    this.uNeed[u] = 0;
+    if (this.stopRoom[s] === this.stopRoom[t] && (s === t || this.uLooped[u])) {
+      this.uLooped[u] = 1;
+      const j = this.loopNext(u);
+      this.uWant[u] = j;
+      if (j >= 0) {
+        this.leg(u, j, H_LOOP);
+        return;
+      }
+    } else {
+      const j = s + (t > s ? 1 : -1);
+      this.uWant[u] = j;
+      if (this.canStep(u, j)) {
+        this.leg(u, j, H_MOVE);
+        return;
+      }
+    }
+    if (this.uState[u] !== H_HOLD) {
+      this.uState[u] = H_HOLD;
+      this.startCycle(u, HUNT.holdAim);
+    }
+  }
+
+  /** The loop's next stop: on round its way, else back the other way; never into the gap of a higher rank or onto a
+   *  stop another unit holds or walks to (-1: neither). */
+  private loopNext(u: number): number {
+    const s = this.uFrom[u]!;
+    const r = this.stopRoom[s]!;
+    let d = this.uDir[u]! >= 0 ? 1 : -1;
+    for (let k = 0; k < 2; k++, d = -d) {
+      const j = s + d;
+      if (j < this.roomFirst[r]! || j > this.roomLast[r]!) continue;
+      if (this.gapFree(u, j) && !this.stopTaken(u, j)) return j;
+    }
+    return -1;
+  }
+
+  private stopTaken(u: number, j: number): boolean {
+    for (let i = 0; i < this.cap; i++) if (this.mOn[i] && this.mUnit[i] !== u && (this.mFrom[i] === j || this.mTo[i] === j)) return true;
+    return false;
+  }
+
+  private leg(u: number, j: number, st: number): void {
+    const a = this.uA[u]!;
+    const b = this.uB[u]!;
+    this.uDir[u] = j > this.uFrom[u]! ? 1 : -1;
+    this.uTo[u] = j;
+    this.mTo[a] = j;
+    if (b >= 0) this.mTo[b] = j;
+    this.uState[u] = st;
+    this.uNeed[u] = 0;
+  }
+
+  /** A spread's next stop; into a new room only when it has space. */
+  private spreadStep(u: number): void {
+    const s = this.uFrom[u]!;
+    const j = s + (this.uDest[u]! > s ? 1 : -1);
+    this.uWant[u] = j;
+    const r = this.stopRoom[j]!;
+    if (r !== this.stopRoom[s] && !this.roomSpace(r, u)) return;
+    this.leg(u, j, H_SPREAD);
+  }
+
+  /** The regroup walker's next stop towards the meeting stop (his rooms are kept for him; checked again anyway). */
+  private regroupStep(u: number): void {
+    const w = this.uWalker[u]!;
+    const s = this.mFrom[w]!;
+    const meet = this.uTo[u]!;
+    const j = s + (meet > s ? 1 : -1);
+    const r = this.stopRoom[j]!;
+    if (r !== this.stopRoom[s] && this.roomLoad(r, u) + 1 + (r === this.stopRoom[meet] ? 1 : 0) > HUNT.roomCap) return;
+    this.mTo[w] = j;
+  }
+
+  /** His goal: his spot at the stop he stands at or walks to; the face (NaN while walking); the pace. */
+  private emit(i: number): void {
+    const walking = this.mFrom[i] !== this.mTo[i] || !this.settled(i);
+    this.out(this.ms[i]!, this.spotX(i), this.spotZ(i), walking ? Number.NaN : this.mYaw[i]!, HUNT.pace);
+  }
+}
+
+/** a and b are a pair: either names the other. */
+function pairOf(a: HuntMember, b: HuntMember): boolean {
+  return (a.pairSlot >= 0 && a.pairSlot === b.slotIdx) || (b.pairSlot >= 0 && b.pairSlot === a.slotIdx);
 }
