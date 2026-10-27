@@ -13,7 +13,9 @@ Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). Worktre
    Job-done). Plan-check polish 3-11 in scratch/campaign/campaign-mode-plan-check.md go into those briefs.
 4. Mill / Tallow: all walk fixes on master (#690 skip, #693 roof, #701 storm recordings). Waiting on Michael's storm
    level and other notes; mill polish (knife fist, hero framing, glide light) briefs when he asks.
-Next: CM3 report -> two checkers -> PR 2.
+UPDATE ~14:40: CM3 DONE dc6661422 (CM3-report.md; carried tally SectorMode.carried). Opus checker 1 running ->
+   scratch/campaign/cm/CM3-check-1.md (prompt CM3-check-prompt.md); then checker 2 -> CM3-check-2.md (rerun any missing).
+Next: two checker verdicts -> fix round if needed -> PR 2.
 
 ## OLD RESUME 2026-10-27 ~11:50 SAVE (Night Shift | Campaign Build; reset 13:50: carry on without waiting)
 Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). All worktrees clean and pushed.
