@@ -16,6 +16,9 @@ const wait = (ms) => waitSim(ms);
 let failed = false;
 /** (coop-kit A1) the main session is closed before the `?kitmoves=0` one opens */
 let mainClosed = false;
+/** (F5) The strike step's freeze phase (`StrikeController.freezeAt`, of STRIKE_DUR): 0.272 s, inside the whiff's 0.38 s.
+ *  tests/elbowStrike.test.ts reads this line and checks it against the game's numbers. */
+const STRIKE_FREEZE_PH = 0.184;
 
 console.log('host opens a room, client joins');
 const { browser, A, B, pages: P2, errors: [eA, eB], startMode } = await hostAndJoin(urlKit('descent'), 2);
@@ -700,12 +703,15 @@ try {
   await wait(400);
   await GB(() => { const g = window.__app.current; g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(3, 0.1, 3), 0); });
 
-  // (locomotion step 10) the elbow strike: held mid-strike (a test freeze before contact), the host's copy in mode
-  // strike with the joints within 10 cm; a refused strike (a target the host does not have) blends back to ground
+  // (locomotion step 10) the elbow strike: held mid-strike (a test freeze after contact), the host's copy in mode
+  // strike with the joints within 10 cm; a refused strike (a target the host does not have) blends back to ground.
+  // (F5) The strike is a whiff (no target): it ends at STRIKE_WHIFF_DUR (0.38 s), and `freezeAt` is a phase of
+  // STRIKE_DUR (1.48 s since J19 R8, was 0.68), so the freeze must come before 0.38 / 1.48 = 0.257 or the whiff ends
+  // first and the host reads `ground`. STRIKE_FREEZE_PH is 0.272 s, where the old 0.4 froze (the same arc, ~0.70).
   console.log('elbow strike');
   await reset();
   await wait(400);
-  const sOk = await GB(() => { const g = window.__app.current; g.strike.freezeAt = 0.4; return g.strike.begin(''); });
+  const sOk = await GB((ph) => { const g = window.__app.current; g.strike.freezeAt = ph; return g.strike.begin(''); }, STRIKE_FREEZE_PH);
   assert(sOk, 'the client strikes while holstered (a whiff)');
   await until(B, () => window.__app.current.strike.approved, null, 5000, 'host approves the strike (cstart)');
   await compare('strike', 'strike');

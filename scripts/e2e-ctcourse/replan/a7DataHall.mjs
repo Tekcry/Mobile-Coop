@@ -86,7 +86,7 @@ export async function walk(t) {
   await moveHost(72.5, 61.4, 0.1, Math.PI / 2);
   await moveClient(72.5, 62.6, 0.1, Math.PI / 2);
   await GA(() => { window.__app.current.target.damageMul = 0; });
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /Split up: one through the hall/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A7: the ${tag} sees the split step`);
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /Split up: hall and plant corridor/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A7: the ${tag} sees the split step`);
   assert((await GA(() => window.__course.station())) === 17, 'A7: station 17 is live');
   const g0 = await techs();
   assert(g0.n === 2 && !!g0.tech && !!g0.tech2 && !g0.tech.passive && !g0.tech2.passive, `A7: both technicians alive and armed (${JSON.stringify(g0)})`);

@@ -441,9 +441,19 @@ describe('piano-knife S1: a knife run allocates nothing per step', () => {
     };
     const perAp = await bytesPerCall(at(act.plan.approach * 0.8, 0), HEAP_NUMBER);
     const perMove = await bytesPerCall(at(act.plan.approach + 0.3, R.contact * R.seconds + 0.05), HEAP_NUMBER);
-    console.info(`(piano-knife S1) knife run: ${perAp.toFixed(1)} B per step in the grab, ${perMove.toFixed(1)} in the move`);
+    // (piano-knife S2) the move samples the real clip through `sampleKeyed`, whose own cost (~32 B) is not this slice's:
+    // the move may cost what that call alone costs on the same clip, as killDrive.test.ts allows
+    const { sampleKeyed, newKeyedPose } = await import('../src/anim/keyed');
+    const { MOCAP_LAYERS } = await import('../src/anim/mocap');
+    const { knifeClip } = await import('../src/game/knifeKill');
+    const kc = knifeClip(0, false)!;
+    const kp = newKeyedPose();
+    const perSample = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) sampleKeyed(kc, (k % 97) / 97, 1, kp, MOCAP_LAYERS);
+    }, HEAP_NUMBER);
+    console.info(`(piano-knife S1) knife run: ${perAp.toFixed(1)} B per step in the grab, ${perMove.toFixed(1)} in the move (sampleKeyed alone ${perSample.toFixed(1)})`);
     expect(perAp).toBeLessThanOrEqual(HEAP_NUMBER);
-    expect(perMove).toBeLessThanOrEqual(HEAP_NUMBER);
+    expect(perMove).toBeLessThanOrEqual(perSample + HEAP_NUMBER);
     // run it to limp, then the tail held mid-way
     for (let k = 0; k < 200 && td.active; k++) td.fixedUpdate(DT, false, false);
     expect(td.active).toBeNull();

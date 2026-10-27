@@ -164,8 +164,9 @@ export function dressS1(d: CampusDresser): void {
   for (const x of [-11, -7, -3]) d.skin('K:planterTrough', bx(x, 0.35, -35.6), 0, { why: 'a facade planter' });
   for (const [x, z] of [[22.5, -66], [24.5, -60]] as const) d.skinCyl('K:treeSkin', cy(x, z), { why: 'a verge tree over its trunk pillar' });
   d.skin('H1:cageTrolley', bx(-30.5, 0.6, -46), 0, { why: 'the delivery yard cage trolley (cover)' });
+  d.skin('H1:cageTrolley', bx(-28.4, 0.6, -56.4), 0, { why: "the courier's cage trolley at his van's open rear doors" });
   lit(d.skin('H1:gateDesk', bx(18.8, 0.375, -73.0), PI, { why: 'the CCTV desk, operator side south, facing the north wall' }), S1_GROUPS.gate);
-  d.skin('H1:pcDesk', bx(19.35, 0.375, -77.75), -PI / 2, { why: 'the PC desk south of the rear window (F42: clear of the vault landing), operator side west' });
+  d.skin('H1:pcDesk', bx(19.35, 0.375, -77.75), -PI / 2, { why: 'the PC desk south of the rear window, operator side west' });
   d.skin('H1:teaPoint', bx(18.05, 0.45, -78.55), 0, { why: 'the gatehouse kettle counter, front north' });
   d.skin('H1:trafficIsland', bx(11, 0.5, -77), 0, { why: 'the barrier island' });
   lit(d.skin('H1:barrierArm', bx(12.75, 1.0, -77), 0, { why: 'the barrier arm (visual box), pivot at x 11.5' }), S1_GROUPS.lane);
@@ -183,7 +184,7 @@ export function dressS1(d: CampusDresser): void {
   };
   hero('H1:monitorBank', 18.8, 0, -72.65, PI, { cls: 'visual', group: S1_GROUPS.gate, why: 'the CCTV officer cam-gate / cam-walk monitors on the north wall' });
   hero('H1:keyCabinet', 15.2, 0, -72.65, PI, { cls: 'visual', why: 'the site keys by the door' });
-  hero('H1:visitorBoard', 13.65, 0, -78.0, PI / 2, { cls: 'visual', why: 'the visitor list the player downloads is also on paper' });
+  hero('H1:visitorBoard', 13.65, 0, -78.0, PI / 2, { cls: 'visual', why: "the night's visitor list on paper" });
   hero('H1:barrierHousing', 11.0, 1.0, -76.2, 0, { cls: 'visual', why: 'the motor housing on the island top' });
   hero('H1:intercomPost', 12.6, 0, -79.3, 0, { cls: 'see', why: 'the drivers intercom by the gate' });
   hero('K:siteSign', 6.8, 0, -79.0, PI, { cls: 'solid', why: 'the Orrin site sign at the gate' });

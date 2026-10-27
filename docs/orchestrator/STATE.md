@@ -8,7 +8,7 @@ archive/STATE-history.md. Keep this file current, not appended: replace a line w
 Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this list is the standing frame only.
 - Master 4.101.1 (train 86 #406); train 87 (#409, 4.101.2 = #384) running.
 - Docs first (G346, G355): no new game work until Michael signs off the folded plan (ROADMAP Now row 6); finished PRs
-  ship. Full burn at 100% until Michael says slow down.
+  ship. Pace each 5-hour window to ~100% near its reset, not before (Michael 2026-10-26 ~23:45).
 - Phase 0: land #407 (feature/doc-final) and #400 (feature/doc-guard, stacked on #407) together; #408 laptop-queue-5
   (Test Runner). Phase 1: each lead's conformance review (review-briefs/<lead>.md), then fold the five gap lists.
 - Auto-train: scheduled task "NightShift auto-train" every 1 min from C:/NightShift/Mobile-Coop-autotrain (a master
@@ -77,7 +77,7 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
   which rule makes the slowest step slow, when it was last measured, what a cheaper one would cost.
 - Fix patterns yourself (rules, routing, tooling, fix jobs); ask him only by day and only when his answer changes the
   outcome; overnight, decide, log the assumption, carry on. Never leave a question dialog open overnight.
-- Tokens are no constraint in a full burn; spend them on progress, not overhead. Michael 2026-10-25 13:50: "ignore usage limits" - never slow work for the meters; saves still run at ~92% so nothing is lost at a swap.
+- Pacing (Michael 2026-10-26 ~23:45, "Ensure these sessions hit the 5 hour 100% limit, but don't rush to get there."): each window reaches ~100% close to its reset, on a straight line; replaces the 10-25 "ignore usage limits" and the 10-26 ~19:22 "don't burn 100%". Saves still run at ~92%.
 - At a swap, say "Safe to log out of the desktop and laptop" only at 100% with every session saved and runs queued.
 - Never trace CT animation frame by frame (IP).
 

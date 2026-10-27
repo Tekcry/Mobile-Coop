@@ -185,8 +185,8 @@ export async function walk(t, n) {
   await moveHost(CROSS[0], CROSS[1], 0.1, Math.PI / 2);
   // stays in the neck: the window ends (15 s) with a player in it
   await assertRetry('A2 station 4 timer', r1, 4, 'timer', MARK4);
-  await until(A, () => /Lights came back with you in the neck/.test(window.__course.radioLine ?? ''), null, 15000, "A2: LANTERN's timer line on the host");
-  await until(B, () => /Lights came back with you in the neck/.test(window.__course.wire.rl ?? ''), null, 15000, "A2: LANTERN's timer line reaches the client");
+  await until(A, () => /Lights came back on you/.test(window.__course.radioLine ?? ''), null, 15000, "A2: LANTERN's timer line on the host");
+  await until(B, () => /Lights came back on you/.test(window.__course.wire.rl ?? ''), null, 15000, "A2: LANTERN's timer line reaches the client");
   assert((await neckLamps(A, true)) && !(await gateOpen(GATE_NECK)), 'A2: the neck is lit and the isolator closed after the retry');
   await until(A, (id) => window.__course.state.gateRearm(id) === 0, GATE_NECK, 10000, 'A2: the isolator is ready again');
   assert((await gateOpen(GATE_LATCH)) && !(await lockedOnClient(DOOR_SHUTTER)), 'A2: the roller door stays latched through the station 4 retry');

@@ -1,0 +1,14 @@
+ERROR: link w2-pawn-loft -> w2-reading-room (team_throw): gap 4.9 m above the 2.7 m throw
+ERROR: link w2-arcade-roof -> w3-roof (team_throw): gap 4.9 m above the 2.7 m throw
+ERROR: split tgc-leads leg a: no solo link leads into w1-gallery
+WARN:  w1-canal-steps: room_class custom (justify the size in the design doc)
+WARN:  w2-arcade-roof: room_class custom (justify the size in the design doc)
+WARN:  w3-roof: room_class custom (justify the size in the design doc)
+WARN:  w3-chute: size 1.2 is off the 0.5 m grid
+WARN:  w3-chute: room_class custom (justify the size in the design doc)
+WARN:  w4-boat: room_class custom (justify the size in the design doc)
+WARN:  metrics: sizes.throw_long is missing from the metrics; the long-throw check (falls back to the throw gap row) skipped
+WARN:  link w2-pawn-loft -> w2-reading-room (door): length 12.4 is off the 0.5 m grid
+WARN:  link w2-lane-window -> w2-clock-loft (door): length 9.8 is off the 0.5 m grid
+
+3 error(s), 9 warning(s).

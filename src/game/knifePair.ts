@@ -95,6 +95,11 @@ export interface RootOut {
 
 const ease = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
+/** (piano-knife S3) The wire's `ph` span (s): the move and its tail (`knifeTail` ends at `seconds + blendOut`). */
+export function knifeSpan(row: KnifeKillRow): number {
+  return row.seconds + KNIFE.blendOut;
+}
+
 /**
  * The guard's root: the row's spot is the attacker's root plus `standoff` forward and `side` right in his frame, facing
  * `ayaw + yawOff`; `k` (0..1, eased over the grab) blends from where the guard stood (`from*`) to it. A corner kill so

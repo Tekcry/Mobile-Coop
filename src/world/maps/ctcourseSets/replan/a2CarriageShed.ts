@@ -23,10 +23,14 @@
  *   board slot opposite the lane strip (`A2_BOARD_SLOT`), where a laid board bears on the far landing under a raised panel;
  * - the stations (STATIONS section 3, verbatim), the pass zones `a2-lane` and `a2-across`, LANTERN's retry lines, the
  *   objective lines (what and where), the coat corner's wall lamp on circuit 22 (the re-plan table's second lamp).
- * Value imports only from the set file and `../types` (the facility imports nothing from here: no cycle).
+ * - (marlow-kit-wire) the Plank Bridge kit spot `a2-plank` on the board stack (`A2_BOARD_STACK`), placed unconditionally
+ *   (inert while `plankBridge` is off); with it on, the objective names the board.
+ * Value imports only from the set file, `../types` and two pure course modules (`kitApi`, `stationDef`) (the facility
+ * imports nothing from here: no cycle).
  */
 import type { EgressGate, FlagGate, HoldGate } from '../../../../game/course/courseDef';
-import type { StationDef } from '../../../../game/course/stationDef';
+import { kitMoveOn, type StationDef } from '../../../../game/course/stationDef';
+import { addKitSpot } from '../../../../game/kit/kitApi';
 import type { FacilityKit } from '../../../kit/facilityKit';
 import type { LevelBuilder } from '../../../levelBuilder';
 import { FacilityProps } from '../../../props/facilityProps';
@@ -101,6 +105,11 @@ export const A2_CAB2_REPLAN = { x: 63.5, z: 11.6 } as const;
  *  boards, from the lane gap 2/3's east end to the far landing (road 2's east van ends on the pit's near edge at z 8.7-11.3,
  *  so the drawn z 9.4-10.6 has no near-side floor to board from). */
 export const A2_WALKWAY = { z0: 11.4, z1: 12.6, board: 0.1, h: 2.2, deck: 0.2 } as const;
+/** (marlow-kit-wire) The scaffold board stack at the lane's east end (dressing; the Plank Bridge spot is its middle): eight
+ *  0.04 m boards in two 0.22 m columns against the road 3 van's south face, four layers to `top`. */
+export const A2_BOARD_STACK = { x0: 60.9, x1: 64.8, z0: 13.23, z1: 13.68, top: 0.16 } as const;
+/** (marlow-kit-wire) Station 5's objective while `plankBridge` is on (the built text is the walkway's). */
+export const A2_PLANK_KIT_TEXT = 'Lay a board over the pit to the L2 door';
 export const A2_WALKWAY_DOOR = 'A2-walkway';
 export const A2_WALKWAY_GATE = 'g-a2-walkway';
 export const A2_WALKWAY_FLAG = 'a2-walkway';
@@ -139,9 +148,9 @@ export const A2_STATIONS: readonly StationDef[] = a2CarriageShedStations;
 /** LANTERN's retry lines (STATIONS section 6, verbatim). */
 export const A2_RETRY_LINES: readonly { at: string; text: string }[] = [
   { at: 'retry:a2-shutter', text: 'Seen at the roller door. Back to the stores bay.' },
-  { at: 'retry:a2-lights', text: 'The shunter saw you in the neck. Back to the cabin and the lane.' },
-  { at: 'retry:a2-lights:timer', text: 'Lights came back with you in the neck. Back to the cabin and the lane.' },
-  { at: 'retry:a2-plank', text: 'The shunter saw the board. Back to the board stack at the east end.' },
+  { at: 'retry:a2-lights', text: 'Seen in the neck. Back to the cabin and the lane.' },
+  { at: 'retry:a2-lights:timer', text: 'Lights came back on you. Back to the cabin and the lane.' },
+  { at: 'retry:a2-plank', text: 'Seen on the board. Back to the east end board stack.' },
 ];
 /** The built entry line the re-plan drops (no spotters, no staging); nothing replaces it (the stations' own lines carry the retries). */
 export const A2_BUILT_STAGING_LINE = 'Two spotters on the staging. Seen in the neck lights and we start again.';
@@ -264,6 +273,9 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     p.doors[A2_WALKWAY_DOOR] = b.door(px0, 0, w.z0, w.z1 - w.z0, 0, { height: 2.1, breachable: false }).id;
   });
   p.bay.gates.push({ kind: 'flag', id: A2_WALKWAY_GATE, flag: A2_WALKWAY_FLAG, doorId: A2_WALKWAY_DOOR } satisfies FlagGate);
+  // (marlow-kit-wire) the Plank Bridge spot: the board stack's middle, the boards along x (inert while `plankBridge` is off)
+  const stack = A2_BOARD_STACK;
+  addKitSpot(b.anchors, { id: 'a2-plank', kind: 'plankBridge', x: (stack.x0 + stack.x1) / 2, y: 0, z: (stack.z0 + stack.z1) / 2, yaw: Math.PI / 2, w: stack.x1 - stack.x0 });
 
   // ---- dressing (visual skins): the ballast short of the pit, the scaffold boards, hazard bands ----
   tally(b, p.register, 'A2-37', 'Re-plan dressing (visual skins, no collision): the three ballast strips stopping at the pit, a stack of scaffold boards at the east end of the lane gap 2/3 against the road 3 van (KS5 lays them later), hazard bands on the walkway boards and the barrier', () => {
@@ -272,8 +284,8 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     for (let k = 0; k < 8; k++) {
       const col = k % 2;
       const y = Math.floor(k / 2) * 0.04;
-      const z0 = 13.46 - col * 0.23;
-      skin(60.9, 64.8, y, y + 0.04, z0, z0 + 0.22, BOARD_C);
+      const z0 = A2_BOARD_STACK.z1 - 0.22 - col * 0.23;
+      skin(A2_BOARD_STACK.x0, A2_BOARD_STACK.x1, y, y + 0.04, z0, z0 + 0.22, BOARD_C);
     }
     for (const z of [w.z0 - w.board - 0.01, w.z1 + w.board]) skin(px0, px1, 0.9, 1.0, z, z + 0.01, BARRIER_C);
     skin(A2_PIT_BARRIER.x0 - 0.01, A2_PIT_BARRIER.x0, A2_PIT_BARRIER.h - 0.1, A2_PIT_BARRIER.h, pz0, pz1, BLACK);
@@ -313,25 +325,25 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     {
       id: 'a2-shutter',
       bay: 'A2',
-      text: 'Roller door off the stores bay: one holds it up, the other goes under.',
+      text: 'Both through the roller door',
       // (marlow-play C6) holding only unlocks the roller door: someone still opens it, so the lines say who
-      a: 'Hold the roller door up at the south jamb; your partner opens it and goes under. Follow.',
-      b: 'Open the roller door, crouch under into the lane, then hold it up for your partner.',
+      a: 'Hold the roller door up at the south jamb, then follow.',
+      b: 'Open the roller door, crouch under, then hold it for your partner.',
       done: { flag: A2_LANE_FLAG },
     },
     {
       id: 'a2-lights',
       bay: 'A2',
-      text: 'Cut the neck lights at a cabinet, then cross the dark neck from the lane.',
-      a: 'Isolate at cabinet one in the cabin, then cross when cabinet two goes dark.',
-      b: 'Cross the dark neck from the lane, then isolate at cabinet two by the pit.',
+      text: 'Cut the neck lights, then cross',
+      a: 'Cut cabinet one in the cabin, then cross when two is dark.',
+      b: 'Cross the dark neck, then cut cabinet two by the pit.',
       done: { flag: 'a2-east' },
       timer: 'g-a2-neck',
     },
     {
       id: 'a2-plank',
       bay: 'A2',
-      text: 'Cross the pit by the east vans on the hoarded walkway to the L2 door.',
+      text: kitMoveOn('plankBridge') ? A2_PLANK_KIT_TEXT : 'Cross the pit to the L2 door',
       done: { flag: A2_ACROSS_FLAG },
     },
     { id: 'a2-lock', bay: 'A2', text: 'Both of you into holding room two.' },

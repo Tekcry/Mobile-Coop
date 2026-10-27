@@ -29,7 +29,7 @@ const FOOTBRIDGE_DOOR = 'A5-footbridge';
 const PLATES_DOOR = 'A5-plates';
 const BACK_DOOR = 'A5-back';
 /** Station marks (STATIONS section 3): 11 in the gap, 12 on the east strip, 13 on the west strip (A) and in the lee (B). */
-const ST11 = [[69.0, 32.0], [69.0, 34.0]];
+const ST11 = [[69.0, 32.3], [69.0, 33.7]];
 const ST12 = [[67.0, 33.0], [67.0, 34.5]];
 const ST13 = [[59.0, 36.0], [56.0, 36.0]];
 /** The ladder's foot and the wall top (the ladder head), the footbridge's two ends, the west strip. */
@@ -182,7 +182,7 @@ export async function walk(t, n) {
   await noDamage();
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stationLive(P, 11, `A5: station 11 is live on the ${tag} page`);
-    await sees(P, /wicket door in the wall/, `A5: the ${tag} reads station 11's step line`);
+    await sees(P, /Go through the wicket onto the apron/, `A5: the ${tag} reads station 11's step line`);
   }
   assert(!(await lockedOnHost(WICKET_DOOR)) && !(await lockedOnClient(WICKET_DOOR)), 'A5: the wicket stand-in is unlocked on both pages (the base opened it)');
   for (const id of [FOOTBRIDGE_DOOR, PLATES_DOOR, BACK_DOOR]) {
@@ -236,7 +236,7 @@ export async function walk(t, n) {
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await tickedOn(P, 'a5-trench', `A5: the ${tag} sees the trench step ticked`);
     await stationLive(P, 13, `A5: station 13 is live on the ${tag} page`);
-    await sees(P, /Throw your partner from the mark|Land behind the transformer/, `A5: the ${tag} reads station 13's step line`);
+    await sees(P, /Throw your partner over the beams|Cross under the jam and key the release|Get over the beams, jam the floodlight/, `A5: the ${tag} reads station 13's step line`);
   }
 
   // ---- 4. station 13: wait for his back, the throw ----

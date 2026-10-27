@@ -31,6 +31,7 @@ import { EYE_STAND, instantDetect, losClear, noiseSuspicion, PERCEPTION, seenAt,
 import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
 import { COMBAT_HEAR, HEARING } from './hearing';
 import { PatrolWalker, PATROL, type PatrolRoute } from './patrol';
+import { SCENE_SWEEP, sweepPlan, type SweepPlan } from './sceneSweep';
 import { ARMOUR_FIRE, ArmourGate } from './armourFire';
 import { PACE, paceSpeed, ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec, urgentKind } from './response';
 import { SEARCH_AREA } from './searchArea';
@@ -40,6 +41,10 @@ import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
 import type { LightDef, Occluder } from '../world/lights';
 import type { LightField } from '../world/lightField';
+import { OCC_KIND, occKey, type CharOccluders } from '../world/charOccluders';
+import type { ShadowCues } from '../world/shadowCues';
+import { NI_X, NI_YAW, NI_Z, NO_DIST, NO_X, NO_Y, NO_Z, NOTICE_IN, NOTICE_OUT, noticeInto, SHADOW_NOTICE } from './shadowNotice';
+import { guardOccR } from './guardOccluders';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
@@ -57,7 +62,7 @@ import { DOG_BITE_DECAY, dogGaitStep, dogHead, dogPhaseBack } from './dogHead';
 import { FIXED_DT } from '../core/loop';
 import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newHeadIn, newLeanState, wireHeadIn, type GuardHeadIn, type GuardHeadRest, type HeadOut } from './guardHead';
 import { CAUTION } from './awareness';
-import type { InstancedMesh } from '../core/babylon';
+import type { AbstractMesh, InstancedMesh } from '../core/babylon';
 import { GuardAnimTier } from './animTierView';
 import { ANIM_TIER_FROZEN_CARRY_MAX } from './animTier';
 import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
@@ -90,6 +95,9 @@ const P_LIGHT = new Float64Array(MAX_INTRUDERS);
 const P_ANGLE = new Float64Array(MAX_INTRUDERS);
 /** (coop4 AI2) The order players are started in under the ray budget (`perceiveOrder`; 3+ players only). */
 const P_ORDER = new Int8Array(MAX_INTRUDERS);
+/** (guard-ai-j16 G3 fix round) `SHADOW_NOTICE.slack` read once: a double loaded from the object's field and passed to
+ *  `losTo` boxes 16 B each call when that call is not inlined; a module constant passes its own number. */
+const CUE_SLACK = SHADOW_NOTICE.slack;
 /** One player's sight input (the chosen player's goes to `Enemy.sight`). */
 const P_SIGHT: SightInput = { dist: 0, angle: 0, light: 1, crouched: false, speed: 0, exposure: 0, sensitivity: 1, pitch: 0 };
 
@@ -189,6 +197,13 @@ export interface AiContext {
   /** (LR16t) Static geometry for the light field's flashlights (`EnemyManager.bodyOccluder`): the light on a target
    *  without its own sample is tested as a body's is, so a torch behind a wall does not light it. */
   lightOccluder?: Occluder;
+  /** (guard-ai-j16 G3, G352) The character-occluder contract the guards' light reads take (`EnemyManager.chars`): a
+   *  getter, never a value, so a contract set on the manager after construction reaches every guard (plan check 1
+   *  item 1). Null or absent: no character shadows (today's light to the bit). */
+  chars?(): CharOccluders | null;
+  /** (guard-ai-j16 G3, G379) The players' cast-shadow cues (`EnemyManager.cues`, Sector Ops' 10 Hz fill), read by the
+   *  shadow cue (`Enemy.shadowLook`). A getter as `chars`. Null or absent: no cue (today's perception). */
+  cues?(): ShadowCues | null;
   /** (guard-ai S2) Coordinated guards (the incident board): the new paces (A9) and the calm turn when searching.
    *  Absent / false (Hunter, Mission): the old paces. */
   coordinated?(): boolean;
@@ -246,9 +261,13 @@ export interface AiContext {
 
 let nextId = 1;
 /** (LR16t) The light field at a point for a guard's perception, its flashlights tested with the context's occluder
- *  (`AiContext.lightOccluder`), as a body's light is. */
-export function fieldLight(ctx: Pick<AiContext, 'world' | 'lightOccluder'>, x: number, y: number, z: number): number {
-  return ctx.world.lightField.totalAt(x, y, z, ctx.lightOccluder);
+ *  (`AiContext.lightOccluder`), as a body's light is. (guard-ai-j16 G3) With a character contract (`AiContext.chars`)
+ *  the characters' shadows count, `skip` the sampled character's owner key (a player: `occKey(OCC_KIND.player, i)`);
+ *  without one the call is today's, argument for argument. */
+export function fieldLight(ctx: Pick<AiContext, 'world' | 'lightOccluder' | 'chars'>, x: number, y: number, z: number, skip = -1): number {
+  const chars = ctx.chars?.() ?? null;
+  if (chars === null) return ctx.world.lightField.totalAt(x, y, z, ctx.lightOccluder);
+  return ctx.world.lightField.totalAt(x, y, z, ctx.lightOccluder, chars, skip);
 }
 
 /** The paces table lives in `response.ts` (pure; guard-ai S19 added the rush), re-exported here for its readers. */
@@ -385,6 +404,18 @@ const BITE_POINT = new Vector3();
 const BITE_DIR = new Vector3();
 const BITE_FROM = new Vector3();
 const THROW_FROM = new Vector3();
+/** (guard-ai aim fix) `tryFire`'s aim point for the facing check (module scratch, as `SHOT_AIM`). */
+const FACE_AIM = new Vector3();
+/**
+ * (guard-ai aim fix, Michael 2026-10-27: "they currently shoot at you without actually aiming at you (ie facing away from
+ * you) which is unrealistic") A round leaves only while his body faces the shot's aim point (flat yaw from his position
+ * to it) within this (rad, 15 deg); outside it he holds the round and turns to it first (`aimFace`, the aimed turn at
+ * `ENEMY_MOTION.turnAim` 110 deg/s). Why 15: the aimed turn eases in at `turnAccel` 12 rad/s^2, so a guard tracking a
+ * target that sweeps across him at the full turn rate trails it by w^2 / (2 a) = 1.92^2 / 24 = 0.15 rad (8.8 deg); 15 deg
+ * keeps that tracking guard's fire rate unchanged, and is under the motion driver's own on-the-spot step threshold
+ * (`turnThreshold` 0.45 rad, 26 deg), so a guard who fires has visibly squared up to the target, gun and chest on him.
+ */
+export const FIRE_CONE = (15 * Math.PI) / 180;
 /** (guard-ai-alloc D1) The damage a guard deals (a round, a bite), refilled per hit (`hitInfo`): no receiver keeps it or
  *  its vectors past the call. */
 const HIT_OUT: HitInfo = { amount: 0, point: SHOT_END, dir: SHOT_DIR, part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: '', sourcePos: SHOT_FROM, impulse: 1 };
@@ -469,6 +500,11 @@ export class Enemy implements Damageable {
   private readonly fireTo = new Vector3();
   /** (guard-ai S16) Rounds fired (debug / tests). */
   roundsFired = 0;
+  /** (guard-ai aim fix) The flat yaw to this step's shot aim point while a round is due (`tryFire` reached the round),
+   *  else NaN: `update` turns him to it (`faceFor`). Reset each `decide`. */
+  aimFace = Number.NaN;
+  /** (guard-ai aim fix) Rounds held this step because he did not yet face the aim point (`FIRE_CONE`; tests, debug). */
+  aimHeld = 0;
   private pauseT = this.rng.range(0.6, 1.4);
   private windup = 0;
   private meleeCd = 0;
@@ -547,6 +583,28 @@ export class Enemy implements Damageable {
   }
   /** (guard-ai S1) Seconds left looking towards a sound he was not sent to (`hearTurn`): stands and faces it. */
   private turnT = 0;
+  /** (guard-ai-j16 G3, A9) His character-occluder radius: the hit capsule's `bodyR` (`guardOccR`), cached at spawn. */
+  readonly occR: number;
+  /** (guard-ai-j16 G3, A11) His last shadow cue (`shadowLook`): seconds since (Infinity: none yet), the floor point he
+   *  turned to (x, z; his stimulus) and the player's `ShadowCues` slot. Read by the debug probe and the e2e. */
+  cueT = Infinity;
+  cueX = 0;
+  cueZ = 0;
+  cueSlot = -1;
+  /** (G3) `noticeInto`'s result for one player, and the nearest so far over the players (`NOTICE_OUT` each). */
+  private readonly cueOut = new Float64Array(NOTICE_OUT);
+  private readonly cueBest = new Float64Array(NOTICE_OUT);
+  /** (G3) The cue ray's end (the floor point). */
+  private readonly cueV = new Vector3();
+  /** (G3, A5) The cue lifts him from calm this step: that rise says nothing (`onLevel`). Cleared each step. */
+  private cueRise = false;
+  /** (guard-ai-j16 fix 2, check B FIX 1; A5) This suspicious episode rests on the cue alone: set by the hushed rise
+   *  (`onLevel`), cleared by any other level change and by a real sight, sound (`hear`, `hearTurn`) or ack. While set,
+   *  the calm-down says nothing ('clear'); a sight or sound that clears it says the 'suspicious' line the rise skipped. */
+  private cueQuiet = false;
+  /** (guard-ai-j16 fix 2, check B FIX 2; A6) The running `turnT` is the cue's own look (a `hearTurn` / `ack` look is
+   *  not: the cue never takes it over). Set by `shadowLook`, cleared by `hearTurn` and `ack`. */
+  private cueTurn = false;
   /** (guard-ai S2) The incident this guard was sent to by the board (its id), -1 none; cleared when he is back
    *  (calm), in combat, or on another search. */
   incident = -1;
@@ -632,6 +690,11 @@ export class Enemy implements Damageable {
   private homeT = 0;
   /** The long plan (`GIVE_UP.homeExpand`) was tried for this point. */
   private homeLong = false;
+  /** (piano polish 1) On the scene sweep, off his storey: seconds in a row with no path home (`goTo` found none). At
+   *  `SCENE_SWEEP.strandT` he is stranded: the lap on the storey he is on (`sweepStranded`, `sweepWalk`). */
+  private swNoPath = 0;
+  /** (piano polish 1) Stranded: seconds to the next try of the way home (`SCENE_SWEEP.strandRetry`). */
+  private swRetryT = 0;
   /** (train 132 fix) His sliced long plan to `homeG` is running (`NavGrid.sliceStep`, one slice per long-plan frame). */
   private homeSlicing = false;
   /** (guard-ai play A, P2-1) He gave a run to the alarm panel up this fight (not sent again). */
@@ -766,6 +829,8 @@ export class Enemy implements Damageable {
     // (guard-render S4) anim tiers: off-screen / far guards solve their pose less often (`animTier.ts`)
     this.animTier = new GuardAnimTier(ctx.scene, this.rig.voxel?.meshes[0] ?? null, this.num, def.height, ctx.world);
     this.hitboxes = new Hitboxes(ctx.scene, ctx.registry, this, def.scale, def.build);
+    // (guard-ai-j16 G3) the hit capsule's radius as his occluder's (once: `guardOccR` allocates)
+    this.occR = guardOccR(def.build, def.scale);
     this.headRest = guardHeadRest(def.height, def.build, def.gun !== null, def.melee ? 0 : def.runSpeed);
     this.voice = new BarkVoice(this.num);
     const parts = ctx.world.parts;
@@ -962,6 +1027,7 @@ export class Enemy implements Damageable {
   /** Let go (an interrupted takedown): staggered (`stagger` s; a shove: longer), and very much aware now. */
   releaseTakedown(stagger = 0.6): void {
     if (!this.taken) return;
+    if (this.knifePinned || (this.killDrv && this.rig.graph.kill === this.killDrv)) this.knifeVictim(null, 0, 0); // (piano-knife S3) every release unpins
     this.taken = false;
     this.hitboxes.setSolid(true);
     this.rig.emote = null;
@@ -1010,7 +1076,7 @@ export class Enemy implements Damageable {
   sinceStagger = 1e9;
   /** The placeholder gear parts (A45), built once on first use and toggled: the helmet on his head node, the plates. */
   private helmetPart: InstancedMesh | null = null;
-  private armourParts: InstancedMesh[] | null = null;
+  private armourParts: AbstractMesh[] | null = null;
   private gearHex = '';
 
   /** Put gear on him (or take it off): `placeSlot` (slot tag + section default), a woken guard (`inherit`), and S13's
@@ -1112,6 +1178,7 @@ export class Enemy implements Damageable {
   /** Walk a route while unaware (null = stand post at the spawn point). */
   setPatrol(route: PatrolRoute | null): void {
     this.walker = new PatrolWalker(route, this.post[0], this.post[1], this.yaw, this.num);
+    this.sweepCache = null;
     this.setCaution(this.caution);
   }
 
@@ -1243,6 +1310,10 @@ export class Enemy implements Damageable {
     this.handlerSlot = o.handlerSlot;
     this.handler = o.handler;
     this.walker = o.walker;
+    // (GA6b) his sweep (the walker carries it), its plan, side and partner
+    this.sweepCache = o.sweepCache;
+    this.sweepSide = o.sweepSide;
+    this.sweepMate = o.sweepMate;
     this.walker.tick(downFor);
     this.rejoinHome();
     this.setCaution(0);
@@ -1355,17 +1426,26 @@ export class Enemy implements Damageable {
    */
   hearTurn(x: number, z: number, radius = 0): void {
     if (this.alerted || !this.alive || this.passive) return;
+    let loud = false;
     if (radius > 0) {
       const s = Math.min(noiseSuspicion(hyp2(x - this.pos.x, z - this.pos.z), radius), HEARING.turnMax);
       if (s > this.meter) this.meter = s;
+      loud = s >= PERCEPTION.suspicious;
     }
     const lvl = this.aware.level;
+    // (guard-ai-j16 fix 2, A5) a sound in a cue-only episode: it is no longer the cue's; a sound that would have lifted
+    // him says the line the hushed rise skipped
+    if (this.cueQuiet) {
+      this.cueQuiet = false;
+      if (loud && lvl === 'suspicious') this.bark('suspicious');
+    }
     // (guard-ai S2) sent somewhere by the board: the board owns his target (a later noise does not re-aim him)
     if (lvl === 'investigating' || lvl === 'searching' || this.incident >= 0) return;
     this.stimulus[0] = x;
     this.stimulus[1] = z;
     this.hasStimulus = true;
     this.turnT = ALERT.hearLook;
+    this.cueTurn = false;
   }
 
   /**
@@ -1658,6 +1738,10 @@ export class Enemy implements Damageable {
     this.stimulus[1] = z;
     this.hasStimulus = true;
     this.turnT = Math.max(this.turnT, INCIDENT.ackLook);
+    // (guard-ai-j16 fix 2) the look is the ack's now (the cue does not take it over), and so is the episode (silently:
+    // an ack never says the 'suspicious' line; its own is "Copy.")
+    this.cueTurn = false;
+    this.cueQuiet = false;
   }
 
   /** Gunfire close by: straight to combat, towards it. */
@@ -1867,6 +1951,54 @@ export class Enemy implements Damageable {
   pairFace = Number.NaN;
   readonly pairPt: P2 = [0, 0];
   private readonly pairGoal: Goal = { point: null, speed: 0, face: null };
+  /** (guard-ai piano GA6b) His scene sweep partner (his `pair` on the scene; `EnemyManager.sweepify` sets both sides):
+   *  the soft push skips him while this guard sweeps calm (the 0.65 m floor stays). Null: none. */
+  sweepMate: Enemy | null = null;
+  /** (GA6b) His pan side on the sweep: +1 left first (the lower slot of a pair), -1 right first. */
+  sweepSide = 1;
+  /** (GA6b) His sweep plan, built once at the first `startSweep` (allocates); `setPatrol` drops it. */
+  private sweepCache: SweepPlan | null = null;
+  /** (GA6b, N6) Sent by his partner's glimpse (`followGlimpse`): the send's line was his one; his rise says nothing. */
+  private quietRise = false;
+
+  /**
+   * (guard-ai piano GA6b) On his scene sweep (`sceneSweep.ts`): the plan (his route, or his post at `postYaw`; built
+   * once), pan `side`, loop time = the plan's phase + the scene's sweep clock `clock`. Not standing on the start stop: he
+   * rejoins (the soonest pan stop, then in step). Load time / the EMP only.
+   */
+  startSweep(clock: number, side: number): void {
+    const w = this.walker;
+    let plan = this.sweepCache;
+    if (!plan) plan = this.sweepCache = sweepPlan(w.route, this.post[0], this.post[1], this.postYaw);
+    this.sweepSide = side < 0 ? -1 : 1;
+    w.setSweep(plan, this.sweepSide, plan.phase + clock);
+    const p = plan.pts[plan.startIdx]!;
+    if (hyp2(p[0] - this.pos.x, p[1] - this.pos.z) >= PATROL.arrive) w.rejoin(this.pos.x, this.pos.z);
+  }
+
+  /** (GA6b, N4) Off the sweep: his authored route rules again, rejoined as built; no partner skip. */
+  stopSweep(): void {
+    this.sweepMate = null;
+    this.quietRise = false;
+    if (!this.walker.sweeping) return;
+    this.walker.clearSweep();
+    this.walker.rejoin(this.pos.x, this.pos.z);
+  }
+
+  /** (GA6b) On a scene sweep. */
+  get sweeping(): boolean {
+    return this.walker.sweeping;
+  }
+
+  /**
+   * (GA7, the PLAN's "a player seen in a flash") His sweep partner saw something at (x, z): he goes to look with him, a
+   * calm `sendTo` (incident -1: no board task; cooldown, then back on his sweep). One line: the send's `checking` (N6).
+   */
+  followGlimpse(x: number, z: number): void {
+    if (!this.sendable) return;
+    this.sendTo(x, z, -1, true);
+    this.quietRise = true;
+  }
 
   // (guard-ai S10) his patrol route: `get patrolRoute()` (CT Core spare 9, after `setPatrol`)
 
@@ -1887,6 +2019,13 @@ export class Enemy implements Damageable {
   /** (guard-ai S10) Calm enough to stand and talk: unaware, not cautious, not on a board task, not held. */
   get pairCalm(): boolean {
     return this.aware.level === 'unaware' && this.caution === 0 && this.incident < 0 && !this.taken && this.camBody === null;
+  }
+
+  /** (GA6 fix round, check A FIX 1) Walking his scene sweep, for a sweep pair's watch: up, not held, unaware or in
+   *  cooldown, no board task. Caution is not tested: a cautious sweeping guard still notices his partner gone. */
+  get sweepCalm(): boolean {
+    const lv = this.aware.level;
+    return (lv === 'unaware' || lv === 'cooldown') && this.incident < 0 && !this.taken && this.camBody === null && this.alive;
   }
 
   /** (guard-ai S21, A120) In a calm area (`calmArea`): calm himself, no alarm, not a high-security post, not on a
@@ -2270,14 +2409,28 @@ export class Enemy implements Damageable {
       this.riseCause = this.sawMoment ? RISE_SIGHT : this.heardMoment ? RISE_SOUND : RISE_NONE;
       this.riseN++;
     }
-    if (to === 'suspicious') this.bark('suspicious');
+    // (GA6b, N6) a partner's glimpse follow: the send's `checking` was his line, the rise says nothing more
+    const hush = this.quietRise;
+    if (to !== 'suspicious') this.quietRise = false;
+    // (guard-ai-j16 fix 2, check B FIX 1) a cue-only episode ends with this change: its calm-down is silent too
+    const cueOnly = this.cueQuiet;
+    this.cueQuiet = false;
+    if (to === 'suspicious') {
+      // (guard-ai-j16 G3, A5) a rise from his shadow cue alone (no sight, no sound) is silent: the white arc only
+      const cueHush = this.cueRise && this.riseCause === RISE_NONE;
+      if (!hush && !cueHush) this.bark('suspicious');
+      this.cueQuiet = cueHush;
+    }
     // (S4 fix) the line follows the cause: sight lines only for sight, neutral ones for none
-    else if (to === 'investigating') this.bark(this.riseCause === RISE_SOUND ? 'heard' : this.riseCause === RISE_SIGHT ? 'saw' : 'investigate');
+    else if (to === 'investigating') {
+      if (!hush) this.bark(this.riseCause === RISE_SOUND ? 'heard' : this.riseCause === RISE_SIGHT ? 'saw' : 'investigate');
+    }
     // (guard-ai S3) told by a shout or the radio: he answers, he did not see anyone
     else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
     // (guard-ai S4) unaware -> cooldown is caution setting in: nothing to say
-    else if (to === 'cooldown' && from !== 'unaware' && !quiet) this.bark(task >= 0 ? 'standDown' : 'clear');
+    // (guard-ai-j16 fix 2, A5) back from a rise the shadow cue alone caused: nothing to say either way
+    else if (to === 'cooldown' && from !== 'unaware' && !quiet && !cueOnly) this.bark(task >= 0 ? 'standDown' : 'clear');
     else if (to === 'unaware' && task >= 0 && !quiet) this.bark('standDown');
     // (guard-ai S3) back from the board's task: his "nothing here" is a radio call (the section acks it)
     if ((to === 'cooldown' || to === 'unaware') && task >= 0) this.ctx.radioCall?.(this, task, 'standDown');
@@ -2486,7 +2639,8 @@ export class Enemy implements Damageable {
     // (artnext C9) killed while render-frozen (a partner's shot, a grenade out of view): the rig still holds the pose at
     // the freeze, so solve it once at his current place first; the ragdoll and `Body.pos` then never depend on whether
     // this page's camera saw him
-    if (!this.rig.root.isEnabled(false)) this.animTier.solveNow(this.rig, ANIM_TIER_FROZEN_CARRY_MAX, this.rp);
+    const frozen = !this.rig.root.isEnabled(false);
+    if (frozen) this.animTier.solveNow(this.rig, ANIM_TIER_FROZEN_CARRY_MAX, this.rp);
     // (guard-models G7) his figure goes on with the rig as his body (`Body` finds it by the rig), unflashed
     if (this.gbody) this.gbody.flash = 0;
     const imp = h.dir.scale(Math.min(80, 8 + h.impulse * 3) * (h.kind === 'explosion' ? 2.5 : 1));
@@ -2495,6 +2649,13 @@ export class Enemy implements Damageable {
     this.ctx.addBody(this, this.rig, imp, lethal);
     // (piano-knife S1) the ragdoll has his last pose: the knife kill's drive and hands off
     if (this.knifePinned || (this.killDrv && this.rig.graph.kill === this.killDrv)) this.knifeVictim(null, 0, 0);
+    // (S11-CHECK P2) killed while frozen: `GuardBody.frame` skipped (root disabled) and the freeze's thaw of a dead
+    // guard does not pose him, so pose the figure from the solved rig (and the ragdoll's re-parenting) now: his first
+    // drawn frame is current, not the pose at the freeze
+    if (frozen && this.gbody) {
+      this.gbody.figure.update(this.ctx.scene.activeCamera);
+      this.gbody.figure.poseNow();
+    }
     this.ctx.onKilled(this, h);
   }
 
@@ -2567,6 +2728,7 @@ export class Enemy implements Damageable {
     this.stagger = Math.max(0, this.stagger - dt);
     this.strikeStaggerT = Math.max(0, this.strikeStaggerT - dt);
     this.lastSeenT += dt;
+    this.cueT += dt;
     this.grenadeCd -= dt;
     this.doorCheck = Math.max(0, this.doorCheck - dt);
     this.strafeT -= dt;
@@ -2588,7 +2750,7 @@ export class Enemy implements Damageable {
       return;
     }
     const goal = this.decide(dt);
-    this.move(dt, goal.point, goal.speed, goal.face);
+    this.move(dt, goal.point, goal.speed, this.faceFor(goal.face));
     this.crouch += ((this.wantCrouch ? 1 : 0) - this.crouch) * Math.min(1, dt * 8);
     this.syncHitboxes(dt);
   }
@@ -2683,7 +2845,8 @@ export class Enemy implements Damageable {
       const los = chest || head;
       const expo = alerted ? (los ? 1 : 0) : seen / (t.headPoint ? 3 : 2);
       // light on him (perception reads it): the owner's sample, else the light field at the aim point
-      const light = p.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z);
+      // (guard-ai-j16 G3) his own capsule skipped: the contract's player key is the players() index (`fillPlayers`)
+      const light = p.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z, occKey(OCC_KIND.player, i));
       // awareness: sight fill rate from distance, field of view, light, stance, motion and exposure
       const si = P_SIGHT;
       si.dist = d;
@@ -2745,7 +2908,7 @@ export class Enemy implements Damageable {
       this.sawOnce = true;
     }
     let light = P_LIGHT[k]!;
-    if (Number.isNaN(light)) light = best.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z);
+    if (Number.isNaN(light)) light = best.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z, occKey(OCC_KIND.player, k));
     this.targetLight = light;
     const si = this.sight;
     si.dist = this.dist;
@@ -2772,6 +2935,81 @@ export class Enemy implements Damageable {
     }
     if (alerted && this.los) this.takeSighting(best);
     this.lookForBodies(eye);
+    // (guard-ai-j16 G3, plan check 1 item 6) last: the cue's stimulus is not overwritten by a sub-leak glimpse above
+    this.shadowLook(eye, capped);
+  }
+
+  /**
+   * (guard-ai-j16 G3, G379 "A faint cue"; BRIEF A4-A6, A11, PLAN section 1) A player's moving cast shadow in his focused
+   * cone: he grows suspicious and looks at it, never more. Who (A6): not alerted, passive or a dog, at unaware /
+   * cooldown / suspicious with no incident task, not lured or on the breaker walk, and seeing nobody this think (every
+   * player's rate <= `leak`) nor resting on an earlier glimpse (`sawMoment`): sight keeps his look and its linger rule;
+   * nor on a sound (`heard`, `heardMoment`) or a hearing / ack look in progress (`turnT` not `cueTurn`): a sound keeps
+   * its spot and its look (fix 2). Over every live
+   * player in the cues (`slotOf`), the nearest qualifying point (`noticeInto`), one line-of-sight ray from his eye to
+   * it (A4; at 3+ players only inside `PERCEIVE.maxRays`, counted there). Clear: the hearing turn's reaction
+   * (`hearTurn`, A5), written here so no double crosses a call: meter at least `SHADOW_NOTICE.meter`, the point as his
+   * stimulus, `turnT` = `ALERT.hearLook`; no `heard`, report, `lastKnown`, `sawOnce` or target change; a rise from calm
+   * that the cue lifts says nothing (`cueRise`), and so does its calm-down (`cueQuiet`). Records `cueT` / `cueX` /
+   * `cueZ` / `cueSlot`.
+   * No cues (null or absent): nothing, today's perception. No allocation.
+   */
+  private shadowLook(eye: Vector3, capped: boolean): void {
+    const cues = this.ctx.cues?.() ?? null;
+    if (cues === null || !SHADOW_NOTICE.enabled) return;
+    if (this.alerted || this.passive || this.dog !== null || this.incident >= 0) return;
+    // (G3 fix 1, A6) a calm moment that rests on sight keeps its own look and linger rule (a shadow adds, never
+    // removes); (G3 polish 5) a lured post keeps to his lure walk, as on a mission order
+    // (fix 2, check B polish 2) the breaker walk keeps walking on a rise (`breakerStep` while `rate <= 0`): as a lure
+    if (this.sawMoment || this.lure.active || this.brkGroup >= 0) return;
+    // (fix 2, check B FIX 2, A6) sound first: a calm moment that rests on a sound (`heard`: a `hear` / send earlier this
+    // step; `heardMoment` after) keeps the noise's spot, and a hearing or ack look in progress (`turnT` not the cue's
+    // own) keeps its direction. The cue never takes a sound's place
+    if (this.heard || this.heardMoment || (this.turnT > 0 && !this.cueTurn)) return;
+    const lvl = this.aware.level;
+    if (lvl !== 'unaware' && lvl !== 'cooldown' && lvl !== 'suspicious') return;
+    // (A4, plan check 1 item 6) 3+ players: the cue's ray only while the think stays within the budget
+    if (capped && this.raysThink + 1 > PERCEIVE.maxRays) return;
+    const players = this.ctx.players();
+    const n = players.length < MAX_INTRUDERS ? players.length : MAX_INTRUDERS;
+    for (let i = 0; i < n; i++) if (P_RATE[i]! > PERCEPTION.leak) return;
+    NOTICE_IN[NI_X] = this.pos.x;
+    NOTICE_IN[NI_Z] = this.pos.z;
+    NOTICE_IN[NI_YAW] = this.yaw;
+    const out = this.cueOut;
+    const best = this.cueBest;
+    let slot = -1;
+    for (let i = 0; i < n; i++) {
+      const p = players[i]!;
+      if (!p.target.alive) continue;
+      const s = cues.slotOf(p.id);
+      if (s < 0 || noticeInto(cues, s, out) < 0) continue;
+      if (slot >= 0 && !(out[NO_DIST]! < best[NO_DIST]!)) continue;
+      best.set(out);
+      slot = s;
+    }
+    if (slot < 0) return;
+    this.raysThink++;
+    this.raysStep++;
+    const v = this.cueV;
+    // component stores, not `set(x, y, z)`: three doubles passed to a call not inlined box (G3 fix round)
+    v.x = best[NO_X]!;
+    v.y = best[NO_Y]!;
+    v.z = best[NO_Z]!;
+    if (!this.losTo(eye, v, CUE_SLACK)) return;
+    // the hearing turn's reaction (A5); from calm the rise is silent, only when the cue is what lifts him (G3 polish 1:
+    // a `hearTurn` earlier this step that already took him past suspicious still barks)
+    if (lvl !== 'suspicious' && this.meter < PERCEPTION.suspicious) this.cueRise = true;
+    if (this.meter < SHADOW_NOTICE.meter) this.meter = SHADOW_NOTICE.meter;
+    this.stimulus[0] = v.x;
+    this.stimulus[1] = v.z;
+    this.hasStimulus = true;
+    this.turnT = ALERT.hearLook;
+    this.cueTurn = true;
+    this.cueT = 0;
+    this.cueX = v.x;
+    this.cueZ = v.z;
+    this.cueSlot = slot;
   }
 
   /** Not in combat: notice a downed body (light, distance, field of view, line of sight). One ray at most. */
@@ -2856,6 +3094,13 @@ export class Enemy implements Damageable {
     }
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
+    // (guard-ai-j16 fix 2, check B FIX 1 / polish 1) a real sight or sound in a cue-only episode that left him
+    // suspicious: the episode is theirs now (its calm-down barks), and he says the line the hushed rise skipped. A level
+    // change this step already ended the episode in `onLevel` with its own line
+    if (this.cueQuiet && (seen || this.heard)) {
+      this.cueQuiet = false;
+      if (this.aware.level === 'suspicious') this.bark('suspicious');
+    }
     // in combat without sight: arriving at the last known position with nothing there starts the search
     if (this.aware.level === 'alert' && !this.los && this.ctx.stealth() && this.state === 'chase' && this.sinceSeen > 1.5) {
       const k = this.huntPos();
@@ -2869,6 +3114,7 @@ export class Enemy implements Damageable {
     this.heard = false;
     this.gunfire = false;
     this.searchReq = false;
+    this.cueRise = false;
   }
 
   /** Head towards a floor point: straight when the line is clear, else along an A* path (replanned when the
@@ -2958,6 +3204,61 @@ export class Enemy implements Damageable {
   private rejoinHome(): void {
     this.walker.rejoin(this.pos.x, this.pos.z);
     this.homeG = null;
+    // (piano polish 1) a fresh try at the way home (a gate may be open again)
+    this.swNoPath = 0;
+  }
+
+  /** (piano polish 1) The route plan forgets its last goal and miss: the next `goTo` plans at once (the goal's height
+   *  changes between the way home and this storey, which `routeGoal` does not tell apart). */
+  private routeFresh(): void {
+    this.routePath.length = 0;
+    this.routeMiss = false;
+    this.routeT = 0;
+  }
+
+  /**
+   * (piano polish 1) On the scene sweep, off his storey: stranded (`swNoPath` at `SCENE_SWEEP.strandT`), so his walker
+   * steps as if on his storey and he walks the lap here. Every `SCENE_SWEEP.strandRetry` s the way home to the stop he
+   * heads for is tried: found, he is no longer stranded and walks it (the plan is made).
+   */
+  private sweepStranded(dt: number): boolean {
+    if (this.swNoPath < SCENE_SWEEP.strandT) return false;
+    this.swRetryT -= dt;
+    if (this.swRetryT > 0) return true;
+    this.swRetryT = SCENE_SWEEP.strandRetry;
+    const p = this.walker.sweepPlan!.pts[this.walker.idx]!;
+    this.routeFresh();
+    if (this.goTo(p, dt, 0.05, this.homeY) !== null) {
+      this.swNoPath = 0;
+      return false;
+    }
+    this.routeFresh();
+    return true;
+  }
+
+  /**
+   * (GA6 fix round, check A FIX 2) The sweep's walk to the walker's point `g`: on his storey (`homeY`), straight at it
+   * when there is no path. (piano polish 1) Away with no path counts towards stranding; stranded (`strand`), the walk is
+   * on the storey he is on, and a stop with no path there either is taken where he stands (`PatrolWalker.sweepHere`).
+   */
+  private sweepWalk(g: P2, dt: number, away: boolean, strand: boolean): Waypoint | null {
+    if (strand) {
+      const wp = this.goTo(g, dt, 0.05);
+      if (wp === null) this.walker.sweepHere();
+      return wp;
+    }
+    const wp = this.goTo(g, dt, 0.05, this.homeY);
+    if (away) {
+      if (wp !== null) this.swNoPath = 0;
+      else {
+        this.swNoPath += dt;
+        if (this.swNoPath >= SCENE_SWEEP.strandT) {
+          this.swRetryT = SCENE_SWEEP.strandRetry;
+          this.routeFresh();
+        }
+      }
+    }
+    return wp ?? g;
   }
 
   /** (guard-ai play A, check A) Start the progress window of a walk (the alarm run, the walk to a body) here. */
@@ -3046,8 +3347,17 @@ export class Enemy implements Damageable {
             return this.goal(this.goTo(this.spot, dt, 0.3), far > 3 ? def.runSpeed * 0.6 : def.walkSpeed * PATROL_PACE * 1.2, null);
           }
         }
-        // (guard-ai play A, P2-2) off his home storey he is not at his post, even straight under it
-        const g = this.walker.step(dt, this.pos.x, this.pos.z, Math.abs(this.pos.y - this.homeY) >= 1.2);
+        // (GA6b) on the scene sweep his body yaw gates the pan (N2: the pan starts once he faces it); (guard-ai play A,
+        // P2-2) off his home storey he is not at his post, even straight under it ((GA6 fix round, check A FIX 2) on the
+        // sweep too: a deck guard sent to the floor walks back up to his stop)
+        const away = Math.abs(this.pos.y - this.homeY) >= 1.2;
+        // (piano polish 1) no path home for `SCENE_SWEEP.strandT` s: stranded, his lap on this storey (never frozen)
+        const sweeping = this.walker.sweeping;
+        if (!away || !sweeping) this.swNoPath = 0;
+        const strand = sweeping && away && this.sweepStranded(dt);
+        const g = sweeping
+          ? this.walker.step(dt, this.pos.x, this.pos.z, this.motion.yaw, away && !strand)
+          : this.walker.step(dt, this.pos.x, this.pos.z, Number.NaN, away);
         // (guard-ai S10) his talking pair is meeting: on to his meet point, then stand there facing his partner. The
         // walker still steps (its clock and schedule run on): he walks on late after the talk and the timed loop's
         // next stop takes the delay back
@@ -3070,9 +3380,16 @@ export class Enemy implements Damageable {
         }
         const ly = this.walker.lookYaw;
         // (walls in the way: along an A* path; the walker's own arrival radius decides when it is there)
-        const wp = g ? this.homeStep(g, dt) : null;
-        // (guard-ai S4, A9) cautious: a slower, watchful patrol (a timed loop keeps its schedule's pace)
-        return this.goal(wp, def.walkSpeed * (this.walker.route?.loop ? 1 : this.caution > 0 ? PACE.cautious : PATROL_PACE), g || Number.isNaN(ly) ? null : ly);
+        // (GA6 x play A, merge) on the scene sweep the plain walk (its legs are clear straight lines, GA5; the home walk's
+        // give-up would drop him off his schedule), on his home storey (GA6 fix round, check A FIX 2); off it the home walk
+        // (play A: sliced long plan, give-up)
+        const wp = g ? (sweeping ? this.sweepWalk(g, dt, away, strand) : this.homeStep(g, dt)) : null;
+        // (guard-ai S4, A9) cautious: a slower, watchful patrol (a timed loop keeps its schedule's pace); (GA6b) the scene
+        // sweep at its own slow pace, capped at his walk
+        const sp = this.walker.sweeping
+          ? Math.min(SCENE_SWEEP.pace, def.walkSpeed)
+          : def.walkSpeed * (this.walker.route?.loop ? 1 : this.caution > 0 ? PACE.cautious : PATROL_PACE);
+        return this.goal(wp, sp, g || Number.isNaN(ly) ? null : ly);
       }
       case 'suspicious': {
         // (guard-ai S5) the lure's own suspicion: keep at it (a glimpse of something stops him to look)
@@ -3220,12 +3537,20 @@ export class Enemy implements Damageable {
           } else this.searchK++;
           this.spotSet = false;
         }
-        // (guard-ai S19) hurrying to it: a jog (`paceSpeed`), else his calm pace
+        // (guard-ai S19) hurrying to it: a jog (`paceSpeed`), else his calm pace; (GA6b, A9) on the scene sweep a calm
+        // investigation walks at the sweep pace (a rush and the search pace as built)
+        if (lvl === 'investigating' && !this.rush && this.walker.sweeping) return this.goal(wp, Math.min(SCENE_SWEEP.pace, def.walkSpeed), null);
         return this.goal(wp, paceSpeed(this.rush, lvl === 'searching' ? this.searchPace : this.investigatePace, def.walkSpeed, def.runSpeed), null);
       }
       default:
         return this.goal(null, 0, null);
     }
+  }
+
+  /** (GA6b) The partner the soft push skips: his sweep mate while he sweeps calm (unaware / cooldown), else null. */
+  private sweepSkip(): Enemy | null {
+    const lv = this.aware.level;
+    return this.walker.sweeping && (lv === 'unaware' || lv === 'cooldown') ? this.sweepMate : null;
   }
 
   /** (guard-ai S2) Coordinated (the incident board) or the parked modes' old rules. */
@@ -3534,6 +3859,8 @@ export class Enemy implements Damageable {
   private decide(dt: number): Goal {
     const def = this.def;
     const t = this.target;
+    // (guard-ai aim fix) set again by `tryFire` if a round is due this step
+    this.aimFace = Number.NaN;
     if (!this.alerted) return this.calmDecide(dt);
     if (!t) return this.goal(null, 0, null);
     if (this.stagger > 0) return this.goal(null, 0, this.faceTarget());
@@ -4082,6 +4409,12 @@ export class Enemy implements Damageable {
       }
       this.burstLeft = Math.round(this.rng.range(w.burstMin, w.burstMax));
     }
+    // (guard-ai aim fix) the body faces the aim point first: a round is held (the burst kept) until he has turned to
+    // within `FIRE_CONE` of it; `update` turns him to it this step (`faceFor`). Already facing: no added delay.
+    if (!this.facesAim(t, mode)) {
+      this.aimHeld++;
+      return;
+    }
     if (this.fireT > 0) return;
     this.fireT = 60 / w.rpm;
     this.burstLeft--;
@@ -4090,6 +4423,25 @@ export class Enemy implements Damageable {
       this.windup = 0;
     }
     this.shoot(t, w, mode);
+  }
+
+  /** (guard-ai aim fix) Sets `aimFace` (the flat yaw from his position to this round's aim point) and whether his body
+   *  is within `FIRE_CONE` of it. An aim point on top of him (under 5 cm flat) counts as faced. No allocation. */
+  private facesAim(t: PlayerRef, mode: 'aim' | 'suppress' | 'blind'): boolean {
+    const a = this.aimAt(t, mode, FACE_AIM);
+    const dx = a.x - this.pos.x;
+    const dz = a.z - this.pos.z;
+    if (hyp2(dx, dz) < 0.05) return true;
+    const ay = Math.atan2(dx, dz);
+    this.aimFace = ay;
+    return Math.abs(wrapAngle(ay - this.yaw)) <= FIRE_CONE;
+  }
+
+  /** (guard-ai aim fix) The facing `move` steers to: a goal that faces something (`face` set: aimed) faces this step's
+   *  shot aim point while a round is due (`aimFace`), so he turns at the aimed rate onto what he is about to shoot; a goal
+   *  with no facing (a run to cover: the travel direction) is kept, and he fires only if that already faces the aim. */
+  faceFor(face: number | null): number | null {
+    return face !== null && !Number.isNaN(this.aimFace) ? this.aimFace : face;
   }
 
   /** The muzzle (eye height less 0.2, forward and to the right); blind fire comes over / around the cover. */
@@ -4200,7 +4552,9 @@ export class Enemy implements Damageable {
     // the soft push only, as before S20
     const hard = !(this.sepFree > 0);
     if (!hard) this.sepFree -= dt;
-    steerFrom(this, gl > 1e-4 ? desired.x / gl : 0, gl > 1e-4 ? desired.z / gl : 0, hard ? gl : 0, others, sep);
+    // (GA6b) sweeping calm: his sweep partner walks a lane beside him (0.7 m on the scene): no soft push from him
+    const mate = this.sweepMate ? this.sweepSkip() : null;
+    steerFrom(this, gl > 1e-4 ? desired.x / gl : 0, gl > 1e-4 ? desired.z / gl : 0, hard ? gl : 0, others, sep, mate);
     desired.x += sep.x;
     desired.z += sep.z;
     this.sepHit = hard && hyp2(sep.x, sep.z) > 0.05;
@@ -4556,7 +4910,13 @@ export class Enemy implements Damageable {
     this.animTier.solveNow(this.rig, 0, this.rp);
     // (guard-models S11-CHECK P1) pose the figure from the thawed rig in this frame (the thaw runs in the camera
     // evaluation, after `GuardBody.frame`), so the first frame drawn is current, not the pose at the freeze
-    this.gbody?.figure.update(this.ctx.scene.activeCamera);
+    // (GM-PERF-CHECK 6) and run that pose now: a skeleton already computed in this render id would not compute again
+    // until the next one, so the thawed pose would show a frame late
+    const gb = this.gbody;
+    if (gb) {
+      gb.figure.update(this.ctx.scene.activeCamera);
+      gb.figure.poseNow();
+    }
   }
 
   /** Sniper: the laser from the scope along the aim while it aims, and the glint (sized for the local view). */

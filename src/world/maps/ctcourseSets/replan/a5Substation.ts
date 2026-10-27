@@ -23,10 +23,14 @@
  *   the floodlit strip;
  * - the stations (STATIONS section 3, verbatim), the new done flags' pass zones (section 8), LANTERN's retry lines (section
  *   6), the objective lines; station 13's flood window and beam trip run in `src/game/course/replan/a5Ticks.ts`.
- * Only type imports from `../` besides the set file's constants (the facility imports nothing from here).
+ * - (marlow-kit-wire) the kit spots `a5-chimney` (Chimney Pair, the gap) and `a5-swing` (Swing Pass, the gantry pipe), placed
+ *   unconditionally (inert while their ids are off); with an id on, its station's objective names the move.
+ * Only type imports from `../` besides the set file's constants and two pure course modules (`kitApi`, `stationDef`) (the
+ * facility imports nothing from here).
  */
 import { retryKey, type BoltGate, type CourseObjective, type FlagGate } from '../../../../game/course/courseDef';
-import type { StationDef } from '../../../../game/course/stationDef';
+import { kitMoveOn, type StationDef } from '../../../../game/course/stationDef';
+import { addKitSpot } from '../../../../game/kit/kitApi';
 import type { LaserPanelDef } from '../../../../game/laserPanels';
 import type { FacilityKit } from '../../../kit/facilityKit';
 import type { LevelBuilder } from '../../../levelBuilder';
@@ -131,7 +135,7 @@ export const A5_APRON_W: [number, number, number, number] = [58.2, 24.3, 62.35, 
 /** Stations 11-13 (STATIONS.md section 3, the A5 block). */
 export const A5_SUBSTATION_STATIONS: readonly StationDef[] = [
   { n: 11, id: 'a5-chimney', lesson: 'chimney_pair', retry: 'none', doneFlag: 'a5-apron-e', kit: 'chimneyPair', standIn: 'g-a5-wicket',
-    marks: [{ x: 69.0, z: 32.0, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 34.0, y: 0, yaw: -Math.PI / 2 }],
+    marks: [{ x: 69.0, z: 32.3, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 33.7, y: 0, yaw: -Math.PI / 2 }],
     guards: [], gates: ['g-a5-wicket'] },
   { n: 12, id: 'a5-swing', lesson: 'swing_pass', retry: 'none', doneFlag: 'a5-apron-w', kit: 'swingPass', standIn: 'g-a5-footbridge',
     marks: [{ x: 67.0, z: 33.0, y: 0, yaw: -Math.PI / 2 }, { x: 67.0, z: 34.5, y: 0, yaw: -Math.PI / 2 }],
@@ -145,19 +149,23 @@ export const A5_SUBSTATION_STATIONS: readonly StationDef[] = [
 export const A5_RETRY_SEEN = 'Seen in the floodlight. Back behind the transformer.';
 export const A5_RETRY_TIMER = 'The floodlight came back. Back behind the transformer.';
 
+/** (marlow-kit-wire) Stations 11 and 12's objectives while `chimneyPair` / `swingPass` is on (the built texts are the stand-ins'). */
+export const A5_CHIMNEY_KIT_TEXT = 'Climb the gap back to back';
+export const A5_SWING_KIT_TEXT = 'Swing over the trench from the bar';
+
 /** The bay's objective lines on the re-plan: one per station (what and where), then the holding-room line. */
 export const A5_OBJECTIVES: readonly CourseObjective[] = [
-  { id: 'a5-wall', bay: 'A5', text: 'Through the wicket door in the wall onto the apron.', done: { flag: A5_APRON_E_FLAG } },
-  { id: 'a5-trench', bay: 'A5', text: "Cross the cable trench to the apron's west side: footbridge or plates.", done: { flag: A5_APRON_W_FLAG } },
+  { id: 'a5-wall', bay: 'A5', text: 'Go through the wicket onto the apron', done: { flag: A5_APRON_E_FLAG } },
+  { id: 'a5-trench', bay: 'A5', text: 'Cross the trench by footbridge or plates', done: { flag: A5_APRON_W_FLAG } },
   {
     id: 'a5-throw',
     bay: 'A5',
-    text: 'Throw one of you over the beams, jam the kiosk floodlight, key the release.',
-    a: 'Throw your partner from the mark, then jam the floodlight through the gateway.',
-    b: 'Land behind the transformer, cross under the jam and key the release at the kiosk.',
+    text: 'Get over the beams, jam the floodlight',
+    a: 'Throw your partner over the beams, then jam the kiosk floodlight.',
+    b: 'Cross under the jam and key the release at the kiosk.',
     done: { flag: A5_RELEASE_FLAG },
   },
-  { id: 'a5-lock', bay: 'A5', text: 'Beams are off. Both of you into holding room five.' },
+  { id: 'a5-lock', bay: 'A5', text: 'Beams are off, into holding room five' },
 ];
 
 const GREY = '#6a6f74';
@@ -331,6 +339,12 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
     { kind: 'bolt', id: A5_PLATES_GATE, doorId: A5_PLATES_DOOR, side: [-1, 0], at: [T.x0, (A5_PLATES.door[0] + A5_PLATES.door[1]) / 2] } satisfies BoltGate,
   );
   p.externalFlags.push(A5_WICKET_FLAG, A5_FOOTBRIDGE_FLAG, A5_APRON_E_FLAG, A5_APRON_W_FLAG);
+  // (marlow-kit-wire) the kit spots (inert while their ids are off): Chimney Pair in the gap (its floor centre, across the
+  // shaft toward the wall, the wall top as the exit), Swing Pass from the swing bar on the trench's near (east) edge
+  const gp = A5_GAP;
+  addKitSpot(b.anchors, { id: 'a5-chimney', kind: 'chimneyPair', x: (gp.x0 + gp.x1) / 2, y: 0, z: (gp.z0 + gp.z1) / 2, yaw: -Math.PI / 2, w: gp.x1 - gp.x0, h: A5_WALLTOP.y, x2: (A5_WALLTOP.x0 + A5_WALLTOP.x1) / 2, z2: (gp.z0 + gp.z1) / 2 });
+  const tr = A5_CABLE_TRENCH;
+  addKitSpot(b.anchors, { id: 'a5-swing', kind: 'swingPass', x: tr.x1, y: A5_GANTRY_PIPE_Y, z: A5_SWING_BAR.z, yaw: -Math.PI / 2, w: tr.x1 - tr.x0, y2: 0 });
   p.passZones.push(
     { id: 'a5-p-apron-e', box: A5_APRON_E, flag: A5_APRON_E_FLAG, floorY: 0 },
     { id: 'a5-p-apron-w', box: A5_APRON_W, flag: A5_APRON_W_FLAG, floorY: 0 },
@@ -345,7 +359,9 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
   p.bay.stations = A5_SUBSTATION_STATIONS;
   p.bay.radio.push({ at: retryKey('a5-throw'), text: A5_RETRY_SEEN }, { at: retryKey('a5-throw', true), text: A5_RETRY_TIMER });
   p.objectives.length = 0;
-  p.objectives.push(...A5_OBJECTIVES.map((o) => ({ ...o })));
+  // (marlow-kit-wire, A6) the kit-on lines are chosen as the set builds, from this page's own `kitMoves`
+  const kitText = (o: CourseObjective): string => (o.id === 'a5-wall' && kitMoveOn('chimneyPair') ? A5_CHIMNEY_KIT_TEXT : o.id === 'a5-trench' && kitMoveOn('swingPass') ? A5_SWING_KIT_TEXT : o.text);
+  p.objectives.push(...A5_OBJECTIVES.map((o) => ({ ...o, text: kitText(o) })));
 
   // ---- spaces, nav seeds, debug points, light and shot spots (the drums' vantage moves with them) ----
   p.camSpaces.push({ box: [A5_GAP.x0, A5_GAP.z0, A5_GAP.x1, A5_GAP.z1], size: 'tight' });

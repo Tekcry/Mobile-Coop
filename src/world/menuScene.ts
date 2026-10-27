@@ -23,7 +23,8 @@ import { CLOSE_CAMERAS } from '../operators/runtime/lodPick';
 import { LOD_HERO, LOD_NAMES } from '../operators/runtime/manifest';
 import { gateInput, runGate, type GateLimits, type GateProbe } from './menuGate';
 import { forgetModel, loadModel, operatorBytes, type OperatorFigure } from '../operators/runtime/figure';
-import { loadMenuLods, operatorRig } from '../operators/runtime/playerFigure';
+import { loadMenuLods, MIN_LODS, operatorRig } from '../operators/runtime/playerFigure';
+import { warmGuardFiles } from '../operators/guards/guardAssets';
 import { wrenManifest } from '../operators/runtime/assets';
 import { avatarFactory } from '../cosmetics/avatarFactory';
 import type { AvatarLook } from '../cosmetics/avatarLook';
@@ -441,6 +442,9 @@ export class MenuState implements AppState {
     this.closeUpFailed = false;
     void loadMenuLods(fig, loadModel).then(() => {
       if (this.figure === fig) this.chainDone = true;
+      // (gm-polish) then every guard file into the offline cache, after Wren's chain so the menu's reveal never waits
+      // on it (guard models off: nothing; each file once per page)
+      void warmGuardFiles(MIN_LODS);
     });
     // (slice 6) the close-ups need the hero body: ask for it now, beside the progressive chain (the asset loads once;
     // `?gfx=min` gets LOD2). A failed load keeps the lower LOD on screen (and the load screen stops waiting for it).

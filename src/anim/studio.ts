@@ -8,6 +8,7 @@
  * input; leaving the studio resets it all (`studioReset`).
  */
 import type { KeyedClip } from './keyed';
+import type { IntroVariant } from './introBreath';
 import type { BodyGroup } from './tune';
 import { stickMagFor } from '../player/speedGears';
 import { MIXAMO_ON } from './mixamo'; // (mixamo-retarget I2) the capture loops' tune text
@@ -92,6 +93,8 @@ export interface StudioEntry {
   /** (piano-knife S1) A knife kill pair: the `KNIFE_KILLS` row Wren and the guard play on one clock (`studioStage`
    *  through the game's `KillDrive` and `knifePair`); absent otherwise. */
   knife?: number;
+  /** (piano-knife S4b) The piano intro pose's variant (IntroPose at the platform's back-to-wall face). */
+  intro?: IntroVariant;
 }
 
 /**
@@ -148,10 +151,10 @@ function teamPair(m: TeamMoveId): StudioEntry {
 export const KNIFE_PAIR_REST = 0.5;
 
 /** (piano-knife S1) A knife kill pair (`pair:knife_<id>`): Wren and a guard through the game's kill drive and pairing
- *  (the S1 stand-in clips), the knife shown, looping with `KNIFE_PAIR_REST`. For the look video. */
+ *  (the real Mixamo pairs since piano-knife S2), the knife shown, looping with `KNIFE_PAIR_REST`. For the look video. */
 function knifePair(k: number): StudioEntry {
   const id = KNIFE_KILL_IDS[k]!;
-  return { id: `pair:knife_${id}`, label: `pair: knife ${id} (stand-in clips)`, kind: 'pair', clip: null, pace: 0, cycle: KNIFE_KILLS[k]!.seconds + KNIFE_PAIR_REST, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: null, knife: k };
+  return { id: `pair:knife_${id}`, label: `pair: knife ${id}`, kind: 'pair', clip: null, pace: 0, cycle: KNIFE_KILLS[k]!.seconds + KNIFE_PAIR_REST, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: null, knife: k };
 }
 
 /** (anim-studio-2) A hold pair: Wren's hold clip and the guard's clip in place on one clock (Wren's keyed cycle). */
@@ -185,6 +188,10 @@ const BASE_ENTRIES: readonly StudioEntry[] = [
   state('aimStill', 'aim standing', 0, 'none', false, true, true),
   state('crouchAim', 'crouch aim standing', 0, 'none', true, true, true),
   state('crouchAimFwd', 'crouch aim moving', 0.9, 'fwd', true, true, true),
+  // (piano-knife S4b) the piano intro pose (GameState.introPose at the platform's back-to-wall face)
+  { ...state('intro', 'piano intro (stand)', 0, 'none', false, true), intro: 'stand' },
+  { ...state('introMirror', 'piano intro (mirror)', 0, 'none', false, true), intro: 'mirror' },
+  { ...state('introCrouch', 'piano intro (crouch)', 0, 'none', true, true), intro: 'crouch' },
   keyed(KEYED_IDLE, { cycle: 12 }),
   keyed(KEYED_WALK, { pace: 1.4, step: 0.7, circle: true }),
   keyed(KEYED_JOG, { pace: 3.0, step: 1.1, circle: true }),
@@ -503,7 +510,7 @@ export function studioBodyPin(e: StudioEntry): BodyGroup | '' {
 
 /** (T1a) The weapon class a loop wants in hand ('' : holstered loops keep whatever is selected). */
 export function studioWeaponFor(e: StudioEntry, weapon: StudioWeapon): string {
-  return e.drawn ? weapon : '';
+  return e.intro ? 'pistol' : e.drawn ? weapon : ''; // (piano-knife S4b) the intro rows hold the pistol
 }
 
 /** Front / side / top / back camera snaps (free-view orbit presets). */

@@ -158,7 +158,7 @@ describe('auto-train: parsing', () => {
       { context: 'laptop-e2e', state: 'success', description: '39/39', updated_at: '2026-10-23T09:00:00Z' },
       { context: 'other', state: 'error', updated_at: '2026-10-23T10:00:00Z' }] };
     expect(contextStatus(combined, 'laptop-e2e')).toEqual({ state: 'success', description: '39/39' });
-    expect(contextStatus({ statuses: [{ context: 'laptop-e2e', state: 'error', description: 'crashed' }] }, 'laptop-e2e')).toEqual({ state: 'failure', description: 'crashed' });
+    expect(contextStatus({ statuses: [{ context: 'laptop-e2e', state: 'error', description: 'crashed' }] }, 'laptop-e2e')).toEqual({ state: 'failure', description: 'crashed', error: true });
     expect(contextStatus({ statuses: [] }, 'laptop-e2e')).toEqual({ state: 'missing', description: '' });
     expect(contextStatus(null, 'laptop-e2e').state).toBe('missing');
   });
@@ -476,6 +476,8 @@ describe('auto-train: unlabelled train-ready PRs (F16, #460 missed train 103)', 
     expect(headStatusAgrees(flat, combined('h3', 'success', 'error'))).toBe(false);
     expect(headStatusAgrees(flat, combined('h3', 'success', null))).toBe(false);
     expect(headStatusAgrees({ ...flat, labels: ['no-affected-e2e'] }, combined('h3', 'success', null))).toBe(true);
+    expect(headStatusAgrees({ ...flat, labels: ['no-affected-e2e'] }, combined('h3', 'success', 'error'))).toBe(true); // F55: never ran
+    expect(headStatusAgrees({ ...flat, labels: ['no-affected-e2e'] }, combined('h3', 'success', 'failure'))).toBe(false);
     expect(headStatusAgrees(flat, null)).toBe(false);
   });
 

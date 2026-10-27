@@ -10,7 +10,7 @@
  * sight (lead answer 4), the tuned light file. The built yard's own cases stay in `tests/ctcourse/a2CarriageShed.test.ts`.
  */
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { MOVEMENT } from '../../../src/config/movement';
 import { COURSE_TEXT_MAX } from '../../../src/config/course';
 import { hyp2 } from '../../../src/core/mathx';
@@ -74,7 +74,11 @@ import {
   A2_WALKWAY_FLAG,
   A2_WALKWAY_GATE,
   FLOOR_HOLES,
+  A2_BOARD_STACK,
+  A2_PLANK_KIT_TEXT,
 } from '../../../src/world/maps/ctcourseSets/replan/a2CarriageShed';
+import { kitSpotsOf } from '../../../src/game/kit/kitApi';
+import { flags } from '../../../src/core/flags';
 import { REPLAN_FLOOR_HOLES } from '../../../src/world/maps/ctcourseSets/replan';
 import { checkSetPart, HALL_H, inBox, pieceCount, registerSum, SET_BOX, SET_GUARDS_MAX } from '../../../src/world/maps/ctcourseSets/types';
 import { runtimeNav } from '../../helpers/runtimeNav';
@@ -273,9 +277,9 @@ describe('A2 re-plan: stations 3-5, the marks, the flags, the lines', () => {
   it("LANTERN's retry lines: 'retry:a2-shutter', 'retry:a2-lights', 'retry:a2-lights:timer', 'retry:a2-plank' (verbatim), none says failed, all fit COURSE_TEXT_MAX; the built staging line is gone", () => {
     const line = (at: string): string | undefined => part.bay.radio.find((r) => r.at === at)?.text;
     expect(line('retry:a2-shutter')).toBe('Seen at the roller door. Back to the stores bay.');
-    expect(line('retry:a2-lights')).toBe('The shunter saw you in the neck. Back to the cabin and the lane.');
-    expect(line('retry:a2-lights:timer')).toBe('Lights came back with you in the neck. Back to the cabin and the lane.');
-    expect(line('retry:a2-plank')).toBe('The shunter saw the board. Back to the board stack at the east end.');
+    expect(line('retry:a2-lights')).toBe('Seen in the neck. Back to the cabin and the lane.');
+    expect(line('retry:a2-lights:timer')).toBe('Lights came back on you. Back to the cabin and the lane.');
+    expect(line('retry:a2-plank')).toBe('Seen on the board. Back to the east end board stack.');
     expect(A2_RETRY_LINES.map((r) => r.at)).toEqual(['retry:a2-shutter', 'retry:a2-lights', 'retry:a2-lights:timer', 'retry:a2-plank']);
     for (const r of part.bay.radio) {
       expect(r.text.length, r.text).toBeLessThanOrEqual(COURSE_TEXT_MAX);
@@ -318,16 +322,17 @@ describe('A2 re-plan: stations 3-5, the marks, the flags, the lines', () => {
     expect(part.objectives[1]!.timer).toBe(A2_GATE);
     const text = part.objectives.map((o) => o.text.toLowerCase());
     expect(text[0]).toMatch(/roller door/);
-    expect(text[0]).toMatch(/stores bay/);
+    expect(text[0]).toMatch(/both through/);
     // (marlow-play C6) holding only unlocks the roller door: the lines say the one going under opens it, the holder follows
     const s3 = part.objectives[0]!;
     expect(s3.a).toMatch(/roller door/);
-    expect(s3.a).toMatch(/opens it/);
+    expect(s3.a).toMatch(/south jamb/);
     expect(s3.a).toMatch(/[Ff]ollow/);
     expect(s3.b).toMatch(/roller door/);
     expect(s3.b).toMatch(/^Open the roller door/);
     expect(text[1]).toMatch(/neck/);
-    expect(text[1]).toMatch(/cabinet/);
+    expect(part.objectives[1]!.a).toMatch(/cabinet one/);
+    expect(part.objectives[1]!.b).toMatch(/cabinet two/);
     expect(text[2]).toMatch(/pit/);
     expect(text[2]).toMatch(/l2 door/);
     expect(text[3]).toMatch(/holding room two/);
@@ -996,4 +1001,50 @@ describe('A2 re-plan: the tuned light file', () => {
     expect(missing).toEqual([]);
     for (const n of Object.keys(tuned)) expect(part.lightSpots.some((s) => s.name === n), `stale level ${n}`).toBe(true);
   });
+});
+
+describe('station 5 kit spot (marlow-kit-wire)', () => {
+  const saved = flags.kitMoves;
+  afterEach(() => {
+    flags.kitMoves = saved;
+  });
+  const objText = (d: typeof def, id: string): string => d.objectives!.find((o) => o.id === id)!.text;
+
+  it('one plankBridge spot, a2-plank, on the board stack (from A2_BOARD_STACK), placed with the id off', () => {
+    expect(flags.kitMoves.has('plankBridge')).toBe(false);
+    const spots = kitSpotsOf(b, 'plankBridge');
+    expect(spots.length).toBe(1);
+    const bs = A2_BOARD_STACK;
+    expect(spots[0]).toEqual({ id: 'a2-plank', kind: 'plankBridge', x: (bs.x0 + bs.x1) / 2, y: 0, z: (bs.z0 + bs.z1) / 2, yaw: Math.PI / 2, w: bs.x1 - bs.x0 });
+    expect(def.bays[1]!.stations!.find((s) => s.kit === 'plankBridge')!.id).toBe('a2-plank');
+  });
+
+  it('the PLAN band: the pit gap 1.0-3.3 m, both edges level, the stack within 15 m of the near edge; the dressing boards on the stack', () => {
+    const s = kitSpotsOf(b, 'plankBridge')[0]!;
+    const gap = A2_PIT.x1 - A2_PIT.x0;
+    expect(gap).toBeGreaterThanOrEqual(1.0);
+    expect(gap).toBeLessThanOrEqual(3.3);
+    expect(s.w!).toBeGreaterThanOrEqual(gap + 0.6 - 1e-9); // 0.3 m bearing each end
+    expect(Math.abs(s.y - 0)).toBeLessThanOrEqual(0.3); // near edge floor 0, far landing 0 (the pass zone's floorY)
+    expect(A2_PIT.x0 - s.x).toBeLessThanOrEqual(15);
+    expect(A2_PIT.x0 - s.x).toBeGreaterThan(0);
+    const boards = b.boxes.filter((p) => !p.collide && Math.abs(p.s[0] - (A2_BOARD_STACK.x1 - A2_BOARD_STACK.x0)) < 1e-6 && Math.abs(p.s[2] - 0.22) < 1e-6);
+    expect(boards.length).toBe(8);
+    for (const p of boards) {
+      expect(p.c[2] - 0.11).toBeGreaterThanOrEqual(A2_BOARD_STACK.z0 - 1e-6);
+      expect(p.c[2] + 0.11).toBeLessThanOrEqual(A2_BOARD_STACK.z1 + 1e-6);
+      expect(p.c[1] + p.s[1] / 2).toBeLessThanOrEqual(A2_BOARD_STACK.top + 1e-6);
+    }
+  });
+
+  it('kit on: station 5 names the board; off: the walkway line', () => {
+    flags.kitMoves = new Set(['plankBridge']);
+    const on = buildCtcourse(new LevelBuilder(), { replan: true }).layout.course!.def;
+    expect(objText(on, 'a2-plank')).toBe(A2_PLANK_KIT_TEXT);
+    expect(A2_PLANK_KIT_TEXT.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+    flags.kitMoves = new Set();
+    const off = buildCtcourse(new LevelBuilder(), { replan: true }).layout.course!.def;
+    expect(objText(off, 'a2-plank')).toBe('Cross the pit to the L2 door');
+  });
+
 });

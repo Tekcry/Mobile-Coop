@@ -1,8 +1,9 @@
-// (piano-knife S1) The knife kill's pure parts: the gate over every map (BRIEF A1), the row pick (A3), the rows (A15,
+// (piano-knife S1, S2) The knife kill's pure parts: the gate over every map (BRIEF A1), the row pick (A3), the rows (A15,
 // the bible's 1.0-1.5 s takedown, clips that exist), the buckle's shape and the menu row with the switch on (A2).
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
 import { DEV_MAPS, MAPS } from '../src/world/maps';
-import { buckleAt, KNIFE, KNIFE_KILL_IDS, KNIFE_KILLS, knifeSceneOn, PIANO_MAP_ID, PIANO_SCENE, pickKnifeKill, takedownRow } from '../src/game/knifeKill';
+import { attackerPhase, buckleAt, KNIFE, KNIFE_KILL_IDS, KNIFE_KILLS, knifeClip, knifeClipsReady, knifeSceneOn, loadKnifeClips, PIANO_MAP_ID, PIANO_SCENE, pickKnifeKill, resetKnifeClipsForTest, takedownRow } from '../src/game/knifeKill';
 import { MOCAP_SOURCES } from '../src/anim/mocapSources';
 import type { TakedownKind } from '../src/game/takedown';
 
@@ -48,6 +49,53 @@ describe('piano-knife S1: the rows', () => {
       expect(keys.has(r.victim), r.victim).toBe(true);
     });
     expect(KNIFE.noise).toBe(1.2);
+  });
+
+  it('(S2) the real pairs: S2 clip names, the brief timing ranges, the attacker window inside his clip', () => {
+    const S2_ATT = ['mocap_stabbing', 'mocap_standing_melee_attack_downward'];
+    const S2_VIC = ['mocap_falling_forward_death', 'mocap_dying', 'mocap_falling_back_death'];
+    const want: Record<string, [string, string]> = {
+      behind: ['mocap_stabbing', 'mocap_falling_forward_death'],
+      behindLow: ['mocap_stabbing', 'mocap_dying'],
+      corner: ['mocap_standing_melee_attack_downward', 'mocap_falling_back_death'],
+      front: ['mocap_stabbing', 'mocap_dying'],
+    };
+    for (const r of KNIFE_KILLS) {
+      expect([r.attacker, r.victim], r.id).toEqual(want[r.id]);
+      expect(S2_ATT).toContain(r.attacker);
+      expect(S2_VIC).toContain(r.victim);
+      for (const c of [r.attacker, r.victim]) expect(c).not.toMatch(/cross_punch|crouch_to_stand|rifle_death/);
+      expect(r.seconds).toBeGreaterThanOrEqual(1.0);
+      expect(r.seconds).toBeLessThanOrEqual(1.5);
+      expect(r.contact).toBeGreaterThanOrEqual(0.35);
+      expect(r.contact).toBeLessThanOrEqual(0.55);
+      expect(r.limp).toBeGreaterThan(r.contact);
+      expect(r.limp).toBeLessThanOrEqual(0.9);
+      expect(r.victimFrom).toBeGreaterThanOrEqual(0);
+      expect(r.victimTo).toBeGreaterThan(r.victimFrom);
+      expect(r.victimTo).toBeLessThanOrEqual(1);
+      expect(r.attackerFrom).toBeGreaterThanOrEqual(0);
+      expect(r.attackerTo).toBeGreaterThan(r.attackerFrom);
+      expect(r.attackerTo).toBeLessThanOrEqual(1);
+      // the window from its start to its end over the move, on at the same speed past it
+      expect(attackerPhase(r, 0)).toBe(r.attackerFrom);
+      expect(attackerPhase(r, 1)).toBeCloseTo(r.attackerTo, 12);
+      expect(attackerPhase(r, 1.1) - attackerPhase(r, 1)).toBeCloseTo(0.1 * (r.attackerTo - r.attackerFrom), 12);
+    }
+  });
+
+  it('(S2) loadKnifeClips: every row ready, each clip its row clip; no static import of a clip module in knifeKill.ts', async () => {
+    resetKnifeClipsForTest();
+    expect(knifeClip(0, false)).toBeNull();
+    await loadKnifeClips();
+    expect(knifeClipsReady()).toBe(true);
+    KNIFE_KILLS.forEach((r, k) => {
+      expect(knifeClip(k, false)?.name, r.id).toBe(r.attacker);
+      expect(knifeClip(k, true)?.name, r.id).toBe(r.victim);
+    });
+    const src = fs.readFileSync('src/game/knifeKill.ts', 'utf8');
+    expect(src).not.toMatch(/^import\s[^;]*clips\//m);
+    expect(src).toContain("import('../anim/clips/mixamo/piano/stabbing')");
   });
 
   it('buckleAt: 0 before contact, never past 1, back to 0 after rise + decay', () => {

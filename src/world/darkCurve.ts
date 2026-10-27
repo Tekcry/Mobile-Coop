@@ -98,18 +98,11 @@ export const VISION_TARGETS: readonly { level: number; min: number; max: number 
   { level: 0.7, min: 0.7, max: 1 },
 ];
 
-/** Brightness calibration: the grade's exposure multiplier, clamped so it cannot lift the dark band out of dark. */
+/** Brightness setting (stored, render only): the slider's range, default 1 and step. The display curve it drives
+ *  (-1.5 .. +1.5 stops, brightness-range) and the calibration symbol's grey are `src/vfx/displayBrightness.ts`. */
 export const BRIGHTNESS_MIN = 0.75;
 export const BRIGHTNESS_MAX = 1.3;
 export const BRIGHTNESS_STEP = 0.05;
-/** The calibration symbol's grey on black (display value at brightness 1): set right, it is barely visible. */
-export const CALIBRATION_GREY = 0.035;
-
-/** The calibration symbol's 8-bit grey at brightness `k` (it goes through the same multiplier as the grade). */
-export function calibrationGrey(k: number): number {
-  const b = Math.min(BRIGHTNESS_MAX, Math.max(BRIGHTNESS_MIN, k));
-  return Math.round(255 * CALIBRATION_GREY * b);
-}
 
 /** The curve's weight at level `x` (`floor` at black, `top` well above `centre`). */
 export function darkWeight(x: number, p: DarkParams): number {

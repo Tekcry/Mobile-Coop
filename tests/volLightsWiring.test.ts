@@ -32,9 +32,9 @@ describe('vol-light wiring (fog triage): theme.lampBeams -> GameState -> PostSta
     expect(mapLampBeams({ lampBeams: false })).toBe(false);
   });
 
-  it('the real maps: Saltmarsh Park turns the lamp beams off; Marlow Yard and Sector Ops keep the default', () => {
+  it('the real maps: Saltmarsh Park and Marlow Yard turn the lamp beams off; Sector Ops keeps the default', () => {
     expect(mapLampBeams(campusOps.theme)).toBe(false);
-    expect(mapLampBeams(ctcourse.theme)).toBe(true);
+    expect(mapLampBeams(ctcourse.theme)).toBe(false);
     expect(mapLampBeams(warehouseOps.theme)).toBe(true);
   });
 

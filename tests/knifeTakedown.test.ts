@@ -8,7 +8,7 @@ import { Vector3 } from '../src/core/babylon';
 import { TAKEDOWN, type TakedownKind, type TakedownPlan } from '../src/game/takedown';
 import { TakedownController, type TakedownVictim } from '../src/game/takedownController';
 import type { GameState } from '../src/game/gameState';
-import { bucklePitchOf, buckleAt, KNIFE, KNIFE_KILLS, knifeClipsReady, loadKnifeClips, resetKnifeClipsForTest, victimPhase } from '../src/game/knifeKill';
+import { attackerPhase, bucklePitchOf, buckleAt, KNIFE, KNIFE_KILLS, knifeClipsReady, loadKnifeClips, resetKnifeClipsForTest, victimPhase } from '../src/game/knifeKill';
 
 const DT = 1 / 60;
 
@@ -187,6 +187,8 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
       for (let n = 0; n < 600 && s.td.active; n++) {
         s.td.fixedUpdate(DT, false, false);
         if (s.graph.kill !== null) drove = true;
+        // (S2) her clip's window at its own speed (`attackerPhase`), written out by the step
+        if (s.td.kt > 0) expect((s.graph.kill as { phase: number }).phase).toBeCloseTo(attackerPhase(R, s.td.kt / R.seconds), 12);
         // his clip's phase and buckle as the pure helpers give them (the step writes them out: no boxed numbers)
         if (s.td.kt > 0) {
           expect(v.lastPh).toBeCloseTo(victimPhase(R, s.td.kt / R.seconds), 12);
@@ -209,7 +211,12 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
       // the tail: the attacker held, no offer, the knife still in hand, then free
       expect(s.knife.shown).toBe(true);
       expect(s.controller.override).not.toBeNull();
+      // (S2, S1 checker polish 1) `active` is null in the tail but the takedown still owns her (`busy`: gameState keeps
+      // the gun stowed and traversal off)
+      expect(s.td.active).toBeNull();
+      expect(s.td.busy).toBe(true);
       runOut(s);
+      expect(s.td.busy).toBe(false);
       expect(s.td.offer).toBeNull();
       expect(s.knife.shown).toBe(false);
       expect(s.graph.kill).toBeNull();
@@ -245,6 +252,8 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
     expect(s.knife.shown).toBe(true);
     runOut(s);
     expect(v.killed).toBe(true);
+    // (S2, S1 checker polish) every piano kill is quiet: the -1 path at the knife's radius too
+    expect(s.hears).toEqual([KNIFE.noise]);
     expect(s.ev.map((e) => [e.phase, e.lethal, e.knife])).toEqual([
       ['start', true, true],
       ['done', true, true],
@@ -344,5 +353,87 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
     expect(s2.knife.shows).toBe(0);
     runOut(s2);
     expect('knife' in s2.ev[0]!).toBe(false);
+  });
+});
+
+// (piano-knife S3, S1 CHECK-A polish 2 / CHECK-B 4) the side kill: the row by his facing, the grab from his real facing
+describe('piano-knife S3: the side kill', () => {
+  const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
+
+  it('starts from his real facing; his back towards her is row 0 (crouched 1), facing her row 3', () => {
+    for (const [yaw, crouched, row] of [
+      [0, false, 0],
+      [0.6, true, 1],
+      [Math.PI, false, 3],
+      [-2.2, false, 3],
+    ] as const) {
+      const v = victim(yaw, true);
+      const s = stage(v);
+      (s.controller as unknown as { crouched: boolean }).crouched = crouched;
+      s.td.setKnifeScene(true);
+      offer(s, v, 'side');
+      s.td.start();
+      expect(s.td.kr, `yaw ${yaw}`).toBe(row);
+      expect((s.td as unknown as { kFromYaw: number }).kFromYaw).toBe(yaw);
+    }
+  });
+
+  it('turns him at most 90 degrees over the grab', () => {
+    for (const yaw0 of [0, 0.4, 1.2, Math.PI / 2, 2, -1.4, -Math.PI / 2, Math.PI]) {
+      const v = victim(yaw0, true);
+      const s = stage(v);
+      s.td.setKnifeScene(true);
+      offer(s, v, 'side');
+      s.td.start();
+      let turn = 0;
+      for (let n = 0; n < 600 && s.td.active; n++) {
+        s.td.fixedUpdate(DT, false, false);
+        turn = Math.max(turn, Math.abs(wrap(v.yaw - yaw0)));
+      }
+      expect(turn, `yaw ${yaw0}`).toBeLessThanOrEqual(Math.PI / 2 + 1e-6);
+      expect(v.killed).toBe(true);
+    }
+  });
+});
+
+// (piano-knife S3, S2 CHECK polish 2 / 3) the knife tail (`active` null) still owns her at the remaining gates
+describe('piano-knife S3: busy through the tail at the gates', () => {
+  it('teamController offers no co-op move while the knife tail runs', async () => {
+    const { TeamController } = await import('../src/game/teamController');
+    const v = victim(0, true);
+    const s = stage(v);
+    s.td.setKnifeScene(true);
+    offer(s, v, 'behind');
+    s.td.start();
+    for (let n = 0; n < 600 && s.td.active; n++) s.td.fixedUpdate(DT, false, false);
+    expect(s.td.active).toBeNull();
+    expect(s.td.busy).toBe(true);
+    const mate = { id: 'P2', pos: new Vector3(0.5, 0, 0) };
+    const g = { takedown: s.td, strike: { active: false }, net: { teamMates: () => [mate] }, player: { controller: s.controller } } as unknown as GameState;
+    const tc = new TeamController(g);
+    expect((tc as unknown as { idle(p: boolean): boolean }).idle(true)).toBe(false);
+    expect(tc.offer).toBeNull();
+  });
+});
+
+describe('knife-when-spotted (Michael walk 2026-10-27 ~09:40 "knife kill should still work when spotted")', () => {
+  /** The offer the scan finds on `v` after a few steps (none: null). */
+  function scanned(s: Stage): unknown {
+    for (let n = 0; n < 10; n++) s.td.fixedUpdate(DT, false, false);
+    return s.td.offer;
+  }
+
+  it('a guard who has seen her and is alert: on offer with the knife switch on, not with it off (today)', () => {
+    for (const knifeOn of [true, false]) {
+      const v = victim(0, true);
+      (v as { alerted: boolean }).alerted = true;
+      (v as { level: string }).level = 'alert';
+      const s = stage(v);
+      (s.g as unknown as { spottedLocal: boolean }).spottedLocal = true;
+      s.td.setKnifeScene(knifeOn);
+      const o = scanned(s);
+      if (knifeOn) expect(o, 'knife scene: offered').not.toBeNull();
+      else expect(o, 'switch off: today, no surprise takedown on an alert guard who knows').toBeNull();
+    }
   });
 });

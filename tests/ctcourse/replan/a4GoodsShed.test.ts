@@ -10,7 +10,7 @@
  * 10 are `a4Ticks.test.ts`; the built A4 is `tests/ctcourse/a4GoodsShed.test.ts`.
  */
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { NavGrid, type NavBlocker } from '../../../src/ai/navGrid';
 import { GUARD_INFO_LINE_MAX } from '../../../src/ai/guardInfo';
 import { COURSE_TEXT_MAX } from '../../../src/config/course';
@@ -72,7 +72,11 @@ import {
   A4_SW_DISPATCH,
   A4_WICKET_FLAG,
   A4_WICKET_ZONE,
+  A4_DEADWEIGHT,
 } from '../../../src/world/maps/ctcourseSets/replan/a4GoodsShed';
+import { kitSpotsOf } from '../../../src/game/kit/kitApi';
+import { flags } from '../../../src/core/flags';
+import { REFUSE_KIT_HELD } from '../../../src/game/course/courseState';
 import { checkSetPart, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../../src/world/maps/ctcourseSets/types';
 
 const b = new LevelBuilder();
@@ -655,24 +659,20 @@ describe('Marlow re-plan A4: the steps and the lines', () => {
     expect(steps[1]!.done).toEqual({ flag: A4_WEST_FLAG });
     expect(steps[2]!.done).toEqual({ flag: A4_WICKET_FLAG });
     expect(steps[3]!.done).toBeUndefined();
-    expect(steps[0]!.text).toMatch(/lift grille/);
-    expect(steps[0]!.text).toMatch(/back aisle/);
-    expect(steps[1]!.text).toMatch(/console/);
+    expect(steps[0]!.text).toMatch(/grille/);
+    expect(steps[1]!.b).toMatch(/console/);
     expect(steps[1]!.text).toMatch(/dock/);
-    expect(steps[1]!.text).toMatch(/60 s/);
     expect(steps[1]!.timer).toBe(A4_GATE);
     expect(steps[2]!.text).toMatch(/loaders/);
-    expect(steps[2]!.text).toMatch(/pallet stacks/);
     expect(steps[2]!.a).toBeDefined();
     expect(steps[2]!.b).toBeDefined();
-    // (marlow-play C7) the job lines are all the HUD shows: 8's name the run to the dock and its 60 s, 10's the man by
-    // position (A's mark north, B's south) and the push bar the step ends at
-    for (const t of [steps[1]!.a!, steps[1]!.b!]) expect(t).toMatch(/then run.*dock - 60 s/);
-    expect(steps[1]!.a).toMatch(/back aisle, cross aisle, main aisle west/);
-    expect(steps[2]!.a).toMatch(/north man/);
-    expect(steps[2]!.b).toMatch(/south man/);
+    // (marlow-play C7) the job lines are all the HUD shows: 8's name the run to the dock (the HUD adds the 60 s), 10's the loader by
+    // position (A's mark north, B's south)
+    for (const t of [steps[1]!.a!, steps[1]!.b!]) expect(t).toMatch(/then run to the dock/);
+    expect(steps[2]!.a).toMatch(/north loader/);
+    expect(steps[2]!.b).toMatch(/south loader/);
     expect(SHEET[2]!.marks[0]!.z).toBeGreaterThan(SHEET[2]!.marks[1]!.z);
-    for (const t of [steps[2]!.a!, steps[2]!.b!]) expect(t).toMatch(/count down and go together, then both to the push bar by the L4 door/);
+    for (const t of [steps[2]!.a!, steps[2]!.b!]) expect(t).toMatch(/^Count down with your partner and take the (north|south) loader.$/);
     expect(steps[3]!.text).toMatch(/holding room four/);
     for (const o of steps) {
       for (const t of [o.text, o.a, o.b]) {
@@ -688,10 +688,10 @@ describe('Marlow re-plan A4: the steps and the lines', () => {
   it("LANTERN's retry lines exist (STATIONS section 6, verbatim, keyed `retry:<id>` and `retry:<id>:timer`) and fit; none says failed or names the kettle", () => {
     const at = (k: string) => part.bay.radio.filter((r) => r.at === k).map((r) => r.text);
     expect(at(retryKey('a4-deadweight'))).toEqual(['The duty officer saw you. Back to the security room door.']);
-    expect(at(retryKey('a4-camloop'))).toEqual(['Seen on the shop floor. Back to the security room; loop it again.']);
-    expect(at(retryKey('a4-camloop', true))).toEqual(['The cameras came back. Back to the security room; loop it again.']);
+    expect(at(retryKey('a4-camloop'))).toEqual(['Seen on the shop floor. Back to the security room.']);
+    expect(at(retryKey('a4-camloop', true))).toEqual(['The cameras came back. Back to the security room.']);
     expect(at(retryKey('a4-takedown'))).toEqual(['The loaders saw you. Back behind the pallet stacks at the dock.']);
-    expect(at(retryKey('a4-takedown', true))).toEqual(['Both loaders at once, or the other one sees. Back behind the stacks.']);
+    expect(at(retryKey('a4-takedown', true))).toEqual(['Not together, so the other loader saw. Back behind the stacks.']);
     expect(at(retryKey('a4-deadweight', true))).toEqual([]);
     expect(A4_RETRY_LINES.map((r) => r.at)).toEqual(['retry:a4-deadweight', 'retry:a4-camloop', 'retry:a4-camloop:timer', 'retry:a4-takedown', 'retry:a4-takedown:timer']);
     for (const r of part.bay.radio) {
@@ -726,3 +726,67 @@ describe('Marlow re-plan A4: the steps and the lines', () => {
 function run(s: CourseState, sec: number): void {
   for (let t = 0; t < sec - 1e-9; t += 1 / 60) s.update(1 / 60);
 }
+
+describe('station 9 kit spot (marlow-kit-wire)', () => {
+  const saved = flags.kitMoves;
+  afterEach(() => {
+    flags.kitMoves = saved;
+  });
+
+  it('one deadweight spot, a4-deadweight: the near chain in the passage, the far chain in the back aisle, the grille\'s world door', () => {
+    expect(flags.kitMoves.has('deadweight')).toBe(false);
+    const spots = kitSpotsOf(b, 'deadweight');
+    expect(spots.length).toBe(1);
+    const gr = A4_GRILLE;
+    const dw = A4_DEADWEIGHT;
+    expect(spots[0]).toEqual({ id: 'a4-deadweight', kind: 'deadweight', x: dw.x, y: gr.h, z: gr.z - dw.off, yaw: 0, x2: dw.x, y2: gr.h, z2: gr.z + dw.off, door: String(course.doors[A4_GRILLE_DOOR]) });
+    expect(String(doorAnchor(A4_GRILLE_DOOR).id)).toBe(spots[0]!.door);
+    expect(def.bays[3]!.stations!.find((s) => s.kit === 'deadweight')!.id).toBe('a4-deadweight');
+  });
+
+  it('the PLAN band: grips 2.2-2.6 m over the floor, each chain 1.0-3.0 m from the door plane, near in the passage, far in A4_GRILLE_ZONE', () => {
+    const s = kitSpotsOf(b, 'deadweight')[0]!;
+    for (const y of [s.y, s.y2!]) {
+      expect(y).toBeGreaterThanOrEqual(2.2);
+      expect(y).toBeLessThanOrEqual(2.6);
+    }
+    for (const z of [s.z, s.z2!]) {
+      expect(Math.abs(z - A4_GRILLE.z)).toBeGreaterThanOrEqual(1.0);
+      expect(Math.abs(z - A4_GRILLE.z)).toBeLessThanOrEqual(3.0);
+    }
+    // near: inside the passage (the walls' faces x 101.25 / 103.75, south of the grille's south face), 0.3 m clear of its west face
+    expect(s.x - (A4_GRILLE.x0 + A4_GRILLE.t / 2)).toBeGreaterThanOrEqual(0.3);
+    expect(s.x).toBeLessThan(A4_GRILLE.x1 - A4_GRILLE.t / 2);
+    expect(s.z).toBeLessThan(A4_GRILLE.z - A4_GRILLE.t / 2);
+    expect(s.z).toBeGreaterThan(A4_PASSAGE.wallZ);
+    expect(inBox(A4_GRILLE_ZONE, s.x2!, s.z2!)).toBe(true);
+    // off the motor button and both grips stand clear
+    expect(hyp2(s.x - A4_GRILLE_MOTOR_AT.x, s.z - A4_GRILLE_MOTOR_AT.z)).toBeGreaterThan(1.0);
+    expect(blockedAt(s.x, s.z, MOVEMENT.radius)).toEqual([]);
+    expect(blockedAt(s.x2!, s.z2!, MOVEMENT.radius)).toEqual([]);
+  });
+
+  it('the counterweight chain skins stand at the two grips (visual only)', () => {
+    const s = kitSpotsOf(b, 'deadweight')[0]!;
+    for (const [x, z] of [[s.x, s.z], [s.x2!, s.z2!]] as const) {
+      expect(b.boxes.some((p) => !p.collide && Math.abs(p.c[0] - x) < 1e-6 && Math.abs(p.c[2] - z) < 1e-6 && p.s[1] > 3), `chain at ${x}, ${z}`).toBe(true);
+    }
+    expect(b.boxes.some((p) => !p.collide && Math.abs(p.c[0] - 101.315) < 1e-6 && Math.abs(p.c[2] - 23.565) < 1e-6)).toBe(false);
+  });
+
+  it('deadweight on: the motor button is refused (REFUSE_KIT_HELD), both grille gates stay shut, the grille stays locked', () => {
+    flags.kitMoves = new Set(['deadweight']);
+    const g = new CourseState(def, course.consoles);
+    g.startAt(4);
+    g.setPlayer(0, 102.5, 0, 14, false);
+    g.setPlayer(1, 103.5, 0, 14, false);
+    g.update(1 / 60);
+    expect(g.station()).toBe(9);
+    expect(g.press(A4_GRILLE_MOTOR, 0)).toBe(REFUSE_KIT_HELD);
+    g.update(1 / 60);
+    expect(g.isGateOpen(A4_GRILLE_GATE)).toBe(false);
+    expect(g.isGateOpen(A4_GRILLE_MOTOR_GATE)).toBe(false);
+    expect(g.locked(A4_GRILLE_DOOR)).toBe(true);
+    expect(REFUSE_KIT_HELD.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+  });
+});
