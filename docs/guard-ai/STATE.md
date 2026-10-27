@@ -1062,12 +1062,14 @@ Next (mill hunt, Michael's walk priority; docs/guard-ai/mill-hunt/):
 (1) PR 1 = feature/guard-ai-mill-hunt (H1 data + H2 board + real-map sims; worktree -guard-ai-mill-hunt). Check A
     FIX -> fix round DONE ed5bc1b27 (HUNT.apart group-of-3 rule + CLUSTER sim check, stuckT 8 s, woken re-pair, freed
     slots, per-member goal arrays gx / gz / gface / gspeed; H4 gap: a group of 3 can form after a setTarget jump).
-    Check B RUNNING -> PR1-CHECK-B.md; then open PR 1 (big-pr), post checker, tell the orchestrator.
+    Check B PASS ec10ddbba. PR 1 = #713 (big-pr, ~2.85k counted, checker posted, orchestrator told) -> green: train.
+    MUST FIX IN H4: a top-ranked unit's move can stop 3-4 m from a lower-ranked group across a room edge (PR1-CHECK-B),
+    then raise the sim CLUSTER to HUNT.apart (4 m); 16-set gallery density needs a decision.
 (2) PR 2 = feature/guard-ai-mill-hunt-h3 (H3 wiring 5336f4735; worktree -mill-hunt-h3; H3-REPORT.md). Check A was
     PASS 91ea88487 (H3-CHECK-A.md; board polish sent to the PR 1 fix round: per-member goal arrays,
     free member slots). Laptop e2e-piano on 5336f4735 PASSED (1/1, 53 s; check its log has
     the hunt checks before relying on it). After PR 1's
-    fixes: merge feature/guard-ai-mill-hunt into it again and switch H3 to read the goal arrays (memberIndex cached
-    at admit; out = null), check B, PR 2 after PR 1 merges.
+    fixes: H3 update RUNNING (merge PR 1's head, read the goal arrays, out = null, 0 B, e2e polish) -> "## Update to
+    PR 1's final board" in H3-REPORT.md; then check B, then PR 2 after PR 1 merges.
 (3) H4 reactions (PR 3) per PLAN rev 2. (4) J16: G4 PR (feature/guard-ai-j16-2) after Sector Ops #665; G5 to ctcourse.
 ```
