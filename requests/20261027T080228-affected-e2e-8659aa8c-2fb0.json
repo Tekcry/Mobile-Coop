@@ -11,5 +11,38 @@
     "e2e-netmove"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #719"
+  "note": "auto affected-e2e, PR #719",
+  "kept": {
+    "sha": "8659aa8c17e8a92e8d0cc1f7d97cf5ff7d879dfc",
+    "suites": [
+      {
+        "s": "e2e-ctcourse:5",
+        "sec": 120
+      },
+      {
+        "s": "e2e-ctcourse:6",
+        "sec": 198
+      },
+      {
+        "s": "e2e-ctcourse:7",
+        "sec": 216
+      },
+      {
+        "s": "e2e-ctcourse:8",
+        "sec": 167
+      },
+      {
+        "s": "e2e-ctcourse:1",
+        "sec": 86
+      },
+      {
+        "s": "e2e-ctcourse:2",
+        "sec": 234
+      },
+      {
+        "s": "e2e-ctcourse:3",
+        "sec": 273
+      }
+    ]
+  }
 }
