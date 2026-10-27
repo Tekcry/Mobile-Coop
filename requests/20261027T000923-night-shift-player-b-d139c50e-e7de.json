@@ -1,0 +1,15 @@
+{
+  "id": "20261027T000923-night-shift-player-b-d139c50e-e7de",
+  "sha": "d139c50e38ad14dfee1c08ac1cfde86944edb3ad",
+  "branch": "feature/context-prompts-p2",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-takedown",
+    "e2e-stealth-ai"
+  ],
+  "set": "cp-p2"
+}
