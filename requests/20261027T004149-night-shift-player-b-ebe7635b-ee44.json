@@ -1,0 +1,14 @@
+{
+  "id": "20261027T004149-night-shift-player-b-ebe7635b-ee44",
+  "sha": "ebe7635baed4ca840ffcd9ef0c26cef4a189e1ea",
+  "branch": "feature/context-prompts-p3",
+  "pr": 703,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-pad"
+  ],
+  "set": "cp-p3",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261027T003219-night-shift-player-b-ebe7635b-7126, rerun on the laptop"
+}
