@@ -561,7 +561,9 @@ client next to a device first.
   client applies it (`net/missionMirror.ts`: a `MissionRunner` from the map's `missions` by id; never evaluated; the
   client's mission HUD reads `runner`, while `kept` (the rules-kept row of the rating) has no reader yet). The
   rule line reaches a live client as the host's radio line (`feed` event); only a late joiner's first `ms` with breaks
-  shows `rl` (its feed). A client interrogation's intel carries the guard id and the client id (`revealIntel` eid / by).
+  shows `rl` (its feed). (campaign-mode CM5) The last `ms` of a campaign mission's end carries `pc`, the rating 0-100
+  (optional; junk dropped, absent on every other send): the client records its own `campaign:progress` from it.
+  A client interrogation's intel carries the guard id and the client id (`revealIntel` eid / by).
   A client's frag, mine or sticky cam use goes as `gused {kind}` (client -> host, 4 a second at most;
   `USE_ONLY_GADGETS`) to `GameMode.onRemoteGadget` (a mission's No gadgets rule); gas / flash / EMP / noise still
   count on their `gadget` effect.
