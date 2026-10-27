@@ -20,6 +20,9 @@ import { DrillDetect, emptySnap, VERBS } from '../course/drillDetect';
 import { summarise } from '../course/courseRating';
 import { CourseHud } from '../../ui/hud/courseHud';
 import { recordBay, recordRun, updateCourseRecord } from '../../save/courseRecord';
+import { recordFinish } from '../../save/campaignRecord';
+import { flags } from '../../core/flags';
+import { PROLOGUE_PCT, prologueFinish } from '../mission/campaignOrder';
 import { groupBaseOn } from '../../world/lights';
 import type { LightDef, LightRegistry } from '../../world/lights';
 import { SectionStartState } from '../sectorReset';
@@ -1181,6 +1184,8 @@ export class CourseMode implements GameMode {
       recordRun(r, this.startBay === 0 ? sum.team.time : null, sum.finale);
     });
     this.g.stats.course = sum;
+    // (campaign-mode CM5, A6) the campaign's prologue: finished, no percent (the client records its own at the end)
+    if (prologueFinish(flags.campaign, this.g.net != null, this.g.world.map.id)) void recordFinish('prologue', PROLOGUE_PCT, 0);
     // the final state reaches the client before the match ends (its results read the mirror)
     this.g.net?.course?.(this.wire());
     this.g.endSession(true, 'Course complete');

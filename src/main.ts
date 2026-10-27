@@ -30,10 +30,28 @@ import { PlayScreen } from './ui/screens/playScreen';
 import { LoadoutScreen } from './ui/screens/loadoutScreen';
 import { MissionsScreen, FreeRoamScreen, SectorOpsScreen } from './ui/screens/missionsScreen';
 import { starsFor, starsText } from './save/sectorRecord';
+import { loadCampaignSave, type CampaignSave } from './save/campaignRecord';
+import { continueRowText } from './game/mission/campaignOrder';
 import { BriefingScreen } from './ui/screens/briefingScreen';
 
 /** (sector-ops M7) The Warehouse op's difficulty stars beside Sector Ops on the main menu, read each time it opens. */
 let sectorStars = starsText([false, false, false, false]);
+
+/**
+ * (campaign-mode CM4, A9, plan check polish 9) The host's `campaign:save` for the main menu's "Continue campaign" (hidden
+ * with none). Menu entries are built synchronously and IndexedDB is async, so the save is read into this cache at boot
+ * and on every return to the menu; the menu never waits on it. Only with `flags.coop`, `flags.campaign` and
+ * `flags.missions` (a save is a Mission 1 entry).
+ */
+let campaignSaved: CampaignSave | null = null;
+const campaignContinueOn = (): boolean => flags.coop && flags.campaign && flags.missions;
+/** Read the save into the cache; true when it came, went or changed (the menu rebuilds). */
+async function refreshCampaignSave(): Promise<boolean> {
+  if (!campaignContinueOn()) return false;
+  const prev = campaignSaved;
+  campaignSaved = await loadCampaignSave();
+  return (prev === null) !== (campaignSaved === null) || prev?.at !== campaignSaved?.at;
+}
 
 import { KitScreen } from './ui/screens/kitScreen';
 import { showSavedOperator } from './ui/screens/operator';
@@ -164,6 +182,14 @@ async function boot(): Promise<void> {
     // (menu-ui MD19: the profile badge only with `?legacy=1`)
     if (flags.legacy) menu.badge.append(profileBadge(app));
     app.screens.push(menu);
+    // (campaign-mode CM4, plan check polish 9) the "Continue campaign" cache, read again on every menu (the first is the
+    // boot's read); the menu is built at once and rebuilt here only when the save came or went
+    void refreshCampaignSave().then((changed) => {
+      if (!changed || app.screens.top !== menu) return;
+      menu.lastFocus = app.nav.focused;
+      menu.onShow();
+      app.nav.setRoot(menu.el, menu.lastFocus ?? menu.initialFocus());
+    });
     void app.feedback.all().then((all) => menu.setCounter('feedback', all.length ? `${all.length}` : ''));
     // (sector-batch, G328) the counter shows Saltmarsh Park's stars (the Sector Ops map)
     void starsFor('campusOps').then((st) => {
@@ -352,6 +378,25 @@ async function boot(): Promise<void> {
           .then((m) => m.openCoop(a, coopApi))
           .catch(() => a.toasts.show('Co-op unavailable', 'warn')),
     }));
+    // (campaign-mode CM4, A9) "Continue campaign" under Co-op: hosts a room on the saved mission (its section and
+    // difficulty); any partner joins by the code (G147). Hidden with no save (the cached read, `refreshCampaignSave`)
+    MainMenuScreen.entries.push((a) => {
+      const sv = campaignSaved;
+      return {
+        key: 'continue-campaign',
+        label: 'Continue campaign',
+        order: 16,
+        ctx: sv ? `${continueRowText(sv, getMap(sv.map).sectors)}. Hosts a room on your saved mission; any partner joins by the code.` : '',
+        hidden: () => !campaignContinueOn() || !campaignSaved,
+        action: () => {
+          const now = campaignSaved;
+          if (!now) return;
+          void loadCoop()
+            .then((m) => m.continueRoom(a, coopApi, now))
+            .catch(() => a.toasts.show('Co-op unavailable', 'warn'));
+        },
+      };
+    });
     // (marlow-bays R1-R3) the room a player dropped out of or left, for the hold (10 min): one press rejoins it (the
     // joiner) or reopens it from its last checkpoint (the host); the label shows the code
     MainMenuScreen.entries.push((a) => {

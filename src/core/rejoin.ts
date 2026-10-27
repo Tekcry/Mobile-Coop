@@ -23,9 +23,15 @@ export interface RejoinRecord {
   difficulty: Difficulty;
   mission: string;
   weather: WeatherChoice;
-  /** The checkpoint to restart from on "Resume hosting" (course: the bay, 1-based). */
+  /** The checkpoint to restart from on "Resume hosting" (course: the bay, 1-based; (campaign-mode CM3, A11) Sector Ops
+   *  with `flags.campaign`: the section, 1-based). */
   bay: number;
+  /** (campaign-mode CM3, A11) Sector Ops: the host's campaign mission (`MissionDef.id`; absent: none). */
+  sm?: string;
 }
+
+/** A mission id as the wire takes it (`sectorMissionId`; this module never imports `src/net`). */
+const SM = /^[A-Za-z0-9_-]{1,64}$/;
 
 const KEY = 'ns-rejoin';
 const TOK = 'ns-rejoin-tok-';
@@ -62,7 +68,7 @@ function parse(raw: string | null): RejoinRecord | null {
   try {
     const v = JSON.parse(raw) as Partial<RejoinRecord>;
     if (!v || typeof v.code !== 'string' || !CODE.test(v.code) || !ROLES.includes(v.role as 'host') || typeof v.at !== 'number' || typeof v.map !== 'string') return null;
-    return { code: v.code, role: v.role!, at: v.at, mode: (v.mode ?? 'course') as RejoinMode, map: v.map, difficulty: (v.difficulty ?? 'normal') as Difficulty, mission: v.mission ?? '', weather: (v.weather ?? 'clear') as WeatherChoice, bay: Math.max(1, Math.floor(Number(v.bay) || 1)) };
+    return { code: v.code, role: v.role!, at: v.at, mode: (v.mode ?? 'course') as RejoinMode, map: v.map, difficulty: (v.difficulty ?? 'normal') as Difficulty, mission: v.mission ?? '', weather: (v.weather ?? 'clear') as WeatherChoice, bay: Math.max(1, Math.floor(Number(v.bay) || 1)), ...(typeof v.sm === 'string' && SM.test(v.sm) ? { sm: v.sm } : {}) };
   } catch {
     return null;
   }
