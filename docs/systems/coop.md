@@ -403,7 +403,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   | Deadweight (K1) | `deadweight` | 64; `s` +(spot index + 1) hanging / passing, - grab / drop | chainGrab, chainHang, chainDrop | grateUnder | ledge hang / crouched walk | host tick (a pass under the held grate) | 9 `a4-deadweight` |
   | Drop Catch (K2) | `dropCatch` | 128 | catchOffer, catchTake | dropInto | brace / drop | b (catcher) | 16 `a6-dropcatch` |
   | Chimney Pair (K3) | `chimneyPair` | 256 | chimneyOffer, chimneyBrace, chimneyClimb, chimneyTop | chimneyJoin, chimneyPush, chimneyRise, chimneyOut | ladder climb / climb | a (when both are out) | 11 `a5-chimney` |
-  | Swing Pass (K4) | `swingPass` | 512 | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
+  | Swing Pass (K4) | `swingPass` | 512; `s` = spot index + 1 both roles | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
   | Plank Bridge (K5a, K5b) | `plankBridge` | 1024 | plankOffer, plankLift, plankCarry, plankDrop, plankLay | plankJoin, plankLiftA, plankCarryA, plankDropA, plankLayA | brace / walk | host tick (a crossing) | 5 `a2-plank` |
 
   Chimney Pair (K3): marked spots only (no free shaft until the walk); wire `s` is -width while offering, the height
