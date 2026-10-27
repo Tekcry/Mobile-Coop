@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.132.0 - Train 169: Carried bodies cast a shadow (2026-10-27, PR #707; #697)
+- A body carried on a shoulder now casts its own shadow (with character shadows on): the picture, the light meter and the guards all see it; the carrier's own light meter ignores it. Works for your partner's carry in co-op too.
+
 ## 4.131.1 - Train 168: Character shadow cues wired into the game (dark) (2026-10-27, PR #706; #665)
 - (char-shadow-meter S3b-2, J16; dark behind `charShadowLight`) `GameState.shadowCues`: the players' shadow footprints
   for Guard AI's faint cue, built from the gameplay light bake on solo and host (null with the flag off and on a co-op
