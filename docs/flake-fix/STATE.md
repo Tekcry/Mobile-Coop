@@ -3,6 +3,14 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 76 (2026-10-27 ~11:20, Orchestrator save at 86%, pause ~11:55 to 13:50; session [058b5c]; wins over SAVE 75):**
+- #696 (F60, CI on Node 24) labelled. Train 166 failed on Sector Ops' lightFieldAlloc under Node 24 (their fix coming).
+- Laptop service healthy; queued requests + spare work (once per master sha) keep it fed through the pause.
+- STILL TO DO: undo the piano front once the Orchestrator says Michael's walk (~11:00) is done: task
+  NightShift-laptop-queue Arguments LQ_FRONT_BRANCHES back to 'mixamo', restart between trains (stop task, taskkill /T
+  the service.mjs node, start task).
+- Next: piano front undo; triage any train failure (Opus) and tell the Orchestrator.
+
 **Test Runner SAVE 75 (2026-10-27 ~07:50, Orchestrator save at 83%, reset 08:50; session [058b5c]; wins over SAVE 74):**
 - #664 (affected cap 1) MERGED. Service healthy, 2 requests queued; spare work (docs/laptop-queue/spare-jobs.json, once per
   master sha) fills idle slots through the reset.
