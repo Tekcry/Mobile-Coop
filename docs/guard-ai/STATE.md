@@ -1058,8 +1058,8 @@ Open (2026-10-27 ~11:35 SAVE; meter resets 13:50; carry on with the mill hunt af
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
 Next: mill-hunt H1 + H2 merged into feature/guard-ai-mill-hunt 8c12cb397 (64 tests pass; H2-REPORT.md: sims clean,
-phaseMin 60, a guard at 'alert' drops off and H3 / H4 must re-admit, no stuck timeout yet). Counted ~2.2k: ask the
-orchestrator for big-pr or split. After 13:50: (1) move the sim helpers to tests/helpers/ and add the 12 / 16 sims on
+phaseMin 60, a guard at 'alert' drops off and H3 / H4 must re-admit, no stuck timeout yet). Counted ~2.2k: the
+orchestrator OKd big-pr (add the label at PR open). After 13:50: (1) move the sim helpers to tests/helpers/ and add the 12 / 16 sims on
 the real THORNBECK_HUNT (assert hall-facing gallery aims); (2) two Opus checkers (confirm PLAN rev 2 items 1-3);
 (3) PR 1 (dark); (4) H3 wiring after #694 lands. Watch #694 / #317 trains. J16: G4 PR after #665; G5 to ctcourse later.
 ```
