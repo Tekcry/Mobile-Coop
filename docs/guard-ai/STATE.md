@@ -995,85 +995,37 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 
 ## Resume prompt
 ```
-Guard AI Build resume (laptop). Rules: docs/RULES.md + docs/VISION.md from origin/master; BOOT.md "Common start" and
-"Guard AI Build" on origin/feature/menu. Read this block only. Branch guard before every write. Never merge master
-into a branch except to clear a conflict on our own PR. 2 Opus checkers on AI / src/net PRs (one for small fixes in
-prototype mode); Opus triage on every laptop failure. Laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc &&
-node scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name> --requester "Night Shift | Guard AI Build"
---suites "a"; verdict = status laptop-e2e/<set>.
-PROTOTYPE MODE (Michael ~16:05, ROADMAP Decided e18f09d2f on feature/menu: read it): fixes ship in one batch train; the
-freeze ends when it ships; every feature on in /preview/; ONE closest test set per change, no proof runs, flaky suites
-quarantined; build toward playable pieces, not polish or tooling. Michael's playthrough decides what comes next.
-Michael 15:40: the orchestrator posts checker marks from the lead's reports (auto mode blocked self-posting).
-Michael 15:55: never held up - the first time you would wait on another session, message the orchestrator; never
-wait over 10 min.
-TOKEN RULE (Michael 2026-10-26 ~19:22, ROADMAP Decided): full burn ended: at most 2 agents at a time (AI code and its
-checkers stay Opus), nothing briefed more than one slice ahead, background waits, no polling.
-PRIORITY (Michael ~19:40): the storm scene first (ROADMAP Now row 20; Campaign Build leads; PLAN
-docs/piano-escape/PLAN.md "Guard AI Build asks" on origin/feature/piano-escape). Setting now (Michael ~20:15): Thornbeck
-Mill (map id thornbeckMill), a tall timber grain mill at night in a thunderstorm, 12-16 guards, one exit, all must go
-down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); lightning = one flash value per sim step from
-fixed timeline data (Sector Ops SO5), guards just read the light.
-STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano guard work (#624) moves, at most 2
-builders; 00:59 pace: up to 2 agents, piano first.
-FLAGS (Michael ~14:45: "dont switch off any features, always leave them on for testing" / "preview only. live only
-receives finished features once approved"): every Guard AI flag = darkFlag(.., PREVIEW_ON); checked 14:50 (guardPairs,
-lookouts, dogRelease, millHunt). Mission-hooks flags: confirm PREVIEW_ON when they rebase.
-SHIP 4-PLAYER (Michael after the walk, ~10:40): #317 merge 16 head 2d8fa5a0e, MERGE16-CHECK.md PASS, checker
-posted, LABELLED by the orchestrator (11:30); CI red guardAiAlloc D1 = CI Node 22 (#696). If it
-conflicts again before its train: merge again at once. Merge 17 62e4f2c09 (lead: gameState.ts both kept + a
-shadowCuesGame stand-in field), checker carried, LABELLED again (14:30). Watch its train; merge again if it conflicts. #694 train-ready (train 166
-failed on another test). J16 G4 PR may open once Sector Ops #665 lands.
-TOP PRIORITY (Michael's mill walk ~10:00, via the orchestrator; J16 HELD): (A) guards fire while facing away:
-fix everywhere = PR #694 (label fix; 58bbbdab2, FIRE_CONE 15 deg, faceFor 110 deg/s; AIM-FIX-REPORT.md):
-checker PASS posted on 9bacde675 (AIM-FIX-CHECK.md); CI + affected-e2e pending -> train-ready. (B) mill guards: top alert, never calm,
-slow tactical room-by-room close-in on a fixed readable order (Michael ~10:05 "fixed readble path is good"), corners
-cleared, groups <= 2: BRIEF + PLAN 597df8bce on feature/guard-ai-mill-hunt (worktree -guard-ai-mill-hunt;
-flag millHunt; H1 map data Sonnet + H2 pure rules Opus start now in parallel; H3 wiring after #694; PR 1 = H1-H3,
-PR 2 = H4 reactions). Plan check 1 FIX f2c0b5e7c (stall with no trigger, start deadlock, H4 cue dead,
-check breaks the cap, no claims block) -> PLAN revision 1 a9dd94fde (phase order as map data, rank rule +
-start spread, mhCue, check stops at the room edge, claims block; Michael picked "Stay upstairs (Recommended)").
-Orchestrator order on enemy.ts / enemyManager.ts / flags.ts: #694 -> mill-hunt PR 1 -> PR 2 -> PR 3 ->
-guard-ai-j16-2 -> guard-ai-mission-hooks (rebased on top); mission / tallow overlaps: second lander rebases.
-Plan check 2 FIX (3 gaps); lead wrote PLAN revision 2 (rank rule, admit() on every join, cue in hearSearch,
-fold-ins); orchestrator GO (no third check; slice checkers confirm the 3 items). Lead put the hunt types on
-SectorDef (be6ac30a1). RUNNING: H1 Sonnet (feature/guard-ai-mill-hunt-h1, worktree -mill-hunt-h1, THORNBECK_HUNT)
-and H2 Opus (feature/guard-ai-mill-hunt-h2, worktree -mill-hunt-h2, src/ai/millHunt.ts). H1 DONE 43424f55d (17 ground +
-10 gallery stops, H1-REPORT.md). Next: lead merges both into
-feature/guard-ai-mill-hunt, adds the sims on the real THORNBECK_HUNT, two Opus checkers, PR 1. Then PR 1 = H1 (Sonnet data) + H2 (Opus pure board) in parallel; PR 2 = H3 after #694; PR 3 = H4. Asked Michael via the orchestrator: gallery
-answered.
-Open (2026-10-27 ~15:15 SAVE, weekly 92%, account swap after ~15:50; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
-1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
-   - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
-     4bb733e14 committed ad3c1afd9 (A FIX 2: watch deaf in cooldown / caution, deck sweep leaves his storey; B PASS).
-     Fix round 1fe0bc3f6; re-check closed both + one test stub FIX (lockedDoorPath walker), applied e910abee2: checker
-     PASS posted, Campaign told. CI + affected-e2e running on e910abee2 -> green: tell the orchestrator train-ready.
-   - GA5 DONE (PIANO-GA5-REVIEW.md); all six deltas on #617 (937603b46). Campaign's TODO: assert sweepPeriod(G4) ===
-     sweepPeriod(G5) once GA6a is on master and re-tune the end waits (told: lap adds 0.8 s slack + turn time per leg).
-2. #588 play pass A: MERGED (train 138).
-3. #317 coop4: merge 9 + both fix rounds, checker POSTED 36ca016c7 (docs/coop4/checks/MERGE9-CHECK.md: watch list for
-   the missions switch-on); co-op group affected-e2e queued -> train-ready. Another master conflict -> merge 10.
-4. #595 J15 PR4 MERGED (train 135). J26 mission hooks: spare capacity only.
-5. Polish (only if it helps the playthrough): after Sector Ops #602 lands, stealthSystems.ts isOff (:381) false when
-   every lamp of the circuit is mainsCut (a guard walks to a dead switch); #588 hard backstop on wake-body / alarm walks, "can't get through" bark,
-   post guard off his storey re-plans every 5 s; #585 orphaned onEnemyJoined comment (courseMode.ts:1394-1407);
-   pressing guards round waist-high blocks; NetSession.roomCap unused; guardpairs=0 on the flag-off talking-pairs e2e;
-   autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
-   with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
-   pull resumes short.
-Next (mill hunt, Michael's walk priority; docs/guard-ai/mill-hunt/):
-(1) PR 1 = feature/guard-ai-mill-hunt (H1 data + H2 board + real-map sims; worktree -guard-ai-mill-hunt). Check A
-    FIX -> fix round DONE ed5bc1b27 (HUNT.apart group-of-3 rule + CLUSTER sim check, stuckT 8 s, woken re-pair, freed
-    slots, per-member goal arrays gx / gz / gface / gspeed; H4 gap: a group of 3 can form after a setTarget jump).
-    Check B PASS ec10ddbba. PR 1 = #713 (big-pr, ~2.85k counted, checker posted, orchestrator told) -> green: train.
-    MUST FIX IN H4: a top-ranked unit's move can stop 3-4 m from a lower-ranked group across a room edge (PR1-CHECK-B),
-    then raise the sim CLUSTER to HUNT.apart (4 m); 16-set gallery density needs a decision.
-(2) PR 2 = feature/guard-ai-mill-hunt-h3 (worktree -mill-hunt-h3). H3 updated to PR 1's final board 97a26b0c6
-    (goal arrays, 0 B hand-off; H3-REPORT.md "Update to PR 1's final board"). Check A PASS; check B PASS 6b3cc3f5d
-    (H3-CHECK-B.md; polish: e2e-affected should map enemy.ts / enemyManager.ts to e2e-piano). Check B was
-    RUNNING at the save -> H3-CHECK-B.md (maybe PARTIAL: a fresh Opus checker finishes it). Laptop e2e-piano on
-    97a26b0c6 queued (set mill-h3b; read the log for the hunt checks and any mSkip). After PR 1 (#713) merges: open PR 2
-    (kind minor fragment exists), post checker, tell the orchestrator.
-(3) H4 reactions (PR 3) per PLAN rev 2, first fixing PR1-CHECK-B's must-fix (a top-ranked unit's move stops 3-4 m
-    from a lower-ranked group across a room edge; then sim CLUSTER = HUNT.apart 4 m) and the 16-set gallery density. (4) J16: G4 PR (feature/guard-ai-j16-2) after Sector Ops #665; G5 to ctcourse.
+Guard AI Build resume (laptop). PROJECT ON HOLD (Michael 2026-10-27 ~15:35: "finish what remains and put everything on
+hold"). Final block, 2026-10-27 ~16:10. Rules: docs/RULES.md + docs/VISION.md from origin/master; BOOT.md "Common start"
+and "Guard AI Build" on origin/feature/menu. Read this block only. Branch guard before every write. Two Opus checkers on
+AI / src/net PRs; Opus triage on every laptop failure. Laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc &&
+node scripts/laptop-queue/request.mjs --sha <sha> --set <name> --requester "Night Shift | Guard AI Build" --suites "a";
+verdict = status laptop-e2e/<set>. Flags (Michael ~14:45): every feature darkFlag(.., PREVIEW_ON): on in /preview/,
+live only after his approval.
+
+Shipped today (on master): #694 guards face you before they shoot (everywhere); #669 + #670 J16 shadow-cue code (inert
+until G4); #624 + #644 storm mill sweep + stranded-guard fix.
+
+OPEN, in the order to take them if the project resumes:
+1. #317 coop4 (4-player Sector Ops, Michael approved shipping): CONFLICTING with master after 4.135.2. Merge 19 is LARGE:
+   scripts/e2e-coop.mjs, one hunk of 254 coop4 lines (lobby-caps block) vs 676 master lines (char-shadow-meter S4
+   partner-shadow probe 827b80c1e / b81984048 + an AI6 block). Needs an Opus merge builder + one checker (worktree
+   C:/NightShift/Mobile-Coop-coop4, last head 28f2e1483; build notes docs/coop4/checks/merge16-build.md, check
+   MERGE16-CHECK.md); then the orchestrator labels no-affected-e2e + train-ready (labels big-pr, no-affected-e2e kept).
+2. Mill hunt (docs/guard-ai/mill-hunt/: BRIEF, PLAN rev 2, PLAN-CHECK, H1/H2/H3 reports and checks):
+   - PR 1 = #713 (feature/guard-ai-mill-hunt, ~2.85k counted, big-pr OK'd): checks A (fix round) + B PASS, checker
+     posted, CI green, affected-e2e (3 suites) was queued at the hold. When green it is train-ready.
+   - PR 2 = feature/guard-ai-mill-hunt-h3 (H3 wiring behind flags.millHunt, head 6b3cc3f5d): checks A + B PASS; laptop
+     e2e-piano PASS on 97a26b0c6 (desktop worker: confirm its log shows the hunt checks). Open it (base master; fragment
+     changes/feature-guard-ai-mill-hunt-h3.md exists; post checker "Opus 5.5 PASS x2 (H3-CHECK-A + H3-CHECK-B)") once
+     #713 merges; if master moved, merge it in first. If #713 merged before you read this, do that now.
+   - H4 (PR 3, reactions: cue, check, targets, radio) NOT STARTED. First fix PR1-CHECK-B's must-fix (a top-ranked
+     unit's move stops 3-4 m from a lower-ranked group across a room edge; then sim CLUSTER = HUNT.apart 4 m), decide the
+     16-guard gallery density. Walk-card risks: the landing pair holds the landing all run; 16 guards crowd the gallery.
+3. J16 shadow cue: PR 2 (G4 gameState wiring, feature/guard-ai-j16-2 a19fa1c41 + G5 e2e d7fc1f6d5..61c7d045b, checks
+   PASS) waits on Sector Ops #665; G5's e2e page must move to ctcourse (warehouse lamps give no long shadows:
+   slices/G5-TRIAGE.md). Michael judges the cue on a walk; fallback: loosen it.
+4. Polish backlog (only if it helps play): items at "Polish" in this file's history; guard-ai-mission-hooks branches
+   rebase after the mill hunt (check their flags are PREVIEW_ON).
+Next: on resume, take OPEN item 1 (#317 merge 19), then item 2 (PR 2 after #713, then H4).
 ```
