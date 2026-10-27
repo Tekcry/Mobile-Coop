@@ -202,3 +202,76 @@ For the checkers and the walk card:
 
 Verify: `npm run typecheck:fast` clean; `npx vitest run tests/millHunt.test.ts tests/millHuntThornbeck.test.ts
 tests/thornbeckMill.test.ts`: 73 passed (21 + 9 + 43). With the map data before the fixes, 6 of the 9 new tests fail.
+
+## Fix round (check A)
+Builder: Opus 5.5, 2026-10-27, on `feature/guard-ai-mill-hunt` (from decef4d1f). Lines are `src/ai/millHunt.ts` unless
+named. Commits fd6123807 (sim check), 91200c9b3 (board), 1f336c38c (hand-off, freed indices).
+
+- **FIX 1, groups of at most 2.** `HUNT.apart` 4 m (:53, the reason beside it: a paired takedown is not watched from
+  3 m; 4 not 3 because `pt2` stands about 1 m off `pt`). `loopNext` (:1209) refuses a stop that `crowds` (:1231): the
+  looper's members plus other units' members (any rank) whose stop (at or walking to) is within 4 m make more than 2, or
+  the one guard there already has another within 4 m. All loop steps blocked: it holds and clears where it is. Two
+  solos may still stand 4 m apart (a group of 2). The lead's wording (any other unit within 4 m) was tried: the same sim
+  results, but it also blocks solo next to solo and the rejoin unit test then needs a 170 s re-time, so the group rule
+  was kept. Side effect fixed in `onCycleDone` (:1141): the looper could no longer reach the target room's stop nearest
+  a unit waiting next door, so phases 0-2 ran to `phaseMax`; a full cycle outside the target room now also clears the
+  target room's stops within 4 m (outside it a unit's aims face the target). Phases step at `phaseMin` again.
+  Tests: "the looper never steps into a group above 2 ..." (`tests/millHunt.test.ts:227`), "two solos may stand near each
+  other ..." (:251). No test re-timed; no assertion loosened.
+- **Other states.** The sims now check positions every step (below): spread, regroup, move, hold and admission show no
+  group of 3 in the no-trigger runs, 12 and 16, test and real data, with late joiners and rejoins. Not closed, for H4:
+  after a `setTarget` jump a unit that ranks first in the new target room can walk (move) up to a unit holding just
+  across the room edge. Scratch probe, every stop as a jump target every 70 s, 3 runs each: 3 / 4 / 1 / 4 such episodes
+  (test 12 / test 16 / real 12 / real 16). Blocking the move lets a lower rank stop the top rank (fails "check 2 item 1",
+  `tests/millHunt.test.ts:152`, and the no-deadlock check); a one-stop step back by the lower unit was tried and was
+  mostly blocked by the queue behind it (16 guards fill the gallery). H4 should decide with `setTarget`.
+- **Sim check** (`tests/helpers/millHuntSim.ts`): `CLUSTER` 3 m (:235); `clusterCheck` (:335) every step, by positions:
+  no guard has 2 or more others of his line within 3 m; a group with a guard admitted within `SPREAD_WIN` 15 s (:233,
+  the cap check's window: the start spread, a late joiner, a rejoin) is skipped. Report field `maxNear` (0 when no group of 3). Before the fix
+  it failed 8 sim tests (e.g. real 12: G8 + G9 + G10 at 21.4 s, G1 + G2 + G3 at 15.2 s).
+- **Polish 1** (:640): a second solo admitted to a stop takes its free partner spot (`pt2`); a solo's next leg puts him
+  back on `pt`. Test "a second solo admitted to a taken stop ..." (:406). Left: in the real 16 set G15 + G16 pair at the
+  stair head stop where G10 already stands: G15 shares G10's `pt` for 0.2-8.0 s while G10 spreads out (three guards,
+  two spots; inside the start window). No other shared goal in any sim.
+- **Polish 4** (:956): `uBack`: the one look back is used once per stop visit; later hold cycles there leave it out
+  (cleared by the next leg). Test "a unit holding in the target room has its one look back once ..." (:456).
+- **H3: a woken guard re-pairs** (`admit` :596, :599; `free` :810): a dead or taken member off the board frees his
+  index and his partner's link on the next tick, so a woken guard (a new object) pairs again by the map's pair data; if
+  he is admitted before that tick, he takes over the old object's index by `slotIdx`. Test "a woken guard ..." (:351).
+- **H3: freed indices** (`tick` :1030): a guard is still admitted after 30 kill / revive cycles (half with a slot index
+  the board never saw). Test "a dead or taken member frees his board index ..." (:383). A fighter (`alert`, alive) keeps
+  his index for his rejoin.
+- **H3: stuck watch** (`HUNT.stuckT` 8 s, `stuckGain` 0.1 m, :60; `watch` :1053; `mSkip` :175): a member whose best
+  distance to his spot does not shrink by 0.1 m for 8 s gives the spot up: he counts as arrived, his goal is where he
+  stands, his unit clears the stop from there (marking it done in the target room) and steps on; the next leg resets it.
+  Why 8: `goTo` replans once a second; a walkable leg gains 0.45 m a second; shorter than one hold cycle. Test "a member
+  who gets no nearer his spot for stuckT ..." (:419). Never fires in the sims (0 skips). H3: still watch for it in the
+  manager run (a skip shows as `mSkip[i]` 1).
+- **H3: goal hand-off without allocation**: `gx` / `gz` / `gface` / `gspeed` (:159), written by `emit` (:1293) every
+  tick for every on-board member. H3 reads after `tick`: for each guard, `i = board.memberIndex(guard)` (cache it at
+  `admit`; it is stable until he is dead / taken and off the board), and if `board.mOn[i]`, goal (`gx[i]`, `gz[i]`),
+  face `gface[i]` (NaN while walking), pace `gspeed[i]`. The `out` callback is now optional (pass `null`); the sims read
+  the arrays (`HuntWorld.handoff`, millHuntSim :196). The allocation test now includes the hand-off: 0 B per tick.
+
+Notes for H4 (check A polish 5): the board has no entry point for a glimpse or a sound yet (add e.g. `cue(m, x, z)`
+beside the `H_CHECK` hooks in `advanceUnit` / `decide`), and a check needs a goal off the stop spots (`emit` sends
+`spotX` / `spotZ` or, since this round, the member's own position when `mSkip`; `roomLoad` counts `mTo` stops).
+Note for H3: a guard who never reaches his spot no longer holds the phase until `phaseMax`: the stuck watch moves his
+unit on after 8 s; watch for skips in the e2e (each one is a stop the nav could not reach).
+
+| (test def / real `THORNBECK_HUNT`, 15 min, no trigger) | 12 | 16 |
+| --- | --- | --- |
+| start over the cap | startBay 3 / startBay 3 | startBay 3, stairHead 3 / the same |
+| cap / growth / deadlock / 3-within-3 m fails | 0 / 0 | 0 / 0 |
+| groups of 3 within 3 m after the window (`maxNear`) | none / none | none / none |
+| phase steps (s) | 60, 120, 180, 240, 300.6 / the same | 60, 120, 180, 240, 300.0 / 60, 120, 180, 240, 313.4 |
+| most reversals of one member | 1 / 1 | 1 / 1 |
+| end state fails | 0 / 0 | 0 / 0 |
+| longest single hold (s) | 641 / 668 | 893 / 882 |
+| stuck skips | 0 / 0 | 0 / 0 |
+| late joiners + fight rejoins | all checks pass | all checks pass |
+| two runs | identical | identical |
+
+Verify: `npm run typecheck:fast` exit 0; `npx vitest run tests/millHunt.test.ts tests/millHuntThornbeck.test.ts
+tests/thornbeckMill.test.ts`: 80 passed (28 + 9 + 43); eslint on the three changed files clean. Not run: `npm run dev`,
+e2e, full `npm run check`.
