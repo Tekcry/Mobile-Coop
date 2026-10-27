@@ -17,11 +17,11 @@ UPDATE ~15:00: CM3 two Opus PASS -> PR 2 = #711 (feature/campaign-mode-cm3 8bbc6
    retarget to master when #708 lands, re-post checker). CM5 notes from the checks: sections before a Continue stay
    unrated; the save stays on the match options (a restart reuses them: clear it after the Continue starts); the real
    SectorMode resume wiring has no unit test (stand-in mode): add one in CM5.
-CM4 two Opus PASS -> PR 3 = #716 (feature/campaign-mode-cm4 e387efb98, base cm3). Stack #708 -> #711 -> #716:
-   retarget each to master as the one below lands, re-post checker. CM5 + CM6 BUILDING (~15:40, Opus) on
-   feature/campaign-mode-cm5 (worktree -cm5, from #716); brief scratch/campaign/cm/CM56-brief.md, report CM56-report.md
-   (resume from its step if cut off). Then two Opus checkers -> PR 4; then CM7 (e2e-coop campaign part, Sonnet) -> PR 5
-   with Job-done: campaign-mode.
+J22 FULLY BUILT (~16:00). Stack, land in order, each retargets to master as the one below lands (re-post checker):
+   #708 (CM1+CM2) -> #711 (CM3, cm3) -> #716 (CM4, cm4) -> #718 (CM5+CM6, cm5, big-pr) -> #719 (CM7 e2e, cm7, Job-done).
+   All checked (two Opus on src/net). First laptop run of e2e-coop:campaign filed (20261027T045554-...-95fcc1b5-9895):
+   red -> one fix + one rerun (G422; likely spots: the cross-context relay, private reads). Michael question sent: quit +
+   Continue drops that section's kills / alarms (perfect loophole, A7). Polish lists: scratch/campaign/cm/*-check*.md.
 
 ## OLD RESUME 2026-10-27 ~11:50 SAVE (Night Shift | Campaign Build; reset 13:50: carry on without waiting)
 Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). All worktrees clean and pushed.
