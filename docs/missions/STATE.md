@@ -1,7 +1,29 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-27 ~14:30 SAVE (Night Shift | Campaign Build; account swap ~14:35)
+## RESUME 2026-10-27 ~16:10 FINAL - PROJECT ON HOLD (Michael ~15:35: "finish what remains and put everything on hold")
+Read this block first if the project resumes. Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end);
+briefs, reports and checks: C:/NightShift/scratch/campaign/cm/ (J22) and scratch/campaign/piano/ (storm mill).
+On master: the storm mill (4.127.0 #631; #690 skip hint, #693 roof + lamp chains, #701 real rain / thunder, CC0 +
+CC-BY 4.0), Tallow Mission 1 (#583). All flags on in /preview/, off live (Michael ~14:45).
+J22 campaign-mode, all built and checked, all dark (`?campaign=1` + missions), a stacked set; land in order, each
+retargets to master once the one below lands (re-post `checker` on the retarget):
+1. #708 feature/campaign-mode (CM1 + CM2 + plan docs; base master): Opus PASS; affected-e2e pending at the hold.
+2. #711 feature/campaign-mode-cm3 (CM3, src/net; base #708): two Opus PASS; affected pending.
+3. #716 feature/campaign-mode-cm4 (CM4, lobby + main menu; base #711): two Opus PASS; affected pending.
+4. #718 feature/campaign-mode-cm5 (CM5 + CM6, big-pr; base #716): two Opus PASS; affected pending.
+5. #719 feature/campaign-mode-cm7 (CM7 e2e part `e2e-coop:campaign`, Job-done; base #718): Sonnet PASS, DRAFT (built
+   before the hold reached me); its first laptop run was WITHDRAWN at the hold. It has never run: on resume, mark it
+   ready, request `e2e-coop:campaign`, one fix + one rerun (G422; likely spots: the cross-context relay, private reads).
+Open for Michael: (a) quit mid-section + Continue drops that section's kills / alarms (save at section start, A7): a
+perfect-score loophole; keep, or keep the tally on quit. (b) J22 Q1: the lobby listing of Tallow's two missions (built on
+"Both as Mission 1, in order"). (c) The storm level after #701 (may be very faint). (d) Mill polish when he asks: the
+knife as a fist at the flash, the hero framed larger, light through the glide (S8 notes).
+Polish lists (none blocking): scratch/campaign/cm/CM3-check-*.md, CM4-check-*.md, CM56-check-*.md, CM7-check.md.
+Worktrees: Mobile-Coop-campaign-mode[-cm3|-cm4|-cm5|-cm7], all clean and pushed.
+Next if resumed: land the J22 stack in order; then #719's laptop run; then Michael's answers to (a)-(d).
+
+## OLD RESUME 2026-10-27 ~14:30 SAVE (Night Shift | Campaign Build; account swap ~14:35)
 Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). Worktrees pushed (CM3 as WIP).
 1. J22 campaign-mode. PR 1 = #708 (feature/campaign-mode e55873c55: flag, campaignOrder, campaignRating,
    campaignRecord, plan docs; Opus PASS, checker posted): watch CI + affected; train-ready from the watchdog.
