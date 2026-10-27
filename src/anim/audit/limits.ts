@@ -17,7 +17,7 @@ export const PELVIS_JUMP_SLACK = 0.02;
 export function pelvisJumpLimit(speed: number, hz: number): number {
   return speed / hz + PELVIS_JUMP_SLACK;
 }
-/** :795 with movement.ts gear caps: pelvis jump limits per gear 1..6 (index 0 = gear 1). */
+/** :795 with movement.ts gear caps: pelvis jump limits per gear 1..5 (index 0 = gear 1; GEARS.count: there is no gear 6, J19 S5). */
 export function pelvisJumpByGear(stance: 'stand' | 'crouch', hz: number): number[] {
   return GEARS[stance].map((v) => pelvisJumpLimit(v, hz));
 }
@@ -91,20 +91,29 @@ export const SEGMENT_MASS = {
 } as const;
 export const SEGMENT_COM = { trunk: 0.5, upperArm: 0.436, forearm: 0.43, thigh: 0.433, shank: 0.433 } as const;
 
-/** :824-834 - minimum action durations (s). */
+/** :822-832 - minimum action durations (s) (bible 5.12.2 item 6). */
 export const MIN_DURATION = {
   crouch: 0.25,
   stand: 0.3,
-  turn180: 0.25,
+  /** :824 flick turn (G33; J19 S5 R30: was 0.25). */
+  turn180: 0.4,
   mantle: 0.6,
   vault: 0.5,
   rung: 0.3,
-  raise: 0.2,
+  /** :828 weapon raise = the draw (G243, A14): pistol, every other class the rifle's (drawState.ts drawTimeFor). */
+  raisePistol: 0.75,
+  raiseRifle: 1.1,
   swap: 0.6,
   grab: 0.5,
   lift: 1.0,
+  /** :832 press to the victim down (approach + strike, 5.4): the anim-audit takedown row (J19 S5 R30). */
   takedown: 1.0,
 } as const;
+
+/** (J19 S5, R30, A14) The draw's minimum for a weapon class, split as drawState.ts drawTimeFor: 'pistol', else the rifle's. */
+export function raiseMin(cls: string): number {
+  return cls === 'pistol' ? MIN_DURATION.raisePistol : MIN_DURATION.raiseRifle;
+}
 
 /** :824-825 - stance change done: crouchBlend within this of its target. */
 export const STANCE_DONE_TOL = 1e-4;
@@ -118,13 +127,13 @@ export const RAISE_DONE = 0.95;
 export const PARITY = { root: 0.02, yaw: 0.02, feet: 0.04, camH: 0.03, camV: 0.02 } as const;
 
 /** :1253 - D2 pelvis peak-to-peak per stride; exactly one low and one high per step (2 mm hysteresis). */
-export const PELVIS_P2P = { crouch: 0.025, walk: 0.04, run: 0.06, sprint: 0.08 } as const;
+export const PELVIS_P2P = { crouch: 0.025, walk: 0.04, run: 0.06 } as const;
 export const PELVIS_HYST = 0.002;
 export type GaitBand = keyof typeof PELVIS_P2P;
-/** D2 gear mapping (A7, ASSUMED - for review): stand 1-3 walk, 4-5 run, 6 sprint; crouch 1-6 crouch. */
+/** D2 gear mapping (A7): stand 1-3 walk, 4-5 run; crouch 1-5 crouch (J19 S5: no gear 6, no sprint band, G31). */
 export function gaitBand(stance: 'stand' | 'crouch', gear: number): GaitBand {
   if (stance === 'crouch') return 'crouch';
-  return gear <= 3 ? 'walk' : gear <= 5 ? 'run' : 'sprint';
+  return gear <= 3 ? 'walk' : 'run';
 }
 /** :1254 - head travel <= pelvis p2p; head pitch / roll p2p <= 2 deg. */
 export const HEAD_ANGLE_P2P = 2;
@@ -149,12 +158,12 @@ export const IDLE_BREATH = 0.01;
 /**
  * (locomotion step 21, D5.6 / M14) Holstered arms: elbow flexion stays in these bands (deg) over the steady gait. M14
  * replaced A42's ready hands in front (60-90 deg, first cut of this gate) with arms relaxed at the sides: a slight bend
- * standing, walking and jogging (~10-25), softly bent crouched (never straight: PC1 measured 5.1), pumping at the sprint
- * (A76). The forearms also stay clear of the thighs (CLIP_SELF, LIMB_RADIUS forearm + thigh).
+ * standing, walking and jogging (~10-25), softly bent crouched (never straight: PC1 measured 5.1). The forearms also stay
+ * clear of the thighs (CLIP_SELF, LIMB_RADIUS forearm + thigh).
  */
-export const READY_ELBOW = { stand: { min: 8, max: 30 }, crouch: { min: 15, max: 50 }, sprint: { min: 55, max: 95 } } as const;
-export function readyElbowBand(stance: string, gear: number): { min: number; max: number } {
-  return stance === 'crouch' ? READY_ELBOW.crouch : gear >= 6 ? READY_ELBOW.sprint : READY_ELBOW.stand;
+export const READY_ELBOW = { stand: { min: 8, max: 30 }, crouch: { min: 15, max: 50 } } as const;
+export function readyElbowBand(stance: string): { min: number; max: number } {
+  return stance === 'crouch' ? READY_ELBOW.crouch : READY_ELBOW.stand;
 }
 /** (locomotion step 11) Back to a wall: the back and shoulder blades within this of the face, and no deeper behind it (m). */
 export const WALL_GAP = 0.03;

@@ -9,11 +9,13 @@
  * capture's own swing (AF2-REPORT.md).
  */
 import { appendFileSync } from 'node:fs';
-import { afterAll, describe, expect, it } from 'vitest';
-import { bankRoll, elbowOutRate, runGait, trunkPitch, wristJerk, type Run } from './helpers/afpMeasure';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
+import { bankRoll, elbowOutRate, pelvisLateral, runGait, trunkPitch, wristJerk, type Run } from './helpers/afpMeasure';
 import { pops, type Rec } from './helpers/mocapMeasure';
 import type { Target } from './helpers/mocapPlayer';
-import { MOCAP_LAYERS } from '../src/anim/mocap';
+import { MOCAP_LAYERS, MOCAP_RAW, MOCAP_RUN_POSE, setMocapRaw } from '../src/anim/mocap';
+import { flags } from '../src/core/flags';
+import { MOVEMENT } from '../src/config/movement';
 
 // AFP_BEFORE=1: the four AF2 layers at 1 (exactly the code before AF2) to print the before rows (the asserts then fail)
 if (process.env.AFP_BEFORE) Object.assign(MOCAP_LAYERS, { pelHeight: 1, trunkMean: 1, bankWipe: 1, armSmooth: 1 });
@@ -124,5 +126,103 @@ describe('AF2: the mocap run carriage', () => {
       const b = before[n];
       if (b !== undefined) expect.soft(w.max).toBeLessThan(b);
     }
+  }, 600000);
+});
+
+describe.skipIf(!!process.env.AFP_BEFORE)('(J19 S5, R25, G217) no forward lean below 3.5 m/s, the run as before', () => {
+  it('the trunk at 2.1, 3.0 and 3.3 m/s within 1 deg of the walk, the 2.4 / 2.7 blend within 1.5', async () => {
+    const W = trunkPitch((await gait(1.4, 0)).R).mean;
+    log(`(J19 S5) walk 1.4 trunk ${W.toFixed(2)} deg`);
+    for (const v of [2.1, 2.4, 2.7, 3.0, 3.3]) {
+      const m = trunkPitch((await gait(v, 0)).R).mean;
+      log(`(J19 S5) trunk v ${v}: ${m.toFixed(2)} deg (walk ${W.toFixed(2)}, diff ${(m - W).toFixed(2)})`);
+      if (v >= 3) expect.soft(Math.abs(m - W)).toBeLessThanOrEqual(1.0);
+      else expect.soft(m - W).toBeLessThanOrEqual(1.5);
+    }
+  }, 300000);
+
+  it('the run at 4.0 m/s within 0.3 deg and 2 mm of the pre-S5 carriage', async () => {
+    const now = trunkPitch((await gait(4, 0)).R);
+    const R = MOCAP_RUN_POSE as unknown as Record<string, number>;
+    const pre: Record<string, number> = { from: 2.0, to: 3.0, pitch: 0.26, pitchSprint: 0.32, pitchFrom: 4.0, pitchTo: 5.0 };
+    const keep: Record<string, number> = {};
+    for (const k of Object.keys(pre)) keep[k] = R[k]!;
+    let old: ReturnType<typeof trunkPitch>;
+    try {
+      Object.assign(R, pre);
+      old = trunkPitch((await runGait(4, 0)).R);
+    } finally {
+      Object.assign(R, keep);
+    }
+    log(`(J19 S5) run 4.0: trunk ${now.mean.toFixed(2)} deg (pre-S5 ${old.mean.toFixed(2)}), hipY ${(now.hipY * 100).toFixed(2)} cm (pre-S5 ${(old.hipY * 100).toFixed(2)})`);
+    expect.soft(Math.abs(now.mean - old.mean)).toBeLessThanOrEqual(0.3);
+    expect.soft(Math.abs(now.hipY - old.hipY)).toBeLessThanOrEqual(0.002);
+  }, 300000);
+
+  it('a start to the run and a hard stop from it: no bone step over max(25, OFF + 1)', async () => {
+    const cases: [string, Target][] = [
+      ['start 0-4', (t) => ({ v: t < 1 ? 0 : 4, yr: 0 })],
+      ['stop 4-0', (t) => ({ v: t < 2.5 ? 4 : 0, yr: 0 })],
+    ];
+    for (const [n, target] of cases) {
+      const on = pops((await runGait(0, 0, { warm: 0.5, sec: 3.5, target, mode: 'on' })).R).maxStepDeg;
+      const off = pops((await runGait(0, 0, { warm: 0.5, sec: 3.5, target, mode: 'off' })).R).maxStepDeg;
+      log(`(J19 S5) ${n}: bone step ${on.toFixed(1)} deg (OFF ${off.toFixed(1)})`);
+      expect.soft(on).toBeLessThanOrEqual(Math.max(25, off + 1));
+    }
+  }, 300000);
+
+  it('the carriage numbers', () => {
+    expect(MOCAP_RUN_POSE.pitchFrom).toBeGreaterThanOrEqual(3.5);
+    expect(MOCAP_RUN_POSE.pitchTo).toBeLessThanOrEqual(4.0 * (1 - MOVEMENT.rootDip));
+    expect(MOCAP_RUN_POSE.pitchSprint).toBe(0.26);
+    expect(MOCAP_RUN_POSE.from).toBe(2.0);
+    expect(MOCAP_RUN_POSE.to).toBe(2.6);
+  });
+});
+
+describe.skipIf(!!process.env.AFP_BEFORE)('(J19 S5, R27) ?mocapraw=1: the capture as recorded', () => {
+  afterEach(() => setMocapRaw(false));
+
+  it('off by default: the AF2 corrections on', () => {
+    expect(flags.mocapRaw).toBe(false);
+    expect(MOCAP_RAW.on).toBe(false);
+    expect([MOCAP_LAYERS.pelHeight, MOCAP_LAYERS.trunkMean, MOCAP_LAYERS.bankWipe, MOCAP_LAYERS.armSmooth]).toEqual([0, 0, 0, 0]);
+  });
+
+  it('setMocapRaw: the four AF2 layers at 1, the rest untouched; off restores every entry', () => {
+    const before = { ...MOCAP_LAYERS };
+    setMocapRaw(true);
+    expect(MOCAP_RAW.on).toBe(true);
+    expect(MOCAP_LAYERS).toEqual({ ...before, pelHeight: 1, trunkMean: 1, bankWipe: 1, armSmooth: 1 });
+    setMocapRaw(false);
+    expect(MOCAP_LAYERS).toEqual(before);
+    expect(MOCAP_RAW.on).toBe(false);
+  });
+
+  it('headless: the run as captured, the crouch walk not re-posed', async () => {
+    const run = (await gait(4, 0)).R;
+    const crouch = (await runGait(0.85, 0, { crouch: true })).R;
+    let rawRun: Run['R'];
+    let rawCrouch: Run['R'];
+    try {
+      setMocapRaw(true);
+      rawRun = (await runGait(4, 0)).R;
+      rawCrouch = (await runGait(0.85, 0, { crouch: true })).R;
+    } finally {
+      setMocapRaw(false);
+    }
+    const roll = [pelvisRollMean(run), pelvisRollMean(rawRun)];
+    const hipY = [trunkPitch(run).hipY, trunkPitch(rawRun).hipY];
+    const jerk = [wristJerk(run).max, wristJerk(rawRun).max];
+    const lean = [trunkPitch(crouch).mean, trunkPitch(rawCrouch).mean];
+    const sway = [pelvisLateral(crouch).p2p, pelvisLateral(rawCrouch).p2p];
+    log(`(J19 S5) mocapraw run: pelvis roll mean ${roll[0]!.toFixed(2)} -> ${roll[1]!.toFixed(2)} deg; hipY ${(hipY[0]! * 100).toFixed(1)} -> ${(hipY[1]! * 100).toFixed(1)} cm; wrist jerk max ${jerk[0]!.toFixed(2)} -> ${jerk[1]!.toFixed(2)} cm`);
+    log(`(J19 S5) mocapraw crouch walk 0.85: trunk ${lean[0]!.toFixed(1)} -> ${lean[1]!.toFixed(1)} deg; pelvis sway p2p ${(sway[0]! * 100).toFixed(1)} -> ${(sway[1]! * 100).toFixed(1)} cm`);
+    expect.soft(Math.abs(roll[1]!)).toBeGreaterThanOrEqual(Math.abs(roll[0]!) + 2);
+    expect.soft(hipY[1]!).toBeLessThanOrEqual(hipY[0]! - 0.04);
+    expect.soft(jerk[1]!).toBeGreaterThan(jerk[0]!);
+    expect.soft(lean[1]!).toBeGreaterThanOrEqual(lean[0]! + 6);
+    expect.soft(sway[1]!).toBeGreaterThanOrEqual(1.5 * sway[0]!);
   }, 600000);
 });

@@ -22,7 +22,7 @@
 //   --band=<baseline.json>  an earlier full run: the baseline written by this run keeps, per gated remote metric, the
 //             worse of the two runs and their spread (`band`). The committed baseline is made this way (two runs)
 //
-//   --quick   flat only, stand 2 / 4 / 6 and crouch 3 at 60 and 120 Hz, plus stop / idle (< 60 s; steps 21-31)
+//   --quick   flat only, stand 2 / 4 / 5 and crouch 3 at 60 and 120 Hz, plus stop / idle (< 60 s; steps 21-31)
 //   --only    run only the scenarios whose name contains this text
 //   --out     output folder (default test-results/anim-audit): local.json / remote.json (per scenario and metric: worst,
 //             frame, limit, pass, bible line), fails.txt (one line per fail, tagged local / remote; remote frames are A's
@@ -125,7 +125,7 @@ for (const n of NODES) for (const k of ['x', 'y', 'z', 'qx', 'qy', 'qz', 'qw']) 
 names.push('cam.x', 'cam.y', 'cam.z', 'cap.x', 'cap.y', 'cap.z', 'fix.x', 'fix.y', 'fix.z', 'speed', 'gear', 'crouchBlend', 'crouched', 'yaw', 'grounded');
 for (const s of ['L', 'R']) for (const k of ['contact', 'landed', 'slide', 'x', 'y', 'z', 'yaw', 'gy', 'gyH', 'gyT', 'held']) names.push(`${s}.${k}`);
 names.push('lower', 'lowerW', 'grip.x', 'grip.y', 'grip.z', 'muz.x', 'muz.y', 'muz.z', 'hR.x', 'hR.y', 'hR.z', 'hL.x', 'hL.y', 'hL.z', 'wR', 'wL');
-names.push('raise', 'swapping', 'traverse', 'attached', 'ladderS', 'tgt');
+names.push('raise', 'drawPh', 'swapping', 'traverse', 'attached', 'ladderS', 'tgt');
 // the old medkit use's phase column (always -1 now: carried medkits are gone, G98; kept for the frame layout) and the anim
 // graph's free hand targets in world
 names.push('kitPh', 'tL.x', 'tL.y', 'tL.z', 'tR.x', 'tR.y', 'tR.z');
@@ -294,6 +294,7 @@ await G(([NODES, W, names, LOWER]) => {
     f[o++] = lg ? offW : gw;
     f[o++] = lg ? gw : offW;
     f[o++] = p.carry.raise;
+    f[o++] = g.weapons?.drawPhase ?? NaN; // (J19 S5) the draw phase (2 drawn), the raise row's end
     f[o++] = g.weapons?.swapping ? 1 : 0;
     // committed traversal (vault, mantle, step, drop: `traversal.kind`) or an attached / traversal pose
     const tk = g.traversal?.kind;
@@ -362,15 +363,11 @@ await G(([NODES, W, names, LOWER]) => {
         st.move.x = inp.x ?? 0;
         st.move.y = inp.y ?? 0;
         st.set('anim-audit', 'ads', !!inp.ads);
-        // (step 17, A68) sprint held as the game reads it (`dash`: one press edge in toggle mode, held in hold mode);
-        // kept down across back-to-back sprint runs (a release + press would toggle it off)
-        st.set('anim-audit', 'dash', !!inp.sprint);
         if (inp.taps?.[k]) st.tap(inp.taps[k]);
         a.loop.stepHeadless(1 / 60, hz);
       }
       st.move.x = st.move.y = 0;
       st.set('anim-audit', 'ads', false);
-      if (!inp.sprint) st.set('anim-audit', 'dash', false);
       return aa.frames.length;
     },
     /** Hold `inp` until the capsule lands after being airborne (or `max` s). */
@@ -399,7 +396,6 @@ await G(([NODES, W, names, LOWER]) => {
       if (aa.w0 === undefined) aa.w0 = W.index;
       st.move.x = st.move.y = 0;
       st.set('anim-audit', 'ads', false);
-      st.set('anim-audit', 'dash', false);
       if (g.wallCore?.active) {
         g.wallCore.leave('test');
         was.push('wall');
@@ -457,13 +453,13 @@ const gaits = [];
 // gaits run holstered (the game default, step 09); the `-aim` subset runs drawn and aimed (A42)
 const add = (surface, stance, gear, hz, aim = false) => gaits.push({ name: `${surface}-${stance}${gear}${aim ? '-aim' : ''}`, kind: 'gait', surface, stance, gear, hz, aim });
 if (QUICK) {
-  for (const hz of [60, 120]) for (const [s, g] of [['stand', 2], ['stand', 4], ['stand', 6], ['crouch', 3]]) add('flat', s, g, hz);
+  for (const hz of [60, 120]) for (const [s, g] of [['stand', 2], ['stand', 4], ['stand', 5], ['crouch', 3]]) add('flat', s, g, hz);
 } else {
-  // (step 17, A68) gear 6 is the sprint (sprint held, standing): crouched gear 6 is unreachable, crouch rows stop at 5
-  for (const hz of [60, 120]) for (const s of ['stand', 'crouch']) for (let g = 1; g <= (s === 'crouch' ? 5 : 6); g++) add('flat', s, g, hz);
-  for (const surface of ['stairs', 'ramp']) for (const s of ['stand', 'crouch']) for (let g = 1; g <= (s === 'crouch' ? 5 : 6); g++) add(surface, s, g, 60);
+  // (J19 S5, G31) five gears standing and crouched (GEARS.count): the old stand6 rows ran the gear-5 run under the old gear-6 band
+  for (const hz of [60, 120]) for (const s of ['stand', 'crouch']) for (let g = 1; g <= 5; g++) add('flat', s, g, hz);
+  for (const surface of ['stairs', 'ramp']) for (const s of ['stand', 'crouch']) for (let g = 1; g <= 5; g++) add(surface, s, g, 60);
   for (const surface of ['stairs', 'slope35'])
-    for (const [s, g] of [['stand', 2], ['stand', 4], ['stand', 6], ['crouch', 2]]) add(surface, s, g, 120);
+    for (const [s, g] of [['stand', 2], ['stand', 4], ['stand', 5], ['crouch', 2]]) add(surface, s, g, 120);
 }
 // the drawn subset runs last (step 09 fix 4): the page carries its clocks and springs from one scenario to the next, so
 // running it among the gaits shifted every later holstered row (idle breathing phase, tunnel head / camera)
@@ -478,7 +474,10 @@ for (const hz of [60, 120]) for (const t of TRANS) transitions.push({ name: t, k
 // A3: the wall edge verbs (peek, lean-out, SWAT turn, open side) were removed; their scenarios are dropped (prototype: revisit)
 // (step 13) door peek at the Proving shed door: crack, peek, close (the hand on the handle, no clip into the leaf)
 if (!QUICK) for (const hz of [60, 120]) transitions.push({ name: 'doorpeek', kind: 'door', hz });
-const scenarios = [...gaits, ...transitions, ...aimGaits].filter((s) => !ONLY || s.name.includes(ONLY));
+const takedowns = [];
+// (J19 S5, R30) last: the guard it spawns never shares the page with an earlier row
+if (!QUICK) for (const hz of [60, 120]) takedowns.push({ name: 'takedown', kind: 'takedown', hz });
+const scenarios = [...gaits, ...transitions, ...aimGaits, ...takedowns].filter((s) => !ONLY || s.name.includes(ONLY));
 
 /** Drive one scenario in the page; returns frame markers. */
 async function drive(sc, halt = -1) {
@@ -492,7 +491,7 @@ async function drive(sc, halt = -1) {
       const s = SURF[sc.surface];
       const crouch = sc.stance === 'crouch';
       t.stance(crouch, sc.gear);
-      const cap = (crouch ? [0.85, 1.3, 1.7, 2.15, 2.6, 2.6] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1];
+      const cap = (crouch ? [0.85, 1.3, 1.7, 2.15, 2.6] : [0.65, 1.1, 1.65, 2.3, 3.15])[sc.gear - 1];
       // flat: 1.0 s accel + >= 2 strides; ramps and stairs: the accel is short (95% within 0.08 s), so the steady
       // window covers the slope from 0.3 s on and ends 0.4 m before its top
       let accel = 1.0;
@@ -512,11 +511,9 @@ async function drive(sc, halt = -1) {
       t.begin(halt);
       t.run(0.3, { ads }, hz);
       m.start = t.mark();
-      // (step 17, A68) gear 6 only with sprint held: the stand6 rows hold it through accel + steady
-      const sprint = !crouch && sc.gear === 6;
-      t.run(accel, { y: 1, ads, sprint }, hz);
+      t.run(accel, { y: 1, ads }, hz);
       m.steady = t.mark();
-      t.run(steady, { y: 1, ads, sprint }, hz);
+      t.run(steady, { y: 1, ads }, hz);
       m.stop = t.mark();
       t.run(STOP, { ads }, hz);
       m.end = t.mark();
@@ -546,10 +543,12 @@ async function drive(sc, halt = -1) {
       t.stance(false, 3);
     } else if (sc.kind === 'raise') {
       t.tp(-26, -26, 0);
+      m.cls = g.weapons?.current?.def?.class ?? 'rifle';
       t.begin(halt);
       t.run(0.3, {}, hz);
       m.raise = t.mark();
-      t.run(0.8, { ads: true }, hz);
+      // (J19 S5) held past the rifle's 1.1 s draw (drawState.ts)
+      t.run(2.0, { ads: true }, hz);
       m.lower = t.mark();
       t.run(1.0, {}, hz);
       m.end = t.mark();
@@ -691,6 +690,27 @@ async function drive(sc, halt = -1) {
       m.end = t.mark();
       t.stance(false, 3);
       m.cap = 1.3;
+    } else if (sc.kind === 'takedown') {
+      // (J19 S5, R30, bible 5.12.2 item 6 / 5.4) a front knockout on a calm grunt 1.2 m ahead (as e2e-takedown's "front"):
+      // from the frame before the interact tap until the victim is down (`alive` false), stepped one sim step at a time
+      const em = g.enemyMgr;
+      em.clear();
+      t.stance(false, 3);
+      t.tp(-26, -26, 0);
+      const e = em.spawn('grunt', new g.player.position.constructor(-26, 0, -24.8), false, Math.PI);
+      e.passive = true;
+      t.run(0.4, {}, hz);
+      m.offer = g.takedown.offer?.plan.kind ?? 'none';
+      t.begin(halt);
+      t.run(0.3, {}, hz);
+      m.press = t.mark();
+      t.run(1 / 60, { taps: { 1: 'interact' } }, hz);
+      for (let k = 0; k < 180 && e.alive && !t.halted(); k++) t.run(1 / 60, {}, hz);
+      m.down = e.alive ? -1 : t.mark();
+      t.run(1.0, {}, hz);
+      m.end = t.mark();
+      g.takedown.reset();
+      em.clear();
     }
     return m;
   }, [sc, halt, SURF, ACCEL, STOP]);
@@ -1031,7 +1051,7 @@ function steady(rec, hz, out, a, b, band, lateral, cap, surface) {
       res(out, 'lateralSway', { worst: mx - mn, frame: fr, pass: mx - mn <= L.WALK_SWAY_WREN }, L.WALK_SWAY_WREN, ':1255', 'm', a);
     } else res(out, 'lateralSway', M.lateralSway(vec(rec, 'hips', a, b), vec(rec, 'cap', a, b), col(rec, 'yaw', a, b), L.WALK_SWAY_WREN), L.WALK_SWAY_WREN, ':1255', 'm', a);
   }
-  // camera: high-passed over two steps (a slow framing ease, e.g. the sprint framing, is not an oscillation)
+  // camera: high-passed over two steps (a slow framing ease, e.g. the run framing, is not an oscillation)
   const si = [];
   for (let i = 0, last = -1; i < strikes.length; i++) if (strikes[i]) (last >= 0 && si.push(i - last), (last = i));
   const win = si.length ? 2 * median(si) : Math.round(hz * 0.6);
@@ -1113,7 +1133,7 @@ function analyze(sc, rec) {
     // (step 21, D5.6 / M14, PC1) holstered arms relaxed at the sides: the elbow band per stance / gear over the steady
     // window (A42's 60-90 replaced by M14), and the forearms clear of the thighs
     if (!sc.aim && m.stop > from) {
-      const eb = L.readyElbowBand(sc.stance, sc.gear);
+      const eb = L.readyElbowBand(sc.stance);
       for (const s of ['L', 'R']) {
         const fb = M.flexBand(vec(rec, `shoulder${s}`, from, m.stop), vec(rec, `elbow${s}`, from, m.stop), vec(rec, `wrist${s}`, from, m.stop), eb.min, eb.max);
         res(out, `readyElbow${s}`, { ...fb, extra: { min: +fb.min.toFixed(1), max: +fb.max.toFixed(1) } }, `${eb.min}-${eb.max}`, 'D5.6 / M14', 'deg', from);
@@ -1130,7 +1150,7 @@ function analyze(sc, rec) {
     const moving = L.pelvisJumpByGear('stand', hz)[sc.kind === 'turn180' ? 3 : 2];
     // (step 10) strike: balance from the end of its 0.9 s (STRIKE_DUR)
     const bal = sc.kind === 'idle' ? m.idle : sc.kind === 'strike' ? m.strike + Math.round((rec.remote ? 1 / rec.dtMed : hz) * 0.9) : -1;
-    common(rec, hz, out, 0, rec.n, ['turn180', 'vault', 'mantle', 'drop09', 'drop24', 'ladder', 'wall'].includes(sc.kind) ? moving : still, bal);
+    common(rec, hz, out, 0, rec.n, ['turn180', 'vault', 'mantle', 'drop09', 'drop24', 'ladder', 'wall', 'takedown'].includes(sc.kind) ? moving : still, bal);
     const dt = rec.remote ? rec.dtMed : 1 / hz;
     if (sc.kind === 'stance') {
       // from the last frame before the press until crouchBlend is within 1e-4 of its target
@@ -1147,11 +1167,13 @@ function analyze(sc, rec) {
         if (Math.abs(M.wrapPi(v - y0 - Math.PI)) < (10 * Math.PI) / 180) done = true;
         return done ? 0 : 1;
       });
-      res(out, 'turn180Time', M.durationOf(turning, dt, L.MIN_DURATION.turn180), L.MIN_DURATION.turn180, ':826', 's');
+      res(out, 'turn180Time', M.durationOf(turning, dt, L.MIN_DURATION.turn180), L.MIN_DURATION.turn180, ':824', 's');
     } else if (sc.kind === 'raise') {
-      const r = col(rec, 'raise');
-      // from the last frame before the ADS input until raise >= RAISE_DONE
-      res(out, 'raiseTime', M.reachTime(r.slice(0, m.lower).map((v) => Math.min(v, L.RAISE_DONE)), m.raise - 1, dt, L.MIN_DURATION.raise, L.RAISE_DONE, 0), L.MIN_DURATION.raise, ':830', 's');
+      // (J19 S5, R30, A14: the bible's "Weapon raise" is the draw, G243) from the last frame before the ADS press until the
+      // draw state reads drawn (DRAW_DRAWN 2, a sim-rate signal), against the class's minimum (pistol 0.75, rifle 1.1 s)
+      const lim = L.raiseMin(m.cls ?? 'rifle');
+      const d = col(rec, 'drawPh');
+      res(out, 'raiseTime', { ...M.reachTime(d.slice(0, m.lower), m.raise - 1, dt, lim, 2, 0, 1 / 60), extra: { cls: m.cls ?? null } }, lim, ':828', 's');
     } else if (sc.kind === 'swap') {
       res(out, 'swapTime', M.durationOf(col(rec, 'swapping'), dt, L.MIN_DURATION.swap), L.MIN_DURATION.swap, ':831', 's');
     } else if (sc.kind === 'vault' || sc.kind === 'mantle') {
@@ -1178,6 +1200,11 @@ function analyze(sc, rec) {
       const f = 1 / dt;
       const s0 = Math.min(rec.n - 1, m.strike + Math.round(f * 1.1));
       res(out, 'strikeSettle', { ...M.oscP2P(col(rec, 'headNode.y', s0, m.end), L.IDLE_BREATH), extra: { started: m.strikes ?? null } }, L.IDLE_BREATH, 'step 10 / D2', 'm', s0);
+    } else if (sc.kind === 'takedown') {
+      // (J19 S5, R30) press to the victim down >= MIN_DURATION.takedown (1.0 s); never down in 3 s: a fail at the run's end
+      const down = m.down >= 0;
+      const td = ((down ? m.down : rec.n) - m.press) * dt;
+      res(out, 'takedownTime', { worst: td, frame: down ? m.down - 1 : -1, pass: down && td >= L.MIN_DURATION.takedown - 1e-9, extra: { offer: m.offer, down } }, L.MIN_DURATION.takedown, ':832', 's');
     } else if (sc.kind === 'wall') {
       wallMetrics(rec, out, m, dt);
     } else if (sc.kind === 'door') {
@@ -1273,7 +1300,7 @@ function wallMetrics(rec, out, m, dt) {
 function remoteScenarios() {
   const out = [];
   const g = (surface, stance, gear, hz, extra = {}) => out.push({ name: `${surface}-${stance}${gear}`, kind: 'gait', surface, stance, gear, hz, ...extra });
-  const flat = QUICK ? [['stand', 4], ['crouch', 3]] : [['stand', 2], ['stand', 4], ['stand', 6], ['crouch', 3]];
+  const flat = QUICK ? [['stand', 4], ['crouch', 3]] : [['stand', 2], ['stand', 4], ['stand', 5], ['crouch', 3]];
   for (const [s, k] of flat) g('flat', s, k, 60);
   if (!QUICK) {
     g('stairs', 'stand', 3, 60);
@@ -1302,7 +1329,7 @@ function remoteSegments(sc) {
   if (sc.kind === 'wall') return [{ d: 0.6, tap: 'cover' }, { d: 1.0, x: 1 }, { d: 1.0 }, { d: 1.0, tap: 'crouch' }, { d: 1.0, x: -1 }, { d: 1.0 }];
   const s = SURF[sc.surface];
   const crouch = sc.stance === 'crouch';
-  const cap = (crouch ? [0.85, 1.3, 1.7, 2.15, 2.6, 2.6] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1];
+  const cap = (crouch ? [0.85, 1.3, 1.7, 2.15, 2.6] : [0.65, 1.1, 1.65, 2.3, 3.15])[sc.gear - 1];
   // as the local drive: flat 1.0 s accel + a steady window; ramps / stairs a short accel and the window up the slope
   // (remote runs in real time: a 1.5 s steady window, about three steps at a walk, and a 1.2 s stop keep it near 60 s)
   let accel = ACCEL;
@@ -1312,9 +1339,7 @@ function remoteSegments(sc) {
     steady = Math.min(3.0, Math.max(0.5, (s.len - 0.4 - 0.1 * cap) / cap - accel + 0.1));
   }
   // stopidle (r1): a 1.5 s idle tail, the breath measured after the stop settles
-  // (step 17, A68) stand6: sprint held through accel + steady (gear 6 only with sprint)
-  const sprint = !crouch && sc.gear === 6;
-  return [{ d: 0.3 }, { d: accel, y: 1, sprint }, { d: steady, y: 1, sprint }, { d: sc.idleTail ? 1.5 : 1.2 }];
+  return [{ d: 0.3 }, { d: accel, y: 1 }, { d: steady, y: 1 }, { d: sc.idleTail ? 1.5 : 1.2 }];
 }
 
 /** Linear interpolation of B's track (rows of `w` floats, column 0 = t) at time t: column `c..c+2` -> out. */
@@ -1731,6 +1756,7 @@ async function runRemote() {
         f[o++] = lg ? offW : gw;
         f[o++] = lg ? gw : offW;
         f[o++] = NaN; // raise (the copy has no carry clock)
+        f[o++] = NaN; // drawPh (the copy has no draw state)
         f[o++] = 0;
         f[o++] = av.mode === 'ground' ? 0 : 1;
         f[o++] = 0;
@@ -1846,7 +1872,6 @@ async function runRemote() {
             rb.done = true;
             st.move.x = st.move.y = 0;
             st.set('anim-audit', 'ads', false);
-            st.set('anim-audit', 'dash', false);
             rb.marks.push(sec());
           } else {
             const s = rb.segs[k];
@@ -1858,7 +1883,6 @@ async function runRemote() {
             st.move.x = s.x ?? 0;
             st.move.y = s.y ?? 0;
             st.set('anim-audit', 'ads', !!s.ads);
-            st.set('anim-audit', 'dash', !!s.sprint);
           }
         }
         return ob?.call(this, dt);
@@ -1940,7 +1964,7 @@ async function runRemote() {
       return rec;
     };
     // r1: A's own player BEHIND m behind B's start, facing B's heading: A's camera stays within the copy's anim LOD
-    // distance (22 m) for the whole run (stand 6 covers about 11 m)
+    // distance (22 m) for the whole run (stand 5 covers about 11 m)
     const BEHIND = 3.5;
     const settleMs = [];
     rep.placementSettleMs = settleMs; // r3: per placement (calibration first), ms until the copy settled
@@ -2104,7 +2128,7 @@ async function runRemote() {
         return i;
       };
       const mk = b.marks.map(fa);
-      if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.85, 1.3, 1.7, 2.15, 2.6, 2.6] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1] };
+      if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.85, 1.3, 1.7, 2.15, 2.6] : [0.65, 1.1, 1.65, 2.3, 3.15])[sc.gear - 1] };
       else if (sc.kind === 'stance') m = { down: mk[1], up: mk[2], end: mk[3] ?? rec.n };
       else if (sc.kind === 'strike') m = { strike: mk[1], end: mk[2] ?? rec.n };
       else if (sc.kind === 'door') m = { enter: mk[0], press: mk[1], close: mk[2] ?? rec.n, end: Math.min(rec.n, mk[3] ?? rec.n), door: sc.door };

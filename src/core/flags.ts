@@ -38,6 +38,12 @@ export interface Flags {
   legacy: boolean;
   /** Dev / hand checks (`?fullbright=1`): the map is lit like day (theme light level, hemisphere, sun, gameplay light). Nothing changes without it. */
   fullbright: boolean;
+  /** (J19 S5, R26 / R27, Q37; owner Night Shift | Player Build) Dev compare only (`?mocapraw=1`): the motion capture as
+   *  recorded (the AF2 MOCAP_LAYERS corrections pelHeight / trunkMean / bankWipe / armSmooth at 1, the AF3 crouch walk
+   *  re-pose off; `src/anim/mocap.ts` setMocapRaw) for the option video. A URL flag in every build (the video records
+   *  the built game), never a setting, never saved, not on the wire. DEFAULT OFF; never switched on: removed with the
+   *  option Michael picks at the Q37 walk, 2026-10-29. */
+  mocapRaw: boolean;
   /** (piano SO5) Dev / hand checks (`?lightning=1`): any map plays the fixed demo lightning loop (`DEMO_LIGHTNING`)
    *  through its baked sky visibility. A map's own `lightning` data wins. Nothing changes without it. */
   lightning: boolean;
@@ -270,6 +276,7 @@ export const flags: Flags = {
   gear: /^[1-5]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
   legacy: params.get('legacy') === '1',
   fullbright: params.get('fullbright') === '1',
+  mocapRaw: params.get('mocapraw') === '1',
   lightning: params.get('lightning') === '1',
   // (the DEV test first: the production build drops the parameter name and the whole read)
   devDraft: import.meta.env.DEV && params.get('editorDraft') === '1',
