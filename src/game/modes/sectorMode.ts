@@ -75,7 +75,7 @@ import {
 } from '../rating/sectionRating';
 import { packRated } from '../course/courseWire';
 import { RatingCard } from '../../ui/hud/ratingCard';
-import { applyMissionStart, bindSectorMission, type SectorMission } from '../mission/sectorMission';
+import { applyMissionResume, applyMissionStart, bindSectorMission, missionCarry, type MissionCarry, type SectorMission } from '../mission/sectorMission';
 import { CAMPAIGN, campaignGrant, campaignResponseKinds, isCampaignMission, missionSectionLine } from '../mission/campaign';
 import { MissionFeed, missionDoneLine, missionObjectiveLines, missionStepReads } from '../mission/missionFeed';
 
@@ -288,6 +288,13 @@ export class SectorMode implements GameMode {
 
   /** (mission-framework EN2) The `?mission=<id>` mission (host / solo); null: none, Sector Ops as before. */
   readonly mission: SectorMission | null;
+  /**
+   * (campaign-mode CM3, PLAN 3.4) A Continue's carried tally (host, `flags.campaign`): the kills, knock-outs, times
+   * spotted, bodies found and mission time before the save, which CM5's rating adds to this run's live counts (kills
+   * `g.stats.kills - g.stats.knockouts`, spotted `g.style.detections + camAlarms`, `t`). The alarms raised before it are
+   * already in `run.alarmsRaised`. Null: not a Continue.
+   */
+  readonly carried: MissionCarry | null;
   /** (mission-rules R6, HG7) The mission's current step on this machine's objective line (host / solo; the client has its own). */
   private readonly feed = new MissionFeed();
   /** (mission-rules R6 polish) The live section's `<section>-obj` flag (`setup`) and the download percent last written
@@ -324,7 +331,24 @@ export class SectorMode implements GameMode {
       },
     });
     this.mission = bindSectorMission(g, this, this.slotEnemy, (s) => this.objectiveDone(s), () => this.complete());
-    if (this.mission) applyMissionStart(this.run, this.mission.startIndex); // (mission-framework EN4, A23) a later start section
+    // (campaign-mode CM3, PLAN 3.4) a Continue (host, `flags.campaign`): the run resumes at the save's section with the
+    // earlier steps done, the breaks, the alarm stage and the alarms raised back; its other tallies are carried
+    const resume = flags.campaign ? g.opts.campaignResume : undefined;
+    this.carried = this.mission && resume && applyMissionResume(this.run, this.mission, resume) ? missionCarry(resume) : null;
+    if (this.mission && !this.carried) applyMissionStart(this.run, this.mission.startIndex); // (mission-framework EN4, A23) a later start section
+  }
+
+  /** (campaign-mode CM3, A11) Plain Sector Ops (no mission) started at a later section by its co-op start (`sectorStart`,
+   *  "Resume hosting"), with `flags.campaign`: that section's run index (the start-at-section path), else 0. */
+  private resumeStartIndex(): number {
+    if (this.mission || !flags.campaign) return 0;
+    return sectorStartIndex(this.run.defs, this.g.opts.sectorStart ?? null);
+  }
+
+  /** (campaign-mode CM3, A11) "Resume hosting" restarts at the current section (1-based) with `flags.campaign`; flag
+   *  off: 1 (plain Sector Ops is live and restarts from section 1, as before). */
+  resumeBay(): number {
+    return flags.campaign ? this.run.index + 1 : 1;
   }
 
   /** (sector-fixes-r RT) The bolts' state (tests, e2e). */
@@ -359,6 +383,8 @@ export class SectorMode implements GameMode {
       },
     });
     g.ctDev = this.ct;
+    // (campaign-mode CM3) a Continue enters its section at the saved alarm stage: the devices too
+    if (this.carried) this.ct.alarm = this.run.alarm;
     // (the occlusion rays: static geometry only, so glass and fences never hide a guard; fix round: the static bodies the
     // camera sees through - a door leaf not shut, an unbroken breakable pane, a roof sheet - are stepped past. Render
     // only: gameplay rays keep G.STATIC whole; frzpol: a door that stops hiding the view or a pane that opens re-tests
@@ -393,7 +419,13 @@ export class SectorMode implements GameMode {
     this.findCrates();
     this.findStageDoors();
     // (campus-greybox A28) `?sectorStart=N`: the run begins at section N as its connectors leave it (practice)
-    this.startAt(sectorStartIndex(this.run.defs, flags.sectorStart));
+    this.startAt(sectorStartIndex(this.run.defs, flags.sectorStart) || this.resumeStartIndex());
+    // (campaign-mode CM3) a Continue: the codes the earlier sections gave are the team's again, held for the section
+    // before (a restart of this one keeps them)
+    if (this.carried && this.mission) {
+      for (const f of this.mission.heldCodes([])) this.codes.grantCode(f, this.run.index - 1);
+      this.keypadLabels();
+    }
     const s = this.run.current;
     if (s) {
       const cp = this.run.checkpoint;

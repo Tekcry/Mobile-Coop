@@ -100,13 +100,23 @@ const TD_MAX = 6;
  * Ops gives the op's syringes per difficulty (G188); a campaign mission (`missionId`, the session's `sectorMission`, on
  * the map's `missions`) gives `CAMPAIGN.revives` (2) at every difficulty; any other mode keeps the clock's default (2).
  * The window stays `REVIVE_WINDOW` (30 s) everywhere. True for a campaign mission: its cap is never topped up
- * (`addSyringes`). Runs once, in the constructor.
+ * (`addSyringes`). (campaign-mode CM3, G126 "2 per mission") A Continue of that mission (`resume`, the host's
+ * `campaign:save`) keeps the revives used before the save. Runs once, in the constructor.
  */
-export function matchRevives(clock: ReviveClock, mode: ModeId, difficulty: Difficulty | undefined, missions: readonly MissionDef[] | undefined, missionId: string): boolean {
+export function matchRevives(
+  clock: ReviveClock,
+  mode: ModeId,
+  difficulty: Difficulty | undefined,
+  missions: readonly MissionDef[] | undefined,
+  missionId: string,
+  resume?: { readonly mission: string; readonly revivesUsed: number } | null,
+): boolean {
   if (mode !== 'sector') return false;
   const def = pickMission(missions, missionId || null);
   clock.cap = campaignReviveCap(def, syringesFor(difficulty));
-  return isCampaignMission(def);
+  const campaign = isCampaignMission(def);
+  if (campaign && resume && resume.mission === def!.id) clock.used = Math.max(0, Math.min(clock.cap, Math.floor(resume.revivesUsed) || 0));
+  return campaign;
 }
 
 type Tally = EndStats['players'][string];
@@ -230,7 +240,8 @@ export class CoopHost implements NetAttachment {
     this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? defaultHq()).reviveSpeed;
     // (sector-ops step 3, M7, A10) Sector Ops: the revives are the op's syringes, per difficulty; (mission-rules R5,
     // G126) a campaign mission: 2 at every difficulty. `g.world.map` is set: the world is built before `attach`.
-    this.campaign = matchRevives(this.reviveClock, mode, g.opts.difficulty, g.world.map.missions, s.sectorMission);
+    // (campaign-mode CM3) a Continue keeps its revives used (`campaignResume` is set only with `flags.campaign`)
+    this.campaign = matchRevives(this.reviveClock, mode, g.opts.difficulty, g.world.map.missions, s.sectorMission, g.opts.campaignResume);
     // (piano-escape S4) a scene map on the Sector Ops runtime keeps the campaign cap (`REVIVES_PER_MISSION`, PLAN "Downed")
     if (mode === 'sector' && isPianoScene(g.world.map)) this.reviveClock.cap = REVIVES_PER_MISSION;
     this.lampTx = mode === 'sector' ? new LampSender() : null;
