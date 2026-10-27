@@ -1016,6 +1016,9 @@ down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); light
 fixed timeline data (Sector Ops SO5), guards just read the light.
 STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano guard work (#624) moves, at most 2
 builders; 00:59 pace: up to 2 agents, piano first.
+FLAGS (Michael ~14:45: "dont switch off any features, always leave them on for testing" / "preview only. live only
+receives finished features once approved"): every Guard AI flag = darkFlag(.., PREVIEW_ON); checked 14:50 (guardPairs,
+lookouts, dogRelease, millHunt). Mission-hooks flags: confirm PREVIEW_ON when they rebase.
 SHIP 4-PLAYER (Michael after the walk, ~10:40): #317 merge 16 head 2d8fa5a0e, MERGE16-CHECK.md PASS, checker
 posted, LABELLED by the orchestrator (11:30); CI red guardAiAlloc D1 = CI Node 22 (#696). If it
 conflicts again before its train: merge again at once. Merge 17 62e4f2c09 (lead: gameState.ts both kept + a
