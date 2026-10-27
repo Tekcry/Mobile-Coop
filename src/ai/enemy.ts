@@ -1965,13 +1965,17 @@ export class Enemy implements Damageable {
   /**
    * (guard-ai mill-hunt H3, BRIEF A1) On the storm mill's hunt (`EnemyManager.millHunt`, `flags.millHunt`): held in
    * `searching` for good (the `hunting` input), and while searching his walk is the board's goal (`mhStep`): his spot
-   * `mhPt`, the yaw to face there `mhFace` (NaN: none, he walks) and the pace `mhSpeed`, written at the board tick
-   * (`mhGoal`). Combat is as built; losing sight brings him back to `searching` and the board admits him again.
+   * `mhPt`, the yaw to face there `mhFace` (NaN: none, he walks) and the pace `mhSpeed`, copied from the board's goal
+   * arrays at its tick (`EnemyManager.mhTick`). Combat is as built; losing sight brings him back to `searching` and the
+   * board admits him again.
    */
   mhOn = false;
   readonly mhPt: P2 = [0, 0];
   mhFace = Number.NaN;
   mhSpeed: number = HUNT.pace;
+  /** (mill-hunt H3) His board index (`HuntBoard.memberIndex`), cached at his admit (-1: none yet); the manager checks
+   *  `member(mhIdx)` is still him before it reads his goal. */
+  mhIdx = -1;
 
   /**
    * (mill-hunt H3) Onto the hunt (the scene's dark with the hunt on, every set; a guard placed or woken in it): not down,
@@ -2002,14 +2006,6 @@ export class Enemy implements Damageable {
     this.mhFace = Number.NaN;
   }
 
-  /** (mill-hunt H3) The board's goal for him (`HuntBoard`'s `out`, at its tick): his spot, the yaw there (NaN while he
-   *  walks), the pace. No allocation. */
-  mhGoal(x: number, z: number, face: number, speed: number): void {
-    this.mhPt[0] = x;
-    this.mhPt[1] = z;
-    this.mhFace = face;
-    this.mhSpeed = speed;
-  }
   /** (GA6b, N6) Sent by his partner's glimpse (`followGlimpse`): the send's line was his one; his rise says nothing. */
   private quietRise = false;
 

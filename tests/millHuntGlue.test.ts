@@ -38,6 +38,7 @@ interface Hunter extends Omit<SweepGuard, 'searchAt'> {
   mhPt: [number, number];
   mhFace: number;
   mhSpeed: number;
+  mhIdx: number;
   mhStart(): void;
   mhStop(): void;
   updateAwareness(dt: number): void;
@@ -82,6 +83,7 @@ function hunter(list: Enemy[], x: number, y: number, z: number): Hunter {
     mhPt: [x, z],
     mhFace: Number.NaN,
     mhSpeed: HUNT.pace,
+    mhIdx: -1,
   }) as unknown as Hunter;
   g.pos.y = y;
   (g as unknown as { ctx: { diff: unknown } }).ctx.diff = DIFFICULTY.normal;
@@ -305,6 +307,69 @@ describe('mill-hunt H3: the manager on the storm mill', () => {
     expect(hb.mOn[i]).toBe(1);
   });
 
+  it("each hunt guard's goal is the board's arrays at his cached index (no callback: the board's out is null)", () => {
+    flags.millHunt = true;
+    const { em, list } = mill();
+    em.sceneDark = true;
+    const gs = placeMill(em, list);
+    const hb = em.millHunt!;
+    expect((hb as unknown as { out: unknown }).out).toBeNull();
+    run(em, gs, 3);
+    for (const g of gs) {
+      const i = g.mhIdx;
+      expect(i).toBe(hb.memberIndex(asE(g)));
+      expect(hb.mOn[i]).toBe(1);
+      expect(g.mhPt[0]).toBe(hb.gx[i]);
+      expect(g.mhPt[1]).toBe(hb.gz[i]);
+      expect(Object.is(g.mhFace, hb.gface[i])).toBe(true);
+      expect(g.mhSpeed).toBe(hb.gspeed[i]);
+    }
+  });
+
+  it("a woken guard (a new object for his slot) gets an index again, pairs by the map's pair data; 30 wakes, no cap", () => {
+    flags.millHunt = true;
+    const { em, list } = mill();
+    em.sceneDark = true;
+    const gs = placeMill(em, list);
+    const hb = em.millHunt!;
+    run(em, gs, 2);
+    for (let n = 0; n < 30; n++) {
+      // G1 / G2 (a pair) in turn; half woken before the board's next tick (he takes the old index by his slot), half
+      // after it (the old index freed, he takes a free one)
+      const k = n % 2;
+      const old = gs[k]!;
+      const mate = gs[1 - k]!;
+      const i0 = hb.memberIndex(asE(old));
+      old.health.alive = false;
+      list.splice(list.indexOf(asE(old)), 1);
+      if (n % 4 >= 2) {
+        run(em, gs, 0.2);
+        expect(hb.member(i0)).toBeNull();
+      }
+      const w = hunter(list, old.pos.x, old.pos.y, old.pos.z);
+      w.slotIdx = old.slotIdx;
+      w.pairSlot = old.pairSlot;
+      list.push(asE(w));
+      gs[k] = w;
+      w.mhStart();
+      run(em, gs, 0.4);
+      const i = hb.memberIndex(asE(w));
+      expect(i).toBeGreaterThanOrEqual(0);
+      if (n % 4 < 2) expect(i).toBe(i0);
+      expect(w.mhIdx).toBe(i);
+      expect(hb.mOn[i]).toBe(1);
+      expect(hb.mPartner[i]).toBe(hb.memberIndex(asE(mate)));
+      expect(w.mhPt[0]).toBe(hb.gx[i]);
+      expect(w.mhPt[1]).toBe(hb.gz[i]);
+    }
+    let on = 0;
+    for (let i = 0; i < hb.mOn.length; i++) on += hb.mOn[i]!;
+    expect(on).toBe(gs.length);
+    // the pair meets again as one unit
+    run(em, gs, 20);
+    expect(hb.unitOf(asE(gs[0]!))).toBe(hb.unitOf(asE(gs[1]!)));
+  });
+
   it('a later spawn in the dark joins the board; the room cap holds by positions after the start spread', () => {
     flags.millHunt = true;
     const { em, list } = mill();
@@ -427,21 +492,8 @@ describe('mill-hunt H3: no allocation on the hunt path', () => {
     return { em, gs, hb: em.millHunt! };
   }
 
-  // The board's goal out to each guard (`mhOut` -> `Enemy.mhGoal`) reads as boxed doubles only (V8 boxes a double passed
-  // across a call it does not inline: 16 B a guard here), never an object (48 B or more: one per guard breaks the bound).
-  it('the board tick (re-admission, the board, the goals out) makes no object', async () => {
-    const { em, gs, hb } = await warm();
-    const t = tickOf(em);
-    const per = await bytesPerCall(
-      (n) => {
-        for (let k = 0; k < n; k++) t.mhTick(hb);
-      },
-      0,
-      { n: 300, warm: 3000 },
-    );
-    expect(per).toBeLessThanOrEqual(gs.length * 2 * HEAP_NUMBER);
-  }, 120000);
-
+  // The board tick with the goals handed to the guards: tests/millHuntGlueAlloc.test.ts (real `Enemy` objects, a file
+  // of its own so these stand-ins' feedback does not reach the manager's code there).
   it("a guard's hunt step (the searching branch, mhStep) makes no object", async () => {
     const { gs } = await warm();
     const g = gs[5]!;

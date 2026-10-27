@@ -153,10 +153,6 @@ const PLAN_CAND = PLAN_COVER + PLAN_LATTICE * PLAN_LATTICE;
 /** (guard-ai mill-hunt H3) The hunt's first targets are each line's phase-0 room stop nearest this: W1, the intro wall
  *  (the scene's blackout search point, `pianoScene.ts` `SEARCH_X` / `SEARCH_Z`; mill-hunt PLAN "Order"). */
 export const MILL_HUNT_W1: readonly [number, number] = [5.5, 5.25];
-/** (mill-hunt H3) The board's `out`: the member's goal onto the guard (one module function: no closure per board). */
-function mhOut(e: Enemy, x: number, z: number, face: number, speed: number): void {
-  e.mhGoal(x, z, face, speed);
-}
 
 /** Owns enemies, the shared chase flow field, cover reservations, bodies (ragdolls), alarms and flashlights. */
 export class EnemyManager {
@@ -385,7 +381,8 @@ export class EnemyManager {
    * (guard-ai mill-hunt H3) The storm mill's hunt (`src/ai/millHunt.ts`; BRIEF A1-A16): built empty at every
    * `sceneDark = true` when `flags.millHunt` is on and the live section has a `hunt` (else null: GA6's sweep and GA7's
    * glimpse follow as built, A13). Every guard goes on it (`Enemy.mhStart`: searching for good), every guard placed or
-   * woken in the dark is admitted, and it ticks with the incident board (0.2 s). `sceneDark = false` drops it.
+   * woken in the dark is admitted (`mhAdmit`), and it ticks with the incident board (0.2 s, `mhTick`: the goals are read
+   * from its arrays, no callback). `sceneDark = false` drops it.
    */
   millHunt: HuntBoard<Enemy> | null = null;
   /** (guard-ai S1) The map's noisy things (machinery, generators, vents): they mask sounds for guards near them. */
@@ -2421,7 +2418,7 @@ export class EnemyManager {
     // (guard-ai mill-hunt H3) the hunt on: on it and admitted (the spawn after the dark, a late spawn), never swept
     if (this.darkOn && this.millHunt) {
       e.mhStart();
-      if (e.mhOn) this.millHunt.admit(e);
+      if (e.mhOn) this.mhAdmit(this.millHunt, e);
     } else if (this.darkOn) this.sweepify(e, inList ? index : -1);
     else if (inList) this.buildPair(e, index);
   }
@@ -2446,7 +2443,7 @@ export class EnemyManager {
       for (let i = 0; i < list.length; i++) {
         const e = list[i]!;
         e.mhStart();
-        if (e.mhOn) hb.admit(e);
+        if (e.mhOn) this.mhAdmit(hb, e);
       }
       return;
     }
@@ -2466,14 +2463,26 @@ export class EnemyManager {
     if (!flags.millHunt) return null;
     const def: HuntDef | undefined = (this.world.map as MapDef | undefined)?.sectors?.[this.radioNet.section]?.hunt;
     if (!def) return null;
-    return new HuntBoard<Enemy>(def, mhOut, MILL_HUNT_W1[0], MILL_HUNT_W1[1]);
+    return new HuntBoard<Enemy>(def, null, MILL_HUNT_W1[0], MILL_HUNT_W1[1]);
+  }
+
+  /**
+   * (mill-hunt H3) Admit e and cache his board index (`Enemy.mhIdx`): looked up only when the cached one is not his (his
+   * first admit, a new board, a woken guard taking his slot's old index). No allocation.
+   */
+  private mhAdmit(hb: HuntBoard<Enemy>, e: Enemy): void {
+    if (!hb.admit(e)) return;
+    const i = e.mhIdx;
+    if (i < 0 || hb.member(i) !== e) e.mhIdx = hb.memberIndex(e);
   }
 
   /**
    * (guard-ai mill-hunt H3) The hunt at the board tick (replaces GA7's glimpse follow, A10 / A13): a hunt guard found
    * calm (woken, let go, an investigation over) is back on it at once (A1: never calm); every hunt guard searching is
-   * admitted (a no-op once he is on: this re-admits a guard whose fight ended, PLAN check 2 item 2); then the board's
-   * tick writes every member's goal. A fighter, a downed or a held guard leaves the board on its own. No allocation.
+   * admitted (a no-op once he is on: this re-admits a guard whose fight ended, PLAN check 2 item 2; a woken guard takes
+   * his slot's index or a freed one, the board's re-pair); then the board ticks, and each hunt guard on it gets his goal
+   * from its arrays (`gx` / `gz` / `gface` / `gspeed` at his `mhIdx`). A fighter, a downed or a held guard leaves the
+   * board on its own. No allocation.
    */
   private mhTick(hb: HuntBoard<Enemy>): void {
     const list = this.enemies;
@@ -2482,9 +2491,18 @@ export class EnemyManager {
       if (!e.mhOn || !e.alive || e.taken) continue;
       const lv = e.level;
       if (lv === 'unaware' || lv === 'cooldown') e.mhStart();
-      if (e.level === 'searching') hb.admit(e);
+      if (e.level === 'searching') this.mhAdmit(hb, e);
     }
     hb.tick(0.2);
+    for (let k = 0; k < list.length; k++) {
+      const e = list[k]!;
+      const i = e.mhIdx;
+      if (!e.mhOn || i < 0 || !hb.mOn[i] || hb.member(i) !== e) continue;
+      e.mhPt[0] = hb.gx[i]!;
+      e.mhPt[1] = hb.gz[i]!;
+      e.mhFace = hb.gface[i]!;
+      e.mhSpeed = hb.gspeed[i]!;
+    }
   }
 
   /** (GA6b, N4) `sceneDark = false`: every guard off his sweep (his route rules, rejoined as built), the watch-only pairs
@@ -4214,16 +4232,16 @@ export class EnemyManager {
       if (this.boardT <= 0) {
         this.boardT += 0.2;
         if (this.boardT <= 0) this.boardT = 0.2;
+        // (mill-hunt H3, check A polish 4) the hunt first: a calm hunt guard is searching again before the incident
+        // board picks (it never sends a searching guard)
+        const hb = this.darkOn ? this.millHunt : null;
+        if (hb) this.mhTick(hb);
         this.boardStep(0.2);
         // (guard-ai S4) timed caution counts down with the board; every guard's caution follows the table
         this.awareness.tick(0.2);
         this.syncCaution();
-        // (GA6b, GA7) a sweep partner follows a glimpse; (guard-ai mill-hunt H3, fold-in 10) the hunt instead
-        if (this.darkOn) {
-          const hb = this.millHunt;
-          if (hb) this.mhTick(hb);
-          else this.glimpseFollow();
-        }
+        // (GA6b, GA7) a sweep partner follows a glimpse; (guard-ai mill-hunt H3, fold-in 10) the hunt instead (above)
+        if (this.darkOn && !hb) this.glimpseFollow();
       }
       // (guard-ai S3) the section radio net at 10 Hz: calls complete, receivers hear them staggered
       this.netT -= dt;
