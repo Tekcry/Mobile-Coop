@@ -5,6 +5,7 @@ import { MenuScreen, type LegendItem } from '../menuScreen';
 import { button } from '../widgets';
 import { sectionLine, type RatingView } from '../hud/ratingCard';
 import { fmtCourseTime, TIER_LABEL, type CourseSummary } from '../../game/course/courseRating';
+import { campaignHeadline, continuedLine, type CampaignResultView } from '../../game/mission/campaignRating';
 
 /** The course panel (T1c, D31 / D32 / D23): per-bay times, team and per-player numbers, the finale's tier. */
 function coursePanel(c: CourseSummary): HTMLElement {
@@ -45,6 +46,9 @@ export interface ResultsNav {
   coop?: boolean;
   /** Section ratings of the op / course, one line each (section-rating S4). */
   ratings?: readonly RatingView[];
+  /** (campaign-mode CM6, bible 5.8 "Results") A campaign mission's end: the percent, PERFECT at 100, each category row;
+   *  its Next goes to the lobby (`onRestart`: co-op's way back to the room, where the next entry is picked). */
+  campaign?: CampaignResultView;
 }
 
 /**
@@ -97,14 +101,20 @@ export class ResultsScreen extends MenuScreen {
         )
       : null;
     const course = stats.course ? coursePanel(stats.course) : null;
+    // (campaign-mode CM6) the campaign panel: the percent under the title, the category rows in the stats panel
+    const camp = won ? nav.campaign : undefined;
+    const campRows = camp ? h('div', { class: 'stat-grid campaign-rows' }, ...camp.rows.map((r) => row(r.label, r.value))) : null;
+    const cont = camp ? continuedLine(camp) : null;
     this.el.classList.add(won ? 'rs-won' : 'rs-lost');
     this.ctx.hidden = true;
     this.body.append(
       h(
         'div',
         { class: 'rs-panel' },
-        h('div', { class: `results-title ${won ? 'won' : 'lost'}`, text: won ? 'VICTORY' : 'DEFEAT' }),
-        h('div', { class: 'results-sub', text: subtitle }),
+        h('div', { class: `results-title ${won ? 'won' : 'lost'}`, text: camp ? 'MISSION COMPLETE' : won ? 'VICTORY' : 'DEFEAT' }),
+        h('div', { class: 'results-sub', text: camp ? camp.title : subtitle }),
+        camp ? h('div', { class: `mission-rating campaign-pct${camp.perfect ? ' perfect' : ''}`, text: campaignHeadline(camp) }) : null,
+        cont ? h('div', { class: 'rs-kit rs-continued', text: cont }) : null,
         h('div', { class: 'rs-time', text: `Time ${fmtTime(stats.time)}` }),
         rating,
         nav.ratings?.length ? h('ul', { class: 'rs-sections' }, ...nav.ratings.map((r) => h('li', { text: sectionLine(r) }))) : null,
@@ -116,12 +126,14 @@ export class ResultsScreen extends MenuScreen {
       list.append(button(label, act, { class: 'ms-item', key, autofocus: focus }));
     };
     const next = won && !nav.coop ? nav.next : undefined;
-    item(nav.coop ? 'Play again' : 'Retry', 'retry', () => this.onRestart(), !next);
+    // (campaign-mode CM6) a campaign mission's Next goes to the lobby (the next entry is picked there)
+    if (camp) item('Next', 'next', () => this.onRestart(), true);
+    else item(nav.coop ? 'Play again' : 'Retry', 'retry', () => this.onRestart(), !next);
     if (next) list.prepend(button(next.label, () => next.go(), { class: 'ms-item', key: 'next', autofocus: true }));
     if (nav.missions && !nav.coop) item('Missions', 'missions', () => nav.missions!(), false);
     item('Main menu', 'quit', () => this.onQuit(), false);
     this.body.append(list);
-    this.el.append(h('div', { class: 'rs-stats' }, course ?? grid, rewards));
+    this.el.append(h('div', { class: 'rs-stats' }, course ?? campRows ?? grid, rewards));
   }
 
   override onBack(): boolean {

@@ -1292,6 +1292,8 @@ export class GameState implements AppState {
     const nav: ResultsNav = { coop: !!this.net };
     if (names.length) nav.kit = names.join(', ');
     if (this.sectionRatings.length) nav.ratings = this.sectionRatings;
+    // (campaign-mode CM6) a campaign mission's panel (the host's end, or the client's from `pc`)
+    if (this.campaignResult) nav.campaign = this.campaignResult;
     const cb = this.cb;
     const id = this.stats.missionId;
     if (!this.net && id && cb.missions) {
