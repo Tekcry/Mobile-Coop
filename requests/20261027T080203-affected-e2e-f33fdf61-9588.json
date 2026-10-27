@@ -1,0 +1,13 @@
+{
+  "id": "20261027T080203-affected-e2e-f33fdf61-9588",
+  "sha": "f33fdf617a72e3883eed75a2c596eca20cbb23a9",
+  "branch": "feature/guard-ai-mill-hunt-h3",
+  "pr": 725,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-combat"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #725"
+}
