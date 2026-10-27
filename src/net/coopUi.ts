@@ -21,7 +21,21 @@ import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
 import { loadCourseRecord, lobbyStartBay, startableBays, type CourseRecord } from '../save/courseRecord';
 import { loadSectorRecord, starsOf, starsText, type SectorRecord } from '../save/sectorRecord';
-import { loadCampaignSave } from '../save/campaignRecord';
+import { loadCampaignProgress, loadCampaignSave, type CampaignProgress, type CampaignSave } from '../save/campaignRecord';
+import {
+  CONTINUE_VALUE,
+  briefingPanel,
+  campaignEntries,
+  campaignEntry,
+  continueRowText,
+  entryForRoom,
+  entryRowText,
+  lobbyRows,
+  missionRowOptions,
+  type CampaignEntry,
+  type LobbyRow,
+} from '../game/mission/campaignOrder';
+import { briefingLines, rulesLine } from '../game/mission/missionText';
 import { courseAllBaysFlag } from '../game/modes/courseMode';
 import { CAMPAIGN_TWO_PLAYERS } from '../game/mission/campaign';
 import { registeredBayCount } from '../game/course/courseDef';
@@ -422,6 +436,11 @@ function lobbyMaps(mode: NetMode): typeof MAPS {
 const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
 const MISSION_OPTS = MISSIONS.map((m) => ({ value: m.id, label: m.name }));
 
+/** Text for the context panel's html (briefing lines hold `&` and quotes). */
+const esc = (t: string): string => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** (campaign-mode CM4) A map's sections in run order (the Continue row names the save's section). */
+const sectionsOf = (map: string): readonly { name: string }[] | undefined => MAPS.find((m) => m.id === map)?.sectors;
+
 class LobbyScreen extends MenuScreen {
   private list: HTMLElement;
   private status: HTMLElement;
@@ -464,7 +483,10 @@ class LobbyScreen extends MenuScreen {
   override onShow(): void {
     // back from a course's results: read the course record again (the bays just finished are offered, D20)
     if (this.courseRec !== undefined) this.courseRec = null;
-    if (this.c.session.isHost && this.c.session.mode === 'course') this.buildOpts();
+    // (campaign-mode CM4) and the campaign records again: a mission just ended or saved changes the spoilers and Continue
+    if (this.prog !== undefined) this.prog = null;
+    if (this.saveRead === 'read') this.saveRead = 'unread';
+    if (this.c.session.isHost && (this.c.session.mode === 'course' || this.entry())) this.buildOpts();
     const ev = this.c.session.events;
     this.known = new Set(this.c.session.players.keys());
     this.off.push(
@@ -535,15 +557,23 @@ class LobbyScreen extends MenuScreen {
     const s = this.c.session;
     const maps = MAPS.filter((m) => m.modes.includes(s.mode));
     const infil = s.mode === 'infiltration';
+    const diffLabel = (): string => DIFFICULTY_OPTS.find((d) => d.value === s.difficulty)?.label ?? '';
     if (!s.isHost) {
       const map = MAPS.find((m) => m.id === s.map);
+      const entry = this.entry();
       const lr = (k: string, v: string): HTMLElement => lockedRow(k, v, 'Set by the host.', `The host chooses the ${k.toLowerCase()}.`);
-      this.opts.replaceChildren(
-        lr('Mode', MODE_OPTS.find((m) => m.value === s.mode)?.label ?? ''),
-        infil ? lr('Mission', missionById(s.mission)?.name ?? '') : lr('Map', map?.name ?? s.map),
-        lr('Difficulty', DIFFICULTY_OPTS.find((d) => d.value === s.difficulty)?.label ?? ''),
-        ...(map?.weathers ? [lr('Weather', WEATHER_LABEL[s.weather])] : []),
-      );
+      // (campaign-mode CM4) the rows as today with `flags.campaign` off (`lobbyRows`); on a campaign entry the Map row is
+      // the campaign's Mission row, its context the briefing (this peer's own spoilers)
+      const row = (r: LobbyRow): HTMLElement => {
+        if (r === 'mode') return lr('Mode', entry ? 'Campaign' : (MODE_OPTS.find((m) => m.value === s.mode)?.label ?? ''));
+        if (r === 'mission') return lr('Mission', missionById(s.mission)?.name ?? '');
+        if (r === 'campaign') return this.campaignRow(lr('Mission', entry ? entryRowText(entry) : ''));
+        if (r === 'difficulty' || r === 'difficultyLocked') return lr('Difficulty', diffLabel());
+        if (r === 'weather') return lr('Weather', WEATHER_LABEL[s.weather]);
+        return lr('Map', map?.name ?? s.map);
+      };
+      this.opts.replaceChildren(...lobbyRows({ campaign: flags.campaign, host: false, mode: s.mode, entry, continued: false, weather: !!map?.weathers }).map(row));
+      this.applyBrief();
       return;
     }
     if (infil) {
@@ -554,58 +584,189 @@ class LobbyScreen extends MenuScreen {
     const cur = maps.find((m) => m.id === s.map);
     const pick = lobbyMaps(s.mode);
     const shownMaps = cur && !pick.includes(cur) ? [...pick, cur] : pick;
-    const set = (mode: NetMode, map: string, d: Difficulty, mission = s.mission): void => {
-      s.setSettings(mode, map, d, mission);
-      const idx = Array.from(this.opts.children).indexOf(this.c.app.nav.focused as HTMLElement);
-      this.buildOpts();
-      this.renderPlayers();
-      this.buildActions(true);
-      const el = this.opts.children[Math.max(0, idx)] as HTMLElement | undefined;
-      if (idx >= 0) this.c.app.nav.setRoot(this.el, el ?? null);
-    };
-    this.opts.replaceChildren(
-      choice('Mode', lobbyModes(s.mode), () => s.mode, (v) => set(v, MAPS.find((m) => m.id === s.map)?.modes.includes(v) ? s.map : (lobbyMaps(v)[0]?.id ?? s.map), s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '')),
-      infil
-        ? choice('Mission', MISSION_OPTS, () => s.mission, (v) => set(s.mode, missionById(v)?.map ?? s.map, s.difficulty, v))
-        : choice('Map', shownMaps.map((m) => ({ value: m.id, label: this.mapLabel(m.id, m.name) })), () => s.map, (v) => set(s.mode, v, s.difficulty)),
-      // the host's difficulty row updates in place (no rebuild)
-      ...difficultyRows(
-        () => s.difficulty,
-        (v) => s.setSettings(s.mode, s.map, v),
-        () => this.renderPlayers(),
-      ),
-      ...(MAPS.find((m) => m.id === s.map)?.weathers
-        ? [
+    const set = (mode: NetMode, map: string, d: Difficulty, mission = s.mission, sm = s.sectorMission): void => this.apply(mode, map, d, mission, sm);
+    const entry = this.entry();
+    const weathers = MAPS.find((m) => m.id === s.map)?.weathers;
+    const row = (r: LobbyRow): HTMLElement[] => {
+      switch (r) {
+        case 'mode':
+          // (campaign-mode CM4) a campaign entry reads as Campaign (Sector Ops on Tallow with a mission too); leaving it
+          // leaves its map and mission
+          return [
+            choice('Mode', lobbyModes(s.mode), () => (entry ? 'course' : s.mode), (v) => {
+              if (entry?.mode === 'sector' && v !== 'sector' && v !== 'course') return set(v, lobbyMaps(v)[0]?.id ?? s.map, s.difficulty, v === 'infiltration' ? MISSIONS[0]!.id : '', '');
+              if (entry?.mode === 'sector') return v === 'course' ? set('course', CAMPAIGN_MAP, s.difficulty, '', '') : set('sector', lobbyMaps('sector')[0]?.id ?? s.map, s.difficulty, '', '');
+              set(v, MAPS.find((m) => m.id === s.map)?.modes.includes(v) ? s.map : (lobbyMaps(v)[0]?.id ?? s.map), s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '');
+            }),
+          ];
+        case 'mission':
+          return [choice('Mission', MISSION_OPTS, () => s.mission, (v) => set(s.mode, missionById(v)?.map ?? s.map, s.difficulty, v))];
+        case 'campaign': {
+          // (campaign-mode CM4, PLAN 3.5, A2 / A9) the campaign's Mission row: a Continue of the host's save first, then
+          // the entries in order (nothing locked, A3)
+          const cont = s.campaignResume ?? this.campaignSave();
+          const opts = missionRowOptions(campaignEntries(MAPS, flags.missions), cont, cont ? sectionsOf(cont.map) : undefined);
+          return [this.campaignRow(choice('Mission', opts, () => (s.campaignResume ? CONTINUE_VALUE : (entry?.key ?? '')), (v) => this.pickEntry(v)))];
+        }
+        case 'difficulty':
+          // the host's difficulty row updates in place (no rebuild)
+          return difficultyRows(
+            () => s.difficulty,
+            (v) => s.setSettings(s.mode, s.map, v),
+            () => {
+              this.renderPlayers();
+              this.applyBrief();
+            },
+          );
+        case 'difficultyLocked':
+          // (A9) a Continue keeps the save's difficulty (another one would drop the Continue, `setSettings`)
+          return [lockedRow('Difficulty', diffLabel(), 'Kept from the save. Pick the mission itself to choose again.', 'A Continue plays at the difficulty it was saved on.')];
+        case 'weather':
+          return [
             choice(
               'Weather',
-              (MAPS.find((m) => m.id === s.map)!.weathers ?? []).map((w) => ({ value: w, label: WEATHER_LABEL[w] })),
+              (weathers ?? []).map((w) => ({ value: w, label: WEATHER_LABEL[w] })),
               () => s.weather,
               (v) => {
                 s.setSettings(s.mode, s.map, s.difficulty, s.mission, v);
                 this.renderPlayers();
               },
             ),
-          ]
-        : []),
-      ...(s.mode === 'course' ? [this.bayChoice()] : []),
-      // (server browser) listed in Browse rooms or not (default Private: only the code brings anyone in)
-      choice(
-        'Room',
-        [
-          { value: 'private', label: 'Private' },
-          { value: 'public', label: 'Public' },
-        ],
-        () => (this.c.isPublic ? 'public' : 'private'),
-        (v) => void this.c.setPublic(v === 'public'),
-      ),
-    );
-    // the host's rows describe themselves in the context panel
+          ];
+        case 'bay':
+          return [this.bayChoice()];
+        case 'room':
+          // (server browser) listed in Browse rooms or not (default Private: only the code brings anyone in)
+          return [
+            choice(
+              'Room',
+              [
+                { value: 'private', label: 'Private' },
+                { value: 'public', label: 'Public' },
+              ],
+              () => (this.c.isPublic ? 'public' : 'private'),
+              (v) => void this.c.setPublic(v === 'public'),
+            ),
+          ];
+        default:
+          return [choice('Map', shownMaps.map((m) => ({ value: m.id, label: this.mapLabel(m.id, m.name) })), () => s.map, (v) => set(s.mode, v, s.difficulty))];
+      }
+    };
+    const rows = lobbyRows({ campaign: flags.campaign, host: true, mode: s.mode, entry, continued: s.campaignResume !== null, weather: !!weathers });
+    this.opts.replaceChildren(...rows.flatMap(row));
+    // the host's rows describe themselves in the context panel (a locked row keeps its reason; the campaign row its briefing)
     for (const r of Array.from(this.opts.children) as HTMLElement[]) {
       const label = r.querySelector('.row-label')?.textContent ?? '';
+      if (r.classList.contains('row-locked') || 'campaign' in r.dataset) continue;
       if (label === 'Room') describe(r, label, 'Private: only players with the code can join. Public: the room is listed under Co-op > Browse rooms until it is full.');
       else describe(r, label, `Choose the ${label.toLowerCase()}. The other player sees it but cannot change it.`);
     }
+    this.applyBrief();
   }
+
+  /** The host's settings change, then the rows, players and actions again with the focus kept on the same row. */
+  private apply(mode: NetMode, map: string, d: Difficulty, mission: string, sm: string): void {
+    this.c.session.setSettings(mode, map, d, mission, this.c.session.weather, sm);
+    this.rebuild();
+  }
+
+  private rebuild(): void {
+    const idx = Array.from(this.opts.children).indexOf(this.c.app.nav.focused as HTMLElement);
+    this.buildOpts();
+    this.renderPlayers();
+    this.buildActions(true);
+    const el = this.opts.children[Math.max(0, idx)] as HTMLElement | undefined;
+    if (idx >= 0) this.c.app.nav.setRoot(this.el, el ?? null);
+  }
+
+  /**
+   * (campaign-mode CM4, PLAN 3.5) The campaign entry the room is on, with `flags.campaign` (host: its mode, map and
+   * campaign pick; client: the host's, `lobby.sm`); null otherwise, and then the lobby is as today.
+   */
+  private entry(): CampaignEntry | null {
+    if (!flags.campaign) return null;
+    const s = this.c.session;
+    return entryForRoom(s.mode, s.map, s.campaignPick);
+  }
+
+  /** (CM4) The host's Mission row pick: a Continue of the save, the prologue (Course mode on Marlow Yard, its bay row
+   *  stays), or a mission (Sector Ops on its map with the mission: the session's pick, CM3). */
+  private pickEntry(v: string): void {
+    const s = this.c.session;
+    if (v === CONTINUE_VALUE) {
+      const save = s.campaignResume ?? this.campaignSave();
+      if (!save) return;
+      s.continueCampaign(save);
+      this.rebuild();
+      return;
+    }
+    const e = campaignEntry(v);
+    if (!e) return;
+    // the entry itself starts it fresh (the same mission and difficulty would otherwise keep the Continue)
+    s.campaignResume = null;
+    if (e.mode === 'course') this.apply('course', CAMPAIGN_MAP, s.difficulty, '', '');
+    else this.apply('sector', e.map, s.difficulty, '', e.mission ?? '');
+  }
+
+  /** Marks a row as the campaign's: its context panel is the briefing (`applyBrief`). */
+  private campaignRow(el: HTMLElement): HTMLElement {
+    el.dataset.campaign = '';
+    el.dataset.ctxBase = '';
+    return el;
+  }
+
+  /** (CM4, A4) The briefing html for the context panel: this peer's own spoiler state (plan check polish 5). */
+  private briefHtml(e: CampaignEntry): string {
+    const s = this.c.session;
+    const def = e.mission !== undefined ? MAPS.find((m) => m.id === e.map)?.missions?.find((d) => d.id === e.mission) : undefined;
+    const save = s.isHost ? s.campaignResume : null;
+    const cont = save ? continueRowText(save, sectionsOf(save.map)) : null;
+    const diff = DIFFICULTY_OPTS.find((d) => d.value === s.difficulty)?.label ?? s.difficulty;
+    const p = briefingPanel(e, def ? { lines: briefingLines(def), rules: rulesLine(def) } : null, this.progress(), diff, cont);
+    const para = (t: string, cls = ''): string => `<p${cls ? ` class="${cls}"` : ''}>${esc(t)}</p>`;
+    return `<h3>${esc(p.title)}</h3>${p.spoiler ? para(p.spoiler, 'why') : ''}${p.lines.map((l) => para(l)).join('')}${p.rules ? para(p.rules) : ''}${para(p.players)}${para(p.difficulty)}`;
+  }
+
+  /** (CM4) The campaign rows and the main button carry the briefing; the panel shows again if one has the focus. */
+  private applyBrief(): void {
+    const e = this.entry();
+    const els = this.el.querySelectorAll<HTMLElement>('[data-campaign]');
+    if (!e || els.length === 0) return;
+    const html = this.briefHtml(e);
+    for (const el of els) el.dataset.ctx = (el.dataset.ctxBase ?? '') + html;
+    const f = this.c.app.nav.focused;
+    if (f && this.el.contains(f) && 'campaign' in f.dataset) this.showContext(f);
+  }
+
+  /** (CM4) This peer's own `campaign:progress` (null while it loads: no spoiler line yet). */
+  private progress(): CampaignProgress | null {
+    if (this.prog === null) {
+      this.prog = undefined;
+      void loadCampaignProgress().then((r) => {
+        this.prog = r;
+        this.applyBrief();
+      });
+    }
+    return this.prog ?? null;
+  }
+  /** (CM4) Own campaign progress (null: not read yet; undefined: loading). */
+  private prog: CampaignProgress | null | undefined = null;
+
+  /** (CM4, A9, host) The host's `campaign:save` for the Continue row (null: none, or not read yet). */
+  private campaignSave(): CampaignSave | null {
+    if (this.saveRead === 'unread' && flags.campaign && flags.missions && this.c.session.isHost) {
+      this.saveRead = 'loading';
+      void loadCampaignSave().then((r) => {
+        const had = this.save !== null;
+        this.save = r;
+        this.saveRead = 'read';
+        if ((had || r) && this.entry() && this.c.app.screens.top === this) this.rebuild();
+      });
+    }
+    return this.save;
+  }
+  private save: CampaignSave | null = null;
+  private saveRead: 'unread' | 'loading' | 'read' = 'unread';
 
   /** Course mode: "Start at bay N" for the bays in the host's course record (every bay with the dev flag; D20, C9). */
   private bayChoice(): HTMLElement {
@@ -675,7 +836,13 @@ class LobbyScreen extends MenuScreen {
       });
       if (!s.hostId) (main as HTMLButtonElement).disabled = true;
     }
+    // (campaign-mode CM4, A4) on a campaign entry the main button (the first focus on both peers) shows the briefing too
+    if (this.entry()) {
+      main.dataset.campaign = '';
+      main.dataset.ctxBase = main.dataset.ctx ?? '';
+    }
     this.actions.replaceChildren(main, share, leave);
+    this.applyBrief();
     if (focusedIdx >= 0) this.c.app.nav.setRoot(this.el, (this.actions.children[focusedIdx] as HTMLElement) ?? null);
   }
 
@@ -800,7 +967,7 @@ class ConnectingScreen extends MenuScreen {
 
 export let current: CoopController | null = null;
 
-async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'client', resume: RejoinRecord | null = null): Promise<void> {
+async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'client', resume: RejoinRecord | null = null, cont: CampaignSave | null = null): Promise<void> {
   if (isOffline()) {
     app.toasts.show('Offline - co-op unavailable', 'warn');
     return;
@@ -847,7 +1014,9 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
   }
   // a new room starts on the campaign, Marlow Yard in Course mode (sector-ops slice 3); `?legacy=1` keeps the parked Hunter
   if (role === 'host') {
-    if (flags.legacy) session.setSettings('clear', 'warehouse', session.difficulty);
+    // (campaign-mode CM4, A9) the main menu's "Continue campaign": the room opens on the save's mission, difficulty and section
+    if (cont && flags.campaign && flags.missions) session.continueCampaign(cont);
+    else if (flags.legacy) session.setSettings('clear', 'warehouse', session.difficulty);
     else session.setSettings('course', CAMPAIGN_MAP, session.difficulty, '');
   }
   const c = adopt(app, api, session);
@@ -938,6 +1107,12 @@ export async function autoLocalCourse(app: App, api: CoopApi, map: string, mode:
 
 export function hostRoom(app: App, api: CoopApi): Promise<void> {
   return connect(app, api, makeRoomCode(), 'host');
+}
+
+/** (campaign-mode CM4, A9) The main menu's "Continue campaign": host a new room with the save picked (any partner
+ *  joins by the code, G147; the start waits for exactly two, G2). */
+export function continueRoom(app: App, api: CoopApi, save: CampaignSave): Promise<void> {
+  return connect(app, api, makeRoomCode(), 'host', null, save);
 }
 
 export function joinRoom(app: App, api: CoopApi, code: string): Promise<void> {
