@@ -96,6 +96,8 @@ function game(withCues: boolean): Stub {
     lightIn,
     charKeys: keys,
     charRefs: refs,
+    // (coop4 merge 17) coop4's slot -> charRefs index map (`GameState.charRefAt`): slot s is refs[s] here
+    charRefAt: Int8Array.from({ length: FILL.players }, (_, s) => (s < refs.length ? s : -1)),
     charN: FEET.length,
     lightOccluder: () => false,
   });
