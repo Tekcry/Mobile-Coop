@@ -42,6 +42,7 @@ import { flags } from '../../core/flags';
 import { TEAM } from '../../config/movement';
 import { setNoSplit, type NoSplitBox } from '../../player/splitJump';
 import { CHIMNEY_SUB, ROPE_TOP_PATH, ropeTopPath, type TeamDenial, type TeamRequest } from '../teamMoves';
+import { ctxText } from '../contextPrompts';
 import { registerKitMove, type KitDevice, type KitDevices, type KitHost, type KitMove } from './registry';
 import { KIT_PAIR, kitSpotIndex, kitSpotsOf, type KitSpot } from './kitApi';
 import type { MoveOverride } from '../../player/playerController';
@@ -423,7 +424,7 @@ function joinIdle(h: KitHost, run: ChimneyRun, coopPressed: boolean, free: boole
       prompt(h, 'Bracing...');
       return false;
     }
-    prompt(h, 'Co-op: climb the shaft back to back (chimney pair)');
+    prompt(h, ctxText('Co-op: climb the shaft back to back (chimney pair)', 'Chimney climb'));
     if (!coopPressed) return false;
     run.asked = 0;
     h.kitRequest('chimneyPair', m.id, kitSpotIndex(h.devices.list, d.id), 0, c.pos.y);
@@ -437,7 +438,7 @@ function offerIdle(h: KitHost, run: ChimneyRun, coopPressed: boolean): boolean |
   const c = h.g.player.controller;
   const d = deviceAt(h, c.pos.x, c.pos.y, c.pos.z, 0);
   if (!d) return null;
-  prompt(h, 'Co-op: brace for a chimney climb (chimney pair)');
+  prompt(h, ctxText('Co-op: brace for a chimney climb (chimney pair)', 'Brace for a chimney climb'));
   if (!coopPressed) return false;
   spotShaft(d, c.pos.x, c.pos.z, run.shaft);
   run.dev = d;
@@ -486,7 +487,7 @@ function offerStep(h: KitHost, run: ChimneyRun, coopPressed: boolean, bPressed: 
   const k = Math.min(1, h.t / CHIMNEY.offerSnap);
   put(h, run, run.sx + (run.px - run.sx) * k, run.floor, run.sz + (run.pz - run.sz) * k, wallYaw(run));
   pose(h, 'brace', 0);
-  prompt(h, 'Braced in the shaft: your partner presses Co-op (B lets go)');
+  prompt(h, ctxText('Braced in the shaft: your partner presses Co-op (B lets go)', 'Braced\nwaiting for your partner'));
   if (bPressed || coopPressed || h.t > TEAM.offerTime) {
     c.swallowCrouch = bPressed;
     h.end(false);
@@ -565,7 +566,7 @@ function climbStep(h: KitHost, run: ChimneyRun, dt: number, coopPressed: boolean
   run.y = ny;
   put(h, run, run.px, run.floor + run.y, run.pz, wallYaw(run));
   pose(h, 'climb', (((run.y / 0.7) % 1) + 1) % 1);
-  prompt(h, wait ? 'Wait for your partner' : 'Chimney climb: stick up or down together (B lets go)');
+  prompt(h, wait ? 'Wait for your partner' : ctxText('Chimney climb: stick up or down together (B lets go)', 'Chimney climb\nstick up or down together'));
   if (run.y <= 0 && moveY <= C.stepOffY) {
     // the step off at the floor
     h.endWhy = 'chimney: stepped off';

@@ -8,6 +8,7 @@ import { attachPose, GAMEPLAY_HEIGHT } from '../player/attach';
 import { ATTACH_SUB } from '../player/moveState';
 import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwDistAt, throwLanding, throwRoom, setThrowSites, clearThrowSites, THROW_SUB, HANG_SUB, HANG_HEAD, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangRootY, ROPE_SUB, ropeClimb, ropeEndOf, ropeFromTop, ropeOverPath, ropeStepOff, ROPE_DESCENT_ARM,ropeRoom, ropeSlide, ropeTopY, findRopeLip, ropeClimbPull, newRopeLip, ropeClimbGripW, ropeLipHands, ropeTopGripW, ropeTopPath, ROPE_TOP_HANDS, ROPE_TOP_PATH, KIT_SUB_MASK, isKitKind, kitIdOn, anyPart2KitOn, type KitKind, type TeamKind, type TeamMoveKind } from './teamMoves';
 import { clearGripAxis } from '../player/attachGrips';
+import { ctxText } from './contextPrompts';
 import type { GameState } from './gameState';
 import type { ThrowSite } from '../world/mapDef';
 import { KIT_POSE_LOCAL } from '../anim/clips/team';
@@ -240,7 +241,7 @@ export class TeamController implements KitHost {
         // crouched, still, hands cupped; the partner comes to us (B stands up, a timeout lets go)
         this.t += dt;
         this.hold();
-        this.prompt = 'Leg-up offered: waiting for your partner';
+        this.prompt = ctxText('Leg-up offered: waiting for your partner', 'Leg-up offered\nwaiting for your partner');
         this.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
         if (bPressed || coopPressed || this.t > TEAM.offerTime || !c.grounded) {
           c.swallowCrouch = bPressed;
@@ -250,7 +251,7 @@ export class TeamController implements KitHost {
       case 'relayOffer':
         // hanging, still free to pull up; letting go or climbing ends the offer
         this.t += dt;
-        this.prompt = 'Relay offered: waiting for your partner';
+        this.prompt = ctxText('Relay offered: waiting for your partner', 'Relay offered\nwaiting for your partner');
         this.promptAt.set(c.pos.x, c.pos.y + 0.6, c.pos.z);
         if (!this.hanging() || coopPressed || this.t > TEAM.offerTime) this.end(false);
         return coopPressed;
@@ -269,7 +270,7 @@ export class TeamController implements KitHost {
         // standing still, ready to throw; the partner runs in (B / Co-op cancels, a timeout lets go)
         this.t += dt;
         c.override = { velocity: { x: 0, z: 0 }, yaw: c.yaw, turnRate: 0, crouch: false };
-        this.prompt = 'Throw offered: your partner runs in and presses Co-op';
+        this.prompt = ctxText('Throw offered: your partner runs in and presses Co-op', 'Throw offered\nwaiting for your partner');
         this.promptAt.set(c.pos.x, c.pos.y + 1.9, c.pos.z);
         if (bPressed || coopPressed || this.t > TEAM.offerTime || !c.grounded) {
           c.swallowCrouch = bPressed;
@@ -295,7 +296,7 @@ export class TeamController implements KitHost {
         // (B5) crouched at the edge, braced; the partner comes to us (B / Co-op cancels, a timeout lets go)
         this.t += dt;
         this.hold();
-        this.prompt = 'Hang-down offered: your partner presses Co-op';
+        this.prompt = ctxText('Hang-down offered: your partner presses Co-op', 'Hang-down offered\nwaiting for your partner');
         this.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
         if (bPressed || coopPressed || this.t > TEAM.offerTime || !c.grounded) {
           c.swallowCrouch = bPressed;
@@ -316,7 +317,7 @@ export class TeamController implements KitHost {
         this.t += dt;
         this.hold();
         // (coop-kit A1) with the `descent` kit id the partner may also rappel down it from beside us
-        this.prompt = flags.kitMoves.has('descent') ? 'Rope down: your partner presses Co-op at its foot or beside you' : 'Rope down: your partner presses Co-op at its foot';
+        this.prompt = flags.kitMoves.has('descent') ? ctxText('Rope down: your partner presses Co-op at its foot or beside you', 'Rope down\nwaiting for your partner') : ctxText('Rope down: your partner presses Co-op at its foot', 'Rope down\nwaiting for your partner');
         this.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
         if (bPressed || coopPressed || this.t > TEAM.offerTime || !c.grounded) {
           c.swallowCrouch = bPressed;
@@ -459,7 +460,7 @@ export class TeamController implements KitHost {
     this.t += dt;
     this.hold();
     const c = this.g.player.controller;
-    this.prompt = r.sent ? null : 'Holding the rope: Co-op or B lets go';
+    this.prompt = r.sent ? null : ctxText('Holding the rope: Co-op or B lets go', 'Let go of the rope');
     this.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
     if (!this.partnerPos()) {
       this.endWhy = 'rope: partner gone';
@@ -567,7 +568,7 @@ export class TeamController implements KitHost {
     } else this.dropRopeGrips();
     // (coop-kit A1) a rappeller: the top tops out again only once it has been down the rope a little
     if (r.top && !r.armed && below >= ROPE_DESCENT_ARM) r.armed = true;
-    this.prompt = r.sent ? null : r.top ? 'On the rope: stick down to rappel (hold down at the floor to step off); Co-op or B lets go' : 'On the rope: stick up / down; Co-op or B lets go';
+    this.prompt = r.sent ? null : r.top ? ctxText('On the rope: stick down to rappel (hold down at the floor to step off); Co-op or B lets go', 'Let go\nstick down to rappel') : ctxText('On the rope: stick up / down; Co-op or B lets go', 'Let go\nstick up / down to climb');
     this.promptAt.set(c.pos.x, c.pos.y + 2.0, c.pos.z);
     const k = ropeEndOf(r.y >= top - 1e-3 && (!r.top || r.armed), coopPressed, bPressed);
     if (k === 'pull') {
@@ -745,7 +746,7 @@ export class TeamController implements KitHost {
     this.hold();
     h.depth = hangDepth(h.depth, moveY, dt, h.max);
     const c = this.g.player.controller;
-    this.prompt = h.sent ? null : 'Holding: stick up / down; Co-op pulls up, B lets go';
+    this.prompt = h.sent ? null : ctxText('Holding: stick up / down; Co-op pulls up, B lets go', 'Pull up\nstick up / down to lower, B lets go');
     this.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
     if (!this.partnerPos()) {
       this.endWhy = 'hang: partner gone';
@@ -814,8 +815,10 @@ export class TeamController implements KitHost {
     c.override = { kinematic: this.kin, yaw: h.yaw, turnRate: 20, crouch: false };
     g.player.pose.tumble = Math.PI;
     // (hang-down) A the item in reach (A9), the hold-A menu by a guard (grab), RT the neck snap, LT the pistol
-    this.prompt = h.sent ? null : 'Hanging: A to use what is in reach, hold A by a guard to grab, RT takes him down, LT aims; Co-op to be pulled up';
-    this.promptAt.set(c.pos.x, c.pos.y + 0.4, c.pos.z);
+    this.prompt = h.sent ? null : ctxText('Hanging: A to use what is in reach, hold A by a guard to grab, RT takes him down, LT aims; Co-op to be pulled up', 'Pull me up');
+    // (context-prompts S5, row 11) under the flag "Pull me up" sits on the holder above (the move's partner)
+    if (flags.contextPrompts && m) this.promptAt.set(m.pos.x, m.pos.y + 1.5, m.pos.z);
+    else this.promptAt.set(c.pos.x, c.pos.y + 0.4, c.pos.z);
     const k = hangEndOf(false, coopPressed, bPressed);
     if (k && !h.sent) {
       h.sent = true;
@@ -908,7 +911,7 @@ export class TeamController implements KitHost {
     if (o && o.rope && o.down) {
       // (coop-kit A1, R34) the rappel: the same rope point the climb uses (in front of the holder), the same request; the
       // host tells the two apart by height
-      this.prompt = 'Co-op: rappel down the rope (two-person rope)';
+      this.prompt = ctxText('Co-op: rappel down the rope (two-person rope)', 'Rappel down the rope');
       this.promptAt.set(c.pos.x, c.pos.y + 1.9, c.pos.z);
       if (coopPressed) {
         const p = this.hangPoint(o.mate.pos.x, o.mate.pos.y, o.mate.pos.z, o.mate.yaw);
@@ -921,7 +924,7 @@ export class TeamController implements KitHost {
       return coopPressed;
     }
     if (o && o.rope) {
-      this.prompt = 'Co-op: climb the rope (two-person rope)';
+      this.prompt = ctxText('Co-op: climb the rope (two-person rope)', 'Climb the rope');
       this.promptAt.set(c.pos.x, c.pos.y + 2.0, c.pos.z);
       if (coopPressed) {
         const p = this.hangPoint(o.mate.pos.x, o.mate.pos.y, o.mate.pos.z, o.mate.yaw);
@@ -935,7 +938,7 @@ export class TeamController implements KitHost {
     }
     if (o && o.hang) {
       // (B5) the partner's hang-down offer: be lowered head-first over the edge in front of them
-      this.prompt = 'Co-op: be lowered head-first (hang-down)';
+      this.prompt = ctxText('Co-op: be lowered head-first (hang-down)', 'Hang down');
       this.promptAt.set(o.mate.pos.x, o.mate.pos.y + 1.3, o.mate.pos.z);
       if (coopPressed) {
         const p = this.hangPoint(o.mate.pos.x, o.mate.pos.y, o.mate.pos.z, o.mate.yaw);
@@ -948,7 +951,7 @@ export class TeamController implements KitHost {
       return coopPressed;
     }
     if (o) {
-      this.prompt = o.toss ? 'Co-op: get thrown over (partner throw)' : o.relay ? 'Co-op: climb your partner up to the ledge' : o.boost ? 'Co-op: take the leg-up' : 'Leg-up offered: no ledge in reach here';
+      this.prompt = o.toss ? ctxText('Co-op: get thrown over (partner throw)', 'Get thrown over') : o.relay ? ctxText('Co-op: climb your partner up to the ledge', 'Climb up') : o.boost ? ctxText('Co-op: take the leg-up', 'Take the leg-up') : ctxText('Leg-up offered: no ledge in reach here', 'Leg-up offered\nno ledge in reach here');
       this.promptAt.set(o.mate.pos.x, o.mate.pos.y + (o.relay ? 0.5 : o.toss ? 1.9 : 1.3), o.mate.pos.z);
       if (coopPressed) {
         if (o.toss) this.requestThrow(o.mate);
@@ -961,7 +964,7 @@ export class TeamController implements KitHost {
     // start one: hanging = the relay; crouched on the ground = the leg-up; standing = the partner throw (B4)
     if (this.hanging()) {
       if (near < 12 && !this.prompt) {
-        this.prompt = 'Co-op: offer a ledge relay';
+        this.prompt = ctxText('Co-op: offer a ledge relay', 'Offer a relay');
         this.promptAt.set(c.pos.x, c.pos.y + 0.6, c.pos.z);
       }
       if (coopPressed) {
@@ -983,7 +986,7 @@ export class TeamController implements KitHost {
     // no longer wanted, the body not up yet) also counts as standing.
     const crouched = c.crouched && c.crouchIntent && !c.autoCrouch;
     if (near < (crouched || drop ? 12 : 4) && !this.prompt) {
-      this.prompt = drop ? (crouched ? 'Co-op: offer a hang-down (lower your partner)' : 'Co-op: drop a rope for your partner (crouch: hang-down)') : crouched ? 'Co-op: offer a leg-up' : 'Co-op: offer a partner throw (crouch for a leg-up)';
+      this.prompt = drop ? (crouched ? ctxText('Co-op: offer a hang-down (lower your partner)', 'Offer a hang-down') : ctxText('Co-op: drop a rope for your partner (crouch: hang-down)', 'Drop a rope\ncrouch: hang-down')) : crouched ? ctxText('Co-op: offer a leg-up', 'Offer a leg-up') : ctxText('Co-op: offer a partner throw (crouch for a leg-up)', 'Offer a throw\ncrouch: leg-up');
       this.promptAt.set(c.pos.x, c.pos.y + (crouched ? 1.5 : 1.9), c.pos.z);
     }
     if (!coopPressed) return false;
