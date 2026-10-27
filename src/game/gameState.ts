@@ -5,6 +5,8 @@ import { World } from '../world/world';
 import { disposeSectionBakersSince, sectionBakerMark } from '../voxel/sectionJobs';
 import { flags } from '../core/flags';
 import { CharOccluders } from '../world/charOccluders';
+import { ShadowCues } from '../world/shadowCues';
+import type { LightField } from '../world/lightField';
 import { cqSimSet } from '../anim/cqGait';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
@@ -327,6 +329,24 @@ export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTM
 const NO_REMOTES: readonly PlayerRef[] = Object.freeze([]);
 /** (char-shadow-meter S2c) Solo and host: no client partner slots (`charMatesInto`). */
 const NO_MATES = (): number => 0;
+/** (char-shadow-meter S3b-2) Seconds between cue fills (the meter tick); a module constant, so the fill call boxes no
+ *  double. */
+const CUE_DT = 1 / LIGHT.playerHz;
+
+/**
+ * (char-shadow-meter S3b-2) The players' shadow cues (Guard AI's faint cue input, PLAN section 2): built from the
+ * gameplay bake (the field, the registry's lights, the bake's moon direction; never `world.lamps`, the picture) when
+ * the contract exists (`flags.charShadowLight`) and this is not a co-op client; null otherwise.
+ */
+export function shadowCuesFor(
+  world: { readonly lightField: LightField; readonly level: { readonly lights: { readonly lights: readonly LightDef[] } } },
+  occ: CharOccluders | null,
+  puppet: boolean,
+): ShadowCues | null {
+  if (!occ || puppet) return null;
+  const f = world.lightField;
+  return new ShadowCues(f, world.level.lights.lights, f.bake?.moon.dir ?? null);
+}
 /** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
  *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
 /** (map-ready S14) The compile log closes this long after its zero point (ms) whatever is still pending. */
@@ -407,6 +427,9 @@ export class GameState implements AppState {
   /** (char-shadow-meter S2) `playerRefsInto` order (slot 0 local); S3b-2 reuses it. */
   private readonly charRefs: PlayerRef[] = [];
   private charN = 0;
+  /** (char-shadow-meter S3b-2) The players' shadow cues, filled at `LIGHT.playerHz` right after the meter (slot s =
+   *  `charRefs[s]`, slot 0 the host / solo player); null with the flag off and on a co-op client (`shadowCuesFor`). */
+  readonly shadowCues: ShadowCues | null;
   private charFull = 0;
   /** (char-shadow-meter S2, debug only) The meter tick's ms with the contract: the last and a ring of 100. */
   private charMs = 0;
@@ -608,6 +631,7 @@ export class GameState implements AppState {
   ) {
     this.scene = world.scene;
     this.puppet = opts.net?.role === 'client';
+    this.shadowCues = shadowCuesFor(world, this.charOccluders, this.puppet);
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
     // (A5, G135) partner beacon: the host / solo player is player 1 (blue), a joiner player 2 (red)
@@ -1827,6 +1851,9 @@ export class GameState implements AppState {
           this.localRef.light = v;
         } else if (s < this.charRefs.length) this.charRefs[s]!.light = v;
       }
+      // (S3b-2) the cues from the same contract and players (solo / host only; no allocation)
+      const sc = this.shadowCues;
+      if (sc) sc.fill(occ, this.charRefs, this.charKeys, this.charN, CUE_DT, this.lightOccluder);
       if (flags.debug) {
         this.charMs = performance.now() - t0;
         this.charMsRing[this.charMsAt] = this.charMs;

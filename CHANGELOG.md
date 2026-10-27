@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.131.1 - Train 168: Character shadow cues wired into the game (dark) (2026-10-27, PR #706; #665)
+- (char-shadow-meter S3b-2, J16; dark behind `charShadowLight`) `GameState.shadowCues`: the players' shadow footprints
+  for Guard AI's faint cue, built from the gameplay light bake on solo and host (null with the flag off and on a co-op
+  client) and filled at 10 Hz right after the light meter; the call allocates nothing past the fill's own residual.
+  New `tests/shadowCuesGame.test.ts`.
+
 ## 4.131.0 - Train 167: Light check stops failing on the new Node version; New interaction prompts: groundwork (preview only); CI on Node 24; Guards face you before they shoot; Guard shaders ready before play; +4 more (2026-10-27, PR #704; #702, #699, #696, #694, #687, #686, #683, #675)
 
 ### Brightness slider has a much bigger range
