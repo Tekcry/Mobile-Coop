@@ -1069,7 +1069,8 @@ Next (mill hunt, Michael's walk priority; docs/guard-ai/mill-hunt/):
     MUST FIX IN H4: a top-ranked unit's move can stop 3-4 m from a lower-ranked group across a room edge (PR1-CHECK-B),
     then raise the sim CLUSTER to HUNT.apart (4 m); 16-set gallery density needs a decision.
 (2) PR 2 = feature/guard-ai-mill-hunt-h3 (worktree -mill-hunt-h3). H3 updated to PR 1's final board 97a26b0c6
-    (goal arrays, 0 B hand-off; H3-REPORT.md "Update to PR 1's final board"). Check A PASS (H3-CHECK-A.md). Check B was
+    (goal arrays, 0 B hand-off; H3-REPORT.md "Update to PR 1's final board"). Check A PASS; check B PASS 6b3cc3f5d
+    (H3-CHECK-B.md; polish: e2e-affected should map enemy.ts / enemyManager.ts to e2e-piano). Check B was
     RUNNING at the save -> H3-CHECK-B.md (maybe PARTIAL: a fresh Opus checker finishes it). Laptop e2e-piano on
     97a26b0c6 queued (set mill-h3b; read the log for the hunt checks and any mSkip). After PR 1 (#713) merges: open PR 2
     (kind minor fragment exists), post checker, tell the orchestrator.
