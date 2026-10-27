@@ -12,11 +12,12 @@ retargets to master once the one below lands (re-post `checker` on the retarget)
 2. #711 feature/campaign-mode-cm3 (CM3, src/net; base #708): two Opus PASS; affected pending.
 3. #716 feature/campaign-mode-cm4 (CM4, lobby + main menu; base #711): two Opus PASS; affected pending.
 4. #718 feature/campaign-mode-cm5 (CM5 + CM6, big-pr; base #716): two Opus PASS; affected pending.
-5. #719 feature/campaign-mode-cm7 (CM7 e2e part `e2e-coop:campaign`, Job-done; base #718): Sonnet PASS, DRAFT (built
-   before the hold reached me); its first laptop run was WITHDRAWN at the hold. It has never run: on resume, mark it
-   ready, request `e2e-coop:campaign`, one fix + one rerun (G422; likely spots: the cross-context relay, private reads).
-Open for Michael: (a) quit mid-section + Continue drops that section's kills / alarms (save at section start, A7): a
-perfect-score loophole; keep, or keep the tally on quit. (b) J22 Q1: the lobby listing of Tallow's two missions (built on
+5. #719 feature/campaign-mode-cm7 (CM7 e2e part `e2e-coop:campaign`, Job-done; base #718): Sonnet PASS, ready
+   (orchestrator ~16:15: let #708 -> #719 ride trains as each turns green); its first laptop run re-filed (set campaign,
+   20261027T045921). It had never run: a red result waits for the resume (one fix + one rerun, G422; likely spots: the
+   cross-context relay, private reads).
+Open for Michael: (a) PARKED, kept as built (orchestrator ~16:15): quit mid-section + Continue drops that section's
+kills / alarms (save at section start, A7), so a quit works like a restart; a perfect-score loophole if he wants it closed. (b) J22 Q1: the lobby listing of Tallow's two missions (built on
 "Both as Mission 1, in order"). (c) The storm level after #701 (may be very faint). (d) Mill polish when he asks: the
 knife as a fist at the flash, the hero framed larger, light through the glide (S8 notes).
 Polish lists (none blocking): scratch/campaign/cm/CM3-check-*.md, CM4-check-*.md, CM56-check-*.md, CM7-check.md.
