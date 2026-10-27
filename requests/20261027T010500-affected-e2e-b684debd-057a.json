@@ -1,0 +1,13 @@
+{
+  "id": "20261027T010500-affected-e2e-b684debd-057a",
+  "sha": "b684debd7d437844c32619146195f47b85051138",
+  "branch": "feature/context-prompts-p2",
+  "pr": 700,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-takedown"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #700"
+}
