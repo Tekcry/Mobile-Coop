@@ -1,6 +1,6 @@
 # Night Shift - Design Bible
 
-Version 2.2 - 2026-10-25. States today's game, rewritten in place to Michael's decisions G1-G407 (`docs/DECISIONS.md`;
+Version 2.3 - 2026-10-27. States today's game, rewritten in place to Michael's decisions G1-G434 (`docs/DECISIONS.md`;
 "Rewrite it now", G10; "I want to make sure my vision is clear constantly", G337). `docs/VISION.md` is the one-page
 summary. The 1.13 text, with the removed systems and the old process, is in `docs/archive/design-bible-history.md`.
 Owner: the orchestrator (it edits; Michael decides). Status: current.
@@ -55,9 +55,10 @@ names and story. `docs/VISION.md` is the one-page summary.
   - **Sector Ops:** Saltmarsh Park, 1-4 players, solo always possible (G308, G280, G331).
 - **The CT co-op levels are recreated.** Their design, flow and moves are researched, and that experience is rebuilt
   with original maps and story (G3). The research is done (2026-10-18, G124-G160).
-- **Prototype, then refine.** Michael: "We must get a working prototype working, only the basics required to make it
-  work and functional to test features and gameplay." (G4) Refining is allowed since 2026-10-24, paced by the walk cap
-  and gated by the one-click visual sign-off (G288). Michael tunes movement himself (G227).
+- **A prototype, not polish.** Michael: "We must get a working prototype working, only the basics required to make it
+  work and functional to test features and gameplay." (G4, G288) The aim is playable over perfect: no fine-tuning pass
+  (feel, animation, lux, perf) before Michael has played, and his playthrough on `/preview/` decides what is built next
+  (G421, G422). Michael tunes movement himself (G227).
 - **Story** (`docs/story.md`): a present-day (G124), standalone co-op story (G136); a grounded techno-thriller with dry
   humour. Two operators, Wren and Moth, of the deniable unit NIGHT SHIFT, with the handler LANTERN and the radio crew
   Tally and Sexton (G112), have nine nights to stop SUNDOWN, a staged blackout of the port city of Hollowmere. The team
@@ -301,8 +302,9 @@ Implementation: `docs/systems/lighting.md`.
   rooms hide.
 - **L17 - Real-world light levels (G329).** Sites are lit as real sites are. Each space type has a real-world
   illuminance band from the Australian lighting standards (outdoor car parks and roads AS/NZS 1158.3.1, interiors AS/NZS
-  1680, EN 12464 where they are silent); engine light is calibrated to lux once, Michael approves the band table with
-  the S1 car-park light map (G368), and each space is measured from the bake at greybox exit. Every light works: no
+  1680, EN 12464 where they are silent); engine light is calibrated to lux once, and each space is measured from the
+  bake at greybox exit. Michael approved the band table and the S1 car-park light map for S1 only; S2-S5 and the
+  warehouse are re-lit after he walks S1 (G368, G415). Every light works: no
   dead, failed or switched-off fitting makes a dark spot, on any map (G367). Stealth comes from real gaps (between
   poles, under carports, behind cars), cut power and shot lamps: the players make the shadows (G295). The 40-60%
   floor-in-shadow target yields to the band (G284).
@@ -337,6 +339,7 @@ Implementation: `docs/systems/audio.md`.
   chase music plays only after the players were seen (G63). Step timings and encoding are in `docs/systems/audio.md`
   (G67). The long menu theme ships (G64); the old music plans, test lab and unused music files are kept (G65). The
   music direction, briefing / results / pause music and the Calm alternatives are decided in the music job (Section 11).
+  The piano escape scene (5.8) plays "Investigation Piano" in its intro and "Suspense Thriller" in play (G430).
 - **S9 - Missing sounds** come after the prototype: guards' footsteps first, then ambience, then the rest (G66).
 - **S10 - Voice (G129, G140, G156).** Partner voice is an earpiece: always clear, never fading with distance. Proximity
   voice (guards hear the players' voice chat) is an opt-in modifier: off by default, visible when on, tunable. Both are
@@ -624,7 +627,8 @@ logged in the field menu. Lines are written so they can be voiced later (G82).
 **Results:** a stealth rating of 0-100%. 100% is no kills, no alarms and every primary objective; secondary and
 opportunity objectives are a bonus and only raise the rating: the campaign grants no rewards (G384); every mission must
 be testably 100%-able (G146). Violence is scored: lethal and non-lethal play are allowed, non-lethal and ghost play are
-rewarded, and no mission forces a kill (G127). Each category is shown, plus each player's stats.
+rewarded, and no mission forces a kill (G127; the piano escape below is the one exception, G426). Each category is
+shown, plus each player's stats.
 
 **Campaign progress:** fully shared. A saved mission's progress belongs to the host, and any partner can join it (G147).
 The campaign is entered from the co-op lobby, which lists every mission, with Marlow Yard as its training prologue
@@ -633,7 +637,8 @@ your own progress shows "Story spoilers ahead". Saved per player, per mission: c
 
 **Missions** recreate the CT co-op levels (G3); the research decides their number, length and flow. Mission 1 is Tallow
 Wharf, the new small campaign map; Kestrel stays paused (G340, G53). Mission 1 has no civilians (G373); its throw gaps
-force co-op (G387); its map is approved as drawn and built now, and Michael walks it once built (G401). Story, sites and
+force co-op (G387); its map is approved as drawn and built now, and Michael walks it once built (G401); one market
+corner may take 16 s to reach, a named exception on its map (G425). Story, sites and
 names: `docs/story.md` (site and company names are decided with the missions). The first campaign prototypes, Three Grey
 Coats and Two-Key Ledger, go on Tallow Wharf (G293, G340), built on the mission framework: objective chains with
 parallel tracks, strict rules with section restart, an interrogate-a-named-target objective (G291). The four prototypes
@@ -643,12 +648,20 @@ hard countdown).
 
 **Mission 8** has no traitor and no player-versus-player finale (G9; Section 5.15).
 
+**The piano escape** is a standalone co-op experiment inside Night Shift, kept apart from the main plan: a small test
+map (the storm mill) reusing guards, shadows, co-op and takedowns (G426). Brutal knife kills are allowed in this one
+scene, a named exception; the no-forced-kill rule and the perfect rating hold everywhere else (G127, G146). Its intro is
+one shot that ends in the shoulder view with no cut; the EMP that kills the lamps is a player press (G433). A prototype
+on existing clips, effects and lights, with no tuning (G422).
+
 **Sector Ops** is the second mode beside the campaign (G184): an original take on co-op ops at Chaos Theory pace, a
 playground for movement, stealth and gunplay (G185). It runs in its own session, in parallel with Marlow Yard (G296).
 - **Map:** Saltmarsh Park (`campusOps`), a corporate research campus of five sections S1-S5 joined by connector rooms
   (G186), one co-op run 30-45 min, with the full detail-art lift (G295, G297, G309). The old Warehouse (`warehouseOps`)
   stays selectable, frozen with no more work (G298, G390); its lamps sit on ceilings under translucent corrugated roof
-  sheets (G221).
+  sheets (G221). S1 follows re-plan v3 (G428): the objective is cloning the courier's badge at his van mid car park; the
+  gatehouse rear window is fixed glass; an anti-climb fence with a two-player garden gate, a lamp and a walking guard
+  closes the free right-hand run.
 - **Players:** 1-4 (G308), live when coop4 ships, with no off switch (G381). Solo is always possible: team doors are
   true two-player pathways (S2's too, G386), and solo play keeps a working route past them (G280, G295).
 - **Objectives and rules:** a section is done by its objective, then its exit; kills are optional, so a ghost run is
@@ -693,6 +706,8 @@ Implementation: `docs/systems/coop.md`.
   and more (G293); plus Deadweight (one hangs on a chain so a counterweighted grate lifts for the other), Drop Catch (a
   silent landing in the partner's arms), Chimney Pair (back to back up a narrow shaft), Swing Pass (one braced on a pipe
   swings the other across a shaft) and Plank Bridge (both lay a scaffold board over a gap; guards notice it) (G403).
+  Their sizes are not in the level standard yet: they are built on Player Build's starting sizes for Marlow Yard's five
+  spots and Tallow Wharf C4's Plank Bridge, and no new map plans on them (G423).
 - **C5 - Detection.** Guards see each player separately (`PlayerRef.spotted` per player). Radio calls and alarms affect
   both. Guards know only what they saw: the shared alert tier rises, but no guard knows a second intruder exists until
   one is seen or evidence suggests it (G139). Guards keep a last known position per player (G380).
@@ -771,10 +786,12 @@ Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
 - All other animation is generated in code (clips as curves, IK, `FootPlanner`, `AnimGraph`, `Inertializer`). No motion
   matching, no root motion driving control. The exception is mocap locomotion from CMU takes (G264) and Mixamo clips
   retargeted onto the game's own rigs, never the Mixamo skeleton (G406): kept as captured over the limits and feel
-  notes below (G271), more clips without sheets (G273), the only player locomotion, with no switch: the hand-keyed set
-  is a developer rollback and Michael fine-tunes the clips in the Anim Studio (G298, G399); whether the corrections
-  over the capture stay is decided at his animation walk (G399). Every animation gets fixed, the normal ones too
-  (G312).
+  notes below (G271), more clips without sheets (G273). Three animation sets, Hand-made, CMU and Mixamo, are picked by
+  one toggle in the menus (Options, and the same switch in the Anim Studio), saved with the settings; the default stays
+  today's moves, and a move the chosen set has no clip for keeps today's clip (G409, G410). Every Mixamo clip with a use
+  goes in the game, for every move the CMU set covers and more; Michael fine-tunes them in the Anim Studio, whose set
+  filter (Hand-made, CMU, Mixamo or All) lists one set's animations (G408, G409). Whether the corrections over the
+  capture stay is decided at his animation walk (G399). Every animation gets fixed, the normal ones too (G312).
 - **Every animation looks realistic and believable**: no instant or unrealistic motion, no clipping (G199), no awkward
   poses. The reference is a real-world trained operator, not the CT footage (G210, replaces loco M20 Q9).
 - **Michael's feel notes (G207):** legs and elbows in, never crab-like, also crouched; a slower crouch idle; the
@@ -923,8 +940,9 @@ Mission 8 has no traitor and no player-versus-player finale (G9). The finale is 
   work never changes gameplay.
 - **Realistic everywhere (G68).** The voxel look is retired (2026-10-23, Michael: "nothing should be voxel"; G282).
 - **Guards:** realistic, all male, a larger build than Wren, clear variety by archetype (armour, helmets) (G310);
-  mid-detail faces on most kinds, balaclavas on heavy / armoured, the same look after a section restart (G320). Extra
-  co-op player characters come after all levels are done (G310).
+  mid-detail faces on most kinds, balaclavas on heavy / armoured, the same look after a section restart (G320). The new
+  guard models are on everywhere with the recommended looks; Michael reviews them later (G432). Extra co-op player
+  characters come after all levels are done (G310).
 - **Where to win:** lighting and atmosphere: soft shadows shaped by the lamp fixture, one-bounce light, light cones in fog
   and rain, flickering and failing lamps, flashlight beams in haze, rain with wet surfaces and drips, steam and dust in
   light shafts.
@@ -980,7 +998,9 @@ Every feature works smoothly in co-op (2 players; up to 4 in Sector Ops), to 5.9
 - Every new or changed movement state, verb and clip has a networked `MoveState` mode; committed moves are host-approved;
   health, the drawn / holstered state and the weapon in hand are host-authoritative; local-only items stay local (C11).
 - The body layer runs on remotes from `MoveState` plus velocity, computed locally; small animation fields may also go
-  over the wire so a partner looks exact on every screen (G400).
+  over the wire so a partner looks exact on every screen (G400). Each player's animation set (Hand-made / CMU /
+  Mixamo) travels with his networked animation state, so every screen draws him with his own choice; kit moves follow
+  each actor's own set (G411).
 - Partners never interpenetrate; shoulders turn to pass in tight spaces; head look-at includes the partner; two players
   can stack on one wall; every team move gets contact IK with no clipping between the two bodies.
 - Tests: every new state adds an `e2e-netmove` case; the anim-audit harness also runs on remote poses; rubber-banding or
@@ -1147,22 +1167,23 @@ definition of done) and `docs/systems/session-method.md` (the job lead's loop). 
 - **Authority order:** Section 0 (G86).
 - **Branches:** master is the only base. One branch per job from master, one PR each (G83); green PRs ride automatic
   rolling trains to master, no wait for Michael (G286, G318); master always holds every finished update, and the
-  orchestrator asks Michael when unsure. Previews beside the live game: `/preview/` (master, through `dev`) and `/ct/`
-  (through `ct-movement`) (`docs/systems/deploy.md`; replaces G85).
+  orchestrator asks Michael when unsure. Previews beside the live game: `/preview/` (master, through `dev`, with every
+  dark feature on, G416) and `/ct/` (through `ct-movement`) (`docs/systems/deploy.md`; replaces G85).
 - **Prototype, then orchestrator:** every multi-step job builds a quick prototype for feel or look first, then runs the
-  orchestrator method (G87). Refining is allowed, at most 3 unwalked features per area, a walk card per release, and a
-  one-click sign-off before greybox, map art or a big look change (G288). An idle lead starts the next roadmap feature
-  in its area (G283). Test jobs: visual-gate and coop-real (G287, assumed, undoable).
+  orchestrator method (G87). No fine-tuning before Michael has played; leads build playable pieces, not polish or
+  tooling (G421, G422). Switch-on in the live game follows the walk cap (`docs/RULES.md` "Walk pacing"), with a walk
+  card per release and a one-click sign-off before greybox, map art or a big look change (G288). An idle lead starts the
+  next roadmap feature in its area (G283). Test jobs: visual-gate and coop-real (G287, assumed, undoable).
 - **Decisions:** the orchestrator folds Michael's ROADMAP "Decided" entries into `docs/DECISIONS.md` daily with the next
   free G numbers, and into this bible and `docs/VISION.md` together, rewritten in place; doc lint in CI and a daily drift
   audit catch what slips (G86, G89, G337, G344).
 - **Jobs:** `docs/ROADMAP.md` (owned by the orchestrator) lists what runs now and what waits on Michael (G90 in its
   current form); each job keeps BRIEF, PLAN and STATE in `docs/<job>/`.
 - **Models and pace:** Opus plans, briefs, checks and writes tricky engine / AI / animation code; Sonnet builds from
-  strict briefs; Haiku does chores (G302, replaces G88 and G158); full burn until Michael says to slow down (G304, G324)
-  with lean messaging and batch checkers (G305); two checkers on AI and `src/net`, cloud builders, plans 2-3 slices
-  ahead, high effort for leads (G319). The session layout (a lead per area, the orchestrator starting the desktop leads
-  at each swap) is in `docs/RULES.md` "Sessions" (G364).
+  strict briefs; Haiku does chores (G302, replaces G88 and G158); pacing: `docs/RULES.md` "A job" (G424, G431); lean
+  messaging and batch checkers (G305); two checkers on AI and `src/net`, cloud builders, high effort for leads (G319).
+  Fixes come first, each with a repeat guard (G417, G418), and no session waits on another (G420). The session layout (a
+  lead per area, the orchestrator starting the desktop leads at each swap) is in `docs/RULES.md` "Sessions" (G364).
 - **Overnight loosenings:** the rule is in `docs/RULES.md` (Intake, step 2; G301, G358).
 - **Pipeline:** the laptop queue, fixed swap prompts, automatic suite selection and fully automatic rolling trains; no
   e2e on the desktop except the overflow lane (G318, G321, G322); release-speed (G317); the watchdog adds
@@ -1172,11 +1193,11 @@ definition of done) and `docs/systems/session-method.md` (the job lead's loop). 
 - **Versions:** notes say Unreleased until the merge; every merge to master gets the next `4.MINOR.PATCH`, a job or
   feature a minor step, a fix or docs-only merge a patch, set by the orchestrator (G183, G93). The consolidation merge
   is 4.0.0 (G84).
-- **Tests:** test tiers by kind of change (`docs/RULES.md` "Test tiers"); the full e2e run is the training level and its
-  systems, with parked, audio and GPU suites in their own runs (`docs/systems/testing-tools.md`). `TESTING.md` holds one
-  desktop checklist and a release checklist (G92). A light-meter-against-picture mismatch holds a release; the
-  orchestrator accepts a look change into the picture baseline only with Michael's sign-off on record (G391); a second
-  quarantine of a suite within 14 days makes it blocking (G393).
+- **Tests:** test tiers by kind of change (`docs/RULES.md` "Test tiers"; G412, G413, G421, G422); the full e2e run is
+  the training level and its systems, with parked, audio and GPU suites in their own runs
+  (`docs/systems/testing-tools.md`). `TESTING.md` holds one desktop checklist and a release checklist (G92). A
+  light-meter-against-picture mismatch holds a release; the orchestrator accepts a look change into the picture baseline
+  only with Michael's sign-off on record (G391); a second quarantine of a suite within 14 days makes it blocking (G393).
 - **Token hygiene:** read `docs/RULES.md`, `docs/VISION.md`, the job's plan and only the files it lists; use grep and line
   ranges; never re-read this bible in full in a session.
 
@@ -1193,7 +1214,7 @@ The live job list, ranked, with owners and gates, is `docs/ROADMAP.md` "Now" on 
 3. **The work under it:** Marlow Yard; Sector Ops' Saltmarsh Park S1-S5 greybox (signed off, G328) with light-realism
    (G329); the mission framework, then the four prototypes: Three Grey Coats and Two-Key Ledger on Tallow Wharf (Mission
    1, G340), Split Shift and Code Relay on the campus (G291, G293); guard AI (G299, G335); guard models (G310, G321); the
-   animation passes; the test jobs (G287) and route-runs (G330).
+   animation passes; the test jobs (G287) and route-runs (G330); the piano escape experiment (G426).
 4. **Later**, each its own job: menus, the music revision and the art guide (G113); missing sounds (G66); voice chat
    (G156); Kestrel's future (paused, G53); the rest of the campaign missions; more co-op player characters after all
    levels (G310).

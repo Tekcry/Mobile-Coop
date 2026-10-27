@@ -8,6 +8,7 @@ import { markCount } from './rating/sectionRating';
 import { checkStageActions, type SectorStageAction, type StageNavCheck } from './sectorStage';
 import { checkDesks } from './sectorDesks';
 import type { SecurityData } from '../security/data';
+import type { MissionWire } from './mission/missionWire';
 
 /**
  * Sector Ops (feature/sector-ops): a map split into sections played in order. Each section has one objective (a hack,
@@ -17,7 +18,16 @@ import type { SecurityData } from '../security/data';
  * so a ghost run (no kills, never spotted) is always possible (M3). No lives (M7): co-op revives with syringes; both
  * down, or solo, restarts the section at its checkpoint. Pure: the mode (`modes/sectorMode.ts`) puts it in the world.
  */
-export type SectorObjectiveKind = 'hack' | 'grab' | 'download';
+export type SectorObjectiveKind = 'hack' | 'grab' | 'download' | 'clear';
+
+/**
+ * (piano-escape) The `clear` objective: done when every guard of the section is down (dead or knocked out) and none is
+ * still pending. It has no interactable and no site (`x`, `y`, `z` are unused). `pending`: guards waiting to spawn;
+ * `living`: guards up and about (a woken one counts again). Pure; the mode feeds it.
+ */
+export function clearDone(pending: number, living: number): boolean {
+  return pending === 0 && living === 0;
+}
 
 export interface SectorObjective {
   kind: SectorObjectiveKind;
@@ -139,7 +149,7 @@ export interface SectorDef {
   shieldTeams?: boolean;
   /**
    * (sector-redesign G20, M10) How many dogs the section may have (default 0: none). Every dog needs a `handler`.
-   * Sector Ops only (M10 "Include guard dogs"); G155 (no dogs) still holds for the co-op missions elsewhere.
+   * Sector Ops only (M10 "Include guard dogs"); G155 (no dogs) holds for the campaign: `checkSectors(..., 'campaign')` allows none.
    */
   dogs?: number;
   /** The ways to the objective and on to the exit (M8: at least 2). */
@@ -256,6 +266,13 @@ export interface SectorBolt {
    * redesign (A21, EG11).
    */
   readonly pair?: boolean;
+  /**
+   * (J8 A30) The `MissionDef.id`s this bolt is fitted in; absent = fitted in every run (the behaviour before A30). In a
+   * run it is not fitted in (another mission, or no mission bound) its door is a plain door: unlocked from the start, no
+   * "Unbolt" item, no nav closure, and a section restart leaves it so (`SectorBolts.unfit`, `SectorTeamDoors.build`).
+   * Used by the Tallow roof bulkhead's foot door, bolted in Two-Key Ledger only.
+   */
+  readonly missions?: readonly string[];
 }
 
 /** Reach (m) of a team door's "Unbolt" item (the course bolt's). */
@@ -348,13 +365,33 @@ export function boltById(defs: readonly SectorDef[] | undefined, id: string): { 
 export class SectorBolts {
   /** `shut[sec][k]`: the bolt is shut (its door locked). */
   readonly shut: boolean[][];
+  /** (J8 A30) `fitted[sec][k]`: the bolt is fitted in this run (false: `unfit`, its door a plain door). */
+  readonly fitted: boolean[][];
 
   constructor(readonly defs: readonly SectorDef[]) {
     this.shut = defs.map((d) => (d.bolts ?? []).map(() => true));
+    this.fitted = defs.map((d) => (d.bolts ?? []).map(() => true));
   }
 
   isShut(sec: number, k: number): boolean {
     return this.shut[sec]?.[k] === true;
+  }
+
+  /** (J8 A30) Is bolt `k` of section `sec` fitted in this run? False for a bad index. */
+  isFitted(sec: number, k: number): boolean {
+    return this.fitted[sec]?.[k] === true;
+  }
+
+  /**
+   * (J8 A30) At build time: bolt `k` of section `sec` is not fitted in this run (`SectorBolt.missions`). It is not shut
+   * (`use` / `press` refuse it as a drawn bolt) and `rebolt` leaves it alone. A bad index is ignored.
+   */
+  unfit(sec: number, k: number): void {
+    const row = this.shut[sec];
+    const fit = this.fitted[sec];
+    if (!row || !fit || k < 0 || k >= row.length) return;
+    row[k] = false;
+    fit[k] = false;
   }
 
   /**
@@ -389,12 +426,17 @@ export class SectorBolts {
     return 'ok';
   }
 
-  /** Shut every bolt of section `sec` again; returns the indices that were open (their doors lock again). */
+  /**
+   * Shut every fitted bolt of section `sec` again; returns the indices that were open (their doors lock again). An
+   * unfitted bolt (J8 A30) stays as it is: not shut, not returned.
+   */
   rebolt(sec: number): number[] {
     const out: number[] = [];
     const row = this.shut[sec];
-    if (!row) return out;
+    const fit = this.fitted[sec];
+    if (!row || !fit) return out;
     for (let k = 0; k < row.length; k++) {
+      if (!fit[k]) continue;
       if (!row[k]) out.push(k);
       row[k] = true;
     }
@@ -554,8 +596,9 @@ export function exitZone(def: SectorDef): SectorZone | null {
  * Problems with a run's data (empty when fine): every section but the last has a connector, the last an extraction.
  * (E5) With `nav` (the map's nav grid and doors), a stage lockdown that leaves no way through is rejected too.
  * (E6) With `security` (the map's security data), its desks are checked against the sections and cameras (`checkDesks`).
+ * `mode` 'campaign' also rejects every dog (G155): the campaign allows none (`checkSectorGuards`).
  */
-export function checkSectors(defs: readonly SectorDef[], nav?: StageNavCheck, security?: SecurityData): string[] {
+export function checkSectors(defs: readonly SectorDef[], nav?: StageNavCheck, security?: SecurityData, mode: 'sector' | 'campaign' = 'sector'): string[] {
   const out: string[] = [];
   for (let i = 0; i < defs.length; i++) {
     const d = defs[i]!;
@@ -571,7 +614,7 @@ export function checkSectors(defs: readonly SectorDef[], nav?: StageNavCheck, se
       if (g.a.at[0] === g.b.at[0] && g.a.at[1] === g.b.at[1]) out.push(`${d.id}: pair gate ${k} has both key switches in one place`);
       if (g.window !== undefined && !(g.window > 0)) out.push(`${d.id}: pair gate ${k} window is not positive`);
     });
-    out.push(...checkSectorGuards(d));
+    out.push(...checkSectorGuards(d, mode));
   }
   out.push(...checkSectorCodes(defs));
   out.push(...checkStageActions(defs, nav));
@@ -588,9 +631,10 @@ export const SECTOR_REINFORCE_KIND = 'grunt' as const;
  * carries a gun (M1 "they should all have weapons": no melee-only kinds such as the runner), no heavies (G155), at most
  * `dogs` dogs (default 0), and each dog names a handler: another guard of the section, armed and human. (guard-rules
  * S1) No placed riot-shield guard (`enforcer`: shields only lead alarm response teams, G307 (3)), and no `helmet` /
- * `both` gear tag on a slot or the section (helmets come from the difficulty and the alarm stage, G350, A15).
+ * `both` gear tag on a slot or the section (helmets come from the difficulty and the alarm stage, G350, A15). In
+ * `'campaign'` mode the campaign allows no dogs at all (G155): any quadruped and any `dogs > 0` is an error.
  */
-export function checkSectorGuards(d: SectorDef): string[] {
+export function checkSectorGuards(d: SectorDef, mode: 'sector' | 'campaign' = 'sector'): string[] {
   const out: string[] = [];
   let dogs = 0;
   if (d.gear === 'helmet' || d.gear === 'both') out.push(`${d.id}: section gear '${d.gear}' names a helmet (helmets come from difficulty and stage, G350)`);
@@ -601,6 +645,7 @@ export function checkSectorGuards(d: SectorDef): string[] {
     if (g.gear === 'helmet' || g.gear === 'both') out.push(`${d.id}: guard ${k} gear '${g.gear}' names a helmet (helmets come from difficulty and stage, G350)`);
     if (def.quadruped) {
       dogs++;
+      if (mode === 'campaign') out.push(`${d.id}: guard ${k} is a dog (G155: no dogs in the campaign)`);
       const h = g.handler === undefined ? undefined : d.guards[g.handler];
       if (!h) out.push(`${d.id}: dog ${k} has no handler`);
       else if (g.handler === k || ENEMIES[h.kind].quadruped || !ENEMIES[h.kind].weapon) out.push(`${d.id}: dog ${k}'s handler ${g.handler} is not an armed human guard`);
@@ -609,6 +654,7 @@ export function checkSectorGuards(d: SectorDef): string[] {
     if (!def.weapon) out.push(`${d.id}: guard ${k} (${g.kind}) carries no gun (M1)`);
   });
   if (dogs > (d.dogs ?? 0)) out.push(`${d.id}: ${dogs} dogs, the section allows ${d.dogs ?? 0}`);
+  if (mode === 'campaign' && (d.dogs ?? 0) > 0) out.push(`${d.id}: dogs ${d.dogs} in a campaign section (G155)`);
   return out;
 }
 
@@ -801,6 +847,11 @@ export class SectorRun {
     return true;
   }
 
+  /** (guard-rules S5) How many guards the next alarm would send in (`raiseAlarm`'s count; 0 once capped). */
+  nextAlarmSends(): number {
+    return alarmStep(this.alarm, this.current?.perStage ?? SECTOR.perStage).send;
+  }
+
   /** An alarm (A3): up one stage (capped); returns how many guards it sends in (0 once capped). */
   raiseAlarm(): number {
     const a = alarmStep(this.alarm, this.current?.perStage ?? SECTOR.perStage);
@@ -875,6 +926,8 @@ export interface SectorTally {
   alarms?: number;
   /** (section-rating S2) Each section's marks (bitmask; -1 not rated). Omitted: no marks on the line. */
   marks?: readonly number[];
+  /** (mission-framework POL1) A later mission start: the sections before this index were skipped, never played. */
+  skipped?: number;
 }
 
 export function fmtTime(s: number): string {
@@ -889,7 +942,7 @@ export function fmtTime(s: number): string {
 export function sectorResult(t: SectorTally): { ghost: boolean; perfect: boolean; line: string; marks?: readonly number[] } {
   const ghost = t.kills === 0 && t.spotted === 0;
   const perfect = t.alarms !== undefined && t.kills === 0 && t.alarms === 0;
-  const line = `Time ${fmtTime(t.time)}  ·  Kills ${t.kills}  ·  Spotted ${t.spotted}${perfect ? '  ·  PERFECT' : ''}${ghost ? '  ·  GHOST' : ''}${marksText(t.marks)}`;
+  const line = `Time ${fmtTime(t.time)}  ·  Kills ${t.kills}  ·  Spotted ${t.spotted}${perfect ? '  ·  PERFECT' : ''}${ghost ? '  ·  GHOST' : ''}${marksText(t.marks, t.skipped ?? 0)}`;
   return { ghost, perfect, line, marks: t.marks };
 }
 
@@ -898,11 +951,15 @@ export function resultBadge(r: { readonly ghost: boolean; readonly perfect: bool
   return r.perfect && r.ghost ? 'PERFECT  ·  GHOST' : r.perfect ? 'PERFECT' : r.ghost ? 'GHOST' : '';
 }
 
-/** (section-rating S2) "  ·  Marks 4/4 3/4 -": each section's marks of 4 ("-" not rated); '' when none are given. */
-function marksText(marks: readonly number[] | undefined): string {
+/** (section-rating S2) "  ·  Marks 4/4 3/4 -": each section's marks of 4 ("-" not rated; "skip" an unrated section
+ *  before `skipped`, a later mission start); '' when none are given. */
+function marksText(marks: readonly number[] | undefined, skipped: number): string {
   if (!marks || marks.length === 0) return '';
   let out = '  ·  Marks';
-  for (const m of marks) out += m < 0 ? ' -' : ` ${markCount(m)}/4`;
+  for (let i = 0; i < marks.length; i++) {
+    const m = marks[i]!;
+    out += m >= 0 ? ` ${markCount(m)}/4` : i < skipped ? ' skip' : ' -';
+  }
   return out;
 }
 
@@ -934,6 +991,11 @@ export interface SectorNetExtra {
   /** (marlow-polish, inside protocol 42) Every section's rating so far, by index (`packRated`, the course's `rh`): a late
    *  joiner or a reloaded rejoiner rebuilds its results lines from it (no card, no top-up, no grant). */
   rh?: number[];
+  /** (mission-framework EN2) The running mission (`packMission`); none without one. NET puts it on the wire. */
+  ms?: MissionWire;
+  /** (piano-escape S4) The piano scene's EMP press on the host's sim clock (s): the client ends its intro on it, and it is
+   *  the lightning's t0 and the music's switch there. Absent before the press and off the scene. */
+  ep?: number;
 }
 
 /**

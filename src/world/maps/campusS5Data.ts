@@ -62,8 +62,8 @@ export const S5_GUARDS: GearGuard[] = [
   { kind: 'grunt', x: -51.6, y: Y1, z: 32.0, yaw: PI, takedownSpot: [-51.6, 32.4], role: 'post', zone: 'ceo', squad: 3, reason: "The CEO's safe and laptop" },
   // 18 the archive round
   { kind: 'grunt', x: -45, y: Y1, z: 33, yaw: 0, route: [[-45, 33], [-45, 43], [-42.2, 43], [-42.2, 33]], waits: [3, 3, 3, 3], takedownSpot: [-45, 43.3], role: 'patrol', zone: 'archive', squad: 3, reason: 'Archive round; alone in the dark stacks' },
-  // 19 the roof marksman
-  { kind: 'grunt', x: -40, y: YR, z: 43.0, yaw: 0, route: [[-40, 43.0], [-39, 43.0]], waits: [12, 12], faces: [-0.6, 0.6], takedownSpot: [-40.4, 42.6], role: 'marksman', zone: 'roof', squad: 4, reason: 'Overwatch of the lake approach' },
+  // 19 the roof marksman: a lookout (guard-rules S9, A9; read only with ?lookouts=1)
+  { kind: 'grunt', x: -40, y: YR, z: 43.0, yaw: 0, route: [[-40, 43.0], [-39, 43.0]], waits: [12, 12], faces: [-0.6, 0.6], takedownSpot: [-40.4, 42.6], post: { leash: 1, lookout: true }, role: 'marksman', zone: 'roof', squad: 4, reason: 'Overwatch of the lake approach' },
   // 20 the terrace gate
   { kind: 'grunt', x: -44, z: 50.7, yaw: 0, route: [[-44, 50.7], [-47.8, 57.6], [-48.1, 62.2], [-47.5, 57.6]], waits: [6, 0, 6, 0], takedownSpot: [-48.1, 62.6], role: 'gate', zone: 'terrace', squad: 1, reason: 'The terrace gate, lake side' },
   // 21 the service round
@@ -168,7 +168,7 @@ export const S5_SECTOR: SectorDef = {
   start: { x: -18, y: 0, z: 29, yaw: -PI / 2 },
   // weapons crate (E9): the colonnade south wall, strip to the colonnade
   crate: { at: [S5_AMMO_CRATE.x, S5_AMMO_CRATE.y, S5_AMMO_CRATE.z], yaw: S5_AMMO_CRATE.yaw },
-  objective: { kind: 'grab', label: 'Take the signing key token', x: -43, y: 0, z: 43.4, yaw: 0 },
+  objective: { kind: 'grab', label: 'Take the signing key token from the strongroom', x: -43, y: 0, z: 43.4, yaw: 0 },
   extract: { label: 'Extract at the boathouse jetty', box: [-50, 60, -40, 66] },
   guards: S5_GUARDS,
   // stage 1: the hall's front door and the service wing

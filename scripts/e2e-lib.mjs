@@ -195,13 +195,17 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   const q0 = process.env.LEGACY === '1' && !/(^|&)legacy=/.test(g) && !/[?&]legacy=/.test(url) ? `${g}&legacy=1` : g;
   // (locomotion step 20b, D11) E2E_NETSIM=typical: the ?net=local pages run the transport's network simulator
   const q1 = NETSIM && /(^|&)net=local/.test(q0) && !/(^|&)netsim=/.test(q0) ? `${q0}&netsim=${encodeURIComponent(NETSIM)}` : q0;
-  const q = q1;
+  // (map-ready S2) E2E_PARAMS (optional, e.g. `mapready=1`): appended to every page's query, so a laptop alone run can
+  // turn a flag on for suites that do not set it; a key the suite already names keeps the suite's value
+  const q = (process.env.E2E_PARAMS ?? '').split('&').filter((kv) => kv && !new RegExp(`(^|&)${kv.split('=')[0]}=`).test(q1) && !new RegExp(`[?&]${kv.split('=')[0]}=`).test(url)).reduce((a, kv) => `${a}&${kv}`, q1);
+  const mapReadyPage = /(^|&)mapready=1(&|$)/.test(q) || /[?&]mapready=1(&|$)/.test(url);
   await timed('boot', async () => {
   await page.goto(url + (url.includes('?') ? '&' : '?') + q);
   await page.waitForFunction(
     () => document.getElementById('boot')?.classList.contains('done') || /Failed/.test(document.getElementById('boot-status')?.textContent ?? ''),
     null,
-    { timeout: 60000 },
+    // (F7) the same 120 s as the navigation guard: six pages booting at once ran a client page's boot past 60 s
+    { timeout: 120000 },
   );
   });
   if (PROFILE) {
@@ -225,8 +229,20 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
       if (window.__app?.current?.player) return 'match';
       const s = window.__coop?.session;
       return s?.isHost && s.phase === 'lobby' && s.players.size < 2 ? 'lobby' : false;
-    }, null, { timeout: 120000 }).then((h) => h.jsonValue()).catch(() => 'timeout'));
+    }, null, { timeout: 180000 }).then((h) => h.jsonValue()).catch(() => 'timeout'));
     if (why === 'lobby') return { page, errors };
+    // (F33-a) a match that never started is an error here, not a dead page handed back (a null `__app.current` three calls later)
+    if (why === 'timeout') {
+      const boot = await page.evaluate(() => document.getElementById('boot-status')?.textContent ?? '').catch(() => '');
+      throw new Error(`launch: the autostart match did not start within 180 s (boot status "${String(boot).trim()}")`);
+    }
+    // (map-ready S2) `mapready=1`: the match is held behind the boot screen until its load gate releases (`mapGate.ts`):
+    // wait for the release so no suite steps a held sim (a timeout warns; the run goes on held and says so)
+    if (mapReadyPage) {
+      await timed('match', () => page.waitForFunction(() => !!window.__mapReady?.released, null, { timeout: 120000, polling: 250 }).catch((e) => {
+        console.warn(`[e2e-lib] map-ready release wait timed out or failed (120 s cap): ${String(e?.message ?? e).split('\n')[0]}; the run goes on with the match held`);
+      }));
+    }
     // (section-bake, SB12) a map baking its lamps per section (campusOps on a cold cache): the match starts once the
     // live section is in and the rest lands in the background; suites drive sections in sim time, so wait for all of it
     // (what the load waited for before). No-op on every other map.

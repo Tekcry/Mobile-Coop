@@ -1,0 +1,383 @@
+/**
+ * (char-shadow-meter S3, J16) Cast-shadow cues: per player, the floor footprints of the shadow their capsule casts
+ * from the strongest members of the gameplay light set at the chest (`LightField.sourcesQ`). Each footprint is
+ * `CUE.points` floor points with a contrast, the source's registry id and the far point's speed. Data only (BRIEF Q14
+ * "A faint cue"): Guard AI reads it and decides what is noticed; nothing here knows who looks.
+ *
+ * Pure: no Babylon, no graphics state, no allocation after construction. Filled at 10 Hz on the host and in solo
+ * (S3b, right after the meter), from the same character contract and light set the meter reads.
+ *
+ *   footprint: the source's horizontal direction away from the feet; length = the capsule top projected from the
+ *              source onto the feet plane (the moon: by its elevation), at least the capsule radius (an overhead lamp
+ *              gives the shadow under the body), at most `CUE.maxLen` (a source at or below the top: `maxLen`)
+ *   points:    `CUE_AT` of the length from the feet, `floorLift` above the feet plane
+ *   contrast:  L_s(q) x (1 - CAPSULE.floor) / max(level(q), 0.02); 0 where the source does not reach q
+ *              (level(q): `totalAt` with the contract, the player's own capsule skipped)
+ *   sources:   the `CUE.sources` strongest set members at the chest giving at least `CUE.minLevel`, skipping a source
+ *              at or below the feet plane (no floor shadow) and one the player holds (`CAPSULE.holder`, A5)
+ *   speed:     the far point's move since the last fill / dt, matched by source id; 0 on a reset: the slot's first fill,
+ *              a new owner (slotOf changed), no capsule last fill, or the feet moved more than `CUE_JUMP` (a teleport:
+ *              respawn, checkpoint restart, section start); the next fill reads from the new position
+ */
+import { hyp2, hyp3 } from '../core/mathx';
+import { CAPSULE, OCC, type CharOccluders } from './charOccluders';
+import type { Occluder } from './lights';
+
+/** Slots (players), footprints per player, points per footprint; the chest level a source needs, the longest
+ *  footprint (m) and the points' lift above the feet plane (m). */
+export const CUE = { players: 4, sources: 3, points: 3, minLevel: 0.08, maxLen: 6, floorLift: 0.05 } as const;
+/** Where the points sit along a footprint (fraction of its length from the feet). */
+export const CUE_AT = [0.35, 0.65, 1] as const;
+/** `source` of an unused footprint (registry ids are >= 0, the moon -1). */
+export const CUE_NONE = -2;
+/** Floor of the contrast's denominator (a source in the dark is not infinitely contrasted). */
+export const CUE_LEVEL_FLOOR = 0.02;
+/** Feet moved further than this (m, horizontal) in one fill: a teleport, read as a reset (speed 0), never a speed. The
+ *  fastest real move is the sprint, `MOVEMENT.sprintSpeed` 5 m/s (the run gear 4 m/s): 0.5 m per 0.1 s fill; 2 m is 4x
+ *  that (a fill late by up to 0.3 s still reads its speed) and under any respawn, checkpoint or section-start jump. */
+export const CUE_JUMP = 2;
+
+/** Set members read from `sourcesQ` per player (strongest first; more than `CUE.sources` so a skipped one leaves
+ *  room for the next). */
+const SCAN = 8;
+/** A lamp this close above the feet plane (m) or lower casts no floor shadow. */
+const FLOOR_EPS = 0.05;
+/** The moon this low (sine of its elevation) or lower: the footprint is `maxLen`. */
+const MOON_LOW = 1e-3;
+const PT = 4;
+const SRC_STRIDE = CUE.points * PT;
+const SLOT_STRIDE = CUE.sources * SRC_STRIDE;
+// `ShadowCues.g`: the capsule's ends and radius, feet and top x / z, feet plane and top y
+const G_AX = 0;
+const G_AY = 1;
+const G_AZ = 2;
+const G_BX = 3;
+const G_BY = 4;
+const G_BZ = 5;
+const G_R = 6;
+const G_FX = 7;
+const G_FZ = 8;
+const G_TX = 9;
+const G_TZ = 10;
+const G_FEET = 11;
+const G_TOP = 12;
+const G_LEN = 13;
+
+/**
+ * What the cues read from the light field (`LightField` fits it): the set, one member's term, the level, through the
+ * field's typed point input (S3b): the point is written into `qp[0..2]`, a level read back from `qr[0]`. The field is
+ * called through this interface, a call V8 does not inline, so a double passed or returned would be boxed (16 B each).
+ */
+export interface CueField {
+  /** The point the Q calls read: x, y, z. */
+  readonly qp: Float64Array;
+  /** The level `sourceQ` / `totalQ` write. */
+  readonly qr: Float64Array;
+  /** The gameplay set at `qp`, strongest first (`LightField.sourcesInto`). */
+  sourcesQ(ids: Int32Array, lv: Float32Array, max: number, occluded?: Occluder): number;
+  /** One member's term at `qp` into `qr[0]` (`LightField.sourceAt`). */
+  sourceQ(id: number, occluded?: Occluder): void;
+  /** The level at `qp` into `qr[0]` (`LightField.totalAt` with the contract, `skip` the sampled owner key). */
+  totalQ(occluded: Occluder | undefined, chars: CharOccluders | null, skip: number): void;
+}
+
+/** A registry light's position (`LightDef` fits it): rest position plus a swinging pendant's live offset. */
+export interface CueLight {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly swx: number;
+  readonly swy: number;
+  readonly swz: number;
+}
+
+/** A player as the fill keys it (`PlayerRef` fits it). */
+export interface CuePlayer {
+  readonly id: string;
+}
+
+export class ShadowCues {
+  /** [slot] footprints in use (0..CUE.sources). */
+  readonly count = new Int8Array(CUE.players);
+  /** [slot][source][point] x, y, z, contrast (stride 4); contrast 0 = no shadow there. */
+  readonly pts = new Float32Array(CUE.players * SLOT_STRIDE);
+  /** [slot][source] m/s of the footprint's far point since the last fill (0 for a new footprint or a reset,
+   *  `CUE_JUMP`). */
+  readonly speed = new Float32Array(CUE.players * CUE.sources);
+  /** [slot][source] registry light id, -1 the moon, `CUE_NONE` unused. */
+  readonly source = new Int32Array(CUE.players * CUE.sources).fill(CUE_NONE);
+  /** Bumped by each fill. */
+  version = 0;
+  /** Slots filled by the last fill. */
+  n = 0;
+
+  /** [slot] player id ('' unused). */
+  private readonly ids: string[] = new Array<string>(CUE.players).fill('');
+  private readonly prevIds: string[] = new Array<string>(CUE.players).fill('');
+  private readonly prevCount = new Int8Array(CUE.players);
+  private readonly prevSource = new Int32Array(CUE.players * CUE.sources);
+  /** [slot][source] far point x, z of this fill and the last (doubles: a still footprint reads speed 0 exactly). */
+  private readonly far = new Float64Array(CUE.players * CUE.sources * 2);
+  private readonly prevFar = new Float64Array(CUE.players * CUE.sources * 2);
+  /** [slot] feet x, z of this fill and the last, and whether the slot had a capsule (the teleport test, `CUE_JUMP`). */
+  private readonly feet = new Float64Array(CUE.players * 2);
+  private readonly prevFeet = new Float64Array(CUE.players * 2);
+  private readonly hasFeet = new Int8Array(CUE.players);
+  private readonly prevHasFeet = new Int8Array(CUE.players);
+  private readonly sid = new Int32Array(SCAN);
+  private readonly slv = new Float32Array(SCAN);
+  /** The slot's capsule for `footprint` (G_*), and its result: direction and length. Passed through this array, not as
+   *  arguments or a returned object: V8 boxes every double argument of a call it does not inline (16 B each). */
+  private readonly g = new Float64Array(G_LEN);
+  private dt = 0;
+  private dx = 1;
+  private dz = 0;
+  private len = 0;
+
+  /**
+   * @param field the light field (`LightField`)
+   * @param lights registry lights by id (`LightRegistry.lights`)
+   * @param moonDir unit vector from the ground towards the moon (`LightBake.moon.dir`); null without a moon
+   */
+  constructor(
+    private readonly field: CueField,
+    private readonly lights: ArrayLike<CueLight | undefined>,
+    private readonly moonDir: ArrayLike<number> | null,
+  ) {}
+
+  /** The slot of a player id (the last fill's), -1 when absent. Linear scan, no allocation. */
+  slotOf(id: string): number {
+    for (let s = 0; s < this.n; s++) if (this.ids[s] === id) return s;
+    return -1;
+  }
+
+  /**
+   * One 10 Hz fill. Slot s is `players[s]` (the host's `playerRefsInto` order), whose capsule in `occ` has the owner
+   * key `keys[s]` (a player without a capsule gets no footprints). `dt`: seconds since the last fill (speeds 0 when
+   * not positive). `occluded`: the ray test the meter passes the field (flashlights). At most `CUE.players` slots.
+   */
+  fill(occ: CharOccluders, players: ArrayLike<CuePlayer>, keys: ArrayLike<number>, n: number, dt: number, occluded?: Occluder): void {
+    const P = CUE.players;
+    for (let s = 0; s < P; s++) {
+      this.prevIds[s] = this.ids[s]!;
+      this.prevCount[s] = this.count[s]!;
+    }
+    this.prevSource.set(this.source);
+    this.prevFar.set(this.far);
+    this.prevFeet.set(this.feet);
+    this.prevHasFeet.set(this.hasFeet);
+    const m = n < P ? n : P;
+    this.dt = dt;
+    for (let s = 0; s < P; s++) {
+      this.clearSlot(s);
+      if (s < m) {
+        this.ids[s] = players[s]!.id;
+        this.fillSlot(s, occ, keys[s]!, occluded);
+      } else this.ids[s] = '';
+    }
+    this.n = m;
+    this.version++;
+  }
+
+  private clearSlot(s: number): void {
+    this.count[s] = 0;
+    this.hasFeet[s] = 0;
+    const p0 = s * SLOT_STRIDE;
+    for (let i = p0; i < p0 + SLOT_STRIDE; i++) this.pts[i] = 0;
+    const f0 = s * CUE.sources;
+    for (let c = f0; c < f0 + CUE.sources; c++) {
+      this.speed[c] = 0;
+      this.source[c] = CUE_NONE;
+    }
+  }
+
+  private fillSlot(s: number, occ: CharOccluders, key: number, occluded: Occluder | undefined): void {
+    let j = -1;
+    for (let i = 0; i < occ.n; i++) {
+      if (occ.owner[i] === key) {
+        j = i;
+        break;
+      }
+    }
+    if (j < 0) return;
+    const C = occ.cap;
+    const o = j * OCC.stride;
+    const ax = C[o]!;
+    const ay = C[o + 1]!;
+    const az = C[o + 2]!;
+    const bx = C[o + 3]!;
+    const by = C[o + 4]!;
+    const bz = C[o + 5]!;
+    const r = C[o + 6]!;
+    // feet: the low end's ground point; top: the high end's top
+    const lowA = ay <= by;
+    const fx = lowA ? ax : bx;
+    const fz = lowA ? az : bz;
+    const tx = lowA ? bx : ax;
+    const tz = lowA ? bz : az;
+    const feetY = (lowA ? ay : by) - r;
+    const topY = (lowA ? by : ay) + r;
+    const h = topY - feetY;
+    const g = this.g;
+    g[G_AX] = ax;
+    g[G_AY] = ay;
+    g[G_AZ] = az;
+    g[G_BX] = bx;
+    g[G_BY] = by;
+    g[G_BZ] = bz;
+    g[G_R] = r;
+    g[G_FX] = fx;
+    g[G_FZ] = fz;
+    g[G_TX] = tx;
+    g[G_TZ] = tz;
+    g[G_FEET] = feetY;
+    g[G_TOP] = topY;
+    const dt = this.dt;
+    // the chest, as `LightField.bodyLevel` samples it (0.6 of the height)
+    const field = this.field;
+    const qp = field.qp;
+    const qr = field.qr;
+    qp[0] = fx + (tx - fx) * 0.6;
+    qp[1] = feetY + h * 0.6;
+    qp[2] = fz + (tz - fz) * 0.6;
+    const k = field.sourcesQ(this.sid, this.slv, SCAN, occluded);
+    const lift = feetY + CUE.floorLift;
+    // speeds carry over only for the same owner, seen last fill, whose feet did not jump (a teleport: `CUE_JUMP`)
+    const fe = s * 2;
+    const same =
+      this.prevIds[s] === this.ids[s] &&
+      this.prevHasFeet[s] === 1 &&
+      hyp2(fx - this.prevFeet[fe]!, fz - this.prevFeet[fe + 1]!) <= CUE_JUMP;
+    this.feet[fe] = fx;
+    this.feet[fe + 1] = fz;
+    this.hasFeet[s] = 1;
+    let c = 0;
+    for (let i = 0; i < k && i < SCAN && c < CUE.sources; i++) {
+      if (this.slv[i]! < CUE.minLevel) break;
+      const id = this.sid[i]!;
+      if (!this.footprint(id)) continue;
+      const f = s * CUE.sources + c;
+      const p0 = f * SRC_STRIDE;
+      const dx = this.dx;
+      const dz = this.dz;
+      const len = this.len;
+      let qx = fx;
+      let qz = fz;
+      for (let p = 0; p < CUE.points; p++) {
+        const d = len * CUE_AT[p]!;
+        qx = fx + dx * d;
+        qz = fz + dz * d;
+        qp[0] = qx;
+        qp[1] = lift;
+        qp[2] = qz;
+        field.sourceQ(id, occluded);
+        const ls = qr[0]!;
+        let con = 0;
+        if (ls > 0) {
+          field.totalQ(occluded, occ, key);
+          const lv = qr[0]!;
+          con = (ls * (1 - CAPSULE.floor)) / (lv > CUE_LEVEL_FLOOR ? lv : CUE_LEVEL_FLOOR);
+          if (con > 1 - CAPSULE.floor) con = 1 - CAPSULE.floor;
+        }
+        const q = p0 + p * PT;
+        this.pts[q] = qx;
+        this.pts[q + 1] = lift;
+        this.pts[q + 2] = qz;
+        this.pts[q + 3] = con;
+      }
+      this.source[f] = id;
+      this.far[f * 2] = qx;
+      this.far[f * 2 + 1] = qz;
+      // speed: the same player's footprint from the same source last fill
+      let v = 0;
+      if (same && dt > 0) {
+        const u0 = s * CUE.sources;
+        const pc = this.prevCount[s]!;
+        for (let u = u0; u < u0 + pc; u++) {
+          if (this.prevSource[u] === id) {
+            v = hyp2(qx - this.prevFar[u * 2]!, qz - this.prevFar[u * 2 + 1]!) / dt;
+            break;
+          }
+        }
+      }
+      this.speed[f] = v;
+      c++;
+    }
+    this.count[s] = c;
+  }
+
+  /** Direction (`dx`, `dz`) and length (`len`) of the footprint from source `id` for the capsule in `g`; false when it
+   *  casts none. */
+  private footprint(id: number): boolean {
+    const g = this.g;
+    const ax = g[G_AX]!;
+    const ay = g[G_AY]!;
+    const az = g[G_AZ]!;
+    const bx = g[G_BX]!;
+    const by = g[G_BY]!;
+    const bz = g[G_BZ]!;
+    const r = g[G_R]!;
+    const fx = g[G_FX]!;
+    const fz = g[G_FZ]!;
+    const tx = g[G_TX]!;
+    const tz = g[G_TZ]!;
+    const feetY = g[G_FEET]!;
+    const topY = g[G_TOP]!;
+    const h = topY - feetY;
+    let vx: number;
+    let vz: number;
+    let away = false;
+    if (id === -1) {
+      const md = this.moonDir;
+      if (!md) return false;
+      const mx = md[0]!;
+      const my = md[1]!;
+      const mz = md[2]!;
+      if (my <= MOON_LOW) {
+        away = true;
+        vx = -mx;
+        vz = -mz;
+      } else {
+        // the top, carried away from the moon down to the feet plane
+        const t = h / my;
+        vx = tx - mx * t - fx;
+        vz = tz - mz * t - fz;
+      }
+    } else {
+      const L = this.lights[id];
+      if (!L) return false;
+      const sx = L.x + L.swx;
+      const sy = L.y + L.swy;
+      const sz = L.z + L.swz;
+      if (sy - feetY <= FLOOR_EPS) return false;
+      // (A5) the holder's own light: within r + holder of the capsule axis
+      const abx = bx - ax;
+      const aby = by - ay;
+      const abz = bz - az;
+      const ab2 = abx * abx + aby * aby + abz * abz;
+      let w = ab2 > 1e-12 ? ((sx - ax) * abx + (sy - ay) * aby + (sz - az) * abz) / ab2 : 0;
+      w = w < 0 ? 0 : w > 1 ? 1 : w;
+      if (hyp3(sx - ax - abx * w, sy - ay - aby * w, sz - az - abz * w) <= r + CAPSULE.holder) return false;
+      if (sy <= topY + 1e-3) {
+        away = true;
+        vx = fx - sx;
+        vz = fz - sz;
+      } else {
+        // the top, projected from the source onto the feet plane
+        const t = (sy - feetY) / (sy - topY);
+        vx = sx + (tx - sx) * t - fx;
+        vz = sz + (tz - sz) * t - fz;
+      }
+    }
+    const d = hyp2(vx, vz);
+    if (d > 1e-6) {
+      this.dx = vx / d;
+      this.dz = vz / d;
+    } else {
+      this.dx = 1;
+      this.dz = 0;
+    }
+    this.len = away || d > CUE.maxLen ? CUE.maxLen : d < r ? r : d;
+    return true;
+  }
+}

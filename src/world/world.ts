@@ -28,10 +28,10 @@ import { LightRig } from './lightRig';
 import { CampusArtRender } from './campusArt/campusArtRender';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
+import { ShutterDoors, shutterLightLeaves, type ShutterNav } from './shutterDoor';
 import { Ropes } from './ropes';
-import { addTorchSlots } from './torches';
-import { applyMapFlicker } from './lampFlicker';
-import { applyMapSway } from './lampSway';
+import { addTorchSlots, torchShadowCount, torchSlotCount } from './torches';
+import { buildMapLights } from './mapLights';
 import { TEXTURE_ANISO, TEXTURE_SIZE, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { SurfaceAtlas } from './surfaceAtlas';
@@ -45,8 +45,10 @@ import { CharShadows } from './charShadows';
 import { TorchShadows } from './torchShadows';
 import { torchShadowSpec } from './torchShadowSet';
 import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
-import { LightField } from './lightField';
+import { LightField, type FieldDoor } from './lightField';
 import { moonLight } from './lampMath';
+import { LEVEL_TO_RENDER } from './darkCurve';
+import { DEMO_LIGHTNING, FLASH_GAIN, Lightning } from './lightning';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 import { KitRender } from './kit/kitRender';
 import { PropRender } from './props/propRender';
@@ -81,15 +83,33 @@ export class World {
   charShadows: CharShadows | null = null;
   /** (LR16t) Guard torch shadow maps, one atlas (null without baked lamps or drawn torches). Rendering only. */
   torchShadows: TorchShadows | null = null;
+  /** (piano SO3) The map's guard torch slots (`MapDef.torchSlots`, `?torchSlots=N`: 4 / 8 / 12 / 16) and how many of
+   *  them get a shadow map (`MapDef.torchShadows`, `?torchShadows=N`; the rest `beamCut`). Map data: both pages. */
+  readonly torchSlots: number;
+  readonly torchShadowed: number;
   /** (LR14) The character casters (players, guards, bodies, weapons and gear: `addShadowCaster` without props). */
   readonly charCasters: AbstractMesh[] = [];
   private readonly charSet = new Set<AbstractMesh>();
   /** 3.6: gameplay light (`LightField`): the canonical bake + the registry's state + closed doors. */
   readonly lightField: LightField;
+  /** (piano SO5) The map's lightning (`MapDef.lightning`, or the `?lightning=1` demo loop); null without. `GameState`
+   *  sets its level each sim step through `setFlash`. */
+  readonly lightning: Lightning | null;
+  /** (piano SO5) The sun / moon light's own intensity, and its intensity per gameplay level (the flash's share). */
+  private readonly sunBase: number;
+  private readonly sunPerLevel: number;
   /** Window glass and duct grates (separate bodies that open). */
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
   readonly doors: Doors;
+  /** (J9 S1) The roller shutters' curtains (`shutterDoor.ts`; null: the map places none). Armed with the doors
+   *  (`armDoors`); the team controller moves them after the kit ticks. */
+  readonly shutters: ShutterDoors | null;
+  /**
+   * (J9 S1, A16) The doors light tests (the gameplay field, the baked lamps on screen, the torch shadows): the door
+   * leaves, then each shutter as an always-shut leaf. The same array as `doors.list` on a map without shutters.
+   */
+  readonly lightDoors: readonly FieldDoor[];
   /** (sector-redesign ART-KIT) The campus art (render only; null: no art, `?gfx=min`, or a failed load: the greybox shows). */
   campusArt: CampusArtRender | null = null;
   /** (marlow-final M5) The facility kit's meshes over the level (null: the map places none, `?gfx=min`, or the GLB
@@ -135,7 +155,9 @@ export class World {
     level.lights.ambient = th.lightLevel ?? 0.75;
     // dark maps: a few flashlight slots enemies switch on to search (moving cone lights, off until used); the co-op
     // client builds the same slots and mirrors them (`torches.ts`, coop-torches)
-    addTorchSlots(level.lights);
+    this.torchSlots = torchSlotCount(flags.torchSlots ?? map.torchSlots);
+    this.torchShadowed = torchShadowCount(flags.torchShadows ?? map.torchShadows, this.torchSlots);
+    addTorchSlots(level.lights, this.torchSlots, this.torchShadowed);
     this.lightRig = new LightRig(scene, level.lights);
     // the level itself casts shadows (walls stop lamp light and the sun)
     for (const m of level.meshes) this.addStatic(m);
@@ -151,6 +173,7 @@ export class World {
     // (assigned after the capture: a material sampling the cube while it renders into it is a feedback loop)
     probe.cubeTexture.onAfterRenderObservable.addOnce(() => {
       if (scene.isDisposed) return;
+      this.probeCaptured = true;
       scene.environmentTexture = probe.cubeTexture;
       // night maps: the captured room is mostly dark - keep its reflections faint
       scene.environmentIntensity = (th.lightLevel ?? 0.75) < 0.5 ? 0.25 : 0.7;
@@ -160,8 +183,37 @@ export class World {
     this.doors = new Doors(scene, level.anchors);
     // (3.6: flashlights draw their whole radius and their shadow maps stop them - at closed doors too)
     if (this.doors.leafMesh) this.lightRig.addCaster(this.doors.leafMesh);
+    // (J9 S1) the shutters' curtains (only where the map places one), shadow casters for the flashlights as the leaves
+    const shutterLeaves = shutterLightLeaves(level);
+    this.shutters = shutterLeaves.length ? new ShutterDoors(scene, level) : null;
+    if (this.shutters?.curtainMesh) this.lightRig.addCaster(this.shutters.curtainMesh);
+    // (A16) a shut curtain stops lamp light as a closed door: one list for the field and the screen
+    this.lightDoors = shutterLeaves.length ? [...this.doors.list, ...shutterLeaves] : this.doors.list;
     // 3.6: the one light function every gameplay light query goes through (closed doors cut lamps)
-    this.lightField = new LightField(lightBake, level.lights, this.doors.list);
+    this.lightField = new LightField(lightBake, level.lights, this.lightDoors);
+    // (piano SO5) lightning: the map's strikes, or the dev demo loop; the sun / moon light carries its share on screen
+    // at the map's own intensity per gameplay level (no moon: the curve's level-to-render gain)
+    const lt = map.lightning ?? (flags.lightning ? DEMO_LIGHTNING : null);
+    this.lightning = lt ? new Lightning(lt) : null;
+    const mL = moonLight(th);
+    this.sunBase = th.sunIntensity;
+    this.sunPerLevel = mL > 0 ? th.sunIntensity / mL : LEVEL_TO_RENDER;
+  }
+
+  /**
+   * (piano SO5) This sim step's lightning level (`Lightning.levelAt`): the light field (the meter, guard sight) and the
+   * picture (the baked lamps' moon term, the sun / moon light's intensity) take the one value, so a lit window pool and
+   * the meter agree. Allocation-free.
+   */
+  setFlash(level: number): void {
+    const f = this.lightField;
+    f.setFlash(level);
+    const v = f.flashLevel;
+    // (piano SO5b) the openings' flash lights: intensity x the flash (the field's level / FLASH_GAIN), the same value
+    // for the field and the baked lamps' texels (`flickering`); a map without openings returns at once
+    this.level.lights.setSkyFlash(v / FLASH_GAIN);
+    if (this.lamps) this.lamps.skyFlash = v;
+    this.sun.intensity = this.sunBase + v * this.sunPerLevel;
   }
 
   static async create(engine: Engine, mapIn: MapDef, opts: WorldOptions): Promise<World> {
@@ -174,12 +226,10 @@ export class World {
     scene.autoClearDepthAndStencil = true;
     await enablePhysics(scene);
     const b = new LevelBuilder();
-    const layout = map.build(b, opts.seed);
-    // (LR16-5) the map's flicker seed and its stutter tube (fires enrolled themselves)
-    applyMapFlicker(b.lights, map.id, opts.seed);
-    // (LR16-5b) Marlow Yard's swinging pendants: before the build, so the hangers they claim (now drawn by the light
-    // rig, with the swing) never mesh
-    applyMapSway(b, map.id);
+    // the map, its flicker, the lightning openings' flash lights and the sway pendants, in the one order the prebake
+    // shares (`mapLights.ts`: its lamp key is always this one); before the build, so the hangers the sway claims (drawn
+    // by the light rig, with the swing) never mesh
+    const layout = buildMapLights(b, map, opts.seed);
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
     const atlas = opts.cheap ? null : new SurfaceAtlas(scene, 256, 4);
     const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, dressing: dressingOn(map) });
@@ -221,7 +271,7 @@ export class World {
       const k = w.hemi.intensity * Math.PI;
       const sk = w.hemi.diffuse;
       const lvl = sky ? { sky: [sk.r * k, sk.g * k, sk.b * k] as [number, number, number], ground: [gr.r * k, gr.g * k, gr.b * k] as [number, number, number], vis: sky } : null;
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, bounce: w.lightField.bounce, moonLight: bake.moonLight, level: lvl });
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.lightDoors, fill, bounce: w.lightField.bounce, moonLight: bake.moonLight, level: lvl, torchSlots: w.torchSlots, torchCut: w.torchShadowed < w.torchSlots });
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
@@ -230,7 +280,7 @@ export class World {
       // (LR16t) every drawn torch shadowed from one atlas, its shut doors tested exactly (configured in `applyQuality`)
       if (w.lamps.torchDraw) {
         const charSet = w.charSet;
-        w.torchShadows = new TorchShadows(scene, level.lights, w.lightRig, w.lamps.torchDraw, w.doors.list, (m) => charSet.has(m));
+        w.torchShadows = new TorchShadows(scene, level.lights, w.lightRig, w.lamps.torchDraw, w.lightDoors, (m) => charSet.has(m));
         w.lamps.torchShadows = w.torchShadows;
       }
       w.charShadows = new CharShadows(scene, w.lamps, w.charCasters);
@@ -248,6 +298,15 @@ export class World {
       }
     }
     return w;
+  }
+
+  /**
+   * Collision on for the doors and (J9 S1) the shutters, once the guards' nav grid is built (it walks every doorway):
+   * the shutters' openings are shut on that grid for good (A15; `nav` null on a co-op client or without guards).
+   */
+  armDoors(nav: ShutterNav | null = null): void {
+    this.doors.arm();
+    this.shutters?.arm(nav);
   }
 
   /**
@@ -444,6 +503,8 @@ export class World {
   }
 
   private probe: ReflectionProbe | null = null;
+  /** (map-ready S2) The environment probe has captured (the load gate's `probe` step). Render side only. */
+  probeCaptured = false;
   /** The level's procedural surface textures. */
   surfaces: SurfaceAtlas | null = null;
 
@@ -605,6 +666,7 @@ export class World {
     this.breakables.dispose();
     this.campusArt?.dispose();
     this.doors.dispose();
+    this.shutters?.dispose();
     this.props.dispose();
     this.level.dispose();
     this.parts.dispose();

@@ -865,6 +865,13 @@ export const LAMP_GRID = 2;
 export const LAMP_GRID_SLOTS = 24;
 /** RGBA texels per grid cell (`LAMP_GRID_SLOTS` / 4). */
 export const LAMP_GRID_TEXELS = LAMP_GRID_SLOTS / 4;
+/**
+ * (F56) The most lights the grid can list: ids + 1 in a `Uint16Array` (0 = none), so 65535. Was 255 in a `Uint8Array`:
+ * Saltmarsh Park on the all-v2 layout has 260 lamps and the last 5 got no id (dark in the picture and the meter). The
+ * GPU copy is the float data texture (ids exact to 2^24), so only the CPU grid held the cap. Lights past it are left
+ * out of the grid and `lampGrid` reports them (`dropped`; the callers warn).
+ */
+export const LAMP_GRID_MAX_LIGHTS = 65535;
 /** Index into `lampGrid(...).data` of column (q, r)'s first slot. */
 export function lampGridBase(cols: number, q: number, r: number): number {
   return (r * cols + q) * LAMP_GRID_TEXELS * 4;
@@ -917,15 +924,17 @@ export function lampColumnDist(L: ArrayLike<number>, i: number, reach: ArrayLike
  * Pure: per `LAMP_GRID` column of the map, the ids (+1; 0 = none) of up to `LAMP_GRID_SLOTS` lights whose plan reach
  * (`lampPlanReach`) touches it, nearest first. `LAMP_GRID_TEXELS` RGBA texels per cell (`lampGridBase`),
  * `cols * LAMP_GRID_TEXELS` x `rows`. `worst`: the most lights any column has in reach (past `LAMP_GRID_SLOTS` the
- * farthest are dropped; the callers warn). Load time only.
+ * farthest are dropped; the callers warn). `dropped`: lights past `LAMP_GRID_MAX_LIGHTS`, listed nowhere (the callers
+ * warn). Load time only.
  */
-export function lampGrid(L: Float32Array, lo: readonly number[], hi: readonly number[]): { data: Uint8Array; cols: number; rows: number; worst: number } {
+export function lampGrid(L: Float32Array, lo: readonly number[], hi: readonly number[]): { data: Uint16Array; cols: number; rows: number; worst: number; dropped: number } {
   const g = LAMP_GRID;
   const cols = Math.max(1, Math.ceil((hi[0]! - lo[0]!) / g));
   const rows = Math.max(1, Math.ceil((hi[2]! - lo[2]!) / g));
-  const data = new Uint8Array(cols * LAMP_GRID_TEXELS * rows * 4);
+  const data = new Uint16Array(cols * LAMP_GRID_TEXELS * rows * 4);
   let worst = 0;
-  const n = Math.min(255, L.length / LAMP_STRIDE);
+  const all = L.length / LAMP_STRIDE;
+  const n = Math.min(LAMP_GRID_MAX_LIGHTS, all);
   const near: { id: number; d: number }[] = [];
   const reach = new Float64Array(n * 5);
   const one = [0, 0, 0, 0, 0];
@@ -948,5 +957,5 @@ export function lampGrid(L: Float32Array, lo: readonly number[], hi: readonly nu
       for (let k = 0; k < Math.min(LAMP_GRID_SLOTS, near.length); k++) data[base + k] = near[k]!.id + 1;
     }
   }
-  return { data, cols, rows, worst };
+  return { data, cols, rows, worst, dropped: all - n };
 }

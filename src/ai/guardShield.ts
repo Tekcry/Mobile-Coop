@@ -61,7 +61,13 @@ function sharedOf(scene: Scene, model: GlbModel): ShieldShared {
   let s = byModel.get(model);
   if (!s) {
     const engine = scene.getEngine();
-    const materials = model.materials.map((m) => operatorMaterial(scene, m, 'shield_riot'));
+    // (perf F1) frozen, as the figures' materials: no define re-check per enforcer per pass (nothing changes a shield
+    // define at run time; the game's define changes unfreeze / mark / refreeze every scene material)
+    const materials = model.materials.map((m) => {
+      const p = operatorMaterial(scene, m, 'shield_riot');
+      p.freeze();
+      return p;
+    });
     const vbs = model.meshes.map((g, i) => {
       const n = g.positions.length / 3;
       const data: [string, Float32Array, number][] = [

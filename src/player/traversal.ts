@@ -1,18 +1,22 @@
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import { CT, LEAP, MOVEMENT } from '../config/movement';
-import { pickTraversal, type Traversal } from './movement';
+import { pickTraversal, type Traversal, type TraversalProbe } from './movement';
 import { gearCap } from './speedGears';
 import { traversePath, type PathKind } from './traversePath';
 import type { Player } from './player';
 import { hyp2 } from '../core/mathx';
 import type { AttachMachine, ExitReason } from './attach';
+import type { MoveOverride } from './playerController';
 import { AttachController, anchorFirst, LOWER_HOLD, type AttachInput } from './attachController';
-import { nearestInReach, type Anchor, type AttachEntry, type ReachResult, type TraversalAnchors, type WindowAnchor } from '../world/anchors';
+import { nearestInReach, type Anchor, type AnchorKind, type AttachEntry, type ReachResult, type TraversalAnchors, type WindowAnchor } from '../world/anchors';
 import type { Breakables } from '../world/breakables';
 import type { AttachCamera } from '../config/camera';
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
+/** (player-hygiene S1) The probe's ray heights over the feet (m), in order, and the window probe's anchor kinds. */
+const PROBE_HEIGHTS = [0.25, 0.6, 1.0, 1.4] as const;
+const WINDOW_KINDS: readonly AnchorKind[] = ['window'];
 
 /** Durations (s) of each committed traversal from a standstill; quicker in stride (see `duration`). */
 export const TRAVERSE_TIME: Record<Exclude<Traversal, 'none'> | 'drop' | 'hop' | 'roll', number> = { step: 0.4, vault: 0.7, mantle: 1.0, drop: 0.35, hop: 0.5, roll: 0.62 };
@@ -79,6 +83,15 @@ export class TraversalController {
   private from = new Vector3();
   private to = new Vector3();
   private kin = new Vector3();
+  /** (player-hygiene S1) The committed move's override, every field reassigned each step (`kinematic` is `kin`). */
+  private readonly moveOv: MoveOverride = { kinematic: this.kin, yaw: 0, crouch: false };
+  /** (player-hygiene S1) The probe's result (`probe` and `windowProbe` share it: the hint is copied at the commit and
+   *  read by the HUD in the same frame), `pickTraversal`'s input and `probeDir`'s direction. */
+  private readonly probeOut: TraverseProbe = { kind: 'none', front: 0, height: 0, depth: 0, end: new Vector3() };
+  private readonly pickIn: TraversalProbe = { height: 0, depth: 0, landingClear: false, topClear: false };
+  private readonly probeD = { x: 0, z: 0 };
+  /** (player-hygiene S1) Each window's glass key (`glass:<id>`), built once. */
+  private readonly glassKeys = new WeakMap<WindowAnchor, string>();
   private dir = new Vector3(0, 0, 1);
   private top = 0;
   private probeT = 0;
@@ -186,17 +199,41 @@ export class TraversalController {
     this.attachCtl.frameUpdate(dt, alpha);
   }
 
+  /** (player-hygiene S1) `rr.reset(from, to)`, not `reset()`: Babylon's no-argument reset builds two zero vectors. */
   private ray(from: Vector3, to: Vector3): number | null {
-    this.rr.reset();
+    this.rr.reset(from, to);
     this.eng.raycastToRef(from, to, this.rr, Q);
     return this.rr.hasHit ? Vector3.Distance(from, this.rr.hitPoint) : null;
   }
 
   /** Floor height under (x, z) between yFrom and yFrom - depth, or null. */
   private floor(x: number, z: number, yFrom: number, depth: number): number | null {
-    this.rr.reset();
-    this.eng.raycastToRef(this.a.set(x, yFrom, z), this.b.set(x, yFrom - depth, z), this.rr, Q);
+    this.a.set(x, yFrom, z);
+    this.b.set(x, yFrom - depth, z);
+    this.rr.reset(this.a, this.b);
+    this.eng.raycastToRef(this.a, this.b, this.rr, Q);
     return this.rr.hasHit ? this.rr.hitPoint.y : null;
+  }
+
+  /** (player-hygiene S1) The window's breakable glass key (`glass:<id>`), built once per window. */
+  private glassKey(w: WindowAnchor): string {
+    let k = this.glassKeys.get(w);
+    if (k === undefined) {
+      k = `glass:${w.id}`;
+      this.glassKeys.set(w, k);
+    }
+    return k;
+  }
+
+  /** (player-hygiene S1) The probe's result (the shared member) set to these values. */
+  private probeResult(kind: TraverseProbe['kind'], front: number, height: number, depth: number, ex: number, ey: number, ez: number): TraverseProbe {
+    const o = this.probeOut;
+    o.kind = kind;
+    o.front = front;
+    o.height = height;
+    o.depth = depth;
+    o.end.set(ex, ey, ez);
+    return o;
   }
 
   /** Look along `dir` from the feet and classify the obstacle (or ledge). */
@@ -206,7 +243,8 @@ export class TraversalController {
     if (wp) return wp;
     const reach = 1.3;
     let front = Infinity;
-    for (const h of [0.25, 0.6, 1.0, 1.4]) {
+    for (let i = 0; i < PROBE_HEIGHTS.length; i++) {
+      const h = PROBE_HEIGHTS[i]!;
       const d = this.ray(this.a.set(feet.x, feet.y + h, feet.z), this.b.set(feet.x + dx * reach, feet.y + h, feet.z + dz * reach));
       if (d !== null) front = Math.min(front, d);
     }
@@ -222,7 +260,7 @@ export class TraversalController {
           if (g !== null && Math.abs(g - feet.y) < 0.35) {
             const out = d + 0.5;
             const clear = this.ray(this.a.set(feet.x, feet.y + 0.9, feet.z), this.b.set(feet.x + dx * out, feet.y + 0.9, feet.z + dz * out)) === null;
-            if (clear) return { kind: 'hop', front: d, height: 0, depth: d, end: new Vector3(feet.x + dx * out, g, feet.z + dz * out) };
+            if (clear) return this.probeResult('hop', d, 0, d, feet.x + dx * out, g, feet.z + dz * out);
           }
         }
       }
@@ -230,7 +268,7 @@ export class TraversalController {
         const land = f ?? feet.y - 4;
         // step out far enough that the capsule clears the edge
         const out = 0.75 + MOVEMENT.radius + 0.2;
-        return { kind: 'drop', front: 0.75, height: land - feet.y, depth: 0, end: new Vector3(feet.x + dx * out, land, feet.z + dz * out) };
+        return this.probeResult('drop', 0.75, land - feet.y, 0, feet.x + dx * out, land, feet.z + dz * out);
       }
       return null;
     }
@@ -258,19 +296,28 @@ export class TraversalController {
     // standing room on top (mantle)
     const mx = feet.x + dx * (front + 0.4);
     const mz = feet.z + dz * (front + 0.4);
-    const topClear = this.ray(this.a.set(mx, topY + 0.05, mz), this.b.set(mx, topY + MOVEMENT.standHeight, mz)) === null && this.ray(this.a.set(feet.x, topY + 0.5, feet.z), this.b.set(mx, topY + 0.5, mz)) === null;
-    const kind = pickTraversal({ height, depth, landingClear, topClear });
+    // (mantle-rise-fix) and air to rise through: chest to over the top at the feet, so a crawl space under a slab never
+    // mantles up through the slab (the top cast from feet + 2.0 reads the slab's top; the committed move ignores collision)
+    const topClear =
+      this.ray(this.a.set(mx, topY + 0.05, mz), this.b.set(mx, topY + MOVEMENT.standHeight, mz)) === null &&
+      this.ray(this.a.set(feet.x, topY + 0.5, feet.z), this.b.set(mx, topY + 0.5, mz)) === null &&
+      this.ray(this.a.set(feet.x, feet.y + 0.9, feet.z), this.b.set(feet.x, topY + 0.5, feet.z)) === null;
+    const pi = this.pickIn;
+    pi.height = height;
+    pi.depth = depth;
+    pi.landingClear = landingClear;
+    pi.topClear = topClear;
+    const kind = pickTraversal(pi);
     if (kind === 'none') return null;
-    const end = kind === 'vault' ? new Vector3(lx, landY ?? feet.y, lz) : new Vector3(mx, topY, mz);
-    return { kind, front, height, depth, end };
+    return kind === 'vault' ? this.probeResult(kind, front, height, depth, lx, landY ?? feet.y, lz) : this.probeResult(kind, front, height, depth, mx, topY, mz);
   }
 
   /** Through a window (open, or glazed and breakable): a vault over the sill to the floor on the far side. */
   private windowProbe(feet: Vector3, dx: number, dz: number): TraverseProbe | null {
-    const r = nearestInReach(this.anchors, feet.x, feet.y, feet.z, dx, dz, ['window']);
+    const r = nearestInReach(this.anchors, feet.x, feet.y, feet.z, dx, dz, WINDOW_KINDS);
     if (!r) return null;
     const w = r.anchor as WindowAnchor;
-    if (!w.open && !w.breakable && !(this.breakables?.isOpen(`glass:${w.id}`) ?? true)) return null;
+    if (!w.open && !w.breakable && !(this.breakables?.isOpen(this.glassKey(w)) ?? true)) return null;
     const nx = Math.sin(w.yaw);
     const nz = Math.cos(w.yaw);
     const side = (feet.x - w.c.x) * nx + (feet.z - w.c.z) * nz;
@@ -284,7 +331,7 @@ export class TraversalController {
     const land = this.floor(ex, ez, w.sillHeight + 0.2, 2.5);
     if (land === null || Math.abs(land - feet.y) > 0.6) return null;
     this.hintWindow = w;
-    return { kind: 'vault', front: r.dist, height: w.sillHeight - feet.y, depth: 0.3, end: new Vector3(ex, land, ez) };
+    return this.probeResult('vault', r.dist, w.sillHeight - feet.y, 0.3, ex, land, ez);
   }
 
   /** Movement direction to probe along: the stick if pushed, else where the body faces. */
@@ -292,8 +339,15 @@ export class TraversalController {
     const c = this.player.controller;
     const w = c.wishDir;
     const l = hyp2(w.x, w.z);
-    if (l > 0.3) return { x: w.x / l, z: w.z / l };
-    return { x: Math.sin(c.yaw), z: Math.cos(c.yaw) };
+    const o = this.probeD;
+    if (l > 0.3) {
+      o.x = w.x / l;
+      o.z = w.z / l;
+      return o;
+    }
+    o.x = Math.sin(c.yaw);
+    o.z = Math.cos(c.yaw);
+    return o;
   }
 
   /**
@@ -330,7 +384,11 @@ export class TraversalController {
       // (anim-n4b) the move's geometry for the mantle's hand plant (animation only)
       pose.traverseH = this.top - this.from.y;
       pose.traverseD = hyp2(this.to.x - this.from.x, this.to.z - this.from.z);
-      c.override = { kinematic: this.kin, yaw: Math.atan2(this.dir.x, this.dir.z), crouch: this.kind === 'vault' || this.ctRoll };
+      const mo = this.moveOv;
+      mo.kinematic = this.kin;
+      mo.yaw = Math.atan2(this.dir.x, this.dir.z);
+      mo.crouch = this.kind === 'vault' || this.ctRoll;
+      c.override = mo;
       if (k >= 1) {
         const inStride = this.speed0 >= 1;
         // a standing climb settles; in stride the move lands straight into the gait it came from
@@ -437,7 +495,7 @@ export class TraversalController {
     if (jumpPressed && this.hint) {
       // a glazed window shatters as the vault goes through it (loud)
       const w = this.hintWindow;
-      if (w && !w.open) this.breakables?.open(`glass:${w.id}`, 'break');
+      if (w && !w.open) this.breakables?.open(this.glassKey(w), 'break');
       this.throughWindow = !!w;
       this.kind = this.hint.kind;
       this.t = 0;

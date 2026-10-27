@@ -517,6 +517,10 @@ export const TEAM = {
   ropeTop: 1.1, // (team-climb) was 0.9: the eased path (teamMoves `ROPE_TOP_PATH`) needs 1.1 s to keep the root from popping
   ropeSlide: 3.0,
   ropeLost: 1.5,
+  /** (coop-kit A1, R34) The rappel's over-the-edge (s): from beside the holder down onto the rope's top, the top-out's
+   *  path backwards (teamMoves `ropeOverPath`). Starting value (G10; a little slower than the 1.1 s top-out: going over
+   *  backwards onto a held rope is the careful part), A2's research may change it. */
+  ropeOver: 1.3,
   /** Requests a player may make (host rate limit, per second). */
   rate: 1,
 } as const;

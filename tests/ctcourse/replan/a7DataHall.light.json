@@ -1,0 +1,20 @@
+{
+ "levels": {
+  "A7 T1": 0.7,
+  "A7 aisle B": 0.87,
+  "A7 aisle B cut": 0.14,
+  "A7 aisle C": 0.79,
+  "A7 north apron": 0.71,
+  "A7 R1": 0.54,
+  "A7 R1 cut": 0.21,
+  "A7 lobby": 0.6,
+  "A7 lobby cut": 0.14,
+  "A7 corridor": 0.94,
+  "A7 corridor cut": 0.14,
+  "A7 grating": 0.47,
+  "A7 T2": 0.61,
+  "A7 T2 cut": 0.14,
+  "A7 hall floor": 0.43,
+  "A7 hall standby": 0.14
+ }
+}

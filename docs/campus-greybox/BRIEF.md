@@ -168,7 +168,7 @@ Status per entry: kept, CHANGED (with the answer that changed it) or REPLACED (n
   4.2 m drop is under the 4.5 m safe drop; the way back up stays the two-person rope. Undo: add the anchor when the engine's
   rappel query checks doors.
 - **A26 sector-marks first, campus-greybox carries** (new; same lead's order, `origin/feature/sector-marks`
-  `docs/sector-marks/PLAN.md` "Risks"). sector-marks (a G355 rule fix) merges first and edits master's files as they are:
+  `docs/archive/sector-marks/PLAN.md` "Risks"). sector-marks (a G355 rule fix) merges first and edits master's files as they are:
   the four objective `label` strings (S1 and S3 in `campusSectors.ts`, S4 in `campusS4Data.ts`, S5 in `campusS5Data.ts`)
   and `Math.hypot(dx, dz)` -> `hyp2(dx, dz)` in `campusS4Dress.ts` `around` (with `import { hyp2 } from
   '../../core/mathx'`). At its next master take campus-greybox carries them: the S1 / S3 labels into `campusS1Data.ts` /
@@ -179,7 +179,7 @@ Status per entry: kept, CHANGED (with the answer that changed it) or REPLACED (n
   objective label naming a room of its v2 `S<N>_ROOMS` that holds the objective point (and moves the room word with a
   rename; G336, G351): sector-marks' `tests/campusObjectivePlace.test.ts` reads the live `CAMPUS_SECTORS`, so it checks the
   v2 label once the section is on, against the room list SW-<N> points at v2 (PLAN section 9). Undo: none (a rule fix).
-- **A27 Guard AI J15 PR1 first** (new; the orchestrator's order, 2026-10-25; guard-rules `docs/guard-rules/PLAN.md` PR1
+- **A27 Guard AI J15 PR1 first** (new; the orchestrator's order, 2026-10-25; guard-rules `docs/archive/guard-rules/PLAN.md` PR1
   and "J17 order"). Guard AI's guard-rules PR1 lands on master before any J17 edit to `campusS4Data.ts` /
   `campusS5Data.ts`: P0 (it adds `S4_PARTS` / `S5_PARTS` there), any carry of A23 / A26 into those files train after PR1,
   and every lane PR (S1-S5) while it still carries P0's commits trains after PR1. PR1 drops the S4 / S5 section `gear: 'helmet'`, turns `gear: 'both'` into `'armour'` and sets `shieldTeams: true`;

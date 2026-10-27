@@ -81,9 +81,9 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>): string
 - **Protected characters**: knocking out or killing a named character the mission needs (an interrogation target
   before he talks) restarts the section the same way (G353; Michael ~11:20: "Section restart"), so a mission can
   never stall.
-- **Code to bring in line**: the engine branch (feature/mission-engine) was built before G339 and Q19 and still has the
-  `oneChance` / `window` rule kinds, the blip reader and a required reward on optional steps (the wharf missions carry
-  a gadget and a syringe). The code changes follow these docs (ROADMAP Now 7-8).
+- **Code to bring in line**: the engine branch (feature/mission-engine) was built before G339 and Q19 and had the
+  `oneChance` / `window` rule kinds and a required reward on optional steps. PR D (feature/mission-rules, R0-R1) removes
+  both; the blip reader is not in R0-R1 and still goes (ROADMAP Now 7-8).
 - **Spook** (A11): interrogating a decoy despawns the real target and respawns him unalerted at `bolt` with his info
   (enemyManager.ts:1705 `despawn`, :1864 `spawn`; no src/ai change). With the `namedTarget` rule a decoy read also breaks it.
 - **Extraction**: the `extract` step is `SectorRun`'s extract phase (sectors.ts:777-782: every living player holds the zone).
@@ -231,3 +231,73 @@ node needs to "Night Shift | Sector Ops Build" through the lead.
 - Open: whether a Sector Ops optional
   objective keeps its reward across a restart (planned: no, the section's work resets).
 - Assumed decisions A6-A18 are in BRIEF.md with how to undo each.
+
+## 8. Claims (PR C split C1-C16, lead 2026-10-26 ~14:00)
+One block for the engine and its Tallow branches (tallow-throw, tallow-fixes, tallow-fixes-2, tallow-shutters), so
+claims-check sees them as one job; the split plan (`docs/missions/slices/PRC-split.md`) puts each file in one member.
+```claims
+files:
+  - src/game/mission/**
+  - src/game/kit/**
+  - src/game/teamController.ts
+  - src/game/teamMoves.ts
+  - src/game/gameState.ts
+  - src/game/gameEvents.ts
+  - src/game/intelReveal.ts
+  - src/game/sectors.ts
+  - src/game/sectorTeamDoors.ts
+  - src/game/stealthSystems.ts
+  - src/game/spawnPlace.ts
+  - src/game/takedownController.ts
+  - src/game/modes/gameMode.ts
+  - src/game/modes/sectorMode.ts
+  - src/net/coopClient.ts
+  - src/net/coopHost.ts
+  - src/net/coopUi.ts
+  - src/net/kitNet.ts
+  - src/net/missionMirror.ts
+  - src/net/protocol.ts
+  - src/net/session.ts
+  - src/player/moveState.ts
+  - src/anim/clips/team.ts
+  - src/anim/tuneMoveRows.ts
+  - src/core/flags.ts
+  - src/core/settings.ts
+  - src/main.ts
+  - src/ui/hud/hud.ts
+  - src/ui/screens/missionsScreen.ts
+  - src/ui/screens/pauseScreen.ts
+  - src/ui/screens/playScreen.ts
+  - src/ui/screens/settingsScreen.ts
+  - src/world/mapDef.ts
+  - src/world/world.ts
+  - src/world/shutterDoor.ts
+  - src/world/maps/index.ts
+  - src/world/maps/campusOps.ts
+  - src/world/maps/campusMissionTest.ts
+  - src/world/maps/tallowWharf*.ts
+  - scripts/e2e-sectorops-mission.mjs
+  - scripts/e2e-sectorops-wharf.mjs
+  - scripts/e2e-affected.mjs
+  - scripts/run-e2e.mjs
+  - tests/mission/**
+  - tests/kit/**
+  - tests/tallowWharf/**
+  - tests/campaign*.test.ts
+  - tests/mission*.test.ts
+  - tests/kitNet.test.ts
+  - tests/shutter*.test.ts
+  - tests/throwSites.test.ts
+  - tests/sectorBolt.test.ts
+  - tests/sectorGuardTags.test.ts
+  - tests/sectorRatingHost.test.ts
+  - tests/campusS1.test.ts
+  - tests/detailPass.test.ts
+  - tests/rooms.test.ts
+  - tests/settings.test.ts
+  - tests/settingsCover.test.ts
+  - TESTING.md
+maps: tallowWharf, campusOps, campusMissionTest
+protocol: start, tmove, tstart, gused, state   # start.sm, tmove + tstart kinds pull + shutter, state.ms
+save: none
+```

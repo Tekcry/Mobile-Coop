@@ -5,7 +5,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import type { RigPose } from '../src/player/characterRig';
-import { GRAB_KILL_BLOW, KILL_SEEN, KILL_TAIL_END, STRIKE_ARC_CONTACT, STRIKE_ARM_LAG, TAKEDOWN_BLOW, killWarp, strikeWarp, type KillBlow } from '../src/anim/strikeBody';
+import { GRAB_KILL_BLOW, KILL_SEEN, KILL_TAIL_END, STRIKE_ARC_CONTACT, STRIKE_ARM_LAG, TAKEDOWN_BLOW, arcWarp, killWarp, strikeWarp, type KillBlow } from '../src/anim/strikeBody';
 import { GRAB, TAKEDOWN, type TakedownPlan } from '../src/game/takedown';
 import { STRIKE_DUR, strikePhase } from '../src/game/elbowStrike';
 import { TakedownController, type TakedownVictim } from '../src/game/takedownController';
@@ -34,17 +34,17 @@ describe('anim-n4d: the kill warp (pure)', () => {
     }
   });
 
-  it('strikeWarp is monotonic and continuous both ways (contact earlier or later than the arc\'s own)', () => {
+  it('arcWarp (the kill blows\' warp) is monotonic and continuous both ways (contact earlier or later than the arc\'s own)', () => {
     for (const hit of [0.12, 0.3, C, 0.69, 0.9]) {
       let prev = 0;
       let maxStep = 0;
       for (let k = 1; k <= 1000; k++) {
-        const w = strikeWarp(k / 1000, hit);
+        const w = arcWarp(k / 1000, hit);
         expect(w).toBeGreaterThan(prev);
         maxStep = Math.max(maxStep, w - prev);
         prev = w;
       }
-      expect(strikeWarp(hit, hit)).toBeCloseTo(C, 12);
+      expect(arcWarp(hit, hit)).toBeCloseTo(C, 12);
       // no jump: the steepest slope is the larger of C / hit and (1 - C) / (1 - hit)
       expect(maxStep).toBeLessThanOrEqual(Math.max(C / hit, (1 - C) / (1 - hit)) / 1000 + 1e-12);
     }
@@ -388,7 +388,7 @@ describe('anim-n4d: a client accept keeps the posed strike moving on (n4c polish
       const ph: number[] = [];
       let tAfter = -1;
       let oldBack = 0;
-      for (let k = 1; k <= 70 && (k === 1 || sk.active); k++) {
+      for (let k = 1; k <= Math.ceil(STRIKE_DUR / DT) + 30 && (k === 1 || sk.active); k++) {
         if (k === acceptAt) {
           const t0 = sk.t;
           const pre = strikeWarp(strikePhase(t0));

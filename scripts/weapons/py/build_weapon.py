@@ -5,6 +5,7 @@
 The weapon module (py/<id>.py) defines SIZE (texture size), POINTS (weapon-frame hand points, muzzle, magazine point:
 src/config/weapons.json) and build() (creates the parts with wlib). Output: <out>/<id>/<id>.glb (PNG textures; KTX2
 follows in Node), <id>-*.png, <id>-report.json, <id>.blend; renders as WebP into --render.
+The magazine and, for a pistol, the slide are meshes of their own in the GLB (`<id>-mag`, `<id>-slide`: wlib.write_glb); the report's `split` names their parts.
 """
 import importlib
 import json
@@ -32,6 +33,7 @@ os.makedirs(out, exist_ok=True)
 W.standard_materials()
 mod.build()
 parts = [o.name for o in W.PARTS]
+split = {'mag': [n for n in parts if W.is_mag(n)], 'slide': [n for n in parts if W.is_slide(n)]}
 # hand points measured against the separate parts (joined shells overlap): inside any part, and the distance to the
 # nearest part surface
 surface = W.points_vs_parts(mod.POINTS)
@@ -39,7 +41,7 @@ part_bounds = W.part_bounds()
 obj = W.join_all(wid)
 W.unwrap(obj)
 report = {'id': wid, 'parts': parts, 'triangles': W.tri_count(obj), 'bounds': W.game_bounds(obj), 'textureSize': mod.SIZE,
-          'points': mod.POINTS, 'surface': surface, 'partBounds': part_bounds}
+          'points': mod.POINTS, 'surface': surface, 'partBounds': part_bounds, 'split': split}
 if not args.no_bake:
     files, ims = W.bake(obj, out, wid, mod.SIZE)
     report['glb'] = W.write_glb(os.path.join(out, f'{wid}.glb'), obj, wid, files)

@@ -1,10 +1,18 @@
 import { EventBus } from '../core/events';
+import { flags } from '../core/flags';
 import type { WeatherChoice } from '../world/mapDef';
 import type { AvatarLook } from '../cosmetics/avatarLook';
-import { capacity, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
+import { capacity, parseMessage, PROTOCOL_VERSION, sectorMissionId, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
 import type { Transport } from './transport';
 import type { WeaponId } from '../weapons/weaponDefs';
 import { REJOIN_HOLD_S } from '../core/rejoin';
+import { MAPS } from '../world/maps';
+import type { MissionDef } from '../game/mission/missionDef';
+import { CAMPAIGN_PLAYERS, campaignStartBlock, isCampaignMap, isCampaignMission } from '../game/mission/campaign';
+
+/** (mission-rules R4, G2 "2 player coop campaign only", G48 "No bot anywhere") A campaign room holds exactly two,
+ *  whatever the mode's `capacity()` (coop4 takes Sector Ops to 4; a campaign room stays 2). */
+export const CAMPAIGN_ROOM = CAMPAIGN_PLAYERS;
 
 export interface LocalProfile {
   name: string;
@@ -23,6 +31,24 @@ export interface StartInfo {
   weather: WeatherChoice;
   /** Course mode: the bay to start at (1-based, D20). */
   bay?: number;
+  /** (mission-framework NET3) Sector Ops: the host's mission (`MissionDef.id`; '' / absent: none). */
+  sectorMission?: string;
+}
+
+/**
+ * (J14 R1, PLAN A16) The map a host's room opens on: Marlow Yard (`ctcourse`) is the re-planned yard (`ctcourseReplan`)
+ * with `?marlowreplan=1`; every other map, and the flag off, as picked. The client loads the map the host's `start` names.
+ */
+export function roomMap(map: string, replan = flags.marlowReplan): string {
+  return replan && map === 'ctcourse' ? 'ctcourseReplan' : map;
+}
+
+/**
+ * (J14 R1 fix 8) The map a "Resume hosting" record reopens on: a record kept on the re-planned yard falls back to the
+ * built yard when this page has `?marlowreplan=1` off (the re-plan is dark); with the flag on, as `roomMap`.
+ */
+export function resumeMap(map: string, replan = flags.marlowReplan): string {
+  return !replan && map === 'ctcourseReplan' ? 'ctcourse' : roomMap(map, replan);
 }
 
 export interface SessionEvents {
@@ -61,9 +87,15 @@ export class NetSession {
   hostId: string | null;
   /** A new room's mode: the campaign, Marlow Yard in Course mode (sector-ops slice 3; `?legacy=1` hosts switch to the parked Hunter). */
   mode: NetMode = 'course';
-  map = 'ctcourse';
+  map = roomMap('ctcourse');
   difficulty: Difficulty = 'normal';
   mission = '';
+  /**
+   * (mission-framework NET3) Sector Ops' mission. Host: its own `?mission=` (the mission its mode binds), sent in a
+   * sector `start`. Client: the one the host's last `start` carried ('' none), never its own URL's: its start section
+   * follows the host's (`CoopClient.placeStart`).
+   */
+  sectorMission: string;
   weather: WeatherChoice = 'clear';
   /** Course mode: "Start at bay N" (host, 1-based; D20). */
   courseBay = 1;
@@ -84,6 +116,8 @@ export class NetSession {
   private holdTimer: ReturnType<typeof setInterval> | null = null;
   /** (R2) Client: refused by a full room; that room's lobbies are no longer ours to take. */
   private refused = false;
+  /** (PR E fix) Host: removes the pending auto start's listeners (`startWhenUnblocked`); null when none is pending. */
+  private autoOff: (() => void) | null = null;
 
   constructor(
     readonly transport: Transport,
@@ -94,6 +128,8 @@ export class NetSession {
     private readonly tok = '',
   ) {
     this.hostId = role === 'host' ? transport.selfId : null;
+    // (FLG) as `missionParam()`: no mission id on the wire while `flags.missions` is off
+    this.sectorMission = role === 'host' && flags.missions ? sectorMissionId(flags.mission ?? '') : '';
     this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host', away: false });
     if (role === 'host') this.holdTimer = setInterval(() => this.expireAway(Date.now()), 5000);
     transport.onMessage = (raw, from) => this.receive(raw, from);
@@ -150,7 +186,7 @@ export class NetSession {
       held++;
       only = p.id;
     }
-    return held === 1 && this.players.size >= capacity(this.mode) ? only : null;
+    return held === 1 && this.players.size >= this.cap ? only : null;
   }
 
   private hostReceive(msg: Msg, from: string, conn: string): void {
@@ -174,7 +210,7 @@ export class NetSession {
           this.route.set(held, conn);
         }
       }
-      if (!this.players.has(pid) && this.players.size >= capacity(this.mode)) {
+      if (!this.players.has(pid) && this.players.size >= this.cap) {
         this.send({ t: 'bye', reason: 'Room is full' }, conn);
         return;
       }
@@ -250,7 +286,9 @@ export class NetSession {
     if (from !== this.hostId) return;
     if (msg.t === 'start') {
       this.phase = 'playing';
-      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1 };
+      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1, ...(msg.sm ? { sectorMission: msg.sm } : {}) };
+      // (NET3) the host's sector mission, or none: ours (`?mission=`) never counts
+      this.sectorMission = msg.mode === 'sector' ? (msg.sm ?? '') : '';
       this.events.emit('start', this.start);
       return;
     }
@@ -328,8 +366,12 @@ export class NetSession {
 
   setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission, weather = this.weather): void {
     if (!this.isHost) return;
+    // (PR E fix) another mode, map or mission is a new match, not the one the auto start resumes (a block it lifts, such
+    // as a switch off the campaign, would otherwise start it alone at once)
+    if (mode !== this.mode || map !== this.map || (mode === 'infiltration' ? mission : '') !== this.mission) this.cancelAutoStart();
     this.mode = mode;
-    this.map = map;
+    // (J14 R1) the lobby's Marlow Yard pick opens the re-planned yard with the flag on
+    this.map = roomMap(map);
     this.difficulty = difficulty;
     this.mission = mode === 'infiltration' ? mission : '';
     this.weather = weather;
@@ -340,21 +382,96 @@ export class NetSession {
     return [...this.players.values()].every((p) => p.ready || p.host);
   }
 
-  /** Too many players for the chosen mode (co-op takes 4). */
-  get overCapacity(): boolean {
-    return this.players.size > capacity(this.mode);
+  /** (mission-rules R4) The room's map's missions (Sector Ops only: no other mode binds a mission). */
+  private sectorMissions(): readonly MissionDef[] | undefined {
+    if (this.mode !== 'sector') return undefined;
+    return MAPS.find((m) => m.id === this.map)?.missions;
   }
 
-  /** Host: start the match for everyone. */
+  /**
+   * (mission-rules R4, BRIEF A9) The room plays the campaign: Sector Ops on a campaign map (Tallow Wharf: every mission
+   * campaign, A8) or with a campaign mission picked. A client knows only the map (the host's mission comes with `start`),
+   * so its view follows the map; the host decides every start and join.
+   */
+  get campaign(): boolean {
+    const missions = this.sectorMissions();
+    return isCampaignMap(missions) || isCampaignMission(missions?.find((m) => m.id === this.sectorMission));
+  }
+
+  /** Players this room takes: `CAMPAIGN_ROOM` (2) for the campaign, else the mode's `capacity`. */
+  get cap(): number {
+    return this.campaign ? CAMPAIGN_ROOM : capacity(this.mode);
+  }
+
+  /**
+   * (mission-rules R4, G2) Why the host cannot start the campaign now (`CAMPAIGN_PICK_MISSION`: a campaign map with no
+   * campaign mission picked; `CAMPAIGN_TWO_PLAYERS`: not exactly two in the room), or null (any other match, as before).
+   */
+  get campaignBlock(): string | null {
+    const missions = this.sectorMissions();
+    return missions ? campaignStartBlock(missions, this.sectorMission || null, this.players.size) : null;
+  }
+
+  /** Too many players for the chosen mode (co-op takes 4) or for the campaign (2). */
+  get overCapacity(): boolean {
+    return this.players.size > this.cap;
+  }
+
+  /** Host: start the match for everyone; null (and the room stays in the lobby) when it cannot start. */
   startMatch(): StartInfo | null {
     if (!this.isHost) return null;
+    // (mission-rules R4, BRIEF A19) a blocked start returns before the phase changes, so the room can still start once
+    // the partner is in (before, a lone host was left in `playing` and never started)
+    if (this.overCapacity || this.campaignBlock !== null) return null;
     this.phase = 'playing';
-    if (this.overCapacity) return null;
-    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1 };
+    // (NET3) a Sector Ops match carries the host's mission (none: the start as before)
+    const sm = this.mode === 'sector' ? this.sectorMission : '';
+    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1, ...(sm ? { sectorMission: sm } : {}) };
     this.send(startMsg(this.start));
     this.broadcastLobby();
     this.events.emit('start', this.start);
     return this.start;
+  }
+
+  /**
+   * (PR E fix, host) Start the match on our own, once, as soon as the room can: on a lobby change in the lobby phase
+   * with `blocked()` null and the room not over capacity, `startMatch` on the next task (after the lobby handler that
+   * announced the change). No ready check: it is for a room whose players were mid-match ("Resume hosting": the
+   * waiting partner has no Ready button). Mode-agnostic: the caller passes the start block that holds it now. Gone once
+   * a match starts (by any route), on another mode / map / mission (`setSettings`), on `cancelAutoStart` and on `leave`;
+   * a check that fails when the task runs (the partner dropped again) leaves it pending for the next lobby change.
+   */
+  startWhenUnblocked(blocked: () => string | null): void {
+    if (!this.isHost || this.closed) return;
+    this.cancelAutoStart();
+    let queued = false;
+    const ready = (): boolean => !this.closed && this.phase === 'lobby' && !this.overCapacity && blocked() === null;
+    const offLobby = this.events.on('lobby', () => {
+      if (queued || !ready()) return;
+      queued = true;
+      setTimeout(() => {
+        queued = false;
+        if (this.autoOff === off && ready()) this.startMatch();
+      }, 0);
+    });
+    const offStart = this.events.on('start', () => this.cancelAutoStart());
+    const off = (): void => {
+      offLobby();
+      offStart();
+    };
+    this.autoOff = off;
+  }
+
+  /** (PR E fix) An auto start is pending (`startWhenUnblocked`). */
+  get autoStarting(): boolean {
+    return this.autoOff !== null;
+  }
+
+  /** (PR E fix) Drop the pending auto start, if any. */
+  cancelAutoStart(): void {
+    const off = this.autoOff;
+    this.autoOff = null;
+    off?.();
   }
 
   /** Back to the lobby after a match (host). */
@@ -371,13 +488,14 @@ export class NetSession {
     if (this.closed) return;
     if (this.isHost) this.send({ t: 'bye', reason });
     this.closed = true;
+    this.cancelAutoStart();
     if (this.holdTimer) clearInterval(this.holdTimer);
     await this.transport.leave().catch(() => {});
     this.events.clear();
   }
 }
 
-/** The `start` message for a match. */
-function startMsg(s: StartInfo): Msg {
-  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, bay: s.bay ?? 1 };
+/** The `start` message for a match ((NET3) `sm` only when a sector mission is set). */
+export function startMsg(s: StartInfo): Msg {
+  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, bay: s.bay ?? 1, ...(s.sectorMission ? { sm: s.sectorMission } : {}) };
 }

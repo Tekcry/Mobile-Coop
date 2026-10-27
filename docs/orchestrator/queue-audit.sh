@@ -4,7 +4,7 @@
 # Flags each open request (no done claim) on origin/laptop-queue:
 #   STALE   its own branch (the request's "branch", else the sha's sole non-master holder) has since changed non-test files: withdraw it
 #   DUP     an older request from the same requester + set + branch (or PR) with overlapping suites: keep the newest only
-#   BIG     more than 2 suites on a PR whose diff vs master does not touch src/net (docs/RULES.md "Test tiers")
+#   BIG     more than 3 suites (the affected cap) on a PR whose diff vs master does not touch src/net (docs/RULES.md "Test tiers")
 #   CLAIM   claimed more than 90 min ago and not done (stuck claim)
 # A request with "pin": true (deliberate old-sha A/B run) is never flagged STALE or DUP.
 # Fast path (queue-audit: batch reads, under 10 s): every request and claim blob is read in ONE `git cat-file --batch`
@@ -57,7 +57,8 @@ for (let i = 0; i < n; i++) {
   const req = reqOf(j), set = setOf(j);
   let k = 0;
   const sm = j.replace(/[\n ]/g, '').match(/"suites":\[([^\]]*)\]/);
-  if (sm) k = sm[1].split(',').map(x => x.replace(/"/g, '').replace(/e2e-/g, '')).filter(Boolean).length;
+  // distinct suites: the parts of one sharded suite (`e2e-sectorops:6`, `:7`, ...) count once
+  if (sm) k = new Set(sm[1].split(',').map(x => x.replace(/"/g, '').replace(/e2e-/g, '').replace(/:\d+$/, '')).filter(Boolean)).size;
   const pin = /"pin": *true/.test(j) ? '1' : '';
   lines.push([ids[i], first(j, /"sha": "([0-9a-f]*)"/), first(j, /"kind": "([^"]*)"/), req, set, k, pin, newestOf(i), first(cl, /"at":"([^"]*)"/), first(j, /"branch": "([^"]*)"/)].join(US));
 }
@@ -101,7 +102,7 @@ audit_one() {
   fi
   [ -n "$b" ] && flags="$flags STALE($b +$c files)"
   [ -z "$pin" ] && [ -n "$newest" ] && flags="$flags DUP(newer ${newest:0:15})"
-  if [ "$kind" = "pr" ] && [ "$k" -gt 2 ] && ! git diff --name-only origin/master...$sha 2>/dev/null | grep -q '^src/net/'; then flags="$flags BIG($k suites, no src/net)"; fi
+  if [ "$kind" = "pr" ] && [ "$k" -gt 3 ] && ! git diff --name-only origin/master...$sha 2>/dev/null | grep -q '^src/net/'; then flags="$flags BIG($k suites, no src/net)"; fi
   if [ -n "$at" ]; then age=$(( (now - $(date -d "$at" +%s)) / 60 )); [ $age -gt 90 ] && flags="$flags CLAIM(${age} min)"; fi
   echo "${id:0:15} ${sha:0:8} ${req#Night Shift | } [$set] n=$k${flags:+ <-$flags}"
 }

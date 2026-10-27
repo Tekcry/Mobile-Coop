@@ -21,6 +21,8 @@ interface WeaponAsset {
   source: Mesh;
   /** (anim-cleanup) The magazine as its own mesh (`<id>-mag` in the file), when the weapon has one. */
   mag: Mesh | null;
+  /** (piano-knife S4a) The slide as its own mesh (`<id>-slide` in the file), when the weapon has one. */
+  slide: Mesh | null;
   material: PBRMaterial;
 }
 
@@ -43,6 +45,7 @@ function sourceMesh(scene: Scene, g: GlbModel['meshes'][number], name: string): 
 function build(scene: Scene, model: GlbModel, id: string): WeaponAsset {
   const g = model.meshes.find((x) => x.name === id) ?? model.meshes[0];
   const gm = model.meshes.find((x) => x.name === `${id}-mag`) ?? null;
+  const gs = model.meshes.find((x) => x.name === `${id}-slide`) ?? null;
   const m = model.materials[0];
   if (!g || !m) throw new Error(`weapon mesh ${id}: empty file`);
   const mat = new PBRMaterial(`wpn-mesh-${id}`, scene);
@@ -73,8 +76,9 @@ function build(scene: Scene, model: GlbModel, id: string): WeaponAsset {
   mat.twoSidedLighting = true;
   const source = sourceMesh(scene, g, `wpn-mesh-${id}-src`);
   const mag = gm ? sourceMesh(scene, gm, `wpn-mesh-${id}-mag-src`) : null;
+  const slide = gs ? sourceMesh(scene, gs, `wpn-mesh-${id}-slide-src`) : null;
   scene.onDisposeObservable.addOnce(() => mat.dispose(false, true));
-  return { source, mag, material: mat };
+  return { source, mag, slide, material: mat };
 }
 
 function asset(scene: Scene, id: string): Promise<WeaponAsset> | null {
@@ -99,7 +103,7 @@ function asset(scene: Scene, id: string): Promise<WeaponAsset> | null {
  * geometry and material). Returns false when the item has no mesh in the bundle. A failed load is logged once and the
  * weapon keeps its proxy parts; `alive()` false (the weapon was disposed meanwhile) drops the result.
  */
-export function loadWeaponMesh(scene: Scene, id: string, parent: TransformNode, alive: () => boolean, ready: (m: Mesh, mag: Mesh | null) => void, failed?: () => void): boolean {
+export function loadWeaponMesh(scene: Scene, id: string, parent: TransformNode, alive: () => boolean, ready: (m: Mesh, mag: Mesh | null, slide: Mesh | null) => void, failed?: () => void): boolean {
   const p = asset(scene, id);
   if (!p) return false;
   p.then((a) => {
@@ -120,7 +124,18 @@ export function loadWeaponMesh(scene: Scene, id: string, parent: TransformNode, 
       mag.receiveShadows = true;
       mag.rotationQuaternion = Quaternion.Identity();
     }
-    ready(m, mag);
+    let slide: Mesh | null = null;
+    if (a.slide) {
+      slide = new Mesh(`wpn-mesh-${id}-slide`, scene);
+      a.slide.geometry!.applyToMesh(slide);
+      slide.material = a.material;
+      // (piano-knife S4a) a child of the body mesh, so the tuner's gun transform on the body (tuneVisual) carries it
+      slide.parent = m;
+      slide.isPickable = false;
+      slide.receiveShadows = true;
+      slide.rotationQuaternion = Quaternion.Identity();
+    }
+    ready(m, mag, slide);
   }).catch((e: unknown) => {
     if (!pageLeaving() && !scene.isDisposed) console.warn(`[weapons] ${id} mesh failed to load`, e);
     failed?.();

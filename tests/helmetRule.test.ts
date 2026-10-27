@@ -13,6 +13,21 @@ import type { DamageRegistry } from '../src/game/damage';
 import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
 import type { PartLibrary } from '../src/world/partLibrary';
+import type { Body } from '../src/ai/body';
+import type * as EnemyModule from '../src/ai/enemy';
+
+// `EnemyManager.revive` builds the woken guard with `new Enemy`: here a stand-in on the real prototype (`guard`), so the
+// test drives `revive` itself (its stage gear and `ruleHelmet` call).
+const made = vi.hoisted(() => ({ make: null as ((kind: EnemyKind) => unknown) | null }));
+vi.mock('../src/ai/enemy', async (importOriginal) => {
+  const m = await importOriginal<typeof EnemyModule>();
+  const Enemy = function (_ctx: unknown, def: { kind: EnemyKind }) {
+    return made.make!(def.kind);
+  };
+  Enemy.prototype = m.Enemy.prototype;
+  Object.setPrototypeOf(Enemy, m.Enemy);
+  return { ...m, Enemy };
+});
 
 // (guard-rules S1, G350, BRIEF M4, A1-A3) Helmets by difficulty: Rookie / Normal bare-headed until alarm stage 2 (then
 // armour and a helmet), Realistic and Perfectionist helmeted from placement; Perfectionist's helmets locked (whatever gave
@@ -97,14 +112,16 @@ function placed(em: EnemyManager, kind: EnemyKind = 'grunt') {
   return g;
 }
 
-/** What the woken guard gets (`EnemyManager.revive`): `inherit` of the old self, the stage gear, the difficulty lock. */
+/** The woken guard (`EnemyManager.revive` on his knocked-out body): `inherit` of the old self, the stage gear, the
+ *  difficulty lock. */
 function revived(em: EnemyManager, old: Enemy) {
-  const g = guard(old.def.kind);
-  g.e.inherit(Object.assign(Object.create(old), { walker: { tick: vi.fn(), rejoin: vi.fn() }, postDef: null, postYaw: 0 }) as Enemy, 0);
-  const m = em as unknown as { giveStageGear(e: Enemy): void; ruleHelmet(e: Enemy, give: boolean): void };
-  m.giveStageGear(g.e);
-  m.ruleHelmet(g.e, false);
-  return g;
+  let g: ReturnType<typeof guard> | null = null;
+  made.make = (kind) => (g = guard(kind)).e;
+  const guardOld = Object.assign(Object.create(old), { walker: { tick: vi.fn(), rejoin: vi.fn() }, postDef: null, postYaw: 0 });
+  const b = { present: true, lethal: false, guard: guardOld, def: old.def, pos: old.pos.clone(), age: 0 } as unknown as Body;
+  (em as unknown as { revive(b: Body): void }).revive(b);
+  expect(em.enemies).toContain(g!.e);
+  return g!;
 }
 
 describe('the difficulty table', () => {
@@ -235,6 +252,15 @@ describe('Perfectionist: never shot off, the second headshot kills (A2)', () => 
     expect([e.helmet, e.helmetLocked, e.helmetSoaked]).toEqual([true, true, false]);
     expect(e.applyDamage(hit('head')).deflect).toBe(true);
     expect(e.applyDamage(hit('head')).killed).toBe(true);
+  });
+
+  it('revive applies the difficulty lock itself: an old self placed before the rule (unlocked) wakes locked', () => {
+    const em = manager('perfectionist', false);
+    const { e: old } = placed(em);
+    expect(old.helmetLocked).toBe(false);
+    em.useDifficultyHelmets();
+    const { e } = revived(em, old);
+    expect(e.helmetLocked).toBe(true);
   });
 
   it('body armour and other hits are unchanged by the lock', () => {

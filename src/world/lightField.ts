@@ -5,7 +5,7 @@
  * destroyed, EMP), with the formula the renderers use (`lampMath.ts`):
  *
  *   level = ambient grid + bounce grid (LR16-1, the lit lamps' one-bounce fill, never blended across a wall:
- *           `BounceGrid.sampleInto`) + moon x moon visibility + sum over the
+ *           `BounceGrid.sampleInto`) + (moon + lightning flash) x moon visibility + sum over the
  *           lamps listed for the point's 2 m column (as the shaders list them) of `LAMP_LEVEL_GAIN` x intensity x
  *           falloff x cone x baked visibility, with closed doors cutting lamps
  *
@@ -19,11 +19,18 @@
  */
 import { AMBIENT_CELL } from './ambientGrid';
 import { BounceGrid } from './bounceGrid';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER, torchCut } from './lampMath';
+import { hyp3 } from '../core/mathx';
 import type { LightBake } from './lightBake';
-import { lightTerm, type LightRegistry, type Occluder } from './lights';
+import { lightTerm, type LightDef, type LightRegistry, type Occluder } from './lights';
 import { CHAR_LIGHT, type CharOccluders } from './charOccluders';
 import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, lampGridBase, type LampResult } from '../voxel/lampBake';
+
+/** (piano SO3) A `beamCut` torch's cut at a point: `torchCut` at its reach (capped at the radius), as the picture's
+ *  `writeTorchDraw` / torch loop cut it. Allocation-free. */
+function beamCutAt(l: LightDef, x: number, y: number, z: number): number {
+  return torchCut(hyp3(x - l.x, y - l.y, z - l.z), Math.min(l.reach ?? l.radius, l.radius));
+}
 
 /** A door leaf as the field needs it (`Doors.list` entries fit): shut for light when `open` is `DOOR_SHUT` or less. */
 export interface FieldDoor {
@@ -133,7 +140,7 @@ export class LightField {
   private readonly isBaked: Uint8Array;
   /** (char-shadow-meter) Registry id -> bake index (-1 not baked), for `sourceAt`. */
   private readonly bakeIdx: Int32Array;
-  private readonly grid: { data: Uint8Array; cols: number; rows: number } | null;
+  private readonly grid: { data: Uint16Array; cols: number; rows: number } | null;
   private readonly gx: number;
   private readonly gz: number;
   /** `lampDoorLists` for the baked lamps. */
@@ -228,9 +235,28 @@ export class LightField {
   /** (char-shadow-meter) Scratch: the segment ax, ay, az, bx, by, bz `doorBlocksOne` tests, for the same reason. */
   private readonly seg = new Float64Array(6);
 
-  /** Static light at a point: ambient + moon + the baked lamps (closed doors applied). 0..1. */
+  /** (piano SO5) The lightning flash's gameplay level now (`Lightning.levelAt`; 0 between flashes and on maps without
+   *  lightning), added to the moon's level wherever the sky is seen. */
+  private flash = 0;
+
+  /** (piano SO5) Set the flash level for this sim step, before the meter and guards sample (`GameState.updateLight`).
+   *  With 0 every query is today's to the bit. */
+  setFlash(level: number): void {
+    this.flash = level > 0 ? level : 0;
+  }
+
+  /** (piano SO5) The flash level set for this step. */
+  get flashLevel(): number {
+    return this.flash;
+  }
+
+  /** Static light at a point: ambient + moon (+ a lightning flash) + the baked lamps (closed doors applied). 0..1. */
   levelAt(x: number, y: number, z: number): number {
-    this.levelInto(x, y, z);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    this.levelInto();
     return this.res;
   }
 
@@ -257,7 +283,11 @@ export class LightField {
   /** (LR16-1) The one-bounce fill at a point (0..1): the bounce grid read by `BounceGrid.sampleInto` (the walls kept),
    *  as `levelAt` adds it. */
   bounceAt(x: number, y: number, z: number): number {
-    this.bounceInto(x, y, z);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    this.bounceInto();
     return this.res;
   }
 
@@ -273,7 +303,11 @@ export class LightField {
 
   /** Lights that are not baked (flashlights, anything added after the bake), each tested with `occluded`. 0..1. */
   dynamicAt(x: number, y: number, z: number, occluded?: Occluder): number {
-    this.dynamicInto(x, y, z, occluded);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    this.dynamicInto(occluded);
     return this.res;
   }
 
@@ -284,7 +318,11 @@ export class LightField {
    * character's owner key); without one (or `null`) it is today's value to the bit.
    */
   totalAt(x: number, y: number, z: number, occluded?: Occluder, chars: CharOccluders | null = null, skip = -1): number {
-    this.totalInto(x, y, z, occluded, chars, skip);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    this.totalInto(occluded, chars, skip);
     return this.res;
   }
 
@@ -302,9 +340,11 @@ export class LightField {
     pt[1] = y;
     pt[2] = z;
     const b = this.bake;
-    if (b && b.moonLight > 0) {
+    // (piano SO5) the sky term: the moon plus the lightning flash now, through the same visibility
+    const sky = b ? b.moonLight + this.flash : 0;
+    if (b && sky > 0) {
       this.moonInto();
-      const m = b.moonLight * this.res;
+      const m = sky * this.res;
       if (m > 0) {
         this.pushLv[0] = m;
         n = this.pushRes(ids, lv, n, max, -1);
@@ -339,9 +379,10 @@ export class LightField {
     pt[2] = z;
     if (id === -1) {
       const b = this.bake;
-      if (!b || !(b.moonLight > 0)) return 0;
+      const sky = b ? b.moonLight + this.flash : 0;
+      if (!b || !(sky > 0)) return 0;
       this.moonInto();
-      return b.moonLight * this.res;
+      return sky * this.res;
     }
     if (id < 0) return 0;
     if (id < this.isBaked.length && this.isBaked[id]) {
@@ -352,6 +393,98 @@ export class LightField {
     return this.res;
   }
 
+  /** (char-shadow-meter S3b) The point the Q calls read: x, y, z. A caller through an interface (`ShadowCues`'
+   *  `CueField`) is not inlined, so V8 boxes each double argument it passes (16 B); written into these slots, nothing
+   *  crosses the call as a double. */
+  readonly qp = new Float64Array(3);
+  /** (S3b) The Q calls' level (never a returned double). */
+  readonly qr = new Float64Array(1);
+
+  /** (S3b) `sourcesInto` at `qp`: the same steps, the same lists and count. */
+  sourcesQ(ids: Int32Array, lv: Float32Array, max: number, occluded?: Occluder): number {
+    let n = 0;
+    if (max <= 0) return 0;
+    // (the point for the steps below, copied once into `pt`: no double crosses their calls)
+    const q = this.qp;
+    const pt = this.pt;
+    pt[0] = q[0]!;
+    pt[1] = q[1]!;
+    pt[2] = q[2]!;
+    const b = this.bake;
+    // (piano SO5) the sky term: the moon plus the lightning flash now, through the same visibility
+    const sky = b ? b.moonLight + this.flash : 0;
+    if (b && sky > 0) {
+      this.moonInto();
+      const m = sky * this.res;
+      if (m > 0) {
+        this.pushLv[0] = m;
+        n = this.pushRes(ids, lv, n, max, -1);
+      }
+    }
+    const cn = this.columnInto();
+    for (let s = 0; s < cn; s++) {
+      const L = this.colLv[s]!;
+      if (L >= CHAR_LIGHT.minLevel && this.inLampSet(s, cn)) {
+        this.pushLv[0] = L;
+        n = this.pushRes(ids, lv, n, max, this.ids[this.colLamp[s]!]!);
+      }
+    }
+    const ls = this.reg.lights;
+    for (let i = 0; i < ls.length; i++) {
+      if (i < this.isBaked.length && this.isBaked[i]) continue;
+      this.dynTermInto(i, occluded);
+      if (this.res > 0) {
+        this.pushLv[0] = this.res;
+        n = this.pushRes(ids, lv, n, max, i);
+      }
+    }
+    return n;
+  }
+
+  /** (S3b) `sourceAt` at `qp`, into `qr[0]`. */
+  sourceQ(id: number, occluded?: Occluder): void {
+    const q = this.qp;
+    const pt = this.pt;
+    pt[0] = q[0]!;
+    pt[1] = q[1]!;
+    pt[2] = q[2]!;
+    const r = this.qr;
+    if (id === -1) {
+      const b = this.bake;
+      const sky = b ? b.moonLight + this.flash : 0;
+      if (!b || !(sky > 0)) {
+        r[0] = 0;
+        return;
+      }
+      this.moonInto();
+      r[0] = sky * this.res;
+      return;
+    }
+    if (id < 0) {
+      r[0] = 0;
+      return;
+    }
+    if (id < this.isBaked.length && this.isBaked[id]) {
+      this.lampInto(this.bakeIdx[id]!);
+      r[0] = this.res;
+      return;
+    }
+    this.dynTermInto(id, occluded);
+    r[0] = this.res;
+  }
+
+  /** (S3b) `totalAt` at `qp` (with the contract `chars`, `skip` the sampled character's owner key), into `qr[0]`. */
+  totalQ(occluded: Occluder | undefined, chars: CharOccluders | null, skip: number): void {
+    // (F57) the point copied once into `pt`, as `sourceQ`: passed on as x, y, z it boxed 3 doubles a call
+    const q = this.qp;
+    const pt = this.pt;
+    pt[0] = q[0]!;
+    pt[1] = q[1]!;
+    pt[2] = q[2]!;
+    this.totalInto(occluded, chars, skip);
+    this.qr[0] = this.res;
+  }
+
   /**
    * How lit a standing or crouched body is: the brighter of the chest and head samples, so a head poking out of a
    * shadow into a lamp's pool shows. `height` is the head height above the feet (crouch lowers it). (locomotion step
@@ -359,22 +492,31 @@ export class LightField {
    * it is (light parity, bible 5.1).
    */
   bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder, hx = 0, hz = 0, chars: CharOccluders | null = null, skip = -1): number {
-    this.totalInto(x, feetY + height * 0.6, z, occluded, chars, skip);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = feetY + height * 0.6;
+    pt[2] = z;
+    this.totalInto(occluded, chars, skip);
     const chest = this.res;
     if (chest >= 1) return 1;
-    this.totalInto(x + hx, feetY + height * 0.95, z + hz, occluded, chars, skip);
+    pt[0] = x + hx;
+    pt[1] = feetY + height * 0.95;
+    pt[2] = z + hz;
+    this.totalInto(occluded, chars, skip);
     const head = this.res;
     return chest > head ? chest : head;
   }
 
-  private totalInto(x: number, y: number, z: number, occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
-    this.levelInto(x, y, z, ch, skip);
+  /** `totalAt` at the `pt` point into `res`. (F57) The point is read from `pt`, never passed: V8 boxed the x, y, z this
+   *  passed on to the out-of-line `levelInto` / `dynamicInto` (1296 B a 3-player cue fill). */
+  private totalInto(occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
+    this.levelInto(ch, skip);
     const s = this.res;
     if (s >= 1) {
       this.res = 1;
       return;
     }
-    this.dynamicInto(x, y, z, occluded, ch, skip);
+    this.dynamicInto(occluded, ch, skip);
     const v = s + this.res;
     this.res = v > 1 ? 1 : v;
   }
@@ -445,29 +587,33 @@ export class LightField {
     out[2] = this.lamp[o + 2]! + l.swz;
   }
 
-  private levelInto(x: number, y: number, z: number, ch: CharOccluders | null = null, skip = -1): void {
+  /** `levelAt` at the `pt` point into `res` (F57: the point read from `pt`, never passed). */
+  private levelInto(ch: CharOccluders | null = null, skip = -1): void {
+    const pt = this.pt;
+    const x = pt[0]!;
+    const y = pt[1]!;
+    const z = pt[2]!;
     const b = this.bake;
     // (no bake: the registry's ambient; every light is dynamic)
     if (!b) {
       this.res = this.reg.ambientAt(x, y, z);
       return;
     }
-    const pt = this.pt;
-    pt[0] = x;
-    pt[1] = y;
-    pt[2] = z;
     // (shadow audit) the ambient fill read trilinearly, as the shaders' bilinear `lampAmb` texture reads it
     this.triInto(b.ambient.data, this.ambG!, 0);
     let v = this.res;
     // (LR16-1) the lit lamps' bounce: the same cells, read without blending across a wall (fix round), as the shader
     // reads the fill texture's green channel
     if (this.bounce.active) {
-      this.bounceInto(x, y, z);
+      this.bounceInto();
       v += this.res;
     }
-    if (b.moonLight > 0) {
+    // (piano SO5) the sky term: the moon plus the lightning flash now (`setFlash`), through the moon's visibility, so a
+    // window lets a flash in, a closed room stays dark and a character between shadows it (the moon's set member, -1)
+    const sky = b.moonLight + this.flash;
+    if (sky > 0) {
       this.moonInto();
-      let m = b.moonLight * this.res;
+      let m = sky * this.res;
       // (char-shadow-meter) the moon's source: `moonFar` m along its direction from the point
       if (ch !== null && m > 0) {
         const d = b.moon.dir;
@@ -597,15 +743,21 @@ export class LightField {
     this.triInto(this.bake!.lamps!.r.vis, this.lamp, i * LS + LG);
   }
 
-  /** The bounce grid (synced to the registry first: one compare when nothing changed) into `res`. */
-  private bounceInto(x: number, y: number, z: number): void {
+  /** The bounce grid at the `pt` point (synced to the registry first: one compare when nothing changed) into `res`.
+   *  (F57) The point goes through the grid's `q` slots: `sampleInto(x, y, z)` is not inlined here and boxed all three. */
+  private bounceInto(): void {
     const bg = this.bounce;
     if (!bg.active) {
       this.res = 0;
       return;
     }
     bg.sync(this.reg);
-    bg.sampleInto(x, y, z);
+    const pt = this.pt;
+    const q = bg.q;
+    q[0] = pt[0]!;
+    q[1] = pt[1]!;
+    q[2] = pt[2]!;
+    bg.sampleQ();
     this.res = bg.out;
   }
 
@@ -669,21 +821,30 @@ export class LightField {
     this.res = (ab + (ef - ab) * fz) / 255;
   }
 
-  /** The non-baked lights (every light, without a bake), into `res`. */
-  private dynamicInto(x: number, y: number, z: number, occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
+  /**
+   * The non-baked lights (every light, without a bake), into `res`. (alloc-n24) Each light's term is `dynTermInto`'s
+   * (the same sum, to the bit), so this loop stays under V8's per-function inlining limit (460 bytecodes): with the
+   * term written out here it was not inlined into its callers, and whether its own optimized code inlined the
+   * caller's occluder (or boxed the x and z it passes, 32 B a call) depended on what V8 had compiled before
+   * (tests/lightFieldAlloc.test.ts read totalAt 1.6 B, bodyLevel 8.0 B on train 166's CI).
+   */
+  private dynamicInto(occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
+    // (F57) the point read from `pt` once (an occluder callback cannot move it under the loop)
+    const pt = this.pt;
+    const x = pt[0]!;
+    const y = pt[1]!;
+    const z = pt[2]!;
     let v = 0;
     const ls = this.reg.lights;
     for (let i = 0; i < ls.length; i++) {
-      const l = ls[i]!;
       if (i < this.isBaked.length && this.isBaked[i]) continue;
-      if (!l.on || l.destroyed || l.intensity <= 0) continue;
-      // (LR16 fix) a fixed lamp photometric, a flashlight linear: `lights.lightTerm`, as `contribution`
-      let t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
-      if (t <= 0.01) continue;
-      if (occluded && occluded(l, x, y, z)) continue;
-      if (this.doors.length && this.doorBlocks(l.x, l.y, l.z, x, y, z)) continue;
+      // 0: left out (off, out of reach, cut, occluded or behind a shut door); a kept term is over 0.01
+      this.dynTermInto(i, occluded);
+      let t = this.res;
+      if (t === 0) continue;
       // (char-shadow-meter) every non-baked light is in the set (a flashlight's holder is never its shadow: A5)
       if (ch !== null) {
+        const l = ls[i]!;
         const q = ch.q;
         q[0] = l.x;
         q[1] = l.y;
@@ -713,10 +874,16 @@ export class LightField {
     const x = pt[0]!;
     const y = pt[1]!;
     const z = pt[2]!;
-    const t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
+    // (LR16 fix) a fixed lamp photometric, a flashlight linear: `lights.lightTerm`, as `contribution`
+    let t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
     if (t <= 0.01) return;
-    if (occluded && occluded(l, x, y, z)) return;
+    if (l.beamCut) {
+      // (piano SO3) a torch with no shadow map: the picture's own cut at the beam's reach, not the ray test
+      t *= beamCutAt(l, x, y, z);
+      if (t <= 0.01) return;
+    } else if (occluded && occluded(l, x, y, z)) return;
     if (this.doors.length) {
+      // (F57) the segment through `seg` (`doorBlocks` took it as 6 doubles)
       const sg = this.seg;
       sg[0] = l.x;
       sg[1] = l.y;
