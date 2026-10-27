@@ -235,6 +235,8 @@ export interface HuntRunOpts {
   late?: readonly { k: number; at: number }[];
   /** Slots that leave for a fight (level 'alert') at `off` and rejoin (back to 'searching', admitted again) at `on`. */
   rejoin?: readonly { k: number; off: number; on: number }[];
+  /** Called every step after the board's tick and the sim's move (extra per-step checks of a caller). */
+  onStep?: (w: HuntWorld) => void;
 }
 
 export interface HuntRunReport {
@@ -352,6 +354,7 @@ export function runHunt(def: HuntDef, set: readonly SimSlot[], opts: HuntRunOpts
     holdCheck();
     w.move();
     countRooms(false);
+    opts.onStep?.(w);
     if (Math.abs(w.t / 60 - Math.round(w.t / 60)) < DT / 120) phases.push(b.phase);
     // line distance, reversals
     for (let k = 0; k < w.gs.length; k++) {
