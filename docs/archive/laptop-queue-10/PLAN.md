@@ -33,7 +33,7 @@ files:
   - docs/systems/testing-tools.md
   - docs/RULES.md
   - changes/feature-laptop-queue-10.md
-  - docs/laptop-queue-10/**
+  - docs/archive/laptop-queue-10/**
   - docs/laptop-queue/STATE.md
 maps: none
 protocol: none
