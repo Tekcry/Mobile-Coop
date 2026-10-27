@@ -34,18 +34,18 @@ is a retry (Q5, G370); two players everywhere (Michael ~21:42, PLAN F1); chimney
 | 2 | 2 | A1 | `a1-ladder` | `human_ladder` | `a1-walltop` | none | - | `a1-top`* | - |
 | 3 | 3 | A2 | `a2-shutter` | `shutter_hold` | `a2-lane` | station | - | `a2-lane`* | - |
 | 4 | 4 | A2 | `a2-lights` | `timed_light_cut` | `a2-neck` | station | 15 | `a2-east` | no kit / `g-a2-shutter-open`* (the roller door's latch) |
-| 5 | 5 | A2 | `a2-plank` | `plank_bridge` | `a2-pitside` | station | - | `a2-across`* | `plankBridge` / `g-a2-walkway`* |
+| 5 | 5 | A2 | `a2-plank` | `plank_bridge` | `a2-pitside` | station | - | `a2-across`* | `plankBridge` / `g-a2-walkway`*; spot `a2-plank` |
 | 6 | 6 | A3 | `a3-vent` | `vent_unlock` | `a3-corridor` | station | - | `a3-fire`* | - |
 | 7 | 7 | A3 | `a3-jam` | `jam_relay` | `a3-corridor` | station | - | `a3-far` | - |
-| 9 | 9 | A4 | `a4-deadweight` | `deadweight` | `a4-cross` | station | - | `a4-grille`* | `deadweight` / `g-a4-grille-motor`* |
+| 9 | 9 | A4 | `a4-deadweight` | `deadweight` | `a4-cross` | station | - | `a4-grille`* | `deadweight` / `g-a4-grille-motor`*; spot `a4-deadweight` |
 | 8 | 8 | A4 | `a4-camloop` | `camera_loop` | `a4-main-aisle` | station | 60 | `a4-west` | - |
 | 10 | 10 | A4 | `a4-takedown` | `synced_takedown` | `a4-dock` | station | 1.5 | `a4-wicket`* | - |
-| 11 | 11 | A5 | `a5-chimney` | `chimney_pair` | `a5-walltop` | none | - | `a5-apron-e`* | `chimneyPair` / `g-a5-wicket`* |
-| 12 | 12 | A5 | `a5-swing` | `swing_pass` | `a5-apron` | none | - | `a5-apron-w`* | `swingPass` / `g-a5-footbridge`* |
+| 11 | 11 | A5 | `a5-chimney` | `chimney_pair` | `a5-walltop` | none | - | `a5-apron-e`* | `chimneyPair` / `g-a5-wicket`*; spot `a5-chimney` |
+| 12 | 12 | A5 | `a5-swing` | `swing_pass` | `a5-apron` | none | - | `a5-apron-w`* | `swingPass` / `g-a5-footbridge`*; spot `a5-swing` |
 | 13 | 13 | A5 | `a5-throw` | `throw` | `a5-inner` | station | 9 | `a5-release` | - |
 | 14 | 14 | A6 | `a6-rope` | `rope` | `a6-gallery` | station | - | `a6-gal` | - |
 | 15 | 15 | A6 | `a6-hangdown` | `hang_down` | `a6-bridge` | station | - | `a6-drive` | - |
-| 16 | 16 | A6 | `a6-dropcatch` | `drop_catch` | `a6-pit` | station | - | `a6-pit`* | `dropCatch` / `g-a6-pit-ladder`* |
+| 16 | 16 | A6 | `a6-dropcatch` | `drop_catch` | `a6-pit` | station | - | `a6-pit`* | `dropCatch` / `g-a6-pit-ladder`*; spot `a6-dropcatch` |
 | 17 | 17 | A7 | `a7-split` | `synced_hack` | `a7-hall` | station | - | `a7-sync` | - |
 | 18 | 18a | A8 | `a8-c2run` | `jam_relay` | `a8-gallery` | caught | - | `a8-office-in`* | - |
 | 19 | 18b | A8 | `a8-loopset` | `camera_loop` | `a8-office` | caught | - | `a8-loop` | - |
@@ -109,7 +109,7 @@ const a4GoodsShedStations: StationDef[] = [
 // A5: replan/a5Substation.ts
 const a5SubstationStations: StationDef[] = [
   { n: 11, id: 'a5-chimney', lesson: 'chimney_pair', retry: 'none', doneFlag: 'a5-apron-e', kit: 'chimneyPair', standIn: 'g-a5-wicket',
-    marks: [{ x: 69.0, z: 32.0, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 34.0, y: 0, yaw: -Math.PI / 2 }],
+    marks: [{ x: 69.0, z: 32.3, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 33.7, y: 0, yaw: -Math.PI / 2 }],
     guards: [], gates: ['g-a5-wicket'] },
   { n: 12, id: 'a5-swing', lesson: 'swing_pass', retry: 'none', doneFlag: 'a5-apron-w', kit: 'swingPass', standIn: 'g-a5-footbridge',
     marks: [{ x: 67.0, z: 33.0, y: 0, yaw: -Math.PI / 2 }, { x: 67.0, z: 34.5, y: 0, yaw: -Math.PI / 2 }],
@@ -206,7 +206,7 @@ a guard or camera, a `timer` line for a drill window, an `other` line for A1's e
 | 13 | `a5-throw` | Seen in the floodlight. Back behind the transformer. | The floodlight came back. Back behind the transformer. | - |
 | 14 | `a6-rope` | The attendant saw you. Back to the sump bay, behind the kerb. | - | - |
 | 15 | `a6-hangdown` | Seen on the bridge. Back to the bridge's north end. | - | - |
-| 16 | `a6-dropcatch` | The attendant heard the landing. Back to the bridge. | - | - |
+| 16 | `a6-dropcatch` | The attendant heard the landing. Back to the bridge. (kit on: The attendant heard the landing. Back to the bridge to catch again.) | - | - |
 | 17 | `a7-split` | Seen in the data hall. Back to the entry lobby. | - | - |
 | 18a | `a8-c2run` | Caught in the banking hall. Back to the vestibule. | - | - |
 | 18b | `a8-loopset` | Caught at the security office. Back to the office door. | - | - |
@@ -293,6 +293,8 @@ geometry at G1 (A2 pit, A5 trench: SA9, SA10).
 Each is a pass zone the set slice adds (`PassZone`, `src/game/passZones.ts`): `any` = one player is enough, else both.
 The other done flags exist on master: `a2-east`, `a3-far` (its zone loses `hall` on the re-plan: no send-back), `a4-west`,
 `a5-release`, `a6-gal`, `a6-drive`, `a7-sync`, `a8-loop`, `a8-sync`.
+While a station's kit id is on (Player's `kitMoves`), its done flag also needs the kit credit `kit:<station id>`
+(`CourseState.kitDone`, from `CourseMode.onKitDone`); see SA16.
 
 | Flag | Zone [x0, z0, x1, z1] | floorY | Who | Means |
 | --- | --- | --- | --- | --- |
@@ -400,8 +402,9 @@ rule (a heavy landing retries the station).
   and L4's lid (3.6 m) is behind the wall, so no face is added (one would cover the gallery's glazing).
 - **SA11 New ids and kinds.** `g-a2-shutter` (hold, door `A2-shutter`); `g-a2-shutter-open` (egress latch on the roller door, station 4's stand-in: open for good once station 3 passes);
   `g-a2-walkway` (stand-in, door `A2-walkway`);
-  `g-a3-fire` (bolt, door `A3-fire`, push bar on the corridor side); `g-a4-grille` (the deadweight grille, KS1's hookup)
-  and `g-a4-grille-motor` (stand-in: the motor button); `g-a5-wicket` and `g-a5-footbridge` (stand-ins, doors
+  `g-a3-fire` (bolt, door `A3-fire`, push bar on the corridor side); `g-a4-grille` (an egress gate on the grille's door)
+  and `g-a4-grille-motor` (stand-in: the motor button), both held while `deadweight` is on (SA16: the move drives the
+  door through the spot `a4-deadweight`); `g-a5-wicket` and `g-a5-footbridge` (stand-ins, doors
   `A5-wicket`, `A5-footbridge`); `g-a5-plates` (the trench plates, laid from the west side); `g-a6-edge` (the gallery's
   self-closing edge gate); `g-a6-pit-ladder` (stand-in: `anchorLock` on the cage ladder `a6-pit-ladder`); squads
   `a5-watcher`, `a7-tech2` (fallback `a6-listener`). Undo: rename in the set slice and here together.
@@ -428,6 +431,18 @@ rule (a heavy landing retries the station).
   side, so A can walk down into the lobby and either stand in `a8-grille-in` or press the request-to-exit to let B in.
   Station 20 is then done without the board's 25 s dark. Accepted as the Q24 side route working (PLAN A28 / A30). Undo:
   tie 20's done flag to the dark.
+- **SA16 Kit wiring** (marlow-kit-wire). `kitMoveOn(kit)` is Player's `flags.kitMoves.has(kit)` (`stationDef.ts`): a
+  station switches the moment its move's K slice adds the id to `KIT_BUILT`. Off: as today (the stand-in opens as the
+  station goes live and is kept; the place flag ends it). On: the stand-in stays shut, and it and every gate of the station
+  on its doors are held (a press is refused: "No power here. This one takes the co-op move."); the station is done when
+  its place flag and its kit credit `kit:<station id>` are both set, the credit set by `CourseMode.onKitDone` only for the
+  live station's own kind and spot id; a station retry drops the credit and resets the kit on the host
+  (`g.team.resetKit()`). Spots (placed unconditionally, inert while off): `a2-plank` (`plankBridge`, the board stack's
+  middle 62.85, 0, 13.455, w 3.9), `a4-deadweight` (`deadweight`, chains 101.75, 2.4, 22.5 and 25.5, the grille's door),
+  `a5-chimney` (`chimneyPair`, the gap 69.05, 0, 33.0, w 1.4, h 6, exit x 68.1), `a5-swing` (`swingPass`, the gantry
+  pipe 65.85, 2.6, 44.6, w 3.5, far floor 0), `a6-dropcatch` (`dropCatch`, 52.5, 4.4, 65.4). Kit-on objective and retry
+  lines are picked as the set builds. Undo: A1-A4 of the marlow-kit-wire brief (`kitIdOn`; `kitDone` sets the done flag;
+  accept `''` for `dropCatch`; drop the held gates).
 
 **Open questions for the lead** (assumed as above meanwhile; none blocks a set slice). Lead answers (J14 wave 2, sent to
 S0 / R1): OQ1 the listed guards plus any guard alerted in the bay (SA1); OQ2 `StationDef` keeps its shape, each set file

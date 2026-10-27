@@ -1,9 +1,10 @@
-import { Effect, PostProcess, type Camera } from '../core/babylon';
+import { Effect, Matrix, PostProcess, type Camera } from '../core/babylon';
 import type { NightBloom } from './nightBloom';
-import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
+import { BRIGHTNESS_GLSL, brightnessGain } from './displayBrightness';
 import { EXPOSURE_GLSL, NO_EXPOSURE } from './nightExposure';
 import { NV_GLSL, NV_TONE } from './nightVision';
-import { GOGGLE_GLSL, SENSOR_GRAIN, THERMAL, VISION_GLSL } from './visionLook';
+import { ELECTRO, GOGGLE_GLSL, SENSOR_GRAIN, THERMAL, THERMAL_SURFACE, THERMAL_SURFACE_GLSL, VISION_GLSL } from './visionLook';
+import type { DepthSource } from './taau';
 
 Effect.ShadersStore['cinematicFragmentShader'] = `
 precision mediump float;
@@ -29,10 +30,22 @@ uniform float vk;
 uniform float nvLift;
 uniform highp sampler2D exposureSampler;
 uniform vec4 expo;
+// (thermal-read) thermal's and electro's scene from the scene depth (THERMAL_SURFACE_GLSL); tDepth 0: no depth (gfx=min)
+uniform highp sampler2D depthSampler;
+uniform float tDepth;
+uniform float depthRaw;
+uniform highp float minZ;
+uniform highp float maxZ;
+uniform float tanY;
+uniform highp mat4 invView;
+uniform highp vec3 camPos;
+uniform vec2 texel;
 ${NV_GLSL}
 ${EXPOSURE_GLSL}
 ${VISION_GLSL}
 ${GOGGLE_GLSL}
+${THERMAL_SURFACE_GLSL}
+${BRIGHTNESS_GLSL}
 void main(void) {
   vec4 c = texture2D(textureSampler, vUV);
   // (step 21v) the pixel's luma before the grade: night vision's soften adds its taps' difference from it
@@ -42,8 +55,8 @@ void main(void) {
   float gl = dot(gr, vec3(0.299, 0.587, 0.114));
   gr = mix(vec3(gl), gr, sat);
   c.rgb = max((gr - 0.5) * contrast + 0.5, 0.0);
-  // (Step 4b) the player's brightness calibration: a small, clamped exposure offset
-  c.rgb *= bright;
+  // (brightness-range) the player's brightness is a display curve after the vision modes (below), not a multiplier
+  // here: night vision, thermal and electro read the un-brightened scene
   vec2 d = vUV - 0.5;
   d.x *= aspect;
   float n = fract(sin(dot(floor(vUV * 720.0) + time, vec2(12.9898, 78.233))) * 43758.5453);
@@ -54,10 +67,10 @@ void main(void) {
     // the dark; the goggle frame below darkens the edge (nv-pass slice 2: the eyepiece vignette went into it)
     float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
     // (step 21v) the tube's softening: two diagonal taps of the scene, their difference from the raw pixel added to
-    // the graded luma (the grade and the brightness offset stay as they were)
+    // the graded luma (the grade stays as it was)
     vec2 so = vec2(${THERMAL.blur.toFixed(4)} / max(aspect, 0.1), ${THERMAL.blur.toFixed(4)});
     float sl = dot(texture2D(textureSampler, vUV + so).rgb + texture2D(textureSampler, vUV - so).rgb, vec3(0.2126, 0.7152, 0.0722)) * 0.5;
-    l = max(l + (sl - l0) * bright * ${SENSOR_GRAIN.softNight.toFixed(3)}, 0.0);
+    l = max(l + (sl - l0) * ${SENSOR_GRAIN.softNight.toFixed(3)}, 0.0);
     float g = dot(texture2D(glowSampler, vUV).rgb, vec3(0.2126, 0.7152, 0.0722)) * glowScale;
     // (nv-pass slice 1) without baked lamps the lighting has no gain: the tube lifts its input (nvLift, NV_TONE.postLift)
     // (nv-pass fix round) the frame auto-gain (\`nightExposure.ts\`): the eased frame mean (\`NightBloom\`) lifts a black
@@ -80,10 +93,17 @@ void main(void) {
     vec3 ga;
     if (vk < 1.5) {
       float tl = mix(l, s, ${SENSOR_GRAIN.softThermal.toFixed(3)});
+      float th = heatOf(tl);
       p = thermalColor(tl);
-      ga = vec3(thermalGrain(heatOf(tl)));
+      // (thermal-read) the cold scene is the surface rebuilt from the depth (readable with no light at all); people and
+      // the door silhouette (heat) take over on the hot ramp
+      if (tDepth > 0.5) p = mix(surfaceColor(surfaceField(vUV, l)), p, smoothstep(${THERMAL_SURFACE.blendLo.toFixed(4)}, ${THERMAL_SURFACE.blendHi.toFixed(4)}, th));
+      ga = vec3(thermalGrain(th));
     } else {
-      p = electroColor(mix(l, s, ${SENSOR_GRAIN.softElectro.toFixed(3)}));
+      float el = mix(l, s, ${SENSOR_GRAIN.softElectro.toFixed(3)});
+      p = electroColor(el);
+      // (thermal-read) electro's scene from the same depth field in its own navy; live devices still glow white on top
+      if (tDepth > 0.5) p = mix(electroSurfaceColor(surfaceField(vUV, l)), vec3(${ELECTRO.glow.map((x) => x.toFixed(3)).join(', ')}), smoothstep(${ELECTRO.glowFrom.toFixed(3)}, ${ELECTRO.glowTo.toFixed(3)}, el));
       ga = vec3(${SENSOR_GRAIN.electroTint.map((x) => x.toFixed(3)).join(", ")}) * sensorAmp(${SENSOR_GRAIN.electro.toFixed(3)}, ${SENSOR_GRAIN.litElectro.toFixed(3)}, dot(p, vec3(0.2126, 0.7152, 0.0722)));
     }
     // (step 21v, A87) animated sensor grain, luminance-weighted (SENSOR_GRAIN)
@@ -113,6 +133,9 @@ void main(void) {
     f *= smoothstep(0.9, 0.4, length(d));
     c.rgb = mix(c.rgb, f, feed);
   }
+  // (brightness-range) the player's brightness (\`displayBrightness.ts\`): shadows -1.5 .. +1.5 stops, white and black
+  // fixed (no clipping at the top); skipped at the default so it is today's picture exactly
+  if (bright != 1.0) c.rgb = displayBright(c.rgb, bright);
   c.rgb = mix(c.rgb, vec3(1.0), flash);
   float v = smoothstep(0.95, 0.3, length(d));
   c.rgb *= mix(1.0, v, vignette);
@@ -146,20 +169,25 @@ export class CinematicPost {
   private tint: [number, number, number] = [1, 1, 1];
   private sat = 1;
   private contrast = 1;
-  /** The brightness calibration's exposure multiplier (Step 4b; 1 = default). */
+  /** The brightness display curve's gain (`brightnessGain`; 1 = default, about 0.35 .. 2.83). */
   private bright = 1;
+  /** The slider value the gain was taken from (called each frame: the gain is only recomputed when it changes). */
+  private brightLevel = 1;
 
   constructor(private camera: Camera) {}
 
-  /** The brightness calibration (Settings > Display > Brightness), clamped to `BRIGHTNESS_MIN` .. `BRIGHTNESS_MAX`
-   *  so it cannot lift the dark band out of dark (bible L7). */
+  /** The brightness setting (Settings > Display > Brightness, the stored slider value): its display curve's gain
+   *  (`displayBrightness.ts`, brightness-range: -1.5 .. +1.5 stops in the shadows). Render only. */
   setBrightness(k: number): void {
-    const b = Math.min(BRIGHTNESS_MAX, Math.max(BRIGHTNESS_MIN, k));
+    if (k === this.brightLevel) return;
+    this.brightLevel = k;
+    const b = brightnessGain(k);
     if (b === this.bright) return;
     this.bright = b;
     this.sync();
   }
 
+  /** The display curve's gain in use (1 at the default). */
   get brightness(): number {
     return this.bright;
   }
@@ -200,6 +228,13 @@ export class CinematicPost {
   private nvLift = 1;
   setNightLift(k: number): void {
     this.nvLift = k;
+  }
+
+  /** (thermal-read) Where thermal and electro read the scene depth (the post stack: `PostStack.viewDepth`, null without one). */
+  private depthOf: { readonly viewDepth: DepthSource | null } | null = null;
+  private readonly invView = new Matrix();
+  setDepthSource(src: { readonly viewDepth: DepthSource | null } | null): void {
+    this.depthOf = src;
   }
 
   /** (Step 14) thermal (1) / electro (2) vision, 0 = neither (rendering only). */
@@ -246,7 +281,14 @@ export class CinematicPost {
   private sync(force = false): void {
     const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.vk > 0 || this.flash > 0 || this.feed > 0 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'bright', 'glowScale', 'veil', 'vk', 'nvLift', 'expo'], ['glowSampler', 'exposureSampler'], 1, this.camera);
+      const pp = new PostProcess(
+        'cinematic',
+        'cinematic',
+        ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'bright', 'glowScale', 'veil', 'vk', 'nvLift', 'expo', 'tDepth', 'depthRaw', 'minZ', 'maxZ', 'tanY', 'invView', 'camPos', 'texel'],
+        ['glowSampler', 'exposureSampler', 'depthSampler'],
+        1,
+        this.camera,
+      );
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -274,6 +316,23 @@ export class CinematicPost {
         e._bindTexture('exposureSampler', ex ? ex.texture : pp.inputTexture.texture);
         const b = ex ? this.bloom!.exposureBand : NO_EXPOSURE;
         e.setFloat4('expo', b[0], b[1], b[2], b[3]);
+        // (thermal-read) thermal's and electro's surfaces from the post stack's scene depth (no extra pass); the scene
+        // stands in, unread, without one or in the other modes
+        const depth = this.vk > 0 ? (this.depthOf?.viewDepth ?? null) : null;
+        e.setFloat('tDepth', depth ? 1 : 0);
+        if (depth) {
+          const cam = this.camera;
+          depth.bind(e, 'depthSampler');
+          e.setFloat('depthRaw', depth.mode);
+          cam.getViewMatrix().invertToRef(this.invView);
+          e.setMatrix('invView', this.invView);
+          const p = cam.globalPosition;
+          e.setFloat3('camPos', p.x, p.y, p.z);
+          e.setFloat('minZ', cam.minZ);
+          e.setFloat('maxZ', cam.maxZ);
+          e.setFloat('tanY', Math.tan(cam.fov / 2));
+          e.setFloat2('texel', 1 / Math.max(1, pp.width), 1 / Math.max(1, pp.height));
+        } else e._bindTexture('depthSampler', pp.inputTexture.texture);
       };
       // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
       // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the

@@ -11,8 +11,11 @@
  * URLs; nothing is fetched from anywhere else). Until a base's four files are all there, that base resolves to the
  * G5 stand-in: Wren's play LODs drawn as one body piece (`guardStandInManifest`), so the wiring runs now.
  */
+import { flags } from '../../core/flags';
 import { wrenManifest } from '../runtime/assets';
-import { guardStandInManifest, validateGuardManifest, type GuardBase, type GuardManifest } from './gearMask';
+import { LOD_1 } from '../runtime/manifest';
+import { warmPlayLods } from '../runtime/offline';
+import { GUARD_BASES, guardStandInManifest, validateGuardManifest, type GuardBase, type GuardManifest } from './gearMask';
 
 /** `guard-<base>.json`: what G4's bake writes beside a base's LODs (GuardManifest minus the urls). */
 export interface GuardFileData {
@@ -106,4 +109,27 @@ export function guardPlayUrls(manifests: readonly GuardManifest[], minOnly: bool
   const order = minOnly ? [3] : [3, 1, 2];
   for (const i of order) for (const m of manifests) { const u = m.urls[i]; if (u && !out.includes(u)) out.push(u); }
   return out;
+}
+
+/**
+ * (gm-polish) Every guard file play fetches, for the menu's offline warm: each base's play LODs (`guardPlayUrls`: every
+ * LOD2 first; `minOnly`: LOD2 only) and the shield's LOD1 (the only shield LOD drawn, `guardShieldFor`). A base Wren
+ * stands in for adds nothing (her files are warmed by her own call); the shield goes only with a real base (a
+ * stand-in enforcer keeps the placeholder part).
+ */
+export function guardWarmUrls(minOnly: boolean): string[] {
+  const real = GUARD_BASES.map(guardAsset).filter((a) => !a.standIn);
+  const out = guardPlayUrls(real.map((a) => a.manifest), minOnly);
+  const shield = real.length ? shieldUrls()?.[LOD_1] : undefined;
+  if (shield) out.push(shield);
+  return out;
+}
+
+/**
+ * (gm-polish) The menu warms every guard file into the offline cache as it does Wren's (`warmPlayLods`, queued behind
+ * hers), so a first offline play of a base no map has used yet draws the guard figures, not the merged body. Guard
+ * models off (`?guardmodels=0`): nothing is fetched. Each url once per page (`warmPlayLods`).
+ */
+export function warmGuardFiles(minOnly: boolean): Promise<number> {
+  return flags.guardModels ? warmPlayLods(guardWarmUrls(minOnly)) : Promise.resolve(0);
 }

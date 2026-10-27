@@ -1,6 +1,7 @@
 /**
  * Chaos Theory moves found in the level geometry (3.2.0 phase 2; pure: no Babylon / DOM, unit-tested):
- * - split jump gaps: two tall walls facing each other a body's span apart (from the cover faces, `coverData`);
+ * - split jump gaps: two tall walls facing each other a body's span apart (from the cover faces, `coverData`), except
+ *   inside a marked chimney (coop-kit K3: `setNoSplit`, switched by the Chimney Pair move while its id is on);
  * - wall jumps: a hangable lip 2.7-3.8 m up a wall the player faces (too high for a standing grab);
  * - the horizontal pipe's sub-states (hands -> legs up -> inverted) as a small timed state machine.
  */
@@ -76,11 +77,47 @@ export function findSplitGaps(segs: readonly CoverSegment[]): SplitGap[] {
 }
 
 /**
+ * (coop-kit K3) A box with no solo split jump: a marked chimney's shaft (the Chimney Pair move builds one per spot at
+ * level load). Centre (`x`, `z`), `ux, uz` the unit axis across, `across` / `along` the half extents (m), feet height
+ * `y0 .. y1`.
+ */
+export interface NoSplitBox {
+  x: number;
+  z: number;
+  ux: number;
+  uz: number;
+  across: number;
+  along: number;
+  y0: number;
+  y1: number;
+}
+
+let NO_SPLIT: readonly NoSplitBox[] = [];
+
+/** (coop-kit K3) Replace the no-split boxes (level load, or the move's id switched; `[]` none). */
+export function setNoSplit(boxes: readonly NoSplitBox[]): void {
+  NO_SPLIT = boxes;
+}
+
+/** (coop-kit K3) Feet (x, y, z) inside a no-split box. Index loop, no allocation. */
+export function noSplitAt(x: number, y: number, z: number): boolean {
+  for (let i = 0; i < NO_SPLIT.length; i++) {
+    const b = NO_SPLIT[i]!;
+    if (y < b.y0 || y > b.y1) continue;
+    const dx = x - b.x;
+    const dz = z - b.z;
+    if (Math.abs(dx * b.ux + dz * b.uz) <= b.across && Math.abs(dx * b.uz - dz * b.ux) <= b.along) return true;
+  }
+  return false;
+}
+
+/**
  * Can a player standing at (x, y, z), facing (dirX, dirZ), split jump in this gap? Between the walls (clear of
  * them by a body half-width), on its floor, facing along the corridor. Returns the parameter along it and which
- * way the body faces (+1 towards b, -1 towards a), or null.
+ * way the body faces (+1 towards b, -1 towards a), or null. (coop-kit K3) None inside a no-split box (a marked chimney).
  */
 export function splitReach(g: SplitGap, x: number, y: number, z: number, dirX: number, dirZ: number): { s: number; face: 1 | -1; dist: number } | null {
+  if (NO_SPLIT.length > 0 && noSplitAt(x, y, z)) return null;
   if (Math.abs(y - g.a.y) > 0.4) return null;
   const q = closestOnSegment(g.a.x, g.a.z, g.b.x, g.b.z, x, z);
   const along = (x - g.a.x) * g.tx + (z - g.a.z) * g.tz;

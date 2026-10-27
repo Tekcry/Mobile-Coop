@@ -16,8 +16,9 @@
 // `hatch` (the climb-through the game offers), `duct` (Y then A held: the grate unscrews quietly, crawl, out past the
 // far end), `rappel` (Y at the roof edge, hook on, descend). Each is a pure step machine (`machine.update(reading, t)
 // -> { stick, press, hold, done, result }`, unit tested on scripted readings) driven by a thin page reader. The rare
-// solo kinds (`ledge`, `pipe`, `wall_jump`, `split_jump`) stay stubs ("no step yet: <kind>"), the co-op kinds stay
-// stubs (BRIEF A1; R9 takes them). `door` and `walk` links never come here: the driver walks them (R4a).
+// solo kinds (`ledge`, `pipe`, `wall_jump`, `split_jump`) stay stubs ("no step yet: <kind>"). The co-op kinds go to
+// coop.mjs (R9: the leg-up and the relay; every other co-op kind A1's `stub`). `door` and `walk` links never come here:
+// the driver walks them (R4a).
 // Code-route climbs (`--routes code`: a `climbs` leg, kind `climb`) are classified from the page's anchors near the
 // leg (`classifyClimb`) and taken by that kind's step, else stubbed.
 //
@@ -29,6 +30,8 @@
 // reader's one reading object); a step's set-up (anchors, geometry, the result) allocates once.
 import { COOP_KINDS } from '../level-validate.mjs';
 import { ARRIVE_M, STOREY_Y_TOL_M, PathProgress, StuckWatch, WATCH_STALL, WATCH_STEP_TIMEOUT, makePath, stepLimit, stickToward } from './progress.mjs';
+// (R9) the co-op kinds' steps (coop.mjs imports `stub` and the poll constants from here: used only inside its calls)
+import { COOP_STEPS } from './coop.mjs';
 
 /** Why a stub was taken, as the report prints it. */
 export const STUB_WHY_COOP = 'co-op move stubbed (A1)';
@@ -1014,10 +1017,10 @@ export const STEPS = {
   split_jump: rareStub,
 };
 
-/** The step for a link step: a co-op kind `stub` (R9 takes them), a code climb `climb`, else the table by the step's
- *  `action`; a step with no action, or an action with no entry, `stub`. */
+/** The step for a link step: a co-op kind its coop.mjs step (R9; A1's `stub` for a kind with none), a code climb
+ *  `climb`, else the table by the step's `action`; a step with no action, or an action with no entry, `stub`. */
 export function stepFor(link) {
-  if (COOP_KINDS.has(link.kind)) return stub;
+  if (COOP_KINDS.has(link.kind)) return Object.hasOwn(COOP_STEPS, link.kind) ? COOP_STEPS[link.kind] : stub;
   if (link.kind === CODE_CLIMB) return climb;
   const a = link.action;
   return typeof a === 'string' && Object.hasOwn(STEPS, a) ? STEPS[a] : stub;

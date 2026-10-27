@@ -1,5 +1,202 @@
 # Changelog
 
+## 4.132.0 - Train 169: Carried bodies cast a shadow (2026-10-27, PR #707; #697)
+- A body carried on a shoulder now casts its own shadow (with character shadows on): the picture, the light meter and the guards all see it; the carrier's own light meter ignores it. Works for your partner's carry in co-op too.
+
+## 4.131.1 - Train 168: Character shadow cues wired into the game (dark) (2026-10-27, PR #706; #665)
+- (char-shadow-meter S3b-2, J16; dark behind `charShadowLight`) `GameState.shadowCues`: the players' shadow footprints
+  for Guard AI's faint cue, built from the gameplay light bake on solo and host (null with the flag off and on a co-op
+  client) and filled at 10 Hz right after the light meter; the call allocates nothing past the fill's own residual.
+  New `tests/shadowCuesGame.test.ts`.
+
+## 4.131.0 - Train 167: Light check stops failing on the new Node version; New interaction prompts: groundwork (preview only); CI on Node 24; Guards face you before they shoot; Guard shaders ready before play; +4 more (2026-10-27, PR #704; #702, #699, #696, #694, #687, #686, #683, #675)
+
+### Brightness slider has a much bigger range
+- Settings > Display > Brightness now makes a clear difference: the lowest setting is much darker and the highest much brighter (about four times the old range), while the middle setting looks exactly as before. White stays white at the top, so lit rooms do not wash out, and a lit room still shows at the bottom. Night vision, thermal and electro see the same scene at any setting; only the picture on screen changes. Your saved slider position is kept. Guards, the light meter and the light level are not affected.
+
+### New interaction prompts: groundwork (preview only)
+- Groundwork for the new interaction prompts (each action on its own button, tap or hold, shown on the thing you can use): the core rules and the "Y at doors and hatches" rule, behind a switch that is on only in the preview; nothing changes in play yet.
+
+### Shadow cues ignore teleports
+- Shadow cues (behind the character shadow flag): a respawn, checkpoint restart or section start no longer makes your
+  shadow read as a fast-moving one for a moment. A jump of more than 2 m between two checks (four times a sprint)
+  counts as a fresh start, and so does a player joining or leaving; normal movement, sprinting included, reads as
+  before.
+
+### Guard shaders ready before play
+- The loading screen now gets every guard model detail level and the simpler stand-in body ready to draw, with the real graphics settings applied first, so guards no longer pause to get ready the first time you see them up close.
+
+### Guards never vanish while their new model loads
+- A guard whose new model is still getting ready to draw (its shader compiling, the first time you get close to each guard type) now shows his simpler body meanwhile instead of disappearing; a stuck or failed compile is retried as the simpler body already does.
+
+### Guards face you before they shoot
+- Guards turn to face you before they shoot.
+
+### Light check stops failing on the new Node version
+- The light meter and guards' light reading were fixed so the release check that they make no memory garbage passes on the new Node 24 build machine. Light levels are unchanged to the last digit.
+
+### Storm mill: the roof reads as a roof
+- Thornbeck Mill: a lighter timber ceiling with tie beams and a ridge purlin, and each lamp hangs on a chain from it.
+
+### Night vision has its own infrared lamp
+- Night vision: the goggles now carry a built-in infrared lamp, as real ones do. A soft beam from your head lights what you look at (about 10-15 m, brightest in the middle, a dim fill to the edges of the screen), so walls, floors, stairs and crates show in green even in total darkness, such as the storm mill after the blackout. Only you see it, and guards, the light meter and the light level are not affected. Lit areas look the same as before.
+
+### Piano escape: the intro skip is shown
+- The storm mill intro shows "Hold Back / Esc  Skip" with a bar that fills while held; from the second time on a page, a tap skips.
+
+### Route-runs R9: real co-op moves
+- Route-runs (J13 R9): the robot pair now does the real leg-up at a co-op boost (the follower crouches and offers, the
+  leader takes it, hangs on the lip and pulls up; the follower is then placed beside it) and the leg-up plus the ledge
+  relay at a human ladder (both robots climb), pressed on both pads (`scripts/route-run/coop.mjs`). The report counts
+  them as walked links; a leg-up with no lip in reach is a `step-timeout` stop naming its phase; a course restart during
+  the move is handed to the course hook. Every other co-op kind stays a stub, as at one robot, inside a split leg, or
+  with `expect.coop: "stub"` (the pair selftest keeps its stubs). New selftest `selftest-coop.graph.json` (one boost on
+  Saltmarsh Park S1).
+
+### Storm mill real rain and thunder
+- Storm mill: the rain and thunder are now real recordings (a rain-on-a-roof loop and three thunder clips), kept quiet; the old computer-made sound plays until they load or if they cannot.
+
+### Thermal and electro vision show the room
+- Thermal vision: walls, floors, stairs, crates and edges now show in graded cool blues, even in total darkness (the storm mill after the blackout). Floors read cooler than walls, corners and outlines are picked out, and people stay the brightest thing on screen.
+- Electro vision: the same readable room in its own navy tones, with live electronics still glowing white on top.
+
+### CI on Node 24
+- CI (`deploy.yml`, `preview.yml`) runs Node 24, the version the desktop and laptop run (F60): Node 22 boxed more numbers,
+  so the allocation unit tests (guardAiAlloc D1, knifeWire) failed on CI only and stopped trains 165 and earlier.
+
+### Knife wire allocation check matches CI (F58b)
+- Test only: the co-op knife kill allocation check allows the few numbers the CI machine's older Node version boxes when passing them between functions, so it stops failing every release.
+
+### Attack button does the knife kill in the storm mill
+- In the storm mill knife scene, the attack button with the weapon put away now does the same knife kill as the takedown button when a guard is in reach; with no guard in reach it shows a short "Knife ready" cue (still no free slash).
+
+### Knife kill works when spotted (storm mill)
+- In the storm mill knife scene the knife kill now works on a guard who has seen you or is alerted, as long as you are in reach (before, only unaware guards could be taken).
+
+### Storm mill rain quieter again
+- Storm mill: the rain on the roof is cut again, to about a quarter of the last level.
+
+### Storm mill rain much quieter
+- Storm mill: the rain on the roof is much quieter (about a fifth of its old level), so the guards, footsteps and music can be heard.
+
+## 4.130.0 - Train 162: Route-runs docs; Character shadows settings help; Guards and character shadows, part 2 (dark); Tallow Wharf: the first campaign map (greybox) (2026-10-27, PR #677; #674, #673, #670, #583)
+
+### Character shadows settings help
+- Settings > Graphics > Character shadows: the help text now explains the light meter when the character shadow meter is on. With it off, the text is unchanged.
+
+### Guards and character shadows, part 2 (dark)
+- (behind `charShadowLight`, waits on the shadow list being filled in play) Guards, dogs and bodies feed the character
+  shadow list, and a calm guard who sees a moving player's shadow grows a little suspicious and looks at it, silently;
+  a shadow never sends him to investigate on its own, never cancels a reaction to a sight or sound (J16).
+
+### Tallow Wharf: the first campaign map (greybox)
+- Tallow Wharf, the first campaign map, as a greybox: four sections along a canal wharf with its two co-op missions,
+  Three Grey Coats and Two-Key Ledger. Every mission needs both players and forced co-op moves (leg-up, partner throw,
+  pull-up, the roller shutters).
+- Sections 1 and 3 are re-lit to real-site levels: every light works, and a room goes dark only under cover, with the
+  power cut or after a shot lamp. Hide spots, medkit stations and lookout spots in each section.
+- Three Grey Coats: knocking Teale out before he talks restarts the section with him at his table; killing him or
+  questioning a decoy breaks the rule and he moves.
+- Tallow Wharf is not on any menu. It opens by URL only, and its missions need the `missions` and `coopKit` flags: off
+  in the live game, on in /preview/. Nothing changes in the live game.
+
+### Route-runs docs
+- Docs: `docs/systems/testing-tools.md` "Route-runs" (command, laptop request, outputs, dead stops, drills, stubs) and Q7's pass rule in `docs/level-design.md` 14 and 15.
+
+## 4.129.0 - Train 161: Light field: no allocation in the meter, guard and shadow-cue queries (F57); Realistic guard models on by default; Guard models offline warm; Guards and character shadows, part 1 (dark); +2 more (2026-10-27, PR #672; #671, #669, #667, #612, #375)
+
+### Light field: no allocation in the meter, guard and shadow-cue queries (F57)
+- The light field's bounce read passed each query point as three numbers to `BounceGrid.sampleInto`, which the engine
+  boxed: 1296 B per 3-player shadow-cue fill and 128 B per 3-player meter tick. The point now goes through the grid's
+  `q` slots (`sampleQ`), and `totalInto` / `levelInto` / `dynamicInto` read it from the field's `pt`: 0 B for both.
+  Every level is unchanged to the bit (372k old-vs-new comparisons; `tests/lightFieldAlloc.test.ts` pins a pre-fix table).
+- The meter's light-ray filter object is made once instead of per ray. The Havok ray itself still allocates
+  ~1.8-2.9 KB per call inside Babylon.
+
+### Realistic guard models on by default
+- Guards are now drawn with the baked realistic models by default (three builds, faces, outfits, gear, helmet knock-off:
+  see the Guard models entry). `?guardmodels=0` turns them off and returns the merged body. The model files (about
+  29 MB) load on demand, never precached, and stay in the service worker's own `guards` cache for offline play.
+- Guard look fixes (G10a, a fresh bake of every guard file): uniforms baked at the tint's neutral (the faction colour,
+  no longer near-black), the lightest skin tones keep their hue instead of washing out, no face showing through the
+  heavy's and enforcer's balaclava (only the eye slot), smooth hair-cap hairlines (no saw teeth, a clean receding
+  temple); the variety sheet draws guards with the game's rig (no goggle glow), and a colour change in
+  the kit now costs a sheet run, not a full bake.
+- Guard bake check: a garment's seam gap before the weld only warns (the weld closes it); a seam the weld has to move
+  more than 60 mm fails.
+- Guard render cost cut so the models fit the frame budget (render only; gameplay reads none of it):
+  - Frozen guard materials: the operator material and the enforcer shield's materials skip the per-mesh define
+    preparation and rebind every frame.
+  - Lazy pose: a guard's figure is posed only when the camera or a shadow, lamp or torch pass actually draws it.
+  - Merged meshes: guard armour (4 parts) and the enforcer shield and visor are one mesh each, like the merged gun.
+- Measured on a laptop RTX 4090 (1080p epic, 24 guards, frame p95): sectorops patrol 6.5 ms (6.5 with the models off),
+  away 4.6 (4.7), alert 7.2 (7.4); campusops patrol 9.0 (9.7), away 4.5 (4.8), alert 9.2 (10.0); at 12 guards campusops
+  is +0.4 to +0.6 ms. The gate was within +0.5 ms of the models-off path: passed.
+- No two guards in a section share a look seed (up to 128): Marlow Yard squad sets, Infiltration rooms, Sector Ops
+  slots, response teams and reinforcements (several lone reinforcements at one entry point no longer all look alike).
+- An authored guard keeps his look after a section restart and on every load, whatever the spawn order; runtime spawns
+  move on to the next free seed. Host-side only: no wire change.
+- Enforcers anywhere on a map, at any facing, now share one merged shield (the merge key comes from the parts' local
+  places, not their world matrices, whose float error far from the origin built a new shield source per enforcer).
+- The merged shield and the merged armour receive shadows like the guard's body, instead of copying the part base's
+  setting at build time.
+- Light rig: the G8 shadow-caster cull (disabled meshes left out of the lamp / torch shadow lists, a refill on every
+  caster enable change) now runs only with guard models on; with the flag off a render-freeze
+  toggle costs no refill and a thawed guard casts his torch-pool shadow at once, as before G8.
+- Guard figures: a guard thawed from the render freeze, or killed while frozen, shows his current pose on the first
+  frame (the figure poses at once instead of at the skeleton's next compute, which could be a frame late; the death
+  frame showed the pose at the freeze).
+- Guard cloth fixes (gm-look, a fresh LOD bake): no skin showing through the lean guards' work-jacket elbows and no
+  jagged hem shards at the jacket hem and hips; garment LODs come from the sewn cloth shell and sit clear of the body.
+  Known and left for Michael's look: dark patches at the chest / thigh pockets on the new bake (fix in the bake script,
+  rebake later).
+- Guard models are on everywhere, including the live game (Michael 2026-10-26 "Just switch them on").
+
+### Guard models offline warm
+- Offline: the main menu now puts every guard model file play uses (three builds, LOD0-2, and the riot shield) into the
+  offline cache after Wren's, so the first offline match on a map whose guard builds were never loaded online draws the
+  guard models instead of the old merged body. With `?guardmodels=0` nothing is fetched.
+
+### Guards and character shadows, part 1 (dark)
+- (behind `charShadowLight`, not wired yet) The shapes guards, dogs and lying bodies cast into the shared character
+  shadow list, and the rule for when a calm guard notices a moving player's shadow as a faint cue (J16).
+
+### Marlow Yard: kit stations wired to the new co-op moves
+- Marlow Yard: the five stations that teach the new two-player moves (plank bridge, deadweight, chimney pair, swing
+  pass, drop catch) now switch to the real move as soon as that move is turned on, and stay exactly as they are (with
+  their stand-in walkway, button, wicket, footbridge and ladder) while it is off. None of the moves is on yet, live or
+  in /preview/, so nothing changes in play today.
+- With a move on, its station's stand-in stays shut (its button says "No power here. This one takes the co-op move."),
+  the station needs both the move done and both players through, and a station retry puts the move back. The goods
+  shed's counterweight chains now hang where the deadweight grips are.
+
+### Knife wire allocation test steadied (F58)
+- Test only: the co-op knife kill allocation check compares two memory measures that vary a little from run to run; each is now the lowest of three, so it no longer fails releases at random.
+
+## 4.128.0 - Train 160: Affected e2e: one closest suite by default; Co-op kit: Chimney Pair; Thornbeck Mill pre-built lamp bake (piano SO2); e2e-netmove strike check fixed (F5) (2026-10-27, PR #668; #664, #663, #661, #656)
+
+### Affected e2e: one closest suite by default
+- `affected-e2e` now runs one suite per PR by default (`AFFECTED_MAX` 1, G421, prototype mode), the closest to the
+  change, matching RULES "Test tiers"; `src/net`, `src/save` and wire changes still run the whole co-op group. The
+  laptop already ran with `E2E_AFFECTED_MAX=1`; this makes the code default, `request.mjs --affected` and
+  `run-e2e --affected` agree.
+
+### Co-op kit: Chimney Pair
+- Co-op (on in /preview/, not yet in the live game): Chimney Pair is playable. In a narrow shaft one player braces with
+  the Co-op button and the partner joins; back to back, you climb together on your own sticks, never more than a hand's
+  width apart, and climb out at the top. Let go and you both slide down safely. At Marlow Yard this is station 11's way
+  up the gap. A marked shaft can no longer be split-jumped alone.
+
+### Thornbeck Mill pre-built lamp bake (piano SO2)
+- Lighting: the build's lamp prebake takes a list of maps (`SHIPPED_BAKE_MAPS`: Saltmarsh Park and Thornbeck Mill), one
+  cache folder and manifest per map, the same caps and prune; the game reads `bakes/<map>.json` for each (the mill ships
+  one file, it has no section split). The campus bake is unchanged (same key, same files).
+- Tests: Thornbeck Mill after the EMP: every baked lamp reads off in the picture, the light meter / guard sight and the
+  co-op client, under 1 lux at meter height everywhere.
+
+### e2e-netmove strike check fixed (F5)
+- Test only: the two-player movement test froze a missed strike after it had already ended (the strike recovery became longer in J19 S2), so it failed on every co-op change; it now freezes inside the miss, at the same moment as before.
+
 ## 4.127.0 - Train 156: Piano escape: knife kills, co-op, the storm and the full run (2026-10-27, PR #659; #631)
 
 ### Co-op kit: groundwork for five new moves

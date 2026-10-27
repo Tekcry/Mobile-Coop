@@ -408,8 +408,10 @@ export class TakedownController {
     const cd = this.candD;
     cand[0] = cand[1] = cand[2] = null;
     cd[0] = cd[1] = cd[2] = SCAN;
-    // a guard in combat who knows this operator is there cannot be taken by surprise (each player separately)
-    const known = g.spottedLocal;
+    // a guard in combat who knows this operator is there cannot be taken by surprise (each player separately);
+    // (knife-when-spotted, Michael's walk 2026-10-27 ~09:40 "knife kill should still work when spotted") the knife scene
+    // takes him in reach whatever he knows
+    const known = g.spottedLocal && !this.knife;
     const net = g.net;
     for (let k = 0; k < vs.length; k++) {
       const e = vs[k]!;
@@ -466,7 +468,8 @@ export class TakedownController {
     i.vy = best.pos.y;
     i.vz = best.pos.z;
     i.vyaw = best.yaw;
-    i.vCalm = !best.alerted && best.level !== 'searching';
+    // (knife-when-spotted) the knife scene: the side kill on an alerted guard too
+    i.vCalm = this.knife || (!best.alerted && best.level !== 'searching');
     // (step 12) back to a wall: the face normal, and at an edge the outside end and the way past it
     const wc = g.wallCore;
     const ws = wc && wc.phase === 'on' ? g.world.level.coverSegments[wc.seg] : undefined;
