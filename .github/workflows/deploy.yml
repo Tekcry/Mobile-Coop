@@ -49,13 +49,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - uses: actions/cache@v4
         id: nm
         with:
           path: node_modules
-          key: nm-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+          key: nm-${{ runner.os }}-node24-${{ hashFiles('package-lock.json') }}
       - if: steps.nm.outputs.cache-hit != 'true'
         run: npm ci
       - run: npm run lint
@@ -67,13 +67,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - uses: actions/cache@v4
         id: nm
         with:
           path: node_modules
-          key: nm-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+          key: nm-${{ runner.os }}-node24-${{ hashFiles('package-lock.json') }}
       - if: steps.nm.outputs.cache-hit != 'true'
         run: npm ci
       - run: npm test
@@ -85,13 +85,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - uses: actions/cache@v4
         id: nm
         with:
           path: node_modules
-          key: nm-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+          key: nm-${{ runner.os }}-node24-${{ hashFiles('package-lock.json') }}
       - if: steps.nm.outputs.cache-hit != 'true'
         run: npm ci
       # (map-ready S4) the campus prebake's folder (scripts/prebake.mjs): read only under the exact lamp key, so the
@@ -124,7 +124,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - name: PR size (<= 1500 counted lines, or the big-pr label)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -172,14 +172,14 @@ jobs:
           path: live
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: live/package-lock.json
       - uses: actions/cache@v4
         id: nm
         with:
           path: live/node_modules
-          key: nm-deploy-${{ runner.os }}-node22-${{ hashFiles('live/package-lock.json') }}
+          key: nm-deploy-${{ runner.os }}-node24-${{ hashFiles('live/package-lock.json') }}
       - name: Install live
         if: steps.nm.outputs.cache-hit != 'true'
         working-directory: live

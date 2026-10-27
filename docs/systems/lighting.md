@@ -275,7 +275,9 @@ capsules.
   character holding the source, within r + 0.6 m of its axis, skipped, A5; a lamp under `CHAR_LIGHT.minLevel` 0.04 not
   shaded). `capsuleTransmit` is the shaders' `lampCapsule` line for line (`LAMP_CAPSULE_GLSL` is built from the same
   `CAPSULE` numbers). "Every preset darkens a character's shadow on you from the same lamps by the same amount; higher
-  presets draw the real outline from the nearest lamps, the others draw soft round shadows."
+  presets draw the real outline from the nearest lamps, the others draw soft round shadows." A carried body is one
+  capsule on its carrier's shoulder (`fillOperator`, Player J16), owned by the carrier's key, so his own meter skips
+  it; on a co-op page it appears when that page's carry shows the body lifted.
 
   | Preset | Picture under a character | Meter |
   | --- | --- | --- |

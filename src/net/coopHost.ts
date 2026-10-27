@@ -75,6 +75,7 @@ import { BODY } from '../ai/bodies';
 import { DROP_NOISE } from '../game/bodyCarry';
 import { bodyItem, hideOk, inCarryReach, letGoHeard, pickupDenied } from './bodyCarryNet';
 import { CarryView } from './carryView';
+import { hostLoadsInto } from './charMates';
 import { judgeRewound, newRewound, pushHist, rewindHist, stanceBody, stanceHead, type Hist, type Rewound } from './shotHistory';
 
 const SNAP_HZ = 15;
@@ -277,6 +278,12 @@ export class CoopHost implements NetAttachment {
     }
     // (coop-fix, bug 1) a hidden host page (the joiner's window over it) keeps simulating and sending snapshots
     this.offs.push(keepSimInBackground(g));
+    // (player-j16) with the contract on, each client carrying a body loads its slot's shoulder (one closure, made once)
+    if (g.charOccluders) {
+      const prevLoads = g.charLoadsInto;
+      g.charLoadsInto = (lin, refs, nr) => hostLoadsInto(lin, refs, nr, this.carries);
+      this.offs.push(() => (g.charLoadsInto = prevLoads));
+    }
   }
 
   /** (G135) Every body's goggle colour from its player slot (host green, partner cyan): the partner beacon. */

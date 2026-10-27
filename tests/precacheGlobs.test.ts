@@ -77,3 +77,28 @@ describe('scene music A/B (piano-escape S5): no file of the scene folder is prec
     expect(kept).toContain('assets/music-alert-Aa11Bb22.mp3');
   });
 });
+
+describe('storm mill rain and thunder (storm-recording): not precached', () => {
+  const dir = fileURLToPath(new URL('../src/assets/sfx/storm/', import.meta.url));
+  const files = readdirSync(dir).filter((f) => f.endsWith('.mp3'));
+  const built = files.map((f) => `assets/${f.replace(/.mp3$/, '')}-Zz99Yy88.mp3`);
+  for (const f of built) {
+    mkdirSync(join(DIST, f, '..'), { recursive: true });
+    writeFileSync(join(DIST, f), 'x');
+  }
+
+  it('the folder holds the rain loop and three thunder clips', () => {
+    expect(files).toContain('storm-rain-roof-loop.mp3');
+    expect(files.filter((f) => f.startsWith('storm-thunder-'))).toHaveLength(3);
+  });
+
+  it('the ignore drops each even if a pattern took every mp3', () => {
+    const every = precache(['**/*.mp3'], []);
+    const kept = precache(['**/*.mp3'], PRECACHE_IGNORES);
+    for (const f of built) {
+      expect(every, f).toContain(f);
+      expect(kept, f).not.toContain(f);
+      expect(precache(PRECACHE_GLOBS, PRECACHE_IGNORES), f).not.toContain(f);
+    }
+  });
+});

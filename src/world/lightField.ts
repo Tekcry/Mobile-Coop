@@ -821,7 +821,13 @@ export class LightField {
     this.res = (ab + (ef - ab) * fz) / 255;
   }
 
-  /** The non-baked lights (every light, without a bake), into `res`. */
+  /**
+   * The non-baked lights (every light, without a bake), into `res`. (alloc-n24) Each light's term is `dynTermInto`'s
+   * (the same sum, to the bit), so this loop stays under V8's per-function inlining limit (460 bytecodes): with the
+   * term written out here it was not inlined into its callers, and whether its own optimized code inlined the
+   * caller's occluder (or boxed the x and z it passes, 32 B a call) depended on what V8 had compiled before
+   * (tests/lightFieldAlloc.test.ts read totalAt 1.6 B, bodyLevel 8.0 B on train 166's CI).
+   */
   private dynamicInto(occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
     // (F57) the point read from `pt` once (an occluder callback cannot move it under the loop)
     const pt = this.pt;
@@ -831,30 +837,14 @@ export class LightField {
     let v = 0;
     const ls = this.reg.lights;
     for (let i = 0; i < ls.length; i++) {
-      const l = ls[i]!;
       if (i < this.isBaked.length && this.isBaked[i]) continue;
-      if (!l.on || l.destroyed || l.intensity <= 0) continue;
-      // (LR16 fix) a fixed lamp photometric, a flashlight linear: `lights.lightTerm`, as `contribution`
-      let t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
-      if (t <= 0.01) continue;
-      if (l.beamCut) {
-        // (piano SO3) a torch with no shadow map: the picture's own cut at the beam's reach, not the ray test
-        t *= beamCutAt(l, x, y, z);
-        if (t <= 0.01) continue;
-      } else if (occluded && occluded(l, x, y, z)) continue;
-      if (this.doors.length) {
-        // (F57) the segment through `seg`, as `dynTermInto` (`doorBlocks` took it as 6 doubles)
-        const sg = this.seg;
-        sg[0] = l.x;
-        sg[1] = l.y;
-        sg[2] = l.z;
-        sg[3] = x;
-        sg[4] = y;
-        sg[5] = z;
-        if (this.segBlocked()) continue;
-      }
+      // 0: left out (off, out of reach, cut, occluded or behind a shut door); a kept term is over 0.01
+      this.dynTermInto(i, occluded);
+      let t = this.res;
+      if (t === 0) continue;
       // (char-shadow-meter) every non-baked light is in the set (a flashlight's holder is never its shadow: A5)
       if (ch !== null) {
+        const l = ls[i]!;
         const q = ch.q;
         q[0] = l.x;
         q[1] = l.y;
@@ -884,14 +874,16 @@ export class LightField {
     const x = pt[0]!;
     const y = pt[1]!;
     const z = pt[2]!;
+    // (LR16 fix) a fixed lamp photometric, a flashlight linear: `lights.lightTerm`, as `contribution`
     let t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
     if (t <= 0.01) return;
     if (l.beamCut) {
-      // (piano SO3) as `dynamicInto`
+      // (piano SO3) a torch with no shadow map: the picture's own cut at the beam's reach, not the ray test
       t *= beamCutAt(l, x, y, z);
       if (t <= 0.01) return;
     } else if (occluded && occluded(l, x, y, z)) return;
     if (this.doors.length) {
+      // (F57) the segment through `seg` (`doorBlocks` took it as 6 doubles)
       const sg = this.seg;
       sg[0] = l.x;
       sg[1] = l.y;
