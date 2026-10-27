@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.137.1 - Train 177: Storm mill guard hunt, part 1 (dark) (2026-10-27, PR #724; #713)
+- (not switched on yet) The storm mill's search routes for each floor and the rules for a slow, room-by-room guard hunt
+  in pairs of at most two, closing in on the players in a fixed order.
+
 ## 4.137.0 - Train 176: Co-op: each player is drawn with their own Animation source (2026-10-27, PR #723; #498)
 - In co-op every screen now draws each player with that player's own Animation source (Hand-made, CMU or Mixamo), so
   your partner looks the same on your screen as on theirs. A partner on an older build, or on the default, is drawn with
