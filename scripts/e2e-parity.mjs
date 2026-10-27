@@ -76,6 +76,8 @@ async function renderCards(page, look, res, cards) {
     const tail = ok ? 'ok' : kn ? `KNOWN MISS (${kn.conf}, ${kn.owner}, ${kn.until})` : 'MISS';
     console.log(`  ${look.name} ${c.id} level ${fmt(c.level)} luma ${fmt(m.luma)} band ${row.min}-${row.max} ${tail}`);
     addCard(res, `${look.name}:${c.id}`, ok ? 'ok' : kn ? 'known' : 'miss');
+    // (char-shadow-meter S4 triage) the part's measured level -> luma transfer: the character-shadow card's reference
+    (res.curve ??= []).push({ look: look.name, level: c.level, luma: m.luma });
   }
 }
 
@@ -109,31 +111,37 @@ async function partWarehouse(page, look, res) {
 /** Its own pages, one per preset: char shadows Off (round capsules from every lamp), Low (the nearest lamp's outline) and
  *  Epic (four lamps' outlines). `charlight=1` turns the character contract on (the meter and the picture read it). */
 const CS_LOOKS = [
-  { name: 'off', params: 'gfx=low&charlight=1', mode: 'off' },
-  { name: 'low', params: 'gfx=low&charlight=1', mode: 'auto' },
-  { name: 'epic', params: 'gfx=epic&charlight=1', mode: 'auto' },
+  { name: 'off', params: 'gfx=low&charlight=1', mode: 'off', grey: 'low' },
+  { name: 'low', params: 'gfx=low&charlight=1', mode: 'auto', grey: 'low' },
+  { name: 'epic', params: 'gfx=epic&charlight=1', mode: 'auto', grey: 'epic' },
 ];
 /**
  * The pass rule (PLAN section 5, before J10's re-bake): the band check of the unshadowed card is report only
- * (`bandStrict` false until J10); the luma ratio inside / outside within `ratioTol` of the field ratio mapped through the
- * bands (`bandLuma`); the three inside reads within `agree` luma. Start values, set from the proof run.
+ * (`bandStrict` false until J10); the luma ratio inside / outside within `ratioTol` of the field levels inside and
+ * outside mapped through the display transfer this run measured on part 4's grey cards (`greyLuma`: the same look's
+ * cards, (0, 0) and each card's (field level, luma)), i.e. the shadowed card reads as an unshadowed card at its field
+ * level would; the three inside reads within `agree` luma. Start values, set from the proof run.
+ * (S4 triage) Not the bands' middles: the bands are tolerances, not the curve (the lit band's middle 0.725 against the
+ * 0.70 card's measured 0.526), and that line wanted 0.27 where the real transfer gives ~0.5.
  * The pick: the card `cardUp` m over the floor (low, so a guard `park` m off stands in the lamp's path), the camera 0.8 m
  * off, `camTurn` rad round from the lamp's direction (it sees the card past the guard), the player `standOff` m to the
  * other side. `fill`: a copy of `FILL` (src/game/charOccluderFill.ts), for the pick only; every read uses the live contract.
  */
 const CS = { ratioTol: 0.1, agree: 0.03, bandStrict: false, cardUp: 0.6, park: [0.6, 0.8, 1.0], camTurn: 0.96, standOff: 2, minDrop: 0.08, fill: { r: 0.22, footLift: 0.25, topDrop: 0.2, minTop: 0.5 } };
 
-/** A field level's expected display luma: straight lines through (0, 0), each `DARK_TARGETS` row's (level, band middle)
- *  and (1, 1). The "field ratio mapped through the bands" of PLAN section 5. */
-function bandLuma(level) {
-  const pts = [[0, 0], ...DARK_TARGETS.map((t) => [t.level, (t.min + t.max) / 2]), [1, 1]];
-  const v = Math.max(0, Math.min(1, level));
+/** A field level's display luma on this run's pipeline (S4 triage): straight lines through (0, 0) and the grey cards'
+ *  measured (field level, luma) of one look (`res.curve`), sorted by level; past the last card along the last segment.
+ *  The "field ratio mapped through the card's band" of PLAN section 5, measured. NaN with no card. */
+function greyLuma(curve, look, level) {
+  const pts = [[0, 0], ...curve.filter((p) => p.look === look).map((p) => [p.level, p.luma]).sort((a, b) => a[0] - b[0])];
+  if (pts.length < 2) return NaN;
+  const v = Math.max(0, level);
   for (let i = 1; i < pts.length; i++) {
     const [x0, y0] = pts[i - 1];
     const [x1, y1] = pts[i];
-    if (v <= x1) return y0 + ((y1 - y0) * (v - x0)) / (x1 - x0);
+    if (v <= x1 || i === pts.length - 1) return x1 > x0 ? y0 + ((y1 - y0) * (v - x0)) / (x1 - x0) : y1;
   }
-  return 1;
+  return NaN;
 }
 
 /**
@@ -336,11 +344,13 @@ async function charShadowCard(res, extra) {
     const band = DARK_TARGETS.find((t) => t.level === rowFor(r.fOut));
     const bandOk = band ? inBand(r.lumaOut, band) : false;
     const ratio = r.lumaOut > 0 ? r.lumaIn / r.lumaOut : NaN;
-    const want = bandLuma(r.fIn) / bandLuma(r.fOut);
+    const grey = CS_LOOKS.find((l) => l.name === r.look).grey;
+    const want = greyLuma(res.curve ?? [], grey, r.fIn) / greyLuma(res.curve ?? [], grey, r.fOut);
+    if (!Number.isFinite(want)) res.fails.push(`charshadow ${r.look}: no measured ${grey} grey cards for the reference`);
     const shade = r.fIn < r.fOut;
     const ratioOk = Math.abs(ratio - want) <= CS.ratioTol;
     const ok = shade && ratioOk && r.meter.ok && (bandOk || !CS.bandStrict) && r.errors.length === 0;
-    console.log(`  cs-${r.look} ${id} lamp ${c.lamp}${c.nearest ? ' (nearest)' : ''} slots [${r.slots.join(' ')}] field ${fmt(r.fIn)} / ${fmt(r.fOut)} luma ${fmt(r.lumaIn)} / ${fmt(r.lumaOut)} ratio ${fmt(ratio)} want ${fmt(want)} (field ${fmt(r.fIn / r.fOut)}) band ${band ? `${band.min}-${band.max} ${bandOk ? 'ok' : CS.bandStrict ? 'MISS' : 'off (report only)'}` : 'none'} meter ${fmt(r.meter.meter)} field ${fmt(r.meter.field)} ${ok ? 'ok' : 'MISS'} (${r.s} s)`);
+    console.log(`  cs-${r.look} ${id} lamp ${c.lamp}${c.nearest ? ' (nearest)' : ''} slots [${r.slots.join(' ')}] field ${fmt(r.fIn)} / ${fmt(r.fOut)} luma ${fmt(r.lumaIn)} / ${fmt(r.lumaOut)} ratio ${fmt(ratio)} want ${fmt(want)} (${grey} cards; field ${fmt(r.fIn / r.fOut)}) band ${band ? `${band.min}-${band.max} ${bandOk ? 'ok' : CS.bandStrict ? 'MISS' : 'off (report only)'}` : 'none'} meter ${fmt(r.meter.meter)} field ${fmt(r.meter.field)} ${ok ? 'ok' : 'MISS'} (${r.s} s)`);
     if (!shade) res.misses.push(`charshadow:${r.look}:${id}:no-shadow`);
     if (!ratioOk) res.misses.push(`charshadow:${r.look}:${id}:ratio`);
     if (!r.meter.ok) res.misses.push(`charshadow:${r.look}:${id}:meter`);
