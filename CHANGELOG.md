@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.133.0 - Train 170: New interaction prompts: the actions wired in (preview only); Co-op kit: Swing Pass; Light check on every map (2026-10-27, PR #709; #700, #681, #658)
+
+### New interaction prompts: the actions wired in (preview only)
+- In the preview, the new interaction prompts now drive play: at a door tap A opens and holding A bashes, tap Y peeks and holding Y feeds the optic cable; behind a guard A grabs; in front of a guard tap A knocks out and holding A kills; items, switches, panels and bodies use A. The old corner box no longer opens there. The prompts' look comes next; the live game is unchanged.
+
+### Co-op kit: Swing Pass
+- Co-op (on in /preview/, not yet in the live game): Swing Pass is playable. One player braces at a pipe on the edge of
+  a gap; the partner takes their wrist, steps off and is swung across, letting go over the far side and landing
+  crouched. It reaches across gaps of 2 to 3.5 m with both sides about level; when it cannot, a short line says why. At
+  Marlow Yard this is station 12's way over the cable trench.
+
+### Light check on every map
+- Tests: grey-card light check on Saltmarsh Park, Marlow Yard and the Warehouse at Low and Epic, on every release.
+- Tests: every release runs the light check through the laptop queue's train-parity list.
+
 ## 4.132.0 - Train 169: Carried bodies cast a shadow (2026-10-27, PR #707; #697)
 - A body carried on a shoulder now casts its own shadow (with character shadows on): the picture, the light meter and the guards all see it; the carrier's own light meter ignores it. Works for your partner's carry in co-op too.
 
