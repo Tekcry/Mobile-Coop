@@ -97,6 +97,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Minimal figure surface for `pose` (the module is imported dynamically in each test). */
+interface Posable {
+  current: number;
+  update(c: unknown): void;
+  lodSkeleton(lod: number): Skeleton | null;
+}
+
+/**
+ * (perf F2) `update` then the shown LOD's skeleton compute, as a render that draws the guard does (no render loop on
+ * a NullEngine): the pose runs in the skeleton's `onBeforeComputeObservable`, so it lands only when the skeleton is
+ * prepared.
+ */
+function posed(f: Posable, cam: unknown): void {
+  f.update(cam as never);
+  if (f.current >= 0) f.lodSkeleton(f.current)?.prepare(true);
+}
+
 async function setup() {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const B = await import('../src/core/babylon');
@@ -254,7 +271,7 @@ describe('guard figure on a NullEngine', () => {
     refresh(r.root);
     const a = new G.GuardFigure(lib, r, MANIFEST, 'ga', { pieces: ['average', 'helmet_std', 'vest_soft'], scale: 1.03 });
     await a.load(M.LOD_0);
-    a.update(null);
+    posed(a, null);
     expect(a.current).toBe(M.LOD_0);
     const mesh = a.lodMeshes(M.LOD_0)[0]!;
     expect(mesh.alwaysSelectAsActiveMesh).toBe(false);
@@ -284,7 +301,7 @@ describe('guard figure on a NullEngine', () => {
     r.shoulderL.setParent(arm);
     refresh(r.root);
     refresh(arm);
-    a.update(null);
+    posed(a, null);
     expect(a.loose).toBe(true);
     expect(mesh.alwaysSelectAsActiveMesh).toBe(true);
     // the world path at the moment of the switch matches the local retarget (rig at rest)
@@ -297,7 +314,7 @@ describe('guard figure on a NullEngine', () => {
     refresh(arm);
     r.elbowL.rotationQuaternion = B.Quaternion.RotationYawPitchRoll(0, 0.7, 0);
     refresh(arm);
-    a.update(null);
+    posed(a, null);
     for (const [k, n] of rigNodes) {
       const wAfter = n.computeWorldMatrix(true);
       const expected = B.Vector3.TransformCoordinates(B.Vector3.TransformCoordinates(local.get(k)!, wBefore.get(k)!.clone().invert()), wAfter);
@@ -310,7 +327,7 @@ describe('guard figure on a NullEngine', () => {
     r.shoulderL.setParent(shParent);
     r.elbowL.rotationQuaternion = B.Quaternion.Identity();
     refresh(r.root);
-    a.update(null);
+    posed(a, null);
     expect(a.loose).toBe(false);
     expect(mesh.alwaysSelectAsActiveMesh).toBe(false);
     a.dispose();
@@ -630,7 +647,7 @@ describe('guard figure stand-in on Wren\'s real LOD2', () => {
     }
     const pose = { speed: 1.6, localX: 0, localZ: 1, grounded: true, crouch: 0.3, aimPitch: 0.1, aim: 0, kick: 0, armed: false, stride: 'facing' as const };
     for (let f = 0; f < 12; f++) rig.animate(1 / 60, pose);
-    guard.update(null);
+    posed(guard, null);
     wren.update(null);
     expect(guard.current).toBe(LOD_2);
     refresh(rig.root);
@@ -684,11 +701,11 @@ describe('(S11) guard figure CPU levers', () => {
     for (let f = 0; f < 12; f++) r.animate(1 / 60, pose);
     const cam = new B.FreeCamera('cam', new B.Vector3(0, 1.6, -3), scene);
     cam.computeWorldMatrix();
-    a.update(cam);
+    posed(a, cam);
     expect(a.current).toBe(M.LOD_0);
     cam.position.set(0, 1.6, -40);
     cam.computeWorldMatrix();
-    a.update(cam);
+    posed(a, cam);
     expect(a.current).toBe(M.LOD_2);
     refresh(r.root);
     const at = (lod: number, n: string): InstanceType<typeof B.Vector3> =>
@@ -739,15 +756,15 @@ describe('(S11) guard figure CPU levers', () => {
     const cam = new B.FreeCamera('cam', new B.Vector3(0, 1.6, -40), scene);
     cam.computeWorldMatrix();
     // the first frame at LOD2 is a LOD switch: both pose
-    a.update(cam);
-    b.update(cam);
+    posed(a, cam);
+    posed(b, cam);
     expect([a.current, b.current]).toEqual([M.LOD_2, M.LOD_2]);
     expect([a.poses, b.poses]).toEqual([1, 1]);
     const posedOn: [number[], number[]] = [[], []];
     for (frame = 11; frame <= 20; frame++) {
       const pa = a.poses, pb = b.poses;
-      a.update(cam);
-      b.update(cam);
+      posed(a, cam);
+      posed(b, cam);
       if (a.poses > pa) posedOn[0].push(frame);
       if (b.poses > pb) posedOn[1].push(frame);
     }
@@ -755,20 +772,20 @@ describe('(S11) guard figure CPU levers', () => {
     expect(posedOn[1]).toEqual([11, 13, 15, 17, 19]);
     // an anim tier calling only on odd frames (its own half rate, out of slot 0's phase): every call poses
     const before = a.poses;
-    for (frame = 23; frame <= 31; frame += 2) a.update(cam);
+    for (frame = 23; frame <= 31; frame += 2) posed(a, cam);
     expect(a.poses - before).toBe(5);
     // a skipped frame leaves the skeleton unmarked (nothing recomputed or uploaded)
     const dirty = vi.spyOn(a.lodSkeleton(M.LOD_2)!.bones[0]!, 'markAsDirty');
     frame = 32;
-    a.update(cam);
+    posed(a, cam);
     frame = 33;
-    a.update(cam);
+    posed(a, cam);
     expect(dirty).toHaveBeenCalledTimes(1);
     // LOD1 poses every frame
     cam.position.set(0, 1.6, -15);
     cam.computeWorldMatrix();
     const p1 = a.poses;
-    for (frame = 40; frame < 46; frame++) a.update(cam);
+    for (frame = 40; frame < 46; frame++) posed(a, cam);
     expect(a.current).toBe(M.LOD_1);
     expect(a.poses - p1).toBe(6);
     // back to LOD2: the switch frame poses even off its parity (its bones were left from before)
@@ -776,11 +793,228 @@ describe('(S11) guard figure CPU levers', () => {
     cam.computeWorldMatrix();
     frame = 47;
     const p2 = a.poses;
-    a.update(cam);
+    posed(a, cam);
     expect(a.current).toBe(M.LOD_2);
     expect(a.poses - p2).toBe(1);
     a.dispose();
     b.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+});
+
+describe('(perf) frozen guard materials, lazy visible-only pose', () => {
+  /** Three figures in front of the camera (x -1 / 0 / 1, z 0), the camera at z -3; `update` per render, as GuardBody. */
+  async function three() {
+    const s = await setup();
+    const { B, G, scene, rig } = s;
+    const lib = new G.GuardLibrary(scene);
+    const figs = [-1, 0, 1].map((x, i) => {
+      const r = rig(`g${i}`);
+      r.root.position.set(x, 0, 0);
+      refresh(r.root);
+      return new G.GuardFigure(lib, r, MANIFEST, `g${i}`, { pieces: ['average', 'vest_soft'], slot: i });
+    });
+    await Promise.all(figs.map((f) => f.loadGameLods()));
+    const cam = new B.FreeCamera('cam', new B.Vector3(0, 1.6, -3), scene);
+    cam.setTarget(new B.Vector3(0, 1.2, 0));
+    scene.activeCamera = cam;
+    scene.onBeforeRenderObservable.add(() => {
+      for (const f of figs) f.update(cam);
+    });
+    return { ...s, lib, figs, cam };
+  }
+
+  const definesOf = (m: Mesh): string => String((m.subMeshes[0]!.effect as unknown as { defines: string } | null)?.defines ?? '');
+
+  it('F1: the guard materials are frozen; after the first ready frame no frame re-runs the plugin\'s prepareDefines', async () => {
+    const { M, scene, figs, forgetModels } = await three();
+    const { GuardFigurePlugin } = await import('../src/operators/runtime/guardFigurePlugin');
+    const mat = figs[0]!.lodMeshes(M.LOD_0)[0]!.material!;
+    for (const lod of [M.LOD_0, M.LOD_1, M.LOD_2]) expect(figs[0]!.lodMeshes(lod)[0]!.material!.isFrozen).toBe(true);
+    const spy = vi.spyOn(GuardFigurePlugin.prototype, 'prepareDefines');
+    const draws = vi.spyOn(scene.getEngine(), 'drawElementsType');
+    // the first ready frame (each submesh compiles once: its defines are prepared there)
+    await vi.waitFor(() => {
+      scene.render();
+      expect(figs.every((f) => f.lodMeshes(M.LOD_0)[0]!.subMeshes[0]!.effect?.isReady())).toBe(true);
+    });
+    expect(figs.map((f) => f.current)).toEqual([M.LOD_0, M.LOD_0, M.LOD_0]);
+    scene.render();
+    spy.mockClear();
+    draws.mockClear();
+    for (let i = 0; i < 5; i++) scene.render();
+    expect(spy).toHaveBeenCalledTimes(0);
+    // the guards were drawn on those frames (3 figures x 5 frames at least)
+    expect(draws.mock.calls.length).toBeGreaterThanOrEqual(15);
+    const active = scene.getActiveMeshes();
+    for (const f of figs) expect(active.indexOf(f.lodMeshes(M.LOD_0)[0]!)).toBeGreaterThanOrEqual(0);
+    // the spy does see the cost: unfrozen (before this change) every guard mesh re-prepares every frame
+    mat.unfreeze();
+    scene.render();
+    spy.mockClear();
+    for (let i = 0; i < 5; i++) scene.render();
+    expect(spy.mock.calls.length).toBeGreaterThanOrEqual(15);
+    mat.freeze();
+    scene.render();
+    spy.mockClear();
+    scene.render();
+    expect(spy).toHaveBeenCalledTimes(0);
+    spy.mockRestore();
+    draws.mockRestore();
+    for (const f of figs) f.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+
+  it('F1: on the frozen material thermal heat still applies (gvis, no recompile), a night-vision style uniform binds every frame, a define change applies through the refresh cycle', async () => {
+    const { B, M, scene, figs, forgetModels } = await three();
+    const { GuardFigurePlugin } = await import('../src/operators/runtime/guardFigurePlugin');
+    const m0 = figs[1]!.lodMeshes(M.LOD_0)[0]!;
+    const mat = m0.material!;
+    // a stand-in for the lamps' plugin (`LampPlugin`): the night-vision gain is a uniform bound per pass, the torch /
+    // character shadow switches are defines changed through `World.refreshMaterials`
+    class NvStandIn extends B.MaterialPluginBase {
+      gain = 1;
+      on = false;
+      bound: number[] = [];
+      constructor(m: InstanceType<typeof B.Material>) {
+        super(m, 'NvStandIn', 300, { NV_STANDIN: false });
+        this._enable(true);
+      }
+      override getClassName(): string {
+        return 'NvStandIn';
+      }
+      override isCompatible(): boolean {
+        return true;
+      }
+      override prepareDefines(defines: Record<string, unknown>): void {
+        defines.NV_STANDIN = this.on;
+      }
+      override getUniforms(): { ubo: { name: string; size: number; type: string }[]; fragment: string } {
+        return { ubo: [{ name: 'nvGain', size: 1, type: 'float' }], fragment: 'uniform float nvGain;' };
+      }
+      override bindForSubMesh(ubo: { updateFloat(n: string, v: number): void }): void {
+        ubo.updateFloat('nvGain', this.gain);
+        this.bound.push(this.gain);
+      }
+    }
+    // attached as `BakedLamps.attach` does: unfreeze, add, freeze again
+    mat.unfreeze();
+    const nv = new NvStandIn(mat);
+    mat.freeze();
+    await vi.waitFor(() => {
+      scene.render();
+      expect(m0.subMeshes[0]!.effect?.isReady()).toBe(true);
+    });
+    scene.render();
+    const prep = vi.spyOn(GuardFigurePlugin.prototype, 'prepareDefines');
+    const draws = vi.spyOn(scene.getEngine(), 'drawElementsType');
+    scene.render();
+    const cold = draws.mock.calls.length;
+    // thermal: the heat is in gvis (vertex data): rewritten, drawn, nothing recompiled, no extra draw
+    figs[1]!.setHeat(0.85);
+    expect(alphas(m0)).toEqual([47, 47, 47, 0, 0, 0, 47, 47, 47]);
+    draws.mockClear();
+    scene.render();
+    expect(draws.mock.calls.length).toBe(cold);
+    expect(prep).toHaveBeenCalledTimes(0);
+    // night vision: the uniform changes and binds on the next frame on the frozen material
+    nv.bound.length = 0;
+    nv.gain = 3.5;
+    scene.render();
+    expect(nv.bound.length).toBeGreaterThan(0);
+    expect(nv.bound.every((g) => g === 3.5)).toBe(true);
+    expect(prep).toHaveBeenCalledTimes(0);
+    // a define change: frozen, nothing re-reads it (why the game unfreezes first) ...
+    nv.on = true;
+    scene.render();
+    expect(definesOf(m0)).not.toContain('#define NV_STANDIN');
+    // ... `World.refreshMaterials`: unfreeze, mark all dirty, frames until compiled, freeze again
+    mat.unfreeze();
+    mat.markAsDirty(B.Material.AllDirtyFlag);
+    await vi.waitFor(() => {
+      scene.render();
+      expect(definesOf(m0)).toContain('#define NV_STANDIN');
+      expect(m0.subMeshes[0]!.effect!.isReady()).toBe(true);
+    });
+    scene.render();
+    mat.freeze();
+    scene.render();
+    prep.mockClear();
+    for (let i = 0; i < 3; i++) scene.render();
+    expect(prep).toHaveBeenCalledTimes(0);
+    expect(definesOf(m0)).toContain('#define NV_STANDIN');
+    expect(definesOf(m0)).toContain('#define GUARDFIG');
+    prep.mockRestore();
+    draws.mockRestore();
+    for (const f of figs) f.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+
+  it('F1: the shield freezes its materials; the dropped helmet draws with the base LOD material (frozen by buildGuardLod)', () => {
+    expect(readFileSync('src/ai/guardShield.ts', 'utf8')).toMatch(/operatorMaterial\(scene, m, 'shield_riot'\);\s*p\.freeze\(\);/);
+    expect(readFileSync('src/ai/guardHelmet.ts', 'utf8')).toContain('asset.materials[0]');
+  });
+
+  it('F2: a guard off screen and in no shadow list is never posed; in view once a frame, at LOD2 every other frame', async () => {
+    const { M, scene, figs, forgetModels } = await three();
+    const inView = figs[0]!, behind = figs[1]!, far = figs[2]!;
+    // one behind the camera (culled: no pass draws it), one 40 m ahead (LOD2, half rate)
+    const rb = behind.root.parent as TransformNode;
+    rb.position.set(0, 0, -10);
+    const rf = far.root.parent as TransformNode;
+    rf.position.set(0, 0, 40);
+    refresh(rb);
+    refresh(rf);
+    const before = figs.map((f) => f.poses);
+    const perFrame: number[][] = [[], [], []];
+    for (let i = 0; i < 10; i++) {
+      const p = figs.map((f) => f.poses);
+      scene.render();
+      figs.forEach((f, k) => perFrame[k]!.push(f.poses - p[k]!));
+    }
+    expect([inView.current, behind.current, far.current]).toEqual([M.LOD_0, M.LOD_1, M.LOD_2]);
+    expect(perFrame[0]).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    expect(behind.poses - before[1]!).toBe(0);
+    // LOD2: the switch frame, then every other frame (its slot's parity): never two frames running after the first
+    const farPoses = perFrame[2]!.reduce((a, b) => a + b, 0);
+    expect(farPoses).toBeGreaterThanOrEqual(5);
+    expect(farPoses).toBeLessThanOrEqual(6);
+    for (let i = 2; i < 10; i++) expect(perFrame[2]![i]! + perFrame[2]![i - 1]!, `frames ${i - 1}-${i}`).toBe(1);
+    // the culled guard was asked (marked) but never computed: back in view it poses on its first drawn frame
+    rb.position.set(0.5, 0, 2);
+    refresh(rb);
+    const pb = behind.poses;
+    scene.render();
+    expect(behind.current).toBe(M.LOD_0);
+    expect(behind.poses - pb).toBe(1);
+    for (const f of figs) f.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+
+  it('(gm-mc-polish) poseNow: a pose asked for after this render id\'s compute (a thaw, a death while frozen) runs at once, not a frame late', async () => {
+    const { scene, figs, cam, forgetModels } = await three();
+    const f = figs[0]!;
+    scene.render();
+    const skel = f.lodSkeleton(f.current)!;
+    expect(skel).not.toBeNull();
+    // the skeleton was computed in this render id: a second ask in it (the thaw) is not computed by Babylon's own prepare
+    const p0 = f.poses;
+    f.update(cam);
+    skel.prepare();
+    expect(f.poses).toBe(p0);
+    // poseNow runs it now; nothing is left pending, and a second poseNow is a no-op
+    f.poseNow();
+    expect(f.poses).toBe(p0 + 1);
+    f.poseNow();
+    expect(f.poses).toBe(p0 + 1);
+    // the next render poses once as usual (the skeleton is not posed twice for the ask)
+    scene.render();
+    expect(f.poses).toBe(p0 + 2);
+    for (const g of figs) g.dispose();
     scene.dispose();
     forgetModels();
   });

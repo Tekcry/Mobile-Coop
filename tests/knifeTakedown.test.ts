@@ -415,3 +415,25 @@ describe('piano-knife S3: busy through the tail at the gates', () => {
     expect(tc.offer).toBeNull();
   });
 });
+
+describe('knife-when-spotted (Michael walk 2026-10-27 ~09:40 "knife kill should still work when spotted")', () => {
+  /** The offer the scan finds on `v` after a few steps (none: null). */
+  function scanned(s: Stage): unknown {
+    for (let n = 0; n < 10; n++) s.td.fixedUpdate(DT, false, false);
+    return s.td.offer;
+  }
+
+  it('a guard who has seen her and is alert: on offer with the knife switch on, not with it off (today)', () => {
+    for (const knifeOn of [true, false]) {
+      const v = victim(0, true);
+      (v as { alerted: boolean }).alerted = true;
+      (v as { level: string }).level = 'alert';
+      const s = stage(v);
+      (s.g as unknown as { spottedLocal: boolean }).spottedLocal = true;
+      s.td.setKnifeScene(knifeOn);
+      const o = scanned(s);
+      if (knifeOn) expect(o, 'knife scene: offered').not.toBeNull();
+      else expect(o, 'switch off: today, no surprise takedown on an alert guard who knows').toBeNull();
+    }
+  });
+});

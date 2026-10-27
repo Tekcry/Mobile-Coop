@@ -9,13 +9,18 @@ import {
   RAIN_GALLERY,
   RAIN_GALLERY_Y,
   RAIN_GROUND,
+  RAIN_REC_TRIM,
   THUNDER_DELAY,
+  THUNDER_REC_TRIM,
   ThunderClock,
+  pickThunderClip,
   rainGain,
   rollVar,
+  thunderClipIndex,
   thunderRolls,
   thunderTimes,
 } from '../src/audio/sceneStorm';
+import { THUNDER_CLIP_COUNT } from '../src/audio/stormClips';
 import { DECK_Y, THORNBECK_FLASH_TIMES, THORNBECK_LIGHTNING } from '../src/world/maps/thornbeckMill';
 
 const P = THORNBECK_LIGHTNING.period;
@@ -149,5 +154,51 @@ describe('S6: the rain follows the listener height', () => {
     expect(rainGain(Number.NaN)).toBe(RAIN_GROUND);
     // smooth: a half step up the stair is strictly between
     expect(rainGain(DECK_Y / 2)).toBeCloseTo((RAIN_GROUND + RAIN_GALLERY) / 2, 9);
+  });
+});
+
+describe('storm-recording: the recorded thunder pick and the fallback', () => {
+  it('the clip pick is in range and the same every run, per roll', () => {
+    for (let i = 0; i < 64; i++) {
+      const k = thunderClipIndex(i);
+      expect(Number.isInteger(k)).toBe(true);
+      expect(k).toBeGreaterThanOrEqual(0);
+      expect(k).toBeLessThan(THUNDER_CLIP_COUNT);
+      expect(thunderClipIndex(i)).toBe(k);
+      expect(thunderClipIndex(i, 5)).toBeLessThan(5);
+    }
+    // a degenerate count never goes out of range
+    expect(thunderClipIndex(3, 1)).toBe(0);
+    expect(thunderClipIndex(3, 0)).toBe(0);
+  });
+
+  it('the 18 Thornbeck rolls use every clip (the storm is not one sound)', () => {
+    const rolls = thunderRolls(THORNBECK_LIGHTNING.flashes, P);
+    const used = new Set(rolls.map((r) => thunderClipIndex(r.i)));
+    expect(used.size).toBe(THUNDER_CLIP_COUNT);
+  });
+
+  it('pickThunderClip returns the clip for the roll, and null (the synthesised roll) when no buffer is there', () => {
+    const clips = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+    for (let i = 0; i < 20; i++) expect(pickThunderClip(clips, i)).toBe(clips[thunderClipIndex(i, clips.length)]);
+    // nothing given, not loaded yet, or a file that failed to decode: the fallback
+    expect(pickThunderClip(null, 4)).toBeNull();
+    expect(pickThunderClip(undefined, 4)).toBeNull();
+    expect(pickThunderClip([], 4)).toBeNull();
+    expect(pickThunderClip([null, null, null], 4)).toBeNull();
+    // one clip missing: only the rolls that pick it fall back
+    const some = [{ id: 'a' }, null, { id: 'c' }];
+    for (let i = 0; i < 20; i++) {
+      const k = thunderClipIndex(i, some.length);
+      expect(pickThunderClip(some, i)).toBe(some[k] ?? null);
+    }
+  });
+
+  it('the recordings sit under the old synthesis: a quiet trim on the rain, a trim under 1 on the thunder', () => {
+    // the recorded loop is stored at -23 dBFS RMS (0.0708); at the gallery level it must stay at or under the synthesised bed (about 0.0028 RMS)
+    expect(0.0708 * RAIN_GALLERY * RAIN_REC_TRIM).toBeLessThanOrEqual(0.0028);
+    expect(RAIN_REC_TRIM).toBeGreaterThan(0);
+    expect(THUNDER_REC_TRIM).toBeGreaterThan(0);
+    expect(THUNDER_REC_TRIM).toBeLessThan(1);
   });
 });

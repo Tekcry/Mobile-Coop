@@ -399,8 +399,16 @@ export class PostStack {
     this.onRebuilt?.();
   }
 
+  /** (thermal-read) The scene depth this build reads (fog / TAAU's), or null (no stack: `minimal`). The cinematic pass
+   *  reads it for thermal's and electro's surfaces: no extra pass. */
+  get viewDepth(): DepthSource | null {
+    return this.sceneDepth;
+  }
+  private sceneDepth: DepthSource | null = null;
+
   private makeVolumetric(ratio: number): void {
     const depth = this.depthSource();
+    this.sceneDepth = depth;
     const pp = new PostProcess(
       'volumetric',
       'volumetric',
@@ -507,6 +515,7 @@ export class PostStack {
     this.motion = null;
     this.vol = null;
     this.depth = null;
+    this.sceneDepth = null;
   }
 
   dispose(): void {

@@ -472,7 +472,7 @@ describe('ShadowCues purity (S3)', () => {
     expect(ctl).toBeGreaterThan(per + 8);
   });
 
-  it('(S3b) the real LightField (2 lamps and the moon, 4 players): 2-3 footprints each, near points contrasted; one fill allocates <= 2432 B (target 0)', async () => {
+  it('(S3b, F57) the real LightField (2 lamps and the moon, 4 players): 2-3 footprints each, near points contrasted; one fill allocates 0 B', async () => {
     // the s1-s3 check's scene, baked as the game does: an open floor under two lamps and the moon
     const reg = new LightRegistry();
     reg.ambient = 0.18;
@@ -511,8 +511,9 @@ describe('ShadowCues purity (S3)', () => {
     }, 0, { n: 200, warm: 10000 });
     const near: string[] = [];
     for (let s = 0; s < 4; s++) for (let c = 0; c < cues.count[s]!; c++) near.push(pt(cues, s, c, 0)[3].toFixed(2));
-    console.info(`bytes per ShadowCues.fill with the real LightField (4 players, ${cues.count.join(' / ')} footprints): ${per.toFixed(1)} (before S3b: 5264, s1-s3 check), control with an object ${ctl.toFixed(1)}; near-point contrast ${near.join(' ')}`);
-    expect(per).toBeLessThanOrEqual(2432);
+    console.info(`bytes per ShadowCues.fill with the real LightField (4 players, ${cues.count.join(' / ')} footprints): ${per.toFixed(1)} (before S3b: 5264, s1-s3 check; before F57: 1296 for 3 players, the bounce read's boxed point), control with an object ${ctl.toFixed(1)}; near-point contrast ${near.join(' ')}`);
+    // (F57) 0 B: the bounce grid's point goes through `BounceGrid.q`, the field's through `pt` (tests/lightFieldAlloc.test.ts)
+    expect(per).toBe(0);
     expect(ctl).toBeGreaterThan(per + 8);
   });
 
