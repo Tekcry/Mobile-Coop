@@ -1,0 +1,15 @@
+{
+  "id": "20261027T040824-affected-e2e-eaf2ef77-0933",
+  "sha": "eaf2ef77827af339be936aab83e72585d25a817e",
+  "branch": "feature/mixamo-source-wire",
+  "pr": 498,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #498"
+}
