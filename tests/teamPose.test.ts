@@ -426,7 +426,7 @@ describe('team pose: the kit wire bit table (coop-kit K0)', () => {
     ['shutter', 16, 'none', 'body'],
     ['deadweight', 64, 'none', 'hang'],
     ['dropCatch', 128, 'drop', 'body'],
-    ['chimneyPair', 256, 'climb', 'body'],
+    ['chimneyPair', 256, 'climb', 'climb'],
     ['swingPass', 512, 'vault', 'body'],
     ['plankBridge', 1024, 'none', 'body'],
   ] as const;

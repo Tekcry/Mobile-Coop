@@ -101,6 +101,15 @@ describe('tiles', () => {
     expect(t!.figures.every((f) => !f.helmet && !f.armour)).toBe(true);
   });
 
+  // (G10a D1c) the camera sits at +z looking down -z, so +x is screen-left: caption order left to right = falling x
+  it('the bases and the line-ups read left to right in caption order (strictly decreasing x)', () => {
+    const dec = (xs: number[]) => xs.every((x, i) => i === 0 || x < xs[i - 1]!);
+    const [t] = tilesOf('bases');
+    expect(t!.label).toBe(t!.figures.map((f) => f.base).join(' / '));
+    expect(dec(t!.figures.map((f) => f.x))).toBe(true);
+    for (const n of tilesOf('night')) expect(dec(n.figures.map((f) => f.x)), n.id).toBe(true);
+  });
+
   it('all eight faces in four tones at 1.5 m and 3 m, head by head', () => {
     const faces = tilesOf('faces');
     expect(faces).toHaveLength(8 * 4 * 2);

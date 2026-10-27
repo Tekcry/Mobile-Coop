@@ -9,6 +9,7 @@
 //   tuck read the progress from the blend (`handSwapPh`), which keeps its velocity through a reversal.
 // - n4d polish 1: a bay or section restart within a kill's follow-through left it playing on the respawned player. The
 //   respawn's `StrikeController.reset` ends it (`TakedownController.endTail`).
+import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import type { RigPose } from '../src/player/characterRig';
@@ -387,6 +388,36 @@ function step(td: TakedownController, sk: StrikeController): void {
   td.fixedUpdate(DT, false, false);
   sk.fixedUpdate(DT, false);
 }
+
+describe('F5: e2e-netmove freezes its whiff strike before the whiff ends', () => {
+  // e2e-netmove's strike step holds a whiff (`begin('')`) at `freezeAt` (a phase of STRIKE_DUR) and expects the host to
+  // see mode strike. J19 R8 made STRIKE_DUR 1.48 s (was 0.68) while the whiff still ends at 0.38 s, so the old 0.4
+  // (0.59 s) came after the whiff's end: the strike ended unfrozen and the host read ground on every run.
+  const src = readFileSync(new URL('../scripts/e2e-netmove.mjs', import.meta.url), 'utf8');
+  const m = /const STRIKE_FREEZE_PH = ([\d.]+);/.exec(src);
+  const ph = Number(m?.[1]);
+
+  it('the suite\'s freeze phase lies after contact and at least 3 frames before the whiff ends', () => {
+    expect(m).not.toBeNull();
+    expect(src).toContain('g.strike.freezeAt = ph;');
+    expect(ph * STRIKE_DUR).toBeGreaterThan(STRIKE.hitAt);
+    expect(ph * STRIKE_DUR).toBeLessThan(STRIKE_WHIFF_DUR - 3 * DT);
+  });
+
+  it('the real controller holds that whiff (active, phase at the freeze) for 3 s, then ends it once released', () => {
+    const { g, td, sk } = stage();
+    sk.freezeAt = ph;
+    expect(sk.begin('')).toBe(true);
+    for (let i = 0; i < 180; i++) step(td, sk);
+    expect(sk.active).toBe(true);
+    expect(strikePhase(sk.t)).toBeGreaterThanOrEqual(ph);
+    expect(strikePhase(sk.t)).toBeLessThan(ph + DT / STRIKE_DUR + 1e-9);
+    expect(g.player.pose.melee).toBeGreaterThan(STRIKE_ARC_CONTACT);
+    sk.freezeAt = -1;
+    for (let i = 0; i < 30; i++) step(td, sk);
+    expect(sk.active).toBe(false);
+  });
+});
 
 describe('strike-pops: a bay or section restart ends the strike and the kill\'s follow-through (n4d polish 1)', () => {
   it('a restart inside a lethal takedown\'s follow-through: the respawn\'s reset ends it, no arc on the respawned player', () => {

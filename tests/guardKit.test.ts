@@ -81,6 +81,18 @@ describe('guard kit data (guard-models G0)', () => {
     expect(validateGuardKit(k)).toContain('kind grunt: unknown headwear tophat');
   });
 
+  // (G10a D2) SPEC 8 clamps target / neutral to 1: a channel over the neutral greys the colour
+  it('a skin tone or hair colour channel above its neutral is reported (would clamp)', () => {
+    for (const t of KIT.skinTones) expect(Math.max(...t.rgb), `tone ${t.id}`).toBeLessThanOrEqual(KIT.tintNeutral.skin);
+    for (const c of KIT.hairColours) expect(Math.max(...c.rgb), String(c.id)).toBeLessThanOrEqual(KIT.tintNeutral.hair);
+    const k = copy();
+    k.skinTones[0]!.rgb = [0.98, 0.58, 0.43];
+    expect(validateGuardKit(k)).toEqual(['skinTone 0: rgb 0.98, 0.58, 0.43 has a channel above the skin neutral 0.75 (would clamp: target / neutral is clamped to 1)']);
+    const h = copy();
+    h.hairColours.find((c) => c.id === 'grey')!.rgb = [0.65, 0.57, 0.55];
+    expect(validateGuardKit(h).some((e) => e.startsWith('hairColour grey:') && e.includes('would clamp'))).toBe(true);
+  });
+
   it('a kind over the LOD0 shown budget is reported', () => {
     const k = copy();
     k.pieces.find((p) => p.id === 'uniform')!.tris = [9000, 1800, 700];

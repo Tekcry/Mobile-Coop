@@ -83,8 +83,9 @@ export interface Settings {
     /** Cinematic look: gentle vignette, film grain (one combined pass). */
     vignette: boolean;
     filmGrain: boolean;
-    /** Brightness calibration (3.6 Step 4b, render only): the grade's exposure multiplier (`BRIGHTNESS_MIN` ..
-     *  `BRIGHTNESS_MAX`), and whether the calibration screen has been shown (once, after the update). */
+    /** Brightness calibration (3.6 Step 4b, render only): the slider value (`BRIGHTNESS_MIN` .. 1 .. `BRIGHTNESS_MAX`,
+     *  remapped to -1.5 .. +1.5 stops by `src/vfx/displayBrightness.ts`), and whether the calibration screen has been
+     *  shown (once, after the update). */
     brightness: number;
     brightnessSet: boolean;
     /** Characters drawn as the detailed smooth body (the 2.0 operator; default) or classic stick figures. */

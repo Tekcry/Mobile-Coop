@@ -9,7 +9,7 @@
 // in his light while the host hides nearer behind a wall, and in combat keeps his target and line on the client.
 // (guard-ai S24) Two intruders: two guard pairs each hunt the player they saw, and close on his last known position only.
 // (coop4 AI6) Four pages: three intruders (each guard pair hunts the player it saw, a client leaves and rejoins into his slot, a crouch-walk is silent and a run is heard), reading guard-ai #319's hooks (SKIP when absent).
-// (guard-models G9, M3) A guard's look seed (and, with E2E_GUARDMODELS=1, his visible pieces) is equal on the host and
+// (guard-models G9, M3) A guard's look seed (and, with the guard models on, his visible pieces) is equal on the host and
 // the client; after a course bay restart the same slot has the same seed on both; the helmet bit drops on both.
 // (co-op test fix, process audit section 2) The pages open legacy-off: the matches are Infiltration (the Ledger
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
@@ -18,10 +18,11 @@ import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
 import { until as untilNet, waitSim, waitHostSim, setSimPages, hostAndJoin, LOAD_MS, LOAD_MS_4, eachPage, pumpPages, onHostStep, offHostStep } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-// (guard-models G9) `E2E_GUARDMODELS=1` runs both pages with `?guardmodels=1` (the flag is default off until G8): the guard figures
-// exist, so the visible-piece asserts run. Without it only the look seed asserts run (the seed rides the wire either way).
-const GM = process.env.E2E_GUARDMODELS === '1';
-const NET = GM ? 'net=local&guardmodels=1' : 'net=local';
+// (guard-models G9, gm-flip) The guard models are on by default, so the guard figures exist and the visible-piece asserts
+// run; `E2E_GUARDMODELS=0` runs both pages with `?guardmodels=0` and only the look seed asserts (the seed rides the wire
+// either way).
+const GM = process.env.E2E_GUARDMODELS !== '0';
+const NET = GM ? 'net=local' : 'net=local&guardmodels=0';
 const wait = (ms) => waitSim(ms);
 let failed = false;
 const errs = [];
@@ -174,7 +175,7 @@ try {
     const ok = await until(B, `(l) => (${cmp})(l).ok`, hostList, 10000, 'client puppets carry the host look seeds').then(() => true, () => false);
     const res = await B.evaluate(`(${cmp})(${JSON.stringify(hostList)})`);
     assert(ok && res.n > 0 && res.bad.length === 0, `the client's puppets carry the host's look seeds${hostList.some((h) => h.pieces) ? ' and the same visible pieces' : ''} (${res.n} compared; ${res.bad.slice(0, 3).join('; ')})`);
-    if (GM) assert(hostList.some((h) => h.pieces), 'guardmodels=1: the host guards have figures (shown pieces are tracked)');
+    if (GM) assert(hostList.some((h) => h.pieces), 'guard models on: the host guards have figures (shown pieces are tracked)');
   }
 
   // (coop-torches) a guard's flashlight crosses the wire: the host's test hook forces one guard's torch rule on, the

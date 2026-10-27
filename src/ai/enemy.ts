@@ -41,6 +41,10 @@ import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
 import type { LightDef, Occluder } from '../world/lights';
 import type { LightField } from '../world/lightField';
+import { OCC_KIND, occKey, type CharOccluders } from '../world/charOccluders';
+import type { ShadowCues } from '../world/shadowCues';
+import { NI_X, NI_YAW, NI_Z, NO_DIST, NO_X, NO_Y, NO_Z, NOTICE_IN, NOTICE_OUT, noticeInto, SHADOW_NOTICE } from './shadowNotice';
+import { guardOccR } from './guardOccluders';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
@@ -58,7 +62,7 @@ import { DOG_BITE_DECAY, dogGaitStep, dogHead, dogPhaseBack } from './dogHead';
 import { FIXED_DT } from '../core/loop';
 import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newHeadIn, newLeanState, wireHeadIn, type GuardHeadIn, type GuardHeadRest, type HeadOut } from './guardHead';
 import { CAUTION } from './awareness';
-import type { InstancedMesh } from '../core/babylon';
+import type { AbstractMesh, InstancedMesh } from '../core/babylon';
 import { GuardAnimTier } from './animTierView';
 import { ANIM_TIER_FROZEN_CARRY_MAX } from './animTier';
 import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
@@ -91,6 +95,9 @@ const P_LIGHT = new Float64Array(MAX_INTRUDERS);
 const P_ANGLE = new Float64Array(MAX_INTRUDERS);
 /** (coop4 AI2) The order players are started in under the ray budget (`perceiveOrder`; 3+ players only). */
 const P_ORDER = new Int8Array(MAX_INTRUDERS);
+/** (guard-ai-j16 G3 fix round) `SHADOW_NOTICE.slack` read once: a double loaded from the object's field and passed to
+ *  `losTo` boxes 16 B each call when that call is not inlined; a module constant passes its own number. */
+const CUE_SLACK = SHADOW_NOTICE.slack;
 /** One player's sight input (the chosen player's goes to `Enemy.sight`). */
 const P_SIGHT: SightInput = { dist: 0, angle: 0, light: 1, crouched: false, speed: 0, exposure: 0, sensitivity: 1, pitch: 0 };
 
@@ -190,6 +197,13 @@ export interface AiContext {
   /** (LR16t) Static geometry for the light field's flashlights (`EnemyManager.bodyOccluder`): the light on a target
    *  without its own sample is tested as a body's is, so a torch behind a wall does not light it. */
   lightOccluder?: Occluder;
+  /** (guard-ai-j16 G3, G352) The character-occluder contract the guards' light reads take (`EnemyManager.chars`): a
+   *  getter, never a value, so a contract set on the manager after construction reaches every guard (plan check 1
+   *  item 1). Null or absent: no character shadows (today's light to the bit). */
+  chars?(): CharOccluders | null;
+  /** (guard-ai-j16 G3, G379) The players' cast-shadow cues (`EnemyManager.cues`, Sector Ops' 10 Hz fill), read by the
+   *  shadow cue (`Enemy.shadowLook`). A getter as `chars`. Null or absent: no cue (today's perception). */
+  cues?(): ShadowCues | null;
   /** (guard-ai S2) Coordinated guards (the incident board): the new paces (A9) and the calm turn when searching.
    *  Absent / false (Hunter, Mission): the old paces. */
   coordinated?(): boolean;
@@ -247,9 +261,13 @@ export interface AiContext {
 
 let nextId = 1;
 /** (LR16t) The light field at a point for a guard's perception, its flashlights tested with the context's occluder
- *  (`AiContext.lightOccluder`), as a body's light is. */
-export function fieldLight(ctx: Pick<AiContext, 'world' | 'lightOccluder'>, x: number, y: number, z: number): number {
-  return ctx.world.lightField.totalAt(x, y, z, ctx.lightOccluder);
+ *  (`AiContext.lightOccluder`), as a body's light is. (guard-ai-j16 G3) With a character contract (`AiContext.chars`)
+ *  the characters' shadows count, `skip` the sampled character's owner key (a player: `occKey(OCC_KIND.player, i)`);
+ *  without one the call is today's, argument for argument. */
+export function fieldLight(ctx: Pick<AiContext, 'world' | 'lightOccluder' | 'chars'>, x: number, y: number, z: number, skip = -1): number {
+  const chars = ctx.chars?.() ?? null;
+  if (chars === null) return ctx.world.lightField.totalAt(x, y, z, ctx.lightOccluder);
+  return ctx.world.lightField.totalAt(x, y, z, ctx.lightOccluder, chars, skip);
 }
 
 /** The paces table lives in `response.ts` (pure; guard-ai S19 added the rush), re-exported here for its readers. */
@@ -548,6 +566,28 @@ export class Enemy implements Damageable {
   }
   /** (guard-ai S1) Seconds left looking towards a sound he was not sent to (`hearTurn`): stands and faces it. */
   private turnT = 0;
+  /** (guard-ai-j16 G3, A9) His character-occluder radius: the hit capsule's `bodyR` (`guardOccR`), cached at spawn. */
+  readonly occR: number;
+  /** (guard-ai-j16 G3, A11) His last shadow cue (`shadowLook`): seconds since (Infinity: none yet), the floor point he
+   *  turned to (x, z; his stimulus) and the player's `ShadowCues` slot. Read by the debug probe and the e2e. */
+  cueT = Infinity;
+  cueX = 0;
+  cueZ = 0;
+  cueSlot = -1;
+  /** (G3) `noticeInto`'s result for one player, and the nearest so far over the players (`NOTICE_OUT` each). */
+  private readonly cueOut = new Float64Array(NOTICE_OUT);
+  private readonly cueBest = new Float64Array(NOTICE_OUT);
+  /** (G3) The cue ray's end (the floor point). */
+  private readonly cueV = new Vector3();
+  /** (G3, A5) The cue lifts him from calm this step: that rise says nothing (`onLevel`). Cleared each step. */
+  private cueRise = false;
+  /** (guard-ai-j16 fix 2, check B FIX 1; A5) This suspicious episode rests on the cue alone: set by the hushed rise
+   *  (`onLevel`), cleared by any other level change and by a real sight, sound (`hear`, `hearTurn`) or ack. While set,
+   *  the calm-down says nothing ('clear'); a sight or sound that clears it says the 'suspicious' line the rise skipped. */
+  private cueQuiet = false;
+  /** (guard-ai-j16 fix 2, check B FIX 2; A6) The running `turnT` is the cue's own look (a `hearTurn` / `ack` look is
+   *  not: the cue never takes it over). Set by `shadowLook`, cleared by `hearTurn` and `ack`. */
+  private cueTurn = false;
   /** (guard-ai S2) The incident this guard was sent to by the board (its id), -1 none; cleared when he is back
    *  (calm), in combat, or on another search. */
   incident = -1;
@@ -772,6 +812,8 @@ export class Enemy implements Damageable {
     // (guard-render S4) anim tiers: off-screen / far guards solve their pose less often (`animTier.ts`)
     this.animTier = new GuardAnimTier(ctx.scene, this.rig.voxel?.meshes[0] ?? null, this.num, def.height, ctx.world);
     this.hitboxes = new Hitboxes(ctx.scene, ctx.registry, this, def.scale, def.build);
+    // (guard-ai-j16 G3) the hit capsule's radius as his occluder's (once: `guardOccR` allocates)
+    this.occR = guardOccR(def.build, def.scale);
     this.headRest = guardHeadRest(def.height, def.build, def.gun !== null, def.melee ? 0 : def.runSpeed);
     this.voice = new BarkVoice(this.num);
     const parts = ctx.world.parts;
@@ -1017,7 +1059,7 @@ export class Enemy implements Damageable {
   sinceStagger = 1e9;
   /** The placeholder gear parts (A45), built once on first use and toggled: the helmet on his head node, the plates. */
   private helmetPart: InstancedMesh | null = null;
-  private armourParts: InstancedMesh[] | null = null;
+  private armourParts: AbstractMesh[] | null = null;
   private gearHex = '';
 
   /** Put gear on him (or take it off): `placeSlot` (slot tag + section default), a woken guard (`inherit`), and S13's
@@ -1367,17 +1409,26 @@ export class Enemy implements Damageable {
    */
   hearTurn(x: number, z: number, radius = 0): void {
     if (this.alerted || !this.alive || this.passive) return;
+    let loud = false;
     if (radius > 0) {
       const s = Math.min(noiseSuspicion(hyp2(x - this.pos.x, z - this.pos.z), radius), HEARING.turnMax);
       if (s > this.meter) this.meter = s;
+      loud = s >= PERCEPTION.suspicious;
     }
     const lvl = this.aware.level;
+    // (guard-ai-j16 fix 2, A5) a sound in a cue-only episode: it is no longer the cue's; a sound that would have lifted
+    // him says the line the hushed rise skipped
+    if (this.cueQuiet) {
+      this.cueQuiet = false;
+      if (loud && lvl === 'suspicious') this.bark('suspicious');
+    }
     // (guard-ai S2) sent somewhere by the board: the board owns his target (a later noise does not re-aim him)
     if (lvl === 'investigating' || lvl === 'searching' || this.incident >= 0) return;
     this.stimulus[0] = x;
     this.stimulus[1] = z;
     this.hasStimulus = true;
     this.turnT = ALERT.hearLook;
+    this.cueTurn = false;
   }
 
   /**
@@ -1670,6 +1721,10 @@ export class Enemy implements Damageable {
     this.stimulus[1] = z;
     this.hasStimulus = true;
     this.turnT = Math.max(this.turnT, INCIDENT.ackLook);
+    // (guard-ai-j16 fix 2) the look is the ack's now (the cue does not take it over), and so is the episode (silently:
+    // an ack never says the 'suspicious' line; its own is "Copy.")
+    this.cueTurn = false;
+    this.cueQuiet = false;
   }
 
   /** Gunfire close by: straight to combat, towards it. */
@@ -2340,8 +2395,14 @@ export class Enemy implements Damageable {
     // (GA6b, N6) a partner's glimpse follow: the send's `checking` was his line, the rise says nothing more
     const hush = this.quietRise;
     if (to !== 'suspicious') this.quietRise = false;
+    // (guard-ai-j16 fix 2, check B FIX 1) a cue-only episode ends with this change: its calm-down is silent too
+    const cueOnly = this.cueQuiet;
+    this.cueQuiet = false;
     if (to === 'suspicious') {
-      if (!hush) this.bark('suspicious');
+      // (guard-ai-j16 G3, A5) a rise from his shadow cue alone (no sight, no sound) is silent: the white arc only
+      const cueHush = this.cueRise && this.riseCause === RISE_NONE;
+      if (!hush && !cueHush) this.bark('suspicious');
+      this.cueQuiet = cueHush;
     }
     // (S4 fix) the line follows the cause: sight lines only for sight, neutral ones for none
     else if (to === 'investigating') {
@@ -2351,7 +2412,8 @@ export class Enemy implements Damageable {
     else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
     // (guard-ai S4) unaware -> cooldown is caution setting in: nothing to say
-    else if (to === 'cooldown' && from !== 'unaware' && !quiet) this.bark(task >= 0 ? 'standDown' : 'clear');
+    // (guard-ai-j16 fix 2, A5) back from a rise the shadow cue alone caused: nothing to say either way
+    else if (to === 'cooldown' && from !== 'unaware' && !quiet && !cueOnly) this.bark(task >= 0 ? 'standDown' : 'clear');
     else if (to === 'unaware' && task >= 0 && !quiet) this.bark('standDown');
     // (guard-ai S3) back from the board's task: his "nothing here" is a radio call (the section acks it)
     if ((to === 'cooldown' || to === 'unaware') && task >= 0) this.ctx.radioCall?.(this, task, 'standDown');
@@ -2560,7 +2622,8 @@ export class Enemy implements Damageable {
     // (artnext C9) killed while render-frozen (a partner's shot, a grenade out of view): the rig still holds the pose at
     // the freeze, so solve it once at his current place first; the ragdoll and `Body.pos` then never depend on whether
     // this page's camera saw him
-    if (!this.rig.root.isEnabled(false)) this.animTier.solveNow(this.rig, ANIM_TIER_FROZEN_CARRY_MAX, this.rp);
+    const frozen = !this.rig.root.isEnabled(false);
+    if (frozen) this.animTier.solveNow(this.rig, ANIM_TIER_FROZEN_CARRY_MAX, this.rp);
     // (guard-models G7) his figure goes on with the rig as his body (`Body` finds it by the rig), unflashed
     if (this.gbody) this.gbody.flash = 0;
     const imp = h.dir.scale(Math.min(80, 8 + h.impulse * 3) * (h.kind === 'explosion' ? 2.5 : 1));
@@ -2569,6 +2632,13 @@ export class Enemy implements Damageable {
     this.ctx.addBody(this, this.rig, imp, lethal);
     // (piano-knife S1) the ragdoll has his last pose: the knife kill's drive and hands off
     if (this.knifePinned || (this.killDrv && this.rig.graph.kill === this.killDrv)) this.knifeVictim(null, 0, 0);
+    // (S11-CHECK P2) killed while frozen: `GuardBody.frame` skipped (root disabled) and the freeze's thaw of a dead
+    // guard does not pose him, so pose the figure from the solved rig (and the ragdoll's re-parenting) now: his first
+    // drawn frame is current, not the pose at the freeze
+    if (frozen && this.gbody) {
+      this.gbody.figure.update(this.ctx.scene.activeCamera);
+      this.gbody.figure.poseNow();
+    }
     this.ctx.onKilled(this, h);
   }
 
@@ -2641,6 +2711,7 @@ export class Enemy implements Damageable {
     this.stagger = Math.max(0, this.stagger - dt);
     this.strikeStaggerT = Math.max(0, this.strikeStaggerT - dt);
     this.lastSeenT += dt;
+    this.cueT += dt;
     this.grenadeCd -= dt;
     this.doorCheck = Math.max(0, this.doorCheck - dt);
     this.strafeT -= dt;
@@ -2757,7 +2828,8 @@ export class Enemy implements Damageable {
       const los = chest || head;
       const expo = alerted ? (los ? 1 : 0) : seen / (t.headPoint ? 3 : 2);
       // light on him (perception reads it): the owner's sample, else the light field at the aim point
-      const light = p.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z);
+      // (guard-ai-j16 G3) his own capsule skipped: the contract's player key is the players() index (`fillPlayers`)
+      const light = p.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z, occKey(OCC_KIND.player, i));
       // awareness: sight fill rate from distance, field of view, light, stance, motion and exposure
       const si = P_SIGHT;
       si.dist = d;
@@ -2819,7 +2891,7 @@ export class Enemy implements Damageable {
       this.sawOnce = true;
     }
     let light = P_LIGHT[k]!;
-    if (Number.isNaN(light)) light = best.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z);
+    if (Number.isNaN(light)) light = best.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z, occKey(OCC_KIND.player, k));
     this.targetLight = light;
     const si = this.sight;
     si.dist = this.dist;
@@ -2846,6 +2918,81 @@ export class Enemy implements Damageable {
     }
     if (alerted && this.los) this.takeSighting(best);
     this.lookForBodies(eye);
+    // (guard-ai-j16 G3, plan check 1 item 6) last: the cue's stimulus is not overwritten by a sub-leak glimpse above
+    this.shadowLook(eye, capped);
+  }
+
+  /**
+   * (guard-ai-j16 G3, G379 "A faint cue"; BRIEF A4-A6, A11, PLAN section 1) A player's moving cast shadow in his focused
+   * cone: he grows suspicious and looks at it, never more. Who (A6): not alerted, passive or a dog, at unaware /
+   * cooldown / suspicious with no incident task, not lured or on the breaker walk, and seeing nobody this think (every
+   * player's rate <= `leak`) nor resting on an earlier glimpse (`sawMoment`): sight keeps his look and its linger rule;
+   * nor on a sound (`heard`, `heardMoment`) or a hearing / ack look in progress (`turnT` not `cueTurn`): a sound keeps
+   * its spot and its look (fix 2). Over every live
+   * player in the cues (`slotOf`), the nearest qualifying point (`noticeInto`), one line-of-sight ray from his eye to
+   * it (A4; at 3+ players only inside `PERCEIVE.maxRays`, counted there). Clear: the hearing turn's reaction
+   * (`hearTurn`, A5), written here so no double crosses a call: meter at least `SHADOW_NOTICE.meter`, the point as his
+   * stimulus, `turnT` = `ALERT.hearLook`; no `heard`, report, `lastKnown`, `sawOnce` or target change; a rise from calm
+   * that the cue lifts says nothing (`cueRise`), and so does its calm-down (`cueQuiet`). Records `cueT` / `cueX` /
+   * `cueZ` / `cueSlot`.
+   * No cues (null or absent): nothing, today's perception. No allocation.
+   */
+  private shadowLook(eye: Vector3, capped: boolean): void {
+    const cues = this.ctx.cues?.() ?? null;
+    if (cues === null || !SHADOW_NOTICE.enabled) return;
+    if (this.alerted || this.passive || this.dog !== null || this.incident >= 0) return;
+    // (G3 fix 1, A6) a calm moment that rests on sight keeps its own look and linger rule (a shadow adds, never
+    // removes); (G3 polish 5) a lured post keeps to his lure walk, as on a mission order
+    // (fix 2, check B polish 2) the breaker walk keeps walking on a rise (`breakerStep` while `rate <= 0`): as a lure
+    if (this.sawMoment || this.lure.active || this.brkGroup >= 0) return;
+    // (fix 2, check B FIX 2, A6) sound first: a calm moment that rests on a sound (`heard`: a `hear` / send earlier this
+    // step; `heardMoment` after) keeps the noise's spot, and a hearing or ack look in progress (`turnT` not the cue's
+    // own) keeps its direction. The cue never takes a sound's place
+    if (this.heard || this.heardMoment || (this.turnT > 0 && !this.cueTurn)) return;
+    const lvl = this.aware.level;
+    if (lvl !== 'unaware' && lvl !== 'cooldown' && lvl !== 'suspicious') return;
+    // (A4, plan check 1 item 6) 3+ players: the cue's ray only while the think stays within the budget
+    if (capped && this.raysThink + 1 > PERCEIVE.maxRays) return;
+    const players = this.ctx.players();
+    const n = players.length < MAX_INTRUDERS ? players.length : MAX_INTRUDERS;
+    for (let i = 0; i < n; i++) if (P_RATE[i]! > PERCEPTION.leak) return;
+    NOTICE_IN[NI_X] = this.pos.x;
+    NOTICE_IN[NI_Z] = this.pos.z;
+    NOTICE_IN[NI_YAW] = this.yaw;
+    const out = this.cueOut;
+    const best = this.cueBest;
+    let slot = -1;
+    for (let i = 0; i < n; i++) {
+      const p = players[i]!;
+      if (!p.target.alive) continue;
+      const s = cues.slotOf(p.id);
+      if (s < 0 || noticeInto(cues, s, out) < 0) continue;
+      if (slot >= 0 && !(out[NO_DIST]! < best[NO_DIST]!)) continue;
+      best.set(out);
+      slot = s;
+    }
+    if (slot < 0) return;
+    this.raysThink++;
+    this.raysStep++;
+    const v = this.cueV;
+    // component stores, not `set(x, y, z)`: three doubles passed to a call not inlined box (G3 fix round)
+    v.x = best[NO_X]!;
+    v.y = best[NO_Y]!;
+    v.z = best[NO_Z]!;
+    if (!this.losTo(eye, v, CUE_SLACK)) return;
+    // the hearing turn's reaction (A5); from calm the rise is silent, only when the cue is what lifts him (G3 polish 1:
+    // a `hearTurn` earlier this step that already took him past suspicious still barks)
+    if (lvl !== 'suspicious' && this.meter < PERCEPTION.suspicious) this.cueRise = true;
+    if (this.meter < SHADOW_NOTICE.meter) this.meter = SHADOW_NOTICE.meter;
+    this.stimulus[0] = v.x;
+    this.stimulus[1] = v.z;
+    this.hasStimulus = true;
+    this.turnT = ALERT.hearLook;
+    this.cueTurn = true;
+    this.cueT = 0;
+    this.cueX = v.x;
+    this.cueZ = v.z;
+    this.cueSlot = slot;
   }
 
   /** Not in combat: notice a downed body (light, distance, field of view, line of sight). One ray at most. */
@@ -2930,6 +3077,13 @@ export class Enemy implements Damageable {
     }
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
+    // (guard-ai-j16 fix 2, check B FIX 1 / polish 1) a real sight or sound in a cue-only episode that left him
+    // suspicious: the episode is theirs now (its calm-down barks), and he says the line the hushed rise skipped. A level
+    // change this step already ended the episode in `onLevel` with its own line
+    if (this.cueQuiet && (seen || this.heard)) {
+      this.cueQuiet = false;
+      if (this.aware.level === 'suspicious') this.bark('suspicious');
+    }
     // in combat without sight: arriving at the last known position with nothing there starts the search
     if (this.aware.level === 'alert' && !this.los && this.ctx.stealth() && this.state === 'chase' && this.sinceSeen > 1.5) {
       const k = this.huntPos();
@@ -2943,6 +3097,7 @@ export class Enemy implements Damageable {
     this.heard = false;
     this.gunfire = false;
     this.searchReq = false;
+    this.cueRise = false;
   }
 
   /** Head towards a floor point: straight when the line is clear, else along an A* path (replanned when the
@@ -4711,7 +4866,13 @@ export class Enemy implements Damageable {
     this.animTier.solveNow(this.rig, 0, this.rp);
     // (guard-models S11-CHECK P1) pose the figure from the thawed rig in this frame (the thaw runs in the camera
     // evaluation, after `GuardBody.frame`), so the first frame drawn is current, not the pose at the freeze
-    this.gbody?.figure.update(this.ctx.scene.activeCamera);
+    // (GM-PERF-CHECK 6) and run that pose now: a skeleton already computed in this render id would not compute again
+    // until the next one, so the thawed pose would show a frame late
+    const gb = this.gbody;
+    if (gb) {
+      gb.figure.update(this.ctx.scene.activeCamera);
+      gb.figure.poseNow();
+    }
   }
 
   /** Sniper: the laser from the scope along the aim while it aims, and the glint (sized for the local view). */

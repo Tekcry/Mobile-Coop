@@ -31,8 +31,7 @@ import { bakedLights, bakeLevelLight, lampKeyOf, moonKeyOf } from '../src/world/
 // (the cache write is spied; everything else in lampJobs is the real module)
 vi.mock('../src/voxel/lampJobs', async (orig) => ({ ...(await orig<typeof LampJobs>()), saveLamps: vi.fn(async () => undefined) }));
 import { campusOps } from '../src/world/maps/campusOps';
-import { applyMapFlicker } from '../src/world/lampFlicker';
-import { applyMapSway } from '../src/world/lampSway';
+import { buildMapLights } from '../src/world/mapLights';
 import { dressingOn } from '../src/world/detailPass';
 
 /** A small room with two lamps (a fast bake). */
@@ -53,9 +52,7 @@ function room() {
 /** campusOps' fixed lights as `World.create` builds them for `seed` (no Babylon: `prepare` is the light set's part). */
 function campusKey(seed: number): string {
   const b = new LevelBuilder();
-  campusOps.build(b, seed);
-  applyMapFlicker(b.lights, 'campusOps', seed);
-  applyMapSway(b, 'campusOps');
+  buildMapLights(b, campusOps, seed);
   const { light } = b.prepare('campusOps', { dressing: dressingOn(campusOps) });
   return lampKeyOf('campusOps', light.hash, bakedLights(b.lights).lights);
 }

@@ -113,7 +113,7 @@ describe('Saltmarsh Park (campusOps), registration and shape', () => {
     expect(b.bounds).toEqual({ minX: -70, maxX: 70, minZ: -84, maxZ: 70 });
     expect(CAMPUS_BOUNDS.maxX - CAMPUS_BOUNDS.minX).toBe(140);
     // Warehouse Ops stays as it is: the first sector map (the default)
-    expect(MAPS.filter((m) => m.modes.includes('sector')).map((m) => m.id)).toEqual(['warehouseOps', 'campusOps']);
+    expect(MAPS.filter((m) => m.modes.includes('sector')).map((m) => m.id)).toEqual(['warehouseOps', 'campusOps', 'tallowWharf']);
   });
 
   it('five sections chain (S3-S5 stubs: no guards; S2 is slice 2), valid data, each later one starting at the previous checkpoint', () => {

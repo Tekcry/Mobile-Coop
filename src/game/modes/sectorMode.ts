@@ -832,13 +832,19 @@ export class SectorMode implements GameMode {
     // out (their index stays theirs: desks and overhear read `slotEnemy[k]`), and the alarms send its extras
     this.run.teamSize = teamSizeOf(this.g, this.refs);
     const n = flags.sectorGuards ?? s.guards.length;
-    // (mission-framework) a mission's spawn list may hold a slot back too
+    // (gm-look-seeds) the slot seeds are the section's before any guard spawns: a reinforcement or a team member spawned
+    // ahead of a staggered slot guard never takes his seed. (mission-framework) a mission's spawn list may hold a slot
+    // back too; (coop4 A8) so does a `minPlayers` tag above the team: neither spawns, so neither holds a seed
+    const looks: number[] = [];
     for (let k = 0; k < s.guards.length && k < n; k++) {
       const slot = s.guards[k]!;
-      if (guardForTeam(slot, this.run.teamSize) && (!this.mission || this.mission.spawns(i, k))) {
-        this.pending.push({ k, slot, alerted: false, look: em?.lookOfSlot(s.id, k) });
-      }
+      if (!guardForTeam(slot, this.run.teamSize)) continue;
+      if (this.mission && !this.mission.spawns(i, k)) continue;
+      const look = em?.lookOfSlot(s.id, k);
+      if (look !== undefined) looks.push(look);
+      this.pending.push({ k, slot, alerted: false, look });
     }
+    em?.beginLooks(looks);
     this.fill();
   }
 

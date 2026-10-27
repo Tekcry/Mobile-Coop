@@ -22,7 +22,7 @@ import type { MotionState } from '../anim/motion';
 import { slotFromList } from '../game/playerSlots';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 78;
+export const PROTOCOL_VERSION = 79;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4; // coop4: = `PLAYER_SLOTS` (game/playerSlots.ts); each mode takes `capacity(mode)`
 export const COOP_MAX = 4;

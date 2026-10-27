@@ -80,9 +80,8 @@ export interface Flags {
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
   /** (guard-models G7, A10) Guards draw as the operator-pipeline figure (`src/ai/guardBody.ts`); `?guardmodels=0` keeps
-   *  the merged S1 body (comparisons, and the fallback while a guard's files load). DEFAULT OFF on the guard-models
-   *  branch until G8 measures (`?guardmodels=1` turns it on); G8 flips the default. On /preview/ default on
-   *  (preview-flags). */
+   *  the merged S1 body (comparisons, and the fallback while a guard's files load). Default ON everywhere since gm-flip
+   *  (the G8 gate passed after gm-perf, the gm-look fixes are baked; Michael ~23:55 2026-10-26 "Just switch them on"). */
   guardModels: boolean;
   /** (guard-render S4) Guard anim tiers (off-screen every `ANIM_TIER_OFFSCREEN` th frame, far every 2nd:
    *  `src/ai/animTier.ts`); `?animtier=0` off. */
@@ -150,8 +149,9 @@ export interface Flags {
 }
 
 /** (coop-kit A1, BRIEF A8) Every kit move id that exists in the game (each slice adds its id in the PR that makes the
- *  move playable): A1's rope descent, Campaign's pull-up and shutter (PR #578, folded in from `coopKit`). */
-export const KIT_BUILT: readonly string[] = ['descent', 'pull', 'shutter'];
+ *  move playable): A1's rope descent, Campaign's pull-up and shutter (PR #578, folded in from `coopKit`), (coop-kit K3)
+ *  Chimney Pair (`chimneyPair`). */
+export const KIT_BUILT: readonly string[] = ['descent', 'pull', 'shutter', 'chimneyPair'];
 
 /** (coop-kit A1) The kit ids on in the live game: an id joins this list when Michael accepts its walk (switch-on). */
 export const KIT_MOVES_ON: readonly string[] = [];
@@ -285,8 +285,8 @@ export const flags: Flags = {
   mixamo: onOffFlag(params.get('mixamo')),
   anim: ((v) => (v === 'hand' || v === 'cmu' || v === 'mixamo' ? v : null))(params.get('anim')),
   guardMerge: params.get('guardmerge') !== '0',
-  // (guard-models G7) default off until G8's budget run: `?guardmodels=1` on; G8 makes it `!== '0'`
-  guardModels: darkFlag(params.get('guardmodels'), PREVIEW_ON),
+  // (guard-models G7, gm-flip) default on: `?guardmodels=0` keeps the merged S1 body
+  guardModels: params.get('guardmodels') !== '0',
   animTier: params.get('animtier') !== '0',
   animShadow: params.get('animshadow') !== '0',
   animOff: Number(params.get('animoff')) | 0,

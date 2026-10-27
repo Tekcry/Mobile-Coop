@@ -55,12 +55,15 @@ const REPORT = ['anim-audit'];
 // (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6-9 (campusOps, solo: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5; split in F33 so no part nears the kill),
 // (coop4 E2E) 10 (campusOps, four pages: slots, beacons, spawns, light, jam, crate, revive, connector, pair gate, tagged guards), 11 (warehouseOps: drop and rejoin, a late fourth page, two pairs of team moves), (coop4 OUT) 12 (campusOps, three pages: an operator out waits for the connector); 10-12 run alone in a laptop slot (`E2E_GPU=1`, `E2E_LOAD_MS=240000`)
 // (mission-framework EN2) e2e-sectorops:mission = the campus test mission (`scripts/e2e-sectorops-mission.mjs`, its own script: PART_SCRIPT)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'mission'] };
+// (mission-framework GB6) e2e-sectorops:wharf-tgc / :wharf-tkl = the Tallow Wharf missions in co-op (scripts/e2e-sectorops-wharf.mjs --mission=<id>)
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'mission', 'wharf-tgc', 'wharf-tkl'] };
 // (coop4 release check B 2) parts 10-12 (3-4 pages) are named only (`e2e-sectorops:10`): never in a full, quick or affected
 // expansion, so they run alone on the laptop queue as the docs say.
 /** A part that lives in its own script (run with no `--part`): the script name, or `[script, ...args]`. */
 const PART_SCRIPT = {
   'e2e-sectorops:mission': 'e2e-sectorops-mission',
+  'e2e-sectorops:wharf-tgc': ['e2e-sectorops-wharf', '--mission=threeGreyCoats'],
+  'e2e-sectorops:wharf-tkl': ['e2e-sectorops-wharf', '--mission=twoKeyLedger'],
 };
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
@@ -162,7 +165,7 @@ function affectedSuites() {
   } catch (e) {
     console.error(`affected: no src/net/protocol.ts at HEAD (${String(e.stderr || e.message).trim()}): the wire rule is skipped`);
   }
-  // (affected-cap) the pick the laptop queue requests: --affected-max=N, else E2E_AFFECTED_MAX, else 3; --wide with neither is uncapped
+  // (affected-cap) the pick the laptop queue requests: --affected-max=N, else E2E_AFFECTED_MAX, else AFFECTED_MAX (1, G421); --wide with neither is uncapped
   const given = opt('affected-max') ?? process.env.E2E_AFFECTED_MAX;
   const max = wide && given === undefined ? undefined : parseAffectedMax(given);
   const suites = affectedPick(files, { wide, max, protocolTs });
