@@ -1,0 +1,15 @@
+{
+  "id": "20261027T035247-affected-e2e-20c40b35-4147",
+  "sha": "20c40b35aa3bb42cc02c4ec717d025aef0738b00",
+  "branch": "feature/guard-ai-mill-hunt",
+  "pr": 713,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #713"
+}
