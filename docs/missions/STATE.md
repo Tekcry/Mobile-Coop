@@ -17,9 +17,11 @@ UPDATE ~15:00: CM3 two Opus PASS -> PR 2 = #711 (feature/campaign-mode-cm3 8bbc6
    retarget to master when #708 lands, re-post checker). CM5 notes from the checks: sections before a Continue stay
    unrated; the save stays on the match options (a restart reuses them: clear it after the Continue starts); the real
    SectorMode resume wiring has no unit test (stand-in mode): add one in CM5.
-CM4 BUILDING (~15:05, Opus) on feature/campaign-mode-cm4 (worktree -cm4) from #711 8bbc61023; brief scratch/campaign/cm/
-   CM4-brief.md, report CM4-report.md (resume from its step if cut off). Then one Opus checker (coopUi is src/net: two),
-   PR 3; then CM5 + CM6 (PR 4), CM7 (PR 5, Job-done).
+CM4 DONE (~15:20) e387efb98 on feature/campaign-mode-cm4 (worktree -cm4, from #711): lobby Mission row, briefing,
+   Continue, main-menu "Continue campaign" (CM4-report.md). Opus checker 1 running -> scratch/campaign/cm/CM4-check-1.md
+   (prompt CM4-check-prompt.md), then checker 2 -> CM4-check-2.md (rerun any missing). Both PASS -> PR 3 (base
+   feature/campaign-mode-cm3) -> tell the orchestrator. Then CM5 + CM6 (PR 4: autosave, end rating, results panel; clear
+   the save on another pick; the CM3 notes above), CM7 (PR 5, Job-done). #708 / #711: affected-e2e queued.
 
 ## OLD RESUME 2026-10-27 ~11:50 SAVE (Night Shift | Campaign Build; reset 13:50: carry on without waiting)
 Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). All worktrees clean and pushed.
