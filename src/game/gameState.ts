@@ -4404,7 +4404,8 @@ export class GameState implements AppState {
     } else w.set('takedown', null, 0, 0);
     // (G107) no speed-gear indicator: the max-speed cap is felt, not shown
     this.hud.setTactical(1, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
-    w.flush();
+    // (context-prompts S4, Doubt 2) the projector lets the context prompts place on their targets
+    w.flush(this);
   }
 
   /** Anchor prompts: what traverse attaches to from the ground; climb up / jump / drop while attached. */
