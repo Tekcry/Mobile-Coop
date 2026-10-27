@@ -32,6 +32,7 @@ import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } fr
 import { COMBAT_HEAR, HEARING } from './hearing';
 import { PatrolWalker, PATROL, type PatrolRoute } from './patrol';
 import { SCENE_SWEEP, sweepPlan, type SweepPlan } from './sceneSweep';
+import { HUNT } from './millHunt';
 import { ARMOUR_FIRE, ArmourGate } from './armourFire';
 import { PACE, paceSpeed, ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec, urgentKind } from './response';
 import { SEARCH_AREA } from './searchArea';
@@ -426,6 +427,9 @@ const GOAL_OUT: Goal = { point: null, speed: 0, face: null };
 /** (guard-ai-alloc) The goal point `decide` builds (his cover spot or its peek point, the attack strafe), refilled per
  *  step (`move` reads it at once). */
 const GOAL_PT: P2 = [0, 0];
+/** (guard-ai mill-hunt H3) He stops walking within this of the hunt board's spot (m; inside `HUNT.arrive`, where the
+ *  board counts him there). */
+const MH_NEAR = 0.3;
 /** (guard-ai-alloc) `chasePoint`'s own position and zig point (read at once: `lineClear` reads them; a returned zig
  *  point is `move`'s goal this step). Neither reaches `goTo` / `findPath`, which can keep its goal as a route. */
 const CHASE_ME: P2 = [0, 0];
@@ -1958,6 +1962,50 @@ export class Enemy implements Damageable {
   sweepSide = 1;
   /** (GA6b) His sweep plan, built once at the first `startSweep` (allocates); `setPatrol` drops it. */
   private sweepCache: SweepPlan | null = null;
+  /**
+   * (guard-ai mill-hunt H3, BRIEF A1) On the storm mill's hunt (`EnemyManager.millHunt`, `flags.millHunt`): held in
+   * `searching` for good (the `hunting` input), and while searching his walk is the board's goal (`mhStep`): his spot
+   * `mhPt`, the yaw to face there `mhFace` (NaN: none, he walks) and the pace `mhSpeed`, copied from the board's goal
+   * arrays at its tick (`EnemyManager.mhTick`). Combat is as built; losing sight brings him back to `searching` and the
+   * board admits him again.
+   */
+  mhOn = false;
+  readonly mhPt: P2 = [0, 0];
+  mhFace = Number.NaN;
+  mhSpeed: number = HUNT.pace;
+  /** (mill-hunt H3) His board index (`HuntBoard.memberIndex`), cached at his admit (-1: none yet); the manager checks
+   *  `member(mhIdx)` is still him before it reads his goal. */
+  mhIdx = -1;
+
+  /**
+   * (mill-hunt H3) Onto the hunt (the scene's dark with the hunt on, every set; a guard placed or woken in it): not down,
+   * held or a dog. Out of combat he is `searching` now (a plain search in no room, no hurry); in a fight he joins when
+   * it ends (`AlertMachine`: lost sight -> `searching`). His goal is where he stands until the board's first tick.
+   */
+  mhStart(): void {
+    if (!this.alive || this.taken || this.dog) return;
+    this.mhOn = true;
+    this.mhPt[0] = this.pos.x;
+    this.mhPt[1] = this.pos.z;
+    this.mhFace = Number.NaN;
+    this.mhSpeed = HUNT.pace;
+    if (this.alerted) return;
+    const from = this.aware.level;
+    if (from !== 'searching') {
+      this.aware.set('searching');
+      this.onLevel(from, 'searching');
+    }
+    this.searchKind = SEARCH_PLAIN;
+    this.searchRoom = null;
+    this.rush = false;
+  }
+
+  /** (mill-hunt H3) Off the hunt (the scene's dark off): his search then ends as built (`ALERT.searchTime`). */
+  mhStop(): void {
+    this.mhOn = false;
+    this.mhFace = Number.NaN;
+  }
+
   /** (GA6b, N6) Sent by his partner's glimpse (`followGlimpse`): the send's line was his one; his rise says nothing. */
   private quietRise = false;
 
@@ -3076,7 +3124,8 @@ export class Enemy implements Damageable {
     i.cautious = this.caution > 0;
     // (guard-ai S6) an aggressive guard who has fought (a reinforcement) never calms: his search does not end
     // (guard-ai S17) so does a responder on a device's alarm (he came in on it, the stage stays up)
-    i.hunting = (this.aware.fought || this.responder) && profileOf(this.tacticsProfile).neverCautious;
+    // (guard-ai mill-hunt H3, A1) so does a guard on the mill's hunt: searching for good
+    i.hunting = ((this.aware.fought || this.responder) && profileOf(this.tacticsProfile).neverCautious) || this.mhOn;
     // (guard-ai S18) the search's length by its kind (a dead body's is longer)
     i.searchFor = searchSpec(this.searchKind).time;
     // (guard-ai walk 4.82 item 2) moving up on the last known position: he keeps the fight until he gets there
@@ -3433,6 +3482,8 @@ export class Enemy implements Damageable {
           const eg = this.entryStep(dt);
           if (eg) return eg;
         }
+        // (guard-ai mill-hunt H3) on the hunt the board walks him (a body search or the blackout search keeps him on it)
+        if (lvl === 'searching' && this.mhOn) return this.mhStep(dt);
         // (guard-ai S13) a response team past its search of the last known position sweeps the section
         const crew = this.crew;
         if (lvl === 'searching' && crew && crew.sweeping) return this.sweepStep(dt, crew);
@@ -3567,9 +3618,23 @@ export class Enemy implements Damageable {
     return this.coordinated && !this.combatSearch ? PACE.search : PACE.oldSearch;
   }
 
-  /** The aimed motion (fast turn): in combat, any search in the parked modes, a search after combat. */
+  /** The aimed motion (fast turn): in combat, any search in the parked modes, a search after combat. (mill-hunt H3) Not
+   *  on the hunt: its aims are timed at the calm turn (`sweepTurnTime`), also after a fight. */
   private get aimedMotion(): boolean {
-    return this.alerted || (this.level === 'searching' && (!this.coordinated || this.combatSearch));
+    return this.alerted || (this.level === 'searching' && !this.mhOn && (!this.coordinated || this.combatSearch));
+  }
+
+  /**
+   * (guard-ai mill-hunt H3) One step on the hunt: walk to the board's spot at its pace (capped at his walk), on his own
+   * storey; there (within `HUNT.arrive`), stand facing the board's yaw (NaN: as he stands). No allocation.
+   */
+  private mhStep(dt: number): Goal {
+    const p = this.mhPt;
+    const d = hyp2(p[0] - this.pos.x, p[1] - this.pos.z);
+    const wp = this.goTo(p, dt, MH_NEAR);
+    const sp = Math.min(this.mhSpeed, this.def.walkSpeed);
+    const f = this.mhFace;
+    return this.goal(wp, wp ? sp : 0, d > HUNT.arrive || f !== f ? null : f);
   }
 
   /** (guard-ai S2) The light check, step by step (investigating; `LightCheck`): walk to the light, look, the ring,
