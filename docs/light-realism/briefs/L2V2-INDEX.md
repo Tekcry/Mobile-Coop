@@ -27,3 +27,7 @@ bakes per section; a space still failing ships logged (prototype mode; undo: a t
 ## For Michael (lead asks, native choice)
 1. Is the S1 car park light right (gate 1)? 2. Interiors at the standard read fully lit in the picture (A14 overlap),
 and he called Marlow "blinding on epic": interiors at the standard, or a lower indoor floor (40-100 lx)?
+
+## Michael's answers (2026-10-27 ~11:10, via the orchestrator)
+- Indoor light: "Keep the standard" (offices and workshops at real working levels; AS/NZS 1680 bands stand as briefed; A15's 178 lux measure cap stays a tool limit, not a lower target).
+- S1 car park light: "Haven't checked": it goes on his next walk card. No L2-V2 build starts until that walk (his "let me walk it before doing any more", ROADMAP Decided 2026-10-26 ~11:45).
