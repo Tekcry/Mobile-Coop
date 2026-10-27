@@ -1065,7 +1065,8 @@ Next (mill hunt, Michael's walk priority; docs/guard-ai/mill-hunt/):
     missing, a fresh Opus builder redoes it from PR1-CHECK-A.md + this list. Then a fresh check B over all of PR 1, then
     open PR 1 (label big-pr, OKd), post checker, tell the orchestrator.
 (2) PR 2 = feature/guard-ai-mill-hunt-h3 (H3 wiring 5336f4735; worktree -mill-hunt-h3; H3-REPORT.md). Check A was
-    RUNNING -> H3-CHECK-A.md (maybe PARTIAL). Laptop e2e-piano on 5336f4735 = status laptop-e2e/mill-h3. After PR 1's
+    RUNNING -> H3-CHECK-A.md (maybe PARTIAL). Laptop e2e-piano on 5336f4735 PASSED (1/1, 53 s; check its log has
+    the hunt checks before relying on it). After PR 1's
     fixes: merge feature/guard-ai-mill-hunt into it again, check B, PR 2 after PR 1 merges.
 (3) H4 reactions (PR 3) per PLAN rev 2. (4) J16: G4 PR (feature/guard-ai-j16-2) after Sector Ops #665; G5 to ctcourse.
 ```
