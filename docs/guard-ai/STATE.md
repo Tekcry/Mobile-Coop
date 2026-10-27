@@ -1058,7 +1058,9 @@ Open (2026-10-27 ~14:05, window to ~18:50, up to 2 agents; weekly meter ~83%, sa
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: RUNNING (2 agents): (a) real-map sims on feature/guard-ai-mill-hunt (helpers to tests/helpers/millHuntSim.ts,
+Next: real-map sims DONE 8993d6a75 (2 data fixes, all pass); PR 1 check A FIX decef4d1f (loop walks a 3rd guard
+up behind a pair: G10 2.7 m behind G8 + G9 ~170 s) -> fix round RUNNING (4 m loop rule + 3-within-3 m sim check);
+then check B. Was: (a) real-map sims on feature/guard-ai-mill-hunt (helpers to tests/helpers/millHuntSim.ts,
 tests/millHuntThornbeck.test.ts, data fixes) -> "## Real-map sims" in H2-REPORT.md; (b) H3 wiring on
 feature/guard-ai-mill-hunt-h3 (worktree -mill-hunt-h3, from master 4.132.0 + mill-hunt) -> H3-REPORT.md. Then two
 Opus checkers on PR 1 (H1 + H2 + sims; confirm PLAN rev 2 items 1-3) -> PR 1 (big-pr OK); then H3 checkers -> PR 2
