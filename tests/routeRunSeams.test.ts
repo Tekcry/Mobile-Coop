@@ -301,6 +301,8 @@ describe('J13 hold restart: a course restart during a link machine or a stub hol
 
   it('the pair, during a stub hold: neither robot placed past it, onRestart once, the follower never interrupted', async () => {
     const { A, B, ctx } = await pairCtx();
+    // (R9) the pair would take a real leg-up here: A1's stub asked for (routeRunCoop covers a restart mid-move)
+    ctx.coop = 'stub';
     interruptOnCall(A, 'holdStart');
     hook.onRestart = vi.fn(async () => ({ resume: 2, place: null }));
     const log = await runOne(ctx, stubRun);
