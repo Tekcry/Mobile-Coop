@@ -1,4 +1,6 @@
 # Resume - Night Shift | Player Build (2026-10-26 ~18:45 SAVE; older log: history at the end)
+- 16:15 FINAL UPDATE (orchestrator, under the hold): #570 PARKED: train-ready removed and back to draft, checker PASS stays on 3685ceaa9; no queue-order change while on hold (it also needs a RULES "Machines" edit for F39). #490 mixamo-kit stays a draft, NOT rebuilt. #498 (affected-e2e pending on eaf2ef778), #563 (green on 5a75dcc45) and #622 (waits its affected run on 2ef620d5e) ship once their automatic e2e is green; the watchdog / orchestrator labels them. #705 train-ready. No agents; all worktrees clean and pushed. Session stopped.
+  Next (if resumed): statuses on #498 / #622; then #570's F39 call with the orchestrator (undraft when decided); context prompts S7 only after Michael's yes.
 - 16:05 FINAL (PROJECT ON HOLD, Michael ~15:35: "finish what remains and put everything on hold"). No agents. All worktrees clean and pushed.
   MERGED this session: #703 P3, #653 K1, #601 K5a (with #700 P2, #658 K4 earlier).
   OPEN, all base master:
