@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.135.0 - Train 172: Prompts on the thing you face (preview only); Co-op kit: Deadweight (2026-10-27, PR #715; #703, #653)
+
+### Prompts on the thing you face (preview only)
+- The new interaction prompts now draw on screen: a small marker on the one thing you face, with a row for each button under it (for example "A  Open - hold Bash"). A ring fills round the button while you hold it. Only the thing you face shows anything. Preview only; nothing changes in the normal game.
+
+### Co-op kit: Deadweight
+- Co-op (on in /preview/, not yet in the live game): Deadweight is playable. One player jumps up and hangs on a chain;
+  the counterweighted grate lifts for the partner, who ducks under. Letting go drops the grate, never onto anyone. One
+  chain each side, so whoever is through hangs for the other. At Marlow Yard this is station 9's way under the grille.
+
 ## 4.134.0 - Train 171: Co-op kit: Plank Bridge, carrying the board; Marlow Yard re-plan graph: route-run gate points (2026-10-27, PR #712; #710, #601)
 
 ### Co-op kit: Plank Bridge, carrying the board
