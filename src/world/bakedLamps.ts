@@ -253,6 +253,10 @@ export class BakedLamps implements CharShadowLamps {
   }
   /** Characters' capsules each frame (foot + head points, radius): GameState's. */
   capsules: ((a: Float32Array, b: Float32Array, max: number) => number) | null = null;
+  /** (char-shadow-meter S4) The light field counts the character shadows (`flags.charShadowLight`: GameState sets it with
+   *  the contract): the darkness curve's lamp term then takes them too (the outline maps and the round capsules), so a
+   *  card in a guard's shadow renders as an unshadowed card at the same field level (light parity). Off: as before. */
+  charLevel = false;
   /** Volume mode (3.3; now only the Kestrel editor's light view - the game never makes one): the lamps mixed into one light volume (two taps a pixel) instead of the per-lamp loop; re-mixed on
    *  the GPU from the data above when lamps change. */
   readonly volume: LampVolume | null = null;
@@ -1525,7 +1529,8 @@ export class LampPlugin extends MaterialPluginBase {
     // (Step 4b) the darkness curve: night-vision gain, the moon's level; the look's curve. (nv-pass slice 1) Under the
     // goggles the curve's floor rises (`visionDark`) and the non-voxel fill is capped (z: how far night vision is on)
     // (piano SO5) the moon term carries the lightning flash too (the light field sums them the same way)
-    ubo.updateFloat4('lampDark', l.visionGain, l.moonLight + l.skyFlash, visionAmount(l.visionGain), 0);
+    // (char-shadow-meter S4) w: the character shadows on the curve's lamp term (`charLevel`)
+    ubo.updateFloat4('lampDark', l.visionGain, l.moonLight + l.skyFlash, visionAmount(l.visionGain), l.charLevel ? 1 : 0);
     const d = visionDark(l.dark, l.visionGain, l.darkNow);
     ubo.updateFloat4('lampDarkP', d.centre, d.steep, d.floor, d.top);
     // (nv-illuminator) the goggles' IR illuminator (picture only)
@@ -1758,15 +1763,18 @@ ${settle}
       }
 #endif
       if (k <= 0.0) continue;
-      // (Step 4b: the curve's lamp term, as gameplay sums it: no N.L, no character shadows)
-      nsLampRaw += t1.rgb * k;
+      // (Step 4b: the curve's lamp term, as gameplay sums it: no N.L; (char-shadow-meter S4) the character shadows
+      // only while the light field counts them, \`charLevel\` / lampDark.w 1: the curve then reads the shadowed level)
       float ndl = dot(normalW, L);
-      if (ndl <= 0.0) continue;
-      k *= ndl;
+      if (ndl <= 0.0 && lampDark.w < 0.5) {
+        nsLampRaw += t1.rgb * k;
+        continue;
+      }
+      float nsSh = 1.0;
 #ifdef LAMP_CSHADOW
       // (LR14) the nearest lamps' character silhouettes from the shadow atlas (t7.x: slot + 1)
       float csl = lampTexel(lb + 7).x;
-      if (csl > 0.5) k *= nsCharShadow(int(csl - 0.5), lp, lgn, t0.xyz);
+      if (csl > 0.5) nsSh *= nsCharShadow(int(csl - 0.5), lp, lgn, t0.xyz);
 #endif
       vec4 t5 = lampTexel(lb + 5);
       for (int c = 0; c < ${CAPS_PER_LAMP}; c++) {
@@ -1775,8 +1783,11 @@ ${settle}
         int cb = int(lampGridO.w) + (int(cid + 0.5) - 1) * 2;
         vec4 ca4 = lampTexel(cb);
         vec4 cb4 = lampTexel(cb + 1);
-        k *= lampCapsule(lp, t0.xyz, ca4.xyz, cb4.xyz, ca4.w);
+        nsSh *= lampCapsule(lp, t0.xyz, ca4.xyz, cb4.xyz, ca4.w);
       }
+      nsLampRaw += t1.rgb * k * mix(1.0, nsSh, lampDark.w);
+      if (ndl <= 0.0) continue;
+      k *= ndl * nsSh;
       lsum += t1.rgb * k;
     }
   }

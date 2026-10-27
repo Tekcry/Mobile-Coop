@@ -191,7 +191,7 @@ behind a VPN adapter).
 - `e2e-parity` (GPU list, trains via `TRAIN_PARITY`): campus S1-S5 (parts 1-2), Marlow Yard (3), Warehouse (4), Low and Epic;
   grey cards found by field level per `DARK_TARGETS` row (0.27 row: within 0.02 and under 0.28), moving lights held still,
   meter = field within 0.02 at every card; `KNOWN` entries (in the script: owner, a date at most 7 days out) print and pass
-  until the date; one `PARITY-SUMMARY` line per part; not in affected runs: light jobs request it by name
+  until the date; one `PARITY-SUMMARY` line per part; not in affected runs: light jobs request it by name; part 4 adds the character-shadow card (own `charlight=1` pages, char shadows Off / Low / Epic: a parked guard's shadow on a card, luma ratio within 0.1 of the field levels (with the contract) through the part's measured grey-card luma, inside reads within 0.03, band report only until J10; one `CHARSHADOW` line)
 - `e2e-darkness` (GPU list): night vision (on) at the 0.12 / 0.70 points, the turning check, (LR16-6) thermal: the button cuts
   on the first frame both ways, a guard behind a shut door shows one dim blue silhouette, none with the door open
 - `e2e-coop-gpu` (GPU list, port 4189) the real menu flow, two players (shared and separate contexts at High, shared at Epic; `COOPGPU_ALL=1` adds separate at Epic): fails on a "failed to load" console message, no host avatar or LOD on the joiner, the host not drawn (body mesh enabled, visible, active, bounds over 0.5 m), or "Connecting to host" still shown; `scripts/repro-coop-avatar.mjs` is the diagnostic version
