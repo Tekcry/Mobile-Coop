@@ -21,6 +21,9 @@ Changed by later decisions:
   V1 keeps the optic cable.
 - G97: at a door the optic cable is one choice of the CT door menu (open, stealth open, bash, optic cable).
 - G23: interrogation is a choice of CT's grab menu (knock out, kill, interrogate).
+- Context prompts (Michael 2026-10-27; dark behind `contextPrompts` until his walk, `docs/context-prompts/BRIEF.md`):
+  the door, gap and grab menus become buttons on the target. The optic cable is hold Y at a door and tap Y at a gap,
+  under the Y rule (input-and-loop.md "Context prompts"); interrogation is tap A on the held guard.
 - G96: bindings follow CT's pad layout as built, with the anim-rework's aim, holster and strike (input-and-loop.md);
   the proposals in section 2 are checked against the built binding table.
 - loco M20 Q1: the SWAT turn and the lean-out aim are removed.
@@ -58,8 +61,8 @@ if one is taken.
 
 | Use | Keyboard and mouse | Gamepad |
 | --- | --- | --- |
-| Contextual use (pick, hack, cut, question) | E (existing interact) | Y (existing) |
-| Optic cable | Door menu at a door (G97). (optic-coop M1, Michael 2026-10-24) At hatches, panels, grilles and shaft tops the same action menu at the gap: OPEN TRAP (only where a closed panel covers the gap) and OPTIC CABLE (`game/gapMenu.ts`); no new key | The same: A, the action menu at the door or gap |
+| Contextual use (pick, hack, cut, question) | E (existing interact) | A (existing interact) |
+| Optic cable | Door menu at a door (G97). (optic-coop M1, Michael 2026-10-24) At hatches, panels, grilles and shaft tops the same action menu at the gap: OPEN TRAP (only where a closed panel covers the gap) and OPTIC CABLE (`game/gapMenu.ts`); no new key. Under `contextPrompts`: Space held at a door, Space tapped at a gap (the jump key under the Y rule) | The same: A, the action menu at the door or gap. Under `contextPrompts`: Y held at a door, Y tapped at a gap |
 | Ping (co-op; optic-coop M2, Michael 2026-10-24) | Middle mouse (`ping`, was free) | R3 (`ping`); R3 is also Zoom, by context (Michael 2026-10-24 ~14:55 "contextual"): aiming a scoped weapon R3 zooms (no ping), otherwise it pings (no zoom); an allowed pair, no conflict |
 | Launcher rounds (shocker, airfoil) | Tab wheel to select, G hold to aim, release to fire | D-pad left hold (wheel), D-pad right hold / release (existing `grenade`) |
 | Pistol jammer (G152, built; 3.5) | RMB aims the drawn pistol, F (Co-op) held on the target | LT aims the drawn pistol, RB (Co-op) held on the target |
@@ -83,7 +86,7 @@ and `docs/systems/takedowns.md`.
 | --- | --- |
 | Fiction | An under-door camera: a thin rigid or flexible fibre-optic or camera probe fed under a door or through a gap, with a small screen, used by police and military entry teams (general knowledge). |
 | Works on | Doors with a gap under the leaf (most internal doors have one; general knowledge). Floor hatches in the raised floor (fed through the hatch edge), ceiling access panels (through the panel edge), vent grilles (between the slats), the top of the roof cooling shaft (down through the grille). Not: doors with seals (`seal: true`: rooms protected by gas suppression need sealed doors and often have drop seals, general knowledge, so the gas room, the data hall doors and the mantrap doors refuse with "Sealed"); solid walls; windows (look through them). |
-| Controls | Section 2 (the action menu: at a door the door set's OPTIC CABLE; optic-coop M1, at a gap OPEN TRAP where it opens, then OPTIC CABLE). In the view: look stick / mouse turns the tip; night vision toggles as usual; ping (existing) marks what the tip sees. Leave with the leave input. |
+| Controls | Section 2 (the action menu: at a door the door set's OPTIC CABLE; optic-coop M1, at a gap OPEN TRAP where it opens, then OPTIC CABLE; under `contextPrompts` hold Y at a door, tap Y at a gap, tap A opens the trap). In the view: look stick / mouse turns the tip; night vision toggles as usual; ping (existing) marks what the tip sees. Leave with the leave input. |
 | States and timing | Reach: within 1.0 m (TUNE) of the door, hatch or grille, crouched. Feed in 1.2 s (TUNE), out 0.6 s (TUNE). Tip yaw +-75 deg (TUNE), pitch -10 to +60 deg (TUNE), field of view 100 deg (TUNE). Tip 0.3 m (TUNE) past the far face, 0.05 m (TUNE) above the floor for doors; 0.3 m (TUNE) into the space for hatches, panels and grilles. Unlimited uses. |
 | Noise and light | Silent. No light. The player kneels: crouched and still (the stillness and crouch multipliers behind SN09). |
 | Noticed by | The tip is not a body and is never perceived. The player's own body on the near side is perceived as normal. |
@@ -165,7 +168,7 @@ Not built in V3 (backlog item 23). Whether it belongs is settled by the CT co-op
 | --- | --- |
 | Fiction | A held person is quietly pressed for a code, a name or a route. Short and threatening; no torture is shown. |
 | Works on | A person held by the existing grab (`GRAB`, `game/takedown.ts`): guards, and civilians once Kestrel's S6 builds them. Each person has 1-3 subtitled lines (bible 5.4) from mission data; a line can set an intel flag (a PIN, the cage number, who is iris-enrolled, a patrol). |
-| Controls | While grabbing: "Interrogate" in the CT grab menu (G23); each press plays the next line. The other grab choices are knock out and kill. |
+| Controls | While grabbing: "Interrogate" in the CT grab menu (G23), or under `contextPrompts` tap A on the held guard's `[A] Interrogate` prompt; each press plays the next line. The other grab choices are knock out and kill (RT tap / hold). |
 | States and timing | Each line 3 s (TUNE). A person with no lines answers "Nothing" once. Not offered while a guard sees the grab (the existing hostage rules apply). |
 | Noise and light | No noise beyond the existing grab. No light. |
 | Noticed by | As the existing grab. |

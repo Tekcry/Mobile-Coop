@@ -4,16 +4,22 @@
  * (`CtxHost`, implemented once by `GameState`), and give each target its rows per button. Pure and Babylon-free, so the
  * tests run it on a fake host. Dark behind `flags.contextPrompts` (with the flag off nothing here is called).
  *
- * The rows (PLAN 2; this slice: inventory rows 1-8, 12, 15-23, 25-26 and 28-33; the co-op, hang-down item, carry,
- * revive, bluff and team-move refinements are S5):
+ * The rows (PLAN 2; S3: inventory rows 1-8, 12, 15-23, 25-26 and 28-33; S5: 10-11 hanging, 13 the bluff, 14 the knife,
+ * 24 carrying, 27 the revive and 42-43 a team move or offer under way):
  * - the held guard: A tap Interrogate (only with information); RT tap Knock out / hold Kill and LT Shield (labels: their
  *   own systems run them, A4, A16);
  * - the takedown on offer: from behind A tap Grab (A5); faced A tap Knock out (or the kind's own name), A hold Kill (A6);
- *   lethal-only A hold Kill; the knife scene A Knife takedown (A19); the partner's hostage A tap Team takedown (A17);
+ *   lethal-only A hold Kill; hanging head-first A tap Grab, RT Choke / Neck snap (row 10); the knife scene A Knife
+ *   takedown, tap or hold, and RT Knife takedown (A19, row 14); the partner's hostage A tap Team takedown (A17), and
+ *   with joint information Y tap Bluff for the player beside the hold (A23, row 13);
  * - the closed door faced: A tap Open, A hold Bash; Y tap Peek (only when the peek is on offer), Y hold Optic cable
  *   (A7); a sliding door A tap Open only; an open door (its own item) A tap Close;
  * - else the optic gap in reach: A tap Open trap (a closed panel covers it), Y tap Optic cable (A8);
- * - the item in reach (the carry target while carrying): A tap, or a fill for the item's own hold time (A9).
+ * - the item in reach: A tap, or a fill for the item's own hold time (A9; the partner's revive point too, row 27;
+ *   hanging, the item in reach, row 11); carrying, the carry target: Hide body / Open / Close / Drop body, the drop on
+ *   the floor ahead (A15, row 24).
+ * In a team move or offer under way (rows 42-43, A14) only the takedown on offer and the item in reach are candidates:
+ * A keeps today's two direct jobs, now with world prompts, and doors and hatches are not targets (Y as today).
  * The Y rows show only while the Y rule takes a jump press (`ctxPromptStep`, `contextJump.ts`). Allocation-free per step.
  */
 import { hyp2 } from '../core/mathx';
@@ -76,6 +82,11 @@ export interface CtxHost {
   heldInfo(): boolean;
   /** The takedown on offer (null: none, or a strike or takedown already running). */
   offer(): CtxOfferRef | null;
+  /** (S5, G148) The offer is the partner's hostage and he has joint information: this player may bluff him. */
+  joint(): boolean;
+  /** (S5, rows 42-43) A team move or offer is under way, not hanging (`team.active && !team.hangActs`): only the
+   *  takedown on offer and the item in reach are candidates. */
+  teamMove(): boolean;
   /** The knife scene's switch (`takedown.knife`). */
   knife(): boolean;
   /** RT is the strike or the held guard's finisher now (holstered or holding, not aiming): its row shows. */
@@ -115,6 +126,7 @@ export const CTX_OPT = {
   optic: 'optic',
   trap: 'trap',
   use: 'use',
+  bluff: 'bluff',
 } as const;
 
 /** (PLAN 2 rows 2-4) A faced takedown's tap label by kind (A6: the hold is Kill). */
@@ -157,6 +169,9 @@ export const CTX_GUARD_Y = 1.95;
 /** A door's prompt: this far up the leaf (m) and this share of its width from the hinge (the latch side). */
 export const CTX_DOOR_Y = 1.1;
 export const CTX_DOOR_LATCH = 0.85;
+/** (S5, row 24) Carrying with nothing to hide in or open: the drop's prompt this far ahead (m), on the floor. */
+export const CTX_DROP_AHEAD = 1.0;
+export const CTX_DROP_Y = 0.05;
 
 /** A stable number for a guard id (allocation-free; the focus compares it, so a new guard is a new target). */
 export function ctxRefOf(id: string): number {
@@ -192,8 +207,10 @@ export function fillContextPrompts(cp: ContextPrompts, h: CtxHost): void {
   const f = h.feet();
   const yaw = h.camYaw();
   const rt = h.rtFree();
+  // (rows 42-43) a team move or offer under way: the takedown on offer and the item in reach only
+  const team = h.teamMove();
   // (rows 7-8, A16) a held guard: only his rows (as today's held list)
-  const held = h.held();
+  const held = team ? null : h.held();
   if (held) {
     const c = addGuard(cp, 'held', held, f, yaw);
     if (h.heldInfo()) tapRow(c, CTX_A, CTX_OPT.interrogate, 'Interrogate');
@@ -210,8 +227,11 @@ export function fillContextPrompts(cp: ContextPrompts, h: CtxHost): void {
     const quad = !!o.e.def.quadruped;
     const assist = k === 'assist';
     const c = addGuard(cp, assist ? 'hostage' : 'guard', o.e, f, yaw);
-    if (assist) tapRow(c, CTX_A, CTX_OPT.ko, CTX_TD_TAP.assist);
-    else if (h.knife() && !quad) {
+    if (assist) {
+      tapRow(c, CTX_A, CTX_OPT.ko, CTX_TD_TAP.assist);
+      // (row 13, A17, A23) the bluff: a Y tap under the Y rule, for the player beside the hold
+      if (h.joint()) tapRow(c, CTX_Y, CTX_OPT.bluff, 'Bluff');
+    } else if (h.knife() && !quad) {
       // (A19) tap or hold: the knife kill (`start` forces it); the holstered attack press too
       tapRow(c, CTX_A, CTX_OPT.knife, 'Knife takedown');
       labelRow(c, CTX_RT, 'Knife takedown', '');
@@ -227,7 +247,7 @@ export function fillContextPrompts(cp: ContextPrompts, h: CtxHost): void {
     }
   }
   // (rows 15-16) the closed door faced, else (row 19) the optic gap in reach
-  const di = h.doorCandidate();
+  const di = team ? -1 : h.doorCandidate();
   const d = di >= 0 ? h.door(di) : null;
   if (d) {
     const a = d.anchor;
@@ -241,7 +261,7 @@ export function fillContextPrompts(cp: ContextPrompts, h: CtxHost): void {
       const peek = h.peekOffer() === di;
       pairRow(c, CTX_Y, peek ? CTX_OPT.stealth : '', peek ? 'Peek' : '', CTX_OPT.optic, 'Optic cable');
     }
-  } else {
+  } else if (!team) {
     const gi = h.gapCandidate();
     const g = gi >= 0 ? h.gapAt(gi) : null;
     if (g) {
@@ -258,10 +278,21 @@ export function fillContextPrompts(cp: ContextPrompts, h: CtxHost): void {
     // a door's own item: the faced closed door's rows cover it; else it opens or closes its door
     if (idoor >= 0 && idoor === di) return;
     const id = idoor >= 0 ? h.door(idoor) : null;
-    const label = id ? (id.target !== 0 ? 'Close' : 'Open') : it.kind === 'body' ? 'Pick up' : it.label;
-    const p = it.pos;
-    measure(f, yaw, p.x, p.z);
-    const c = cp.add(h.carrying() ? 'carry' : 'item', h.itemRef(it), mDist, mAngle, p.x, p.y + KIND_PROMPT_Y[it.kind], p.z);
+    const carry = h.carrying();
+    // (row 24, A15) carrying: the carry target's own label (Hide body, Drop body); a body on the floor is picked up
+    const label = id ? (id.target !== 0 ? 'Close' : 'Open') : it.kind === 'body' && !carry ? 'Pick up' : it.label;
+    const ref = h.itemRef(it);
+    let c: CtxCand;
+    if (carry && ref < 0) {
+      // the drop (no item of its own in the list, no place): on the floor ahead, where the body goes
+      const x = f.x + Math.sin(yaw) * CTX_DROP_AHEAD;
+      const z = f.z + Math.cos(yaw) * CTX_DROP_AHEAD;
+      c = cp.add('carry', ref, CTX_DROP_AHEAD, 0, x, f.y + CTX_DROP_Y, z);
+    } else {
+      const p = it.pos;
+      measure(f, yaw, p.x, p.z);
+      c = cp.add(carry ? 'carry' : 'item', ref, mDist, mAngle, p.x, p.y + KIND_PROMPT_Y[it.kind], p.z);
+    }
     if (it.holdTime > 0) fillRow(c, CTX_A, CTX_OPT.use, label, it.holdTime);
     else tapRow(c, CTX_A, CTX_OPT.use, label);
   }

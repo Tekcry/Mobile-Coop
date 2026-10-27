@@ -23,6 +23,8 @@ desktop only, G395; `input/touchLook.ts` pure, wired in
   game binds it.
 - Built (G19, G97, G23; one menu since CT prototype G5, Michael 2026-10-19: "identical"): the CT context action menu.
   See "The context action menu (G5)" below.
+- Built dark (context-prompts job, Michael 2026-10-27; `docs/context-prompts/BRIEF.md`): the context prompts replace
+  that menu behind `flags.contextPrompts` until Michael switches them on at a walk. See "Context prompts" below.
 - Built (G22): remap capture cancels with Menu / Start or Esc; B stays bindable (`CAPTURE_CANCEL_BTN` 9,
   `input/gamepadSource.ts:9`; Esc and the cancel button in `ui/screens/controlsScreen.ts`).
 - Decided (G21, built): a mission starts holstered; a swap while holstered picks the gun the next aim draws; swap works
@@ -67,7 +69,7 @@ call in the last second, or manual mode, stands the tick down. Single player nev
   buttons). LT is the held aim (`ads`, analog), RT `fire`. X is the plain `draw` button: the player reads its tap / hold
   (`player/weaponStance.ts`). A is always interact (Michael 2026-10-20 14:55: "Interact always"; it no longer
   reloads with the gun out). D-pad up / down are free in play; they step the held context menu (`CTX_BINDINGS`,
-  `ctxUp` / `ctxDown`, fixed). In menus Y = `uiAlt` (`Screen.onAlt`, Loadout: customise); menu buttons are `UI_BINDINGS`.
+  `ctxUp` / `ctxDown`, fixed; not read under `contextPrompts`). In menus Y = `uiAlt` (`Screen.onAlt`, Loadout: customise); menu buttons are `UI_BINDINGS`.
 - Keyboard (rebindable, D7): `input/keyBindings.ts` (pure): `BINDS` defaults, two inputs per action incl. Mouse 3/4/5,
   `settings.keys`; `assignBind` puts a key on a second action as a warned conflict (A71); `KeyboardMouseSource` rebuilds its
   map when the keys change, `captureNext` for the rebinding UI. Fixed: Esc / Enter / Backspace / arrows, Q / E menu tabs,
@@ -95,7 +97,8 @@ ready, aiming." Every number is a starting value.
   nothing to reload the hold holsters. KBM R reloads too (from holstered it draws to low ready first, A43).
 - A interacts in every state ("Interact always"): doors, items and the context menu at low ready and aiming too.
 - Holding a guard: X does nothing; RT tap the knockout, RT hold the kill, KBM Z the knockout; LT aims the pistol over
-  his shoulder (the human shield; RT then fires). The grab itself stays on the context menu (GRAB CHARACTER, BACK TO GAME).
+  his shoulder (the human shield; RT then fires). The grab itself stays on A: the context menu's GRAB CHARACTER, or
+  `[A] Grab` under `contextPrompts` (`docs/systems/takedowns.md`).
 - (M4) A traversal (Y), an attach (ladder, pipe, hang; except the one-handed sidearm aim), a team move, a takedown, a
   carry or a strike holds the state: the gun goes away for it (`Player.weaponSuspend`) and the state it had comes back
   when it ends (low ready, or the aim while LT is still held). An X press during it is ignored.
@@ -174,6 +177,46 @@ Edit the table and the code together.
   `.labels()` read the list.
 - Not built: `access.holdToggle` does not latch the menu (it still works on the team-move direct path); locked doors
   list nothing (no PICK LOCK / BREAK LOCK yet); no traversal rows (rope, climb: Y does those).
+
+### Context prompts (dark behind `contextPrompts`; context-prompts P1-P4)
+Flag `contextPrompts` (`?ctxprompts=1` / `0`, on in /preview/, G416; owner Player Build, switch-on at Michael's walk).
+Off, everything above is unchanged. On, the button for each action shows on the thing it acts on and one press runs it;
+there is no list, no BACK TO GAME row and no box. Michael's words and picks, and A1-A26: `docs/context-prompts/BRIEF.md`;
+the per-target action table (which button does what on each target): PLAN section 2; the look: `docs/systems/ui.md`.
+- One focus (`game/contextPrompts.ts`, pure): `GameState.contextPromptStep` runs where `contextMenuStep` runs (first in
+  the step, before the door peek and traversal) and fills the candidates from today's reaches
+  (`game/contextProviders.ts`, `fillContextPrompts` over a narrow `CtxHost`). The held guard ranks first, then the
+  takedown on offer or the partner's hostage, then the rest by distance plus `CTX_FOCUS.angleW` x the angle off the
+  camera's aim. The focus is sticky (a rival of the same rank must score better by `margin` for `dwell`) and locked
+  while a context button is down; a target that leaves reach mid-hold cancels with no action. Only the focus shows.
+- Buttons (`CTX_SLOT_BUTTON`): A (`interact`) runs; Y (`jump`) runs only under the Y rule below; RT and LT are labels
+  for the strike and the shield, which keep their own systems.
+- Tap and hold: one hold time, `CTX_HOLD` (`STANCE.rtHold`). On a row with a hold action (a door, a faced guard) the tap
+  runs on a release before `CTX_HOLD` and the hold runs when it is reached; on a row without, the press runs at once.
+  Item holds fill for the item's own `holdTime` and `access.holdToggle` still latches them (G398); a button whose tap
+  and hold differ gets no hold / toggle setting. Walking stays free while prompts show or fill (A12).
+- The Y rule (`game/contextJump.ts` `ctxJumpTaker`, Michael's pick 1, A2 and A21-A25): Y (keyboard: the jump key) is
+  the second action (tap: door peek, optic cable at a gap, bluff; hold: optic cable under a door) only when the focus
+  is a closed door, an optic gap or the partner's hostage with a Y row; the player is grounded, not attached,
+  traversing, on the wall, carrying, in a team move or offer, and no takedown, strike or door peek runs; and both
+  traversal hints, as the screen shows them this step, are empty. Any offered vault, climb, drop or attach wins Y. It is
+  judged once, at the press, against the focus kept that step. A taken press is owned until release (`ctxOwnsY`):
+  traversal, the vent start (`ti.startHeld`) and the peek's "jump ends it" check never see it. The target's Y row shows
+  exactly when the rule would take a press. Facing a closed door or a hatch with nothing offered, Y no longer jumps
+  (A25). Everywhere else Y is the jump. The case table: PLAN section 3.
+- Ownership: `ctxOwnsA` as the menu's (a press the prompts used is swallowed until released). Stand-asides as the menu's
+  (down, a door peek, the optic view, a remote view, the wheel, a takedown, finisher or lift running). A team move or
+  offer is not one: then only the takedown on offer and the item in reach are candidates (the guard keeps A), and the
+  old direct paths (`updateInteract`'s centre prompt, the team-move A press) stand down. Hanging head-first: the guard
+  below and the item in reach. The old menu's other readers use `ctxListOpen`, always false under the flag.
+- Scripted taps (`InputState.tap`) run the tap at once (nothing on a hold-only or fill row); `g.ctxPrompts` exposes the
+  focus, rows and hold for tests; `g.grabMenu.sel` still arms scripted held-guard picks.
+- Bindings: no new verb, bind id or default, so the binding table and `findConflicts` are unchanged; a remapped jump
+  carries the second action and its glyph (A24). Switch-on (PLAN 7, slice S7) renames the jump row "Jump / traverse /
+  peek" here and in the code, frees D-pad up / down and the mouse wheel, and deletes the old menu.
+- Co-op: no wire change; each player computes their own prompts and Y rule; actions run through today's calls.
+- Tests: `tests/contextPrompts.test.ts`, `tests/contextJump.test.ts`, `tests/contextProviders.test.ts`,
+  `tests/promptLayout.test.ts`; `?ctxprompts=1` steps in e2e-takedown, e2e-stealth-ai, e2e-pad, e2e-coop, e2e-piano.
 
 ### Remapping and hold / toggle (step 18, D7; local only, D8)
 - The table above is the default layout. Pad: `Settings.pad: PadBinds` (`input/padBinds.ts`, `PAD_BINDS`: 12 verbs (A3: ids renamed so an old save's binds are ignored and the CT defaults apply; anim-rework S1 removed the two speed verbs), at

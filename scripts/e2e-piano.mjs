@@ -7,6 +7,7 @@
 // 4 s, no guard past suspicious), a restart keeps the lamps off, a co-op knife kill on G1 + G2 (a dual), a solo kill
 // each, the rest down, both on the hoist platform: the end fades both pages to the lobby, no results screen. Waits from
 // the measured knife timings (PR #620: contact 1.05 s, limp 1.57 s, operator free 1.87 s).
+// (context-prompts S5) Then solo under ?ctxprompts=1: A and RT on a guard are the knife takedown, no grab (PLAN 2 row 14).
 // Hooks: window.__piano (the scene's debug()), window.__sector, window.__app, window.__coop.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
 import { LOAD_MS, NET_VIEWPORT, hostStepResult, onHostStep, offHostStep, setSimPages, startMode, until, waitHostSim, waitSim } from './e2e-net-lib.mjs';
@@ -141,6 +142,84 @@ const PLATFORM = [
   [-1.6, 4.25, 16.2],
   [-0.8, 4.25, 17.0],
 ];
+
+// ================================================================================== (context-prompts S5) the knife prompts
+// `?ctxprompts=1` (dark until switch-on), solo: after the EMP every guard on two legs shows `[A] Knife takedown` and
+// `[RT] Knife takedown` (no grab); a tap A knife-kills G1 from behind, the attack press (RT) knife-kills G2 (PLAN 2 row 14,
+// A19). The guard is held on his spot facing west (brain off), the operator 0.8 m east of him facing west.
+if (ok) {
+  console.log('piano escape: the context prompts (?ctxprompts=1): A and RT are the knife takedown, no grab');
+  const { browser: kb, page: P, errors: ke } = await launch({ url, params: `${PARAMS}&ctxprompts=1` });
+  const K = (f, a) => P.evaluate(f, a);
+  const ksim = async (s) => {
+    for (let t = 0; t < s; t += 0.25) await K((d) => window.__app.loop.stepHeadless(d), Math.min(0.25, s - t));
+    await frames(P, 1);
+  };
+  try {
+    await P.waitForFunction(() => !!window.__app?.current?.player && !!window.__piano && !!window.__sector, null, { timeout: 120000 });
+    const vp = P.viewportSize() ?? { width: 1280, height: 640 };
+    await P.mouse.click(vp.width / 2, vp.height / 2);
+    await K(() => window.__pad.connect());
+    await press(P, BTN.LS);
+    await ksim(0.5);
+    // the skip (hold Start), the EMP press, the cut to play (as the solo run above)
+    await K(() => window.__pad.set(9, 1));
+    await ksim(1.3);
+    await K(() => window.__pad.set(9, 0));
+    await ksim(0.2);
+    await press(P, BTN.A);
+    await ksim(4.5);
+    const d = await K(() => window.__piano.debug());
+    assert(d.knife && d.inPlay, `the knife scene is on and in play (${d.shot})`);
+    /** Guard `k` (a slot) held facing west at (x, z), the operator 0.8 m east of him facing west; the prompt's rows. */
+    const setUp = (k, x, z) =>
+      K(([k, x, z, west]) => {
+        const g = window.__app.current;
+        if (g.wallCore?.active) g.wallCore.leave('e2e');
+        const e = g.enemyMgr['slotGuard'][k];
+        if (!e || !e.alive) return null;
+        e.update = () => {};
+        e['stagger'] = 99;
+        e.pos.set(x, 0, z);
+        e.yaw = west;
+        e.aware.set('unaware');
+        const V = g.player.position.constructor;
+        g.player.controller.teleport(new V(x + 0.8, 0.05, z), west);
+        g.player.cam.yaw = west;
+        g.player.cam.pitch = 0;
+        return e.id;
+      }, [k, x, z, -Math.PI / 2]);
+    const rowsOf = () => K(() => { const cp = window.__app.current.ctxPrompts; return { kind: cp.kind, a: cp.shows(0) ? `${cp.rows[0].tapLabel}|${cp.rows[0].holdLabel}` : '-', rt: cp.shows(2) ? cp.rows[2].tapLabel : '-', box: window.__app.current.ctxMenu.state }; });
+    const lethal = () => K(() => window.__app.current.enemyMgr.bodies.filter((x) => x.lethal).length);
+    const alive = (id) => K((id) => window.__app.current.enemyMgr.enemies.some((e) => e.id === id && e.alive), id);
+    for (const [k, how] of [[0, 'A'], [1, 'RT']]) {
+      const id = await setUp(k, 7.5, k === 0 ? 8.9 : 7.9);
+      assert(!!id, `slot ${k}'s guard is up`);
+      await ksim(0.3);
+      await setUp(k, 7.5, k === 0 ? 8.9 : 7.9);
+      await ksim(0.1);
+      const r = await rowsOf();
+      assert(r.kind === 'guard' && r.a === 'Knife takedown|' && r.rt === 'Knife takedown' && r.box === 'none', `${how}: the guard shows [A] Knife takedown and [RT] Knife takedown, no grab, no box (${JSON.stringify(r)})`);
+      const l0 = await lethal();
+      // a short press (a tap: under the 0.35 s hold), polled by the stepped sim
+      const b = how === 'A' ? BTN.A : BTN.RT;
+      await K((b) => window.__pad.set(b, 1), b);
+      await ksim(0.1);
+      await K((b) => window.__pad.set(b, 0), b);
+      await ksim(0.1);
+      const st = await K(() => ({ active: window.__app.current.takedown.active !== null, hostage: window.__app.current.takedown.hostage !== null }));
+      assert(st.active && !st.hostage, `${how}: the press starts the knife takedown, not a grab (${JSON.stringify(st)})`);
+      await ksim(KNIFE.free + 0.4);
+      assert(!(await alive(id)) && (await lethal()) === l0 + 1, `${how}: the knife takedown kills the guard (lethal ${l0} -> ${await lethal()})`);
+    }
+    const kerr = ke.filter((e) => !/GPU stall|GL Driver/.test(e));
+    assert(kerr.length === 0, `no console errors${kerr.length ? ': ' + kerr.join(' | ') : ''}`);
+  } catch (e) {
+    ok = false;
+    console.error(e);
+  }
+  await kb.close();
+}
 
 if (ok) {
   console.log('piano escape: co-op (two tabs, ?net=local&piano=1)');

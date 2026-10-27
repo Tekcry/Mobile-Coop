@@ -73,8 +73,11 @@ export class WorldPrompts {
     const key = label ?? '';
     if (key !== it.key) {
       it.key = key;
+      // (context-prompts S5, PLAN 2 rows 38-39) a team move's waiting text after '\n': a small second line
+      const nl = key.indexOf('\n');
+      const text = nl < 0 ? key : `${key.slice(0, nl)}<br><small class="wp-sub">${key.slice(nl + 1)}</small>`;
       it.el.innerHTML = label
-        ? `<i class="wp-mark"></i><span class="wp-body">${glyph(id)}<span class="wp-label">${label}</span></span>`
+        ? `<i class="wp-mark"></i><span class="wp-body">${glyph(id)}<span class="wp-label">${text}</span></span>`
         : '';
       it.el.classList.toggle('show', !!label);
     }
