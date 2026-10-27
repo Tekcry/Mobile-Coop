@@ -151,3 +151,54 @@ split.
 - `runHunt` / `endState` / `HuntWorld` / `TEST_HUNT` / `SET_12` / `SET_16` are exported from the test file. Importing
   them into another test file also registers this file's tests there; when the lead adds the THORNBECK_HUNT sims, move
   the helper to `tests/helpers/` (H2 was limited to two files).
+
+## Real-map sims
+Lead finishing step for PR 1 (Opus 5.5, 2026-10-27). The sim helpers moved to `tests/helpers/millHuntSim.ts` (no
+assertion change; `runHunt` gained an `onStep` hook, `:239`, `:357`). `tests/millHuntThornbeck.test.ts` runs the same
+checks on `THORNBECK_HUNT` with the scene's guard lists: `THORNBECK_GUARDS` (12) and `THORNBECK_GUARDS_16`, each guard
+at his slot's x / y / z with his `pair`, admitted in list order on an empty board (the scene's spawn: `spawnBeat` ->
+`SectorMode.sceneSpawn` -> `fill`, `placeSlot` sets `slotIdx` / `pairSlot`). Straight legs as H2's sim (the helper has
+no nav grid; H1's tests check the walks between adjacent stops on it). Added: plan check 2 fold-in 1, as data (every
+gallery stop's usable aim set, both ways, in and outside the target room, holds a hall-facing aim) and as behaviour
+(every gallery hold of 30 s or more had a member facing the hall).
+
+| | 12 | 16 |
+| --- | --- | --- |
+| start over the cap (positions) | startBay 3 | startBay 3, stairHead 3 |
+| back to 2 | startBay 1.0 s | startBay 1.0 s, stairHead 10.6 s |
+| start spread | G3 -> aisle | G3 -> aisle; G8 + G9 -> craneEast, G10 -> craneWest |
+| phase steps (s) | 60, 125.0, 187.0, 247.0, 307.6 | 60, 125.0, 187.0, 247.0, 320.4 |
+| cap / growth / deadlock fails | 0 | 0 |
+| most reversals of one member | 1 | 1 |
+| end state fails | 0 | 0 |
+| gallery holds facing the hall | all | all |
+| longest single hold (s) | 866 (landing pair) | 882 (landing pair) |
+| late G1 (12 s) + G3 (20 s), fights G8 100-160 s + G5 200-260 s | all checks pass | all checks pass |
+| two runs | identical | identical |
+
+End state (rank order): 12 ground lobby loop (1), sackBay hold (2), millBay (1), aisle (2); gallery eastEnd loop (1),
+eastWest (2), craneWest (1), landing (2). 16 ground lobby (1), sackBay (1), millBay (2), aisle (1), startBay (2);
+gallery eastEnd (1), eastWest (1), craneEast (2), craneWest (1), stairHead (2), landing (2).
+
+Data changes (`src/world/maps/thornbeckMill.ts`, `THORNBECK_HUNT`); no board rule change:
+- `:279` craneWest stop x 14.1 -> 13.6 (aims unchanged: cardinal). G8 + G9 start at x 12.5 in craneWest, but G8 was
+  1.94 m from both the stair head's east stop (10.9) and craneWest's (14.1); the tie went to the lower index, so the
+  pair was admitted to the stair head (G10's room) and walked into it: 3 by positions for 1.4-7.2 s (12 set), 5 at
+  1.4 s and over for the rest of the run (16 set). Now craneWest's stop is nearest by 0.4 m (G8) / 0.5 m (G9).
+- `:242` aisle east stop x 18.4 -> 17.9, two aims re-aimed from the new centre (the Sb2 hide spot -0.05 -> 0.19, M1's
+  north-west corner 0.92 -> 0.99). 16 set: the aisle solo (G3) queues at the aisle's east stop behind the millBay pair,
+  and the start bay pair may not join a solo in the aisle (cap 2), so it held at the start bay's south stop 10.9 m
+  behind him, past the end state's `gap` + 4.5 m (10.5). Now 10.4 m. Stop spacing stays in band (aisle 2.55 m to the
+  middle stop, 3.9 m to the mill bay); `tests/thornbeckMill.test.ts` passes unchanged.
+
+For the checkers and the walk card:
+- The 16-set end-state margin is 0.1 m (10.4 of 10.5): a solo in a long room ahead of a pair spaces the queue by
+  roughly a room, not by `gap`. It is the cap rule working; a later stop move in the aisle or the start bay should
+  re-run this file.
+- The landing pair (G11 + G12) holds the landing for the whole run in both sets (the stair head pair / solo ahead
+  within `gap`): the PLAN's "cordon" risk, now on the real data for 12 as well as 16. It faces the hall (fold-in 1).
+- The sim's legs are straight; a real walk through a door (sack bay -> office west door, office -> lobby) may cross
+  another room's box for a moment. H3's e2e "no room above 2 over 60 s" checks the real paths.
+
+Verify: `npm run typecheck:fast` clean; `npx vitest run tests/millHunt.test.ts tests/millHuntThornbeck.test.ts
+tests/thornbeckMill.test.ts`: 73 passed (21 + 9 + 43). With the map data before the fixes, 6 of the 9 new tests fail.
