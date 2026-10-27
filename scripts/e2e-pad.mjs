@@ -781,6 +781,115 @@ try {
       await V.browser.close();
     }
   }
+  console.log('context prompts (context-prompts S4): the cluster on a door, the pad glyph, the hold ring, the key label');
+  {
+    const C = await launch({ url, params: 'autostart=warehouse&mode=clear&ctxprompts=1' });
+    try {
+      await C.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
+      // the door spot of e2e-stealth-ai's `doors` scenario, facing the closed door, the pad the last device
+      await C.page.evaluate(() => {
+        const a = window.__app;
+        const g = a.current;
+        const P = window.__pad;
+        a.loop.manual = true;
+        g.target.health.invulnerable = true;
+        g.mode.pending.length = 0;
+        g.enemyMgr.clear();
+        P.connect();
+        const V = g.player.position.constructor;
+        window.__cp = {
+          step(n) {
+            for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
+          },
+          tp(x, z, yaw) {
+            g.player.controller.teleport(new V(x, 0, z), yaw);
+            g.player.cam.yaw = yaw;
+            g.player.cam.pitch = 0;
+          },
+          // the A row of the shown cluster, as the checks read it
+          read() {
+            const c = document.querySelector('.ctxp.on');
+            const row = c?.querySelector('.ctxp-row[data-slot="0"]');
+            const disp = (sel) => (row?.querySelector(sel) ? getComputedStyle(row.querySelector(sel)).display : null);
+            const m = /translate\(([\d.]+)vw, ([\d.]+)vh\)/.exec(c?.style.transform ?? '');
+            return {
+              on: !!c,
+              kind: c?.dataset.kind ?? null,
+              off: c?.classList.contains('off') ?? null,
+              shown: row?.classList.contains('shown') ?? false,
+              hold: row?.classList.contains('hold') ?? false,
+              p: row?.style.getPropertyValue('--p') ?? '',
+              tap: row?.querySelector('.ctxp-tap')?.textContent ?? '',
+              holdText: row?.querySelector('.ctxp-hold')?.textContent ?? '',
+              xbox: disp('.g-xbox'),
+              key: disp('.g-key'),
+              keyText: row?.querySelector('.g-key')?.textContent ?? '',
+              x: m ? +m[1] : null,
+              y: m ? +m[2] : null,
+              box: !!document.querySelector('.hud-ctx.show'),
+              pad: document.body.classList.contains('input-gamepad'),
+              kbm: document.body.classList.contains('input-kbm'),
+            };
+          },
+        };
+        const d = g.world.doors.nearest(-0.95, 12, 0.5);
+        g.world.doors.close(d, () => false);
+        window.__cp.tp(-0.95, 11.2, 0);
+        P.set(8, 1);
+        window.__cp.step(2);
+        P.set(8, 0);
+        window.__cp.step(2);
+        window.__cp.step(30);
+      });
+      await frames(C.page, 3);
+      await C.page.evaluate(() => window.__cp.step(6));
+      const r = await C.page.evaluate(() => window.__cp.read());
+      console.log(JSON.stringify(r));
+      assert(r.pad && r.kind === 'door' && r.off === false, `the cluster shows on the faced door (pad mode) (${JSON.stringify(r)})`);
+      assert(r.shown && /open/i.test(r.tap) && /bash/i.test(r.holdText), `[A] Open · hold Bash (${JSON.stringify([r.shown, r.tap, r.holdText])})`);
+      assert(r.xbox !== 'none' && r.key === 'none', `the pad glyph shows (${JSON.stringify([r.xbox, r.key])})`);
+      assert(r.x >= 8 && r.x <= 92 && r.y >= 10 && r.y <= 97, `placed on screen, clamped (${JSON.stringify([r.x, r.y])})`);
+      assert(!r.box, 'the old box never shows with the flag on');
+      // the ring fills while A is held (0.2 s, under the 0.35 s hold time); the release is a tap (S3's suites own the action)
+      await C.page.evaluate(() => {
+        window.__pad.set(0, 1);
+        window.__cp.step(12);
+      });
+      const ring = await C.page.evaluate(() => window.__cp.read());
+      await C.page.evaluate(() => {
+        window.__pad.set(0, 0);
+        window.__cp.step(4);
+      });
+      assert(ring.hold && ring.p !== '' && ring.p !== '0deg', `the ring fills while A is held (${JSON.stringify([ring.hold, ring.p])})`);
+      // a key press: the glyphs swap to the key label (Shift: run, harmless standing still)
+      await C.page.keyboard.press('ShiftLeft');
+      await C.page.evaluate(() => window.__cp.step(2));
+      const kb = await C.page.evaluate(() => window.__cp.read());
+      assert(kb.kbm && kb.key !== 'none' && kb.keyText === 'E' && kb.xbox === 'none', `the glyphs swap to the key label on a key press (${JSON.stringify([kb.kbm, kb.key, kb.keyText, kb.xbox])})`);
+      // away from the door nothing shows
+      // (triage G319) the A tap above opened the door: its committed step-and-push move (`doorOpen`, up to
+      // `DOOR_OPEN.maxTime` 2.4 s) holds the body at the latch on a kinematic override, so a teleport during it is undone.
+      // Let the move end first (bounded), then walk away
+      const away0 = await C.page.evaluate(() => {
+        const g = window.__app.current;
+        let n = 0;
+        while (g.doorOpen.active && n < 180) {
+          window.__cp.step(1);
+          n++;
+        }
+        return { opening: g.doorOpen.active, steps: n };
+      });
+      assert(!away0.opening, `the door's open move ends (${JSON.stringify(away0)})`);
+      await C.page.evaluate(() => {
+        window.__cp.tp(-0.95, 7, Math.PI);
+        window.__cp.step(30);
+      });
+      const away = await C.page.evaluate(() => window.__cp.read());
+      assert(!away.on, `nothing shows away from the door (${JSON.stringify(away)})`);
+    } finally {
+      await C.browser.close();
+    }
+  }
   console.log('remap (step 18, D7): Controls > Controller by pad: clear R3, draw X -> R3, play; onto B warns; reset; crouch and wall hold / toggle');
   {
     const R = await launch({ url });

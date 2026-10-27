@@ -1,5 +1,5 @@
 /**
- * Enemy awareness arcs round the crosshair (Blacklist): one arc per enemy noticing the player, on the bearing
+ * Enemy awareness arcs round the crosshair: one arc per enemy noticing the player, on the bearing
  * to it (top = ahead). The arc fills white as the enemy's meter rises (suspicious), and turns red at
  * detection. A small canvas redrawn only while something shows (and once to clear).
  */
