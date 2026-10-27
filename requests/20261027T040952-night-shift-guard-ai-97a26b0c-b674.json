@@ -1,0 +1,13 @@
+{
+  "id": "20261027T040952-night-shift-guard-ai-97a26b0c-b674",
+  "sha": "97a26b0c6a6bbd4d40d956f7259a1f48d06487b3",
+  "branch": "feature/guard-ai-mill-hunt-h3",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-piano"
+  ],
+  "set": "mill-h3b",
+  "note": "mill-hunt H3 on PR 1's final board"
+}
