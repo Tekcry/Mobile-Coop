@@ -1,5 +1,44 @@
 # Changelog
 
+## 4.135.0 - Train 172: Prompts on the thing you face (preview only); Co-op kit: Deadweight (2026-10-27, PR #715; #703, #653)
+
+### Prompts on the thing you face (preview only)
+- The new interaction prompts now draw on screen: a small marker on the one thing you face, with a row for each button under it (for example "A  Open - hold Bash"). A ring fills round the button while you hold it. Only the thing you face shows anything. Preview only; nothing changes in the normal game.
+
+### Co-op kit: Deadweight
+- Co-op (on in /preview/, not yet in the live game): Deadweight is playable. One player jumps up and hangs on a chain;
+  the counterweighted grate lifts for the partner, who ducks under. Letting go drops the grate, never onto anyone. One
+  chain each side, so whoever is through hangs for the other. At Marlow Yard this is station 9's way under the grille.
+
+## 4.134.0 - Train 171: Co-op kit: Plank Bridge, carrying the board; Marlow Yard re-plan graph: route-run gate points (2026-10-27, PR #712; #710, #601)
+
+### Co-op kit: Plank Bridge, carrying the board
+- Co-op (not switched on yet, in the live game or in /preview/): Plank Bridge's first half. Two players lift a
+  scaffold board from its stack, one at each end, and carry it together: each steers, the pair walks at the slower
+  partner's pace and the board stays between both pairs of hands. B (either player), a hit or a fall puts it down where
+  it is, ready to lift again; a section restart puts it back on its stack. Laying it over a gap and walking across
+  comes in the next update.
+
+### Marlow Yard re-plan graph: route-run gate points
+- The re-planned Marlow Yard graph (`docs/marlow-replan/graph.json`) now names the re-plan map (`ctcourseReplan`), so the
+  route-run gate measures and boots the re-planned yard, not the built one; every link the gate walks has a point the
+  robots can stand on (station marks where a station has one), and the data hall's cage is an objective (the synced hack).
+
+## 4.133.0 - Train 170: New interaction prompts: the actions wired in (preview only); Co-op kit: Swing Pass; Light check on every map (2026-10-27, PR #709; #700, #681, #658)
+
+### New interaction prompts: the actions wired in (preview only)
+- In the preview, the new interaction prompts now drive play: at a door tap A opens and holding A bashes, tap Y peeks and holding Y feeds the optic cable; behind a guard A grabs; in front of a guard tap A knocks out and holding A kills; items, switches, panels and bodies use A. The old corner box no longer opens there. The prompts' look comes next; the live game is unchanged.
+
+### Co-op kit: Swing Pass
+- Co-op (on in /preview/, not yet in the live game): Swing Pass is playable. One player braces at a pipe on the edge of
+  a gap; the partner takes their wrist, steps off and is swung across, letting go over the far side and landing
+  crouched. It reaches across gaps of 2 to 3.5 m with both sides about level; when it cannot, a short line says why. At
+  Marlow Yard this is station 12's way over the cable trench.
+
+### Light check on every map
+- Tests: grey-card light check on Saltmarsh Park, Marlow Yard and the Warehouse at Low and Epic, on every release.
+- Tests: every release runs the light check through the laptop queue's train-parity list.
+
 ## 4.132.0 - Train 169: Carried bodies cast a shadow (2026-10-27, PR #707; #697)
 - A body carried on a shoulder now casts its own shadow (with character shadows on): the picture, the light meter and the guards all see it; the carrier's own light meter ignores it. Works for your partner's carry in co-op too.
 

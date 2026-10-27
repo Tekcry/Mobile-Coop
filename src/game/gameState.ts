@@ -57,6 +57,9 @@ import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } f
 import { addGapRows, GAP_KIND, gapMenuCandidate, pickOpenTrap, type GapOpt } from './gapMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
+import { ContextPrompts, CTX_A, emptyCtxPromptInput, type CtxRun } from './contextPrompts';
+import { emptyCtxJumpState } from './contextJump';
+import { CTX_OPT, ctxPromptStep, ctxRefOf, fillContextPrompts, type CtxHost } from './contextProviders';
 import { hasJoint, JOINT_BLUFF_LABEL, JOINT_KIND, type JointIntel } from './jointInterrogation';
 import { StrikeTrigger } from '../player/weaponStance';
 import { DRAW_HOLSTERED } from '../weapons/drawState';
@@ -575,6 +578,43 @@ export class GameState implements AppState {
   /** (hang-down fix, A9) Hanging settled with no guard on offer or held: A uses the item in reach directly (tap uses it,
    *  a hold fills a hold item, as before the menu), the menu lists nothing; set by `contextMenuStep` for the step. */
   private hangDirectA = false;
+  /** (context-prompts S3) The context prompts, dark behind `flags.contextPrompts` (`contextPromptStep` replaces
+   *  `contextMenuStep`): the focus, its rows and the hold under way, read-only for tests and the HUD's view. */
+  readonly ctxPrompts = new ContextPrompts();
+  private readonly ctxPIn = emptyCtxPromptInput();
+  private readonly ctxJump = emptyCtxJumpState();
+  /** (A21) A jump press the Y rule gave the context system is still down: traversal, the vent start and the door peek's
+   *  end check never see it. Always false with the flag off. */
+  private ctxOwnsY = false;
+  // this step's provider inputs (`ctxHost` reads them)
+  private ctxAside = true;
+  private ctxHolding = false;
+  private ctxItem: Interactable | null = null;
+  /** (S3) What the providers read of the game (made once: no allocation per step). */
+  private readonly ctxHost: CtxHost = {
+    feet: () => this.player.position,
+    camYaw: () => this.player.cam.yaw,
+    aside: () => this.ctxAside,
+    held: () => (this.ctxHolding ? this.takedown.hostage : null),
+    heldInfo: () => this.takedown.hostage !== null && hasInfo(this.takedown.hostage),
+    offer: () => (this.strike.active || this.takedown.active ? null : this.takedown.offer),
+    knife: () => this.takedown.knife,
+    rtFree: () => !this.player.ads && !this.player.adsWanted && (this.player.stance.base === 'holstered' || this.takedown.menuReady || this.team.hangActs),
+    doorCandidate: () => this.doorMenuCandidate(),
+    door: (i) => this.world.doors.list[i] ?? null,
+    peekOffer: () => this.peekOffer,
+    gapCandidate: () => this.gapMenuCandidate(),
+    gapAt: (i) => this.world.level.opticPoints[i]?.gap ?? null,
+    gapOpenable: (i) => this.gapOpenable(i),
+    item: () => this.ctxItem,
+    itemRef: (it) => this.interactables?.items.indexOf(it as Interactable) ?? -1,
+    itemDoor: (it) => {
+      if (!it.id.startsWith('door-')) return -1;
+      const d = this.world.doors.nearest(it.pos.x, it.pos.z, 0.05);
+      return d ? d.index : -1;
+    },
+    carrying: () => this.carrier?.carrying ?? false,
+  };
   /** (A3, G19; G5) The door set and (A4, G23; G5) the grab set as seen from outside (tests, tools). */
   readonly doorMenu = new DoorMenuView(this.ctxMenu);
   readonly grabMenu = new GrabMenuView(this.ctxMenu);
@@ -1426,6 +1466,12 @@ export class GameState implements AppState {
     // (G5) the context menu closes unrun: A's release is lost under the pause menu, so a held list would run on resume
     this.ctxMenu.reset();
     this.hud.ctx.update(this.ctxMenu);
+    // (context-prompts S3) a hold under way stops unrun too (its release under the menu must not run the tap on resume)
+    if (flags.contextPrompts) {
+      this.ctxPrompts.reset();
+      this.ctxOwnsY = false;
+      this.hud.ctxPrompts?.update(this.ctxPrompts);
+    }
     // coop never freezes the shared simulation; the menu just takes the input
     if (this.net) this.menuOpen = true;
     else this.paused = true;
@@ -1644,6 +1690,127 @@ export class GameState implements AppState {
     }
     this.ctxOwnsA = m.state !== 'none' || m.swallow;
     this.hud.ctx.update(m);
+  }
+
+  /**
+   * (context-prompts S3, PLAN 2-4 and 7) The context prompts, in `contextMenuStep`'s place with `flags.contextPrompts`
+   * on: the same sources, stand-asides and calls, no list. The providers (`contextProviders.ts`) fill the candidates,
+   * the model picks the focus, the Y rule judges this step's jump press against that focus (`ctxPromptStep`), then A and
+   * Y run its rows through today's calls (`ctxPromptRun`). A is owned as the menu owned it (`ctxOwnsA`), a jump press the
+   * rule took until it is let go (`ctxOwnsY`). The held guard's RT / Z picks and the scripted `grabMenu.sel` pick run as
+   * in the menu step. In a team move (not hanging) everything stands aside and today's direct paths run (S5 folds them).
+   */
+  private contextPromptStep(dt: number, real: InputState): void {
+    const cp = this.ctxPrompts;
+    const td = this.takedown;
+    const hangActs = this.team.hangActs;
+    const hangDirect = hangActs && td.offer === null && td.active === null;
+    this.hangDirectA = hangDirect;
+    const aside = !this.player.alive || (this.team.active && !hangActs) || this.doorPeek.active || this.optic.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.carrier?.busy ?? false);
+    const holding = !aside && td.menuReady;
+    const gv = this.grabMenu;
+    gv.holding = holding;
+    const scripted = gv.takePick(real.pressed('interact'));
+    const trig = holding ? grabTriggerPick(this.rtRes, real.pressed('altFire'), this.player.ads || this.player.adsWanted) : null;
+    const pick = scripted ?? trig;
+    if (pick === 'device') this.hud.feedItem(`${GRAB_OPT_LABEL[pick]}: not built yet`, 'warn');
+    else if (pick) td.menuPick = pick;
+    this.doorMenu.opts.length = 0;
+    this.gapMenuOpts.length = 0;
+    this.gapMenuGap = -1;
+    // a pick that ran lists nothing this step (as the menu); (hang-down) no body is picked up from the hang, and hanging
+    // with no guard the item is A's own (`updateInteract`)
+    this.ctxAside = aside || (!!pick && pick !== 'device');
+    this.ctxHolding = holding;
+    const it = this.ctxAside || holding || hangDirect ? null : ((hangActs ? null : this.carrier?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
+    this.ctxItem = it;
+    fillContextPrompts(cp, this.ctxHost);
+    if ((!this.team.active || (hangActs && !hangDirect)) && it !== this.interactTarget) {
+      if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
+      this.interactTarget = it;
+    }
+    const pi = this.ctxPIn;
+    const a = real.buttons.interact;
+    pi.a.down = a.down;
+    // (a press that ran an armed pick is not the prompts')
+    pi.a.pressed = a.pressed && scripted === null;
+    pi.a.released = a.released;
+    const y = real.buttons.jump;
+    pi.y.down = y.down;
+    pi.y.released = y.released;
+    pi.rtDown = real.down('fire');
+    pi.holdToggle = this.app.settings.get().access.holdToggle;
+    // (A21) the Y rule's state as the screen shows it this step (the hints from the last probe, before traversal runs)
+    const js = this.ctxJump;
+    const tr = this.traversal;
+    js.grounded = this.player.controller.grounded;
+    js.attached = tr.attached;
+    js.traversing = !!tr.committed || tr.attachCtl.vent !== null;
+    js.onWall = this.wallCore?.active ?? false;
+    js.carrying = this.carrier?.carrying ?? false;
+    js.team = this.team.active;
+    js.busy = td.busy;
+    js.strike = this.strike.active;
+    js.peek = this.doorPeek.active;
+    js.hint = tr.hint !== null;
+    js.attachHint = tr.attachHint !== null;
+    const ran = ctxPromptStep(cp, pi, js, y.pressed, dt);
+    // a fill row (a hack, a medkit station) fills the item's own progress while A stays on it; its noise pulses
+    if (it && it.holdTime > 0) {
+      const mine = cp.kind === 'item' || cp.kind === 'carry';
+      const on = mine && cp.holdSlot === CTX_A && !ran;
+      const prev = it.progress;
+      it.progress = on ? cp.holdT : ran && cp.run.hold && cp.run.slot === CTX_A && mine ? it.holdTime : 0;
+      if (on && it.holdNoise && holdNoisePulse(prev, it.progress)) {
+        this.eventNoise(it.holdNoise);
+        this.enemyMgr?.hear(it.pos, it.holdNoise, 'noise', null, this.localRef.id);
+      }
+    }
+    if (ran) this.ctxPromptRun(cp.run, it);
+    this.ctxOwnsA = cp.ctxOwnsA;
+    this.ctxOwnsY = cp.ctxOwnsY;
+    this.hud.ctxPrompts?.update(cp);
+  }
+
+  /** (context-prompts S3) Run a prompt's action: the same calls as the menu's rows (`ctxRun`). */
+  private ctxPromptRun(r: Readonly<CtxRun>, it: Interactable | null): void {
+    const td = this.takedown;
+    switch (r.kind) {
+      case 'guard':
+      case 'hostage': {
+        const o = td.offer;
+        if (!o || td.active || ctxRefOf(o.e.id) !== r.ref) return;
+        if (r.opt === CTX_OPT.grab) td.start();
+        else if (r.opt === CTX_OPT.ko) td.start(false);
+        // the kill (A6, lethal-only) and the knife takedown (A19: `start` forces the knife)
+        else td.start(true);
+        return;
+      }
+      case 'held':
+        if (r.opt === CTX_OPT.interrogate) td.menuPick = 'interrogate';
+        return;
+      case 'door':
+        this.doorMenuPick(r.opt as DoorOpt, r.ref);
+        return;
+      case 'gap':
+        this.gapMenuPick(r.opt as GapOpt, r.ref);
+        return;
+      case 'item':
+      case 'carry':
+        if (!it) return;
+        if (it.onUse) it.onUse(it, 'local');
+        else this.mode?.onInteract?.(it);
+        this.interactTarget = null;
+        return;
+      default:
+        return;
+    }
+  }
+
+  /** The old held list is open (the operator stands still, the input blank). Always false under
+   *  `flags.contextPrompts`: there is no list and walking stays free (A12). */
+  private get ctxListOpen(): boolean {
+    return !flags.contextPrompts && this.ctxMenu.state === 'active';
   }
 
   /** (knife-attack) The holstered attack press with the knife switch on: the knife kill on the guard on offer (the same
@@ -2127,9 +2294,11 @@ export class GameState implements AppState {
     }
     // (G5) the context menu first: held open (this step or the last: the step it closes on is the release, or B) it
     // takes the input, the operator stands still (camera free)
-    const ctxWas = this.ctxMenu.state === 'active';
-    this.contextMenuStep(dt, real);
-    const ctxHeld = ctxWas || this.ctxMenu.state === 'active';
+    const ctxWas = this.ctxListOpen;
+    // (context-prompts S3) the prompts in the menu's place with the flag on (no list: `ctxListOpen` stays false)
+    if (flags.contextPrompts) this.contextPromptStep(dt, real);
+    else this.contextMenuStep(dt, real);
+    const ctxHeld = ctxWas || this.ctxListOpen;
     // (F1b) holding a guard (the list not held open) you walk (slow) and aim the sidearm: the move and the aim / fire
     // actions pass through, everything else stays blank
     const holdingGuard = this.grabMenu.open;
@@ -2172,7 +2341,8 @@ export class GameState implements AppState {
     ti.useHeldT = aFree ? inp.heldTime('interact') : 0;
     // (vent-kick, M1) jump (Y / Space, any held source) held on from a vent start: no kick yet, the hold runs on into
     // interact (A / E); a scripted tap('jump') holds nothing (a kick)
-    ti.startHeld = inp.down('jump');
+    // (context-prompts A21) a jump press the Y rule gave the context system is not a vent start
+    ti.startHeld = inp.down('jump') && !this.ctxOwnsY;
     ti.sprintHeld = inp.down('dash');
     // (3.2.0 phase 5) team moves come before traversal
     // (A3) a jump press on a wall does not traverse in the same step (a traversal that starts leaves the wall)
@@ -2195,7 +2365,7 @@ export class GameState implements AppState {
       ti.startHeld = false;
     }
     if (this.team.active) this.traversal.hint = null;
-    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !teamTook && !this.team.active && !carrying && !busy, this.team.active);
+    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.ctxOwnsY && !wallWas && !teamTook && !this.team.active && !carrying && !busy, this.team.active);
     this.wallStep(dt, inp, busy || carrying);
     // (G6, AUDIT-WALLS row 12) the raised weapon against a wall in front: the rifle comes up muzzle-high (pose only)
     {
@@ -2317,7 +2487,7 @@ export class GameState implements AppState {
       // the attack press is the knife kill on a guard in reach, as the takedown row; none in reach: a cue, no free slash
       // (checker FIX 1) free unless the menu's list is open: `aFree` is false whenever the menu has a row, and a guard on
       // offer always adds the TAKEDOWN row
-      if (atk && this.takedown.knife) this.knifeAttack(this.ctxMenu.state !== 'active');
+      if (atk && this.takedown.knife) this.knifeAttack(!this.ctxListOpen);
       this.strike.fixedUpdate(dt, atk && !this.takedown.knife, rt === 'hold');
     }
     // (anim-rework S1, M4) a traversal or a busy move holds the weapon state (the gun away for it, back after); holding a
@@ -3314,7 +3484,7 @@ export class GameState implements AppState {
     const sv = this.sceneView;
     // (piano-escape) the scene's camera films the operator: the tight-space body fade stays off while it holds the view
     this.player.cam.sceneOwned = !!sv?.holdsInput;
-    this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxListOpen ? this.blankInp.move : this.app.input.state.move);
     this.takedown.frameLate(); // (piano-knife S1) a knife kill's guard off the attacker's drawn root, before enemies pose
     // (piano-escape S2) the scene's view places the rendered camera after the game view (render only)
     sv?.frame(dt);
@@ -3379,7 +3549,7 @@ export class GameState implements AppState {
   /** Goggles per fixed step: the button cycles the modes. */
   private updateVision(_dt: number): void {
     const v = this.vision;
-    if (this.app.input.state.pressed('vision') && this.player.alive && this.ctxMenu.state !== 'active') {
+    if (this.app.input.state.pressed('vision') && this.player.alive && !this.ctxListOpen) {
       v.toggle();
       this.visionLabelT = 0;
       this.events.emit('vision', { mode: v.mode });
@@ -3686,7 +3856,7 @@ export class GameState implements AppState {
       if (cur > DOOR.crack + 1e-6 || nxt > DOOR.crack + 1e-6) pi.push = 0;
     }
     // (KBM shares E between traverse and interact: an interact press opens, it does not end the peek)
-    pi.end = was && (other || hurt || pl.ads || pl.adsWanted || (inp.pressed('jump') && !interact) || inp.pressed('dash'));
+    pi.end = was && (other || hurt || pl.ads || pl.adsWanted || (inp.pressed('jump') && !this.ctxOwnsY && !interact) || inp.pressed('dash'));
     pi.candidate = cand;
     // (fix r1) an abandoned crack: the peek resumes at it (no crack request), so it can be closed
     pi.resume = cand >= 0 && doors.list[cand]!.cracked;
@@ -4219,7 +4389,10 @@ export class GameState implements AppState {
     // takedown: on the victim, above the head
     const off = this.takedown.active ? null : this.takedown.offer;
     const host = this.takedown.hostage;
-    if (off) {
+    // (context-prompts S3) with the flag on the guard's prompt is the cluster's (`hud.ctxPrompts`); this one shows only
+    // where the prompts stand aside (a team move's direct press, S5 folds it)
+    if (flags.contextPrompts && !this.ctxAside) w.set('takedown', null, 0, 0);
+    else if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
       const lbl = off.lethalOnly ? 'Lethal takedown' : this.takedown.knife ? 'Takedown' : (off.plan.kind === 'behind' || off.plan.kind === 'hangDown') && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
@@ -4231,7 +4404,8 @@ export class GameState implements AppState {
     } else w.set('takedown', null, 0, 0);
     // (G107) no speed-gear indicator: the max-speed cap is felt, not shown
     this.hud.setTactical(1, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
-    w.flush();
+    // (context-prompts S4, Doubt 2) the projector lets the context prompts place on their targets
+    w.flush(this);
   }
 
   /** Anchor prompts: what traverse attaches to from the ground; climb up / jump / drop while attached. */

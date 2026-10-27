@@ -172,9 +172,9 @@ describe('--affected: the DIRECT tier (default)', () => {
     for (const [f, suites] of rows) expect(select([f]), f).toEqual([...suites, 'smoke'].sort());
   });
 
-  it('light, lamp and voxel files pick the bake suite, the desktop and the GPU darkness read-back', () => {
+  it('light, lamp and voxel files pick the bake suite, the desktop and the GPU light read-backs', () => {
     for (const f of ['src/world/lights.ts', 'src/world/lightBake.ts', 'src/world/lampMath.ts', 'src/world/bakedLamps.ts', 'src/world/ambientGrid.ts', 'src/world/darkCurve.ts', 'src/voxel/lampBake.ts']) {
-      expect(select([f]), f).toEqual(['e2e-darkness', 'e2e-desktop', 'e2e-lightbake', 'smoke']);
+      expect(select([f]), f).toEqual(['e2e-darkness', 'e2e-desktop', 'e2e-lightbake', 'e2e-parity', 'smoke']);
     }
   });
 
@@ -227,6 +227,7 @@ describe('--affected: the DIRECT tier (default)', () => {
       ['src/player/shoulderCamera.ts', 'e2e-camera-bounds'],
       ['src/config/camera.ts', 'e2e-camera-bounds'],
       ['src/world/lightBake.ts', 'e2e-darkness'],
+      ['src/world/lightBake.ts', 'e2e-parity'],
       ['src/net/remoteAvatar.ts', 'e2e-coop-gpu'],
     ];
     for (const [f, s] of rows) {
@@ -292,11 +293,17 @@ describe('affected requests skip GPU and legacy suites (testing-tools: GPU never
     for (const s of [...(LEGACY as string[]), ...(GPU as string[])]) expect(gate([s, 'smoke']), s).toEqual(['smoke']);
     expect(gate([])).toEqual([]);
   });
-  it('the lamp files no longer gate an affected request on e2e-darkness (GPU) or e2e-security (legacy)', () => {
+  it('parity-lib.mjs reruns both GPU light suites, and the gate keeps neither (light jobs request e2e-parity by name)', () => {
+    const picked = select(['scripts/parity-lib.mjs']);
+    expect(picked).toEqual(expect.arrayContaining(['e2e-darkness', 'e2e-parity']));
+    for (const s of ['e2e-darkness', 'e2e-parity']) expect(gate(picked)).not.toContain(s);
+  });
+  it('the lamp files no longer gate an affected request on e2e-darkness / e2e-parity (GPU) or e2e-security (legacy)', () => {
     const picked = select(['src/world/lightBake.ts'], wide);
-    expect(picked).toEqual(expect.arrayContaining(['e2e-darkness']));
+    expect(picked).toEqual(expect.arrayContaining(['e2e-darkness', 'e2e-parity']));
     const got = gate(picked);
     expect(got).not.toContain('e2e-darkness');
+    expect(got).not.toContain('e2e-parity');
     expect(got).not.toContain('e2e-security');
     expect(got).toContain('e2e-lightbake');
   });

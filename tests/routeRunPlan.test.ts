@@ -312,3 +312,15 @@ describe('route-run plan: identical step lists merge', () => {
     expect((walkedBy(q.runs[0]!) as LinkStep[]).map((s) => s.index)).toEqual([0, 1, 2]);
   });
 });
+
+describe('route-run plan: a split rejoined, then a path back through a leg space (Marlow re-plan A7)', () => {
+  const graph = read<Graph>(path.join(ROOT, 'docs/marlow-replan/graph.json'));
+  const p = plan([graph], null);
+  const full = p.runs.find((r) => r.id === 'full')!;
+
+  it('starts each split once: the A7 data hall split is not forked again after its rejoin at the cage', () => {
+    const ids = full.steps.filter((s): s is SplitStep => s.type === 'split').map((s) => s.id);
+    expect(ids.filter((id) => id === 'a7')).toHaveLength(1);
+    expect(String(full.unplannable ?? '')).not.toMatch(/split a7/);
+  });
+});
