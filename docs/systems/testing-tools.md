@@ -632,28 +632,24 @@ commit status on the tested sha (no message). Slots, job counts, desktop gates: 
   its place; a head conflicting with master gets no affected run. An alone run (both slots) over 30 min old
   (`ALONE_AGE_MIN`) goes after fixes and front branches, before other pr work (`LQ_FRONT_BEFORE_ALONE` 0 = alone first).
   Moved heads: `docs/systems/auto-train.md` "What the laptop queue service provides".
-- Train reruns (2026-10-24, auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
-  `"trainRerun": true` (kind pr). It runs right after trains, before every other request and alone run, never held by
-  the alone hold, at `E2E_JOBS=1`, sharded over both slots when free (`LQ_RERUN_SHARD`), else one (never the desktop).
-  Its context is `laptop-e2e/<set>` like any pr request (auto-train sends `--set train<n>-rerun` and reads
-  `laptop-e2e/train<n>-rerun`); only a rerun with no `--set` gets `laptop-e2e/rerun-<suites without e2e->`. A full pass
-  also posts `laptop-e2e` success on the sha, "laptop rerun passed: <suites> (desktop fail)": the combined status keeps
-  the latest status per context, so that replaces the desktop's `laptop-e2e` failure and release sees the train green. A
-  fail posts only its own context (the train stays red) and comments on the PR as usual.
+- Train reruns (auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
+  `"trainRerun": true` (kind pr): right after trains, before every other request and alone run, never held, at
+  `E2E_JOBS=1`, sharded over both slots when free (`LQ_RERUN_SHARD`), else one (never the desktop). Context
+  `laptop-e2e/<set>` (auto-train sends `--set train<n>-rerun`; no `--set`: `laptop-e2e/rerun-<suites without e2e->`).
+  A full pass also posts `laptop-e2e` success, "laptop rerun passed: <suites> (desktop fail)", replacing the desktop's
+  failure so release sees the train green; a fail posts only its own context and comments on the PR.
 - Duplicates: a new request that runs exactly what another one runs (same sha, kind, suites sorted or steps in order,
   env, set, jobs, pr; any requester) is marked done unrun as "duplicate of <id>" (one push, no status) while that one is
   open (older), claimed or running on either worker, or was done on this worker within `LQ_DUP_WINDOW_MIN` (60) min with
-  result success. A failure, error, build, nosha or incomplete result never retires a new request (a rerun of a failure
-  runs: a laptop rerun of a desktop failure, a `--jobs 1` solo rerun). Supersede still retires one requester's older pr
-  / full requests; on the same sha it hands over instead of posting error. Affected requests: a duplicate hands
-  `affected-e2e` over to the surviving affected request (pending "handed over to <id>") or posts success when it repeats
-  a recent pass, and is never retired against another requester's run; an affected request or laptop rerun withdrawn
-  before it ran posts error "withdrawn by the requester (not run)". state.json keeps done entries 7 days.
+  result success. A failed, errored or incomplete result never retires a new request (reruns of a failure run).
+  Supersede retires one requester's older pr / full requests; on the same sha it hands over. A duplicate affected
+  request hands `affected-e2e` to the surviving one (pending "handed over to <id>") or posts success when it repeats a
+  recent pass, never retired against another requester's run; an affected request or laptop rerun withdrawn before it ran posts error "withdrawn by the requester (not
+  run)". state.json keeps done entries 7 days.
 - Yield: while a train head is pending, a pr / full / alone run that has not started its suites or steps (lock, fetch,
   npm ci, build) gives its slot back and stays queued (log "<id>: yields to train <n>"). A started run goes on unless
-  lib `cutShort` stops it: withdrawn (its file gone two listings in a row); parked (moved to `parked/` by the fix
-  freeze: stopped at the next listing with the withdrawn error, runs again when moved back; `LQ_PARKED_CUT` 0 = as
-  withdrawn); hung (no suite result or start header for 17 min: failure "hung", a train posts its unfinished suites as
+  lib `cutShort` stops it: withdrawn (file gone two listings in a row); parked (in `parked/`: stops with the withdrawn
+  error, runs again when moved back; `LQ_PARKED_CUT` 0 = as withdrawn); hung (no suite result or start header for 17 min: failure "hung", a train posts its unfinished suites as
   FAIL, the desktop hands off; `LQ_SUITE_IDLE_MIN` 15, never under the 900 s suite timeout + 2 min, 0 = off); a plain pr
   run under 80% of its expected wall when a train is pending and every other run on the worker is a plain pr; an alone
   run under 10 min old (queued again first); a run on an old PR head once a newer head queues (`LQ_STOP_SUPERSEDED` 0 =
@@ -668,10 +664,8 @@ commit status on the tested sha (no message). Slots, job counts, desktop gates: 
   long after the merge: ETA = newest first-seen-green + 3. Running heads keep a merge hold on but never set the ETA or
   start a hold. Any other open train: no hold. Under the hold only train reruns and pr runs that fit start (lib
   `fitsBeforeTrain`: expected wall known, not alone / full, now + `LQ_FIT_PREP_S` (120) s + 1.2 x wall <= ETA); a fitted
-  run an early train catches falls to `cutShort`'s 80% rule. Log: "<why>, next train ~HH:MMZ: only runs that fit start".
-  The desktop holds the same way, fitted at one job (`LQ_DESKTOP_TRAIN_SOON` 0 = the build marker only). Pacing
-  assumption: auto-train builds right after the release, in the same tick; when its pacing waits, the late window caps
-  the held slots at 11.5 min per release. An aged alone gets the gap after it (`LQ_ALONE_GAP`).
+  run an early train catches falls to `cutShort`'s 80% rule. The desktop holds the same way at one job
+  (`LQ_DESKTOP_TRAIN_SOON` 0 = the build marker only). An aged alone gets the gap after it (`LQ_ALONE_GAP`).
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/` (retries `-2/`, `-3/`).
@@ -696,16 +690,14 @@ commit status on the tested sha (no message). Slots, job counts, desktop gates: 
 - Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
-- Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` takes pr requests only
-  (fixes first, then smallest first, stacked last), on 4191 in `C:/NightShift/Mobile-Coop-testrun-4191` under
-  `heavy.lock` (4192: `...-testrun-4192`, `heavy2.lock`), `E2E_GPU=1 E2E_JOBS=1`; it skips any over
-  `LQ_DESKTOP_MAX_MIN` (15) min by the head's run-e2e parts (no time = the median). Start gates: `docs/RULES.md`
+- Desktop overflow lane: the same service with `LQ_WORKER=desktop` takes pr requests only (fixes first, then smallest
+  first, stacked last) in `C:/NightShift/Mobile-Coop-testrun-<port>` (slots and locks: `docs/RULES.md` "Machines" and
+  "Ports"), `E2E_GPU=1 E2E_JOBS=1`; it skips any over `LQ_DESKTOP_MAX_MIN` (15) min by the head's run-e2e parts (no time = the median). Start gates: `docs/RULES.md`
   "Machines"; env `LQ_DESKTOP_BACKLOG` (service default 3, `install-task.ps1` 0), `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2`
   (80; CPU of Normal or higher priority processes plus the queue's own e2e browsers, lib `gatedCpu`; `LQ_CPU_COUNT_E2E`
   0 = browsers not counted; `LQ_DESKTOP_CPU_MODE=total` = whole machine), `LQ_LAPTOP_SILENT_MIN` (10); starts and CPU
-  refusals log gated / total CPU. Train soon (above); while auto-train's build marker (`docs/systems/auto-train.md`;
-  `LQ_BUILD_MARKER` overrides its path for tests) is under `LQ_BUILD_MARKER_MAX_MIN` (30) min old the desktop starts no
-  new request or train (the backstop; an older one is ignored). Fail fast (`LQ_DESKTOP_FAIL_FAST` 0 = at the end): a
+  refusals log gated / total CPU. Train soon (above); no new start while auto-train's build marker
+  (`docs/systems/auto-train.md`; `LQ_BUILD_MARKER`) is under `LQ_BUILD_MARKER_MAX_MIN` (30) min old. Fail fast (`LQ_DESKTOP_FAIL_FAST` 0 = at the end): a
   counted failure (failed + unfinished suites), a hung run or no result (all suites) queues the laptop rerun (not for a
   draft PR, F34). Statuses read "desktop: ..."; logs `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/`.
 - Claims: before a run each worker pushes `claims/<id>.json` (a train: `claims/<sha>.json`) to `laptop-queue`, marked
@@ -721,8 +713,7 @@ commit status on the tested sha (no message). Slots, job counts, desktop gates: 
   real request is listed. `request.mjs` refuses unknown suite names at request time.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
   Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
-- Scheduled tasks: hand-made chains are retired; e2e runs go through the queue (`request.mjs`). The permanent tasks are
-  the task guard's allowlist in code (`TASK_ALLOW` in `scripts/laptop-queue/lib.mjs`): `NightShift-laptop-queue`
+- Scheduled tasks: e2e runs go through the queue (`request.mjs`). The permanent tasks are the task guard's allowlist in code (`TASK_ALLOW` in `scripts/laptop-queue/lib.mjs`): `NightShift-laptop-queue`
   (`install-task.ps1`), `NightShift-desktop-queue` (`install-task.ps1 -Worker desktop`), `NightShift auto-train`
   (`scripts/auto-train-task.ps1`) and `NightShift watchdog` (`scripts/watchdog-task.ps1`, `docs/systems/watchdog.md`).
   The only way to schedule an ad-hoc run is `powershell -NoProfile -ExecutionPolicy Bypass -File
@@ -753,8 +744,7 @@ The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; repl
   (state.json `flakes`, runs per day in `suiteRuns`). A suite may flake 2 times in 7 days (lib `FLAKE_BUDGET`,
   `FLAKE_BUDGET_DAYS`); the next flake quarantines it for 48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`, owner from
   `owners`, else the orchestrator; `keys` from the flakes that tripped the budget): later runs print it KNOWN FLAKY instead of
-  rerunning it. `flake-budget.md` there lists each
-  suite that flaked, failed KNOWN FLAKY (`knownFlaky`) or is quarantined in the window, with its BLOCKING state (line 1 says rates
+  rerunning it. `flake-budget.md` there lists each suite that flaked, failed KNOWN FLAKY (`knownFlaky`) or is quarantined in the window, with its BLOCKING state (line 1 says rates
   read high until 7 days are counted); a run that flaked or hit a quarantined failure adds it to its PR comment (a pass only on a
   new flake). Only flakes after a suite's last auto quarantine count; an auto entry just expires. One automatic list, the
   laptop's (F48): the desktop drops its own, forgives only the committed list, decides no quarantine or blocking, and reruns its
