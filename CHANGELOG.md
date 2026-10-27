@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.138.0 - Train 178: Storm mill hunt (wiring) (2026-10-27, PR #726; #725)
+- Storm mill (`?millhunt=1`, dark; on in /preview/): after the EMP the guards hunt for good: searching, slow, room by room towards the players' way out, never more than 2 in a room; `?millhunt=0` keeps the calm sweep.
+
 ## 4.137.1 - Train 177: Storm mill guard hunt, part 1 (dark) (2026-10-27, PR #724; #713)
 - (not switched on yet) The storm mill's search routes for each floor and the rules for a slow, room-by-room guard hunt
   in pairs of at most two, closing in on the players in a fixed order.
