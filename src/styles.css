@@ -1973,6 +1973,8 @@ body {
 }
 .ctxp.off {
   visibility: hidden;
+  /* (S4 check) from 0 whichever frame it is placed in: a fresh cluster always fades in */
+  opacity: 0;
   transition: none;
 }
 .ctxp-rows {

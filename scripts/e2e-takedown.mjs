@@ -2,13 +2,13 @@
 // calm guard), (G5, Michael 08:10) one context menu row per takedown (a knockout; RT held is the lethal strike, anim-rework S1), the attacker aligned within 5 cm, interrupted by
 // damage, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
 // through a window; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
-// from a pipe and a split, an inverted choke; (G348) none on a dog. `node scripts/e2e-takedown.mjs [url] [--only=name]`
-import { launch, assert, frames } from './e2e-lib.mjs';
+// from a pipe and a split, an inverted choke; (G348) none on a dog; (context-prompts S3) the prompts under ?ctxprompts=1. `node scripts/e2e-takedown.mjs [url] [--only=name]`
+import { launch, openPage, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 let failed = false;
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+const { browser, ctx, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);
@@ -670,6 +670,124 @@ try {
   });
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
   assert(real.length === 0, `no console errors (${real.join(' | ')})`);
+
+  // (context-prompts S3, PLAN 8) the context prompts (`?ctxprompts=1`, dark until switch-on): from behind A grabs (held
+  // through the grab: the raw A keeps reaching the takedown); faced, a tap knocks out and a hold kills; RT unchanged;
+  // the held guard's A interrogates; the old box never shows
+  if (!only || 'context prompts'.includes(only)) {
+    console.log('context prompts');
+    await page.close();
+    const p2 = await openPage(ctx, url, 'autostart=warehouse&mode=clear&ctxprompts=1');
+    await frames(p2.page, 10);
+    const r = await p2.page.evaluate(() => {
+      const a = window.__app;
+      const g = a.current;
+      a.loop.manual = true;
+      g.target.health.invulnerable = true;
+      g.mode.pending.length = 0;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      const st = a.input.state;
+      const c = g.player.controller;
+      const cp = g.ctxPrompts;
+      const step = (s) => a.loop.stepHeadless(s, 120);
+      let box = false;
+      const watch = (s) => {
+        for (let t = 0; t < s; t += 0.1) {
+          step(0.1);
+          box ||= document.querySelector('.hud-ctx.show') !== null || g.ctxMenu.state !== 'none';
+        }
+      };
+      const reset = () => {
+        g.takedown.reset();
+        em.clear();
+        g.traversal.reset();
+        st.releaseAll();
+        st.setMove('t', 0, 0);
+        c['crouchToggled'] = false;
+        step(0.1);
+      };
+      const at = (yaw) => {
+        c.teleport(new V(2, 0, -2.2), 0);
+        g.player.cam.yaw = 0;
+        g.player.cam.pitch = 0;
+        const e = em.spawn('grunt', new V(2, 0, -1), false, yaw);
+        e.passive = true;
+        step(0.4);
+        return e;
+      };
+      const rowsOf = () => [0, 1, 2, 3].map((s) => (cp.shows(s) ? `${cp.rows[s].tapLabel}|${cp.rows[s].holdLabel}` : '-')).join(' ; ');
+      // A pressed for `hold` s (0: one step), then let go
+      const pressA = (hold) => {
+        st.set('t', 'interact', true);
+        step(1 / 60);
+        if (hold > 0) step(hold);
+        st.set('t', 'interact', false);
+        step(1 / 60);
+      };
+      const out = {};
+      // from behind: [A] Grab; A held through the grab keeps him (the raw A reaches the takedown)
+      reset();
+      const e1 = at(0);
+      out.behind = { kind: cp.kind, rows: rowsOf() };
+      st.set('t', 'interact', true);
+      step(1 / 60);
+      out.behind.started = g.takedown.active !== null;
+      watch(1.3);
+      out.behind.held = g.takedown.hostage === e1 && g.grabMenu.open;
+      st.set('t', 'interact', false);
+      step(0.2);
+      out.behind.stillHeld = g.takedown.hostage === e1 && e1.alive;
+      out.behind.heldKind = cp.kind;
+      out.behind.heldRows = rowsOf();
+      // faced: a tap knocks out
+      reset();
+      const e2 = at(Math.PI);
+      out.front = { kind: cp.kind, rows: rowsOf() };
+      pressA(0.1);
+      watch(1.6);
+      out.front.down = !e2.alive;
+      out.front.lethal = em.bodies.some((b) => b.lethal);
+      // faced: held past CTX_HOLD kills
+      reset();
+      const e3 = at(Math.PI);
+      pressA(0.5);
+      watch(1.8);
+      out.hold = { down: !e3.alive, lethal: em.bodies.some((b) => b.lethal) };
+      // RT unchanged: the holstered palm strike knocks out a guard faced
+      reset();
+      const e4 = at(Math.PI);
+      st.set('t', 'fire', true);
+      step(1 / 60);
+      st.set('t', 'fire', false);
+      watch(1.0);
+      out.rt = { down: !e4.alive, ko: g.strike.count.ko };
+      // the held guard with information: [A] Interrogate, a tap runs it
+      reset();
+      const e5 = at(0);
+      e5.info = { lines: ['Lab door is 4471.'], codes: [] };
+      pressA(0);
+      watch(1.4);
+      out.inter = { kind: cp.kind, rows: rowsOf(), held: g.takedown.hostage === e5 };
+      const n0 = g.takedown.grabs.interrogated;
+      pressA(0);
+      watch(2.0);
+      out.inter.done = g.takedown.grabs.interrogated === n0 + 1;
+      out.box = box;
+      return out;
+    });
+    assert(r.behind.kind === 'guard' && r.behind.rows.startsWith('Grab|'), `ctx: behind a guard the prompt is [A] Grab (${JSON.stringify(r.behind)})`);
+    assert(r.behind.started && r.behind.held && r.behind.stillHeld, `ctx: A held through the grab: grabbed and held (${JSON.stringify(r.behind)})`);
+    assert(r.behind.heldKind === 'held' && r.behind.heldRows.includes('Knock out|Kill'), `ctx: held, the RT row names Knock out / Kill (${JSON.stringify(r.behind)})`);
+    assert(r.front.kind === 'guard' && r.front.rows.startsWith('Knock out|Kill'), `ctx: faced, [A] Knock out · hold Kill (${JSON.stringify(r.front)})`);
+    assert(r.front.down && !r.front.lethal, `ctx: faced, a tap knocks him out (${JSON.stringify(r.front)})`);
+    assert(r.hold.down && r.hold.lethal, `ctx: faced, a hold kills (${JSON.stringify(r.hold)})`);
+    assert(r.rt.down && r.rt.ko >= 1, `ctx: RT holstered still knocks out (${JSON.stringify(r.rt)})`);
+    assert(r.inter.kind === 'held' && r.inter.rows.startsWith('Interrogate|') && r.inter.held && r.inter.done, `ctx: the held guard's [A] Interrogate runs (${JSON.stringify(r.inter)})`);
+    assert(!r.box, 'ctx: the old box never shows');
+    const real2 = p2.errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
+    assert(real2.length === 0, `ctx: no console errors (${real2.join(' | ')})`);
+  }
 } catch (e) {
   failed = true;
   console.error(String(e));
