@@ -7,17 +7,25 @@
 // 4 s, no guard past suspicious), a restart keeps the lamps off, a co-op knife kill on G1 + G2 (a dual), a solo kill
 // each, the rest down, both on the hoist platform: the end fades both pages to the lobby, no results screen. Waits from
 // the measured knife timings (PR #620: contact 1.05 s, limp 1.57 s, operator free 1.87 s).
+// (guard-ai mill-hunt H3) With the hunt on (`?millhunt=1`, the default here; `E2E_MILLHUNT=0` runs `?millhunt=0`):
+// every guard is `searching` from the EMP, so the co-op start check is "no guard in combat" (flag off: "no guard past
+// suspicious" as built); the solo run, guards blinded (the difficulty's perception 0), checks 30 s after the cut every
+// live guard searching on the hunt, over the next 60 s no room above 2 guards (positions) and the far ground guards'
+// mean line distance to W1 falling, and the hunt back on (phase 0) after the checkpoint restart.
 // Hooks: window.__piano (the scene's debug()), window.__sector, window.__app, window.__coop.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
 import { LOAD_MS, NET_VIEWPORT, hostStepResult, onHostStep, offHostStep, setSimPages, startMode, until, waitHostSim, waitSim } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const PARAMS = 'piano=1&autostart=thornbeckMill&mode=sector';
+/** (mill-hunt H3) The hunt flag: on unless `E2E_MILLHUNT=0`. */
+const MH = process.env.E2E_MILLHUNT !== '0';
+const MHQ = `millhunt=${MH ? 1 : 0}`;
+const PARAMS = `piano=1&autostart=thornbeckMill&mode=sector&${MHQ}`;
 /** The meter's dark band (`LIGHT.shadow`, src/world/lights.ts). */
 const SHADOW = 0.28;
 
 let ok = true;
-console.log('piano escape: solo intro, skip, EMP, cut, restart');
+console.log(`piano escape: solo intro, skip, EMP, cut, restart (${MHQ})`);
 const { browser, page, errors } = await launch({ url, params: PARAMS });
 const G = (f, a) => page.evaluate(f, a);
 const sim = async (s) => {
@@ -25,6 +33,50 @@ const sim = async (s) => {
   await frames(page, 1);
 };
 const dbg = () => G(() => window.__piano.debug());
+/** (mill-hunt H3) The room cap (`HUNT.roomCap`), the settle and the window after the cut (s), a far guard's line distance (m). */
+const ROOM_CAP = 2;
+const HUNT_SETTLE = 30;
+const HUNT_WINDOW = 60;
+const FAR_LINE = 15;
+/** (mill-hunt H3) The hunt's state on the page: the board, every live guard's level and hunt, the fullest room (guard
+ *  positions in the board's room boxes, on the room's storey) and each ground guard's line distance to W1's stop. */
+const huntProbe = () =>
+  G(() => {
+    const em = window.__app.current.enemyMgr;
+    const b = em.millHunt;
+    const live = em.enemies.filter((e) => e.alive && !e.taken);
+    const out = { on: !!b, phase: b ? b.phase : -1, n: live.length, notSearching: [], off: [], worst: 0, worstRoom: '', line: {} };
+    for (const e of live) {
+      if (e.level !== 'searching') out.notSearching.push(`${e.id} ${e.level}`);
+      if (!e.mhOn) out.off.push(e.id);
+    }
+    if (!b) return out;
+    for (let r = 0; r < b.nRooms; r++) {
+      const y = b.lineY[b.roomLine[r]];
+      let n = 0;
+      for (const e of live) if (Math.abs(e.pos.y - y) < 1.5 && e.pos.x >= b.roomBox[r * 4] && e.pos.x <= b.roomBox[r * 4 + 2] && e.pos.z >= b.roomBox[r * 4 + 1] && e.pos.z <= b.roomBox[r * 4 + 3]) n++;
+      if (n > out.worst) {
+        out.worst = n;
+        out.worstRoom = b.roomIds[r];
+      }
+    }
+    // the ground line (line 0): each guard's nearest stop's distance along it from the stop nearest W1 (5.5, 5.25)
+    const near = (x, z) => {
+      let best = -1;
+      let bd = Infinity;
+      for (let i = b.lineFirst[0]; i < b.lineEnd[0]; i++) {
+        const d = Math.hypot(b.sx[i] - x, b.sz[i] - z);
+        if (d < bd) {
+          bd = d;
+          best = i;
+        }
+      }
+      return best;
+    };
+    const w1 = b.arc[near(5.5, 5.25)];
+    for (const e of live) if (Math.abs(e.pos.y - b.lineY[0]) < 1.5) out.line[e.id] = Math.abs(b.arc[near(e.pos.x, e.pos.z)] - w1);
+    return out;
+  });
 try {
   await page.waitForFunction(() => !!window.__app?.current?.player && !!window.__piano && !!window.__sector, null, { timeout: 120000 });
   assert(await G(() => window.__app.current.world.map.id === 'thornbeckMill' && window.__app.current.world.map.scene === 'piano'), 'the stub mill loads as the piano scene');
@@ -82,6 +134,7 @@ try {
   await sim(1.3);
   d = await dbg();
   assert(d.inPlay && d.shot === 'play', `the cut to play at press + 3.5 s, the glide settled (${d.shot})`);
+  const tCut = await G(() => window.__app.current.time);
   assert(await G(() => window.__app.current.sceneView?.holdsInput === false), 'input on at the cut');
   await sim(0.5);
   const lv = await G(() => window.__app.current.lightLevel);
@@ -101,6 +154,49 @@ try {
   }
   assert(Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) > 0.3, 'the stick moves the operator after the cut');
 
+  if (MH) {
+    // ---- (mill-hunt H3) the hunt: guards blinded (the shared difficulty's perception 0, restored after) so no sighting
+    // ends it; 30 s after the cut every live guard searching on it, then 60 s: the room cap by positions, closing in
+    let h = await huntProbe();
+    assert(h.on && h.phase === 0, `the hunt board is on from the EMP (phase ${h.phase})`);
+    const perc = await G(() => {
+      const df = window.__app.current.enemyMgr.diff;
+      const p = df.perception;
+      df.perception = 0;
+      return p;
+    });
+    try {
+      const ran = (await G(() => window.__app.current.time)) - tCut;
+      await sim(Math.max(0, HUNT_SETTLE - ran));
+      h = await huntProbe();
+      assert(h.n > 0 && h.notSearching.length === 0, `${HUNT_SETTLE} s after the cut every live guard is searching (${h.n} live; not: ${h.notSearching.join(', ')})`);
+      assert(h.off.length === 0, `every live guard is on the hunt (off: ${h.off.join(', ')})`);
+      const ids = Object.keys(h.line).filter((id) => h.line[id] > FAR_LINE);
+      const mean = (o, xs) => xs.reduce((a, id) => a + o[id], 0) / Math.max(1, xs.length);
+      const m0 = mean(h.line, ids);
+      let worst = 0;
+      let where = '';
+      for (let t = 0; t < HUNT_WINDOW; t += 0.5) {
+        await sim(0.5);
+        const p = await huntProbe();
+        if (p.worst > worst) {
+          worst = p.worst;
+          where = `${p.worstRoom} at ${t.toFixed(1)} s`;
+        }
+      }
+      h = await huntProbe();
+      const live = ids.filter((id) => h.line[id] !== undefined);
+      const m1 = mean(h.line, live);
+      console.log(`  hunt: fullest room ${worst} (${where}); far ground guards ${ids.join(', ')}: mean line distance to W1 ${m0.toFixed(1)} -> ${m1.toFixed(1)} m (phase ${h.phase})`);
+      assert(worst <= ROOM_CAP, `over ${HUNT_WINDOW} s no room holds more than ${ROOM_CAP} guards (${worst}: ${where})`);
+      assert(ids.length > 0 && live.length > 0 && m1 < m0, `the far ground guards close in on W1 along the line (${m0.toFixed(1)} -> ${m1.toFixed(1)} m)`);
+    } finally {
+      await G((p) => {
+        window.__app.current.enemyMgr.diff.perception = p;
+      }, perc);
+    }
+  }
+
   // ---- a restart: no intro, the lamps stay dead, the music plays on
   const r0 = await G(() => window.__sector.restarts);
   assert(await G(() => window.__sector.restartCheckpoint()), 'the checkpoint restart runs');
@@ -111,6 +207,12 @@ try {
   assert(await G(() => window.__app.current.sceneView?.holdsInput === false), 'input on after the restart');
   assert(await G(() => window.__app.current.world.level.lights.lights.filter((l) => l.electric && l.on && !l.destroyed).length === 0), 'the lamps stay dead after the restart');
   assert(await G(() => window.__app.music.sceneActive === true), 'the scene music plays on through the restart');
+  if (MH) {
+    // (mill-hunt H3, plan check 2 fold-in 5) the restart's dark builds the hunt anew: phase 0, every live guard on it
+    const h = await huntProbe();
+    assert(h.on && h.phase === 0 && h.n > 0, `the hunt is back on after the restart (phase ${h.phase}, ${h.n} live)`);
+    assert(h.notSearching.length === 0 && h.off.length === 0, `after the restart every live guard searching on the hunt (not: ${h.notSearching.join(', ')}; off: ${h.off.join(', ')})`);
+  }
 
   const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));
   assert(errs.length === 0, `no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
@@ -132,6 +234,10 @@ const SACKS = [2.7, 2.7];
 const SACKS_S = 4;
 /** Alert levels past suspicious (`AlertLevel`, src/ai/alertState.ts). */
 const PAST_SUSPICIOUS = ['investigating', 'searching', 'alert'];
+/** (mill-hunt H3) The start check's bad levels: with the hunt every guard is `searching` from the EMP (A1), so only
+ *  combat counts; flag off, past suspicious as built. */
+const START_BAD = MH ? ['alert'] : PAST_SUSPICIOUS;
+const START_WHAT = MH ? 'no guard in combat' : 'no guard past suspicious';
 /** Kill spots (the pins): the guard faces west, his attacker 0.8 m east of him, facing west; clear of the start bay's cover. */
 const WEST = -Math.PI / 2;
 const PIN = { G1: [7.5, 8.9], G2: [7.5, 7.9], G3: [8.0, 2.0], G4: [3.0, 8.4] };
@@ -143,8 +249,8 @@ const PLATFORM = [
 ];
 
 if (ok) {
-  console.log('piano escape: co-op (two tabs, ?net=local&piano=1)');
-  const NETQ = 'net=local&piano=1';
+  console.log(`piano escape: co-op (two tabs, ?net=local&piano=1&${MHQ})`);
+  const NETQ = `net=local&piano=1&${MHQ}`;
   const { browser: nb, ctx, page: A, errors: eA } = await launch({ url, params: NETQ, viewport: NET_VIEWPORT });
   let B = null;
   let eB = [];
@@ -377,14 +483,14 @@ if (ok) {
 
     // ---- the cut on both pages, then the survivable start: both reach the low sacks within 4 s, no guard past suspicious
     for (const P of [A, B]) await until(P, () => window.__piano.debug().inPlay && window.__app.current.sceneView?.holdsInput === false, null, 4000, 'the cut to play on both pages');
-    const wKey = await onHostStep(A, WATCH, { past: PAST_SUSPICIOUS, s: SACKS_S });
+    const wKey = await onHostStep(A, WATCH, { past: START_BAD, s: SACKS_S });
     const hKey = await onHostStep(A, HOST_WALK, { x: SACKS[0], z: SACKS[1], cap: SACKS_S + 2 });
     const cw = await clientWalk(SACKS[0] + 0.6, SACKS[1] + 0.4, SACKS_S + 2);
     const hw = await hostStepResult(A, hKey, (SACKS_S + 3) * 1000, 'host walk');
     const watch = await hostStepResult(A, wKey, (SACKS_S + 3) * 1000, 'guard watch');
     assert(hw.t >= 0 && hw.t <= SACKS_S, `the host reaches the low sacks within ${SACKS_S} s (${hw.t.toFixed(2)} s)`);
     assert(cw.t >= 0 && cw.t <= SACKS_S, `the client reaches the low sacks within ${SACKS_S} s (${cw.t.toFixed(2)} s)`);
-    assert(watch.bad.length === 0, `no guard past suspicious on the way (${watch.bad.slice(0, 6).join(', ')})`);
+    assert(watch.bad.length === 0, `${START_WHAT} on the way (${watch.bad.slice(0, 6).join(', ')})`);
     assert((await GA(() => window.__app.current.style.detections)) === det0, 'no detection at the start');
 
     // ---- the first flash: the same scene t on both pages (within 100 ms), at the timetable's first strike

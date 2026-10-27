@@ -326,6 +326,8 @@ export const DIRECT_COVERS = {
   // the enemy archetypes (heavy, enforcer, sniper, dog): their legacy suite
   'src/ai/archetypes': ['e2e-enemies', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops:1'],
   'src/ai/enemyDefs': ['e2e-enemies', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops:1'],
+  // (guard-ai mill-hunt H3) the storm mill's hunt board runs only in the piano scene: its suite
+  'src/ai/millHunt': ['e2e-piano'],
   'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops:1'],
   // the map files with their own suite
   'src/world/maps/kestrel': ['e2e-kestrel'],
