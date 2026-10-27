@@ -1,0 +1,13 @@
+{
+  "id": "20261027T030423-affected-e2e-06b75ed3-c6ec",
+  "sha": "06b75ed3599140e44a7ce67df8242da95c44d94b",
+  "branch": "feature/coop-kit-k5a",
+  "pr": 601,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #601"
+}
