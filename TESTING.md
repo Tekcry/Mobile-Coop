@@ -99,6 +99,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
   it raises the joiner's light meter as it raises the host's.
+- [ ] Storm mill hunt (guard-ai mill-hunt, `?piano=1&millhunt=1`): after the EMP every guard searches (weapon up, torch on) and never calms; they walk slowly room by room towards you, never more than 2 in a room; get seen and he fights, break contact and he searches on; a checkpoint restart starts the hunt again. `?millhunt=0`: the calm sweep as before.
 - [ ] Search after combat (guard-ai S25): get seen, break contact and crouch in a dark corner or behind cover a few
   metres from where you were seen: the first searcher comes to it and looks into it. Hide farther, in light or behind
   a wall: they search the near dark spots first; a body or a device search still walks its ring.

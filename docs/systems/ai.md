@@ -792,6 +792,12 @@ Plan: `docs/guard-ai/slices/PIANO-GA6-PLAN.md` (section 8 over 2-5); reports `PI
 - **A glimpse** (the PLAN's GA7): no new sight rule. At the board tick, a guard whose rise moved on sight and who is
   suspicious or investigating sends his calm sweep partner within `PAIRS.togetherR` (4 m) to the same spot
   (`followGlimpse`: a calm `sendTo`, incident -1, one line: `checking`).
+- **Mill hunt** (guard-ai mill-hunt, `flags.millHunt`, `docs/guard-ai/mill-hunt/`): with the flag on and the live
+  section's `hunt` (`SectorDef.hunt`, Thornbeck Mill), `sceneDark = true` builds the hunt board (`src/ai/millHunt.ts`,
+  `EnemyManager.millHunt`) empty instead of the sweep: every guard `mhStart` (searching for good: `i.hunting`), each
+  placed or woken guard admitted, the board ticked with the incident board in GA7's place (`mhTick`: a guard back from
+  a fight is admitted again, a calm one put back). The searching branch walks the board's spot at its pace and faces
+  its aims (`Enemy.mhStep`, calm turns); combat as built. `sceneDark = false` drops it. Flag off: the sweep above.
 
 ## Enemy archetypes (2.0 phase 6)
 - `ai/archetypes.ts` (pure, `ARCHETYPE`): `heavyMult` (by `fromFront`), `shieldBlocks`, `grabRule` (heavy frontal = lethal
