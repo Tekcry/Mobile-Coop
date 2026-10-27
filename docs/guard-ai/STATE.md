@@ -1017,7 +1017,7 @@ fixed timeline data (Sector Ops SO5), guards just read the light.
 STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano guard work (#624) moves, at most 2
 builders; 00:59 pace: up to 2 agents, piano first.
 SHIP 4-PLAYER (Michael after the walk, ~10:40): #317 merge 16 head 2d8fa5a0e, MERGE16-CHECK.md PASS, checker
-posted, orchestrator told (it labels no-affected-e2e + train-ready); CI red guardAiAlloc D1 = CI Node 22 (#696). If it
+posted, LABELLED by the orchestrator (11:30); CI red guardAiAlloc D1 = CI Node 22 (#696). If it
 conflicts again before its train: merge 17 at once. #694 train-ready (train 166
 failed on another test). J16 G4 PR may open once Sector Ops #665 lands.
 TOP PRIORITY (Michael's mill walk ~10:00, via the orchestrator; J16 HELD): (A) guards fire while facing away:
@@ -1038,7 +1038,7 @@ and H2 Opus (feature/guard-ai-mill-hunt-h2, worktree -mill-hunt-h2, src/ai/millH
 10 gallery stops, H1-REPORT.md). Next: lead merges both into
 feature/guard-ai-mill-hunt, adds the sims on the real THORNBECK_HUNT, two Opus checkers, PR 1. Then PR 1 = H1 (Sonnet data) + H2 (Opus pure board) in parallel; PR 2 = H3 after #694; PR 3 = H4. Asked Michael via the orchestrator: gallery
 answered.
-Open (2026-10-27 ~08:55, new window to ~13:50, 1 agent; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
+Open (2026-10-27 ~11:35 SAVE; meter resets 13:50; carry on with the mill hunt after it without waiting; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
      4bb733e14 committed ad3c1afd9 (A FIX 2: watch deaf in cooldown / caution, deck sweep leaves his storey; B PASS).
@@ -1057,36 +1057,10 @@ Open (2026-10-27 ~08:55, new window to ~13:50, 1 agent; target: Michael walks th
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: piano guard work all on master (#624, #644); walk-card lines sent 04:00. #317 merge 15 7b12a71ea (#631 piano S4, knife S3, kit K0; MERGE15-CHECK.md PASS after
-its FIX 1: a scene map's room holds 2, b5fbf0322, lead-reviewed; checker posted): orchestrator labels no-affected-e2e +
-train-ready AFTER Michael's ~09:00 co-op mill walk (~11:00; it rewrites the room / slot code the walk runs on).
-Keep 7b12a71ea; a merge 16 is fine if master moves; the orchestrator labels that head.
-J16 Guard AI half (row 13): BRIEF + PLAN 14b5e11e8 on feature/guard-ai-j16 (worktree -guard-ai-j16):
-G1 shapes + G2 notice rule (start now, parallel) -> G3 src/ai wiring = PR 1 (~1.0k); G4a / G4b (waits on Sector Ops
-S3b-2: GameState.shadowCues) / G5 e2e / G6 docs = PR 2. Cue: calm guard, moving shadow in focused cone -> meter 0.35,
-2.4 s look, never escalates alone (A1-A11 in BRIEF). Plan check 1 PASS ef5889a44 (PLAN-CHECK.md: 7 fold-ins; items 1, 2, 3, 6 go into the G3 brief, 7 into G5; 4 in
-G2; 5 = carried-body shadow hand-off to Player, sent to the orchestrator). G1 + G2 built af4146d7c, check PASS a6f54fa04
-(slices/G1-G2-CHECK.md; polish 1-6, item 4 = 16-bit owner keys into the G3 brief). PR 1 checked (G3 check A FIX -> fix round; check B FIX 2 -> fix round 2 54cc1b8f8 -> re-check PASS
-d808f062b). #669 (part 1) and #670 (part 2, G3) MERGED (08:45; dark, inert until PR 2 sets chars / cues). PR 2 (G4 gameState wiring) HELD until after Michael's walk and #665.
-PR 2 built 6a203cbba (G4a / G4b / G6 + slices/G5-BRIEF.md,
-+236 counted lines; check PASS a19fa1c41 (slices/PR2-CHECK.md; G5 brief fixed: step 0.3 s after a teleport);
-orchestrator 09:20: charlight=0 on e2e-stealth-ai's main page YES (in G5), teleport-jump note
-passed to Sector Ops, G5 built 13c844815 (shadowCue block on its own charlight=1 page; charlight=0 on the main page):
-G5 check PASS d7fc1f6d5 (fixed the spot pick: walkable cells, snapped spot; second page closed).
-Laptop e2e-stealth-ai: set j16-g5 on 13c844815 FAILED (shadowCue "0 candidates": no lamp footprint
->= 0.5 contrast / 4 m; every other scenario passed; d7fc1f6d5 same). Triage 61c7d045b (G5-TRIAGE.md):
-test-design bug: hall lamps ~5 m give shadows whose bright points are all within ~1.5 m of the feet, so no spot exists
-on the warehouse page; instrumented run (j16-g5c) CONFIRMED it: fills 1228, footprints 414, max contrast 0.61,
-farthest >= 0.40 / 0.45 point only 1.25 m from the feet (wiring works; no long shadows on the warehouse).
-HELD for the mill work: then move the cue page to ctcourse (lamp 47: 0.61 at 5.1 m) + charlight=0 control.
-DESIGN FINDING sent to the orchestrator for Michael: the cue rarely fires on its own at today's lamp heights; options
-keep / loosen / judge on a walk (recommended: walk); set j16-g5b on d7fc1f6d5
-(the real verdict; read its "arcs shown max" line: if the arc shows, assert it). Sector Ops' teleport fix = #686;
-G5's 0.3 s step after a teleport is kept (harmless, also settles the guard spawn); brief = check flag-off, G4a fill / set-once across restarts, G4b, the /preview/
-e2e-stealth-ai risk (cue live where the main page sets no charlight), the G5 brief, ai.md), branch feature/guard-ai-j16-2 (worktree -guard-ai-j16-2) stacked on #670 with Sector Ops #665's branch
-merged in locally -> slices/PR2-REPORT.md; then checker; PR after #669 / #670 / #665 merge.
-S3b-2 = Sector Ops PR #665 (GameState.shadowCues,
-null on a client / flag off): G4a / G4b build on it once #665 merges.
-Orchestrator 04:15: G3 after the piano escape lands; S3b-2 sequenced by it after Sector Ops' lamp-id fix; G4b not
-held (prototype mode: on in /preview/, the walk cap limits live switch-on only).
+Next: (1) mill-hunt H2 (Opus, pure board src/ai/millHunt.ts + tests/millHunt.test.ts) on
+feature/guard-ai-mill-hunt-h2 (worktree -mill-hunt-h2): if unfinished, a new Opus builder resumes it from the branch
+with the H2 brief (PLAN rev 2 "Logic (H2)", check 2 items 1-2 + fold-ins; sims on a test HuntDef). (2) Lead merges H1
+(43424f55d) + H2 into feature/guard-ai-mill-hunt, adds the 12 / 16-guard sims on the real THORNBECK_HUNT, two Opus
+checkers (confirm revision-2 items), PR 1 (dark, no caller). (3) H3 wiring after #694 lands (PR 2), H4 (PR 3). Watch
+#694 / #317 trains (merge 17 at once if #317 conflicts). J16: G4 PR after Sector Ops #665; G5 move to ctcourse later.
 ```
