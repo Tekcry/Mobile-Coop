@@ -239,7 +239,7 @@ export const THORNBECK_HUNT: HuntDef = {
         // aisle: the corner notch's mouth, Sb1's back, Sb2 and its east side (the hide spot behind Sb2)
         { pt: [11.4, 2.6], pt2: [11.4, 1.4], room: 'aisle', aims: [-1.57, -0.49, 1.57, 2.1] },
         { pt: [15.4, 2.2], pt2: [15.4, 1.0], room: 'aisle', aims: [-2.03, -1.57, 1.07, 1.57] },
-        { pt: [18.4, 1.7], pt2: [18.4, 0.6], room: 'aisle', aims: [-1.56, -0.05, 0.92, 1.55] },
+        { pt: [17.9, 1.7], pt2: [17.9, 0.6], room: 'aisle', aims: [-1.56, 0.19, 0.99, 1.55] },
         // mill bay round the roller mill M1: south, east, then M1's shadow (K2) and the bin-row niche
         { pt: [21.8, 1.9], pt2: [21.8, 0.8], room: 'millBay', aims: [-1.57, -0.23, 0.8, 1.56] },
         { pt: [25.0, 3.6], pt2: [25.0, 2.4], room: 'millBay', aims: [-2.08, -0.92, -0.02, 2.91] },
@@ -276,7 +276,7 @@ export const THORNBECK_HUNT: HuntDef = {
         { pt: [7.9, 16.6, DECK_Y], pt2: [7.9, 15.6, DECK_Y], room: 'stairHead', aims: [-1.55, 1.54, 2.46, 3.14] },
         { pt: [10.9, 16.7, DECK_Y], pt2: [10.9, 15.6, DECK_Y], room: 'stairHead', aims: [-2.0, 1.55, 3.14] },
         // crane bay: the crane well below, GS2's front from the east half
-        { pt: [14.1, 16.7, DECK_Y], pt2: [14.1, 15.6, DECK_Y], room: 'craneWest', aims: [-1.56, 0, 1.56, 3.14] },
+        { pt: [13.6, 16.7, DECK_Y], pt2: [13.6, 15.6, DECK_Y], room: 'craneWest', aims: [-1.56, 0, 1.56, 3.14] },
         { pt: [17.5, 16.7, DECK_Y], pt2: [17.5, 15.6, DECK_Y], room: 'craneEast', aims: [-1.56, 0, 1.33, 3.14] },
         // east gallery: GS2 and its back (the hide spot), GS3
         { pt: [21.0, 16.4, DECK_Y], pt2: [22.1, 15.7, DECK_Y], room: 'eastWest', aims: [-1.54, 0.79, 3.14] },
