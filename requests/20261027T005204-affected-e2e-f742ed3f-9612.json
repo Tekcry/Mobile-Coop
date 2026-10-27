@@ -1,0 +1,13 @@
+{
+  "id": "20261027T005204-affected-e2e-f742ed3f-9612",
+  "sha": "f742ed3fc23593588461cc5b61dd294e65c3703f",
+  "branch": "feature/char-shadow-meter-s3b2",
+  "pr": 665,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-park"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #665"
+}
