@@ -35,7 +35,9 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   master `course` and `sector` take `COURSE_MAX` 2 and the legacy modes `COOP_MAX` 4. The rule: Marlow Yard and the
   campaign 2 (G2), Sector Ops up to 4 (G308; coop4, PR #317, adds `SECTOR_MAX` 4). Never cap Sector Ops at 2.
 - `lobby` / `start` carry the mode, map, `mission` (Infiltration), `weather`, the host's fixed difficulty level (shown
-  read-only on the client) and `bay` (course start). (`start.lf`, the host's lamp falloff, LR13, is gone since LR16a.)
+  read-only on the client) and `bay` (course start; campaign-mode CM3, with `flags.campaign` and `flags.missions`: a sector
+  campaign start's section, 1-based, else 1). The `lobby` message may carry `sm` (the host's picked campaign mission;
+  the client still starts only from `start.sm`). (`start.lf`, the host's lamp falloff, LR13, is gone since LR16a.)
 - `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits, phase, takedown
   target, gear, raise, aim twist, ready, grips, commit, `dw` (draw phase 0-3). The `wall` mode carries `a` (cover
   segment), `s` (metres along it) and `sub` (WALL_SUB). Decided, not built yet (G52): the SWAT-turn MoveState (`swat`)
