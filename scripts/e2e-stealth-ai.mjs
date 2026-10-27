@@ -5,13 +5,13 @@
 // (guard-ai S1) Hearing is the coordinated rule the live modes use (`EnemyManager.coordinated`; Clear mode, parked,
 // keeps the old one, so the suite turns it on): one guard is sent to a noise, the others turn.
 // `node scripts/e2e-stealth-ai.mjs [url] [--only=name]`
-import { launch, assert, frames } from './e2e-lib.mjs';
+import { launch, openPage, assert, frames } from './e2e-lib.mjs';
 import { pinLights } from './parity-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 let failed = false;
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+const { browser, ctx, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);
@@ -3406,6 +3406,141 @@ try {
 
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
   assert(real.length === 0, `no console errors (${real.join(' | ')})`);
+
+  // (context-prompts S3, PLAN 8) the door under the context prompts (`?ctxprompts=1`, dark until switch-on): tap A opens
+  // (quiet), hold A bashes (loud, the guard right behind is knocked out), tap Y peeks (no jump), hold Y feeds the optic
+  // cable; away from the door Y still jumps; the old box never shows
+  if (!only || 'context prompts door'.includes(only)) {
+    console.log('context prompts door');
+    await page.close();
+    const p2 = await openPage(ctx, url, 'autostart=warehouse&mode=clear&ctxprompts=1');
+    await frames(p2.page, 10);
+    const r = await p2.page.evaluate(() => {
+      const a = window.__app;
+      const g = a.current;
+      a.loop.manual = true;
+      g.target.health.invulnerable = true;
+      g.mode.pending.length = 0;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      const st = a.input.state;
+      const c = g.player.controller;
+      const cp = g.ctxPrompts;
+      const doors = g.world.doors;
+      const d = doors.nearest(-0.95, 12, 0.5);
+      const step = (s) => a.loop.stepHeadless(s, 120);
+      let box = false;
+      const watch = (s, f) => {
+        for (let t = 0; t < s; t += 0.05) {
+          step(0.05);
+          box ||= document.querySelector('.hud-ctx.show') !== null || g.ctxMenu.state !== 'none';
+          f?.();
+        }
+      };
+      const reset = () => {
+        em.clear();
+        g.mode.pending.length = 0;
+        g.optic.reset?.();
+        g.traversal.reset();
+        st.releaseAll();
+        st.setMove('t', 0, 0);
+        c['crouchToggled'] = false;
+        c.override = null;
+        for (const x of doors.list) {
+          x.open = 0;
+          x.target = 0;
+          doors['write'](x);
+          doors['addBody'](x);
+        }
+        doors['mesh']?.thinInstanceBufferUpdated('matrix');
+        step(0.3);
+        g.noise = 0;
+      };
+      const atDoor = () => {
+        c.teleport(new V(-0.95, 0, 11.2), 0);
+        g.player.cam.yaw = 0;
+        g.player.cam.pitch = 0;
+        step(0.4);
+        g.noise = 0;
+      };
+      const press = (btn, hold) => {
+        st.set('t', btn, true);
+        step(1 / 60);
+        if (hold > 0) step(hold);
+        st.set('t', btn, false);
+        step(1 / 60);
+      };
+      const rowsOf = () => [0, 1].map((s) => (cp.shows(s) ? `${cp.rows[s].tapLabel}|${cp.rows[s].holdLabel}` : '-')).join(' ; ');
+      const out = {};
+      // the prompt on the door
+      reset();
+      atDoor();
+      out.prompt = { kind: cp.kind, ref: cp.ref, door: d.index, rows: rowsOf(), yLive: cp.yLive };
+      // tap A: the quiet open
+      let quiet = 0;
+      press('interact', 0.1);
+      watch(1.8, () => (quiet = Math.max(quiet, g.noise)));
+      out.open = { target: d.target, open: d.open, quiet };
+      // hold A: the bash, a guard right behind knocked out
+      reset();
+      const behind = em.spawn('grunt', new V(-0.95, 0, 13.1), false, 0);
+      atDoor();
+      let loud = 0;
+      press('interact', 0.5);
+      watch(0.4, () => (loud = Math.max(loud, g.noise)));
+      out.bash = { target: d.target, loud, ko: !behind.alive && behind.ko };
+      // tap Y: the peek, no jump
+      reset();
+      atDoor();
+      const leaps0 = g.traversal.leaps;
+      let peek = false;
+      let airborne = false;
+      press('jump', 0.1);
+      watch(0.6, () => {
+        peek ||= g.doorPeek.active;
+        airborne ||= !c.grounded;
+      });
+      out.peek = { peek, airborne, leaps: g.traversal.leaps - leaps0 };
+      // Y again ends the peek (today's rule)
+      press('jump', 0);
+      watch(0.6);
+      out.peek.ended = !g.doorPeek.active;
+      // hold Y: the optic cable
+      reset();
+      atDoor();
+      let optic = false;
+      press('jump', 0.5);
+      watch(0.3, () => (optic ||= g.optic.active));
+      out.optic = { optic, leaps: g.traversal.leaps - leaps0 };
+      st.tap('crouch');
+      watch(1.0);
+      // away from the door Y jumps as always
+      reset();
+      c.teleport(new V(-0.95, 0, 8.0), Math.PI);
+      g.player.cam.yaw = Math.PI;
+      step(0.4);
+      const l1 = g.traversal.leaps;
+      const awayKind = cp.kind;
+      st.set('t', 'jump', true);
+      step(1 / 60);
+      const owned = g['ctxOwnsY'];
+      st.set('t', 'jump', false);
+      let moved = false;
+      watch(0.5, () => (moved ||= g.traversal.committed !== null || !c.grounded));
+      out.away = { kind: awayKind, owned, moved, leaps: g.traversal.leaps - l1 };
+      out.box = box;
+      return out;
+    });
+    assert(r.prompt.kind === 'door' && r.prompt.ref === r.prompt.door && r.prompt.rows.startsWith('Open|Bash ; ') && r.prompt.rows.endsWith('|Optic cable') && r.prompt.yLive, `ctx: at a door, [A] Open · hold Bash and [Y] ... hold Optic cable (${JSON.stringify(r.prompt)})`);
+    assert(r.open.target === 1 && r.open.quiet > 0 && r.open.quiet <= 2.5, `ctx: tap A opens the door quietly (${JSON.stringify(r.open)})`);
+    assert(r.bash.target === 1 && r.bash.loud >= 8 && r.bash.ko, `ctx: hold A bashes, loud, the guard behind knocked out (${JSON.stringify(r.bash)})`);
+    assert(r.peek.peek && !r.peek.airborne && r.peek.leaps === 0 && r.peek.ended, `ctx: tap Y peeks, no jump; Y again ends it (${JSON.stringify(r.peek)})`);
+    assert(r.optic.optic, `ctx: hold Y feeds the optic cable (${JSON.stringify(r.optic)})`);
+    assert(r.away.kind !== 'door' && !r.away.owned && r.away.moved,`ctx: away from the door Y still jumps (${JSON.stringify(r.away)})`);
+    assert(!r.box, 'ctx: the old box never shows');
+    const real2 = p2.errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
+    assert(real2.length === 0, `ctx: no console errors (${real2.join(' | ')})`);
+  }
 } catch (e) {
   failed = true;
   console.error(String(e));

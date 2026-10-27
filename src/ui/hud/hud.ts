@@ -8,6 +8,7 @@ import { GadgetWheel } from './gadgetWheel';
 import { PingView } from './pings';
 import { BarkView } from './barks';
 import { ContextMenuView } from './contextMenuView';
+import type { CtxPromptSink } from '../../game/contextPrompts';
 import { OBJECTIVE_POPUP, ObjectivePopup } from './objectivePopup';
 
 export interface HudFrame {
@@ -64,6 +65,9 @@ export class Hud {
   private interactEl: HTMLElement;
   /** (G5) The CT context action menu, top right. */
   readonly ctx = new ContextMenuView();
+  /** (context-prompts S3 / S4) The context prompts' view, under `flags.contextPrompts`: the game calls it every step
+   *  (absent: nothing drawn). S4 sets it. */
+  ctxPrompts?: CtxPromptSink;
   /** Cover / vault prompts, the cover badge and the cover-to-cover marker, on the world surfaces. */
   readonly world: WorldPrompts;
   private feed: HTMLElement;
