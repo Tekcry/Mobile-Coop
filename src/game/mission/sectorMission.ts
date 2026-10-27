@@ -79,6 +79,15 @@ export function missionParam(): string | null {
   return flags.missions ? flags.mission : null;
 }
 
+/**
+ * (campaign-mode CM3, PLAN 3.4) The mission a match binds: a co-op match's `GameOptions.sectorMission` (the start's
+ * `sm`; '' none), else the page's own `?mission=` (`missionParam()`, a URL boot). Null while `flags.missions` is off.
+ */
+export function boundMissionId(opts: { readonly sectorMission?: string }): string | null {
+  if (!flags.missions) return null;
+  return opts.sectorMission !== undefined ? opts.sectorMission || null : missionParam();
+}
+
 /** (FLG) False when `?autostart` names a mission map (`MapDef.needsMissions`) while `flags.missions` is off: the URL boot
  *  falls back to the menu, so Tallow Wharf never runs as plain Sector Ops. */
 export function mapBootAllowed(map: { readonly needsMissions?: boolean }): boolean {
@@ -643,12 +652,12 @@ export class SectorMission {
 }
 
 /**
- * Bind the map's `?mission=<id>` mission to the mode (null: none picked: Sector Ops runs as before). `slotEnemy` is the
- * mode's live guard per index (the spook writes the bolted guard back); `openExit` / `finish` the mode's objective done
- * and op end.
+ * Bind the match's mission to the mode (`boundMissionId`: the co-op start's, else the map's `?mission=<id>`; null: none
+ * picked: Sector Ops runs as before). `slotEnemy` is the mode's live guard per index (the spook writes the bolted guard
+ * back); `openExit` / `finish` the mode's objective done and op end.
  */
 export function bindSectorMission(g: GameState, mode: SectorMode, slotEnemy: (Enemy | null)[], openExit: (s: SectorDef) => void, finish: () => void): SectorMission | null {
-  const def = pickMission(g.world.map.missions, missionParam());
+  const def = pickMission(g.world.map.missions, boundMissionId(g.opts));
   if (!def) return null;
   const refs: PlayerRef[] = [];
   const none: readonly Enemy[] = [];

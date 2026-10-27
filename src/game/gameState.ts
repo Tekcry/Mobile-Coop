@@ -14,6 +14,7 @@ import { LIVE_RIGS } from '../player/characterRig';
 import { LIVE_DOGS } from '../ai/dogModel';
 import type { WeatherChoice } from '../world/mapDef';
 import type { MapDef } from '../world/mapDef';
+import type { CampaignSave } from '../save/campaignRecord';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { PauseScreen, type ObjectiveLine } from '../ui/screens/pauseScreen';
@@ -188,6 +189,15 @@ export interface GameOptions {
   courseBay?: number;
   /** 3.0 weather (visual only; the map's `weathers`). */
   weather?: WeatherChoice;
+  /**
+   * (campaign-mode CM3, PLAN 3.4) Sector Ops' mission for a co-op match: the start's `sm` (`MissionDef.id`; '' none).
+   * Absent: the page's own `?mission=` (`missionParam()`, a URL boot). Set only with `flags.campaign` and `flags.missions`.
+   */
+  sectorMission?: string;
+  /** (campaign-mode CM3) Sector Ops: the section a co-op match starts at (1-based, the start's `bay`; `flags.campaign` only). */
+  sectorStart?: number;
+  /** (campaign-mode CM3, host) A Continue: the `campaign:save` record the mission resumes from (A7, A9). */
+  campaignResume?: CampaignSave;
 }
 
 /** What the coop layer plugs into a session. */
