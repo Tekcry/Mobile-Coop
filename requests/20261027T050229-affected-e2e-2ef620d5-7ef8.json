@@ -1,0 +1,13 @@
+{
+  "id": "20261027T050229-affected-e2e-2ef620d5-7ef8",
+  "sha": "2ef620d5ec8bde2199c44e16b8d112f6293f2da8",
+  "branch": "feature/coop-kit-k5b",
+  "pr": 622,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-park"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #622"
+}
