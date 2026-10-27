@@ -152,12 +152,17 @@ export interface Flags {
    *  walk, target 2026-10-31) The context prompts: one button per action on the thing it acts on (tap / hold), in place
    *  of the hold-A list. `?ctxprompts=1` on, `?ctxprompts=0` off; default off. On /preview/ default on (preview-flags). */
   contextPrompts: boolean;
+  /** (campaign-mode J22, BRIEF A10; owner Night Shift | Campaign Build, switch-on at Michael's walk of Mission 1) The
+   *  campaign's front door and record: the lobby's Mission row (prologue, Mission 1), the briefing, the 0-100% rating,
+   *  the `campaign:progress` / `campaign:save` records and Continue. `?campaign=1` on, `?campaign=0` off; default off.
+   *  On /preview/ default on (preview-flags). The Mission 1 entries also need `flags.missions`. */
+  campaign: boolean;
 }
 
 /** (coop-kit A1, BRIEF A8) Every kit move id that exists in the game (each slice adds its id in the PR that makes the
  *  move playable): A1's rope descent, Campaign's pull-up and shutter (PR #578, folded in from `coopKit`), (coop-kit K3)
- *  Chimney Pair (`chimneyPair`). */
-export const KIT_BUILT: readonly string[] = ['descent', 'pull', 'shutter', 'chimneyPair'];
+ *  Chimney Pair (`chimneyPair`), K4's Swing Pass (`swingPass`), K1's Deadweight (`deadweight`). */
+export const KIT_BUILT: readonly string[] = ['descent', 'pull', 'shutter', 'chimneyPair', 'swingPass', 'deadweight'];
 
 /** (coop-kit A1) The kit ids on in the live game: an id joins this list when Michael accepts its walk (switch-on). */
 export const KIT_MOVES_ON: readonly string[] = [];
@@ -313,4 +318,6 @@ export const flags: Flags = {
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
   campusV2: readCampusV2(params.get('campusv2'), PREVIEW_ON),
   contextPrompts: darkFlag(params.get('ctxprompts'), PREVIEW_ON),
+  // (campaign-mode A10) dark until Michael's walk of Mission 1: `?campaign=1` on; on /preview/ on (preview-flags)
+  campaign: darkFlag(params.get('campaign'), PREVIEW_ON),
 };

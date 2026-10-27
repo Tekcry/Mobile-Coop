@@ -1,5 +1,82 @@
 # Changelog
 
+## 4.137.1 - Train 177: Storm mill guard hunt, part 1 (dark) (2026-10-27, PR #724; #713)
+- (not switched on yet) The storm mill's search routes for each floor and the rules for a slow, room-by-room guard hunt
+  in pairs of at most two, closing in on the players in a fixed order.
+
+## 4.137.0 - Train 176: Co-op: each player is drawn with their own Animation source (2026-10-27, PR #723; #498)
+- In co-op every screen now draws each player with that player's own Animation source (Hand-made, CMU or Mixamo), so
+  your partner looks the same on your screen as on theirs. A partner on an older build, or on the default, is drawn with
+  CMU. Your own choice still only changes how you look; timing and reach are unchanged.
+
+## 4.136.0 - Train 175: Campaign records and rating (preview only) (2026-10-27, PR #722; #708)
+- In the preview (or with `?campaign=1`), the campaign now has its order (Marlow Yard prologue, then Mission 1), a 0-100% mission rating and saved progress and a mission save; nothing uses them yet and the live game is unchanged.
+
+## 4.135.2 - Train 174: Character shadows in the light meter: checks (2026-10-27, PR #721; #720)
+- Tests: the light check reads a guard's shadow on a grey card at Character shadows Off, Low and Epic, and the guard and co-op checks cover a shadow on the player.
+
+## 4.135.1 - Train 173: Route-run planner: a split entered through a co-op link; Laptop queue: hung runs killed, fail fast, fronted requests kept, quarantine keys (laptop-queue-10) (2026-10-27, PR #717; #714, #570)
+
+### Laptop queue: no hung runs, fairer desktop and order
+- A test run where no suite finishes for 17 minutes is stopped and reported, so it no longer holds a test slot for an
+  hour.
+- When a test fails on the desktop, the laptop gets the rerun straight away instead of waiting for the whole desktop
+  run to end; a desktop run that gives no result is also rerun on the laptop instead of counting as a fail.
+- The desktop judges a request by how long its real parts take, so long requests stay on the laptop.
+- The desktop leaves room for a train that is about to start, and its log now shows how busy the PC really was,
+  counting the test browsers.
+- Updates that can go out next are tested before ones that wait on another update.
+- Fixes and Michael's priority work are tested before a long measurement that has been waiting.
+- A request moved to an earlier place in the queue keeps its run instead of being cancelled.
+- A request taken off the queue during a fix freeze stops its run at once and runs again when it is put back.
+- A test on the known-flaky list only hides the failure it was listed for; any other failure shows up as normal.
+- Each try of a test run keeps its own logs, so a rerun no longer mixes with the first try.
+
+### Route-run planner: a split entered through a co-op link
+- The route-run planner now forks a split where the two robots part: when the space a run enters a leg from leads into
+  the other leg by no solo link, the fork lies back along the run's own path, and the path's links from it open the
+  entered leg (a co-op link only as its first). Marlow Yard's A8 high route plans: B boosts A from the banking hall onto
+  the gallery and keeps to the counters, A walks the gallery and the office alone.
+
+## 4.135.0 - Train 172: Prompts on the thing you face (preview only); Co-op kit: Deadweight (2026-10-27, PR #715; #703, #653)
+
+### Prompts on the thing you face (preview only)
+- The new interaction prompts now draw on screen: a small marker on the one thing you face, with a row for each button under it (for example "A  Open - hold Bash"). A ring fills round the button while you hold it. Only the thing you face shows anything. Preview only; nothing changes in the normal game.
+
+### Co-op kit: Deadweight
+- Co-op (on in /preview/, not yet in the live game): Deadweight is playable. One player jumps up and hangs on a chain;
+  the counterweighted grate lifts for the partner, who ducks under. Letting go drops the grate, never onto anyone. One
+  chain each side, so whoever is through hangs for the other. At Marlow Yard this is station 9's way under the grille.
+
+## 4.134.0 - Train 171: Co-op kit: Plank Bridge, carrying the board; Marlow Yard re-plan graph: route-run gate points (2026-10-27, PR #712; #710, #601)
+
+### Co-op kit: Plank Bridge, carrying the board
+- Co-op (not switched on yet, in the live game or in /preview/): Plank Bridge's first half. Two players lift a
+  scaffold board from its stack, one at each end, and carry it together: each steers, the pair walks at the slower
+  partner's pace and the board stays between both pairs of hands. B (either player), a hit or a fall puts it down where
+  it is, ready to lift again; a section restart puts it back on its stack. Laying it over a gap and walking across
+  comes in the next update.
+
+### Marlow Yard re-plan graph: route-run gate points
+- The re-planned Marlow Yard graph (`docs/marlow-replan/graph.json`) now names the re-plan map (`ctcourseReplan`), so the
+  route-run gate measures and boots the re-planned yard, not the built one; every link the gate walks has a point the
+  robots can stand on (station marks where a station has one), and the data hall's cage is an objective (the synced hack).
+
+## 4.133.0 - Train 170: New interaction prompts: the actions wired in (preview only); Co-op kit: Swing Pass; Light check on every map (2026-10-27, PR #709; #700, #681, #658)
+
+### New interaction prompts: the actions wired in (preview only)
+- In the preview, the new interaction prompts now drive play: at a door tap A opens and holding A bashes, tap Y peeks and holding Y feeds the optic cable; behind a guard A grabs; in front of a guard tap A knocks out and holding A kills; items, switches, panels and bodies use A. The old corner box no longer opens there. The prompts' look comes next; the live game is unchanged.
+
+### Co-op kit: Swing Pass
+- Co-op (on in /preview/, not yet in the live game): Swing Pass is playable. One player braces at a pipe on the edge of
+  a gap; the partner takes their wrist, steps off and is swung across, letting go over the far side and landing
+  crouched. It reaches across gaps of 2 to 3.5 m with both sides about level; when it cannot, a short line says why. At
+  Marlow Yard this is station 12's way over the cable trench.
+
+### Light check on every map
+- Tests: grey-card light check on Saltmarsh Park, Marlow Yard and the Warehouse at Low and Epic, on every release.
+- Tests: every release runs the light check through the laptop queue's train-parity list.
+
 ## 4.132.0 - Train 169: Carried bodies cast a shadow (2026-10-27, PR #707; #697)
 - A body carried on a shoulder now casts its own shadow (with character shadows on): the picture, the light meter and the guards all see it; the carrier's own light meter ignores it. Works for your partner's carry in co-op too.
 

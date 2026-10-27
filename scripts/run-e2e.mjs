@@ -52,7 +52,8 @@ const REPORT = ['anim-audit'];
 // (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6-9 (campusOps, solo: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5; split in F33 so no part nears the kill)
 // (mission-framework EN2) e2e-sectorops:mission = the campus test mission (`scripts/e2e-sectorops-mission.mjs`, its own script: PART_SCRIPT)
 // (mission-framework GB6) e2e-sectorops:wharf-tgc / :wharf-tkl = the Tallow Wharf missions in co-op (scripts/e2e-sectorops-wharf.mjs --mission=<id>)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'mission', 'wharf-tgc', 'wharf-tkl'] };
+// (light-parity C2) e2e-parity = 1 campus S1-S2, 2 campus S3-S5, 3 Marlow Yard, 4 Warehouse (GPU only; trains via laptop-queue TRAIN_PARITY)
+const PARTS = { 'e2e-parity': ['1', '2', '3', '4'], 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'mission', 'wharf-tgc', 'wharf-tkl'] };
 /** A part that lives in its own script (run with no `--part`): the script name, or `[script, ...args]`. */
 const PART_SCRIPT = {
   'e2e-sectorops:mission': 'e2e-sectorops-mission',
@@ -169,7 +170,7 @@ function affectedSuites() {
 
 // (sector-fixes-r e2e fix) a named suite with parts expands too (`e2e-sectorops` -> `:1`-`:5`, one job each); `name:N`
 // names one part. Before, a named list ran the suite whole as one job.
-const all = named.length ? expand(named) : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : affected ? affectedSuites() : quick ? quickSuites() : expand(REQUIRED);
+const all = named.length ? expand(named) : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? expand(GPU) : affected ? affectedSuites() : quick ? quickSuites() : expand(REQUIRED);
 const fullRun = !named.length && !selective && !legacyRun && !audioRun && !gpuRun;
 // REPORT ONLY: anim-audit always; in a quick / affected run every suite outside REQUIRED; in any run the E2E_REPORT
 // suites (J20 T4: the laptop queue names an affected request's LEGACY / AUDIO suites there, so a named run never gates on them)

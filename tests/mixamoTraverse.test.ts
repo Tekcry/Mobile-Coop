@@ -110,7 +110,7 @@ describe('mixamo I2: the switch and the resolved Wren table', () => {
     expect(flags.mixamo).toBeNull();
     expect(MIXAMO.on).toBe(false);
     expect(WREN_TRAV.any).toBe(false);
-    for (const [k, v] of Object.entries(WREN_TRAV)) if (k !== 'any') expect(v, k).toBeNull();
+    for (const [k, v] of Object.entries(WREN_TRAV)) if (k !== 'any' && k !== 'hold' && k !== 'stand') expect(v, k).toBeNull();
   });
 
   it('on: every capture MIXAMO_ON lets play fills its slot; one switched off stays hand-made', () => {
@@ -134,7 +134,7 @@ describe('mixamo I2: the switch and the resolved Wren table', () => {
       const r = MIXAMO_TRAV[slug]!;
       expect(WREN_TRAV[r.slot], id).toBe(r.clip);
       // only its slot (the free-hang climb is a whole climb-up: its crouch part too)
-      const filled = Object.entries(WREN_TRAV).filter(([k, v]) => k !== 'any' && v !== null).map(([k]) => k).sort();
+      const filled = Object.entries(WREN_TRAV).filter(([k, v]) => k !== 'any' && k !== 'hold' && k !== 'stand' && v !== null).map(([k]) => k).sort();
       expect(filled, id).toEqual(slug === 'freehang_climb' ? ['climbUpCrouch', 'climbUpStand'] : [r.slot]);
     }
     mixamoStudioEntry('trav:ledge');

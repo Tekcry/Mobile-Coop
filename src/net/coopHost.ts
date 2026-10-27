@@ -15,7 +15,8 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, markIntel, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
+import { animSourceWire, DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, markIntel, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
+import { ANIM_SOURCE, wireAnimSource } from '../anim/animSource'; // (mixamo-retarget Source wire)
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
@@ -1623,9 +1624,10 @@ export class CoopHost implements NetAttachment {
     const c = p.controller;
     const th = g.target.health;
     // (afp AF6) the gait clock / CT stop for the partner's stride (the snapshot's `time` times it)
-    const gw: { gph?: number; qs?: number; hs?: number; mo?: number; mt?: number; ax?: number; az?: number } = {};
+    const gw: { gph?: number; qs?: number; hs?: number; mo?: number; mt?: number; ax?: number; az?: number; an?: number } = {};
     gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
     motionWire(c.override?.kinematic ? null : c.motion.state, c.motion.stateT, c.motion.ax, c.motion.az, gw);
+    animSourceWire(wireAnimSource(ANIM_SOURCE), gw); // (mixamo-retarget Source wire, G400) our Animation source as drawn here (overrides in): the partner draws us with it
     return {
       ...gw,
       mv: localMoveState(g, this.mvNow),

@@ -198,6 +198,7 @@ describe('service.mjs wiring (static)', () => {
   });
   it('e2e takes the options parameter; the existing env is unchanged', () => {
     expect(src).toMatch(/async function e2e\(port, suites, jobs, logFile, ctl, \{ env: extra = \{\}, timeoutMs \} = \{\}\)/);
-    expect(src).toContain("E2E_SUITE_TIMEOUT: '900'");
+    expect(src).toContain('const SUITE_TIMEOUT_S = 900;'); // laptop-queue-10: the hung cut reads it too
+    expect(src).toContain('E2E_SUITE_TIMEOUT: String(SUITE_TIMEOUT_S), ');
   });
 });

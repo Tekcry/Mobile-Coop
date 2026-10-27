@@ -400,11 +400,12 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
 
   | Move (slice) | Id / wire kind | Sub bit | Role b (`brace`) states | Role a (`boost`) states | Remote placeholder b / a | Done by | Marlow station |
   | --- | --- | --- | --- | --- | --- | --- | --- |
-  | Deadweight (K1) | `deadweight` | 64 | chainGrab, chainHang, chainDrop | grateUnder | ledge hang / crouched walk | host tick (pass under the grate) | 9 `a4-deadweight` |
+  | Deadweight (K1) | `deadweight` | 64; `s` +(spot index + 1) hanging / passing, - grab / drop | chainGrab, chainHang, chainDrop | grateUnder | ledge hang / crouched walk | host tick (a pass under the held grate) | 9 `a4-deadweight` |
   | Drop Catch (K2) | `dropCatch` | 128 | catchOffer, catchTake | dropInto | brace / drop | b (catcher) | 16 `a6-dropcatch` |
   | Chimney Pair (K3) | `chimneyPair` | 256 | chimneyOffer, chimneyBrace, chimneyClimb, chimneyTop | chimneyJoin, chimneyPush, chimneyRise, chimneyOut | ladder climb / climb | a (when both are out) | 11 `a5-chimney` |
-  | Swing Pass (K4) | `swingPass` | 512 | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
+  | Swing Pass (K4) | `swingPass` | 512; `s` = spot index + 1 both roles | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
   | Plank Bridge (K5a, K5b) | `plankBridge` | 1024 | plankOffer, plankLift, plankCarry, plankDrop, plankLay | plankJoin, plankLiftA, plankCarryA, plankDropA, plankLayA | brace / walk | host tick (a crossing) | 5 `a2-plank` |
+  | (K5a built, `game/kit/plankBridge.ts`, `world/plankBridge.ts` `PlankBoards`) | `s` -(spot index + 1) offering, spot index + 1 lifting / carrying, 0 putting down | | offer, lift, carry, put down (lay K5b) | lift, carry, put down (`plankJoin` unused: free until the start) | board drawn between the two bodies' hand points on every page (no board pose on the wire) | ends: 'drop' only; restart: `checkpointRestart` -> every board back on its stack | no station change (lay K5b) |
 
   Chimney Pair (K3): marked spots only (no free shaft until the walk); wire `s` is -width while offering, the height
   over the start floor while climbing (each page caps its own climb 0.15 m either side of the partner's), `h` while

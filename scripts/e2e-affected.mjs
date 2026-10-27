@@ -19,7 +19,7 @@ import TIMES from './e2e-times.json' with { type: 'json' };
 // e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section; e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
 export const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
 // e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow)
-export const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
+export const GPU = ['e2e-darkness', 'e2e-parity', 'e2e-desktop:3', 'e2e-coop-gpu'];
 
 // REPORT ONLY too: the audio suites (moved here from scripts/run-e2e.mjs; S2 switches its import).
 export const AUDIO = ['e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
@@ -142,8 +142,8 @@ export const QUICK_COVERS = {
 const QUICK_SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
 const QUICK_CORE_FILES = /^(scripts\/(e2e-lib|run-e2e)\.mjs|package\.json|index\.html|vite\.config\.\w+|public\/)/;
 
-/** The suites that read lamps and light (the GPU-only e2e-darkness is dropped by the runner outside `--gpu`). */
-const lightSuites = (extra = ['e2e-levels', 'e2e-ctcourse']) => ['e2e-lightbake', 'e2e-desktop', 'e2e-stealth-ai', 'e2e-security', 'e2e-darkness', ...extra].filter((s, i, a) => a.indexOf(s) === i);
+/** The suites that read lamps and light (the GPU-only e2e-darkness and e2e-parity are dropped by the runner outside `--gpu`). */
+const lightSuites = (extra = ['e2e-levels', 'e2e-ctcourse']) => ['e2e-lightbake', 'e2e-desktop', 'e2e-stealth-ai', 'e2e-security', 'e2e-darkness', 'e2e-parity', ...extra].filter((s, i, a) => a.indexOf(s) === i);
 
 // --affected --wide: the wide set. A path under `src/` not listed here runs smoke + CORE. The first matching prefix wins, so a
 // specific file comes before its folder. Cross-area rules (evidence: what each suite drives, grep of scripts/e2e-*.mjs):
@@ -254,7 +254,7 @@ export const WIDE_COVERS = {
 // --affected (the default tier): the suites that drive the changed area directly, no cross-area readers (those are --wide).
 // A path under `src/` not listed here runs smoke + CORE. The first matching prefix wins.
 const GAME = ['e2e-gadgets', 'e2e-tactics', 'e2e-takedown', 'e2e-park'];
-const LIGHT = ['e2e-lightbake', 'e2e-desktop', 'e2e-darkness'];
+const LIGHT = ['e2e-lightbake', 'e2e-desktop', 'e2e-darkness', 'e2e-parity'];
 export const COOP = ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse'];
 export const DIRECT_COVERS = {
   // the studio and tuner files: their own suites (the tuner / Anim Studio test tier), not their folder's
@@ -348,7 +348,7 @@ export const DIRECT_COVERS = {
   'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
   // (J20 T5) Saltmarsh Park: its suite is e2e-sectorops parts 6-9
   'src/world/maps/campus': ['e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9', 'e2e-levels', 'e2e-anchors'],
-  // the lamp files: the bake suite, the desktop renderer and the GPU darkness read-back (dropped outside --gpu)
+  // the lamp files: the bake suite, the desktop renderer and the GPU light read-backs (e2e-darkness, e2e-parity; dropped outside --gpu)
   'src/world/light': LIGHT,
   'src/world/lamp': LIGHT,
   'src/world/bakedLamps': LIGHT,
@@ -379,7 +379,7 @@ export const DIRECT_COVERS = {
 // --affected, outside src/: a suite script or its helper reruns that suite; the helper and the runner rerun CORE; docs and tests
 // need no browser (the -lib helpers are not suites: e2e-lib reruns CORE, e2e-net-lib the two-page suites in HELPERS)
 export const SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!affected\.mjs$|verdict\.mjs$|(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
-export const HELPERS = { 'scripts/e2e-net-lib.mjs': ['e2e-netmove', 'anim-audit'] };
+export const HELPERS = { 'scripts/e2e-net-lib.mjs': ['e2e-netmove', 'anim-audit'], 'scripts/parity-lib.mjs': ['e2e-darkness', 'e2e-parity'] };
 // (marlow-final 0d) the set step modules of e2e-ctcourse (scripts/e2e-ctcourse/<set>.mjs) rerun it; master's --quick rule too
 export const SUITE_DIRS = { 'scripts/e2e-ctcourse/': ['e2e-ctcourse'] };
 const inDir = (f) => Object.entries(SUITE_DIRS).find(([d]) => f.startsWith(d))?.[1];
