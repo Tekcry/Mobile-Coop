@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.136.0 - Train 175: Campaign records and rating (preview only) (2026-10-27, PR #722; #708)
+- In the preview (or with `?campaign=1`), the campaign now has its order (Marlow Yard prologue, then Mission 1), a 0-100% mission rating and saved progress and a mission save; nothing uses them yet and the live game is unchanged.
+
 ## 4.135.2 - Train 174: Character shadows in the light meter: checks (2026-10-27, PR #721; #720)
 - Tests: the light check reads a guard's shadow on a grey card at Character shadows Off, Low and Epic, and the guard and co-op checks cover a shadow on the player.
 
