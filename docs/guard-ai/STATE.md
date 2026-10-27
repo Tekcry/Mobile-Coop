@@ -1030,7 +1030,8 @@ guard-ai-j16-2 -> guard-ai-mission-hooks (rebased on top); mission / tallow over
 Plan check 2 FIX (3 gaps); lead wrote PLAN revision 2 (rank rule, admit() on every join, cue in hearSearch,
 fold-ins); orchestrator GO (no third check; slice checkers confirm the 3 items). Lead put the hunt types on
 SectorDef (be6ac30a1). RUNNING: H1 Sonnet (feature/guard-ai-mill-hunt-h1, worktree -mill-hunt-h1, THORNBECK_HUNT)
-and H2 Opus (feature/guard-ai-mill-hunt-h2, worktree -mill-hunt-h2, src/ai/millHunt.ts). Next: lead merges both into
+and H2 Opus (feature/guard-ai-mill-hunt-h2, worktree -mill-hunt-h2, src/ai/millHunt.ts). H1 DONE 43424f55d (17 ground +
+10 gallery stops, H1-REPORT.md). Next: lead merges both into
 feature/guard-ai-mill-hunt, adds the sims on the real THORNBECK_HUNT, two Opus checkers, PR 1. Then PR 1 = H1 (Sonnet data) + H2 (Opus pure board) in parallel; PR 2 = H3 after #694; PR 3 = H4. Asked Michael via the orchestrator: gallery
 answered.
 Open (2026-10-27 ~08:55, new window to ~13:50, 1 agent; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
