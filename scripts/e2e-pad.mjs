@@ -867,6 +867,19 @@ try {
       const kb = await C.page.evaluate(() => window.__cp.read());
       assert(kb.kbm && kb.key !== 'none' && kb.keyText === 'E' && kb.xbox === 'none', `the glyphs swap to the key label on a key press (${JSON.stringify([kb.kbm, kb.key, kb.keyText, kb.xbox])})`);
       // away from the door nothing shows
+      // (triage G319) the A tap above opened the door: its committed step-and-push move (`doorOpen`, up to
+      // `DOOR_OPEN.maxTime` 2.4 s) holds the body at the latch on a kinematic override, so a teleport during it is undone.
+      // Let the move end first (bounded), then walk away
+      const away0 = await C.page.evaluate(() => {
+        const g = window.__app.current;
+        let n = 0;
+        while (g.doorOpen.active && n < 180) {
+          window.__cp.step(1);
+          n++;
+        }
+        return { opening: g.doorOpen.active, steps: n };
+      });
+      assert(!away0.opening, `the door's open move ends (${JSON.stringify(away0)})`);
       await C.page.evaluate(() => {
         window.__cp.tp(-0.95, 7, Math.PI);
         window.__cp.step(30);

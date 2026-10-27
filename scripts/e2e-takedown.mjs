@@ -755,13 +755,20 @@ try {
       watch(1.8);
       out.hold = { down: !e3.alive, lethal: em.bodies.some((b) => b.lethal) };
       // RT unchanged: the holstered palm strike knocks out a guard faced
+      // (triage G319) the strike's reach is 1.3 m (`STRIKE.reach`) and the spawned guard settles about 0.35 m off his
+      // (2, -1) spawn (1.47 m from `at`'s spot, out of reach: no strike starts): stand 0.9 m in front of where he stands,
+      // as the flag-off 'palm strike' scenario does
       reset();
       const e4 = at(Math.PI);
+      c.teleport(new V(e4.pos.x, 0, e4.pos.z - 0.9), 0);
+      g.player.cam.yaw = 0;
+      step(0.2);
+      const pick = g.strike.pickTarget();
       st.set('t', 'fire', true);
       step(1 / 60);
       st.set('t', 'fire', false);
       watch(1.0);
-      out.rt = { down: !e4.alive, ko: g.strike.count.ko };
+      out.rt = { down: !e4.alive, ko: g.strike.count.ko, inReach: pick === e4.id };
       // the held guard with information: [A] Interrogate, a tap runs it
       reset();
       const e5 = at(0);
@@ -782,7 +789,7 @@ try {
     assert(r.front.kind === 'guard' && r.front.rows.startsWith('Knock out|Kill'), `ctx: faced, [A] Knock out · hold Kill (${JSON.stringify(r.front)})`);
     assert(r.front.down && !r.front.lethal, `ctx: faced, a tap knocks him out (${JSON.stringify(r.front)})`);
     assert(r.hold.down && r.hold.lethal, `ctx: faced, a hold kills (${JSON.stringify(r.hold)})`);
-    assert(r.rt.down && r.rt.ko >= 1, `ctx: RT holstered still knocks out (${JSON.stringify(r.rt)})`);
+    assert(r.rt.inReach && r.rt.down && r.rt.ko >= 1, `ctx: RT holstered still knocks out (${JSON.stringify(r.rt)})`);
     assert(r.inter.kind === 'held' && r.inter.rows.startsWith('Interrogate|') && r.inter.held && r.inter.done, `ctx: the held guard's [A] Interrogate runs (${JSON.stringify(r.inter)})`);
     assert(!r.box, 'ctx: the old box never shows');
     const real2 = p2.errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
