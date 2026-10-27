@@ -2443,17 +2443,17 @@ describe('J20 affected report (on master: affectedPick, the cap)', () => {
 
 describe('train parity (J20 S7, Q27)', () => {
   it('trainParity: no file -> base; off -> none; suites [] -> none; suites [x] -> [x]; bad JSON -> base; env off wins', () => {
-    expect(TRAIN_PARITY).toEqual(['e2e-darkness']);
-    expect(trainParity('')).toEqual({ suites: ['e2e-darkness'], off: false, why: '' });
-    expect(trainParity(undefined, undefined)).toMatchObject({ suites: ['e2e-darkness'], off: false });
+    expect(TRAIN_PARITY).toEqual(['e2e-parity:1', 'e2e-parity:2', 'e2e-parity:3', 'e2e-parity:4', 'e2e-darkness']);
+    expect(trainParity('')).toEqual({ suites: [...TRAIN_PARITY], off: false, why: '' });
+    expect(trainParity(undefined, undefined)).toMatchObject({ suites: [...TRAIN_PARITY], off: false });
     const off = trainParity('{ "off": true, "why": "red on master", "by": "Night Shift | Test Runner" }');
     expect(off).toMatchObject({ suites: [], off: true });
     expect(off.why).toContain('red on master');
     expect(trainParity('{"suites":[]}')).toMatchObject({ suites: [], off: true });
     expect(trainParity('{"suites":["x"]}')).toEqual({ suites: ['x'], off: false, why: '' });
-    expect(trainParity('{not json')).toMatchObject({ suites: ['e2e-darkness'], off: false });
-    expect(trainParity('{"suites":"x"}')).toMatchObject({ suites: ['e2e-darkness'], off: false });
-    expect(trainParity('{"off":false}')).toMatchObject({ suites: ['e2e-darkness'], off: false });
+    expect(trainParity('{not json')).toMatchObject({ suites: [...TRAIN_PARITY], off: false });
+    expect(trainParity('{"suites":"x"}')).toMatchObject({ suites: [...TRAIN_PARITY], off: false });
+    expect(trainParity('{"off":false}')).toMatchObject({ suites: [...TRAIN_PARITY], off: false });
     expect(trainParity('{"suites":["x"]}', 'off')).toMatchObject({ suites: [], off: true, why: 'LQ_TRAIN_PARITY=off' });
     expect(trainParity('', 'OFF')).toMatchObject({ suites: [], off: true });
     expect(trainParity('', '', ['a'])).toMatchObject({ suites: ['a'] });
@@ -2469,16 +2469,16 @@ describe('train parity (J20 S7, Q27)', () => {
   });
   it('trainBins (train run and dry-run plan): bins include e2e-darkness, LQ_TRAIN_PARITY=off drops it', () => {
     const list = ['smoke', 'e2e-move', 'e2e-coop'];
-    const times = { smoke: 30, 'e2e-move': 60, 'e2e-coop': 90, 'e2e-darkness': 42 };
+    const times = { smoke: 30, 'e2e-move': 60, 'e2e-coop': 90, 'e2e-darkness': 42, 'e2e-parity:1': 130, 'e2e-parity:2': 170, 'e2e-parity:3': 100, 'e2e-parity:4': 70 };
     const on = trainBins(list, trainParity(''), times, 2).flatMap((b: { suites: string[] }) => b.suites);
-    expect(on).toContain('e2e-darkness');
-    expect(on).toHaveLength(4);
+    expect(on).toEqual(expect.arrayContaining(TRAIN_PARITY));
+    expect(on).toHaveLength(3 + TRAIN_PARITY.length);
     const off = trainBins(list, trainParity('', 'off'), times, 2).flatMap((b: { suites: string[] }) => b.suites);
-    expect(off).not.toContain('e2e-darkness');
+    for (const s of TRAIN_PARITY) expect(off).not.toContain(s);
     expect(off.sort()).toEqual([...list].sort());
   });
   it('parityLine: the log line names the suites or why it is off', () => {
-    expect(parityLine(trainParity(''))).toBe('train parity: e2e-darkness');
+    expect(parityLine(trainParity(''))).toBe('train parity: e2e-parity:1 e2e-parity:2 e2e-parity:3 e2e-parity:4 e2e-darkness');
     expect(parityLine(trainParity('', 'off'))).toBe('train parity: off (LQ_TRAIN_PARITY=off)');
   });
 });
