@@ -1,6 +1,7 @@
 // J14 re-plan walk for A4 the Goods Shed (e2e-ctcourse parts 5-8, map ctcourseReplan; slice G-A4, STATIONS.md sections 3, 5, 6, 8, 9).
 // Two pages: A = the host (P1), B = the client (P2). Stations 9 (the lift grille, stand-in), 8 (the camera loop, 60 s) and 10 (the synced
-// takedown, 1.5 s) in that order; three guards (the officer, two loaders: the second stands at the desk), three cameras on the loop flag.
+// takedown, 1.5 s) in that order; three guards (the officer, two loaders: the second stands at the desk), three cameras (C1, C2 on the loop flag, C3 off once
+// `a4-grille` is set: marlow-play B2).
 // The guards are made passive (they see and hear nothing) while the players are put where a real run would stand; a station retry puts them
 // back on their posts (R1), so the walk makes them passive again after each one. The walk:
 //   1. the start: station 9 live on both pages, the stand-in has the grille unlocked on both, the dispatch office locked for good, the
@@ -55,8 +56,8 @@ const LOOP_S = 60;
 const BACK_AISLE = [100, 25.8];
 /** Stations 8 and 10 have A and B lines, so each page's step line is its player's job line (`CourseState.stepLine`), never the shared
  *  text: either job's line counts (the unit test pins both against these). */
-export const S8_LINE = /duty officer from behind|console once the officer is down/;
-export const S10_LINE = /nearest the (office|racking) when your partner is set/;
+export const S8_LINE = /(Take down the officer|Loop the cameras at the console), then run to the dock/;
+export const S10_LINE = /Count down with your partner and take the (north|south) loader/;
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
 export async function walk(t, n) {
@@ -104,7 +105,8 @@ export async function walk(t, n) {
       }
     }, slots);
   const camModes = (P) => P.evaluate(() => window.__ctdev.debug().cams.filter((c) => c.id.startsWith('cam-a4-')).map((c) => c.mode));
-  const allCams = (P, mode) => until(P, ([m]) => { const cs = window.__ctdev.debug().cams.filter((c) => c.id.startsWith('cam-a4-')); return cs.length === 3 && cs.every((c) => c.mode === m); }, [mode], 15000, `all three cameras are ${mode}`);
+  // (marlow-play B2) `c3`: C3's own mode (it is off, 'looped', for good once `a4-grille` is set)
+  const allCams = (P, mode, c3 = mode) => until(P, ([m, m3]) => { const cs = window.__ctdev.debug().cams.filter((c) => c.id.startsWith('cam-a4-')); return cs.length === 3 && cs.every((c) => c.mode === (c.id === 'cam-a4-c3' ? m3 : m)); }, [mode, c3], 15000, `the cameras are ${mode} (C3 ${c3})`);
   /** No A4 camera holds anything on either player (the meters and stages the debug list carries). */
   async function camerasHold(what) {
     for (const P of [A, B]) {
@@ -162,7 +164,7 @@ export async function walk(t, n) {
   await GA(() => { for (const r of window.__app.current.net.remotes.values()) { r.damageMul = 0; r.protectT = 0; } });
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stationLive(P, 9, `A4: station 9 is live on the ${tag} page`);
-    await sees(P, /lift grille/, `A4: the ${tag} reads station 9's step line`);
+    await sees(P, /Sneak past the officer, under the grille/, `A4: the ${tag} reads station 9's step line`);
     const m = await camModes(P);
     assert(m.length === 3 && m.every((x) => x === 'online'), `A4: the three cameras are online on the ${tag} (${JSON.stringify(m)})`);
     assert((await lampCount(P, 49)) === 3 && (await lampCount(P, 44)) === 1, `A4: the ${tag} has the three back aisle strips (49) and the office panel (44)`);
@@ -199,6 +201,9 @@ export async function walk(t, n) {
     await sees(P, S8_LINE, `A4: the ${tag} reads station 8's step line`);
   }
   assert((await retries()) === r0, 'A4: the grille cost no retry');
+  // (marlow-play B2) C3 is off for the rest of the set from here; C1 and C2 stay on until the console loops them
+  await allCams(A, 'online', 'looped');
+  await allCams(B, 'online', 'looped');
   await camerasHold('A4 back aisle');
 
   // ---- 3. station 8, one loop-timer retry: the loop ends with both still in the room ----
@@ -220,8 +225,8 @@ export async function walk(t, n) {
     assert(await ticked(P, 'a4-s9'), `A4: the ${tag} still sees station 9's step ticked`);
   }
   assert(!(await hasFlag(LOOP_FLAG)), 'A4: the loop flag is clear after the retry');
-  await allCams(A, 'online');
-  await allCams(B, 'online');
+  await allCams(A, 'online', 'looped');
+  await allCams(B, 'online', 'looped');
   await guardsReset('A4 loop retry');
   // the retry's placement hold ends before anyone is moved
   await waitSim(3500);
@@ -261,7 +266,7 @@ export async function walk(t, n) {
   assert(await GA(() => !window.__course.squadOf('a4-dock1').alive), 'A4: D1 is down alone');
   await until(A, ([r]) => window.__course.state.restarts > r && window.__course.state.lastRetry?.st === 10, [r3], 20000, 'A4: the second loader is not down 1.5 s later: station 10 retries');
   assert((await GA(() => window.__course.state.lastRetry.cause)) === 'timer', 'A4: the retry cause is timer');
-  await until(B, (n0) => (window.__course.wire.rln ?? 0) > n0 && /Both loaders at once/.test(window.__course.wire.rl ?? ''), rln1, 30000, "A4: LANTERN's station 10 timer line reaches the client");
+  await until(B, (n0) => (window.__course.wire.rln ?? 0) > n0 && /Not together, so the other loader saw/.test(window.__course.wire.rl ?? ''), rln1, 30000, "A4: LANTERN's station 10 timer line reaches the client");
   await onMarks(ST10, 'A4 takedown retry');
   assert((await hasFlag('a4-grille')) && (await hasFlag('a4-west')), 'A4: stations 9 and 8 are still done');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await stationLive(P, 10, `A4: station 10 is live again on the ${tag} page`);

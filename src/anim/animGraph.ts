@@ -59,6 +59,7 @@ import { CARRY_STRIKE_SHOT, WREN_CARRY, WREN_STRIKE } from './mixamo'; // (mixam
 import { STRIKE_ARC_CONTACT } from './strikeBody'; // (mixamo-retarget I5) the arc's contact for the strike capture
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
+import { killDriveTargets, type KillDriveState } from './killDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
 import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, HOLD_FEET_CH, WREN_HOLD, HOLD_K0, HOLD_SPAN, HOLD_FROM, HOLD_STAND, HOLD_EASE, WREN_STAND, STAND_YAW, STAND_SLOW, STAND_YAW_CH, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
 import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
@@ -69,6 +70,7 @@ import { KEYED_CROUCH_IDLE } from './clips/keyed/crouch_idle';
 import { WALL_KEYS, WallKeyed } from './wallKeyed';
 import { DRAW_BEAT, DRAW_CUR, drawEnter, drawRelease } from './drawMotion';
 import { BodyRecoil, RECOIL_SIGHT_ARM } from './recoil';
+import { INTRO_BREATH, introBreath } from './introBreath'; // (piano-knife S4b) the intro pose's captured breath
 
 
 export const FADE = 0.2;
@@ -147,6 +149,9 @@ export interface AnimInput {
   landing: number;
   /** Back to a wall (the flat-back high stance; back-to-wall, step 11 / A6). */
   wall: boolean;
+  /** (piano-knife S4b) The piano intro pose (back to a wall, IntroPose / WALL_SUB.intro): the gun stays at low ready in
+   *  both hands (no wall tuck, no hang) and the trunk takes the captured breath (introBreath). */
+  intro: boolean;
   /** Which side the wall is on, in the character's frame (-1 left, 1 right, 0 none). */
   wallSide: number;
   /** (G6) How far the posed body is turned off facing out from the wall (|sin|: 0 square .. 1 side-on). */
@@ -256,6 +261,7 @@ export function defaultInput(): AnimInput {
     dash: 0,
     landing: 0,
     wall: false,
+    intro: false,
     wallSide: 0,
     wallTurn: 0,
     wallBlock: 0,
@@ -728,6 +734,9 @@ export class AnimGraph {
   readonly out = emptyTargets();
   /** (anim-studio) The Anim Studio's loop player (`studioDrive.ts`): set on one rig's graph inside the studio only. */
   drive: StudioDrive | null = null;
+  /** (piano-knife S1) A paired knife kill's clip (`killDrive.ts`): set by the takedown on the attacker's and the
+   *  victim's graphs while the move plays; null otherwise. */
+  kill: KillDriveState | null = null;
   /**
    * (tuner-clarity S1, BRIEF A3) What this graph plays (`nowPlaying.ts`): the motion-capture, hand-keyed and graph-code
    * shares of the body, the captured move and the studio's clip, written at the end of each `update` (`notePlaying`).
@@ -938,6 +947,9 @@ export class AnimGraph {
   private cBackK = 1;
   /** (anim-rework S4) The procedural breath's phase (rad). */
   private breathPh = 0;
+  /** (piano-knife S4b) Seconds into the intro pose and its weight 0..1. */
+  private introT = 0;
+  private introW = 0;
   /** (mocap-trial) The mocap set's slots on this graph, the set they ran on (reset on a switch), the planner values they
    *  blend, the mocap share of the standing holstered pose, and the clip feet's source: this frame's speed set sampled
    *  feet (`kA`), its blended root travel per cycle and duty. */
@@ -1517,7 +1529,12 @@ export class AnimGraph {
     this.breathW = breathT >= this.breathW ? breathT : approach(this.breathW, breathT, BREATH.fadeOut, dt);
     // (anim-rework S4) on its own phase: slower crouched (BREATH.rateCrouch), never a jump as the rate changes
     this.breathPh = (this.breathPh + dt * (BREATH.rate + (BREATH.rateCrouch - BREATH.rate) * crouchK)) % (Math.PI * 2);
-    const breath = Math.sin(this.breathPh) * BREATH.amp * this.breathW * (1 - raise);
+    // (piano-knife S4b) the intro pose: the captured breath (introBreath), in from the intro's start with no stillness
+    // gate, on a clock from the intro's start on every rig (owner and remote copy alike, as the brace's breath)
+    this.introW = approach(this.introW, i.intro ? 1 : 0, INTRO_BREATH.fade, dt);
+    this.introT = i.intro || this.introW > 1e-4 ? this.introT + dt : 0;
+    const breathP = Math.sin(this.breathPh) * BREATH.amp * this.breathW;
+    const breath = (this.introW > 1e-4 ? breathP + (introBreath(this.introT) - breathP) * this.introW : breathP) * (1 - raise);
     // head-first peek: the head leans out first, the body follows; coming back the body (and weapon)
     // return first and the head follows
     // the weapon changes to the outside hand before any lean starts
@@ -1606,7 +1623,8 @@ export class AnimGraph {
     const sightPos = sight * (1 - 0.5 * swapBump);
     // at a wall the ready is the wall tuck: muzzle down along the wall, turned away from it (the rig mirrors
     // yaw with the hand, so the away side is relative to the hand holding it)
-    this.wallReadyW = approach(this.wallReadyW, atWall ? 1 : 0, 0.25, dt);
+    // (piano-knife S4b) not in the intro pose: the pistol at low ready in both hands
+    this.wallReadyW = approach(this.wallReadyW, atWall && !i.intro ? 1 : 0, 0.25, dt);
     // (afp AF4b, Michael P4 "with rifle clips") crouched at a wall the body is side-on, the free crouch carriage along the
     // travel: the open-ground carry, not the tuck (muzzle down along the wall, which side-on and bent over put the muzzle
     // into the thighs). By the crouch, not the body's turn, so a reversal (the body turning through square) keeps the carry
@@ -1619,7 +1637,8 @@ export class AnimGraph {
     const cr = WALL_READY;
     // stepping to the wall the open-ground carry comes in tight to the chest (compressed) until the tuck takes
     // over, so a low-ready muzzle never reaches into the wall on the way in
-    const enterK = atWall ? 1 - smoothstep(this.wallT / WALL_HAND_TIME) : 0;
+    // (piano-knife S4b) not in the intro pose: the pistol at low ready in both hands
+    const enterK = atWall && !i.intro ? 1 - smoothstep(this.wallT / WALL_HAND_TIME) : 0;
     cc += (cl + chh) * enterK;
     cl *= 1 - enterK;
     chh *= 1 - enterK;
@@ -1722,7 +1741,8 @@ export class AnimGraph {
     // off the wall (the support hand reached back to a wall point at hip height, elbow out: hand on hip). The support hand
     // lets go of the foregrip while still and lowered (settles over the first ~0.4 s); moving along the wall takes it
     // back to the weapon. No wall-hand contact (offWall stays 0; the rig's wallHand point is unused).
-    const wallHang = atWall ? ready * (1 - this.moveW) * smoothstep((this.wallT - 0.18) / 0.24) : 0;
+    // (piano-knife S4b) not in the intro pose: the pistol at low ready in both hands
+    const wallHang = atWall && !i.intro ? ready * (1 - this.moveW) * smoothstep((this.wallT - 0.18) / 0.24) : 0;
     // (G6, AUDIT-WALLS row 18, 051917 @ 29.07-30.23) side-on and crouched, the empty hands: the open-side hand on its knee
     // through the slide too (the rig puts it on the posed knee); swapped over the reversal by the side (wallS) and the
     // turn (the side-on share passes through 0 at square-on). Not with a weapon in the hands (it stays on the weapon).
@@ -2117,6 +2137,7 @@ export class AnimGraph {
     o.readyShoulder.y = p.y.shoulder + this.readyFy * fw * k;
     o.readyShoulder.z = -0.01 + this.readyFz * fw * k;
     if (this.drive !== null) studioDriveTargets(this.drive, o, dt); // (anim-studio) the loop player's clip; null outside the studio
+    if (this.kill !== null) killDriveTargets(this.kill, o); // (piano-knife S1) the knife kill's clip; null outside one
     this.bodyMotion(i, o, dt);
     this.notePlaying(o); // (tuner-clarity S1) after the studio drive; display only
     return o;

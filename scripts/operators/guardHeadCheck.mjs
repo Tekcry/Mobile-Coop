@@ -152,6 +152,13 @@ export function checkHeadReport(r, kit) {
   return f;
 }
 
+/**
+ * (G10a D4) The hair-cap hairline after decimation (build_head.py snaps every boundary vertex of the decimated cap back
+ * onto the dense cap's hairline contour): boundary vertex to contour at most 1.5 mm at LOD0, 3 mm at LOD1; no turn
+ * between consecutive boundary edges over 75 deg (a sawtooth tooth turns ~150).
+ */
+export const HAIRLINE_LIMITS = { maxDevMm: [1.5, 3], maxTurnDeg: 75 };
+
 /** Failures of one hair-cap report (`heads/guard-<b>-haircaps.json`). */
 export function checkCapsReport(r, kit) {
   const f = [];
@@ -165,6 +172,17 @@ export function checkCapsReport(r, kit) {
     ['lod0', 'lod1'].forEach((l, i) => {
       const n = c.tris?.[l];
       if ((kc.tris[i] ?? 0) > 0 && (typeof n !== 'number' || n > kc.tris[i])) f.push(`${r.base} ${s} ${l}: ${n} tris > ${kc.tris[i]}`);
+    });
+    ['lod0', 'lod1'].forEach((l, i) => {
+      if (!((kc.tris[i] ?? 0) > 0)) return;
+      const h = c.hairline?.[l];
+      if (!h || typeof h.maxDevMm !== 'number' || typeof h.maxTurnDeg !== 'number' || typeof h.boundaryVerts !== 'number') {
+        f.push(`${r.base} ${s} ${l}: no hairline measure (boundaryVerts, maxDevMm, maxTurnDeg)`);
+        return;
+      }
+      if (h.boundaryVerts < 3) f.push(`${r.base} ${s} ${l}: hairline has ${h.boundaryVerts} boundary vertices`);
+      if (h.maxDevMm > HAIRLINE_LIMITS.maxDevMm[i]) f.push(`${r.base} ${s} ${l}: hairline ${h.maxDevMm} mm off the contour > ${HAIRLINE_LIMITS.maxDevMm[i]}`);
+      if (h.maxTurnDeg > HAIRLINE_LIMITS.maxTurnDeg) f.push(`${r.base} ${s} ${l}: hairline turns ${h.maxTurnDeg} deg > ${HAIRLINE_LIMITS.maxTurnDeg} (sawtooth)`);
     });
     if (!Array.isArray(c.thicknessMm) || c.thicknessMm[1] > kc.offset * 1000 + 0.01) f.push(`${r.base} ${s}: thickness ${c.thicknessMm} mm > offset ${kc.offset * 1000}`);
     for (const m of MAPS) if (!c.png?.[m]) f.push(`${r.base} ${s}: no ${m} png`);

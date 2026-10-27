@@ -19,13 +19,18 @@
  *   (`FLOOR_HOLES` cuts the site slab); step irons on the near face only; on the far edge a 1.1 m site barrier (the engine's
  *   mantle reaches 1.8 m and a running hop 3.2 m, so a noLedge edge alone would stop neither); the stand-in is a hoarded
  *   maintenance walkway over the pit (door `A2-walkway`, flag gate `g-a2-walkway`, opened by `CourseState`'s stand-in rule
- *   while `plankBridge` is off); a stack of scaffold boards at the east end (dressing);
+ *   while `plankBridge` is off); a stack of scaffold boards at the east end (dressing); (marlow-kit-geo Q1) the barrier's
+ *   board slot opposite the lane strip (`A2_BOARD_SLOT`), where a laid board bears on the far landing under a raised panel;
  * - the stations (STATIONS section 3, verbatim), the pass zones `a2-lane` and `a2-across`, LANTERN's retry lines, the
  *   objective lines (what and where), the coat corner's wall lamp on circuit 22 (the re-plan table's second lamp).
- * Value imports only from the set file and `../types` (the facility imports nothing from here: no cycle).
+ * - (marlow-kit-wire) the Plank Bridge kit spot `a2-plank` on the board stack (`A2_BOARD_STACK`), placed unconditionally
+ *   (inert while `plankBridge` is off); with it on, the objective names the board.
+ * Value imports only from the set file, `../types` and two pure course modules (`kitApi`, `stationDef`) (the facility
+ * imports nothing from here: no cycle).
  */
 import type { EgressGate, FlagGate, HoldGate } from '../../../../game/course/courseDef';
-import type { StationDef } from '../../../../game/course/stationDef';
+import { kitMoveOn, type StationDef } from '../../../../game/course/stationDef';
+import { addKitSpot } from '../../../../game/kit/kitApi';
 import type { FacilityKit } from '../../../kit/facilityKit';
 import type { LevelBuilder } from '../../../levelBuilder';
 import { FacilityProps } from '../../../props/facilityProps';
@@ -41,8 +46,26 @@ export const FLOOR_HOLES: readonly FloorHole[] = [[A2_PIT.x0, A2_PIT.z0, A2_PIT.
 /** The pit's liners (outside the hole, under the slab) and its floor slab's thickness. */
 const LINER = 0.2;
 const PIT_FLOOR_T = 0.3;
-/** The far edge's site barrier (on the far landing, x0-x1, `h` over the floor), broken only where the walkway lands. */
-export const A2_PIT_BARRIER = { x0: 69.0, x1: 69.1, h: 1.1 } as const;
+/** The far edge's site barrier (on the far landing, x0-x1, `h` over the floor), broken only where the walkway lands. (marlow-play
+ *  B3) 0.04 m thick: the strip from the walkway to the L2 door, between it and the L2 wall's face (x 69.75), is 0.71 m, over a
+ *  body's 2 x (radius 0.3 + keepDistance 0.04) = 0.68 m (at 0.1 m it was 0.65 m). It still runs wall to wall: stopping it short
+ *  of the door would let the pit be mantled out onto the landing. */
+export const A2_PIT_BARRIER = { x0: 69.0, x1: 69.04, h: 1.1 } as const;
+/**
+ * (marlow-kit-geo Q1) The board slot: the barrier's panel opposite the lane strip (z 12.7-13.7, between the walkway's north
+ * hoarding board and the road 3 van's south face) stands on raised feet, its bottom rail `y0` over the landing, so a laid
+ * 3.9 m board slides under it and bears on the far landing (pit 3.0 m: 0.45 m bearing each end, the band 1.0-3.3 m).
+ * The panel still stops a player alone: it covers the running hop's clear line (0.9 m over the feet,
+ * `src/player/traversal.ts:224`) and the mantle's top-clear line (0.5 m over the landing, `traversal.ts:261`), and nothing
+ * passes the 0.25 m slot. An open slot cannot do both: the board spans at most 3.3 m, a running hop reaches 3.2 m from the
+ * feet (`traversal.ts:220`) plus up to 0.23 m of body past the edge (the 50 deg support slope, `playerController.ts:232`).
+ * The crosser climbs the panel off the board's end: its face stands out over the pit (`x0`) so it is 0.19 m deep, enough
+ * for the climb probe's top sample 0.12 m past the face (`traversal.ts:239`), and its back is the barrier's (`x1`), so the
+ * strip behind it keeps 0.71 m.
+ */
+export const A2_BOARD_SLOT = { x0: 68.85, x1: 69.04, z0: 12.7, z1: 13.7, y0: 0.25, h: 1.1 } as const;
+/** (marlow-play B3) The L2 wall's face on the far landing. */
+export const A2_L2_FACE_X = 69.75;
 /** The step irons (ladders on the near face, base on the pit floor): one each side of the walkway. */
 export const A2_STEP_IRONS_Z = [6.8, 13.2] as const;
 export const A2_STEP_IRONS_X = A2_PIT.x0 + 0.35;
@@ -82,6 +105,11 @@ export const A2_CAB2_REPLAN = { x: 63.5, z: 11.6 } as const;
  *  boards, from the lane gap 2/3's east end to the far landing (road 2's east van ends on the pit's near edge at z 8.7-11.3,
  *  so the drawn z 9.4-10.6 has no near-side floor to board from). */
 export const A2_WALKWAY = { z0: 11.4, z1: 12.6, board: 0.1, h: 2.2, deck: 0.2 } as const;
+/** (marlow-kit-wire) The scaffold board stack at the lane's east end (dressing; the Plank Bridge spot is its middle): eight
+ *  0.04 m boards in two 0.22 m columns against the road 3 van's south face, four layers to `top`. */
+export const A2_BOARD_STACK = { x0: 60.9, x1: 64.8, z0: 13.23, z1: 13.68, top: 0.16 } as const;
+/** (marlow-kit-wire) Station 5's objective while `plankBridge` is on (the built text is the walkway's). */
+export const A2_PLANK_KIT_TEXT = 'Lay a board over the pit to the L2 door';
 export const A2_WALKWAY_DOOR = 'A2-walkway';
 export const A2_WALKWAY_GATE = 'g-a2-walkway';
 export const A2_WALKWAY_FLAG = 'a2-walkway';
@@ -120,12 +148,18 @@ export const A2_STATIONS: readonly StationDef[] = a2CarriageShedStations;
 /** LANTERN's retry lines (STATIONS section 6, verbatim). */
 export const A2_RETRY_LINES: readonly { at: string; text: string }[] = [
   { at: 'retry:a2-shutter', text: 'Seen at the roller door. Back to the stores bay.' },
-  { at: 'retry:a2-lights', text: 'The shunter saw you in the neck. Back to the cabin and the lane.' },
-  { at: 'retry:a2-lights:timer', text: 'Lights came back with you in the neck. Back to the cabin and the lane.' },
-  { at: 'retry:a2-plank', text: 'The shunter saw the board. Back to the board stack at the east end.' },
+  { at: 'retry:a2-lights', text: 'Seen in the neck. Back to the cabin and the lane.' },
+  { at: 'retry:a2-lights:timer', text: 'Lights came back on you. Back to the cabin and the lane.' },
+  { at: 'retry:a2-plank', text: 'Seen on the board. Back to the east end board stack.' },
 ];
 /** The built entry line the re-plan drops (no spotters, no staging); nothing replaces it (the stations' own lines carry the retries). */
 export const A2_BUILT_STAGING_LINE = 'Two spotters on the staging. Seen in the neck lights and we start again.';
+/** (marlow-play C2) The built neck lines the re-plan drops too: the re-plan's isolator lures nobody (`courseMode` `isolatorLures`),
+ *  so "press while the shunter stands at the neck" would send the presser to wait on a lure that never comes. */
+export const A2_BUILT_NECK_LINES: readonly string[] = [
+  'The neck is on two isolators. Fifteen seconds of dark each time. Use them well.',
+  "Press while the shunter stands at the neck, or he won't come and look.",
+];
 /** The built objective steps the re-plan replaces. */
 const BUILT_STEPS = ['a2-neck', 'a2-back', 'a2-lock'];
 /** Built map data the re-plan's geometry retires: the deck's leg-up mark, the old cabinet 2 spot, the deck and coat corner
@@ -224,9 +258,13 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     for (const z of A2_STEP_IRONS_Z) b.ladder(A2_STEP_IRONS_X, z, yb, 0, -Math.PI / 2, STEEL, 0.5);
   });
   const w = A2_WALKWAY;
-  tally(b, p.register, 'A2-35', "Far edge site barrier (1.1 m, noLedge, on the far landing x 69.0-69.1) wall to wall but for the walkway's landing: no mantle out of the pit and no running hop over it onto the far side", () => {
+  tally(b, p.register, 'A2-35', "Far edge site barrier (1.1 m, noLedge, on the far landing x 69.0-69.04) wall to wall but for the walkway's landing and the board slot's raised panel (A2-40): no mantle out of the pit and no running hop over it onto the far side", () => {
     slab(A2_PIT_BARRIER.x0, A2_PIT_BARRIER.x1, pz0, w.z0 - w.board, 0, A2_PIT_BARRIER.h, BARRIER_C);
-    slab(A2_PIT_BARRIER.x0, A2_PIT_BARRIER.x1, w.z1 + w.board, pz1, 0, A2_PIT_BARRIER.h, BARRIER_C);
+    slab(A2_PIT_BARRIER.x0, A2_PIT_BARRIER.x1, A2_BOARD_SLOT.z1, pz1, 0, A2_PIT_BARRIER.h, BARRIER_C);
+  });
+  const bs = A2_BOARD_SLOT;
+  tally(b, p.register, 'A2-40', "(marlow-kit-geo Q1) The barrier's board slot opposite the lane strip (z 12.7-13.7): its panel on raised feet, 0.25-1.1 m over the landing (noLedge), face out over the pit at x 68.85, back on the barrier's line (x 69.04): a laid board slides under it and bears on the far landing; the crosser climbs it off the board's end; a player alone can neither hop nor mantle past it", () => {
+    slab(bs.x0, bs.x1, bs.z0, bs.z1, bs.y0, bs.h, BARRIER_C);
   });
   tally(b, p.register, 'A2-36', 'Plank stand-in: a hoarded maintenance walkway over the pit (deck x 66-69, z 11.4-12.6, top flush at y 0; hoarding boards 2.2 m from the pit floor on both sides, all noLedge, so the space under the deck is shut), its door A2-walkway at the near end on the flag gate g-a2-walkway', () => {
     slab(px0, px1, w.z0, w.z1, -w.deck, 0, HOARD_C);
@@ -235,6 +273,9 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     p.doors[A2_WALKWAY_DOOR] = b.door(px0, 0, w.z0, w.z1 - w.z0, 0, { height: 2.1, breachable: false }).id;
   });
   p.bay.gates.push({ kind: 'flag', id: A2_WALKWAY_GATE, flag: A2_WALKWAY_FLAG, doorId: A2_WALKWAY_DOOR } satisfies FlagGate);
+  // (marlow-kit-wire) the Plank Bridge spot: the board stack's middle, the boards along x (inert while `plankBridge` is off)
+  const stack = A2_BOARD_STACK;
+  addKitSpot(b.anchors, { id: 'a2-plank', kind: 'plankBridge', x: (stack.x0 + stack.x1) / 2, y: 0, z: (stack.z0 + stack.z1) / 2, yaw: Math.PI / 2, w: stack.x1 - stack.x0 });
 
   // ---- dressing (visual skins): the ballast short of the pit, the scaffold boards, hazard bands ----
   tally(b, p.register, 'A2-37', 'Re-plan dressing (visual skins, no collision): the three ballast strips stopping at the pit, a stack of scaffold boards at the east end of the lane gap 2/3 against the road 3 van (KS5 lays them later), hazard bands on the walkway boards and the barrier', () => {
@@ -243,11 +284,15 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     for (let k = 0; k < 8; k++) {
       const col = k % 2;
       const y = Math.floor(k / 2) * 0.04;
-      const z0 = 13.46 - col * 0.23;
-      skin(60.9, 64.8, y, y + 0.04, z0, z0 + 0.22, BOARD_C);
+      const z0 = A2_BOARD_STACK.z1 - 0.22 - col * 0.23;
+      skin(A2_BOARD_STACK.x0, A2_BOARD_STACK.x1, y, y + 0.04, z0, z0 + 0.22, BOARD_C);
     }
     for (const z of [w.z0 - w.board - 0.01, w.z1 + w.board]) skin(px0, px1, 0.9, 1.0, z, z + 0.01, BARRIER_C);
     skin(A2_PIT_BARRIER.x0 - 0.01, A2_PIT_BARRIER.x0, A2_PIT_BARRIER.h - 0.1, A2_PIT_BARRIER.h, pz0, pz1, BLACK);
+  });
+  tally(b, p.register, 'A2-41', "(marlow-kit-geo Q1) Board slot dressing (visual skins, no collision): the hazard band on the panel's face and its two feet down to the landing", () => {
+    skin(bs.x0 - 0.01, bs.x0, bs.h - 0.1, bs.h, bs.z0, bs.z1, BLACK);
+    for (const z of [bs.z0 + 0.1, bs.z1 - 0.14]) skin(bs.x1 - 0.04, bs.x1, 0, bs.y0, z, z + 0.04, STEEL);
   });
 
   // ---- the lamp: the coat corner (Q2 every light works), circuit 22 with the cabin panel ----
@@ -280,29 +325,30 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     {
       id: 'a2-shutter',
       bay: 'A2',
-      text: 'Roller door off the stores bay: one holds it up, the other goes under.',
-      a: 'Hold the roller door up at its south jamb while your partner goes under.',
-      b: 'Crouch under the roller door into the lane, then hold it up from inside.',
+      text: 'Both through the roller door',
+      // (marlow-play C6) holding only unlocks the roller door: someone still opens it, so the lines say who
+      a: 'Hold the roller door up at the south jamb, then follow.',
+      b: 'Open the roller door, crouch under, then hold it for your partner.',
       done: { flag: A2_LANE_FLAG },
     },
     {
       id: 'a2-lights',
       bay: 'A2',
-      text: 'Cut the neck lights at a cabinet, then cross the dark neck from the lane.',
-      a: 'Isolate at cabinet one in the cabin, then cross when cabinet two goes dark.',
-      b: 'Cross the dark neck from the lane, then isolate at cabinet two by the pit.',
+      text: 'Cut the neck lights, then cross',
+      a: 'Cut cabinet one in the cabin, then cross when two is dark.',
+      b: 'Cross the dark neck, then cut cabinet two by the pit.',
       done: { flag: 'a2-east' },
       timer: 'g-a2-neck',
     },
     {
       id: 'a2-plank',
       bay: 'A2',
-      text: 'Cross the pit by the east vans on the hoarded walkway to the L2 door.',
+      text: kitMoveOn('plankBridge') ? A2_PLANK_KIT_TEXT : 'Cross the pit to the L2 door',
       done: { flag: A2_ACROSS_FLAG },
     },
     { id: 'a2-lock', bay: 'A2', text: 'Both of you into holding room two.' },
   );
-  p.bay.radio = p.bay.radio.filter((r) => r.text !== A2_BUILT_STAGING_LINE);
+  p.bay.radio = p.bay.radio.filter((r) => r.text !== A2_BUILT_STAGING_LINE && !A2_BUILT_NECK_LINES.includes(r.text));
   p.bay.radio.push(...A2_RETRY_LINES);
 
   // ---- map data: debug points, nav seeds, spaces, light spots, shots ----

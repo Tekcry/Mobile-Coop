@@ -10,7 +10,7 @@
  * 10 are `a4Ticks.test.ts`; the built A4 is `tests/ctcourse/a4GoodsShed.test.ts`.
  */
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { NavGrid, type NavBlocker } from '../../../src/ai/navGrid';
 import { GUARD_INFO_LINE_MAX } from '../../../src/ai/guardInfo';
 import { COURSE_TEXT_MAX } from '../../../src/config/course';
@@ -18,6 +18,7 @@ import { MOVEMENT } from '../../../src/config/movement';
 import { hyp2, hyp3 } from '../../../src/core/mathx';
 import { layoutKnownIds, retryKey, validateCourse, type EgressGate, type LeverGate } from '../../../src/game/course/courseDef';
 import { CourseState } from '../../../src/game/course/courseState';
+import { cameraOff } from '../../../src/game/course/securityRoom';
 import type { StationDef } from '../../../src/game/course/stationDef';
 import { camPitch, camRange, inFrame } from '../../../src/security/camera';
 import type { CameraDevice } from '../../../src/security/data';
@@ -71,7 +72,11 @@ import {
   A4_SW_DISPATCH,
   A4_WICKET_FLAG,
   A4_WICKET_ZONE,
+  A4_DEADWEIGHT,
 } from '../../../src/world/maps/ctcourseSets/replan/a4GoodsShed';
+import { kitSpotsOf } from '../../../src/game/kit/kitApi';
+import { flags } from '../../../src/core/flags';
+import { REFUSE_KIT_HELD } from '../../../src/game/course/courseState';
 import { checkSetPart, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../../src/world/maps/ctcourseSets/types';
 
 const b = new LevelBuilder();
@@ -487,7 +492,8 @@ describe('Marlow re-plan A4: station 8, the camera loop, and station 10, the syn
     expect(part.consoles).toEqual([{ id: A4_CONSOLE, guard: A4_OFFICER, flag: A4_LOOP_FLAG, seconds: 60, rearm: 20 }]);
     expect(part.bay.gates.find((g) => g.id === A4_GATE)).toMatchObject({ kind: 'pickup', id: A4_GATE, switchId: A4_CONSOLE, flag: A4_LOOP_FLAG, perPlayer: false });
     expect(part.cameras.map((c) => c.id)).toEqual([...A4_CAMERAS]);
-    for (const c of part.cameras) expect(c.offFlag, c.id).toBe(A4_LOOP_FLAG);
+    // (marlow-play B2) C1 and C2 on the loop flag; C3 on station 9's done flag (off for the rest of the set)
+    for (const c of part.cameras) expect(c.offFlag, c.id).toBe(c.id === 'cam-a4-c3' ? A4_GRILLE_FLAG : A4_LOOP_FLAG);
     expect(part.bay.gates.find((g) => g.id === A4_WICKET_GATE)).toBeDefined();
     expect(SHEET[1]!.drillS).toBe(60);
     expect(SHEET[2]!.drillS).toBe(1.5);
@@ -547,7 +553,16 @@ describe('Marlow re-plan A4: the cameras', () => {
     expect(c3.facing).toBe(A4_C3_FACING);
     expect(c3.at).toEqual([76.4, 33.0]);
     expect(c3.range).toBe(14);
-    expect(c3.offFlag).toBe(A4_LOOP_FLAG);
+    // (marlow-play B2) off for good once station 9 is done: past the 60 s loop it saw every takedown at the desk, and 10's retry
+    // never re-runs the loop; the console's flag alone leaves it on, `a4-grille` (a shared flag) switches it off
+    expect(c3.offFlag).toBe(A4_GRILLE_FLAG);
+    expect(cameraOff(c3, (f) => f === A4_LOOP_FLAG)).toBe(false);
+    const s = runAt([102, 25], [103, 25]);
+    s.setFlag(A4_GRILLE_FLAG);
+    s.update(1 / 60);
+    expect(s.station()).toBe(8);
+    expect(cameraOff(c3, (f) => s.hasShared(f))).toBe(true);
+    for (const id of ['cam-a4-c1', 'cam-a4-c2']) expect(cameraOff(cams[id]!, (f) => s.hasShared(f)), id).toBe(false);
     for (const m of SHEET[2]!.marks) for (const y of HEADS) expect(inView(c3, (c3.facing * Math.PI) / 180, m.x, y, m.z), `mark (${m.x}, ${m.z}) at ${y}`).toBe(false);
     // the spots the built set named (feet 0.3 m off each stack's far face) are out too
     for (const [x, z] of [[80.4, 36.2], [79.6, 29.8]] as const) expect(seenAny(c3, x, z), `spot (${x}, ${z})`).toBe(false);
@@ -555,7 +570,7 @@ describe('Marlow re-plan A4: the cameras', () => {
     const old = plainPart.cameras.find((c) => c.id === 'cam-a4-c3')!;
     expect(old.sweep).toEqual([70, 110]);
     for (const m of SHEET[2]!.marks) expect(seenAny(old, m.x, m.z), `built C3 sees (${m.x}, ${m.z})`).toBe(true);
-    // C3 still watches the loaders' desk at both posts (the lesson: the takedown lands inside the loop)
+    // C3's frame still holds the loaders' desk at both posts (it is off by then: B2)
     for (const [x, z] of [[A4_D1.x, A4_D1.z], [A4_D2.x, A4_D2.z]] as const) expect(inView(c3, (c3.facing * Math.PI) / 180, x, 1.6, z), `loader at (${x}, ${z})`).toBe(true);
     // C1 and C2 are the built cameras
     for (const id of ['cam-a4-c1', 'cam-a4-c2']) expect(cams[id]).toEqual(plainPart.cameras.find((c) => c.id === id));
@@ -644,16 +659,20 @@ describe('Marlow re-plan A4: the steps and the lines', () => {
     expect(steps[1]!.done).toEqual({ flag: A4_WEST_FLAG });
     expect(steps[2]!.done).toEqual({ flag: A4_WICKET_FLAG });
     expect(steps[3]!.done).toBeUndefined();
-    expect(steps[0]!.text).toMatch(/lift grille/);
-    expect(steps[0]!.text).toMatch(/back aisle/);
-    expect(steps[1]!.text).toMatch(/console/);
+    expect(steps[0]!.text).toMatch(/grille/);
+    expect(steps[1]!.b).toMatch(/console/);
     expect(steps[1]!.text).toMatch(/dock/);
-    expect(steps[1]!.text).toMatch(/60 s/);
     expect(steps[1]!.timer).toBe(A4_GATE);
     expect(steps[2]!.text).toMatch(/loaders/);
-    expect(steps[2]!.text).toMatch(/pallet stacks/);
     expect(steps[2]!.a).toBeDefined();
     expect(steps[2]!.b).toBeDefined();
+    // (marlow-play C7) the job lines are all the HUD shows: 8's name the run to the dock (the HUD adds the 60 s), 10's the loader by
+    // position (A's mark north, B's south)
+    for (const t of [steps[1]!.a!, steps[1]!.b!]) expect(t).toMatch(/then run to the dock/);
+    expect(steps[2]!.a).toMatch(/north loader/);
+    expect(steps[2]!.b).toMatch(/south loader/);
+    expect(SHEET[2]!.marks[0]!.z).toBeGreaterThan(SHEET[2]!.marks[1]!.z);
+    for (const t of [steps[2]!.a!, steps[2]!.b!]) expect(t).toMatch(/^Count down with your partner and take the (north|south) loader.$/);
     expect(steps[3]!.text).toMatch(/holding room four/);
     for (const o of steps) {
       for (const t of [o.text, o.a, o.b]) {
@@ -669,10 +688,10 @@ describe('Marlow re-plan A4: the steps and the lines', () => {
   it("LANTERN's retry lines exist (STATIONS section 6, verbatim, keyed `retry:<id>` and `retry:<id>:timer`) and fit; none says failed or names the kettle", () => {
     const at = (k: string) => part.bay.radio.filter((r) => r.at === k).map((r) => r.text);
     expect(at(retryKey('a4-deadweight'))).toEqual(['The duty officer saw you. Back to the security room door.']);
-    expect(at(retryKey('a4-camloop'))).toEqual(['Seen on the shop floor. Back to the security room; loop it again.']);
-    expect(at(retryKey('a4-camloop', true))).toEqual(['The cameras came back. Back to the security room; loop it again.']);
+    expect(at(retryKey('a4-camloop'))).toEqual(['Seen on the shop floor. Back to the security room.']);
+    expect(at(retryKey('a4-camloop', true))).toEqual(['The cameras came back. Back to the security room.']);
     expect(at(retryKey('a4-takedown'))).toEqual(['The loaders saw you. Back behind the pallet stacks at the dock.']);
-    expect(at(retryKey('a4-takedown', true))).toEqual(['Both loaders at once, or the other one sees. Back behind the stacks.']);
+    expect(at(retryKey('a4-takedown', true))).toEqual(['Not together, so the other loader saw. Back behind the stacks.']);
     expect(at(retryKey('a4-deadweight', true))).toEqual([]);
     expect(A4_RETRY_LINES.map((r) => r.at)).toEqual(['retry:a4-deadweight', 'retry:a4-camloop', 'retry:a4-camloop:timer', 'retry:a4-takedown', 'retry:a4-takedown:timer']);
     for (const r of part.bay.radio) {
@@ -707,3 +726,67 @@ describe('Marlow re-plan A4: the steps and the lines', () => {
 function run(s: CourseState, sec: number): void {
   for (let t = 0; t < sec - 1e-9; t += 1 / 60) s.update(1 / 60);
 }
+
+describe('station 9 kit spot (marlow-kit-wire)', () => {
+  const saved = flags.kitMoves;
+  afterEach(() => {
+    flags.kitMoves = saved;
+  });
+
+  it('one deadweight spot, a4-deadweight: the near chain in the passage, the far chain in the back aisle, the grille\'s world door', () => {
+    expect(flags.kitMoves.has('deadweight')).toBe(false);
+    const spots = kitSpotsOf(b, 'deadweight');
+    expect(spots.length).toBe(1);
+    const gr = A4_GRILLE;
+    const dw = A4_DEADWEIGHT;
+    expect(spots[0]).toEqual({ id: 'a4-deadweight', kind: 'deadweight', x: dw.x, y: gr.h, z: gr.z - dw.off, yaw: 0, x2: dw.x, y2: gr.h, z2: gr.z + dw.off, door: String(course.doors[A4_GRILLE_DOOR]) });
+    expect(String(doorAnchor(A4_GRILLE_DOOR).id)).toBe(spots[0]!.door);
+    expect(def.bays[3]!.stations!.find((s) => s.kit === 'deadweight')!.id).toBe('a4-deadweight');
+  });
+
+  it('the PLAN band: grips 2.2-2.6 m over the floor, each chain 1.0-3.0 m from the door plane, near in the passage, far in A4_GRILLE_ZONE', () => {
+    const s = kitSpotsOf(b, 'deadweight')[0]!;
+    for (const y of [s.y, s.y2!]) {
+      expect(y).toBeGreaterThanOrEqual(2.2);
+      expect(y).toBeLessThanOrEqual(2.6);
+    }
+    for (const z of [s.z, s.z2!]) {
+      expect(Math.abs(z - A4_GRILLE.z)).toBeGreaterThanOrEqual(1.0);
+      expect(Math.abs(z - A4_GRILLE.z)).toBeLessThanOrEqual(3.0);
+    }
+    // near: inside the passage (the walls' faces x 101.25 / 103.75, south of the grille's south face), 0.3 m clear of its west face
+    expect(s.x - (A4_GRILLE.x0 + A4_GRILLE.t / 2)).toBeGreaterThanOrEqual(0.3);
+    expect(s.x).toBeLessThan(A4_GRILLE.x1 - A4_GRILLE.t / 2);
+    expect(s.z).toBeLessThan(A4_GRILLE.z - A4_GRILLE.t / 2);
+    expect(s.z).toBeGreaterThan(A4_PASSAGE.wallZ);
+    expect(inBox(A4_GRILLE_ZONE, s.x2!, s.z2!)).toBe(true);
+    // off the motor button and both grips stand clear
+    expect(hyp2(s.x - A4_GRILLE_MOTOR_AT.x, s.z - A4_GRILLE_MOTOR_AT.z)).toBeGreaterThan(1.0);
+    expect(blockedAt(s.x, s.z, MOVEMENT.radius)).toEqual([]);
+    expect(blockedAt(s.x2!, s.z2!, MOVEMENT.radius)).toEqual([]);
+  });
+
+  it('the counterweight chain skins stand at the two grips (visual only)', () => {
+    const s = kitSpotsOf(b, 'deadweight')[0]!;
+    for (const [x, z] of [[s.x, s.z], [s.x2!, s.z2!]] as const) {
+      expect(b.boxes.some((p) => !p.collide && Math.abs(p.c[0] - x) < 1e-6 && Math.abs(p.c[2] - z) < 1e-6 && p.s[1] > 3), `chain at ${x}, ${z}`).toBe(true);
+    }
+    expect(b.boxes.some((p) => !p.collide && Math.abs(p.c[0] - 101.315) < 1e-6 && Math.abs(p.c[2] - 23.565) < 1e-6)).toBe(false);
+  });
+
+  it('deadweight on: the motor button is refused (REFUSE_KIT_HELD), both grille gates stay shut, the grille stays locked', () => {
+    flags.kitMoves = new Set(['deadweight']);
+    const g = new CourseState(def, course.consoles);
+    g.startAt(4);
+    g.setPlayer(0, 102.5, 0, 14, false);
+    g.setPlayer(1, 103.5, 0, 14, false);
+    g.update(1 / 60);
+    expect(g.station()).toBe(9);
+    expect(g.press(A4_GRILLE_MOTOR, 0)).toBe(REFUSE_KIT_HELD);
+    g.update(1 / 60);
+    expect(g.isGateOpen(A4_GRILLE_GATE)).toBe(false);
+    expect(g.isGateOpen(A4_GRILLE_MOTOR_GATE)).toBe(false);
+    expect(g.locked(A4_GRILLE_DOOR)).toBe(true);
+    expect(REFUSE_KIT_HELD.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+  });
+});

@@ -9,8 +9,9 @@
  *   access ladder on the wall's inside face; station 11's stand-in, the wicket `A5-wicket` (gate `g-a5-wicket`, a latching
  *   flag gate the base opens while `chimneyPair` is not playable);
  * - the open cable trench x 62.35-65.85 (3.5 m, floor -1.6; `FLOOR_HOLES`), its walls `noLedge` (no lip on either face),
- *   step irons on the east face at both ends (a fall is a walk back); the cable-tray gantry over it at z 44.6 (KS4's swing
- *   anchor: a steel frame and its pipe at `A5_GANTRY_PIPE_Y`); the trench plates z 39.0-42.0, hoarded, gated at the west end
+ *   step irons on the east face at both ends (a fall is a walk back); the cable-tray gantry over it at z 44.6 (dressing: a
+ *   steel frame and its pipe at `A5_GANTRY_PIPE_Y`); the swing bar on its east edge at z 42.4-43.6 (Swing Pass's anchor,
+ *   marlow-kit-geo Q2, `A5_SWING_BAR`); the trench plates z 39.0-42.0, hoarded, gated at the west end
  *   by `g-a5-plates` (bolted: the swung player opens it from the west side, then a way both ways); station 12's stand-in,
  *   the hoarded footbridge z 36.4-37.6, door `A5-footbridge` (gate `g-a5-footbridge`, latching like the wicket);
  * - the moved pieces: the drum stack on the west strip's north end (clear of the plates -> throw mark path, of `A5_HIDE` and
@@ -22,10 +23,14 @@
  *   the floodlit strip;
  * - the stations (STATIONS section 3, verbatim), the new done flags' pass zones (section 8), LANTERN's retry lines (section
  *   6), the objective lines; station 13's flood window and beam trip run in `src/game/course/replan/a5Ticks.ts`.
- * Only type imports from `../` besides the set file's constants (the facility imports nothing from here).
+ * - (marlow-kit-wire) the kit spots `a5-chimney` (Chimney Pair, the gap) and `a5-swing` (Swing Pass, the gantry pipe), placed
+ *   unconditionally (inert while their ids are off); with an id on, its station's objective names the move.
+ * Only type imports from `../` besides the set file's constants and two pure course modules (`kitApi`, `stationDef`) (the
+ * facility imports nothing from here).
  */
 import { retryKey, type BoltGate, type CourseObjective, type FlagGate } from '../../../../game/course/courseDef';
-import type { StationDef } from '../../../../game/course/stationDef';
+import { kitMoveOn, type StationDef } from '../../../../game/course/stationDef';
+import { addKitSpot } from '../../../../game/kit/kitApi';
 import type { LaserPanelDef } from '../../../../game/laserPanels';
 import type { FacilityKit } from '../../../kit/facilityKit';
 import type { LevelBuilder } from '../../../levelBuilder';
@@ -54,9 +59,11 @@ export const A5_WICKET_FLAG = 'a5-wicket';
 export const A5_WICKET = { z0: 32.4, z1: 33.6, h: 2.1 } as const;
 /** The fixed access ladder on the wall's inside face (the climbing line 0.15 m off it), the apron to the wall top. */
 export const A5_LADDER = { x: 67.7, z: 31.0, y0: 0, y1: 6 } as const;
-/** The step irons on the trench's east face at both ends (ladders, the climber facing east). */
+/** The step irons on the trench's east face at both ends (ladders, the climber facing east); (marlow-play-2 C18) a third in
+ *  the open slot between the footbridge's deck and the plates' (z 37.7-38.9), so a fall there needs no crawl under a deck. */
 export const A5_IRONS: readonly { x: number; z: number }[] = [
   { x: 65.7, z: 25.0 },
+  { x: 65.7, z: 38.3 },
   { x: 65.7, z: 47.0 },
 ];
 /** Station 12's stand-in: the hoarded footbridge (1.2 m clear at z 36.4-37.6), its door at the east end. */
@@ -71,10 +78,19 @@ export const A5_PLATES = { z0: 39.0, z1: 42.0, door: [39.9, 41.1] } as const;
 /** A crossing's deck thickness (its top flush with the floor), the hoarding's height and thickness. */
 export const A5_DECK_T = 0.15;
 export const A5_HOARD = { h: 2.4, t: 0.1 } as const;
-/** The cable-tray gantry over the trench (the swing's anchor for KS4): two posts on the trench edges, a top beam. */
+/** The cable-tray gantry over the trench: two posts on the trench edges, a top beam (dressing since marlow-kit-geo Q2: its
+ *  posts stand on both edges of its line and the drums leave 0.55 m of landing there, so the swing moved to `A5_SWING_BAR`). */
 export const A5_GANTRY = { z: 44.6, xw: 62.2, xe: 66.0, post: 0.15, top: 3.4, beam: 0.2 } as const;
-/** The gantry pipe's height over the apron floor (m): KS4 sets it to K4's swing band. */
+/** The gantry pipe's and the swing bar's height over the apron floor (m): Swing Pass's band 2.2-2.8 m. */
 export const A5_GANTRY_PIPE_Y = 2.6;
+/**
+ * (marlow-kit-geo Q2) The swing bar, Swing Pass's anchor (station 12): a short bar along the trench's east edge on two posts
+ * (z 42.4 and 43.6, x 65.85-66.0), its pipe at `A5_GANTRY_PIPE_Y`, visual only (no anchor: nobody hand-traverses it alone).
+ * The swing line z 43.0 runs between the posts (1.05 m clear, a body's 0.6 m with 0.22 m each side) and lands on the west
+ * strip 0.9 m clear of the plates' hoarding (z 42.1) and of the drums (z 43.9): 4.2 m of landing to the west strip's wall
+ * (`A5_WALL.near` 58.15), the band's 0.75 m with room to spare.
+ */
+export const A5_SWING_BAR = { z: 43.0, posts: [42.4, 43.6], x0: 65.85, x1: 66.0, post: 0.15, top: 2.75 } as const;
 /** The drum stack moved to the west strip's north end: 4 m and more off the beam line (`BEAM_KEEP_CLEAR`), clear of the path
  *  from the plates to the throw mark and of `A5_HIDE`; two drums end to end, two rows side by side (as built). */
 export const A5_DRUMS_RP = { x0: 59.6, x1: 61.8, z0: 43.9, z1: 47.5, h: 1.8 } as const;
@@ -119,7 +135,7 @@ export const A5_APRON_W: [number, number, number, number] = [58.2, 24.3, 62.35, 
 /** Stations 11-13 (STATIONS.md section 3, the A5 block). */
 export const A5_SUBSTATION_STATIONS: readonly StationDef[] = [
   { n: 11, id: 'a5-chimney', lesson: 'chimney_pair', retry: 'none', doneFlag: 'a5-apron-e', kit: 'chimneyPair', standIn: 'g-a5-wicket',
-    marks: [{ x: 69.0, z: 32.0, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 34.0, y: 0, yaw: -Math.PI / 2 }],
+    marks: [{ x: 69.0, z: 32.3, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 33.7, y: 0, yaw: -Math.PI / 2 }],
     guards: [], gates: ['g-a5-wicket'] },
   { n: 12, id: 'a5-swing', lesson: 'swing_pass', retry: 'none', doneFlag: 'a5-apron-w', kit: 'swingPass', standIn: 'g-a5-footbridge',
     marks: [{ x: 67.0, z: 33.0, y: 0, yaw: -Math.PI / 2 }, { x: 67.0, z: 34.5, y: 0, yaw: -Math.PI / 2 }],
@@ -133,19 +149,23 @@ export const A5_SUBSTATION_STATIONS: readonly StationDef[] = [
 export const A5_RETRY_SEEN = 'Seen in the floodlight. Back behind the transformer.';
 export const A5_RETRY_TIMER = 'The floodlight came back. Back behind the transformer.';
 
+/** (marlow-kit-wire) Stations 11 and 12's objectives while `chimneyPair` / `swingPass` is on (the built texts are the stand-ins'). */
+export const A5_CHIMNEY_KIT_TEXT = 'Climb the gap back to back';
+export const A5_SWING_KIT_TEXT = 'Swing over the trench from the bar';
+
 /** The bay's objective lines on the re-plan: one per station (what and where), then the holding-room line. */
 export const A5_OBJECTIVES: readonly CourseObjective[] = [
-  { id: 'a5-wall', bay: 'A5', text: 'Get over the 6 m wall from the gap outside holding room four.', done: { flag: A5_APRON_E_FLAG } },
-  { id: 'a5-trench', bay: 'A5', text: "Cross the cable trench to the apron's west side: footbridge or plates.", done: { flag: A5_APRON_W_FLAG } },
+  { id: 'a5-wall', bay: 'A5', text: 'Go through the wicket onto the apron', done: { flag: A5_APRON_E_FLAG } },
+  { id: 'a5-trench', bay: 'A5', text: 'Cross the trench by footbridge or plates', done: { flag: A5_APRON_W_FLAG } },
   {
     id: 'a5-throw',
     bay: 'A5',
-    text: 'Throw one of you over the beams, jam the kiosk floodlight, key the release.',
-    a: 'Throw your partner from the mark, then jam the floodlight through the gateway.',
-    b: 'Land behind the transformer, cross under the jam and key the release at the kiosk.',
+    text: 'Get over the beams, jam the floodlight',
+    a: 'Throw your partner over the beams, then jam the kiosk floodlight.',
+    b: 'Cross under the jam and key the release at the kiosk.',
     done: { flag: A5_RELEASE_FLAG },
   },
-  { id: 'a5-lock', bay: 'A5', text: 'Beams are off. Both of you into holding room five.' },
+  { id: 'a5-lock', bay: 'A5', text: 'Beams are off, into holding room five' },
 ];
 
 const GREY = '#6a6f74';
@@ -194,7 +214,7 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
   });
 
   // ---- A5-R3: the cable trench (station 12): floor, walls, step irons on the east face at both ends ----
-  tally(b, p.register, 'A5-R3', 'Open cable trench x 62.35-65.85, z 24.25-47.75 (the slab cut by FLOOR_HOLES), floor -1.6, walls under the slab on all four sides (noLedge: no lip on either face, no co-op lip); step irons on the east face at both ends (z 25.0 and 47.0): a fall is a walk back', () => {
+  tally(b, p.register, 'A5-R3', 'Open cable trench x 62.35-65.85, z 24.25-47.75 (the slab cut by FLOOR_HOLES), floor -1.6, walls under the slab on all four sides (noLedge: no lip on either face, no co-op lip); step irons on the east face at both ends (z 25.0 and 47.0) and between the two decks (z 38.3): a fall is a walk back', () => {
     solid(T.x0, T.x1, T.z0, T.z1, T.floor - 0.4, T.floor, GREY);
     solid(T.x0 - T.wall, T.x0, T.z0 - 0.25, T.z1 + 0.25, T.floor - 0.4, -0.4, GREY);
     solid(T.x1, T.x1 + T.wall, T.z0 - 0.25, T.z1 + 0.25, T.floor - 0.4, -0.4, GREY);
@@ -229,7 +249,7 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
     p.doors[A5_PLATES_DOOR] = b.door(T.x0, 0, P.door[0], P.door[1] - P.door[0], 0, { height: A5_WICKET.h, swing: 1, locked: true, breachable: false }).id;
   });
   // ---- A5-R6: the cable-tray gantry (KS4's swing anchor) ----
-  tally(b, p.register, 'A5-R6', `Cable-tray gantry over the trench at z 44.6: two 0.15 m posts on the trench edges and a top beam at 3.2-3.4 m (noLedge), its pipe across at ${A5_GANTRY_PIPE_Y} m (visual, no anchor: KS4 sets its height to K4's band and makes it the swing's anchor)`, () => {
+  tally(b, p.register, 'A5-R6', `Cable-tray gantry over the trench at z 44.6: two 0.15 m posts on the trench edges and a top beam at 3.2-3.4 m (noLedge), its pipe across at ${A5_GANTRY_PIPE_Y} m (visual, no anchor; dressing: the swing's anchor is the swing bar, A5-R10)`, () => {
     const G = A5_GANTRY;
     const z0 = G.z - G.post / 2;
     const z1 = G.z + G.post / 2;
@@ -239,6 +259,14 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
     skin(G.xw + G.post, G.xe - G.post, A5_GANTRY_PIPE_Y - 0.022, A5_GANTRY_PIPE_Y + 0.022, G.z - 0.022, G.z + 0.022, LOOK.pipe);
     // two drop rods from the beam to the pipe's ends
     for (const x of [G.xw + G.post + 0.05, G.xe - G.post - 0.05]) skin(x - 0.015, x + 0.015, A5_GANTRY_PIPE_Y, G.top - G.beam, G.z - 0.015, G.z + 0.015, LOOK.steel);
+  });
+  // ---- A5-R10: the swing bar (station 12's Swing Pass anchor, marlow-kit-geo Q2) ----
+  tally(b, p.register, 'A5-R10', `(marlow-kit-geo Q2) Swing bar on the trench's east edge: two 0.15 m posts (x 65.85-66.0, z 42.4 and 43.6, 2.75 m, noLedge) and the bar between them along the edge at ${A5_GANTRY_PIPE_Y} m (visual, no anchor): Swing Pass's anchor, its line z 43.0 clear between the posts to the west strip`, () => {
+    const S = A5_SWING_BAR;
+    const h = S.post / 2;
+    for (const z of S.posts) solid(S.x0, S.x1, z - h, z + h, 0, S.top, STEEL);
+    const xm = (S.x0 + S.x1) / 2;
+    skin(xm - 0.022, xm + 0.022, A5_GANTRY_PIPE_Y - 0.022, A5_GANTRY_PIPE_Y + 0.022, S.posts[0] + h, S.posts[1] - h, LOOK.pipe);
   });
 
   // ---- A5-10: the drum stack, moved to the west strip; A5-R7 its dressing and the cable laid in ----
@@ -311,6 +339,12 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
     { kind: 'bolt', id: A5_PLATES_GATE, doorId: A5_PLATES_DOOR, side: [-1, 0], at: [T.x0, (A5_PLATES.door[0] + A5_PLATES.door[1]) / 2] } satisfies BoltGate,
   );
   p.externalFlags.push(A5_WICKET_FLAG, A5_FOOTBRIDGE_FLAG, A5_APRON_E_FLAG, A5_APRON_W_FLAG);
+  // (marlow-kit-wire) the kit spots (inert while their ids are off): Chimney Pair in the gap (its floor centre, across the
+  // shaft toward the wall, the wall top as the exit), Swing Pass from the swing bar on the trench's near (east) edge
+  const gp = A5_GAP;
+  addKitSpot(b.anchors, { id: 'a5-chimney', kind: 'chimneyPair', x: (gp.x0 + gp.x1) / 2, y: 0, z: (gp.z0 + gp.z1) / 2, yaw: -Math.PI / 2, w: gp.x1 - gp.x0, h: A5_WALLTOP.y, x2: (A5_WALLTOP.x0 + A5_WALLTOP.x1) / 2, z2: (gp.z0 + gp.z1) / 2 });
+  const tr = A5_CABLE_TRENCH;
+  addKitSpot(b.anchors, { id: 'a5-swing', kind: 'swingPass', x: tr.x1, y: A5_GANTRY_PIPE_Y, z: A5_SWING_BAR.z, yaw: -Math.PI / 2, w: tr.x1 - tr.x0, y2: 0 });
   p.passZones.push(
     { id: 'a5-p-apron-e', box: A5_APRON_E, flag: A5_APRON_E_FLAG, floorY: 0 },
     { id: 'a5-p-apron-w', box: A5_APRON_W, flag: A5_APRON_W_FLAG, floorY: 0 },
@@ -325,7 +359,9 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
   p.bay.stations = A5_SUBSTATION_STATIONS;
   p.bay.radio.push({ at: retryKey('a5-throw'), text: A5_RETRY_SEEN }, { at: retryKey('a5-throw', true), text: A5_RETRY_TIMER });
   p.objectives.length = 0;
-  p.objectives.push(...A5_OBJECTIVES.map((o) => ({ ...o })));
+  // (marlow-kit-wire, A6) the kit-on lines are chosen as the set builds, from this page's own `kitMoves`
+  const kitText = (o: CourseObjective): string => (o.id === 'a5-wall' && kitMoveOn('chimneyPair') ? A5_CHIMNEY_KIT_TEXT : o.id === 'a5-trench' && kitMoveOn('swingPass') ? A5_SWING_KIT_TEXT : o.text);
+  p.objectives.push(...A5_OBJECTIVES.map((o) => ({ ...o, text: kitText(o) })));
 
   // ---- spaces, nav seeds, debug points, light and shot spots (the drums' vantage moves with them) ----
   p.camSpaces.push({ box: [A5_GAP.x0, A5_GAP.z0, A5_GAP.x1, A5_GAP.z1], size: 'tight' });

@@ -22,7 +22,7 @@ import { remoteHeadY } from '../../../src/security/securitySystem';
 import { LevelBuilder, type BoxPiece } from '../../../src/world/levelBuilder';
 import { buildCtcourse, ctcourseReplan } from '../../../src/world/maps/ctcourse';
 import { A7_CAGE, A7_HALL_DOOR, A7_T1_SPOT, A7_T2_SPOT, A7_TECH, A7_TECH_ROUTE } from '../../../src/world/maps/ctcourseSets/a7DataHall';
-import { A7_DATA_HALL_STATIONS, A7_POD_APPROACH, A7_RETRY_LINE, A7_SCREEN, A7_TECH2, A7_TECH2_FACES, A7_TECH2_LOOK, A7_TECH2_ROUTE, A7_TECH2_WAITS } from '../../../src/world/maps/ctcourseSets/replan/a7DataHall';
+import { A7_DATA_HALL_STATIONS, A7_POD_APPROACH, A7_RETRY_LINE, A7_SCREEN, A7_SYNC_A_LINE, A7_TECH2, A7_TECH2_FACES, A7_TECH2_LOOK, A7_TECH2_ROUTE, A7_TECH2_WAITS } from '../../../src/world/maps/ctcourseSets/replan/a7DataHall';
 import { checkSetPart, inBox, SET_GUARDS_MAX, type Box } from '../../../src/world/maps/ctcourseSets/types';
 import { runtimeNav } from '../../helpers/runtimeNav';
 
@@ -333,6 +333,16 @@ describe('Marlow re-plan A7: station 17 (STATIONS.md sections 3, 6)', () => {
     expect(A7_RETRY_LINE.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
   });
 
+  it('(marlow-play-2 C14) the sync step: A counts the partner in, B hacks on the count; the built yard keeps its lines', () => {
+    const sync = def.objectives!.find((o) => o.id === 'a7-sync')!;
+    expect(sync.a).toBe(A7_SYNC_A_LINE);
+    expect(sync.a).not.toMatch(/partner's count/);
+    expect(sync.b).toBe("Hack terminal two on your partner's count.");
+    expect(A7_SYNC_A_LINE.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+    const plainSync = buildCtcourse(new LevelBuilder()).layout.course!.def.objectives!.find((o) => o.id === 'a7-sync')!;
+    expect(plainSync.a).toBe("Hack terminal one on your partner's count.");
+  });
+
   it('a course run: 17 is live on the bay, a seen retry counts and keeps it live, the sync ends it', () => {
     const s = runAt([73, 61], [73, 58]);
     expect(s.station()).toBe(17);
@@ -342,11 +352,11 @@ describe('Marlow re-plan A7: station 17 (STATIONS.md sections 3, 6)', () => {
     s.setFlag('a7-sync');
     s.update(1 / 60);
     expect(s.station()).toBe(0);
-    // the built objective lines stay (no line was changed)
+    // the built objective steps stay (only the sync step's A line changed, C14)
     expect(def.objectives!.filter((o) => o.bay === 'A7').map((o) => o.id)).toEqual(['a7-split', 'a7-sync', 'a7-lock']);
   });
 
-  it('a seen retry with the pod leg in the pod drops the split (a7-pod, its step) and the claim; the course state alone', () => {
+  it('a seen retry with the pod leg in the pod drops the split (a7-pod, its step) and keeps the claim (C11); the course state alone', () => {
     // the e2e's `the split is cleared`: the state side holds; a pass zone setting a7-pod again on the old positions is the
     // mode's (its zone hold must start before the step's device update)
     const s = runAt([75.3, 60.5], [72.8, 54.0]);
@@ -359,7 +369,9 @@ describe('Marlow re-plan A7: station 17 (STATIONS.md sections 3, 6)', () => {
     expect(s.retryStation('seen')).toBe(true);
     expect(s.hasFlag('a7-pod')).toBe(false);
     expect(s.hasFlag('obj:a7-split')).toBe(false);
-    expect(s.roleClaimed()).toBe(false);
+    // (marlow-play-2 C11) the claim stays through a station retry: the client is still B
+    expect(s.roleClaimed()).toBe(true);
+    expect(s.roleOf(1)).toBe('b');
     expect(s.station()).toBe(17);
   });
 

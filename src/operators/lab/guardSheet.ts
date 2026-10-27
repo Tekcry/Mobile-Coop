@@ -16,13 +16,12 @@ import {
   HemisphericLight, ImageProcessingConfiguration, PointLight, PostProcess, Scene, ShadowGenerator, StandardMaterial, Vector3,
   type AbstractMesh, type InstancedMesh, type Mesh,
 } from '../../core/babylon';
-import { defaultLook } from '../../cosmetics/avatarLook';
 import { ENEMIES, type EnemyDef } from '../../ai/enemyDefs';
 import { factionLook } from '../../ai/factions';
 import { buildHelmetDropMesh, helmetDropInstance, type HelmetMeshSource } from '../../ai/guardHelmet';
 import { guardHelmetDrop, helmetArc } from '../../ai/helmetDrops';
 import { GuardShield } from '../../ai/guardShield';
-import { CharacterRig } from '../../player/characterRig';
+import type { CharacterRig, PartFactory } from '../../player/characterRig';
 import { NV_GLSL, NV_TONE } from '../../vfx/nightVision';
 import type { Faction } from '../../world/mapDef';
 import { resolveGuardAsset, resolveShieldUrls, type GuardFileData } from '../guards/guardAssets';
@@ -33,6 +32,7 @@ import { loadModel } from '../runtime/figure';
 import { GuardFigure, guardLibrary } from '../runtime/guardFigure';
 import { LOD_0, LOD_1 } from '../runtime/manifest';
 import { LIGHT_RIGS, POSES, PRESETS } from './labData';
+import { missingPieces, sheetRig } from './guardSheetRig';
 
 /** Where the sheet's preview server serves the bake out dir. */
 const ROOT = '/__guards/';
@@ -197,8 +197,7 @@ export class GuardSheet {
       b.isVisible = false;
       return b;
     };
-    const rig = new CharacterRig(this.scene, make as never, defaultLook(), def.height, name, { build: def.build, armor: def.plated });
-    rig.guardRows = true;
+    const rig = sheetRig(this.scene, make as PartFactory, def, tile.faction as Faction, name); // (G10a D1) the game's enemy rig: no goggle glow
     rig.root.position.set(f.x, 0, f.z);
     for (const r of rig.renderMeshes) r.setEnabled(false);
     // (GuardFigure measures the rig's rest at construction: before the first pose)
@@ -211,7 +210,7 @@ export class GuardSheet {
     figure.setTints(tints);
     const p = applyGear(v, f.helmet, f.armour, def.plated, f.kind, createPieces());
     figure.setPieces(p.ids, p.count);
-    const missing = p.ids.slice(0, p.count).filter((id) => !m.pieces.includes(id));
+    const missing = missingPieces(p.ids, p.count, m.pieces); // (G10a D1) the shield is its own GLB
     if (missing.length) notes.push(`${f.kind}: not in the ${f.base} file: ${missing.join(', ')}`);
     this.pose(rig, tile.pose);
     try {

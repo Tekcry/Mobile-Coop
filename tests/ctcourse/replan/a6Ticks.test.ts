@@ -29,6 +29,10 @@ import {
   A6_TRAP_GRACE,
   A6_TRAP_LAST,
   A6_TRAP_PIT_CLIMB,
+  A6_TRAP_PIT,
+  A6_TRAP_CULVERT_1,
+  A6_TRAP_CULVERT_2,
+  A6_TRAP_PIT_LAST,
 } from '../../../src/game/course/replan/a6Ticks';
 import { REPLAN_TICKS, type StationHooks, type TickZone } from '../../../src/game/course/replan/ticks';
 import { inTickZone, retryLine } from '../../../src/game/modes/courseMode';
@@ -340,6 +344,47 @@ describe('A6 station tick (fix 2): the trap retry on fake hooks', () => {
   });
 });
 
+describe('A6 station tick (marlow-play C3): the drive pit and the culvert are floor on 14 / 15', () => {
+  const PITC: readonly TickZone[] = [A6_TRAP_PIT, A6_TRAP_CULVERT_1, A6_TRAP_CULVERT_2];
+  const inPitC = (f: Feet): boolean => PITC.some((z) => inTickZone(z, f));
+
+  it('the zones are the pit\'s and the culvert\'s plans: the pit floor, a hop, the landing, the ramp, the flat; not the pump floor, L6 or the bridge', () => {
+    expect(A6_TRAP_PIT_LAST).toBe(15);
+    expect(A6_TRAP_PIT.slice(0, 4)).toEqual([A6_PIT.x0, A6_PIT.z0, A6_PIT.x1, A6_PIT.z1]);
+    expect(A6_TRAP_CULVERT_1.slice(0, 4)).toEqual([...A6_CULVERT_1]);
+    expect(A6_TRAP_CULVERT_2.slice(0, 4)).toEqual([...A6_CULVERT_2]);
+    for (const f of [PIT, LADDER_FOOT, PIT_HOP, LANDING, CULVERT_RAMP, CULVERT_FLAT, P(54.0, A6_PIT.y, 63.1)]) {
+      expect(inPitC(f), JSON.stringify(f)).toBe(true);
+    }
+    for (const f of [SUMP_A, EDGE_FOOT, CAGE_DOOR, UNDER_BRIDGE, GAUGE, DESK, L6, L5, BRIDGE, DROP_MARK, PLATE_HANG, LADDER_HIGH]) {
+      expect(inPitC(f), JSON.stringify(f)).toBe(false);
+    }
+  });
+
+  it('station 14 or 15: both in the pit or the culvert with nobody up: one retry (other) after 5 s', () => {
+    for (const n of [14, 15]) {
+      for (const [a, c] of [[PIT, LANDING], [PIT, CULVERT_RAMP], [LADDER_FOOT, CULVERT_FLAT], [PIT_HOP, CAGE_DOOR]] as const) {
+        const f = fake(n, a, c);
+        f.run(A6_TRAP_GRACE - 0.2);
+        expect(f.calls, `${n} ${JSON.stringify([a, c])}`).toEqual([]);
+        f.run(0.3);
+        expect(f.calls, `${n} ${JSON.stringify([a, c])}`).toEqual([[n, 'other']]);
+      }
+    }
+  });
+
+  it('station 15: the hanger dropped into the pit with the holder still on the bridge (or hanging through the plate) is no retry; station 16\'s pit is never floor', () => {
+    for (const other of [BRIDGE, DROP_MARK, PLATE_HANG]) {
+      const f = fake(15, PIT, other);
+      f.run(20);
+      expect(f.calls, JSON.stringify(other)).toEqual([]);
+    }
+    const g = fake(16, PIT, CULVERT_RAMP);
+    g.run(20);
+    expect(g.calls).toEqual([]);
+  });
+});
+
 describe('A6 station tick (fix 2) on the re-plan course: the station retry, the lip and LANTERN\'s lines', () => {
   const b = new LevelBuilder();
   const built = buildCtcourse(b, { replan: true });
@@ -418,6 +463,16 @@ describe('A6 station tick (fix 2) on the re-plan course: the station retry, the 
     expect(s.hasShared(A6_GAL1_FLAG)).toBe(true);
     expect(s.hasShared('a6-gal')).toBe(true);
     expect(s.anchorLocked(A6_GALLERY_LIP)).toBe(true);
+  });
+
+  it('(marlow-play C3) station 15: both in the drive pit (the ladder locked) retries (other) on the real course', () => {
+    const { s, calls, run } = trap(15, PIT, CULVERT_RAMP);
+    expect(s.station()).toBe(15);
+    expect(s.isGateOpen(A6_PIT_LADDER_GATE)).toBe(false);
+    run(A6_TRAP_GRACE + 0.1);
+    expect(calls).toEqual([[15, 'other']]);
+    expect(s.lastRetry).toEqual({ st: 15, cause: 'other' });
+    expect(s.station()).toBe(15);
   });
 
   it('station 16: the retry (other) keeps 14 and 15 done and the stand-in ladder open', () => {

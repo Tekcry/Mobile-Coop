@@ -388,23 +388,23 @@ export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit, opts: { repla
     {
       id: 'a7-split',
       bay: 'A7',
-      text: 'Split up: one through the hall, one through the plant corridor.',
-      a: "Hall route: slip past the technician's round to terminal one.",
-      b: 'Plant corridor: quiet on the grating, past the camera, to terminal two.',
+      text: 'Split up: hall and plant corridor',
+      a: 'Slip past the technicians in the hall to terminal one.',
+      b: 'Creep past the camera on the grating to terminal two.',
       done: { flag: A7_POD_FLAG },
     },
     {
       id: 'a7-sync',
       bay: 'A7',
-      text: 'Hack both terminals together. Start on the ready lamps.',
+      text: 'Hack both terminals on the ready lamps',
       a: "Hack terminal one on your partner's count.",
       b: "Hack terminal two on your partner's count.",
       done: { flag: A7_SYNC_FLAG },
     },
-    { id: 'a7-lock', bay: 'A7', text: 'The cage and the east door are open. Both of you into holding room seven.' },
+    { id: 'a7-lock', bay: 'A7', text: 'East door open, into holding room seven' },
   );
   p.bay.radio.push(
-    { at: 'enter', text: "Two terminals, two routes. You'll be on your own for a bit. Meet at the cage." },
+    { at: 'enter', text: 'Two terminals, two routes. You will be apart for a bit, then meet at the cage.' },
     { at: 'enter', text: 'That corridor camera sweeps. Move while it looks the other way.' },
     { at: 'a7-sync', text: 'Cage released. East door is open.' },
   );

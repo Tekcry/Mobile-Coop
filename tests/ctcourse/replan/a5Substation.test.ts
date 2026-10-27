@@ -8,7 +8,7 @@
  * and objective lines. The built A5 is `tests/ctcourse/a5Substation.test.ts` (unchanged); the tick is `a5Ticks.test.ts`.
  */
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { ENEMIES } from '../../../src/ai/enemyDefs';
 import { NavGrid, type NavBlocker } from '../../../src/ai/navGrid';
 import { seenAt, sightRate, EYE_STAND, PERCEPTION } from '../../../src/ai/perception';
@@ -64,6 +64,7 @@ import {
   A5_CLOSERS,
   A5_DRUMS_RP,
   A5_FOOTBRIDGE,
+  A5_HOARD,
   A5_FOOTBRIDGE_DOOR,
   A5_FOOTBRIDGE_FLAG,
   A5_FOOTBRIDGE_GATE,
@@ -83,6 +84,7 @@ import {
   A5_RETRY_TIMER,
   A5_SUBSTATION_STATIONS,
   A5_SW_APRON_RP,
+  A5_SWING_BAR,
   A5_WALLTOP,
   A5_WATCHER,
   A5_WATCHER_POST,
@@ -91,8 +93,13 @@ import {
   A5_WICKET_FLAG,
   A5_WICKET_GATE,
   FLOOR_HOLES,
+  A5_CHIMNEY_KIT_TEXT,
+  A5_SWING_KIT_TEXT,
 } from '../../../src/world/maps/ctcourseSets/replan/a5Substation';
-import { checkSetPart, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../../src/world/maps/ctcourseSets/types';
+import { kitSpotsOf } from '../../../src/game/kit/kitApi';
+import { flags } from '../../../src/core/flags';
+import { checkSetPart, HOLD_H, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../../src/world/maps/ctcourseSets/types';
+import { GAL_FLOOR, GAL_TOP } from '../../../src/world/maps/ctcourseSets/facility';
 import { lastTimeAtOrOver, LEAP_APEX, MANTLE, SOLO_TOP_SPEED } from '../../helpers/soloJumpReach';
 
 const b = new LevelBuilder();
@@ -105,8 +112,9 @@ const range = built.ranges.a5Substation;
 const mine = b.boxes.slice(range.boxes[0], range.boxes[1]);
 const box = SET_BOX.a5Substation[0]!;
 /** The set's collision on the re-plan: the built set's 24 solids less the drum stack, plus the wall, the gap's walls and lids,
- *  the trench, the crossings, the gantry, the moved drums and the closers; nine lamps (two moved), five doors, three ladders. */
-const GREY = { solids: 52, checksum: 12798.099999999997, lights: 9, doors: 5, anchors: 3 };
+ *  the trench, the crossings, the gantry, the moved drums and the closers; nine lamps (two moved), five doors, four ladders (marlow-play-2 C18: the middle step iron).
+ *  (marlow-kit-geo Q2) The swing bar's two posts: 54 solids, the checksum + 438.65. */
+const GREY = { solids: 54, checksum: 13236.75, lights: 9, doors: 5, anchors: 4 };
 const solid = b.boxes.filter((p) => p.collide && Math.abs(p.yaw) < 1e-3 && Math.abs(p.pitch) < 1e-3);
 const top = (p: BoxPiece): number => p.c[1] + p.s[1] / 2;
 const bottom = (p: BoxPiece): number => p.c[1] - p.s[1] / 2;
@@ -288,7 +296,7 @@ const plainPart = plain.parts[4]!;
 /** The sheet (STATIONS.md section 3, the A5 block), verbatim. */
 const SHEET: StationDef[] = [
   { n: 11, id: 'a5-chimney', lesson: 'chimney_pair', retry: 'none', doneFlag: 'a5-apron-e', kit: 'chimneyPair', standIn: 'g-a5-wicket',
-    marks: [{ x: 69.0, z: 32.0, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 34.0, y: 0, yaw: -Math.PI / 2 }],
+    marks: [{ x: 69.0, z: 32.3, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 33.7, y: 0, yaw: -Math.PI / 2 }],
     guards: [], gates: ['g-a5-wicket'] },
   { n: 12, id: 'a5-swing', lesson: 'swing_pass', retry: 'none', doneFlag: 'a5-apron-w', kit: 'swingPass', standIn: 'g-a5-footbridge',
     marks: [{ x: 67.0, z: 33.0, y: 0, yaw: -Math.PI / 2 }, { x: 67.0, z: 34.5, y: 0, yaw: -Math.PI / 2 }],
@@ -310,7 +318,7 @@ describe('Marlow re-plan A5 the Substation (G-A5): the part', () => {
     for (const r of part.register) expect(/[–—]/.test(r.element), r.id).toBe(false);
   });
 
-  it('GREY: the re-plan collision (solids, checksum), nine lamps (two moved), five doors (wicket, footbridge, plates added), three ladders', () => {
+  it('GREY: the re-plan collision (solids, checksum), nine lamps (two moved), five doors (wicket, footbridge, plates added), four ladders', () => {
     const mineSolid = mine.filter((p) => p.collide);
     let sum = 0;
     for (const p of mineSolid) sum += p.c[0] + 2 * p.c[1] + 3 * p.c[2] + 5 * p.s[0] + 7 * p.s[1] + 11 * p.s[2] + p.yaw;
@@ -438,6 +446,31 @@ describe('Marlow re-plan A5: the perimeter wall, the 1.4 m gap and the wicket (s
     expect(A5_LADDER.z).toBeLessThanOrEqual(36);
     expect(blockedAt(l.base.x - 0.5, l.base.z)).toEqual([]);
   });
+
+  it("(marlow-kit-geo Q3) the chimney has a back to its top: over the gap (z 30.25-35.75) the east side is the set wall to the gallery floor (4.5 m, face x 69.75) and the gallery's glazing to 7.5 m (x 69.95-70.05), so nothing opens from the gap onto L4's lid (3.6 m) or the gallery; the shaft is 1.4 m to 4.5 m and 1.6 m above (the chimney band 1.2-1.6 m)", () => {
+    expect(GAL_FLOOR).toBe(4.5);
+    expect(GAL_TOP).toBeGreaterThan(A5_WALLTOP.y);
+    const at = (y: number, z: number): BoxPiece[] =>
+      solid.filter((p) => p.c[0] - p.s[0] / 2 <= 70.0 && p.c[0] + p.s[0] / 2 >= 70.0 && Math.abs(z - p.c[2]) <= p.s[2] / 2 + 1e-9 && bottom(p) <= y + 1e-9 && top(p) >= y - 1e-9);
+    for (let z = A5_GAP.z0 + 0.05; z < A5_GAP.z1; z += 0.1) {
+      for (let y = 2.3; y <= A5_WALLTOP.y + 1e-9; y += 0.1) {
+        const here = at(y, z);
+        expect(here.length, `east side open at y ${y.toFixed(2)}, z ${z.toFixed(2)}`).toBeGreaterThan(0);
+        const face = Math.min(...here.map((p) => p.c[0] - p.s[0] / 2));
+        const width = face - A5_GAP.x0;
+        expect(width, `shaft width at y ${y.toFixed(2)}, z ${z.toFixed(2)}`).toBeGreaterThanOrEqual(1.2 - 1e-9);
+        expect(width, `shaft width at y ${y.toFixed(2)}, z ${z.toFixed(2)}`).toBeLessThanOrEqual(1.6 + 1e-9);
+        if (y < GAL_FLOOR - 0.05) expect(face).toBeCloseTo(A5_GAP.x1, 9);
+      }
+    }
+    // L4's lid stands under the gallery floor, behind the set wall
+    expect(HOLD_H + 0.4).toBeLessThan(GAL_FLOOR);
+  });
+
+  // (marlow-kit-geo, a finding for K3) the gap is a split gap today: the set wall (4.5 m) and the perimeter wall face each other
+  // 1.4 m apart, so `findSplitGaps` finds a 4.5 m corridor along x 69.05 that reaches into the gap's south end (z 30.55-31.8).
+  // K3's `noSplit` (coop-kit PLAN "Chimney Pair") takes it out; no way on from 4.5 m (the wall top is 6 m, every top noLedge).
+  it.todo('the chimney shaft is no split gap (K3 noSplit from the chimney spot)');
 });
 
 describe('Marlow re-plan A5: the cable trench, the footbridge, the plates and the gantry (station 12)', () => {
@@ -499,12 +532,12 @@ describe('Marlow re-plan A5: the cable trench, the footbridge, the plates and th
     expect(walls.length).toBeGreaterThanOrEqual(5);
     for (const p of walls) expect(p.noLedge, `(${p.c.join(', ')})`).toBe(true);
     const lads = b.anchors.ladders.filter((l) => inBox(box, l.base.x, l.base.z) && l.base.y < -1);
-    expect(lads).toHaveLength(2);
+    expect(lads).toHaveLength(3);
     for (const l of lads) expect(l.base.x).toBeGreaterThan((T.x0 + T.x1) / 2);
     expect(part.lips).toEqual([]);
   });
 
-  it('step irons on the east face at both ends: ladders from the trench floor to the apron at z 25.0 and 47.0 (a fall is a walk back)', () => {
+  it('step irons on the east face at both ends and between the decks: ladders from the trench floor to the apron at z 25.0, 38.3 and 47.0 (a fall is a walk back)', () => {
     const lads = b.anchors.ladders.filter((l) => inBox(box, l.base.x, l.base.z) && l.base.y < -1).sort((p, q) => p.base.z - q.base.z);
     expect(lads.map((l) => [l.base.x, l.base.z])).toEqual(A5_IRONS.map((i) => [i.x, i.z]));
     for (const l of lads) {
@@ -516,7 +549,11 @@ describe('Marlow re-plan A5: the cable trench, the footbridge, the plates and th
       expect(blockedAt(l.top.x + 0.3, l.top.z)).toEqual([]);
     }
     expect(lads[0]!.base.z - T.z0).toBeLessThan(1);
-    expect(T.z1 - lads[1]!.base.z).toBeLessThan(1);
+    expect(T.z1 - lads[2]!.base.z).toBeLessThan(1);
+    // (marlow-play-2 C18) the middle iron stands in the open slot between the footbridge's deck and the plates' (no deck over it)
+    const mid = lads[1]!;
+    expect(mid.base.z - 0.2).toBeGreaterThan(A5_FOOTBRIDGE.z1 + A5_HOARD.t);
+    expect(mid.base.z + 0.2).toBeLessThan(A5_PLATES.z0 - A5_HOARD.t);
   });
 
   it('the footbridge is 1.2 m clear at z 36.4-37.6 (deck flush, 2.4 m hoarding, noLedge), its door A5-footbridge at the east end; the plates are 3 m (z 39.0-42.0) with a bolt door at the west end', () => {
@@ -590,6 +627,73 @@ describe('Marlow re-plan A5: the cable trench, the footbridge, the plates and th
   function wallPieces(): BoxPiece[] {
     return solid.filter((p) => Math.abs(p.c[0] - (A5_PERIM.x0 + A5_PERIM.x1) / 2) < 1e-6 && Math.abs(p.s[0] - 0.5) < 1e-6);
   }
+});
+
+/**
+ * (marlow-kit-geo Q2) The swing bar: Swing Pass's anchor. The band (coop-kit PLAN "Swing Pass", K4 not built yet): gap
+ * 2.0-3.5 m, bar 2.2-2.8 m over the near floor, far floor within 0.4 m of the near one, a far landing at least 0.75 m deep,
+ * the anchor within 0.8 m of the near edge point.
+ */
+describe('Marlow re-plan A5: the swing bar (station 12, marlow-kit-geo Q2)', () => {
+  const SWING = { gapMin: 2.0, gapMax: 3.5, barMin: 2.2, barMax: 2.8, level: 0.4, landing: 0.75, anchorReach: 0.8 } as const;
+  const S = A5_SWING_BAR;
+  const r = MOVEMENT.radius;
+  const posts = mine.filter((p) => p.collide && Math.abs(p.c[0] - (S.x0 + S.x1) / 2) < 1e-6 && Math.abs(top(p) - S.top) < 1e-6 && S.posts.some((z) => Math.abs(p.c[2] - z) < 1e-6));
+  /** The floor top under (x, z): the highest collider top at or under y 0.05 there. */
+  const floorAt = (x: number, z: number): number =>
+    Math.max(...solid.filter((p) => top(p) <= 0.05 && Math.abs(x - p.c[0]) < p.s[0] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2).map(top), -Infinity);
+
+  it('two noLedge posts on the trench\'s east edge at z 42.4 and 43.6, the bar between them along the edge at the pipe height (visual: no pipe anchor anywhere near it)', () => {
+    expect(posts).toHaveLength(2);
+    for (const p of posts) {
+      expect(p.noLedge).toBe(true);
+      expect(bottom(p)).toBeCloseTo(0, 9);
+      expect(top(p)).toBeGreaterThan(A5_GANTRY_PIPE_Y);
+    }
+    expect(S.x0).toBe(T.x1);
+    const bar = mine.find((p) => !p.collide && Math.abs(p.c[1] - A5_GANTRY_PIPE_Y) < 1e-6 && Math.abs(p.c[2] - S.z) < 1e-6)!;
+    expect(bar).toBeDefined();
+    expect(bar.s[2]).toBeCloseTo(S.posts[1] - S.posts[0] - S.post, 6);
+    const near = (a: { x: number; y: number; z: number }): boolean => Math.abs(a.x - S.x0) < 1.5 && Math.abs(a.z - S.z) < 2 && Math.abs(a.y - A5_GANTRY_PIPE_Y) < 1.5;
+    expect(b.anchors.pipesH.filter((a) => near(a.a) || near(a.b))).toEqual([]);
+    expect(b.anchors.pipesV.filter((a) => near(a.base))).toEqual([]);
+  });
+
+  it('inside Swing Pass\'s band: bar 2.6 m over the near floor (0.2 m inside both ends), gap 3.5 m (the band\'s top), both floors at 0', () => {
+    expect(A5_GANTRY_PIPE_Y - floorAt(S.x1 + 0.3, S.z)).toBeGreaterThanOrEqual(SWING.barMin + 0.2 - 1e-9);
+    expect(A5_GANTRY_PIPE_Y - floorAt(S.x1 + 0.3, S.z)).toBeLessThanOrEqual(SWING.barMax - 0.2 + 1e-9);
+    const gap = T.x1 - T.x0;
+    expect(gap).toBeGreaterThanOrEqual(SWING.gapMin);
+    expect(gap).toBeLessThanOrEqual(SWING.gapMax);
+    expect(floorAt(S.x1 + 0.3, S.z)).toBeCloseTo(0, 9);
+    expect(Math.abs(floorAt(T.x0 - 0.5, S.z) - floorAt(S.x1 + 0.3, S.z))).toBeLessThanOrEqual(SWING.level - 0.3);
+  });
+
+  it('nothing stands on the swing line: from the anchor\'s spot over the trench to past the landing, a body-wide strip on z 43.0 has no collider between the floor and the bar; the gantry\'s and the bar\'s posts are off it', () => {
+    const x0 = T.x0 - SWING.landing - r;
+    const x1 = S.x1 + SWING.anchorReach;
+    const half = r + 0.1;
+    const hit = solid.filter((p) => top(p) > 0.01 && bottom(p) < A5_GANTRY_PIPE_Y && p.c[0] - p.s[0] / 2 < x1 && p.c[0] + p.s[0] / 2 > x0 && Math.abs(p.c[2] - S.z) < p.s[2] / 2 + half);
+    expect(hit.map((p) => `(${p.c.join(', ')}) size (${p.s.join(', ')})`)).toEqual([]);
+    for (const z of S.posts) expect(Math.abs(z - S.z) - S.post / 2).toBeGreaterThanOrEqual(r + 0.2);
+    expect(Math.abs(A5_GANTRY.z - S.z) - A5_GANTRY.post / 2).toBeGreaterThanOrEqual(r + 0.2);
+    // the hoarding of the plates (z 42.1) and the drums (z 43.9) stand 0.9 m off the line
+    expect(S.z - (A5_PLATES.z1 + A5_HOARD.t)).toBeCloseTo(0.9, 9);
+    expect(A5_DRUMS_RP.z0 - S.z).toBeCloseTo(0.9, 9);
+  });
+
+  it('the far landing on the line is the west strip to its wall, 4.2 m deep (the band\'s 0.75 m), and a body stands anywhere on it; the anchor and the rider have room on the east strip', () => {
+    const depth = T.x0 - A5_WALL.near;
+    expect(depth).toBeCloseTo(4.2, 9);
+    expect(depth).toBeGreaterThanOrEqual(SWING.landing + 1);
+    for (let x = T.x0 - r - 0.05; x >= A5_WALL.near + r + 0.05 - 1e-9; x -= 0.1) {
+      expect(blockedAt(x, S.z), `landing x ${x.toFixed(2)}`).toEqual([]);
+      expect(floorAt(x, S.z)).toBeCloseTo(0, 9);
+    }
+    for (const x of [S.x1 + r + 0.05, S.x1 + SWING.anchorReach, A5_PERIM.x0 - r - 0.05]) expect(blockedAt(x, S.z), `east strip x ${x.toFixed(2)}`).toEqual([]);
+    // (Player K4, PR #658) the anchor braces 0.6 m back and 0.55 m to either side of the line: a body stands at both
+    for (const dz of [-0.55, 0.55]) expect(blockedAt(S.x1 + 0.6, S.z + dz), `anchor brace z ${(S.z + dz).toFixed(2)}`).toEqual([]);
+  });
 });
 
 describe('Marlow re-plan A5: the moved pieces (drums, bulkheads, apron switch)', () => {
@@ -992,12 +1096,12 @@ describe('Marlow re-plan A5: flags, stations in play, lines', () => {
     expect(steps.map((o) => o.id)).toEqual(['a5-wall', 'a5-trench', 'a5-throw', 'a5-lock']);
     expect(steps.map((o) => o.done)).toEqual([{ flag: A5_APRON_E_FLAG }, { flag: A5_APRON_W_FLAG }, { flag: A5_RELEASE_FLAG }, undefined]);
     expect(A5_OBJECTIVES.map((o) => o.id)).toEqual(steps.map((o) => o.id));
-    expect(steps[0]!.text).toMatch(/wall/);
-    expect(steps[0]!.text).toMatch(/gap|holding room/);
+    expect(steps[0]!.text).toMatch(/apron/);
+    expect(steps[0]!.text).toMatch(/wicket/);
     expect(steps[1]!.text).toMatch(/trench/);
     expect(steps[1]!.text).toMatch(/footbridge|plates/);
     expect(steps[2]!.text).toMatch(/beams/);
-    expect(steps[2]!.text).toMatch(/kiosk/);
+    expect(steps[2]!.a).toMatch(/kiosk/);
     expect(steps[3]!.text).toMatch(/holding room five/);
     for (const o of steps) {
       for (const t of [o.text, o.a, o.b]) {
@@ -1033,5 +1137,55 @@ describe('Marlow re-plan A5: flags, stations in play, lines', () => {
     expect(part.navSeeds.some((s) => s.y < -1)).toBe(true);
     expect(part.navSeeds.some((s) => s.y > 5)).toBe(true);
     expect(part.camSpaces.map((c) => c.size)).toEqual(['open', 'tight', 'tight']);
+  });
+});
+
+describe('stations 11 and 12 kit spots (marlow-kit-wire)', () => {
+  const saved = flags.kitMoves;
+  afterEach(() => {
+    flags.kitMoves = saved;
+  });
+  const objText = (d: typeof def, id: string): string => d.objectives!.find((o) => o.id === id)!.text;
+
+  it('one chimneyPair spot, a5-chimney: the gap\'s floor centre, its width and the wall top (from the set constants)', () => {
+    expect(flags.kitMoves.has('chimneyPair')).toBe(false);
+    const spots = kitSpotsOf(b, 'chimneyPair');
+    expect(spots.length).toBe(1);
+    const gp = A5_GAP;
+    expect(spots[0]).toEqual({ id: 'a5-chimney', kind: 'chimneyPair', x: (gp.x0 + gp.x1) / 2, y: 0, z: (gp.z0 + gp.z1) / 2, yaw: -Math.PI / 2, w: gp.x1 - gp.x0, h: A5_WALLTOP.y, x2: (A5_WALLTOP.x0 + A5_WALLTOP.x1) / 2, z2: (gp.z0 + gp.z1) / 2 });
+    // the PLAN band: width 1.2-1.6, height 3-8, the top the wall top (the perimeter's height)
+    expect(spots[0]!.w!).toBeGreaterThanOrEqual(1.2);
+    expect(spots[0]!.w!).toBeLessThanOrEqual(1.6);
+    expect(spots[0]!.h!).toBeGreaterThanOrEqual(3);
+    expect(spots[0]!.h!).toBeLessThanOrEqual(8);
+    expect(spots[0]!.h).toBe(A5_PERIM.h);
+  });
+
+  it('one swingPass spot, a5-swing: the swing bar on the trench\'s near edge; the gap 2.0-3.5 m and the bar 2.2-2.8 m', () => {
+    expect(flags.kitMoves.has('swingPass')).toBe(false);
+    const spots = kitSpotsOf(b, 'swingPass');
+    expect(spots.length).toBe(1);
+    const tr = A5_CABLE_TRENCH;
+    expect(spots[0]).toEqual({ id: 'a5-swing', kind: 'swingPass', x: tr.x1, y: A5_GANTRY_PIPE_Y, z: A5_SWING_BAR.z, yaw: -Math.PI / 2, w: tr.x1 - tr.x0, y2: 0 });
+    expect(spots[0]!.w!).toBeGreaterThanOrEqual(2.0);
+    expect(spots[0]!.w!).toBeLessThanOrEqual(3.5);
+    expect(spots[0]!.y).toBeGreaterThanOrEqual(2.2);
+    expect(spots[0]!.y).toBeLessThanOrEqual(2.8);
+    expect(Math.abs(spots[0]!.y2! - 0)).toBeLessThanOrEqual(0.4);
+    const ids = def.bays[4]!.stations!.filter((s) => s.kit === 'chimneyPair' || s.kit === 'swingPass').map((s) => s.id);
+    expect(ids).toEqual(['a5-chimney', 'a5-swing']);
+  });
+
+
+  it('kit on: stations 11 and 12 name the moves; off: the stand-in lines', () => {
+    flags.kitMoves = new Set(['chimneyPair', 'swingPass']);
+    const on = buildCtcourse(new LevelBuilder(), { replan: true }).layout.course!.def;
+    expect(objText(on, 'a5-wall')).toBe(A5_CHIMNEY_KIT_TEXT);
+    expect(objText(on, 'a5-trench')).toBe(A5_SWING_KIT_TEXT);
+    for (const t of [A5_CHIMNEY_KIT_TEXT, A5_SWING_KIT_TEXT]) expect(t.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+    flags.kitMoves = new Set();
+    const off = buildCtcourse(new LevelBuilder(), { replan: true }).layout.course!.def;
+    expect(objText(off, 'a5-wall')).toBe('Go through the wicket onto the apron');
+    expect(objText(off, 'a5-trench')).toBe('Cross the trench by footbridge or plates');
   });
 });

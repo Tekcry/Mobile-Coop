@@ -35,6 +35,7 @@ import {
   A8_NORTH,
   A8_OFFICE_DOOR,
   A8_OFFICER,
+  A8_OFFICER_POST,
   A8_PUBLIC_STAIR,
   A8_REPLAN_COLUMN_OUT,
   A8_RTE_AT,
@@ -240,10 +241,10 @@ describe('Marlow re-plan A8: the stations (STATIONS.md section 3)', () => {
       marks: [{ x: 135.0, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
       guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console'] },
     { n: 20, id: 'a8-isolate', lesson: 'timed_light_cut', retry: 'caught', doneFlag: 'a8-grille-in', drillS: 25,
-      marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
+      marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 126.5, z: 76.5, y: 0, yaw: 0 }],
       guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-night', 'g-a8-grille'] },
     { n: 21, id: 'a8-locks', lesson: 'synced_hack', retry: 'caught', doneFlag: 'a8-sync', drillS: 60,
-      marks: [{ x: 141.5, z: 73.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
+      marks: [{ x: 137.5, z: 76.5, y: 4.4, yaw: Math.PI / 2 }, { x: 135.5, z: 66.5, y: 0, yaw: Math.PI / 2 }],
       guards: ['a8-night1', 'a8-night2', 'a8-officer'], gates: ['g-a8-console', 'g-a8-vault', 'laser-a8'] },
   ];
   /** The graph spaces' boxes the marks sit in (STATIONS section 7). */
@@ -278,6 +279,12 @@ describe('Marlow re-plan A8: the stations (STATIONS.md section 3)', () => {
       });
     }
     for (const s of sheet.slice(1)) expect(s.marks[0].y).toBe(A8_H.gallery);
+    // (marlow-play-2 C13) 20 / 21's A mark by the office door, behind the seated officer (his back to the door) and well off him
+    for (const s of sheet.slice(2)) {
+      const m = s.marks[0];
+      expect(m.x).toBeLessThan(A8_OFFICER_POST.x);
+      expect(hyp2(m.x - A8_OFFICER_POST.x, m.z - A8_OFFICER_POST.z)).toBeGreaterThan(4);
+    }
     for (const s of sheet) expect(s.marks[1].y).toBe(0);
   });
 
@@ -306,6 +313,38 @@ describe('Marlow re-plan A8: the stations (STATIONS.md section 3)', () => {
     s.update(1 / 60);
     expect(s.station()).toBe(0);
     for (const id of ['a8-split', 'a8-office', 'a8-grille', 'a8-beams', 'a8-sync']) expect(def.objectives!.some((o) => o.id === id), id).toBe(true);
+  });
+
+  it('(marlow-play C5) a 20 or 21 retry never takes a step back: the office step is 19\'s, the grille step is done on a8-grille-in and is 20\'s; the built yard keeps a8-lobby', () => {
+    expect(def.objectives!.find((o) => o.id === 'a8-grille')!.done).toEqual({ flag: A8_GRILLE_IN_FLAG });
+    const plain = buildCtcourse(new LevelBuilder());
+    expect(plain.parts[7]!.objectives.find((o) => o.id === 'a8-grille')!.done).toEqual({ flag: 'a8-lobby' });
+    const s = runAt([107.5, 64.0], [107.5, 65.5]);
+    s.setFlag('a8-gal1');
+    s.setFlag(A8_OFFICE_IN_FLAG);
+    s.update(1 / 60);
+    s.setFlag('a8-loop');
+    s.update(1 / 60);
+    expect(s.station()).toBe(20);
+    expect(s.isStepDone('a8-office')).toBe(true);
+    // the loop runs out, then a caught 20: the office step stays ticked (it latched while 20 was live)
+    s.clearFlag('a8-loop');
+    expect(s.retryStation('caught')).toBe(true);
+    s.update(1 / 60);
+    expect(s.isStepDone('a8-office')).toBe(true);
+    expect(s.currentStep()?.id).toBe('a8-grille');
+    // B through the grille: the grille step ticks on 20's flag; A reaching the lobby during 21 then a 21 retry keeps it
+    s.setFlag(A8_GRILLE_IN_FLAG);
+    s.update(1 / 60);
+    expect(s.station()).toBe(21);
+    expect(s.isStepDone('a8-grille')).toBe(true);
+    s.setFlag('a8-lobby');
+    s.update(1 / 60);
+    expect(s.retryStation('caught')).toBe(true);
+    s.update(1 / 60);
+    expect(s.isStepDone('a8-office')).toBe(true);
+    expect(s.isStepDone('a8-grille')).toBe(true);
+    expect(s.currentStep()?.id).toBe('a8-beams');
   });
 
   it('the pass zones: a8-office-in [134.25, 75.5, 136, 77.75] at floor 4.4 and a8-grille-in [134.3, 60.5, 136, 63.5] at floor 0, any one player, flags external; the zones sit inside the office door and just through the grille', () => {
@@ -579,7 +618,7 @@ describe('Marlow re-plan A8: the steps and the lines', () => {
 
   it('the built chain stays (split, office, grille, beams, sync, out); two lines change: the west end is not dark, the jam is made from behind the counters; what and where, no fail', () => {
     expect(steps.map((o) => o.id)).toEqual(['a8-split', 'a8-office', 'a8-grille', 'a8-beams', 'a8-sync', 'a8-out']);
-    expect(steps[0]!.a).toBe('Take the boost to the gallery at the west end, over the vestibule.');
+    expect(steps[0]!.a).toBe('Take the boost up to the gallery over the vestibule.');
     expect(steps[0]!.a).not.toMatch(/dark/i);
     expect(steps[1]!.b).toBe('Jam the gallery camera from behind the counters for your partner.');
     expect(steps[5]!.done).toBeUndefined();
@@ -600,10 +639,10 @@ describe('Marlow re-plan A8: the steps and the lines', () => {
   it("LANTERN's six retry lines exist (STATIONS section 6, verbatim) and fit 90 characters; no radio line says fail; the built lines are kept", () => {
     const at = (k: string) => part.bay.radio.filter((r) => r.at === k).map((r) => r.text);
     expect(at(retryKey('a8-c2run'))).toEqual(['Caught in the banking hall. Back to the vestibule.']);
-    expect(at(retryKey('a8-loopset'))).toEqual(['Caught at the security office. Back to the office door and the board.']);
+    expect(at(retryKey('a8-loopset'))).toEqual(['Caught at the security office. Back to the office door.']);
     expect(at(retryKey('a8-isolate'))).toEqual(['Caught at the lighting board. Back to the board.']);
     expect(at(retryKey('a8-isolate', true))).toEqual(['The hall lights came back. Back to the lighting board.']);
-    expect(at(retryKey('a8-locks'))).toEqual(['Caught in the vault lobby. Back to the office console and the lobby.']);
+    expect(at(retryKey('a8-locks'))).toEqual(['Caught in the vault lobby. Back to the office console.']);
     expect(at(retryKey('a8-locks', true))).toEqual(['The cameras came back. Loop them again from the office console.']);
     expect(Object.keys(A8_RETRY_LINES).sort()).toEqual(['retry:a8-c2run', 'retry:a8-isolate', 'retry:a8-isolate:timer', 'retry:a8-locks', 'retry:a8-locks:timer', 'retry:a8-loopset']);
     expect(at(retryKey('a8-loopset', true))).toEqual([]);

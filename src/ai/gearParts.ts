@@ -3,11 +3,12 @@
  * screens build the same parts: the S12 placeholder helmet and armour plates (A45, built once and then only shown or
  * hidden) and the enforcer's riot shield (by kind). Load time only: nothing here runs per step.
  */
-import type { InstancedMesh, TransformNode } from '../core/babylon';
+import type { AbstractMesh, InstancedMesh, TransformNode } from '../core/babylon';
 import type { CharacterRig } from '../player/characterRig';
 import type { World } from '../world/world';
 import type { EnemyDef } from './enemyDefs';
 import { factionLook } from './factions';
+import { mergeRigGear, mergeStaticParts } from './guardGearMerge';
 
 /** What the builders read from the world: the part library, the shadow list and the map's faction. */
 export type GearWorld = Pick<World, 'parts' | 'addShadowCaster' | 'map'>;
@@ -32,8 +33,10 @@ export function buildHelmetPart(world: GearWorld, rig: CharacterRig, hex: string
   return m;
 }
 
-/** Body armour: the rig's armour plates (front and back on the torso node, shoulder caps). */
-export function buildArmourParts(world: GearWorld, rig: CharacterRig, hex: string): InstancedMesh[] {
+/** Body armour: the rig's armour plates (front and back on the torso node, shoulder caps). (guard-models perf S13)
+ *  On the S1 merged body: one mesh skinned on its skeleton (`mergeRigGear`), else the 4 part instances; the caller
+ *  shows / hides every mesh returned. */
+export function buildArmourParts(world: GearWorld, rig: CharacterRig, hex: string): AbstractMesh[] {
   const p = rig.p;
   const parts = world.parts;
   const front = p.chest.d / 2;
@@ -55,11 +58,19 @@ export function buildArmourParts(world: GearWorld, rig: CharacterRig, hex: strin
     m.rotation.set(0, 0, -side * 0.35);
     out.push(m);
   }
+  const merged = mergeRigGear(rig, out, 'enemy-armour');
+  if (merged) {
+    world.addShadowCaster(merged);
+    const lo = merged.getLODLevels()[0]?.mesh;
+    if (lo) world.addShadowCaster(lo);
+    return [merged];
+  }
   for (let i = 0; i < out.length; i++) world.addShadowCaster(out[i]!);
   return out;
 }
 
-/** The enforcer's riot shield (with its visor) on his root, in front of his left side. */
+/** The enforcer's riot shield (with its visor) on his root, in front of his left side. (guard-models perf S13) One
+ *  instance of a merged shield + visor source (`mergeStaticParts`), else the two parts. */
 export function buildShieldPart(world: Pick<World, 'parts'>, root: TransformNode, scale: number): InstancedMesh {
   const parts = world.parts;
   const sh = parts.instance('rbox', '#20242b', 'shield');
@@ -70,5 +81,5 @@ export function buildShieldPart(world: Pick<World, 'parts'>, root: TransformNode
   visor.parent = sh;
   visor.scaling.set(0.6, 0.12, 0.5);
   visor.position.set(0, 0.32, 0.4);
-  return sh;
+  return mergeStaticParts(root, [sh, visor], `shield-${scale.toFixed(4)}`, 'shield') ?? sh;
 }

@@ -38,6 +38,9 @@ export interface Flags {
   legacy: boolean;
   /** Dev / hand checks (`?fullbright=1`): the map is lit like day (theme light level, hemisphere, sun, gameplay light). Nothing changes without it. */
   fullbright: boolean;
+  /** (piano SO5) Dev / hand checks (`?lightning=1`): any map plays the fixed demo lightning loop (`DEMO_LIGHTNING`)
+   *  through its baked sky visibility. A map's own `lightning` data wins. Nothing changes without it. */
+  lightning: boolean;
   /** Dev only (the level editor's walk test, `?editorDraft=1`): build the Kestrel map from the editor's unsaved campus. Always false in production. */
   devDraft: boolean;
   /** Dev only (`?spawn=x,z,level,yaw`, yaw in radians): where the editor's walk test starts the player. */
@@ -53,6 +56,15 @@ export interface Flags {
   weaponLab: boolean;
   /** Sector Ops, dev and tests (`?sectorGuards=N`): at most N guards per section spawn (alarm reinforcements on top). */
   sectorGuards: number | null;
+  /** (piano SO3) Dev and the GPU check (`?torchSlots=8`): the map's guard torch slots over its `MapDef.torchSlots`
+   *  (`torches.torchSlotCount`: 4 or 8); null when absent. A co-op client needs the same parameter as its host. */
+  torchSlots: number | null;
+  /** (piano SO3) Dev and the GPU check (`?torchShadows=N`): only the first N torch slots get a shadow map, over
+   *  `MapDef.torchShadows`; null when absent. A co-op client needs the same parameter as its host. */
+  torchShadows: number | null;
+  /** (piano SO3) Dev and the GPU check (`?torches=all`): every human guard's torch forced on at spawn
+   *  (`Enemy.torchOverride`; a dog carries none). */
+  torchesAll: boolean;
   /** (mocap-trial) `?mocap=1` / `?mocap=0`: the mocap locomotion clips on / off for this page, over the stored setting
    *  (Settings > Gameplay > "Mocap locomotion"); null when the page names none. */
   mocap: boolean | null;
@@ -66,9 +78,8 @@ export interface Flags {
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
   /** (guard-models G7, A10) Guards draw as the operator-pipeline figure (`src/ai/guardBody.ts`); `?guardmodels=0` keeps
-   *  the merged S1 body (comparisons, and the fallback while a guard's files load). DEFAULT OFF on the guard-models
-   *  branch until G8 measures (`?guardmodels=1` turns it on); G8 flips the default. On /preview/ default on
-   *  (preview-flags). */
+   *  the merged S1 body (comparisons, and the fallback while a guard's files load). Default ON everywhere since gm-flip
+   *  (the G8 gate passed after gm-perf, the gm-look fixes are baked; Michael ~23:55 2026-10-26 "Just switch them on"). */
   guardModels: boolean;
   /** (guard-render S4) Guard anim tiers (off-screen every `ANIM_TIER_OFFSCREEN` th frame, far every 2nd:
    *  `src/ai/animTier.ts`); `?animtier=0` off. */
@@ -97,6 +108,9 @@ export interface Flags {
    *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged.
    *  On /preview/ default on (preview-flags). */
   marlowReplan: boolean;
+  /** (piano-escape, owner Campaign Build, review 2026-11-02) `?piano=1`: the piano escape scene (map `thornbeckMill`, `scene:
+   *  'piano'`) joins `MAPS` and the main menu. Default off; on /preview/ default on (preview-flags). */
+  pianoEscape: boolean;
   /** (char-shadow-meter, J16) Character shadows in the light meter and the guards' light (`world/charOccluders.ts`);
    *  `?charlight=1` on. DEFAULT OFF until Michael's walk (owner Sector Ops Build; switch-on: BRIEF A9). On /preview/
    *  default on (preview-flags). */
@@ -130,12 +144,16 @@ export interface Flags {
    *  adds / removes `pull` and `shutter`. The host's rules and each page's offers read it (`has()` allocates nothing).
    *  Tests set `flags.kitMoves` in `beforeAll` and restore it. */
   kitMoves: ReadonlySet<string>;
+  /** (context-prompts, `docs/context-prompts/PLAN.md` section 7; owner Night Shift | Player Build, switch-on at Michael's
+   *  walk, target 2026-10-31) The context prompts: one button per action on the thing it acts on (tap / hold), in place
+   *  of the hold-A list. `?ctxprompts=1` on, `?ctxprompts=0` off; default off. On /preview/ default on (preview-flags). */
+  contextPrompts: boolean;
 }
 
 /** (coop-kit A1, BRIEF A8) Every kit move id that exists in the game (each slice adds its id in the PR that makes the
- *  move playable): A1's rope descent, Campaign's pull-up and shutter (PR #578, folded in from `coopKit`), (coop-kit K5b)
- *  Plank Bridge. */
-export const KIT_BUILT: readonly string[] = ['descent', 'pull', 'shutter', 'plankBridge'];
+ *  move playable): A1's rope descent, Campaign's pull-up and shutter (PR #578, folded in from `coopKit`), (coop-kit K3)
+ *  Chimney Pair (`chimneyPair`), (coop-kit K5b) Plank Bridge (`plankBridge`). */
+export const KIT_BUILT: readonly string[] = ['descent', 'pull', 'shutter', 'chimneyPair', 'plankBridge'];
 
 /** (coop-kit A1) The kit ids on in the live game: an id joins this list when Michael accepts its walk (switch-on). */
 export const KIT_MOVES_ON: readonly string[] = [];
@@ -252,6 +270,7 @@ export const flags: Flags = {
   gear: /^[1-5]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
   legacy: params.get('legacy') === '1',
   fullbright: params.get('fullbright') === '1',
+  lightning: params.get('lightning') === '1',
   // (the DEV test first: the production build drops the parameter name and the whole read)
   devDraft: import.meta.env.DEV && params.get('editorDraft') === '1',
   spawn: import.meta.env.DEV ? readSpawn(params.get('spawn')) : null,
@@ -260,12 +279,15 @@ export const flags: Flags = {
   foleyLab: params.get('foleylab') === '1',
   weaponLab: params.get('weaponlab') === '1',
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
+  torchSlots: /^\d{1,2}$/.test(params.get('torchSlots') ?? '') ? Number(params.get('torchSlots')) : null,
+  torchShadows: /^\d{1,2}$/.test(params.get('torchShadows') ?? '') ? Number(params.get('torchShadows')) : null,
+  torchesAll: params.get('torches') === 'all',
   mocap: onOffFlag(params.get('mocap')),
   mixamo: onOffFlag(params.get('mixamo')),
   anim: ((v) => (v === 'hand' || v === 'cmu' || v === 'mixamo' ? v : null))(params.get('anim')),
   guardMerge: params.get('guardmerge') !== '0',
-  // (guard-models G7) default off until G8's budget run: `?guardmodels=1` on; G8 makes it `!== '0'`
-  guardModels: darkFlag(params.get('guardmodels'), PREVIEW_ON),
+  // (guard-models G7, gm-flip) default on: `?guardmodels=0` keeps the merged S1 body
+  guardModels: params.get('guardmodels') !== '0',
   animTier: params.get('animtier') !== '0',
   animShadow: params.get('animshadow') !== '0',
   animOff: Number(params.get('animoff')) | 0,
@@ -281,7 +303,9 @@ export const flags: Flags = {
   lookouts: darkFlag(params.get('lookouts'), PREVIEW_ON),
   dogRelease: darkFlag(params.get('dogrelease'), PREVIEW_ON),
   marlowReplan: darkFlag(params.get('marlowreplan'), PREVIEW_ON),
+  pianoEscape: darkFlag(params.get('piano'), PREVIEW_ON),
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
   campusV2: readCampusV2(params.get('campusv2'), PREVIEW_ON),
+  contextPrompts: darkFlag(params.get('ctxprompts'), PREVIEW_ON),
 };

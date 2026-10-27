@@ -32,7 +32,7 @@ import {
   type StepCond,
 } from './courseDef';
 import type { SecurityConsole } from './securityRoom';
-import type { StationDef } from './stationDef';
+import { kitMoveOn, type StationDef } from './stationDef';
 
 export type AirlockPhase = 'open' | 'waiting' | 'ready' | 'cycling' | 'sealed';
 
@@ -99,6 +99,8 @@ export const AIR_CYCLING = 'Airlock sealed - cycling';
 export const REFUSE_ISO_REARM = 'The isolator is re-arming';
 /** (N3) A press on a timed console inside its re-arm time. */
 export const REFUSE_CONSOLE_REARM = 'The console is rebooting';
+/** (marlow-kit-wire, A4) A press on a gate held for its station's kit move (the move is on): the co-op move is the way. */
+export const REFUSE_KIT_HELD = 'No power here. This one takes the co-op move.';
 /** (marlow-final) Seconds the claim zones stay shut after a bay restart (as the pass zones' `holdZones` 2 s). */
 export const ROLE_HOLD = 2;
 
@@ -139,20 +141,40 @@ interface StRt {
   /** `${doneFlag}@1` / `@2` (precomputed: the per-step checks must not allocate). */
   d1: string;
   d2: string;
+  /** (marlow-kit-wire) The kit credit flag `kit:<station id>` (a station with `kit`), else ''. */
+  kk: string;
 }
 
 const NO_ST_RT: StRt[] = [];
 
 /**
- * (J14 R1 fix 7, lead decision b) Is station kit move `kit` playable on the host? How it is detected: it is not, in any
- * build yet. Player's move hookups (KS1-KS5, with their `kitMoves` switch on feature/coop-kit) are not on master, so this
- * answers false and every station's stand-in gate opens as its station goes live. Each KS slice replaces this with the
- * host's `kitMoves` check for its move (true: the stand-in stays locked and the real move is the way through).
+ * (J14 R1 fix 7; marlow-kit-wire) Is station kit move `kit` playable? `stationDef.ts` `kitMoveOn`: Player's `kitMoves` id
+ * (on in /preview/ once the move's K slice adds it to `KIT_BUILT`, off live). Off: the station's stand-in opens as it goes
+ * live and its place flag alone ends it. On: the stand-in stays shut, its held gates refuse presses, and the station also
+ * needs its kit credit (`kitDone`). This slice wires all five kit stations at once.
  */
-export function kitMoveOn(_kit: NonNullable<StationDef['kit']>): boolean {
-  return false;
-}
+export { kitMoveOn };
 const NO_GATE_DOORS: readonly string[] = [];
+
+type StationKit = NonNullable<StationDef['kit']>;
+
+/** (marlow-kit-wire) Is `id` a switch (button, plate, door bolt, isolator) that presses gate `d`? No allocation. */
+function switchedBy(d: GateDef, id: string): boolean {
+  switch (d.kind) {
+    case 'lever':
+    case 'egress':
+    case 'pickup':
+      return d.switchId === id;
+    case 'bolt':
+      return d.doorId === id;
+    case 'pair':
+      return d.a === id || d.b === id;
+    case 'isolator':
+      return d.switchIds.includes(id);
+    default:
+      return false;
+  }
+}
 
 interface GateRt {
   def: GateDef;
@@ -179,6 +201,8 @@ interface GateRt {
    */
   secs: number;
   rearm: number;
+  /** (marlow-kit-wire, A4) The kit move that holds this gate shut while it is on (a stand-in or a gate on its doors), else null. */
+  kit: StationKit | null;
 }
 
 /** (N1) A step condition, precomputed (no allocation per step). */
@@ -317,7 +341,7 @@ export class CourseState {
             }
           }
         }
-        this.gates.push({ def: g, doors: gateDoors(g), bay: i, open: false, t: 0, holders: 0, ta: -1, tb: -1, pa: -1, pb: -1, key1, key2, secs, rearm });
+        this.gates.push({ def: g, doors: gateDoors(g), bay: i, open: false, t: 0, holders: 0, ta: -1, tb: -1, pa: -1, pb: -1, key1, key2, secs, rearm, kit: null });
       }
       const fd: { d: DrillDef; flag: string }[] = [];
       for (const d of b.drills) {
@@ -343,7 +367,14 @@ export class CourseState {
       for (const s of b.stations ?? []) {
         const gates: GateRt[] = [];
         for (const id of s.gates) for (const g of this.gates) if (g.bay === i && g.def.id === id) gates.push(g);
-        list.push({ def: s, gates, d1: `${s.doneFlag}@1`, d2: `${s.doneFlag}@2` });
+        // (marlow-kit-wire, A4) the stand-in and every gate of this station on one of its doors are held while the kit is on
+        const kit = s.kit;
+        const si = kit !== undefined && s.standIn !== undefined ? this.gates.find((g) => g.bay === i && g.def.id === s.standIn) : undefined;
+        if (kit !== undefined && si) {
+          si.kit = kit;
+          for (const g of gates) if (g.doors.some((d) => si.doors.includes(d))) g.kit = kit;
+        }
+        list.push({ def: s, gates, d1: `${s.doneFlag}@1`, d2: `${s.doneFlag}@2`, kk: kit !== undefined ? `kit:${s.id}` : '' });
         any = true;
       }
       this.stRt.push(list);
@@ -453,14 +484,15 @@ export class CourseState {
     this.events.push({ t: 'flagCleared', flag });
   }
 
-  /** Set a flag (owned by bay `bay`: its restart clears it); `flag:<flag>` drills of the current bay tick (6a). */
-  private addFlag(flag: string, bay: number): void {
+  /** Set a flag (owned by bay `bay`: its restart clears it); `flag:<flag>` drills of the current bay tick (6a).
+   *  (marlow-play C5) `st`: the station that owns it (a step's mark: its condition's), else the live station. */
+  private addFlag(flag: string, bay: number, st?: number): void {
     if (this.flags.has(flag)) return;
     this.flags.add(flag);
     this.flagBay.set(flag, bay);
     // (J14 R1) owned by the live station (its retry clears it); a done flag moves the live station on
     if (bay === this.bay && this.hasStations) {
-      const n = this.station();
+      const n = st ?? this.station();
       if (n > 0) this.flagSt.set(flag, n);
       this.advanceStations();
     }
@@ -512,6 +544,11 @@ export class CourseState {
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
       const d = g.def;
+      // (marlow-kit-wire, A4) held for its station's kit move: not opened, paired or unbolted
+      if (g.kit !== null && kitMoveOn(g.kit)) {
+        if (switchedBy(d, id)) refusal = REFUSE_KIT_HELD;
+        continue;
+      }
       switch (d.kind) {
         case 'lever':
           if (d.switchId === id) this.setOpen(g, true);
@@ -657,7 +694,12 @@ export class CourseState {
       for (let k = 0; k < list.length; k++) {
         if (list[k]!.def.n !== n) continue;
         this.startAt(b + 1);
-        for (let i = 0; i < k; i++) this.addFlag(list[i]!.def.doneFlag, b);
+        for (let i = 0; i < k; i++) {
+          const e = list[i]!;
+          this.addFlag(e.def.doneFlag, b);
+          // (marlow-kit-wire) and its kit credit while its kit is on
+          if (e.kk !== '' && e.def.kit !== undefined && kitMoveOn(e.def.kit)) this.addFlag(e.kk, b);
+        }
         this.stIdx = k;
         return true;
       }
@@ -712,16 +754,22 @@ export class CourseState {
 
   /**
    * (J14 R1; BRIEF A1, A2; PLAN A17, A23) Retry the live station: only its gates (and their flags) and the flags set while
-   * it was live (objective steps and a role claim among them); earlier stations stay done, drills stay ticked. Counts in
+   * it was live (objective steps among them); earlier stations stay done, drills stay ticked; (marlow-play-2 C11) the bay's
+   * role claim stays (a bay restart clears it), so the marks keep each player's job. Counts in
    * `restarts` / `lastRetry` and emits `stationRetry` (the mode resets its guards, devices and lamps and puts the players
    * on its marks). `n` (a set's drill window or beam, `CourseMode.stationRetry`): only while station `n` is live. False
    * (nothing changes): no live station (or not `n`), its retry is 'none' (unless the cause is `other`: a set's way out
-   * of a soft-lock, J14 A26; nothing fails there, the pair is only put back) or switched off, or the course is over.
+   * of a soft-lock, J14 A26; nothing fails there, the pair is only put back) or switched off, the course is over, or
+   * (marlow-play B5) the bay's exit airlock is cycling or sealed.
    */
   retryStation(cause: StationCause, n?: number): boolean {
     const s = this.liveRt();
     if (!s || this.over || (s.def.retry === 'none' && cause !== 'other') || this.retryOffSet.has(s.def.n)) return false;
     if (n !== undefined && n !== s.def.n) return false;
+    // (marlow-play B5) never while the bay's exit holding room cycles or has sealed: its near door locks for good and the
+    // retry's marks would strand both players behind it on the old set
+    const ea = this.exitAirlockOf(this.bay);
+    if (ea && (ea.phase === 'cycling' || ea.phase === 'sealed')) return false;
     const sn = s.def.n;
     // (fix 7) a stand-in standing open stays open (and its flag set) through the retry
     const keep = this.standInGate(s);
@@ -766,17 +814,34 @@ export class CourseState {
     this.openStandIn();
   }
 
-  /** Move the live station on past every station whose done flag is set (global or either player's); (fix 7) the new
-   *  live station's stand-in opens. No allocation. */
+  /** Move the live station on past every station whose done flag is set (global or either player's) and, (marlow-kit-wire,
+   *  A2) while its kit move is on, whose kit credit is set too; (fix 7) the new live station's stand-in opens. No allocation. */
   private advanceStations(): void {
     const list = this.stRt[this.bay] ?? NO_ST_RT;
     const was = this.stIdx;
     while (this.stIdx < list.length) {
       const s = list[this.stIdx]!;
       if (!this.flags.has(s.def.doneFlag) && !this.flags.has(s.d1) && !this.flags.has(s.d2)) break;
+      if (s.kk !== '' && s.def.kit !== undefined && kitMoveOn(s.def.kit) && !this.flags.has(s.kk)) break;
       this.stIdx++;
     }
     if (this.stIdx !== was) this.openStandIn();
+  }
+
+  /**
+   * (marlow-kit-wire, A2, A3; host) Kit move `kind` completed at kit spot `spot` (`CourseMode.onKitDone`): the live
+   * station's kit credit, when the station's `kit` is `kind`, its id is `spot` and its kit is on. The credit is the live
+   * station's flag (a station retry drops it, a bay restart too); with the place flag it ends the station. False, nothing
+   * changed: the course over, no live station, another kind or spot ('' a free move, `pull`, `shutter`), the kit off, or
+   * the credit already set.
+   */
+  kitDone(kind: string, spot: string): boolean {
+    if (this.over) return false;
+    const s = this.liveRt();
+    const kit = s?.def.kit;
+    if (!s || kit === undefined || kit !== kind || s.def.id !== spot || !kitMoveOn(kit) || this.flags.has(s.kk)) return false;
+    this.addFlag(s.kk, this.bay);
+    return true;
   }
 
   /** (J14 R1 fix 7) Station `s`'s stand-in gate when it is to stand open (its kit move is not playable), else null. */
@@ -1312,8 +1377,27 @@ export class CourseState {
     for (let i = 0; i < list.length; i++) {
       const s = list[i]!;
       if (!s.cond || this.flags.has(s.key) || !this.condHolds(s.cond)) continue;
-      this.addFlag(s.key, this.bay);
+      // (marlow-play C5) the mark belongs to the station that owns the step's flag, not the one live as it ticks (a done
+      // flag moves the live station on first): a retry of the next station kept un-ticking the step
+      this.addFlag(s.key, this.bay, this.hasStations ? this.condOwner(s.cond) : undefined);
       this.events.push({ t: 'stepDone', step: s.o.id });
+    }
+  }
+
+  /** (marlow-play C5) The station owning step condition `c`: the latest owner among its set flags (a gate: the live
+   *  station), 0 none. No allocation. */
+  private condOwner(c: CondRt): number {
+    switch (c.k) {
+      case 0:
+        return Math.max(this.flagSt.get(c.flag) ?? 0, this.flagSt.get(c.key1) ?? 0, this.flagSt.get(c.key2) ?? 0);
+      case 1:
+        return this.station();
+      case 2:
+      case 3: {
+        let n = 0;
+        for (let i = 0; i < c.kids.length; i++) n = Math.max(n, this.condOwner(c.kids[i]!));
+        return n;
+      }
     }
   }
 
@@ -1369,7 +1453,9 @@ export class CourseState {
 
   private claim(p: PlayerIdx, c: RoleClaim): void {
     const a: PlayerIdx = c.role === 'a' ? p : p === 0 ? 1 : 0;
-    this.addFlag(this.roleKeys[this.bay]![a], this.bay);
+    // (marlow-play-2 C11) owned by no station: a station retry keeps the claim (the jobs never swap on a retry), a bay
+    // restart still clears it with the bay's flags
+    this.addFlag(this.roleKeys[this.bay]![a], this.bay, 0);
     this.events.push({ t: 'roleClaimed', bay: this.currentBay.id, a });
   }
 

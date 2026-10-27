@@ -828,7 +828,7 @@ describe('A7 the Data Hall: the steps, the claim, the pass zone', () => {
       expect(r.text.length, r.text).toBeLessThanOrEqual(COURSE_TEXT_MAX);
       expect(/[–—]/.test(r.text), r.text).toBe(false);
     }
-    expect(part.bay.radio[0]!.text).toBe("Two terminals, two routes. You'll be on your own for a bit. Meet at the cage.");
+    expect(part.bay.radio[0]!.text).toBe("Two terminals, two routes. You will be apart for a bit, then meet at the cage.");
   });
 
   it('the claim: the first player into the plant corridor is B; until then the lead (P1, odd set) reads A; either player may take either path; the first claim stands', () => {

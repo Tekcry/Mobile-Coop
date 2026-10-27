@@ -362,6 +362,33 @@ describe('guard bake plan: the real guards.json', () => {
     for (const [s, n] of Object.entries(want)) expect(jobsFor(s, kit).length, s).toBe(n);
   });
 
+  // (G10a D5) skinTones / hairColours / tintJitter are read only by the runtime and the sheet: a colour change costs a
+  // sheet run, never a bake; tintNeutral (read by the bake) still changes every job that takes the shared sections
+  it('a skin tone, hair colour or tintJitter change moves only the sheet hash; tintNeutral moves every kit-carrying job', () => {
+    type K = typeof realKit;
+    const hashes = (k: K) => {
+      const out: Record<string, string> = {};
+      for (const st of STAGES) {
+        const jobs = jobsFor(st.name, k);
+        const f = hashesFor(jobs);
+        for (const j of jobs) out[j.id] = inputHash(j, f, upstreamFor(j));
+      }
+      return out;
+    };
+    const base = hashes(realKit);
+    const edit = (fn: (k: K) => void) => { const k = structuredClone(realKit); fn(k); return hashes(k); };
+    const changed = (h: Record<string, string>) => Object.keys(base).filter((id) => h[id] !== base[id]).sort();
+    const sheetOnly = jobsFor('sheet', realKit).map((j) => j.id).sort();
+    expect(sheetOnly.length).toBe(1);
+    expect(changed(edit((k) => { k.skinTones[0]!.rgb = [0.7, 0.4, 0.3]; }))).toEqual(sheetOnly);
+    expect(changed(edit((k) => { k.hairColours[0]!.rgb = [0.05, 0.04, 0.03]; }))).toEqual(sheetOnly);
+    expect(changed(edit((k) => { k.tintJitter = 0.08; }))).toEqual(sheetOnly);
+    expect(plan.RUNTIME_ONLY).toEqual(['skinTones', 'hairColours', 'tintJitter']);
+    // prep's kit slice is the bases' ids, heights and builds only (never the shared sections)
+    const kitJobs = Object.keys(base).filter((id) => !id.startsWith('prep')).sort();
+    expect(changed(edit((k) => { k.tintNeutral.fabric = 0.41; }))).toEqual(kitJobs);
+  });
+
   it('outfits are garment jobs per base, never gear jobs: jacket on average only, rolled sleeves and work on lean only', () => {
     const outfits = kit.pieces.filter((p) => p.kind === 'outfit').map((p) => p.id);
     expect(outfits).toHaveLength(4);

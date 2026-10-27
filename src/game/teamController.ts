@@ -858,7 +858,7 @@ export class TeamController implements KitHost {
     const c = g.player.controller;
     this.offer = null;
     const mates = this.mates();
-    if (!mates.length || g.takedown.active || g.strike.active) return false;
+    if (!mates.length || g.takedown.busy || g.strike.active) return false;
     const free = !g.traversal.committed && !g.traversal.attached && c.grounded && !c.override;
     let near = Infinity;
     for (const m of mates) near = Math.min(near, hyp2(m.pos.x - c.pos.x, m.pos.z - c.pos.z));

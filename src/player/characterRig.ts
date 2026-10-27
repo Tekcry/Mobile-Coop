@@ -88,6 +88,8 @@ export interface RigPose {
   landing?: number;
   /** Back to a wall (the flat-back high stance). */
   wall?: boolean;
+  /** (piano-knife S4b) The piano intro pose. */
+  intro?: boolean;
   /** (doorPeek parity) Still, the feet step onto the stance spots under the root, as on a wall: the same on every peer
    *  whatever the approach and the frame rate left (the door peek). */
   settleFeet?: boolean;
@@ -1843,6 +1845,7 @@ export class CharacterRig {
     i.dash = s.dash ?? 0;
     i.landing = s.landing ?? 0;
     i.wall = s.wall ?? false;
+    i.intro = s.intro ?? false;
     i.wallSide = s.wallSide ?? 0;
     i.wallTurn = s.wallTurn ?? 0;
     i.wallBlock = s.wallBlock ?? 0;

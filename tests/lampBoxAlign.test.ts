@@ -201,11 +201,12 @@ describe('the A3 corridor: no lamp shadows itself from its ceiling', () => {
 
 /**
  * Lamps with solid occupancy right under the light point (`map:id`), accepted (LR16-L A2): the light sits on top of its
- * own post, so the post shadows its own base and nothing else.
+ * own post, so the post shadows its own base and nothing else. (light-realism L1: the S1 car-park columns and the lane
+ * floodlight left this list: their light points hang 0.8 m out on arms, campusS1.ts column block; the 26 column heads
+ * moved the bike shelter and bollard ids up to 28 and 29-36.)
  */
 const ON_ITS_POST: Record<string, string> = {
-  ...Object.fromEntries(Array.from({ length: 15 }, (_, k) => [`campusOps:${k + 1}`, 'S1 lane / car park floodlight at the top of its 6.0 m pole (campusS1.ts:222, 233, 237)'])),
-  ...Object.fromEntries(Array.from({ length: 8 }, (_, k) => [`campusOps:${k + 17}`, 'S1 forecourt bollard: light point 0.05 m inside the top of its 0.9 m post (campusS1.ts:269)'])),
+  ...Object.fromEntries(Array.from({ length: 8 }, (_, k) => [`campusOps:${k + 29}`, 'S1 forecourt bollard: light point 0.05 m inside the top of its 0.9 m post (campusS1.ts:295)'])),
   'warehouseOps:34': 'exit sign, a wall bulkhead 0.09 m off the wall face (warehouseS1.ts:83): wall-mounted, accepted (lead, LR16-W)',
   'warehouseOps:53': 'exit sign, a wall bulkhead 0.09 m off the wall face (warehouseS1.ts:92): wall-mounted, accepted (lead, LR16-W)',
 };
@@ -214,7 +215,13 @@ const ON_ITS_POST: Record<string, string> = {
  * Remove an entry when its lamp moves (or move it to ON_ITS_POST when the lead accepts it); the test then keeps it out.
  */
 const KNOWN_EMBEDDED: Record<string, string> = {
-  'campusOps:16': 'S1 bike shelter fitting (-5, 2.2, -48) flush with the roof underside at 2.2 (campusS1.ts:254); tagged out (radius 0, off): bakes nothing',
+  'campusOps:28': 'S1 bike shelter fitting (-5, 2.2, -48) flush with the roof underside at 2.2 (campusS1.ts:280); tagged out (radius 0, off): bakes nothing',
+  // (mission-engine member d, Campaign Build, prototype mode: note and ship) Tallow Wharf: 0-17, 28-41, 44-48 and 58-62
+  // have a conduit run (LIGHT.md rule 6, tallowWharfW*.ts) ending at the light point; 42 and 43 are desk lamps on their
+  // desks, 109 and 110 sit 0.1 m over their mounts; 92 (the turret clock's gas jet, tallowWharfW3.ts:387) is buried 1 m
+  // inside the clock block (:202) and lights nothing. Light-pass items: end each run at the fitting's top, move 92 out,
+  // then move the mounted ones to ON_ITS_POST.
+  ...Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 58, 59, 60, 61, 62, 92, 109, 110].map((k) => [`tallowWharf:${k}`, 'Tallow conduit run or mount at the light point (light-pass item)'])),
 };
 
 describe('every map: no lamp embedded in its own mount', () => {

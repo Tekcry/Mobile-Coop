@@ -52,7 +52,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   overlooks the vent run or its exit, not in the vent (G378). Built: talking pairs on a timed loop that meet, and search
   when the partner is missing at the meeting (guard-ai S10, "Talking pairs" below), plus the squad radio checks. Built
   dark behind `guardPairs` (guard-rules S6, J15): a partner check while the pair walks between meetings, and posted
-  (static) pairs that talk and check. Lookouts: guard-rules S7 (PR4, `lookouts`).
+  (static) pairs that talk and check. Lookouts: built dark behind `lookouts`
+  (guard-rules S7, A9; Posts below).
 - Decided (G327, "Yes, shadow in view = seen"; G382, "Like on screen"): a guard whose shadow falls in view animates
   like an on-screen guard (`animTierView.ts`; replaces G294's assumption). Built (J4, #438; `animShadow`).
 - Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
@@ -182,11 +183,24 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   and gives only a turn's meter floor. A search (a body, a radio check, after combat) and his investigate spot are
   clamped into the leash; he wakes no knocked-out guard outside it; in combat `chasePoint` / strafe points are clamped,
   cover outside the leash is skipped, and a target outside it (+1.5 m) is held from the post (the `hold` rule); he
-  never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`). The sector tags: next
-  entry (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and `SectorDef.noisy` /
-  `entries`; `EnemyManager.mapNoisy` loads the map's noisy things as the masking, Sector Ops swaps in the live
-  section's (`setNoisy` on load). Checks: `validateGuardAi` / `validatePosts` run on load in dev (console warnings via
-  `reportGuardAi`, never a throw) and in `tests/postsWiring.test.ts` over every live map's sectors.
+  never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`).
+  A lookout (guard-rules S7, A3, A9; flag `lookouts`, `?lookouts=1`): `PostDef.lookout`, a perch with a leash of at most
+  `POST.lookoutLeash` 1 m, never `free`. Flag on, `placeSlot` gives him a high-security copy of the post (`slotPost`,
+  load time; the slot's own object is untouched), so every rule above holds him: never sent, never leaves, a lure only
+  turns him. Flag off it is no post (today's guard). A dog is never a lookout. When he grows suspicious by sight (a rise
+  into suspicious or investigating with `riseCause` `RISE_SIGHT`) he radios it: `EnemyManager.lookoutStep` barks
+  `spotCall` (urgent, so it follows his own "Huh?") and reports a `noise` incident at his stimulus (`stimX` / `stimZ`,
+  the floor the lowest walkable layer under it) with no perceivers, so the board sends the best-placed calm free guard
+  within `INCIDENT.callR` 25 m (its usual pick: path length weighted by officer, caution, role and zone). It is a
+  radioed sighting, not a sound, for the guard sheet and J13's cause log. At most every `LOOKOUT.callCd` 20 s per
+  lookout (per awareness key, kept over a revive); coordinated modes only; host only, no wire.
+  Map authors (M3): a lookout on a vent route stands where he overlooks the vent run or its exit. The first is S5's
+  roof marksman (S9). Tests: `tests/lookout.test.ts`; e2e: e2e-sectorops part 1 "lookouts (guard-rules S7)".
+  The sector tags: next entry (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and
+  `SectorDef.noisy` / `entries`; `EnemyManager.mapNoisy` loads the map's noisy things as the masking, Sector Ops swaps
+  in the live section's (`setNoisy` on load). Checks: `validateGuardAi` / `validatePosts` run on load in dev (console
+  warnings via `reportGuardAi`, never a throw; a lookout's leash and `free` checked too) and in
+  `tests/postsWiring.test.ts` over every live map's sectors.
 - Sector tags (guard-ai S5b, ENGINE.md section 7 on sector-redesign, A26-A28; `ai/sectorTags.ts` pure, the type
   `GuardSlotTags` in `ai/guardAiData.ts`): `SectorGuard`'s `squad` / `handler` / `zone` / `role` / `reason` / `pair` are
   read by `EnemyManager.placeSlot(e, slot, section, slots?, index?)` (`sectorMode.fill` passes the section's `guards` and
@@ -199,9 +213,15 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   assign takes perceivers first); parked modes, the caller searches (old rule). `handler`: the dog is bound
   (`Enemy.handler`, set when both are placed, either order) and heels on him only (`findLeader`); he goes down: the dog
   searches round him, barks (`TAGS.dogBark` 14 m noise via `hear`, the dog skipped) and keeps its heel spot by him; a
-  woken handler takes it back (`swapSlot`), a despawned one frees it. `zone`: a secure zone (`isSecureZone`: 'secure'
-  or a word 'sec') gives the guard a circle (`zoneRadius`: post leash, else 8 m / route reach + 2) in the board's view
-  (`GuardView.setTags`): inside it he counts as a perceiver and ranks first (x `TAGS.secureFirst` 0.25); after a search
+  woken handler takes it back (`swapSlot`), a despawned one frees it. (guard-rules S8, A12, flag `dogRelease`) A stage
+  with `releaseDogs` (campus S4 stage 2, S5 stage 1) lets the live section's free dogs off the heel
+  (`SectorStageRun.raise` -> `dogs`, `SectorMode.releaseDogs`, `Enemy.releaseHeel`): each hurries to the shared last
+  known position (none: its handler) and searches it, then heels again; a dog already searching starts over round the
+  release spot; a section start at a carried stage does not release (S8-a); a dog still waiting in the fill queue at the
+  raise is not released once it spawns; a camera or laser alarm with no shared position sends the dogs to search round
+  their handlers (S8-d). Host only. `zone`: a secure zone (`isSecureZone`: 'secure' or a word 'sec') gives the guard a
+  circle (`zoneRadius`: post leash, else 8 m / route reach + 2) in the board's view (`GuardView.setTags`): inside it
+  he counts as a perceiver and ranks first (x `TAGS.secureFirst` 0.25); after a search
   every guard walks back to his own post / route (the walker; no new code). `role` (on the guard `Enemy.job`, the word, and `roleFlags`, `ROLE_CLASS`; `Enemy.role` is S8's numeric combat role): the
   alarm runner (`alarmRunMul`: supervisor 0.1, officer 0.25), the board's score (`roleSendMul`: supervisor sends
   someone x1.6; a light: rover x0.8, fixed post x1.5). `reason` stored (`Enemy.reason`); `pair` stored
@@ -746,6 +766,32 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
     sighting or a stimulus; else today's feet rule. Hardening, not reachable today (`KNOWN_NEEDS_SPOT`).
   - T1: `tests/reconDroneSight.test.ts` covers the recon drone's sight verdict (a hit within 0.3 m of the aim point
     sees; a miss sees; no ray outside the cone unless within 3 m).
+
+## Scene sweep (storm-mill scene, guard-ai piano GA6)
+Michael 2026-10-26: "The guards must move slowly and methodically to find both players". Scene only: everything is
+gated on `EnemyManager.sceneDark` (set by the piano scene behind `flags.pianoEscape`); off the scene nothing changes.
+Plan: `docs/guard-ai/slices/PIANO-GA6-PLAN.md` (section 8 over 2-5); reports `PIANO-GA6A-REPORT.md`, `PIANO-GA6B-REPORT.md`.
+- **Plan** (`src/ai/sceneSweep.ts`, pure): a guard's route (or post) becomes a fixed timed lap at `SCENE_SWEEP.pace`
+  (0.7 m/s): corners (wait 0) pass, a pan stop (wait > 0, default 3 s) holds until its `leave`; pan centre = `faces[i]`
+  or the arrival heading; two points on one spot with `faces` = a face pan (posts, 8 s each way). Leg times add the
+  calm turn (N2) and `slack`. Built once per guard (`Enemy.startSweep`, cached).
+- **Walker** (`PatrolWalker.setSweep` / `clearSweep`): the pan (left `-side x 0.7` rad at D/4, across to the right,
+  hold) is fed to the goal face, so torch and sight turn together (light parity). It starts once the body is within
+  0.15 rad of it. A long hold looks at the centre first: an early arrival until `leave - D`, then one full cycle; a
+  rejoin's catch-up hold until whole cycles end at `leave`. Any calm return rejoins the pan stop he can be back in step
+  at soonest (`rejoinStop`), at most a lap.
+- **Wiring** (`enemyManager.ts`): every `sceneDark = true` (the EMP, each restart) restarts the sweep clock at 0
+  (it ticks in `update` while dark), clears the talking pairs and puts every placed guard on his sweep (`sweepify`);
+  `placeSlot` sweeps a guard placed while dark instead of `buildPair`. The `pair` tag means sweep partner: the lower
+  slot pans left first, the partner right first, both get each other (`sweepMate`) whichever is placed first; the pair
+  keeps only the missing-partner watch (a `PairMeet` whose window never opens, `watch` on whatever `flags.guardPairs`
+  says: one partner taken, the other notices after 3 s). `sceneDark = false`: everyone off the sweep and rejoined as
+  built, the watch pairs gone.
+- **Enemy** (`enemy.ts`): calm on the sweep he walks at `min(0.7, walkSpeed)`, a calm investigation too (a rush and
+  the search pace as built); the body yaw gates the pan; the soft push skips his sweep mate (the 0.65 m floor stays).
+- **A glimpse** (the PLAN's GA7): no new sight rule. At the board tick, a guard whose rise moved on sight and who is
+  suspicious or investigating sends his calm sweep partner within `PAIRS.togetherR` (4 m) to the same spot
+  (`followGlimpse`: a calm `sendTo`, incident -1, one line: `checking`).
 
 ## Enemy archetypes (2.0 phase 6)
 - `ai/archetypes.ts` (pure, `ARCHETYPE`): `heavyMult` (by `fromFront`), `shieldBlocks`, `grabRule` (heavy frontal = lethal

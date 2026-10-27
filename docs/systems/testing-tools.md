@@ -90,8 +90,8 @@ This page lists the suites and how they are picked.
   laptop; `--quick` reads the working tree). Add `--list` to print the chosen suites one per line and exit without running
   (what the laptop queue service and leads use to know what a PR must pass). The list is `affectedPick`: the map, the wire rule
   (a change on the wire, `src/net/` or a file `src/net/protocol.ts` imports, read at HEAD, also adds the co-op group:
-  `withWireSuites`, after the map), the gate (GPU, LEGACY and AUDIO left out), then the cap: at most 3 suites, the closest
-  (RULES "Test tiers"; ranking in `rankAffected`'s comment; `--affected-max=N` / `E2E_AFFECTED_MAX`, 0 = no cap; `--wide`
+  `withWireSuites`, after the map), the gate (GPU, LEGACY and AUDIO left out), then the cap: `AFFECTED_MAX` suites, the closest
+  (1, G421, RULES "Test tiers"; the co-op group stays whole; ranking in `rankAffected`'s comment; `--affected-max=N` / `E2E_AFFECTED_MAX`, 0 = no cap; `--wide`
   uncapped unless given). Without `--list` it runs them like `--quick`: `smoke` first, suites outside REQUIRED REPORT ONLY.
 - DIRECT rules (default): `src/player` -> move, anim, stealth, clip; `src/anim` -> anim, clip, move; `src/game` -> gadgets,
   tactics, takedown, park, plus `e2e-sectorops` for `src/game/sectors` and `src/game/modes`, the course suites (`e2e-course`,
@@ -218,7 +218,7 @@ behind a VPN adapter).
   slot; a 2-player control (today's rules). The 3-4 browser asserts: `docs/coop4/briefs/AI6-E2E-SPEC.md`
 - `e2e-guard-carry` Warehouse Infiltration (High): a calm holstered grunt and officer (S21 carry) and then drawing ones
   are drawn: body among the active meshes, material ready, GPU-skinned effect (no CPU-skinning fallback), no effect
-  compile error (its error line printed). Run with `E2E_GPU=1`
+  compile error; then figures on, a forced figure compile timeout: the merged body stands in. Run with `E2E_GPU=1`
 - `e2e-takedown` takedown kinds (ground rules, over low cover, above, below, window; the grab - walk, sidearm, human
   shield, knock out / kill / shove - and drop attacks from a pipe / split, the inverted choke), tap / hold, 5 cm
   alignment, damage interrupt; no takedown on a guard in combat who saw you
@@ -246,20 +246,20 @@ behind a VPN adapter).
   syringes line, then section 2 after the connector); the objective popup (shows on a new objective, gone after ~5 s, O
   brings it back) and the field menu's full list on host and client (hud-guidance B1, B4). The quick map picks it for the Sector Ops files, `src/net/`,
   `src/security/`, `src/save/sectorRecord` and the op list screen. `SECTOR_SHOTS=<dir>` adds three layout shots
-  (software GL). (sector-fixes-r RE) It runs as nine jobs, `e2e-sectorops:1` to `:9` (`--part=N`; named alone its parts
-  still run as parallel jobs): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's
-  co-op routes: the game's boost search finds each planned 4.4 m lip from its spot and none at R3N's east face, one
-  player alone never holds a co-op lip (under it: grab / wall jump / jump; a running jump pressed at the face and in the
-  air; R2N's 4.0 top jumped at R3N), the links the routes rely on (S1 monorail up to the bay main and along it onto the
-  deck, the sill climb-up and the crouch-walk under 1.4 m onto the deck, S3's climb-ups under the 1.63 m roof, the
-  valve platform's west lip to the hall main and back, the drive platform's east lip to the branch and the main), every
-  way down alone, and each section's team door (the near side gets no Unbolt and stays locked, the far side's Unbolt
-  opens it and the partner walks through, a checkpoint restart bolts it again); parts 3, 4 and 5 are two pages (host
-  and client) in sections 1, 2 and 3: each co-op route walked with the real buttons (the client's leg-up, then the
-  host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let go)
-  and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
-  re-bolted on both pages by the host's checkpoint restart. Part 7's H8 block (hard rule 9): in campus sections 2-5
-  every spawned guard is alive at section start (TS-private `loadSection` / `unloadSection`; prints `H8 block: <n> s`).
+  (software GL). (sector-fixes-r RE) Its parts (`--part=N`, the jobs above): part 1 is everything above; part 2 (solo, the
+  loop stepped at 120 Hz) checks slice R's co-op routes: the game's boost search finds each planned 4.4 m lip from its
+  spot and none at R3N's east face, one player alone never holds a co-op lip (under it: grab / wall jump / jump; a running
+  jump pressed at the face and in the air; R2N's 4.0 top jumped at R3N), the links the routes rely on (S1 monorail up to
+  the bay main and along it onto the deck, the sill climb-up and the crouch-walk under 1.4 m onto the deck, S3's climb-ups
+  under the 1.63 m roof, the valve platform's west lip to the hall main and back, the drive platform's east lip to the
+  branch and the main), every way down alone, and each section's team door (the near side gets no Unbolt and stays locked,
+  the far side's Unbolt opens it and the partner walks through, a checkpoint restart bolts it again); parts 3, 4 and 5 are
+  two pages (host and client) in sections 1, 2 and 3: each co-op route walked with the real buttons (the client's leg-up,
+  then the host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let
+  go) and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
+  re-bolted on both pages by the host's checkpoint restart. Part 7's H8 block (hard rule 9): in campus sections 2-5 every
+  spawned guard is alive at section start (TS-private `loadSection` / `unloadSection`; prints `H8 block: <n> s`). Parts
+  `mission`, `wharf-tgc`, `wharf-tkl` (Tallow in co-op): their script headers.
 - `e2e-section-rating` (section-rating S7 / S6) the stealth rating: solo Sector Ops (a clean section: 4 ticks; a kill:
   No kills missed; the extraction: results lines), co-op (a synced pair on both cards, the client top-up, the host syringe,
   a rejoin with no second grant) and solo Marlow Yard (A1 unrated, A2 rated with the gadget grant, A3 rated clean after a
@@ -497,22 +497,24 @@ behind a VPN adapter).
   - Serves `dist/` itself when no url is given and nothing is up on 4173. `--shots` is PC only (`E2E_GPU=1`). In
     `run-e2e` it is the REPORT entry; the quick map runs it (`--quick`) for `src/anim/`, `src/player/`, `src/net/` and
     `scripts/e2e-net-lib.mjs`.
-- `node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics docs/design/metrics.json]` (level-validator)
-  the level-graph validator (pure Node, no Babylon, no `src/` import; CI runs its Vitest, `tests/levelValidate.test.ts`).
+- `node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics docs/design/metrics.json] [--require-measured]`
+  (level-validator) the level-graph validator (pure Node, no Babylon, no `src/` import; Vitest `tests/levelValidate.test.ts`).
   Reads one map graph (several files, one per section, are merged: `meta` from the first, `spaces` and `links`
   concatenated) and checks it against OUR numbers: structure, dimensions (room classes, openings, 0.5 m grid, ceilings,
   level changes in the step band over 0.40 up to 0.45 m, corridor widths), 2-player reach with no softlock, the linear
   spine between sections, encounter approaches (3+ links that can enter the space, of 2+ kinds, shadow + high + loud,
   routes cross; dead ends counted by ways out), 2+ edge-disjoint routes per section (entry to exit), co-op coverage,
-  co-op links with a solo twin (ERR on a campaign map, WARN on Sector Ops) and splits (legs <= 90 s, parity within 20% by link traversal time, an
-  overwatch space, an assist, partner reach <= 15 s, shared links >= 2.0 m) and beat pacing. Declared `shadow_pct`,
-  `sees_pct`, `los_break_s` and partner reach are targets (missing or outside = ERROR); the greybox measurement step
-  (V6, later) will write `measured` values beside them. It holds no size or time constant: every number comes from
-  `docs/design/metrics.json` (`--metrics <path>` overrides it). Output: `ERROR: ...` / `WARN:  ...` / `INFO:  ...` lines,
-  then `N error(s), M warning(s).` (guard counts below 3-6 early / 6-10 late WARN; no upper limit, Michael 2026-10-24). Exit codes: 0 no errors (WARNs allowed, justify them in the map's design doc), 1 any ERROR, 2 bad
-  usage. When it runs: for every map, before Phase 3 (greybox), as the gate at the end of Phase 2 (`docs/level-design.md`
-  sections 11, 14 and 15; `docs/templates/map-spec.md`). Schema and an example graph: `docs/level-validator/graph-schema.md`,
-  `docs/level-validator/example.graph.json`. First run: campus Sector Ops, all five sections (S1-S5).
+  co-op links with a solo twin (ERR on a campaign map, WARN on Sector Ops, INFO on training) and splits (legs <= 90 s,
+  parity within 20% by link traversal time, an overwatch space, an assist, partner reach <= 15 s, shared links >= 2.0 m)
+  and beat pacing. Declared `shadow_pct`, `sees_pct`, `los_break_s` and partner reach are targets (missing or outside =
+  ERROR); `level-measure` (below) writes `measured` beside them; `--require-measured` makes a missing one an ERROR (the
+  greybox exit gate). Checks: `scripts/level-checks/`; numbers: `docs/design/metrics.json` (`--metrics <path>` overrides).
+  Output: `ERROR` / `WARN` / `INFO` lines, then `N error(s), M warning(s).` (guard counts below 3-6 early / 6-10 late
+  WARN; no upper limit, Michael 2026-10-24). Exit 0 no errors (justify WARNs in the map's design doc), 1 any ERROR, 2
+  bad usage. Runs for every map as the Phase 2 gate before greybox (`docs/level-design.md` 11, 14, 15). Schema and
+  example: `docs/level-validator/graph-schema.md`, `example.graph.json`. First run: campus Sector Ops S1-S5.
+- `npm run validate:levels` (`scripts/level-graphs.mjs`) runs every set in `docs/level-validator/graph-sets.json`, exit 1
+  when a count differs from it (`--write` rewrites runs and counts); `tests/levelGraphs.test.ts` pins the same counts.
 - `node scripts/metrics-gen.mjs` (level-validator) parses `docs/design/scale-sheet.md` (sections 1 and 3, the section 7
   room table "Room sizes by type" and section 8 "Validator numbers": speeds, split / reach times, shared width, shadow,
   vantage and LOS targets, step band, grid) and writes `docs/design/metrics.json`, the one source of sizes and times
@@ -524,10 +526,8 @@ behind a VPN adapter).
 ## Measure CLI (`scripts/level-measure.mjs`)
 `node scripts/level-measure.mjs <graph.json> [more.json ...] [options]` (level-validator, validator-port S2) measures on
 the built greybox what a map graph only declares, and writes the numbers back beside the targets as `measured`. Headless Node
-(Vite's SSR loader runs the TypeScript, no browser, no GPU), so it also runs in a cloud session. It is not in
-`package.json` yet (validator-port S5 owns that): run it as `node scripts/level-measure.mjs`. The rules it holds a graph
-to, and the order of the validator-port work, are in the validator-port PLAN (section 8 for `--points`, section 7 for
-`--flags`); this section only says how to run it.
+(Vite's SSR loader runs the TypeScript, no browser, no GPU), so it also runs in a cloud session (or `npm run
+level-measure -- <graph.json> ...`). Its rules: the validator-port PLAN (section 8 `--points`, section 7 `--flags`).
 - What it measures, per space with an `area`: floor shadow %, vantage visibility %, LOS-break time; per split: leg times
   and partner reach; per link with an area at both ends: traversal time and path length. A campaign graph
   (`meta.mode` `campaign`) also gets `meta.measured.ways_back`: for every co-op link, the time back from the `to` floor to
@@ -557,20 +557,80 @@ to, and the order of the validator-port work, are in the validator-port PLAN (se
 - Exit codes: 0 ok, 1 a `--check` failure, 2 bad usage, an unreadable file or an unknown map. Tests:
   `tests/levelMeasureCli.test.ts` (parsing, the JSON patcher, `--flags`) and `tests/levelMeasure.test.ts`.
 
+## Route-runs (`scripts/route-run.mjs`)
+A robot pair walks every declared route of a map against its live guards and writes a plain report (job route-runs,
+Marlow Build). It is the greybox exit's bot route-run (`docs/level-design.md` 14 (2)):
+a map passes when no run has a dead stop. Detections, notices and times never fail it; they go on the walk card.
+- Command: `node scripts/route-run.mjs <url> --graph <files...> [options]`, `--merge <map> <sha> --out <dir>` (no
+  browser) or `--selftest [<fixture>]`. Options (`parseArgs` in the script): `--points <file|auto>` (the point table;
+  `auto` makes it with `level-measure`, `points.mjs` refuses a table that does not match the graphs), `--section S1`,
+  `--routes graph|code` (code: the map's own `SectorRoute` lists, "code routes, not a gate run"), `--players 1|2`
+  (default 2; a selftest takes its fixture's), `--pace sneak|walk|run` (default `sneak`: crouched at
+  `split_speed_mps`), `--detections forgive|keep` (default `forgive`: each detected guard is calmed after it is logged),
+  `--out <dir>`, `--publish`, `--dry-run` (prints the plan, opens no browser). Query params on `<url>` are kept.
+- Request (laptop only, a browser run, `E2E_GPU=1` is set for alone steps): one alone request per section, so a train
+  preempts one section at most:
+  `node scripts/laptop-queue/request.mjs --sha <full sha> --alone --step "serve scripts/route-run.mjs
+  http://127.0.0.1:4189/ --graph docs/sector-redesign/graph/campusOps-S1.json --points auto --section S1 --publish"
+  --set route-run-s1 --requester "<lead title>"`; verdict `laptop-e2e/alone-route-run-s1`. Not an e2e suite: never in
+  `npm run e2e` or `affected-e2e`. A crash or timeout mid-run is not a pass. Selftests (a fixture carries its own graph,
+  points and `expect` block): `tests/fixtures/route-run/selftest*.graph.json` (default `selftest.graph.json`).
+- Outputs (in `--out`, default a temp folder that is printed): `route-run-log.json` (the run log), `route-run.json` and
+  `REPORT.md` (summary per run, every detection, notice, dead stop, stub and drill, the walk-card lines), `shots/` (one
+  screenshot per dead stop). The log is also printed between `ROUTE-RUN-REPORT BEGIN` / `END`. `--publish` commits the
+  log and `REPORT.md` to branch `route-run-results` (`<map>/<sha8>-<time>/`, git plumbing, no checkout:
+  `scripts/route-run/publish.mjs`). On the desktop, `--merge <map> <sha> --out <dir>` joins one commit's parts into the
+  map's `route-run.json` and `REPORT.md`; the map lead commits them beside its graph at greybox exit. Times are game
+  seconds. A run with a dead stop has no valid time ("n/a, stuck").
+- Dead stops (`deadStops[].class`; each logged with place, graph link and a screenshot, then the robot is placed past the
+  link so one run reports every stop):
+  - `no-nav-path` and `could-not-follow`: a walking robot made under `STUCK_MIN_PROGRESS_M` (0.5 m) of progress along
+    its path in `STUCK_WINDOW_S` (8 s). A nav probe tells the map (no path from there) from the robot (path exists).
+  - `step-timeout`: a link step ran past its limit (`stepLimit`, `scripts/route-run/progress.mjs:315`), or a run past
+    `RUN_CAP_S` (`driver.mjs:53`). Limits: door `DOOR_LIMIT_S` 5 s, ladder `LADDER_LIMIT_S` 15 s plus
+    `LADDER_LIMIT_PER_M_S` 1 s per metre, drop `DROP_LIMIT_S` 5 s, window `WINDOW_LIMIT_S` and hatch `HATCH_LIMIT_S` 8 s,
+    duct `DUCT_LIMIT_PER_M_S` 2 s per metre, objective its hold plus `OBJECTIVE_EXTRA_S` 5 s
+    (`progress.mjs:23-37`).
+  - `locked`: a door on the path stays locked (in course mode, `UNLOCK_WAIT_S` 5 s after its drills,
+    `course.mjs:37`).
+  - `restart-loop` (course mode): the game sent the pair back twice from one place (`PER_PLACE`, `course.mjs:33`) with no
+    guard, camera or timer behind it.
+  - A run that could not be planned (a space with no `area`, a link with no point) or set up (a guard missing at the
+    section start) is `unplannable`: not walked, so not passed.
+  These are tool tolerances, not level numbers: change them in `progress.mjs` / `course.mjs`, never in the standard.
+- Marlow Yard (course mode): `course.mjs` holds the rules. A course door locked by its set's drills (`onLockedDoor`):
+  both robots stand at it crouched for the drill hold (`drillHold`: the set's `teach` link time, else `DRILL_HOLD_S`
+  10 s, `course.mjs:35`), then each drill still open is completed through the page and listed as a drill stub (never
+  walked). Restarts and retries (`onRestart`, `onPoll`): a restart seen within `CAUSE_WINDOW_S` (2 s,
+  `course.mjs:31`) of a guard rise or camera alarm is a detection; the second from one place turns that set's spotted
+  rule off and places the robots past the link (a push past, `pass`, walk-card line "seen again at <place>, robot pushed
+  past"). A restart with a timer behind it is a restart line only; the second from one step drill-stubs that step ("not
+  made at sneak pace"). Any other restart is logged and the second from one place is the `restart-loop` stop. The
+  report's Marlow time line (total, walked, holds against 15-20 min, 900-1200 s) is a report only.
+- Stubs (every one listed with its hold, never counted as walked): every co-op link kind (`COOP_KINDS`) is a stub: both
+  robots stand at its near point crouched in the live guard field for the move's time, then are placed past it.
+  Their own co-op tests cover the moves. `ledge`, `pipe`, `wall_jump` and `split_jump` are stubs too (`steps.mjs`
+  `RARE_KINDS`). Walked with real pad input: doors, `ladder`, `drop`, `window`, `hatch`, `duct`, `rappel`. R9
+  (`coop.mjs`) replaces the co-op boost and human ladder stubs with the real leg-up.
+- Limits: two players only (Sector Ops guards that spawn only at 3 or 4 players never meet the pair);
+  campaign strict-rule restarts are not watched; only course mode (Marlow Yard) has drill and restart handling.
+- Tests: `npx vitest run tests/routeRun*.test.ts` (pure parts).
+
 ## Laptop queue
 A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task every minute; its first build plan:
 `docs/archive/laptop-queue-PLAN-2026-10-23.md`, history) runs e2e for you and posts the verdict as a commit status on the
 tested sha. No message per verdict. Slots, job counts and the desktop's gates: `docs/RULES.md` "Machines".
 - Request (from any desktop, never touches your working tree): `node scripts/laptop-queue/request.mjs --sha <ref> [--pr N]
   [--set name] [--jobs N] [--requester "<title>"] (--suites "e2e-coop e2e-netmove" | --full | --alone --step "<cmd>" [--env K=V])`.
-  Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
-  the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
+  Needs a pushed sha; pushes `requests/<id>.json` to the `laptop-queue` branch, prints the id (`--dry-run`: shows, no push).
+  An `--alone` step may start with `serve ` (`serve.mjs`); a `scripts/perf.mjs` step gets `--budget` unless it says `--no-budget` (`perfStep`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
-  `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full requests (one slot): front
-  branches (`LQ_FRONT_BRANCHES`; no wait bound, by design: Michael's Mixamo priority), green PRs smallest first
-  (`LQ_GREEN_FIRST`; the oldest non-front request over `LQ_GREEN_MAX_WAIT_MIN` (30) first), then arrival order; a head
-  conflicting with master gets no affected run; then alone-measurements (both slots; over 30 min (`ALONE_AGE_MIN`) ahead
-  of pr work). A train head that moves: `docs/systems/auto-train.md` "What the laptop queue service provides".
+  `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full requests (one slot): fixes
+  (PR label `fix`, `request.mjs --fix` or a laptop rerun of a desktop red, F52; `LQ_FIX_FIRST` 0 = off; no wait bound), front branches (`LQ_FRONT_BRANCHES`;
+  no wait bound, by design: Michael's Mixamo priority), green PRs smallest first (`LQ_GREEN_FIRST`; the oldest non-front
+  request over `LQ_GREEN_MAX_WAIT_MIN` (30) first), then arrival order; a request that supersedes another keeps its place;
+  a head conflicting with master gets no affected run; then alone-measurements (both slots; over 30 min (`ALONE_AGE_MIN`)
+  ahead of pr work, fixes too). A moved train head: `docs/systems/auto-train.md` "What the laptop queue service provides".
 - Train reruns (2026-10-24, auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
   `"trainRerun": true` (kind pr). It runs right after trains, before every other request and alone run, never held by
   the alone hold, at `E2E_JOBS=1`, sharded over both slots when free (`LQ_RERUN_SHARD`), else one (never the desktop).
@@ -583,18 +643,18 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   in order, env, set, jobs, pr; any requester) is marked done unrun as "duplicate of <id>" (one push, no status) while
   that one is open (older), claimed or running on either worker, or was done on this worker within `LQ_DUP_WINDOW_MIN`
   (60) min with result success. A failure, error, build, nosha or incomplete result never retires a new request (a
-  rerun of a failure runs, e.g. the laptop's rerun of a desktop failure, or a `--jobs 1` solo rerun). Supersede still
-  retires one requester's older pr / full requests; a supersede on the same sha hands over instead of posting error.
-  Affected requests (4.101.1): a duplicate hands `affected-e2e` over to the surviving affected request (pending "handed
-  over to <id>") or posts success when it repeats a recent pass, and is never retired against another requester's run;
-  an affected request or laptop rerun withdrawn before it ran posts error "withdrawn by the requester (not run)".
-  state.json keeps done entries 7 days (pruned on each save once their done claim is on the branch).
+  rerun of a failure runs: a laptop rerun of a desktop failure, a `--jobs 1` solo rerun). Supersede still retires one
+  requester's older pr / full requests; on the same sha it hands over instead of posting error. Affected requests
+  (4.101.1): a duplicate hands `affected-e2e` over to the surviving affected request (pending "handed over to <id>") or
+  posts success when it repeats a recent pass, and is never retired against another requester's run; an affected
+  request or laptop rerun withdrawn before it ran posts error "withdrawn by the requester (not run)". state.json keeps done entries 7 days.
 - Yield (2026-10-24): while a train head is pending, a pr / full / alone run that has not started its suites or steps
   (waiting for its lock, fetch, npm ci, build) gives its slot back: locks released, claim dropped, log "<id>: yields to
-  train <n>"; the request stays queued. Once its suites or steps start it runs on, except where lib `cutShort` cuts it:
-  a withdrawn request stops; for a pending train a plain pr run under 80% of its expected wall is killed when every
-  other run on the worker is a plain pr too, and an alone run younger than 10 min is killed and queued again first. A
-  train rerun never yields.
+  train <n>"; the request stays queued. Once started it runs on, except where lib `cutShort` cuts it: a withdrawn
+  request stops; a plain pr run under 80% of its expected wall is killed for a pending train when every other run on the
+  worker is a plain pr too; an alone run younger than 10 min is killed and queued again first; a pr run on an old PR head
+  stops when a newer head queues (`LQ_STOP_SUPERSEDED` 0 = off). A train preempt keeps the suites that passed
+  (`LQ_KEEP_FINISHED` 0 = off). A train rerun never yields.
 - Train soon (laptop-queue-6, lib `nextTrain`): the laptop predicts the next train head (ETA) and, while no train is
   pending, holds new claims until ETA + `LQ_TRAIN_LATE_MIN` (5) min. Candidates: train-ready PRs whose head is in no
   open train and not in `origin/master`; green = `check` passed (its first-seen-green time is kept in state.json),
@@ -611,38 +671,41 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
-- Affected e2e on every PR head (process audit 2026-10-24, finding 5; laptop service only, every `LQ_AFFECTED_POLL_MIN`
-  (2; 0 = off) min): each open non-train, non-draft PR head with no `affected-e2e` status and no open affected request
-  gets the suites `request.mjs --affected` picks (merge-base with `origin/master`, `git diff --name-only --no-renames`,
-  the DIRECT tier; the same code, `affectedSuites` in `scripts/laptop-queue/lib.mjs`), without the GPU and LEGACY
-  suites (`affectedGateSuites` in `scripts/e2e-affected.mjs`, which holds the runner's GPU / LEGACY lists: a request's
-  suites run by name, where nothing is REPORT ONLY, so they used to run and gate; audit 2026-10-25). No browser suite reached: the
-  head gets `affected-e2e` success "no browser suites (docs / unit only)". Otherwise the service enqueues a pr request
-  itself (requester `affected-e2e`, set `affected`, the PR number and branch) and posts `affected-e2e` pending; the run
-  posts its verdict on `laptop-e2e/affected` and on `affected-e2e` (failures comment on the PR as usual). A newer head
-  on the same branch supersedes the older open request (its `affected-e2e` gets error "superseded"); other PRs' requests
-  never supersede each other, and each PR branch takes its turn in arrival order beside the leads' requests. Opt out
-  per PR with the label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
-  (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
-  affected request is requested again (4.101.1). A lead's own `request.mjs --affected` still works as before.
+- Light parity on every train (Michael 2026-10-25, Q27; J20): each train run adds `e2e-darkness` (lib `TRAIN_PARITY`), so a
+  light-meter-vs-picture failure fails `laptop-e2e` and holds the release. Off with no release: `config/train-parity.json`
+  `{ "off": true, "why", "by" }` on `laptop-queue` (pending says "; parity off"; delete to undo; tell Sector Ops) or `LQ_TRAIN_PARITY=off`.
+- Affected e2e on every PR head (process audit 2026-10-24; laptop only, every `LQ_AFFECTED_POLL_MIN` (2; 0 = off) min): each
+  open non-train, non-draft PR head with no `affected-e2e` status and no open affected request gets the suites `request.mjs
+  --affected` picks (merge-base with `origin/master`, `--no-renames`, the DIRECT tier; lib `affectedSuites`). Only gate suites
+  gate, also in a desktop failure's laptop rerun (`affectedGateSuites`: no GPU, LEGACY or AUDIO); LEGACY / AUDIO ones go in its
+  `report` list in the slots the cap leaves (lib `affectedReport`) and run after them with `E2E_REPORT`, REPORT ONLY (J20 T4).
+  None reached: `affected-e2e` success "no browser suites (docs / unit only)". Otherwise it enqueues a pr request (requester
+  `affected-e2e`, set `affected`, PR number, branch) and posts `affected-e2e` pending; the verdict goes to
+  `laptop-e2e/affected` and `affected-e2e` (failures comment on the PR as usual). A conflicting head gets error, not a run;
+  F51: after master moves, open affected requests' PRs are re-read (`LQ_MERGE_RECHECK_S` 60 s, `LQ_MERGE_RECHECK_MIN` 10 min)
+  until known and a conflict retires at once. A newer head on the same branch supersedes the older open request (its
+  `affected-e2e` gets error "superseded"); other PRs never supersede each other and take turns in arrival order beside the
+  leads' requests. Opt out: label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork
+  heads (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
+  affected request is requested again (4.101.1). A head with only docs-only commits since the last final verdict carries it, or
+  waits for a live older request (`LQ_PR_CARRY` 0 = off).
 - Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
-- Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` (task
-  `NightShift-desktop-queue`, `install-task.ps1 -Worker desktop`) takes pr requests only, on 4191 in
-  `C:/NightShift/Mobile-Coop-testrun-4191` under `C:/NightShift/heavy.lock` (and 4192 in `...-testrun-4192` under
-  `heavy2.lock`), `E2E_GPU=1 E2E_JOBS=1`. Its start gates (backlog, CPU, lock, laptop silent for trains) are in
-  `docs/RULES.md` "Machines"; the env names are `LQ_DESKTOP_BACKLOG` (service default 3, `install-task.ps1` default 0),
-  `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2` (80; CPU of Normal or higher priority processes, lib `gatedCpu`) and `LQ_LAPTOP_SILENT_MIN` (10). Full and
-  alone runs stay on the laptop. Its statuses read "desktop: ..."; logs
-  `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
-  While auto-train runs `merge-train build` it writes `<AUTO_TRAIN_SCRATCH or C:/NightShift/scratch>/auto-train-building.json` ({ train, version,
-  pid, at }; deleted as soon as the version commit is pushed, and again when the build ends); while that file exists and
-  is younger than `LQ_BUILD_MARKER_MAX_MIN` (30) min the desktop starts no new request or train (log "train <n>
-  building: no new claims", once per marker; an older one is ignored as stale, logged once; runs already going
-  continue). `LQ_BUILD_MARKER` overrides the path (tests).
-- Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
-  a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
+- Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` takes pr requests only
+  (fixes first, then smallest first, none over `LQ_DESKTOP_MAX_MIN` (15) min), on 4191 in
+  `C:/NightShift/Mobile-Coop-testrun-4191` under `heavy.lock` (4192: `...-testrun-4192`, `heavy2.lock`), `E2E_GPU=1
+  E2E_JOBS=1`. Start gates: `docs/RULES.md` "Machines"; env `LQ_DESKTOP_BACKLOG` (service default 3, `install-task.ps1`
+  0), `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2` (80; CPU of Normal or higher priority processes, lib `gatedCpu`;
+  `LQ_DESKTOP_CPU_MODE=total` = whole machine), `LQ_LAPTOP_SILENT_MIN` (10). Statuses read "desktop: ..."; logs
+  `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/`. While auto-train's build marker
+  (`docs/systems/auto-train.md`; `LQ_BUILD_MARKER` overrides its path for tests) is under `LQ_BUILD_MARKER_MAX_MIN` (30)
+  min old the desktop starts no new request or train (logged once per marker; an older one is ignored).
+- Claims: before a run each worker pushes `claims/<id>.json` (a train: `claims/<sha>.json`) to `laptop-queue`, marked
+  done after. Both workers heartbeat their running claims (`LQ_HEARTBEAT_MIN` 5; a failed push retries each loop); an
+  open claim unbeaten for `LQ_CLAIM_BEATS` (4) beats, 20 min, is taken over (no beat field: `LQ_CLAIM_MAX_H`, 3 h) and
+  the run that lost it stops, posting nothing. A lost train verdict or done claim retries each pass (`LQ_TRAIN_RETRY` 0
+  = off); the alone hold drops a head whose verdict this worker holds or that has a done claim.
 - Spare work (laptop-queue-5; laptop only): once both slots sit idle with no open request and no pending train for
   `LQ_SPARE_IDLE_MIN` (5; 0 = off) min, the service queues the next job of `docs/laptop-queue/spare-jobs.json`
   (round-robin, never a set already queued on that sha) on the `origin/master` head as an ordinary request (requester
@@ -650,15 +713,14 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   `pick` starts no spare while a real request is listed. `request.mjs` refuses unknown suite names at request time.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
   Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
-- Scheduled tasks (Michael 2026-10-24 07:13, after 87 old hand-made `NightShift-chain-*` one-shots fired again at
-  2026-10-23 23:59 and held the slot locks for hours): hand-made chains are retired; e2e runs go through the queue
-  (`request.mjs`). The permanent tasks are the task guard's allowlist in code (`TASK_ALLOW` in
-  `scripts/laptop-queue/lib.mjs`): `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
-  (`install-task.ps1 -Worker desktop`), `NightShift auto-train` (`scripts/auto-train-task.ps1`) and `NightShift
-  watchdog` (`scripts/watchdog-task.ps1`, `docs/systems/watchdog.md`; 4.101.1). The only way to
-  schedule an ad-hoc run is `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/one-shot-task.ps1
-  -Name NightShift-run-<what> -Command "<powershell command>" [-At <time>] [-ExpireMinutes 240] [-WhatIf]`: one hidden
-  run whose trigger expires at At + ExpireMinutes (also its run time limit), after which Windows deletes the task.
+- Scheduled tasks (Michael 2026-10-24; old `NightShift-chain-*` one-shots held the slot locks): hand-made chains are
+  retired; e2e runs go through the queue (`request.mjs`). The permanent tasks are the task guard's allowlist in code
+  (`TASK_ALLOW` in `scripts/laptop-queue/lib.mjs`): `NightShift-laptop-queue` (`install-task.ps1`),
+  `NightShift-desktop-queue` (`install-task.ps1 -Worker desktop`), `NightShift auto-train`
+  (`scripts/auto-train-task.ps1`) and `NightShift watchdog` (`scripts/watchdog-task.ps1`, `docs/systems/watchdog.md`).
+  The only way to schedule an ad-hoc run is `powershell -NoProfile -ExecutionPolicy Bypass -File
+  scripts/laptop-queue/one-shot-task.ps1 -Name NightShift-run-<what> -Command "<powershell command>" [-At <time>]
+  [-ExpireMinutes 240] [-WhatIf]`: one hidden run that expires at At + ExpireMinutes, then Windows deletes the task.
 - Task guard: at start and every `LQ_TASK_GUARD_MIN` (10; 0 = off) min on both workers, disable (Disable-ScheduledTask
   only; never stop, kill or delete; a running instance keeps running) every enabled task not on the allowlist (above,
   plus `LQ_TASK_ALLOW`, a comma list) and not a `NightShift-run-*` with an expiry, when it is named `NightShift-*` or
@@ -670,31 +732,28 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
 ## Flakes and quarantine
 The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; replaces "flake stands" and the old
 `KNOWN_FLAKY` list in `docs/backlog.md`).
-- What counts: a failure in a quarantined suite before its expiry prints KNOWN FLAKY (owner, expiry) and does not fail
-  the run; the suite still runs. Any other failure counts only if it also fails in a solo rerun on the same sha. A
-  suite that fails and then passes on the same sha is a flake: it counts as a pass, and its owner fixes the test in the
-  next batch PR. A crash or timeout mid-suite is never a pass.
-- Committed quarantine: `scripts/e2e-quarantine.json` lists { suite, owner, expiry, reason } (a part like
-  `e2e-sectorops:6` or a whole suite) and `owners` (who fixes each suite's flakes; every REQUIRED suite has one). Add an
-  entry only with an owner, an ISO expiry and the failure under `docs/backlog.md` "Flaky e2e suites"; an expired entry
-  counts again; the owner removes it once fixed. `tests/e2eQuarantine.test.ts` enforces this (and `_doc` naming this
-  heading). run-e2e also reads `E2E_QUARANTINE_FILE` (the queue's automatic list below).
-- Auto-quarantine (laptop queue): a failed, non-quarantined suite reruns once alone on the same sha; a pass is logged as
-  a flake (state.json `flakes`, runs per day in `suiteRuns`). A suite may flake 2 times in 7 days (lib `FLAKE_BUDGET`,
-  `FLAKE_BUDGET_DAYS`); the next flake quarantines it for 48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`,
-  owner from `owners`, else the orchestrator), so later runs print it KNOWN FLAKY instead of rerunning it.
-  `flake-budget.md` in the same folder holds the per-suite rates; a run that flaked or hit a quarantined failure adds
-  that table to its PR comment (a passing run comments only when it recorded a new flake). Only flakes after a suite's
-  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. The desktop worker
-  keeps its own list (`laptop-queue-desktop/`). Commits cut before this change ignore `E2E_QUARANTINE_FILE` and keep
-  their hardcoded e2e-pad. Its Slow table holds 7 days of `SLOW:` lines (F35), each also on its status as "; slow:".
-- Hard-rule checks (vitest): `tests/noRouteTimer.test.ts` (rule 6, G334; allowlist `pairGates[].window`, SECTOR hold
-  keys); `tests/importBoundary.test.ts` (rule 10: `core/quality`, `qualityManager` and the governor fenced; allowlist
-  `benchmark.ts`, `core/display` readers); `tests/replayDeterminism.test.ts` (rule 8, G143: patrols and detection
-  replay equal under a poisoned `Math.random`; the `src/ai` allowlist shrinks as Guard AI seeds; a 1 m shift differs).
-- Repeat quarantine (Michael 2026-10-25, Q30, "Becomes blocking"): a suite due a second quarantine within 14 days of
-  its last stays blocking (its failures fail the run) and its owner gets a ROADMAP fix job. Until the queue code does it
-  (J20), Test Runner applies it by hand from `flake-budget.md` and tells the orchestrator.
+- What counts: an assert failure (exit 1) of a quarantined suite before its expiry prints KNOWN FLAKY (owner, expiry), not a
+  fail; a timeout or crash always fails (J20 T8). Any other failure counts only if a solo rerun on the same sha fails too; fail
+  then pass on the same sha is a flake: a pass, and its owner fixes the test in the next batch PR.
+- Committed quarantine: `scripts/e2e-quarantine.json` lists { suite, owner, expiry, reason } (a part like `e2e-sectorops:6` or a
+  whole suite) and `owners` (every REQUIRED suite has one). Add an entry only with an owner, an ISO expiry and the failure under
+  `docs/backlog.md` "Flaky e2e suites"; expired counts again; the owner removes it once fixed (`tests/e2eQuarantine.test.ts`
+  enforces it, `_doc` names this heading). run-e2e also reads `E2E_QUARANTINE_FILE`.
+- Auto-quarantine (laptop queue): a failed, non-quarantined suite reruns once alone on the same sha; a pass is a flake
+  (state.json `flakes`, runs per day in `suiteRuns`). A suite may flake 2 times in 7 days (lib `FLAKE_BUDGET`,
+  `FLAKE_BUDGET_DAYS`); the next flake quarantines it for 48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`, owner from
+  `owners`, else the orchestrator): later runs print it KNOWN FLAKY instead of rerunning it. `flake-budget.md` there lists each
+  suite that flaked, failed KNOWN FLAKY (`knownFlaky`) or is quarantined in the window, with its BLOCKING state (line 1 says rates
+  read high until 7 days are counted); a run that flaked or hit a quarantined failure adds it to its PR comment (a pass only on a
+  new flake). Only flakes after a suite's last auto quarantine count; an auto entry just expires. One automatic list, the
+  laptop's (F48): the desktop drops its own, forgives only the committed list, decides no quarantine or blocking, and reruns its
+  failures on the laptop. Older commits ignore `E2E_QUARANTINE_FILE`. Slow table: 7 days of `SLOW:` lines (F35), "; slow:".
+- Hard-rule checks (vitest): `tests/noRouteTimer.test.ts` (rule 6, G334; allowlist `pairGates[].window`, SECTOR holds);
+  `tests/importBoundary.test.ts` (rule 10: quality, `qualityManager`, governor fenced; allowlist `benchmark.ts`, display
+  readers); `tests/replayDeterminism.test.ts` (rule 8, G143; `Math.random` allowlist in `src/ai` shrinks as Guard AI seeds).
+- Repeat quarantine (Q30, "Becomes blocking"; lib `REPEAT_DAYS` 14): due a second auto quarantine within 14 days of the last, a
+  suite stays blocking (normal rule); once per 14 days the laptop pushes `alerts/<ts>-<worker>-fixjob-<suite>.json` to `laptop-queue`
+  and comments "BLOCKING: <suite> needs a fix job"; the orchestrator's cron reads `alerts/*-fixjob-*.json`, opens the fix job.
 
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches

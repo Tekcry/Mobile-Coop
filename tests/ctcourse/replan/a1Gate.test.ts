@@ -228,7 +228,9 @@ describe('Marlow re-plan A1: objective and radio lines', () => {
       expect(o.a).toBeDefined();
       expect(o.b).toBeDefined();
       // what and where
-      expect(o.text).toMatch(/striped mark/);
+      expect(o.text).toMatch(/wall/);
+      expect(o.a).toMatch(/striped mark/);
+      expect(o.b).toMatch(/striped mark/);
     }
     expect(steps[2]!.text).toMatch(/holding room one/);
   });

@@ -13,7 +13,8 @@ import { bakeLamps } from '../src/voxel/lampBake';
 import { bakeMoon, MOON_CELL } from '../src/voxel/skyBake';
 import { packShapes } from '../src/voxel/shapes';
 import { bakedLights } from '../src/world/lightBake';
-import { CUE, CUE_AT, CUE_LEVEL_FLOOR, CUE_NONE, ShadowCues, type CueField, type CueLight, type CuePlayer } from '../src/world/shadowCues';
+import { GEARS, MOVEMENT } from '../src/config/movement';
+import { CUE, CUE_AT, CUE_JUMP, CUE_LEVEL_FLOOR, CUE_NONE, ShadowCues, type CueField, type CueLight, type CuePlayer } from '../src/world/shadowCues';
 import { bytesPerCall, HEAP_NUMBER } from './helpers/allocPerCall';
 
 // the real field and registry light fit the cue's inputs (a compile-time check)
@@ -351,6 +352,113 @@ describe('ShadowCues footprints (S3)', () => {
   });
 });
 
+describe('ShadowCues teleport and owner resets (cue-teleport-fix)', () => {
+  /** A moon at 45 degrees: every position casts the same footprint from source -1, so a move reads its full speed. */
+  function moonSetup(): { f: FakeField; occ: CharOccluders; cues: ShadowCues } {
+    const f = new FakeField();
+    const e = Math.PI / 4;
+    f.moonDir = [Math.cos(e), Math.sin(e), 0];
+    f.moon = 0.3;
+    return { f, occ: new CharOccluders(), cues: new ShadowCues(f, f.lamps, f.moonDir) };
+  }
+  function moveTo(occ: CharOccluders, x: number, z: number, index = 0): void {
+    occ.clear();
+    stand(occ, index, x, 0, z);
+  }
+
+  it('the threshold sits between the sprint and a teleport', () => {
+    const sprintStep = MOVEMENT.sprintSpeed * 0.1;
+    expect(sprintStep).toBeGreaterThan(GEARS.stand[GEARS.count - 1]! * 0.1 - 1e-9);
+    expect(CUE_JUMP).toBeGreaterThanOrEqual(3 * sprintStep);
+    expect(CUE_JUMP).toBeLessThan(3);
+  });
+
+  it('a 20 m teleport between fills reads speed 0, the next fill its normal speed', () => {
+    const { occ, cues } = moonSetup();
+    moveTo(occ, 0, 0);
+    cues.fill(occ, PLAYERS, KEYS, 1, 0.1);
+    moveTo(occ, 0, 0.3);
+    cues.fill(occ, PLAYERS, KEYS, 1, 0.1);
+    expect(cues.source[0]).toBe(-1);
+    expect(cues.speed[0]).toBeCloseTo(3, 4);
+    // the teleport: the same source, the footprint 20 m away
+    moveTo(occ, 20, 0.3);
+    cues.fill(occ, PLAYERS, KEYS, 1, 0.1);
+    expect(cues.count[0]).toBe(1);
+    expect(cues.source[0]).toBe(-1);
+    expect(cues.speed[0]).toBe(0);
+    // re-seeded at the new position: the next move reads its true speed
+    const far0 = pt(cues, 0, 0, 2);
+    moveTo(occ, 20, 0.7);
+    cues.fill(occ, PLAYERS, KEYS, 1, 0.1);
+    const far1 = pt(cues, 0, 0, 2);
+    expect(cues.speed[0]).toBeCloseTo(Math.sqrt((far1[0] - far0[0]) ** 2 + (far1[2] - far0[2]) ** 2) / 0.1, 3);
+    expect(cues.speed[0]).toBeCloseTo(4, 3);
+  });
+
+  it('a sprint-speed move still reads its true speed', () => {
+    const { occ, cues } = moonSetup();
+    const step = MOVEMENT.sprintSpeed * 0.1;
+    moveTo(occ, 0, 0);
+    cues.fill(occ, PLAYERS, KEYS, 1, 0.1);
+    moveTo(occ, step * 0.6, step * 0.8);
+    cues.fill(occ, PLAYERS, KEYS, 1, 0.1);
+    expect(cues.speed[0]).toBeCloseTo(MOVEMENT.sprintSpeed, 3);
+    // a late fill (0.3 s) at sprint speed: still under the threshold, still its true speed
+    moveTo(occ, step * 0.6 + MOVEMENT.sprintSpeed * 0.3, step * 0.8);
+    cues.fill(occ, PLAYERS, KEYS, 1, 0.3);
+    expect(cues.speed[0]).toBeCloseTo(MOVEMENT.sprintSpeed, 3);
+  });
+
+  it('a slot that changes owner resets, then reads the new owner normally', () => {
+    const { occ, cues } = moonSetup();
+    occ.clear();
+    stand(occ, 0, 0, 0, 0);
+    stand(occ, 1, 1, 0, 0);
+    cues.fill(occ, PLAYERS, KEYS, 2, 0.1);
+    expect(cues.slotOf('peerA')).toBe(1);
+    // 'local' leaves: peerA moves to slot 0 (its capsule 1 m from where slot 0's was, moved 0.3 m since)
+    occ.clear();
+    stand(occ, 1, 1, 0, 0.3);
+    const peerOnly = [PLAYERS[1]!];
+    const keyOnly = new Int32Array([KEYS[1]!]);
+    cues.fill(occ, peerOnly, keyOnly, 1, 0.1);
+    expect(cues.slotOf('peerA')).toBe(0);
+    expect(cues.count[0]).toBe(1);
+    expect(cues.speed[0]).toBe(0);
+    expect(cues.count[1]).toBe(0);
+    // the next fill: peerA's own move
+    occ.clear();
+    stand(occ, 1, 1, 0, 0.6);
+    cues.fill(occ, peerOnly, keyOnly, 1, 0.1);
+    expect(cues.speed[0]).toBeCloseTo(3, 4);
+    // a player joins into an emptied slot: speed 0 on its first fill
+    occ.clear();
+    stand(occ, 1, 1, 0, 0.6);
+    stand(occ, 2, 1.2, 0, 0.6);
+    cues.fill(occ, [PLAYERS[1]!, PLAYERS[2]!], new Int32Array([KEYS[1]!, KEYS[2]!]), 2, 0.1);
+    expect(cues.slotOf('peerB')).toBe(1);
+    expect(cues.count[1]).toBe(1);
+    expect(cues.speed[1]).toBe(0);
+    expect(cues.speed[0]).toBe(0); // peerA stood still
+  });
+
+  it('a slot without a capsule for a fill resets on its return, even 20 m away', () => {
+    const { occ, cues } = moonSetup();
+    moveTo(occ, 0, 0);
+    cues.fill(occ, PLAYERS, KEYS, 1, 0.1);
+    occ.clear();
+    cues.fill(occ, PLAYERS, KEYS, 1, 0.1);
+    expect(cues.count[0]).toBe(0);
+    moveTo(occ, 0, 0.3);
+    cues.fill(occ, PLAYERS, KEYS, 1, 0.1);
+    expect(cues.speed[0]).toBe(0);
+    moveTo(occ, 0, 0.6);
+    cues.fill(occ, PLAYERS, KEYS, 1, 0.1);
+    expect(cues.speed[0]).toBeCloseTo(3, 4);
+  });
+});
+
 describe('ShadowCues slots (S3)', () => {
   it('slots follow the players in order; slotOf is the id lookup; unused slots are cleared', () => {
     const { f, occ, cues } = setup();
@@ -472,7 +580,7 @@ describe('ShadowCues purity (S3)', () => {
     expect(ctl).toBeGreaterThan(per + 8);
   });
 
-  it('(S3b) the real LightField (2 lamps and the moon, 4 players): 2-3 footprints each, near points contrasted; one fill allocates <= 2432 B (target 0)', async () => {
+  it('(S3b, F57) the real LightField (2 lamps and the moon, 4 players): 2-3 footprints each, near points contrasted; one fill allocates 0 B', async () => {
     // the s1-s3 check's scene, baked as the game does: an open floor under two lamps and the moon
     const reg = new LightRegistry();
     reg.ambient = 0.18;
@@ -511,8 +619,9 @@ describe('ShadowCues purity (S3)', () => {
     }, 0, { n: 200, warm: 10000 });
     const near: string[] = [];
     for (let s = 0; s < 4; s++) for (let c = 0; c < cues.count[s]!; c++) near.push(pt(cues, s, c, 0)[3].toFixed(2));
-    console.info(`bytes per ShadowCues.fill with the real LightField (4 players, ${cues.count.join(' / ')} footprints): ${per.toFixed(1)} (before S3b: 5264, s1-s3 check), control with an object ${ctl.toFixed(1)}; near-point contrast ${near.join(' ')}`);
-    expect(per).toBeLessThanOrEqual(2432);
+    console.info(`bytes per ShadowCues.fill with the real LightField (4 players, ${cues.count.join(' / ')} footprints): ${per.toFixed(1)} (before S3b: 5264, s1-s3 check; before F57: 1296 for 3 players, the bounce read's boxed point), control with an object ${ctl.toFixed(1)}; near-point contrast ${near.join(' ')}`);
+    // (F57) 0 B: the bounce grid's point goes through `BounceGrid.q`, the field's through `pt` (tests/lightFieldAlloc.test.ts)
+    expect(per).toBe(0);
     expect(ctl).toBeGreaterThan(per + 8);
   });
 

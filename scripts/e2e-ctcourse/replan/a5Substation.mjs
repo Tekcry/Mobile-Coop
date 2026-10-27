@@ -29,7 +29,7 @@ const FOOTBRIDGE_DOOR = 'A5-footbridge';
 const PLATES_DOOR = 'A5-plates';
 const BACK_DOOR = 'A5-back';
 /** Station marks (STATIONS section 3): 11 in the gap, 12 on the east strip, 13 on the west strip (A) and in the lee (B). */
-const ST11 = [[69.0, 32.0], [69.0, 34.0]];
+const ST11 = [[69.0, 32.3], [69.0, 33.7]];
 const ST12 = [[67.0, 33.0], [67.0, 34.5]];
 const ST13 = [[59.0, 36.0], [56.0, 36.0]];
 /** The ladder's foot and the wall top (the ladder head), the footbridge's two ends, the west strip. */
@@ -182,7 +182,7 @@ export async function walk(t, n) {
   await noDamage();
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stationLive(P, 11, `A5: station 11 is live on the ${tag} page`);
-    await sees(P, /6 m wall/, `A5: the ${tag} reads station 11's step line`);
+    await sees(P, /Go through the wicket onto the apron/, `A5: the ${tag} reads station 11's step line`);
   }
   assert(!(await lockedOnHost(WICKET_DOOR)) && !(await lockedOnClient(WICKET_DOOR)), 'A5: the wicket stand-in is unlocked on both pages (the base opened it)');
   for (const id of [FOOTBRIDGE_DOOR, PLATES_DOOR, BACK_DOOR]) {
@@ -210,10 +210,10 @@ export async function walk(t, n) {
     await tickedOn(P, 'a5-wall', `A5: the ${tag} sees the wall step ticked`);
     await stationLive(P, 12, `A5: station 12 is live on the ${tag} page`);
   }
-  // the ladder down: the host on the wall top at the ladder's head holds the traverse button, climbs down, and is on the floor again
+  // the ladder down: the host on the wall top at the ladder's head holds the traverse button (3, Y), climbs down, and is on the floor again
   await moveHost(WALLTOP[0], WALLTOP[1], 6.1, WEST);
   await padReady(A);
-  await holdUntil(A, 1, () => { const a = window.__app.current.traversal.attach.anchor; return window.__app.current.traversal.attached && a?.kind === 'ladder'; }, "A5: the host takes the wall's access ladder at its head", null, 20000);
+  await holdUntil(A, 3, () => { const a = window.__app.current.traversal.attach.anchor; return window.__app.current.traversal.attached && a?.kind === 'ladder'; }, "A5: the host takes the wall's access ladder at its head", null, 20000);
   await A.evaluate(() => window.__pad.axis(1, 1));
   try {
     await until(A, () => { const c = window.__app.current.player.controller; return !window.__app.current.traversal.attached && c.grounded && c.pos.y < 0.3; }, null, 60000, 'A5: the host climbs the ladder down to the apron');
@@ -236,7 +236,7 @@ export async function walk(t, n) {
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await tickedOn(P, 'a5-trench', `A5: the ${tag} sees the trench step ticked`);
     await stationLive(P, 13, `A5: station 13 is live on the ${tag} page`);
-    await sees(P, /Throw one of you over the beams/, `A5: the ${tag} reads station 13's step line`);
+    await sees(P, /Throw your partner over the beams|Cross under the jam and key the release|Get over the beams, jam the floodlight/, `A5: the ${tag} reads station 13's step line`);
   }
 
   // ---- 4. station 13: wait for his back, the throw ----
