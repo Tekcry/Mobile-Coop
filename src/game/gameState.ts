@@ -5,6 +5,8 @@ import { World } from '../world/world';
 import { disposeSectionBakersSince, sectionBakerMark } from '../voxel/sectionJobs';
 import { flags } from '../core/flags';
 import { CharOccluders } from '../world/charOccluders';
+import { ShadowCues } from '../world/shadowCues';
+import type { LightField } from '../world/lightField';
 import { cqSimSet } from '../anim/cqGait';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
@@ -36,7 +38,7 @@ import { buildNavGrid } from '../ai/navBuild';
 import { holdNoisePulse } from '../config/noise';
 import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
-import { warmGuardModels } from '../ai/guardWarm';
+import { guardWarmPending, warmGuardModels } from '../ai/guardWarm';
 import { liveGuardBodies, type GuardBody } from '../ai/guardBody';
 import { CompileLog, type CompileLogRecord } from '../core/compileLog';
 import { bakeSourceOf, MapReadyStats, type FrameSample, type MapReadyRecord } from '../core/mapReadyStats';
@@ -102,6 +104,7 @@ import { DoorGhosts } from '../vfx/doorGhosts';
 import { bodyHeat } from '../vfx/thermalGhost';
 import { VISION_GAIN } from '../world/darkCurve';
 import { NV_TONE } from '../vfx/nightVision';
+import { NV_ILLUM } from '../vfx/nvIlluminator';
 import { ELECTRO_BULB } from '../world/lightRig';
 import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
 import { visionLabel, type VisionMode } from './vision';
@@ -128,7 +131,7 @@ import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, se
 import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
 import type { SeenBody } from '../security/securitySystem';
 import { hyp2 } from '../core/mathx';
-import { FILL, FILL_IN, fillPlayers, fillVictims, pictureInto, slotInto } from './charOccluderFill';
+import { FILL, FILL_IN, fillOperator, fillPlayers, fillVictims, LOAD_IN, pictureInto, slotInto } from './charOccluderFill';
 import { GadgetSystem } from './gadgetSystem';
 import { OpticSystem } from './opticSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
@@ -314,6 +317,8 @@ export interface SceneView {
   readonly holdsInput: boolean;
   readonly ownsPause: boolean;
   frame(dt: number): void;
+  /** (walk ~09:42) A tap of the pause or View button while the view owns pause (read in the fixed step, where the edge lives). */
+  tap?(): void;
 }
 
 /** Hook for progression (Phase 6): turns session stats into rewards shown on the results screen. */
@@ -324,6 +329,24 @@ export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTM
 const NO_REMOTES: readonly PlayerRef[] = Object.freeze([]);
 /** (char-shadow-meter S2c) Solo and host: no client partner slots (`charMatesInto`). */
 const NO_MATES = (): number => 0;
+/** (char-shadow-meter S3b-2) Seconds between cue fills (the meter tick); a module constant, so the fill call boxes no
+ *  double. */
+const CUE_DT = 1 / LIGHT.playerHz;
+
+/**
+ * (char-shadow-meter S3b-2) The players' shadow cues (Guard AI's faint cue input, PLAN section 2): built from the
+ * gameplay bake (the field, the registry's lights, the bake's moon direction; never `world.lamps`, the picture) when
+ * the contract exists (`flags.charShadowLight`) and this is not a co-op client; null otherwise.
+ */
+export function shadowCuesFor(
+  world: { readonly lightField: LightField; readonly level: { readonly lights: { readonly lights: readonly LightDef[] } } },
+  occ: CharOccluders | null,
+  puppet: boolean,
+): ShadowCues | null {
+  if (!occ || puppet) return null;
+  const f = world.lightField;
+  return new ShadowCues(f, world.level.lights.lights, f.bake?.moon.dir ?? null);
+}
 /** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
  *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
 /** (map-ready S14) The compile log closes this long after its zero point (ms) whatever is still pending. */
@@ -404,6 +427,9 @@ export class GameState implements AppState {
   /** (char-shadow-meter S2) `playerRefsInto` order (slot 0 local); S3b-2 reuses it. */
   private readonly charRefs: PlayerRef[] = [];
   private charN = 0;
+  /** (char-shadow-meter S3b-2) The players' shadow cues, filled at `LIGHT.playerHz` right after the meter (slot s =
+   *  `charRefs[s]`, slot 0 the host / solo player); null with the flag off and on a co-op client (`shadowCuesFor`). */
+  readonly shadowCues: ShadowCues | null;
   private charFull = 0;
   /** (char-shadow-meter S2, debug only) The meter tick's ms with the contract: the last and a ring of 100. */
   private charMs = 0;
@@ -511,6 +537,11 @@ export class GameState implements AppState {
   /** (char-shadow-meter S2c) Co-op client: writes its partners' slot inputs (`slotInto`) into `pin` slots from..max-1
    *  and returns how many. Set by `CoopClient` with the flag on. Solo and host: none. Read only by `fillChars`. */
   charMatesInto: (pin: Float64Array, from: number, max: number) => number = NO_MATES;
+  /** (player-j16) Per player slot (`LOAD_IN`): the carried body's side and the carrier's yaw (0: none). */
+  private readonly loadIn = new Float64Array(FILL.players * LOAD_IN);
+  /** (player-j16) Co-op: writes the partners' loads into `lin` (host: slots 1..nr-1 from `refs`; client: its partner
+   *  slots nr..n-1). Set by `CoopHost` / `CoopClient` with the flag on; null solo. Read only by `fillLoads`. */
+  charLoadsInto: ((lin: Float64Array, refs: readonly PlayerRef[], nr: number, n: number) => void) | null = null;
   /** (locomotion step 11) Back-to-wall (pure core; built on the first step from the level's cover segments). */
   wallCore: WallCore | null = null;
   private wallIn = emptyWallInput();
@@ -605,6 +636,7 @@ export class GameState implements AppState {
   ) {
     this.scene = world.scene;
     this.puppet = opts.net?.role === 'client';
+    this.shadowCues = shadowCuesFor(world, this.charOccluders, this.puppet);
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
     // (A5, G135) partner beacon: the host / solo player is player 1 (blue), a joiner player 2 (red)
@@ -679,6 +711,8 @@ export class GameState implements AppState {
     this.weather.occluder = (x, z) => world.roofAt(x, z);
     // (the grade / vignette / goggles pass stays after the stack)
     this.stack.onRebuilt = () => this.post.toEnd();
+    // (thermal-read) thermal and electro rebuild the scene's surfaces from the stack's depth (picture only)
+    this.post.setDepthSource(this.stack);
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
     this.strike = new StrikeController(this);
@@ -1050,21 +1084,28 @@ export class GameState implements AppState {
       // point is here (the end of World.create, the S1 `world` step).
       g.holding = true;
       g.gateWorldAt = readyWorld;
-      // (the guard warm meshes still start here, not awaited: the gate's `shaders` step compiles them with the rest)
-      if (flags.guardModels) void warmGuardModels(g.scene, opts.map.id).catch(() => undefined);
+      // (the guard warm meshes still start here, not awaited: the gate's `shaders` step compiles them with the rest;
+      // (F59) its `bodies` step waits until every one is built, `guardWarmPending`)
+      if (flags.guardModels) void warmGuardModels(g.scene, opts.map.id, undefined, { parts: world.parts, capMs: MAP_READY_CAP_MS }).catch(() => undefined);
       rs.step('create', performance.now());
       return g;
     }
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
-    // (guard-models G7b) with the guard figures: LOD2 of every guard base in, and the guard shader compiled, on the same
-    // screen and under the same cap (`guardWarm.ts`; the flag off waits for exactly what it did)
+    // (guard-models G7b) with the guard figures: every guard base's game LODs in, and the guard shader compiled for
+    // each, (F59) and the merged S1 body's, on the same screen and under the same cap (`guardWarm.ts`; the flag off
+    // waits for exactly what it did)
     // (section-bake, SB5) a map baking per section: its live section's lamps (section 0 to start; the client's `ls`
     // moves it later) land during the load, beside the warm-up; the other sections bake on in the background
+    // (F59 check FIX 1; Michael's "settings before the warm-up", ROADMAP Decided ~18:50) the real graphics settings in
+    // before the compile: their first apply turns the sun / lamp / character shadows on, and a guard that receives
+    // shadows needs that shader, not the one compiled without them. `setState`'s later apply is then a no-op (World and
+    // the post stack return early on unchanged settings)
+    g.applyQuality(app.quality.level);
     const ready = g.scene.whenReadyAsync();
     const sb = world.lightBake?.sections;
     await Promise.all([
-      Promise.race([flags.guardModels ? Promise.all([ready, warmGuardModels(g.scene, opts.map.id)]) : ready, new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]),
+      Promise.race([flags.guardModels ? Promise.all([ready, warmGuardModels(g.scene, opts.map.id, undefined, { parts: world.parts, capMs: WARMUP_MAX_MS })]) : ready, new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]),
       sb ? sb.whenReady(sb.plan.live) : null,
     ]);
     // (SB14) from here the bake's cache write waits for a section change or the match's end (no mid-play hitch)
@@ -1605,6 +1646,17 @@ export class GameState implements AppState {
     this.hud.ctx.update(m);
   }
 
+  /** (knife-attack) The holstered attack press with the knife switch on: the knife kill on the guard on offer (the same
+   *  `start` as the context menu's TAKEDOWN row: the switch forces the knife); no guard in reach: a short cue, nothing
+   *  else (no free slash, Michael ~20:05). `aFree`: the context menu's list is not open (blocked: nothing at all). */
+  private knifeAttack(aFree: boolean): void {
+    const td = this.takedown;
+    const o = td.offer;
+    if (td.busy || this.strike.active || !aFree) return;
+    if (o) td.start(o.lethalOnly);
+    else this.hud.feedItem('Knife ready: get behind or beside a guard');
+  }
+
   /** Run a context menu row (the same calls the pre-G5 press, door menu and grab menu made). */
   private ctxRun(kind: string, opt: string, ref: number, it: Interactable | null): void {
     const td = this.takedown;
@@ -1804,6 +1856,9 @@ export class GameState implements AppState {
           this.localRef.light = v;
         } else if (s < this.charRefs.length) this.charRefs[s]!.light = v;
       }
+      // (S3b-2) the cues from the same contract and players (solo / host only; no allocation)
+      const sc = this.shadowCues;
+      if (sc) sc.fill(occ, this.charRefs, this.charKeys, this.charN, CUE_DT, this.lightOccluder);
       if (flags.debug) {
         this.charMs = performance.now() - t0;
         this.charMsRing[this.charMsAt] = this.charMs;
@@ -1856,6 +1911,27 @@ export class GameState implements AppState {
     L[o + 3] = hh;
     L[o + 4] = ox;
     L[o + 5] = oz;
+  }
+
+  /**
+   * (player-j16) The carried bodies on the players' shoulders into the contract, after `fillChars` and before
+   * `updateLight`: slot 0 from the local carry while the body weighs on the shoulder (`loadShare`, the fixed-step lift /
+   * put-down timeline), co-op partners through `charLoadsInto`, then `fillOperator` (appended after every upright, owned
+   * by the carrier's key). Nothing with the flag off.
+   */
+  private fillLoads(): void {
+    const occ = this.charOccluders;
+    if (!occ) return;
+    const lin = this.loadIn;
+    lin.fill(0);
+    const c = this.carrier;
+    if (c && c.loadShare > 0) {
+      lin[0] = c.loadSide;
+      lin[1] = this.player.controller.yaw;
+    }
+    const nr = this.charRefs.length < FILL.players ? this.charRefs.length : FILL.players;
+    this.charLoadsInto?.(lin, this.charRefs, nr, this.charN);
+    this.charFull += fillOperator(occ, this.lightIn, lin, this.charN, this.charKeys);
   }
 
   /**
@@ -1987,6 +2063,9 @@ export class GameState implements AppState {
   }
   /** Night vision's auto-gain: the lamps in view (Step 4b fix; rendering only). */
   private nightGain: NightAutoGain;
+  /** (nv-illuminator) The view axis for the goggles' IR illuminator (scratch; rendering only). */
+  private static readonly AXIS_Z = new Vector3(0, 0, 1);
+  private readonly illumFwd = new Vector3();
   /** Night vision's bloom (Step 4b fix round 4; rendering only). */
   private nightBloom: NightBloom;
   /** Static geometry on a segment (the glare's camera-to-lamp test; allocation-free). */
@@ -2014,7 +2093,10 @@ export class GameState implements AppState {
     const realIn = this.app.input.state;
     // (piano-escape S2) a scene view held: the pause button is its skip (hold), its own button its press
     const sv = this.sceneView;
-    if (realIn.pressed('pause') && !sv?.ownsPause) {
+    // (walk ~09:42) owns-pause read once: a tap that skips moves the intro past it, and must not then open the pause menu
+    const svPause = !!sv?.ownsPause;
+    if (svPause && (realIn.pressed('pause') || realIn.pressed('objective'))) sv?.tap?.();
+    if (realIn.pressed('pause') && !svPause) {
       this.gadgets.closeWheel(false);
       this.pause();
       return;
@@ -2229,8 +2311,14 @@ export class GameState implements AppState {
     // (anim-natural N3 fix) a strike queued through the holster starts as the gun reaches its slot
     {
       const rt = this.rtTap.strike(this.weapons.drawPhase);
-      // (piano-knife S1, Michael ~20:05 "Palm strike knockout disabled, only knife kills") no strike with the knife switch on
-      this.strike.fixedUpdate(dt, ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown && !this.takedown.knife, rt === 'hold');
+      const atk = ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown;
+      // (piano-knife S1, Michael ~20:05 "Palm strike knockout disabled, only knife kills") no strike with the knife switch on;
+      // (knife-attack, Michael's walk 2026-10-27 ~09:15 "pressing attack button holstered in piano map doesnt use knife")
+      // the attack press is the knife kill on a guard in reach, as the takedown row; none in reach: a cue, no free slash
+      // (checker FIX 1) free unless the menu's list is open: `aFree` is false whenever the menu has a row, and a guard on
+      // offer always adds the TAKEDOWN row
+      if (atk && this.takedown.knife) this.knifeAttack(this.ctxMenu.state !== 'active');
+      this.strike.fixedUpdate(dt, atk && !this.takedown.knife, rt === 'hold');
     }
     // (anim-rework S1, M4) a traversal or a busy move holds the weapon state (the gun away for it, back after); holding a
     // guard locks it (X does nothing, LT is the pistol shield)
@@ -2271,6 +2359,7 @@ export class GameState implements AppState {
       this.noise = Math.max(steps, rattle, this.evNoise);
     }
     this.fillChars();
+    this.fillLoads();
     this.updateLight(dt);
     this.updateVision(dt);
     this.landingNoise();
@@ -2716,6 +2805,8 @@ export class GameState implements AppState {
     if (flags.guardModels) {
       const gb = liveGuardBodies(this.scene);
       for (let i = 0; i < gb.length; i++) if (!gb[i]!.shown) bodies = false;
+      // (F59) every guard warm mesh built (each game LOD's, the merged body's): the `shaders` sweep compiles them
+      if (guardWarmPending(this.scene) > 0) bodies = false;
     }
     g.bodies = bodies;
     // (S14 cut A) each compile group starts as its inputs come in, in priority order, none waiting on another (parallel);
@@ -3305,6 +3396,15 @@ export class GameState implements AppState {
     // (Step 4b) night vision is a gain inside the lighting (rendering only; gameplay never reads it). (nv-pass slice 1)
     // Without baked lamps (`?gfx=min`) the tube lifts its input instead; the default pipeline's bloom is off under it
     if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;
+    // (nv-illuminator) the goggles' IR illuminator: a soft beam from the local operator's head along the view (picture
+    // only, local only: a shader term in the lit materials, never a light the field, the bake or the meter counts)
+    if (this.world.lamps) {
+      const fw = this.illumFwd;
+      this.player.cam.camera.getDirectionToRef(GameState.AXIS_Z, fw);
+      const p = this.player.position;
+      const h = NV_ILLUM.headFwd;
+      this.world.lamps.setIlluminator(v.night, p.x + fw.x * h, p.y + this.player.controller.eyeHeight + fw.y * h, p.z + fw.z * h, fw.x, fw.y, fw.z);
+    }
     this.post.setNightLift(this.world.lamps ? 1 : NV_TONE.postLift);
     this.stack.setNightVision(this.post.nightVision);
     // the tri-lens glows brighter while a mode is on (remote avatars never know: vision is not sent, D8)

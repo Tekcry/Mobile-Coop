@@ -1,9 +1,11 @@
 /**
  * (locomotion step 18, D7) Binding conflicts (pure, unit-tested; pad and keyboard / mouse alike). Two verbs of one
  * group on the same input are a conflict unless the pair is allowed. Contextual verbs that share one input by design
- * (Y = jump + use + takedown, X = reload tap + next weapon hold while aiming, the context button, fire = shot or elbow strike) are a
- * single binding row, so they never show here. Menu actions are their own group: a menu key on a gameplay verb is
- * never a conflict. A conflict is a warning: the bindings still save.
+ * (A = the context button, every main action and its hold version; Y = jump / traverse / vent, and under
+ * `flags.contextPrompts` the second action at a faced door, hatch or partner's hostage with no traversal on offer, the
+ * Y rule in `src/game/contextJump.ts`; X = draw tap + reload hold; RB = co-op / jammer while aiming; RT = fire, strike or
+ * held-guard finisher) are a single binding row, so they never show here. Menu actions are their own group: a menu key
+ * on a gameplay verb is never a conflict. A conflict is a warning: the bindings still save.
  */
 
 export interface Conflict {

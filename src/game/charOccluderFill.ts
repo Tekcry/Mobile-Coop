@@ -5,6 +5,7 @@
  * contract), the picture's round shadows (`pictureInto`, the `BakedLamps.capsules` hook) and Guard AI's shadow cues
  * read the same capsules (G352, bible P1). Guard AI's `fillOccluders` and Player's `fillOperator` replace these fills
  * later (PLAN section 6).
+ * (player-j16) `fillOperator` adds a carried body: one capsule on its carrier's shoulder, owned by the carrier's key.
  *
  * Pure: no Babylon, no rig, no `src/net` (single player never imports it), no `PlayerRef` / `Enemy` import. Hot: the
  * fills run every sim step and `pictureInto` every render frame, so nothing allocates after module load and no double
@@ -143,6 +144,46 @@ export function fillVictims(occ: CharOccluders, vs: readonly VictimLike[], pin: 
     S[5] = p.z;
     S[6] = FILL.r;
     if (put(occ, OCC_KIND.guard, i) < 0) over++;
+  }
+  return over;
+}
+
+/** (player-j16) The carried body on a carrier's shoulder, one capsule along its torso hanging down his back (CT carry:
+ *  hips on the shoulder, torso down the back, legs down the front inside his own capsule). Fractions / metres:
+ *  the hips' height as a share of the slot's sample height h (crouch lowers it with h), the shoulder's offset to the
+ *  load side, the torso's drop and its lean back, the lowest end over the feet, the radius. */
+export const LOAD = { hip: 0.88, side: 0.14, hang: 0.65, back: 0.25, low: 0.25, r: 0.17 } as const;
+/** `lin` stride per player slot: side (0 no load, 1 right shoulder, -1 left), the carrier's yaw (rad, 0 = +Z). */
+export const LOAD_IN = 2;
+
+/** (player-j16) After `fillPlayers` and the guard fill: per slot s < n with `lin[s*LOAD_IN] !== 0` and `keys[s] >= 0`,
+ *  one capsule written through `put(occ, OCC_KIND.player, s)` (kind player, owner `keys[s]`: the carrier's own key).
+ *  With f = (sin yaw, 0, cos yaw) his forward and rt = (cos yaw, 0, -sin yaw) his right: a (the hips) = feet + rt x
+ *  side x `LOAD.side`, h x `LOAD.hip` up; b (the head end) = a - f x `LOAD.back`, at max(a.y - `LOAD.hang`, y +
+ *  `LOAD.low`); r `LOAD.r`. The peek offset is ignored. Returns how many did not fit. No allocation. */
+export function fillOperator(occ: CharOccluders, pin: Float64Array, lin: Float64Array, n: number, keys: Int32Array): number {
+  let over = 0;
+  for (let s = 0; s < n; s++) {
+    const side = lin[s * LOAD_IN]!;
+    if (side === 0 || keys[s]! < 0) continue;
+    const yaw = lin[s * LOAD_IN + 1]!;
+    const o = s * FILL_IN;
+    const y = pin[o + 1]!;
+    const sn = Math.sin(yaw);
+    const cs = Math.cos(yaw);
+    const ax = pin[o]! + cs * side * LOAD.side;
+    const ay = y + pin[o + 3]! * LOAD.hip;
+    const az = pin[o + 2]! - sn * side * LOAD.side;
+    const by = ay - LOAD.hang;
+    const low = y + LOAD.low;
+    S[0] = ax;
+    S[1] = ay;
+    S[2] = az;
+    S[3] = ax - sn * LOAD.back;
+    S[4] = by > low ? by : low;
+    S[5] = az - cs * LOAD.back;
+    S[6] = LOAD.r;
+    if (put(occ, OCC_KIND.player, s) < 0) over++;
   }
   return over;
 }
