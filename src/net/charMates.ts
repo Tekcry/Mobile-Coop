@@ -6,11 +6,15 @@
  * the rig's standing height, on a wall the sim body's head: `playerBody`, as `PartnerTarget`). `GameState.fillChars`
  * reads it through `charMatesInto`, which `CoopClient` sets.
  *
- * Babylon-free. Hot: `into` runs every sim step and allocates nothing (indexed loops, kept records).
+ * (player-j16) A partner's carried body goes in too: `loadsInto` (client) and `hostLoadsInto` (host) write each carrier's
+ * slot of `GameState.charLoadsInto`'s `lin` for `fillOperator`.
+ *
+ * Babylon-free. Hot: `into`, `loadsInto` and `hostLoadsInto` run every sim step and allocate nothing (indexed loops,
+ * kept records).
  */
 import { PF } from './protocol';
 import { emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody, type PlayerBodyIn, type PlayerBodyOut } from '../player/playerVolumes';
-import { slotInto, type MateLike } from '../game/charOccluderFill';
+import { LOAD_IN, slotInto, type MateLike } from '../game/charOccluderFill';
 
 /** A read-only point. */
 type V3 = { readonly x: number; readonly y: number; readonly z: number };
@@ -24,6 +28,11 @@ export interface MateSource {
   readonly shown: boolean;
   readonly rig: { readonly height: number };
   bodyIn(out: PlayerBodyIn): PlayerBodyIn;
+  /** (player-j16) The shown yaw (rad, 0 = +Z), the shoulder a carried body is on (1 right, -1 left), and the carry's
+   *  body while it shows one lifted (`CarryView` sets it, `clear` drops it). Absent: no load. */
+  readonly yaw?: number;
+  readonly carrySide?: number;
+  readonly carryKnees?: unknown;
 }
 
 /** A partner's slot inputs (`slotInto`); `head` points at `headV` on a wall, else null. Peek is always 0 here. */
@@ -106,6 +115,44 @@ export class CharMates {
       s++;
     }
     return s - from;
+  }
+
+  /**
+   * (player-j16) Every shown partner's load into `lin` slots from..max-1 (`LOAD_IN` each), the same walk as `into` (list
+   * order, unshown skipped), so a partner's slot here is its slot there: carrying (`carryKnees` set) writes the side (-1
+   * left, else 1) and the yaw; otherwise the slot is left as it is.
+   */
+  loadsInto(lin: Float64Array, from: number, max: number): void {
+    let s = from;
+    const es = this.entries;
+    for (let i = 0; i < es.length && s < max; i++) {
+      const src = es[i]!.src;
+      if (!src.shown) continue;
+      if (src.carryKnees != null) {
+        lin[s * LOAD_IN] = src.carrySide === -1 ? -1 : 1;
+        lin[s * LOAD_IN + 1] = src.yaw ?? 0;
+      }
+      s++;
+    }
+  }
+}
+
+/**
+ * (player-j16) The host's remote slots' loads: for each slot s in 1..nr-1 (`refs`, the `charRefs` order) whose player has
+ * a carry view, the avatar's side (-1 left, else 1) and yaw into `lin`; other slots left as they are. No allocation.
+ */
+export function hostLoadsInto(
+  lin: Float64Array,
+  refs: readonly { readonly id: string }[],
+  nr: number,
+  carries: ReadonlyMap<string, { readonly avatar: { readonly carrySide: number; readonly yaw: number } }>,
+): void {
+  for (let s = 1; s < nr; s++) {
+    const v = carries.get(refs[s]!.id);
+    if (v === undefined) continue;
+    const a = v.avatar;
+    lin[s * LOAD_IN] = a.carrySide === -1 ? -1 : 1;
+    lin[s * LOAD_IN + 1] = a.yaw;
   }
 }
 

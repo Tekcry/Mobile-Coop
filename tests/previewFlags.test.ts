@@ -51,6 +51,8 @@ describe('live defaults under tests (no preview constants)', () => {
     expect(flags.lookouts).toBe(false);
     expect(flags.dogRelease).toBe(false);
     expect(flags.campusV2).toEqual(CAMPUS_V2_ON);
+    // (context-prompts S2) dark until Michael's walk
+    expect(flags.contextPrompts).toBe(false);
   });
 });
 
@@ -128,6 +130,7 @@ describe('source guard', () => {
     expect(body).toMatch(/lookouts: darkFlag\(params\.get\('lookouts'\), PREVIEW_ON\)/);
     expect(body).toMatch(/dogRelease: darkFlag\(params\.get\('dogrelease'\), PREVIEW_ON\)/);
     expect(body).toMatch(/campusV2: readCampusV2\(params\.get\('campusv2'\), PREVIEW_ON\)/);
+    expect(body).toMatch(/contextPrompts: darkFlag\(params\.get\('ctxprompts'\), PREVIEW_ON\)/);
   });
 
   it('the mission-framework flags read through the preview default (mission-c2-rules)', () => {

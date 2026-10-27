@@ -268,6 +268,10 @@ export class CoopClient implements NetAttachment {
       const prev = g.charMatesInto;
       g.charMatesInto = (p, f, m) => this.mates.into(p, f, m);
       this.offs.push(() => (g.charMatesInto = prev));
+      // (player-j16) and a partner carrying a body loads his slot's shoulder (the same walk, so the same slot)
+      const prevLoads = g.charLoadsInto;
+      g.charLoadsInto = (lin, _refs, nr, n) => this.mates.loadsInto(lin, nr, n);
+      this.offs.push(() => (g.charLoadsInto = prevLoads));
     }
     // (coop-rejoin, walk item 4) our own slot of the start area (the map's slot point, else a safe spot beside the
     // host's), before our first `pstate` (the host takes a first state anywhere): a course bay-N start's entry airlock

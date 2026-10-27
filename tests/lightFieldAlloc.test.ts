@@ -94,55 +94,9 @@ const PARITY: readonly (readonly number[])[] = [
 ];
 
 describe('LightField queries (F57)', () => {
-  it('every level is the pre-F57 value to the bit (lamps, spot, moon, lightning flash, flashlight, beam-cut torch, door, characters)', () => {
-    const { field: f } = scene();
-    const c = chars();
-    const sk = occKey(OCC_KIND.player, 9);
-    const ids = new Int32Array(8);
-    const lv = new Float32Array(8);
-    const seen = new Set<number>();
-    for (const row of PARITY) {
-      const [flash, x, y, z] = row as [number, number, number, number];
-      f.setFlash(flash);
-      f.qp[0] = x;
-      f.qp[1] = y;
-      f.qp[2] = z;
-      f.totalQ(ocl, c, sk);
-      const got = [f.levelAt(x, y, z), f.bounceAt(x, y, z), f.dynamicAt(x, y, z, ocl), f.totalAt(x, y, z, ocl), f.totalAt(x, y, z, ocl, c, sk), f.bodyLevel(x, y, z, 1.7, ocl, 0.1, 0), f.bodyLevel(x, y, z, 1.3, ocl, 0, 0, c, sk), f.qr[0]!];
-      for (let k = 0; k < got.length; k++) expect(Object.is(got[k], row[4 + k]), `flash ${flash} (${x}, ${y}, ${z}) query ${k}: ${got[k]} vs ${row[4 + k]}`).toBe(true);
-      const n = f.sourcesInto(x, y, z, ids, lv, 8, ocl);
-      for (let k = 0; k < n; k++) seen.add(ids[k]!);
-    }
-    // the table reaches every kind of source: baked lamps, the moon, the flashlight and the beam-cut torch
-    for (const id of [0, 1, 3, -1, 4, 5]) expect(seen.has(id), `source ${id}`).toBe(true);
-    // and the bounce and the characters change levels in it
-    expect(PARITY.some((r) => r[5]! > 0)).toBe(true);
-    expect(PARITY.some((r) => r[8]! < r[7]!)).toBe(true);
-  });
-
-  it('the bounce grid reads the same through sampleInto (x, y, z) and sampleQ (its q slots)', () => {
-    const { field: f } = scene();
-    const bg = f.bounce;
-    expect(bg.active).toBe(true);
-    let lit = 0;
-    for (let i = 0; i <= 40; i++) {
-      for (let k = 0; k <= 40; k++) {
-        const x = -10 + i * 0.5 + 0.013;
-        const z = -10 + k * 0.5 - 0.007;
-        bg.sampleInto(x, 1, z);
-        const a = bg.out;
-        bg.q[0] = x;
-        bg.q[1] = 1;
-        bg.q[2] = z;
-        bg.sampleQ();
-        expect(Object.is(bg.out, a)).toBe(true);
-        expect(Object.is(f.bounceAt(x, 1, z), a)).toBe(true);
-        if (a > 0) lit++;
-      }
-    }
-    expect(lit).toBeGreaterThan(100);
-  });
-
+  // (alloc-n24) The allocation gate runs first, on code no other query in this file has warmed: run after the parity
+  // test it read 0 B on the desktop, alone it read what train 166's CI read (totalAt 1.6 B, bodyLevel 8.0 B: `dynamicInto`
+  // too big to inline, so its own optimized code decided whether the occluder's x and z were boxed).
   it('the meter, guard and cue queries allocate 0 B (bounce lit, a flashlight, a door, characters)', async () => {
     const { field: f } = scene();
     const c = chars();
@@ -202,5 +156,54 @@ describe('LightField queries (F57)', () => {
     expect(bounceLit).toBeGreaterThan(N / 4);
     expect(ctl).toBeGreaterThan(32);
     for (const [k, v] of Object.entries(r)) expect(v, k).toBe(0);
+  });
+
+  it('every level is the pre-F57 value to the bit (lamps, spot, moon, lightning flash, flashlight, beam-cut torch, door, characters)', () => {
+    const { field: f } = scene();
+    const c = chars();
+    const sk = occKey(OCC_KIND.player, 9);
+    const ids = new Int32Array(8);
+    const lv = new Float32Array(8);
+    const seen = new Set<number>();
+    for (const row of PARITY) {
+      const [flash, x, y, z] = row as [number, number, number, number];
+      f.setFlash(flash);
+      f.qp[0] = x;
+      f.qp[1] = y;
+      f.qp[2] = z;
+      f.totalQ(ocl, c, sk);
+      const got = [f.levelAt(x, y, z), f.bounceAt(x, y, z), f.dynamicAt(x, y, z, ocl), f.totalAt(x, y, z, ocl), f.totalAt(x, y, z, ocl, c, sk), f.bodyLevel(x, y, z, 1.7, ocl, 0.1, 0), f.bodyLevel(x, y, z, 1.3, ocl, 0, 0, c, sk), f.qr[0]!];
+      for (let k = 0; k < got.length; k++) expect(Object.is(got[k], row[4 + k]), `flash ${flash} (${x}, ${y}, ${z}) query ${k}: ${got[k]} vs ${row[4 + k]}`).toBe(true);
+      const n = f.sourcesInto(x, y, z, ids, lv, 8, ocl);
+      for (let k = 0; k < n; k++) seen.add(ids[k]!);
+    }
+    // the table reaches every kind of source: baked lamps, the moon, the flashlight and the beam-cut torch
+    for (const id of [0, 1, 3, -1, 4, 5]) expect(seen.has(id), `source ${id}`).toBe(true);
+    // and the bounce and the characters change levels in it
+    expect(PARITY.some((r) => r[5]! > 0)).toBe(true);
+    expect(PARITY.some((r) => r[8]! < r[7]!)).toBe(true);
+  });
+
+  it('the bounce grid reads the same through sampleInto (x, y, z) and sampleQ (its q slots)', () => {
+    const { field: f } = scene();
+    const bg = f.bounce;
+    expect(bg.active).toBe(true);
+    let lit = 0;
+    for (let i = 0; i <= 40; i++) {
+      for (let k = 0; k <= 40; k++) {
+        const x = -10 + i * 0.5 + 0.013;
+        const z = -10 + k * 0.5 - 0.007;
+        bg.sampleInto(x, 1, z);
+        const a = bg.out;
+        bg.q[0] = x;
+        bg.q[1] = 1;
+        bg.q[2] = z;
+        bg.sampleQ();
+        expect(Object.is(bg.out, a)).toBe(true);
+        expect(Object.is(f.bounceAt(x, 1, z), a)).toBe(true);
+        if (a > 0) lit++;
+      }
+    }
+    expect(lit).toBeGreaterThan(100);
   });
 });
