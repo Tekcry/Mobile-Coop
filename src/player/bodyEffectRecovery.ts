@@ -18,6 +18,7 @@ import { getStateObject, type Effect, type Mesh, type Scene } from '../core/baby
  * logged before then. A recompile's own drop of the old program no longer reads as the new effect's program disposed:
  * `src/core/babylon.ts` (`unlinkCachedPipeline`) keeps a late delete of the old context off the successor cached under
  * the same key. Render side only: nothing in gameplay reads it.
+ * (gm-watchdog) the guard figures' effects use the same watch and cap (`GuardFigure.drawState`, logged as `guard figure`).
  */
 
 /** Last resort: wall time (ms) and rendered frames a body effect may stay unready (compiling) before it is recompiled.
@@ -71,7 +72,7 @@ export function stuckReason(effect: Effect, w: EffectWatch, now: number): string
  * Once per render for a body mesh: nothing while its main effect is ready (or it has none yet); else time it and,
  * when it is stuck, recompile it. Returns true when it recompiled.
  */
-export function watchBodyEffect(mesh: Mesh, w: EffectWatch, now: number): boolean {
+export function watchBodyEffect(mesh: Mesh, w: EffectWatch, now: number, what = 'smooth body'): boolean {
   const effect = mesh.subMeshes?.[0]?.effect ?? null;
   if (!effect || effect.isDisposed || effect.isReady()) {
     w.effect = null;
@@ -80,25 +81,26 @@ export function watchBodyEffect(mesh: Mesh, w: EffectWatch, now: number): boolea
   const reason = stuckReason(effect, w, now);
   if (!reason) return false;
   w.effect = null;
-  return recompileEffect(mesh.getScene(), effect, reason, mesh.name);
+  return recompileEffect(mesh.getScene(), effect, reason, mesh.name, what);
 }
 
 /**
  * Drop `effect` everywhere it is cached (the engine's compiled effects, the GL state's cached pipeline, every
- * sub-mesh that holds it) so the next readiness check builds a new one. False (and no change) past the cap.
+ * sub-mesh that holds it) so the next readiness check builds a new one. False (and no change) past the cap. `what` names
+ * the caller in the log line (the S1 body by default; the guard figures pass 'guard figure').
  */
-export function recompileEffect(scene: Scene, effect: Effect, reason: string, label: string): boolean {
+export function recompileEffect(scene: Scene, effect: Effect, reason: string, label: string, what = 'smooth body'): boolean {
   const key = effect.key;
   const n = RECOMPILES.get(key) ?? 0;
   if (n >= MAX_RECOMPILES) {
     if (n === MAX_RECOMPILES) {
       RECOMPILES.set(key, n + 1);
-      console.warn(`smooth body ${label}: body shader ${reason}, ${MAX_RECOMPILES} recompiles done, left to Babylon`);
+      console.warn(`${what} ${label}: body shader ${reason}, ${MAX_RECOMPILES} recompiles done, left to Babylon`);
     }
     return false;
   }
   RECOMPILES.set(key, n + 1);
-  console.warn(`smooth body ${label}: body shader ${reason}, recompiling (${n + 1}/${MAX_RECOMPILES})`);
+  console.warn(`${what} ${label}: body shader ${reason}, recompiling (${n + 1}/${MAX_RECOMPILES})`);
   // the sub-meshes holding it (other guards of the same variant too) get fresh defines: the material re-prepares.
   // Babylon's first fallback on a failed compile switched those meshes to CPU skinning (`computeBonesUsingShaders`
   // false, NUM_BONE_INFLUENCERS 0), which draws a GPU-buffer body unskinned: bodies are always GPU skinned, so back on
