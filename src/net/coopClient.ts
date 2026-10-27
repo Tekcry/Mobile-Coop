@@ -58,7 +58,7 @@ import { markCompleted } from '../save/sectorRecord';
 import { intelDone, recordFinish } from '../save/campaignRecord';
 import { flags } from '../core/flags';
 import type { MissionWire } from '../game/mission/missionWire';
-import { entryForRoom } from '../game/mission/campaignOrder';
+import { PROLOGUE_PCT, entryForRoom, prologueFinish } from '../game/mission/campaignOrder';
 import { HoldPulseWatch } from './holdPulse';
 import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan, type SectorRatingWire } from '../game/sectors';
 import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
@@ -1238,6 +1238,8 @@ export class CoopClient implements NetAttachment {
     Object.assign(this.g.stats, coopSessionStats(this.g.stats, end, this.s.selfId));
     if (this.practice) this.g.stats.practice = true;
     if (this.inCourse) this.g.stats.course = clientCourseSummary(this.g) ?? undefined;
+    // (campaign-mode CM5, A6) the campaign's prologue finished: this player's own record too, no percent
+    if (this.inCourse && end.won && prologueFinish(flags.campaign, true, this.g.world.map.id)) void recordFinish('prologue', PROLOGUE_PCT, 0);
     this.g.endSession(end.won, end.subtitle);
   }
 

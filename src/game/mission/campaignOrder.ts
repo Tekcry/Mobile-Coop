@@ -215,3 +215,14 @@ export function lobbyRows(o: { campaign: boolean; host: boolean; mode: string; e
 export function startClearsSave(mode: string, map: string, sm: string | null | undefined, continued: boolean): boolean {
   return !continued && entryForRoom(mode, map, sm) !== null;
 }
+
+/** The prologue's record: finished, no percent (A6: training). */
+export const PROLOGUE_PCT = -1;
+
+/**
+ * (campaign-mode CM5, A6) A won course records the prologue (`PROLOGUE_PCT`) on this page: `flags.campaign` on, a co-op
+ * match (the lobby's Campaign: a solo course run is training only, never the campaign, G2) on Marlow Yard or its re-plan.
+ */
+export function prologueFinish(on: boolean, coop: boolean, map: string): boolean {
+  return on && coop && entryForRoom('course', map, null)?.key === 'prologue';
+}
