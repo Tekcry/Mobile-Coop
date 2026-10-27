@@ -1,0 +1,13 @@
+{
+  "id": "20261027T050147-affected-e2e-827b80c1-48f5",
+  "sha": "827b80c1e981f9623a90e4ec40683cb2f33ac11f",
+  "branch": "feature/char-shadow-meter-s4",
+  "pr": 720,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-stealth-ai"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #720"
+}
