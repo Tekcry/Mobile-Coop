@@ -3,6 +3,17 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 77 (2026-10-27 ~14:25, account swap at ~92% weekly; session [058b5c]; wins over SAVE 76):**
+- Service healthy, master 4.132.0 (03a82e58). Piano front undone (default 'mixamo'). No quarantine of mine left.
+- Queued ~3 h session-free on 03a82e58: 3 full runs (sets flake-full-1..3: flake-budget data) and 2 alone perf reruns
+  (perf-campusops-1/2: does the 02:51Z perf-campusops budget fail hold? frame p95 21.9 ms vs 17.2-17.9 on 10-25; allocs
+  unchanged ~15.5 MB/s). Spare jobs follow on idle.
+- Told the Orchestrator: perf-campusops over budget (allocations, frame pacing) on 03a82e58, for the perf owner.
+- C:/NightShift/Mobile-Coop (master folder) sits on feature/training-bunker with an uncommitted bakedLamps.ts edit
+  (not mine; left as is, Orchestrator told).
+- Next: read perf-campusops-1/2 (laptop-e2e/alone-perf-campusops-N on 03a82e58) and the flake-full runs' flake lines;
+  triage any train failure (Opus) and tell the Orchestrator.
+
 **Test Runner SAVE 76 (2026-10-27 ~11:20, Orchestrator save at 86%, pause ~11:55 to 13:50; session [058b5c]; wins over SAVE 75):**
 - #696 (F60, CI on Node 24) labelled. Train 166 failed on Sector Ops' lightFieldAlloc under Node 24 (their fix coming).
 - Laptop service healthy; queued requests + spare work (once per master sha) keep it fed through the pause.
