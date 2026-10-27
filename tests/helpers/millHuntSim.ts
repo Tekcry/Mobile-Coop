@@ -164,14 +164,6 @@ export class SimGuard implements HuntMember {
   }
 }
 
-function setGoal(m: SimGuard, x: number, z: number, face: number, speed: number): void {
-  m.gx = x;
-  m.gz = z;
-  m.face = face;
-  m.speed = speed;
-  m.goal = true;
-}
-
 const TURN = ENEMY_CALM_MOTION.turnAim;
 export const DT = 0.2;
 const SUB = 0.1;
@@ -182,7 +174,7 @@ export class HuntWorld {
   readonly gs: SimGuard[] = [];
   t = 0;
   constructor(def: HuntDef) {
-    this.board = new HuntBoard<SimGuard>(def, setGoal, W1X, W1Z, 24);
+    this.board = new HuntBoard<SimGuard>(def, null, W1X, W1Z, 24);
   }
   /** Spawn slot k of `set` (not yet admitted). */
   spawn(set: readonly SimSlot[], k: number): SimGuard {
@@ -197,7 +189,23 @@ export class HuntWorld {
   }
   step(): void {
     this.board.tick(DT);
+    this.handoff();
     this.move();
+  }
+  /** The manager's half of the hand-off: each on-board guard reads his goal from the board's arrays (no callback). */
+  handoff(): void {
+    const b = this.board;
+    for (let k = 0; k < this.gs.length; k++) {
+      const g = this.gs[k];
+      if (!g) continue;
+      const i = b.memberIndex(g);
+      if (i < 0 || !b.mOn[i]) continue;
+      g.gx = b.gx[i]!;
+      g.gz = b.gz[i]!;
+      g.face = b.gface[i]!;
+      g.speed = b.gspeed[i]!;
+      g.goal = true;
+    }
   }
   /** The sim's half of a step (after the board's tick). */
   move(): void {
@@ -387,6 +395,7 @@ export function runHunt(def: HuntDef, set: readonly SimSlot[], opts: HuntRunOpts
     }
     const gens = Array.from(b.tgtGen);
     b.tick(DT);
+    w.handoff();
     holdCheck();
     w.move();
     countRooms(false);

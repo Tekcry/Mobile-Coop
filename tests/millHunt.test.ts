@@ -364,10 +364,43 @@ describe('mill hunt: admission and the start spread (FIX 2, plan check 2 item 2)
     const woken = new SimGuard(10, old.pairSlot, old.pos.x, old.pos.y, old.pos.z);
     w.gs[10] = woken;
     expect(b.admit(woken)).toBe(true);
+    // the taken guard's index was freed on the tick he left; the woken one takes the first free index (here his)
     expect(b.memberIndex(woken)).toBe(i0);
     expect(b.memberIndex(old)).toBe(-1);
     run(w, 30);
     expect(b.unitOf(woken)).toBe(b.unitOf(w.gs[11]!));
+    // woken again before the board's next tick: the old object still holds the index; the new one takes it over
+    const again = new SimGuard(10, old.pairSlot, woken.pos.x, woken.pos.y, woken.pos.z);
+    woken.taken = true;
+    w.gs[10] = again;
+    expect(b.admit(again)).toBe(true);
+    expect(b.memberIndex(again)).toBe(i0);
+    expect(b.memberIndex(woken)).toBe(-1);
+    run(w, 30);
+    expect(b.unitOf(again)).toBe(b.unitOf(w.gs[11]!));
+  });
+
+  it('a dead or taken member frees his board index: a guard is still admitted after 30 kill / revive cycles', () => {
+    const w = worldWith(
+      SET_12,
+      SET_12.map((_, k) => k),
+    );
+    const b = w.board;
+    run(w, 5);
+    for (let n = 0; n < 30; n++) {
+      // G3 dies; his revive is a new object (half the cycles with a slot index the board has never seen)
+      const old = w.gs[2]!;
+      if (n & 1) old.taken = true;
+      else old.alive = false;
+      w.step();
+      const g = new SimGuard(n & 1 ? 2 : 100 + n, -1, old.pos.x, old.pos.y, old.pos.z);
+      w.gs[2] = g;
+      expect(b.admit(g), `cycle ${n}`).toBe(true);
+      run(w, 2);
+    }
+    let used = 0;
+    for (let i = 0; i < b.cap; i++) if (b.member(i)) used++;
+    expect(used).toBe(12);
   });
 
   it('a second solo admitted to a taken stop gets its free partner spot', () => {
@@ -494,7 +527,7 @@ describe('mill hunt: the sims on the test def (15 min, no trigger)', () => {
 });
 
 describe('mill hunt: no allocation in tick', () => {
-  it('16 guards, 400 s of ticks per round (walks, clears, holds, loops, phase steps): no bytes per tick', async () => {
+  it('16 guards, 400 s of ticks per round (walks, clears, holds, loops, phase steps), the goal hand-off included: no bytes per tick', async () => {
     const w = worldWith(
       SET_16,
       SET_16.map((_, k) => k),
@@ -505,6 +538,7 @@ describe('mill hunt: no allocation in tick', () => {
       (n) => {
         for (let k = 0; k < n; k++) {
           b.tick(0.2);
+          w.handoff();
           w.integrate(0.1);
           w.integrate(0.1);
         }

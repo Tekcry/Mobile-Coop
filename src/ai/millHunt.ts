@@ -74,7 +74,11 @@ export interface HuntMember {
   readonly pairSlot: number;
 }
 
-/** The board's goal for a member: his spot, the yaw to face there (NaN while walking) and the pace. */
+/**
+ * The board's goal for a member: his spot, the yaw to face there (NaN while walking) and the pace. Optional: the goals
+ * are always in `HuntBoard.gx` / `gz` / `gface` / `gspeed` (the allocation-free hand-off); a callback that stores the
+ * numbers into a non-double field boxes one per call.
+ */
 export type HuntOut<M> = (m: M, x: number, z: number, face: number, speed: number) => void;
 
 /** Unit states (`HuntBoard.uState`). */
@@ -147,6 +151,15 @@ export class HuntBoard<M extends HuntMember> {
   readonly mLead: Uint8Array;
   /** His pair partner's member index (-1 none), from the map's pair data. */
   readonly mPartner: Int16Array;
+  /**
+   * (H3 hand-off, check A of H3) Each on-board member's goal by board index, written every tick: spot x / z, the yaw to
+   * face (NaN while walking) and the pace. The manager reads them after `tick` for every guard with `mOn[i]` (i =
+   * `memberIndex(guard)`, stable from his `admit` until he leaves the board for good), instead of a callback per guard.
+   */
+  readonly gx: Float64Array;
+  readonly gz: Float64Array;
+  readonly gface: Float64Array;
+  readonly gspeed: Float64Array;
   private readonly mMask: Int32Array;
   private readonly mAim: Int8Array;
   private readonly mAimT: Float64Array;
@@ -204,7 +217,7 @@ export class HuntBoard<M extends HuntMember> {
 
   constructor(
     def: HuntDef,
-    private readonly out: HuntOut<M>,
+    private readonly out: HuntOut<M> | null,
     startX: number,
     startZ: number,
     cap = 24,
@@ -308,6 +321,10 @@ export class HuntBoard<M extends HuntMember> {
     this.mTo = new Int16Array(cap);
     this.mLead = new Uint8Array(cap);
     this.mPartner = new Int16Array(cap).fill(-1);
+    this.gx = new Float64Array(cap);
+    this.gz = new Float64Array(cap);
+    this.gface = new Float64Array(cap).fill(Number.NaN);
+    this.gspeed = new Float64Array(cap);
     this.mMask = new Int32Array(cap);
     this.mAim = new Int8Array(cap);
     this.mAimT = new Float64Array(cap);
@@ -785,6 +802,18 @@ export class HuntBoard<M extends HuntMember> {
     return this.uFrom[u] === this.uTo[u] && (st === H_CLEAR || st === H_HOLD || st === H_LOOP);
   }
 
+  /**
+   * (H3 check A) A dead or taken member off the board gives his board index back (cap: a revive is a new object, and
+   * after many his slot would run out); his partner's link is cleared, so the woken guard pairs again by the map's pair
+   * data on his `admit`. A fighter (`alert`, alive) keeps his index for his rejoin.
+   */
+  private free(i: number): void {
+    const k = this.mPartner[i]!;
+    if (k >= 0 && this.mPartner[k] === i) this.mPartner[k] = -1;
+    this.mPartner[i] = -1;
+    this.ms[i] = null;
+  }
+
   /** A down, taken or fighting member leaves the board; his partner goes on as a solo (a regroup ends where it is). */
   private drop(i: number): void {
     const u = this.mUnit[i]!;
@@ -994,7 +1023,12 @@ export class HuntBoard<M extends HuntMember> {
   tick(dt: number): void {
     this.phaseT += dt;
     const cap = this.cap;
-    for (let i = 0; i < cap; i++) if (this.mOn[i] && this.gone(this.ms[i]!)) this.drop(i);
+    for (let i = 0; i < cap; i++) {
+      const m = this.ms[i];
+      if (!m) continue;
+      if (this.mOn[i] && this.gone(m)) this.drop(i);
+      if (!this.mOn[i] && (!m.alive || m.taken)) this.free(i);
+    }
     for (let u = 0; u < cap; u++) if (this.uLive[u]) this.advanceUnit(u, dt);
     this.orderStep();
     this.rankAll();
@@ -1257,13 +1291,19 @@ export class HuntBoard<M extends HuntMember> {
 
   /** His goal: his spot at the stop he stands at or walks to; the face (NaN while walking); the pace. */
   private emit(i: number): void {
+    const m = this.ms[i]!;
     if (this.mSkip[i]) {
-      const p = this.ms[i]!.pos;
-      this.out(this.ms[i]!, p.x, p.z, this.mYaw[i]!, HUNT.pace);
-      return;
+      this.gx[i] = m.pos.x;
+      this.gz[i] = m.pos.z;
+      this.gface[i] = this.mYaw[i]!;
+    } else {
+      const walking = this.mFrom[i] !== this.mTo[i] || !this.settled(i);
+      this.gx[i] = this.spotX(i);
+      this.gz[i] = this.spotZ(i);
+      this.gface[i] = walking ? Number.NaN : this.mYaw[i]!;
     }
-    const walking = this.mFrom[i] !== this.mTo[i] || !this.settled(i);
-    this.out(this.ms[i]!, this.spotX(i), this.spotZ(i), walking ? Number.NaN : this.mYaw[i]!, HUNT.pace);
+    this.gspeed[i] = HUNT.pace;
+    if (this.out) this.out(m, this.gx[i]!, this.gz[i]!, this.gface[i]!, HUNT.pace);
   }
 }
 
