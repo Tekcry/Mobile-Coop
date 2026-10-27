@@ -1,0 +1,15 @@
+{
+  "id": "20261027T041657-affected-e2e-e387efb9-d2b9",
+  "sha": "e387efb984c64484126e4561dc100d80bebd8ea1",
+  "branch": "feature/campaign-mode-cm4",
+  "pr": 716,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #716"
+}
