@@ -26,6 +26,7 @@ import { LEAP, TEAM, WALL_JUMP } from '../../config/movement';
 import { G } from '../../physics/groups';
 import { REACH } from '../../world/anchors';
 import { hangLanding, hangPointOk, PULL_SUB, ropeTopPath, ropeTopY, type TeamDenial, type TeamRequest } from '../teamMoves';
+import { ctxText } from '../contextPrompts';
 import { registerKitMove, type KitHost, type KitMove } from './registry';
 import type { MoveOverride } from '../../player/playerController';
 import type { TeamMate, TeamStart } from '../teamController';
@@ -250,7 +251,7 @@ function place(h: KitHost, run: PullRun, x: number, y: number, z: number, crouch
 function partnerIdle(h: KitHost, m: TeamMate, coopPressed: boolean): boolean {
   const c = h.g.player.controller;
   if (!h.prompt) {
-    h.prompt = "Co-op: jump for your partner's hands (pull-up)";
+    h.prompt = ctxText("Co-op: jump for your partner's hands (pull-up)", 'Pull-up\njump for their hands');
     h.promptAt.set(m.pos.x, m.pos.y - 0.6, m.pos.z);
   }
   if (!coopPressed) return false;
@@ -301,7 +302,7 @@ export const PULL_UP: KitMove<PullRun> = {
     // floor, so the holder's feet over the drop's floor read a 4.5 m lip as 4.52 ('high') and offered the hang-down
     if (!p || !Number.isFinite(p.floorY) || pullBand(c.pos.y - below.pos.y) !== 'ok' || Math.abs(below.pos.y - p.floorY) > 0.4) return null;
     if (!h.prompt) {
-      h.prompt = 'Co-op: offer a pull-up (catch your partner as they jump)';
+      h.prompt = ctxText('Co-op: offer a pull-up (catch your partner as they jump)', 'Offer a pull-up');
       h.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
     }
     if (!coopPressed) return false;
@@ -359,7 +360,7 @@ export const PULL_UP: KitMove<PullRun> = {
       case 'pullOffer':
         // crouched at the edge, braced; the partner jumps (B / Co-op / the timeout / leaving the ground end it)
         h.hold();
-        h.prompt = 'Pull-up offered: your partner jumps, Co-op to catch';
+        h.prompt = ctxText('Pull-up offered: your partner jumps, Co-op to catch', 'Catch\nwaiting for your partner to jump');
         h.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
         if (bPressed || coopPressed || h.t > TEAM.offerTime || !c.grounded) {
           c.swallowCrouch = bPressed;
@@ -375,7 +376,7 @@ export const PULL_UP: KitMove<PullRun> = {
           return;
         }
         const at = pullCatchAt(h.t);
-        h.prompt = at === 'open' ? 'Co-op: catch!' : 'Catch: Co-op as your partner reaches your hands (B lets go)';
+        h.prompt = at === 'open' ? ctxText('Co-op: catch!', 'Catch!') : ctxText('Catch: Co-op as your partner reaches your hands (B lets go)', 'Catch\nas your partner reaches your hands');
         h.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
         if (bPressed) {
           // let go: the offer ends, the partner drops back

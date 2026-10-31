@@ -611,6 +611,11 @@ export class GameState implements AppState {
     held: () => (this.ctxHolding ? this.takedown.hostage : null),
     heldInfo: () => this.takedown.hostage !== null && hasInfo(this.takedown.hostage),
     offer: () => (this.strike.active || this.takedown.active ? null : this.takedown.offer),
+    joint: () => {
+      const o = this.takedown.offer;
+      return !!o && o.plan.kind === 'assist' && hasJoint(o.e);
+    },
+    teamMove: () => this.team.active && !this.team.hangActs,
     knife: () => this.takedown.knife,
     rtFree: () => !this.player.ads && !this.player.adsWanted && (this.player.stance.base === 'holstered' || this.takedown.menuReady || this.team.hangActs),
     doorCandidate: () => this.doorMenuCandidate(),
@@ -1550,7 +1555,8 @@ export class GameState implements AppState {
     ints.update(dt);
     // (hang-down, A1) hanging settled by a guard (on offer or held), the context menu uses the items (a hold row for the
     // hack); (A9) with no guard there, A uses the item in reach here as before the menu
-    if (!this.team.active || (this.team.hangActs && !this.hangDirectA)) {
+    // (context-prompts S5, rows 11, 42-43) with the flag on the prompts use the item in a team move and hanging too
+    if (flags.contextPrompts || !this.team.active || (this.team.hangActs && !this.hangDirectA)) {
       this.hud.setInteract(null);
       return;
     }
@@ -1719,15 +1725,16 @@ export class GameState implements AppState {
    * the model picks the focus, the Y rule judges this step's jump press against that focus (`ctxPromptStep`), then A and
    * Y run its rows through today's calls (`ctxPromptRun`). A is owned as the menu owned it (`ctxOwnsA`), a jump press the
    * rule took until it is let go (`ctxOwnsY`). The held guard's RT / Z picks and the scripted `grabMenu.sel` pick run as
-   * in the menu step. In a team move (not hanging) everything stands aside and today's direct paths run (S5 folds them).
+   * in the menu step. (S5, rows 11, 42-43) A team move or offer under way and hanging are no stand-asides: the providers
+   * list the takedown on offer and the item in reach there (today's two direct A jobs, `updateInteract` and the team
+   * press in the takedown step, which stand down under the flag), with world prompts.
    */
   private contextPromptStep(dt: number, real: InputState): void {
     const cp = this.ctxPrompts;
     const td = this.takedown;
     const hangActs = this.team.hangActs;
-    const hangDirect = hangActs && td.offer === null && td.active === null;
-    this.hangDirectA = hangDirect;
-    const aside = !this.player.alive || (this.team.active && !hangActs) || this.doorPeek.active || this.optic.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.carrier?.busy ?? false);
+    this.hangDirectA = false;
+    const aside = !this.player.alive || this.doorPeek.active || this.optic.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.carrier?.busy ?? false);
     const holding = !aside && td.menuReady;
     const gv = this.grabMenu;
     gv.holding = holding;
@@ -1739,14 +1746,14 @@ export class GameState implements AppState {
     this.doorMenu.opts.length = 0;
     this.gapMenuOpts.length = 0;
     this.gapMenuGap = -1;
-    // a pick that ran lists nothing this step (as the menu); (hang-down) no body is picked up from the hang, and hanging
-    // with no guard the item is A's own (`updateInteract`)
+    // a pick that ran lists nothing this step (as the menu); (hang-down) no body is picked up from the hang, (S5, row 11)
+    // and hanging the item in reach is the prompts' with a guard there or not
     this.ctxAside = aside || (!!pick && pick !== 'device');
     this.ctxHolding = holding;
-    const it = this.ctxAside || holding || hangDirect ? null : ((hangActs ? null : this.carrier?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
+    const it = this.ctxAside || holding ? null : ((hangActs ? null : this.carrier?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
     this.ctxItem = it;
     fillContextPrompts(cp, this.ctxHost);
-    if ((!this.team.active || (hangActs && !hangDirect)) && it !== this.interactTarget) {
+    if (it !== this.interactTarget) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = it;
     }
@@ -1801,7 +1808,9 @@ export class GameState implements AppState {
       case 'hostage': {
         const o = td.offer;
         if (!o || td.active || ctxRefOf(o.e.id) !== r.ref) return;
-        if (r.opt === CTX_OPT.grab) td.start();
+        // (S5, row 13, G148) the bluff on the partner's hostage: the menu's BLUFF call
+        if (r.opt === CTX_OPT.bluff) this.net?.jointBluff?.(o.e);
+        else if (r.opt === CTX_OPT.grab) td.start();
         else if (r.opt === CTX_OPT.ko) td.start(false);
         // the kill (A6, lethal-only) and the knife takedown (A19: `start` forces the knife)
         else td.start(true);
@@ -2477,7 +2486,8 @@ export class GameState implements AppState {
         const p = grabTriggerPick(this.rtRes, real.pressed('altFire'), false);
         if (p) tdk.start(p === 'kill');
       }
-      tdk.fixedUpdate(dt, this.team.active && !this.team.hangActs && aFree && inp.pressed('interact') && !this.strike.active, inp.down('interact'));
+      // (context-prompts S5, row 43) with the flag on the prompts start the takedown on offer in a team move too
+      tdk.fixedUpdate(dt, !flags.contextPrompts && this.team.active && !this.team.hangActs && aFree && inp.pressed('interact') && !this.strike.active, inp.down('interact'));
     }
     // (G7) close quarters: the bend over a held guard / a body, the hold's sway (the anim graph eases them)
     {
@@ -4410,9 +4420,9 @@ export class GameState implements AppState {
     // takedown: on the victim, above the head
     const off = this.takedown.active ? null : this.takedown.offer;
     const host = this.takedown.hostage;
-    // (context-prompts S3) with the flag on the guard's prompt is the cluster's (`hud.ctxPrompts`); this one shows only
-    // where the prompts stand aside (a team move's direct press, S5 folds it)
-    if (flags.contextPrompts && !this.ctxAside) w.set('takedown', null, 0, 0);
+    // (context-prompts S3, S5) with the flag on the guard's prompt is the cluster's (`hud.ctxPrompts`), in a team move
+    // too (row 43); where the prompts stand aside (a peek, a running takedown) A does not take him, so none shows
+    if (flags.contextPrompts) w.set('takedown', null, 0, 0);
     else if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);

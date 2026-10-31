@@ -467,6 +467,27 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] (F45) /preview/ with no pick yet: Settings > Gameplay > Animation source shows Mixamo and a ledge hang plays the
   Mixamo capture; pick CMU, restart: CMU is kept. The live game with no pick: CMU.
 
+### Context prompts (preview only; context-prompts, `docs/context-prompts/PLAN.md` section 8 walk items)
+On /preview/ they are on; on any other build add `?ctxprompts=1` (`?ctxprompts=0` brings back the old box to compare).
+Main menu > Sector Ops > Saltmarsh Park > Start, pad first, then keyboard (E is A, Space is Y). How it works:
+`docs/systems/input-and-loop.md` "Context prompts".
+- [ ] At a closed door the prompt fades in on the door, no box top right: tap A opens, hold A bashes (a guard right
+  behind it drops), tap Y peeks, hold Y feeds the optic cable. A ring fills round the glyph while a button is held.
+- [ ] Where a vault or climb is offered by the door (a window, a hatch you can climb out of) Y climbs and the door's Y
+  row is gone; at a hatch or grille Y tapped feeds the optic cable; away from doors Y jumps as always.
+- [ ] Behind a guard: `[A] Grab` over his head, RT tap knocks out, RT hold kills. In front of him: tap A knocks out,
+  hold A kills. Holding a guard: the rows for RT, LT (and Interrogate when he knows something).
+- [ ] A light switch (tap A), an alarm panel or a keypad (hold A, the ring fills), a body (pick up, carry: "Hide
+  body" or "Drop body" where you will put it).
+- [ ] Only the thing you face shows a prompt; nothing else nearby is marked; walking never stops while a prompt shows;
+  plugging in or putting down the pad swaps the glyphs at once.
+- [ ] Co-op (two tabs `/preview/?net=local`, Co-op > Host / Join): each player sees only their own prompts; hold A on
+  a downed partner revives; a team move is named on the partner ("Take the leg-up"); offering a leg-up beside a switch,
+  A still uses the switch; beside the partner's held guard, A is the team takedown and Y bluffs when he knows
+  something. A client's "hold Bash" is a plain open through the host, as today.
+- [ ] Main menu > Piano Escape, after the EMP: on a guard, `[A] Knife takedown` and `[RT] Knife takedown` show; A
+  (tap or hold) or the attack button holstered is the knife kill; no grab.
+
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
 - [ ] RMB aims, LMB fires, C crouches, Space jumps, Caps Lock backs to a wall, E uses, F is the co-op action, R reloads,

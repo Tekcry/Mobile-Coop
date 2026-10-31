@@ -4,7 +4,8 @@
 // downed/revive, results, back to lobby, guards and doors in co-op,
 // difficulty, (hang-down) the hanging joiner's pistol, grab and neck snap, a course restart at the checkpoint while a guard
 // is held (Marlow Yard), a door peek and a wall medkit in Free Roam, host leaving, malformed messages, and the offline
-// state. (guard-ai S9) The guard-ai state on the client: alarm stage gear, a bark, caution, a shield-led response team
+// state; (context-prompts S5) the context prompts in co-op under ?ctxprompts=1 (a leg-up offer beside an item, the
+// move named on the partner, the revive hold). (guard-ai S9) The guard-ai state on the client: alarm stage gear, a bark, caution, a shield-led response team
 // and a client deflect (helmet off on both screens). (guard-ai S23) Every player is seen: a calm guard spots the client
 // in his light while the host hides nearer behind a wall, and in combat keeps his target and line on the client.
 // (guard-ai S24) Two intruders: two guard pairs each hunt the player they saw, and close on his last known position only.
@@ -2213,6 +2214,112 @@ try {
 } finally {
   errs.push(...eA, ...eB);
   await browser.close();
+}
+
+// (context-prompts S5, PLAN 8) the context prompts in co-op (`?ctxprompts=1` on both pages, dark until switch-on), on
+// Proving in Free Roam: the host offers a leg-up beside a switch: the switch's prompt shows on it (no centre prompt) and A
+// uses it while the offer stands (rows 42-43); the team-move prompts are the short move names, the waiting text a small
+// second line, and the client's "Take the leg-up" sits on the host (rows 38-39); the downed client: the host's hold A on
+// the revive point fills and revives (row 27); the old box never shows on either page.
+if (!failed) {
+  console.log('context prompts in co-op: a leg-up offer beside an item, the move named on the partner, the revive');
+  const Q = `${NET}&ctxprompts=1`;
+  const { browser: cb, ctx: cc, page: A2, errors: eA2 } = await launch({ url, params: Q });
+  let B2 = null;
+  let eB2 = [];
+  try {
+    const GA = (f, a) => A2.evaluate(f, a);
+    await A2.click('.main-menu .btn:has-text("Co-op")');
+    await A2.click('.btn:has-text("Host a room")');
+    await until(A2, () => !!document.querySelector('.lobby-screen') && !!window.__coop, null, 15000, 'ctx: host lobby');
+    const code = await GA(() => window.__coop.session.code);
+    ({ page: B2, errors: eB2 } = await openPage(cc, url, Q));
+    setSimPages([A2, B2]);
+    const GB = (f, a) => B2.evaluate(f, a);
+    await B2.click('.main-menu .btn:has-text("Co-op")');
+    await B2.click('.btn:has-text("Join with code")');
+    await B2.keyboard.type(code.toLowerCase());
+    await B2.keyboard.press('Enter');
+    await until(A2, () => window.__coop.session.players.size === 2, null, 15000, 'ctx: the client joins');
+    await GA(() => window.__coop.session.setSettings('sandbox', 'proving', 'normal', ''));
+    await GB(() => window.__coop.session.setReady(true));
+    await until(A2, () => window.__coop.session.allReady, null, 8000, 'ctx: everyone ready');
+    await GA(() => window.__coop.session.startMatch());
+    for (const P of [A2, B2]) await until(P, () => window.__app.current?.opts?.mode === 'sandbox' && !!window.__app.current.net && !window.__app.current.isEnded, null, LOAD_MS, 'ctx: Free Roam on both pages');
+    await until(A2, () => [...window.__app.current.net.remotes.values()].some((r) => r.state), null, 15000, 'ctx: client states reach the host');
+    // the old box and the centre prompt never show (checked on every poll from here)
+    const noBox = () => !document.querySelector('.hud-ctx.show') && window.__app.current.ctxMenu.state === 'none';
+    await GA(() => { const g = window.__app.current; g.target.damageMul = 0; window.__ctxUsed = 0; });
+    // the 4.2 m block north of Proving (e2e-netmove): the host crouches 0.45 m off its face, the client behind him
+    const place = (P, x, z) => P.evaluate(([x, z]) => { const g = window.__app.current; g.team.end(true); window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), 0); g.player.cam.yaw = 0; g.player.cam.pitch = 0; }, [x, z]);
+    const holdUntil = async (P, btn, cond, what) => {
+      await P.evaluate((b) => window.__pad.set(b, 1), btn);
+      try { await until(P, cond, null, 5000, what); } finally { await P.evaluate((b) => window.__pad.set(b, 0), btn); }
+    };
+    await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+    await place(B2, 4, 26.2);
+    await place(A2, 4, 27.05);
+    // a light switch beside the host, on the host (its use only counts here)
+    await GA(() => {
+      const g = window.__app.current;
+      const it = g.interactables.add('e2e-ctx-switch', 'switch', g.player.position.clone().addInPlaceFromFloats(0.7, 0, 0.1), 'Lights off', 0);
+      g.interactables.setEnabled(it, true);
+      it.onUse = () => { window.__ctxUsed++; };
+    });
+    await wait(600);
+    await holdUntil(A2, 1, () => window.__app.current.player.controller.crouched, 'ctx: the host crouches');
+    await wait(150);
+    await holdUntil(A2, 5, () => window.__app.current.team.state === 'offer', 'ctx: the host offers a leg-up (crouched + Co-op action)');
+    // rows 42-43: the switch's own prompt (the cluster on it), no centre prompt, A free of the offer
+    await until(A2, () => { const g = window.__app.current; const cp = g.ctxPrompts; return g.team.active && cp.kind === 'item' && cp.shows(0) && cp.rows[0].tapLabel === 'Lights off'; }, null, 6000, 'ctx: offering, the switch beside the host shows its prompt');
+    const hv = await GA(() => ({ cluster: document.querySelector('.ctxp.on')?.textContent ?? '', centre: document.querySelector('.hud-interact.show')?.textContent ?? '', prompt: window.__app.current.team.prompt ?? '', sub: document.querySelector('.wp-coop .wp-sub')?.textContent ?? '' }));
+    assert(/Lights off/.test(hv.cluster) && hv.centre === '', `offering a leg-up: the item's prompt is on the item, no centre prompt (${JSON.stringify(hv)})`);
+    assert(hv.prompt.startsWith('Leg-up offered\n') && /waiting/.test(hv.sub), `the offer's prompt is the move's short name, its waiting text a second line (${JSON.stringify(hv.prompt)} / ${hv.sub})`);
+    await GA(() => window.__app.input.state.tap('interact'));
+    await until(A2, () => window.__ctxUsed === 1, null, 5000, 'ctx: A uses the switch while the leg-up is offered');
+    assert(await GA(() => window.__app.current.team.state === 'offer'), 'the leg-up offer stands after A used the switch');
+    // rows 38-39: the partner is offered the move by name, the prompt on the offering host
+    await until(B2, () => /leg-up/i.test(window.__app.current.team.prompt ?? ''), null, 6000, 'ctx: the client is offered the leg-up');
+    const cv = await GB(() => { const g = window.__app.current; const m = g.net.teamMates()[0]; const at = g.team.promptAt; return { prompt: g.team.prompt, d: Math.hypot(at.x - m.pos.x, at.z - m.pos.z) }; });
+    assert(/^(Take the leg-up|Leg-up offered\n)/.test(cv.prompt) && cv.d < 0.6, `the partner's prompt names the move, on the host (${JSON.stringify(cv)})`);
+    assert((await GA(noBox)) && (await GB(noBox)), 'the old box never shows on either page');
+    // row 27: the client down, the host's hold A on its revive point fills and revives
+    await GA(() => window.__app.current.team.end(true));
+    await GA(() => window.__pad.set(1, 0));
+    const cid = await GB(() => window.__coop.session.selfId);
+    await GA(() => {
+      const r = window.__app.current.net.remotes.values().next().value;
+      r.damageMul = 1;
+      r.applyDamage({ amount: 9999, point: r.feet.clone(), dir: r.feet.clone(), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'x', sourcePos: r.feet.clone(), impulse: 0 });
+    });
+    await until(B2, () => !window.__app.current.player.alive, null, 5000, 'ctx: the client is down');
+    await until(A2, (id) => window.__app.current.interactables.items.some((i) => i.id === `revive-${id}` && i.enabled), cid, 5000, 'ctx: the host has the revive point');
+    await GA((id) => {
+      const g = window.__app.current;
+      g.player.controller.clearCrouchToggle();
+      const p = g.interactables.items.find((i) => i.id === `revive-${id}`).pos;
+      const V = g.player.position.constructor;
+      g.player.controller.teleport(new V(p.x, p.y + 0.05, p.z - 0.8), 0);
+      g.player.cam.yaw = 0;
+    }, cid);
+    await until(A2, () => { const cp = window.__app.current.ctxPrompts; return cp.kind === 'item' && cp.rows[0].fill && /^Revive /.test(cp.rows[0].holdLabel); }, null, 6000, 'ctx: the revive point shows hold Revive on the host');
+    await GA(() => window.__app.input.state.set('e2e', 'interact', true));
+    try {
+      await until(A2, () => window.__app.current.ctxPrompts.holdK > 0.2, null, 6000, 'ctx: the revive ring fills while A is held');
+      await until(B2, () => window.__app.current.player.alive, null, 12000, 'ctx: the hold revives the client');
+    } finally {
+      await GA(() => window.__app.input.state.set('e2e', 'interact', false));
+    }
+    assert(true, 'the host revives the client by holding A on the revive point');
+    assert((await GA(noBox)) && (await GB(noBox)), 'the old box never shows (after the revive)');
+    await GA(() => window.__coop.leave(false));
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    errs.push(...eA2, ...eB2);
+    await cb.close();
+  }
 }
 
 // (char-shadow-meter S4, J16; S2c) Character shadows in co-op, on their own `?charlight=1` pages (every block above runs

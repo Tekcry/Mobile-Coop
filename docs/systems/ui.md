@@ -13,7 +13,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 - `Hud.setAccess` per frame from `settings.access`: health = the screen-edge vignette plus the health bar
   (`access.healthBar`, default on; off leaves the vignette as the only readout), the weapon readout fades (`.quiet`) 3 s
   after the last change, a hold ring on the use prompt (`setInteract(text, progress)`; since G5 only on the team-move
-  direct path; the hang-down's hanging player, settled, uses the menu), subtitles
+  direct path; the hang-down's hanging player, settled, uses the menu; never under `contextPrompts`), subtitles
   (`BarkView.subtitles`), colour-safe arcs (`AwarenessArcs.colorSafe`), `--hud-scale` (CSS `zoom`), camera `shakeMul`,
   held actions by tap (`access.holdToggle`, `GameState.holdLatch`). No medkit count: health comes back only at wall
   stations (G20, G98).
@@ -22,6 +22,28 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   fractions of the frame: right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H, 0.4 % H gap, rows 3.34 % H apart, cap height 2.0 % H, uppercase Barlow
   Condensed. Our own look: steel borders, the highlight a thin outline with bright corner ticks (no fill), a fill line
   on a hold row. It writes the DOM only when `ContextMenu.version` changes. Logic: `docs/systems/input-and-loop.md`.
+- (context-prompts S4, S5; dark behind `contextPrompts`, on in /preview/) The context prompt view replaces that box and
+  the centre use prompt: neither shows under the flag, nor the old `takedown` world prompt. Which button does what on
+  each target and the anchors: `docs/context-prompts/PLAN.md` sections 2 and 5; the logic: input-and-loop.md
+  "Context prompts".
+  - `ui/hud/contextPromptView.ts` implements `CtxPromptSink`; `GameState.contextPromptStep` hands it the focus model
+    every fixed step. Only the focused target shows (Michael's pick 3, "Only the one you face"): no marker on anything
+    else, so the no-markers rules hold (G290, G339, G135).
+  - The cluster: the `.wp-mark` marker at the target's anchor and one row per offered button under it (A, Y, RT, LT),
+    each "tap label · hold label" (`[A] Open · hold Bash`); the hold half is dimmer until held, and a ring round the
+    glyph (`.hold-ring`, 40 steps) fills while a hold or an item fill is under way. The Y row shows only while the Y
+    rule would take a press, so Y never shows two meanings.
+  - It fades in over `CTX_FOCUS.fade` when it gains the focus and out where it was when it loses it (two clusters;
+    `.ctxp.off` starts from opacity 0, so a fresh cluster always fades in).
+  - It shares the `.hud-world` layer, the screen clamp and the overlap push with the world prompts (`promptLayout.ts`,
+    pure; `WorldPrompts.flush` places both); text in `vh` times `--hud-scale`, which `Hud.setAccess` now also sets on
+    the world layer.
+  - Glyphs come from `ui/prompts.ts` with every device variant emitted: A is the interact verb, Y the jump verb's glyph
+    (a remapped jump moves it), RT and LT the triggers. The DOM is written only when a label, the ring step, the
+    binding or the rounded position changes.
+  - Team and kit move prompts use short move names under the flag (`ctxText`), with any waiting text as a small second
+    line (`.wp-sub`).
+  - Tests: `tests/promptLayout.test.ts`; e2e-pad (the cluster on a door, the glyph swap, the ring).
 - Speed gear pips (`hud.setGear(gear, changes, max)`, shown `GEARS.pipsShow` 1.5 s after a change). Decided, not built
   yet: no gear or stance indicator on the HUD (loco M25 (7), G107: the body shows the stance).
 - The objective popup and the no-maps rule are owned by bible 5.10 (G336, G339, G343, G351); strict rules by bible

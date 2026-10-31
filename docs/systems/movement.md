@@ -28,7 +28,9 @@ Still standing:
   mode, no lean bit in `WALL_SUB` (`player/wallController.ts:154`); an edge on the wall has the peek only.
 - Built (G97, G41): the CT door menu (open, stealth open, bash, optic cable) is rows of the context menu
   (`game/doorMenu.ts`); a stick-driven door under `DOOR.driveShut` 0.15 of the swing is still a crack to body, light and
-  sight, over it a real opening guards notice (`world/doors.ts:53`). Open and crack peek: sections below.
+  sight, over it a real opening guards notice (`world/doors.ts:53`). Open and crack peek: sections below. Under
+  `contextPrompts` (dark) the same four actions are buttons on the faced door: tap A opens, hold A bashes, tap Y
+  peeks, hold Y feeds the optic cable (input-and-loop.md "Context prompts").
 - Built (G40): the two slowest standing and the three slowest crouched speeds are silent: `NOISE_QUIET`
   (`config/movement.ts`, stand 1.65, crouch 1.9 m/s, with headroom for the stride swell).
 - Decided (G34): wall entry by button only (built). G37: the CT back-to-wall is the only wall move. G109: every operator
@@ -148,7 +150,9 @@ Still standing:
   `docs/systems/coop.md`.
 
 ## Manual jump
-- `LEAP` (`config/movement.ts`): the jump action (Y / E) leaps when traversal has nothing on offer
+- `LEAP` (`config/movement.ts`): the jump action (Y / Space) leaps when traversal has nothing on offer, except where
+  the context prompts' Y rule takes the press as the second action (`contextPrompts`, dark: a faced closed door, hatch
+  or partner's hostage with nothing offered; input-and-loop.md "Context prompts")
   (`TraversalController.leap`, `PlayerController.launch` up at `LEAP.vy`; `takeoffT` stops the support check pinning it).
   In the air `fallProbe` / `AttachController.leapProbe` grab drainpipes / ladders within `LEAP.climbReach` (after
   `LEAP.splitWait` over a split gap); a second press within `LEAP.doubleTap` over a split braces in it.
@@ -330,7 +334,7 @@ Still standing:
   same model the hit volumes follow, on the owner and the host alike. Guards see the body, never the camera.
 
 ## Door open (CT prototype G6, AUDIT-WALLS row 4)
-- The door menu's Open is a short committed move (`world/doorOpen.ts`, pure `DoorOpenCore`, `DOOR_OPEN`; `GameState.doorOpenStep`):
+- The door menu's Open (under `contextPrompts`: tap A on the door) is a short committed move (`world/doorOpen.ts`, pure `DoorOpenCore`, `DOOR_OPEN`; `GameState.doorOpenStep`):
   the body steps over `step` 0.5 s to a spot beside the latch (`doorOpenSpot`: 0.55 m off the leaf, 0.25 m in from the
   latch edge, turned 35 deg toward the hinge; a leaf that swings toward the body: 0.3 m past the latch edge, out of its
   sweep), the near hand rises onto the leaf (a push: the hinge-side hand, palm 0.22 m in from the latch edge; a pull: the
@@ -347,7 +351,7 @@ Still standing:
 - Tests: `tests/doorOpen.test.ts`, `tests/doors.test.ts`; e2e-stealth-ai `doors`; anim-sheet `dooropen`, `dooropenpull`.
 
 ## Door peek (locomotion step 13, A25 / A52)
-The door menu's Stealth open starts it (A3).
+The door menu's Stealth open starts it (A3); under `contextPrompts`, a tap of Y on the door while the peek is on offer.
 - Core: `world/doorPeek.ts` (pure, `DoorPeekCore`, `DOOR_PEEK`, `DOOR_CRACK`). Eligible (`doorPeekEligible`) at a closed,
   unlocked, uncracked door whose leaf is within 1.0 m and faced within 60 deg, grounded and in no other state.
 - (G6, AUDIT-WALLS row 14, 052349 @ 13.6-18.6: picked 14.1, the step and the hand up 14.4-14.8, the camera in at about

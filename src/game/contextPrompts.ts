@@ -21,8 +21,16 @@
  * The focused target is copied into this object's model fields for the view (`CtxPromptSink`, S4); `version` bumps only
  * when something the view draws changes (positions are read every frame). Nothing here allocates after construction.
  */
+import { flags } from '../core/flags';
 import type { ButtonAction } from '../input/actions';
 import { STANCE } from '../player/weaponStance';
+
+/** (S5, PLAN 6) A team or kit move prompt: under `flags.contextPrompts` the short move name (G151), its waiting text as
+ *  a small second line after '\n' (the world prompt draws it); with the flag off the full line, as today. Constants
+ *  in, no allocation. */
+export function ctxText(full: string, short: string): string {
+  return flags.contextPrompts ? short : full;
+}
 
 /** What a candidate is. `held`: the guard held; `guard`: the takedown on offer (behind, faced, lethal-only, hang-down,
  *  knife); `hostage`: the partner's hostage (team takedown, bluff); `door`: a door faced (closed, sliding or open);

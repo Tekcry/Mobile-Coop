@@ -11,6 +11,16 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G155, G180, G348), then docs
   `STANCE.rtHold` 0.35 s the kill; KBM LMB the same, Z the knockout); a guard who only falls to a lethal one gets no row. Michael: "It shouldn't have kill/knock out/carry in the list", "The guard cannot be let go
   either, only knocked out. Killed, or used as human shield (aiming pistol)", "There is no back to game option once
   the grab is initiated."
+- Built dark (context-prompts, Michael 2026-10-27, pick 2 "Tap knocks out, hold kills"; `docs/context-prompts/BRIEF.md`
+  A4-A6, A16, A17): under `contextPrompts` the takedown on offer is a button prompt above the guard's head, not a row
+  (the model and the tap / hold timing: input-and-loop.md "Context prompts"). Behind a guard on two legs: tap A grabs
+  (on the press; no hold version, so `grabToggle` keeps A's hold). A guard you face (front, side, over cover, corner,
+  above, drop, below, window, inverted): tap A the named knockout, hold A the kill, restoring G43's tap / hold for every
+  non-grab takedown; a lethal-only offer shows only "hold Kill". A held guard: tap A interrogates (only with
+  information); nothing lets him go (G204). The hanging player's guard below: tap A grabs. The partner's hostage: tap A
+  is the team takedown, tap Y bluffs with joint information (the Y rule). RT and LT are unchanged and named on the
+  prompt (RT tap knock out / hold kill, holding a guard LT the shield; hanging, RT Choke / hold Neck snap). In a team
+  move or offer the takedown on offer keeps A over the item in reach.
 - Built (G42, G155; loco M20 Q4 / Q4b, M25 (5)): the close strike is a palm strike, a one-hit knockout from any side on
   every human guard, aware or not, heavies included, never a dog (`src/game/elbowStrike.ts` `resolveStrike`,
   `strikeTargetable`; no stagger). Campaign co-op missions have no heavies or dogs (G155); Sector Ops has dogs and
@@ -48,7 +58,8 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G155, G180, G348), then docs
 - Takedowns skip a guard at level alert while the attacker is spotted (`GameState.spottedLocal`; host check on a client's
   `td`, `PF.spotted`).
 - GameState order: the hold-A menu runs first (`contextMenuStep`; A is `interact`, `src/input/padBinds.ts` ~:41, KBM
-  E), so the takedown is a row of it, not a button of its own; Y is jump / traverse. A takedown or strike in progress
+  E), so the takedown is a row of it, not a button of its own; Y is jump / traverse. Under `contextPrompts`
+  `contextPromptStep` runs in its place and the takedown is A on the guard's prompt. A takedown or strike in progress
   makes traversal stand aside (`gameState.ts` ~:1890) and blocks the team move (`teamController.ts` ~:672).
 - Co-op: the host approves a client's takedown (`td`); details in `docs/systems/coop.md`.
 
@@ -137,7 +148,9 @@ the pistol. Live only while hanging settled (`TeamController.hangActs`); lowerin
   takedown's `release` clears only its own).
 - The grab (A1, A3): the hold-A menu works while hanging by a guard (rows: GRAB CHARACTER for the guard in reach, the
   item in reach); with no guard on offer or held, A uses the item in reach directly as before (A9: press uses it, a
-  hold fills a hold item; `GameState.hangDirectA`, one consumer of A per step); `GRAB_KINDS` holds `hangDown`. `runHangGrab`: the hands reach down (`HANG_GRAB.reach` 0.3 s, his
+  hold fills a hold item; `GameState.hangDirectA`, one consumer of A per step); under `contextPrompts` both are prompts
+  (`[A] Grab` on the guard, the item in reach on A, "Pull me up" on the holder) and `hangDirectA` stays off;
+  `GRAB_KINDS` holds `hangDown`. `runHangGrab`: the hands reach down (`HANG_GRAB.reach` 0.3 s, his
   struggle from there), he is lifted to them (`HANG_GRAB.lift` 0.5 s; `hangHoldPoint`: `HANG_GRAB.hold` 0.3 m out along
   the way to him, his neck `HANG_GRAB.hands` 0.35 m under the head, at most `liftMax` 0.6 m off his floor, following the
   holder's depth), then held with the held rules: RT tap / KBM Z knock out (`CQ.koTime`, let down limp onto his floor),
@@ -187,6 +200,13 @@ The close strike of G42 / G155; this is the build.
 - Switch on (A2; Michael ~20:05 "Palm strike knockout disabled, only knife kills"): every takedown on a guard on two
   legs is a lethal knife kill on one press. No grab row (`takedownRow`), no tap / hold, no RT palm strike
   (`gameState` passes no strike start). The knife (`PlayerWeapons.knife`) shows from the press until the attacker is free.
+- The attack press (knife-attack, Michael's walk 2026-10-27): holstered, RT / LMB (or Z) is the knife kill on the guard
+  on offer (`GameState.knifeAttack`, the same `start` as the takedown row); none in reach: the cue "Knife ready: get
+  behind or beside a guard", no free slash.
+- Context prompts (`contextPrompts`, dark; BRIEF A19): every guard on two legs on offer shows `[A] Knife takedown` (it
+  runs on the press, so a tap or a hold) and `[RT] Knife takedown`; no grab; the partner's hostage keeps
+  `[A] Team takedown` (`start` exempts `assist`). Y follows the Y rule as anywhere (input-and-loop.md "Context
+  prompts").
 - Rows (`KNIFE_KILLS`, wire order `behind`, `behindLow`, `corner`, `front`; `pickKnifeKill`): behind (crouched: the rise),
   corner / overCover, front / side. Other kinds, a victim without `knifeVictim` (a co-op puppet until S3) or clips not
   loaded yet: the -1 path (today's lethal move, knife shown). The pairs (S2, Michael's Mixamo downloads in

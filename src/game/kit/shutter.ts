@@ -28,6 +28,7 @@
  */
 import { hyp2 } from '../../core/mathx';
 import { SHUTTER_SUB, type TeamDenial, type TeamRequest } from '../teamMoves';
+import { ctxText } from '../contextPrompts';
 import { registerKitMove, type KitDevice, type KitDevices, type KitHost, type KitMove, type KitState } from './registry';
 import type { MoveOverride } from '../../player/playerController';
 import type { TeamMate } from '../teamController';
@@ -575,7 +576,7 @@ function holderStep(h: KitHost, run: ShutterRun, dt: number, coopPressed: boolea
         return;
       }
       if (act === 'wait') run.letGo = true;
-      prompt(h, run.letGo ? 'Partner under the shutter: holding' : 'Holding the shutter: Co-op or B lets go', c.pos.x, c.pos.y + 1.5, c.pos.z);
+      prompt(h, run.letGo ? 'Partner under the shutter: holding' : ctxText('Holding the shutter: Co-op or B lets go', 'Let go of the shutter'), c.pos.x, c.pos.y + 1.5, c.pos.z);
       return;
     }
     case 'shutterDrop':
@@ -656,7 +657,7 @@ function holderIdle(h: KitHost, run: ShutterRun, coopPressed: boolean): boolean 
   const l = shutterLocal(d, c.pos.x, c.pos.z, run.loc);
   const along = holdAlong(d, l.along);
   if (Math.abs(l.across) > SHUTTER.liftReach || Math.abs(l.along) > d.width / 2 || Number.isNaN(along)) return null;
-  prompt(h, 'Lift the shutter: Co-op', d.x, d.y + 1.2, d.z);
+  prompt(h, ctxText('Lift the shutter: Co-op', 'Lift the shutter'), d.x, d.y + 1.2, d.z);
   if (!coopPressed) return false;
   run.dev = d;
   run.side = l.across >= 0 ? 1 : -1;
@@ -699,7 +700,7 @@ function crawlIdle(h: KitHost, run: ShutterRun, coopPressed: boolean, free: bool
       prompt(h, 'Crouch to crawl under the shutter', px, py + 1.2, pz);
       return false;
     }
-    prompt(h, 'Crawl under: Co-op', px, py + 1.2, pz);
+    prompt(h, ctxText('Crawl under: Co-op', 'Crawl under'), px, py + 1.2, pz);
     if (!coopPressed) return false;
     run.asked = 0;
     h.kitRequest('shutter', m.id, -1, 0, py);
