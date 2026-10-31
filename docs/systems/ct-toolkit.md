@@ -250,7 +250,7 @@ kit. Existing gadgets in the kit: noisemaker, sticky cam, EMP and sleeping gas a
 
 ## 7. Build plan (V1-V3)
 History where it names Kestrel or Dead Line (paused, G53). Waits for the CT co-op research and Kestrel's restart (G53, G76); the work then runs prototype first, then the orchestrator
-method (G87, docs/systems/session-method.md). V1-V3 may change the player controller, the camera, the grab and takedown
+method (G87). V1-V3 may change the player controller, the camera, the grab and takedown
 code, add `src/config/tools.ts` and the `toollab` debug map; no existing tuning value changes. All logic is pure and
 Babylon-free with Vitest tests. Each session runs `npm run check` and `npm run e2e:quick`; GPU, contact sheets and
 performance are "pending PC run" from cloud sessions. New e2e suite `scripts/e2e-toolkit.mjs` (REQUIRED, COVERS the tool
