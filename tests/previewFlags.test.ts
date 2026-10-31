@@ -88,6 +88,7 @@ describe('(coop-kit A1) kitMoves: the kit list flag', () => {
   it('?coopkit=1 / 0 adds / removes pull and shutter', () => {
     expect(ids(readKitMoves(null, false, '1'))).toEqual(['pull', 'shutter']);
     expect(ids(readKitMoves('descent', false, '1'))).toEqual(['descent', 'pull', 'shutter']);
+    // (coop-kit K5b) every built id but the two `?coopkit=0` removes
     expect(ids(readKitMoves(null, true, '0'))).toEqual(KIT_BUILT.filter((id) => id !== 'pull' && id !== 'shutter').sort());
     expect(ids(readKitMoves(null, true, 'x'))).toEqual([...KIT_BUILT].sort());
   });
