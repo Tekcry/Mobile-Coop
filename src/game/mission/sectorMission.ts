@@ -41,7 +41,7 @@ import { SECTOR, type SectorDef, type SectorPhase, type SectorRun } from '../sec
 import { missionSpawnsGuard, spookFact, teamForSlot, type MissionDef, type MissionEvent, type TeamId } from './missionDef';
 import { INTERROGATE_DECOY, MissionRunner } from './missionRunner';
 import { RULE_HOLD, RULE_RESTART, RuleTracker, TEAM_A_BIT, TEAM_B_BIT, TEAM_BOTH, type ZoneGuard } from './ruleTracker';
-import { packMission, type MissionWire } from './missionWire';
+import { applyMissionWire, packMission, type MissionWire } from './missionWire';
 
 /** A section guard's mission id: `<section id>:<index in SectorDef.guards>`. */
 export function sectorGuardId(sectionId: string, k: number): string {
@@ -77,6 +77,15 @@ export function parseGuardId(defs: readonly SectorDef[], id: string | undefined)
  *  `flags.missions` is off (`?missions=1` turns it on): Sector Ops runs as master. */
 export function missionParam(): string | null {
   return flags.missions ? flags.mission : null;
+}
+
+/**
+ * (campaign-mode CM3, PLAN 3.4) The mission a match binds: a co-op match's `GameOptions.sectorMission` (the start's
+ * `sm`; '' none), else the page's own `?mission=` (`missionParam()`, a URL boot). Null while `flags.missions` is off.
+ */
+export function boundMissionId(opts: { readonly sectorMission?: string }): string | null {
+  if (!flags.missions) return null;
+  return opts.sectorMission !== undefined ? opts.sectorMission || null : missionParam();
 }
 
 /** (FLG) False when `?autostart` names a mission map (`MapDef.needsMissions`) while `flags.missions` is off: the URL boot
@@ -121,6 +130,65 @@ export function applyMissionStart(run: SectorRun, i: number): void {
   cp.z = s.start.z;
   cp.yaw = s.start.yaw;
   run.checkpoint2 = s.start2 ?? null;
+}
+
+/**
+ * (campaign-mode CM3, PLAN 3.4) What a Continue restores from its `campaign:save` (a `CampaignSave` fits): the run
+ * section, the runner's done and fact bits (`MissionWire` packing), the rule breaks, the alarm stage carried into the
+ * section and the op-wide tallies so far.
+ */
+export interface MissionResume {
+  readonly mission: string;
+  readonly section: number;
+  readonly st: readonly number[];
+  readonly f: number;
+  readonly breaks: number;
+  readonly alarm: number;
+  readonly tally: { readonly kills: number; readonly knockouts: number; readonly alarms: number; readonly spotted: number; readonly bodies: number };
+  readonly time: number;
+}
+
+/**
+ * (campaign-mode CM3, PLAN 3.4, plan check 1) The counts a Continue carries from before its save, for CM5's rating to
+ * add to this run's live counts (`SectorMode.carried`): lethal kills, knock-outs, times spotted, bodies found and the
+ * mission time (s). Alarms are not here: the resume seeds `SectorRun.alarmsRaised` (op-wide). Optional objectives
+ * neither: the runner's done steps come back with the save.
+ */
+export interface MissionCarry {
+  kills: number;
+  knockouts: number;
+  spotted: number;
+  bodies: number;
+  time: number;
+}
+
+/** (campaign-mode CM3) A save's carried tally (`MissionCarry`). */
+export function missionCarry(r: MissionResume): MissionCarry {
+  const t = r.tally;
+  return { kills: t.kills, knockouts: t.knockouts, spotted: t.spotted, bodies: t.bodies, time: r.time };
+}
+
+/**
+ * (campaign-mode CM3, PLAN 3.4) A Continue: the run begins at the save's section (`applyMissionStart`), the earlier
+ * sections' required steps read as done (`applyMissionWire` from the save's `st` / `f`: without them the extraction
+ * never opens, PLAN risk 1), the rule breaks come back, and the alarm stage carried into the section and the op's
+ * alarms raised are the save's (G146: 100% needs no alarm in the whole run). Before the mode starts: the section's begin
+ * snapshots the restored state. False, nothing changed, when the save is not this mission's, its section is before the
+ * mission's start or not on the run, or the run has moved.
+ */
+export function applyMissionResume(run: SectorRun, m: SectorMission, r: MissionResume): boolean {
+  const i = r.section;
+  if (r.mission !== m.def.id || !Number.isInteger(i) || i < m.startIndex || i >= run.defs.length) return false;
+  if (run.index !== 0 || run.phase !== 'objective') return false;
+  applyMissionStart(run, i);
+  const st = [r.st[0] ?? 0, r.st[1] ?? 0, r.st[2] ?? 0];
+  applyMissionWire(m.runner, { id: m.def.id, st, f: r.f, rb: 0, rl: '', rk: [0, 0, 0] });
+  m.tracker.breaks = Math.max(0, Math.floor(r.breaks) || 0);
+  const stage = Math.max(0, Math.min(SECTOR.alarmMax, Math.floor(r.alarm) || 0));
+  run.alarm = stage;
+  run.alarmAtStart = stage;
+  run.alarmsRaised = Math.max(0, Math.floor(r.tally.alarms) || 0);
+  return true;
 }
 
 /** A section guard as the adapter reads it (an `Enemy` fits it). */
@@ -516,6 +584,17 @@ export class SectorMission {
     return packMission(this.runner, this.tracker);
   }
 
+  /**
+   * (campaign-mode CM3) The keypad codes the runner holds as flags (into `out`, cleared first): after a Continue
+   * (`applyMissionResume`) the facts from the earlier sections, which the mode grants the team again (a W3 keypad on a
+   * W2 code). Not hot (once, at the start).
+   */
+  heldCodes(out: string[]): string[] {
+    out.length = 0;
+    for (let i = 0; i < this.codeFlags.length; i++) if (this.runner.hasFlag(this.codeFlags[i]!)) out.push(this.codeFlags[i]!);
+    return out;
+  }
+
   /** Test view. */
   debug(): Record<string, unknown> {
     return {
@@ -643,12 +722,12 @@ export class SectorMission {
 }
 
 /**
- * Bind the map's `?mission=<id>` mission to the mode (null: none picked: Sector Ops runs as before). `slotEnemy` is the
- * mode's live guard per index (the spook writes the bolted guard back); `openExit` / `finish` the mode's objective done
- * and op end.
+ * Bind the match's mission to the mode (`boundMissionId`: the co-op start's, else the map's `?mission=<id>`; null: none
+ * picked: Sector Ops runs as before). `slotEnemy` is the mode's live guard per index (the spook writes the bolted guard
+ * back); `openExit` / `finish` the mode's objective done and op end.
  */
 export function bindSectorMission(g: GameState, mode: SectorMode, slotEnemy: (Enemy | null)[], openExit: (s: SectorDef) => void, finish: () => void): SectorMission | null {
-  const def = pickMission(g.world.map.missions, missionParam());
+  const def = pickMission(g.world.map.missions, boundMissionId(g.opts));
   if (!def) return null;
   const refs: PlayerRef[] = [];
   const none: readonly Enemy[] = [];

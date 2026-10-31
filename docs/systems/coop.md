@@ -35,7 +35,9 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   master `course` and `sector` take `COURSE_MAX` 2 and the legacy modes `COOP_MAX` 4. The rule: Marlow Yard and the
   campaign 2 (G2), Sector Ops up to 4 (G308; coop4, PR #317, adds `SECTOR_MAX` 4). Never cap Sector Ops at 2.
 - `lobby` / `start` carry the mode, map, `mission` (Infiltration), `weather`, the host's fixed difficulty level (shown
-  read-only on the client) and `bay` (course start). (`start.lf`, the host's lamp falloff, LR13, is gone since LR16a.)
+  read-only on the client) and `bay` (course start; campaign-mode CM3, with `flags.campaign` and `flags.missions`: a sector
+  campaign start's section, 1-based, else 1). The `lobby` message may carry `sm` (the host's picked campaign mission;
+  the client still starts only from `start.sm`). (`start.lf`, the host's lamp falloff, LR13, is gone since LR16a.)
 - `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits, phase, takedown
   target, gear, raise, aim twist, ready, grips, commit, `dw` (draw phase 0-3). The `wall` mode carries `a` (cover
   segment), `s` (metres along it) and `sub` (WALL_SUB). Decided, not built yet (G52): the SWAT-turn MoveState (`swat`)
@@ -400,11 +402,12 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
 
   | Move (slice) | Id / wire kind | Sub bit | Role b (`brace`) states | Role a (`boost`) states | Remote placeholder b / a | Done by | Marlow station |
   | --- | --- | --- | --- | --- | --- | --- | --- |
-  | Deadweight (K1) | `deadweight` | 64 | chainGrab, chainHang, chainDrop | grateUnder | ledge hang / crouched walk | host tick (pass under the grate) | 9 `a4-deadweight` |
+  | Deadweight (K1) | `deadweight` | 64; `s` +(spot index + 1) hanging / passing, - grab / drop | chainGrab, chainHang, chainDrop | grateUnder | ledge hang / crouched walk | host tick (a pass under the held grate) | 9 `a4-deadweight` |
   | Drop Catch (K2) | `dropCatch` | 128 | catchOffer, catchTake | dropInto | brace / drop | b (catcher) | 16 `a6-dropcatch` |
   | Chimney Pair (K3) | `chimneyPair` | 256 | chimneyOffer, chimneyBrace, chimneyClimb, chimneyTop | chimneyJoin, chimneyPush, chimneyRise, chimneyOut | ladder climb / climb | a (when both are out) | 11 `a5-chimney` |
-  | Swing Pass (K4) | `swingPass` | 512 | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
+  | Swing Pass (K4) | `swingPass` | 512; `s` = spot index + 1 both roles | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
   | Plank Bridge (K5a, K5b) | `plankBridge` | 1024 | plankOffer, plankLift, plankCarry, plankDrop, plankLay | plankJoin, plankLiftA, plankCarryA, plankDropA, plankLayA | brace / walk | host tick (a crossing) | 5 `a2-plank` |
+  | (K5a built, `game/kit/plankBridge.ts`, `world/plankBridge.ts` `PlankBoards`) | `s` -(spot index + 1) offering, spot index + 1 lifting / carrying, 0 putting down | | offer, lift, carry, put down (lay K5b) | lift, carry, put down (`plankJoin` unused: free until the start) | board drawn between the two bodies' hand points on every page (no board pose on the wire) | ends: 'drop' only; restart: `checkpointRestart` -> every board back on its stack | no station change (lay K5b) |
 
   Chimney Pair (K3): marked spots only (no free shaft until the walk); wire `s` is -width while offering, the height
   over the start floor while climbing (each page caps its own climb 0.15 m either side of the partner's), `h` while
@@ -559,7 +562,9 @@ client next to a device first.
   client applies it (`net/missionMirror.ts`: a `MissionRunner` from the map's `missions` by id; never evaluated; the
   client's mission HUD reads `runner`, while `kept` (the rules-kept row of the rating) has no reader yet). The
   rule line reaches a live client as the host's radio line (`feed` event); only a late joiner's first `ms` with breaks
-  shows `rl` (its feed). A client interrogation's intel carries the guard id and the client id (`revealIntel` eid / by).
+  shows `rl` (its feed). (campaign-mode CM5) The last `ms` of a campaign mission's end carries `pc`, the rating 0-100
+  (optional; junk dropped, absent on every other send): the client records its own `campaign:progress` from it.
+  A client interrogation's intel carries the guard id and the client id (`revealIntel` eid / by).
   A client's frag, mine or sticky cam use goes as `gused {kind}` (client -> host, 4 a second at most;
   `USE_ONLY_GADGETS`) to `GameMode.onRemoteGadget` (a mission's No gadgets rule); gas / flash / EMP / noise still
   count on their `gadget` effect.

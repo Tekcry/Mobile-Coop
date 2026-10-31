@@ -2,7 +2,7 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import type { CamSpace } from '../camSpaces';
-import type { RoutePt, SectorBolt, SectorDef, SectorGuard } from '../../game/sectors';
+import type { HuntDef, RoutePt, SectorBolt, SectorDef, SectorGuard } from '../../game/sectors';
 import type { LightningData } from '../lightning';
 import { mapWideNoise } from '../../ai/hearing';
 
@@ -201,6 +201,103 @@ export const THORNBECK_PATH: readonly PathStop[] = [
   { name: 'hoist platform', stretch: 10, pt: [-1.3, 16.6, DECK_Y] },
 ];
 
+/**
+ * (guard-ai mill-hunt H1) The scene hunt's data (`docs/guard-ai/mill-hunt/PLAN.md` "Data (H1)"; `flags.millHunt`, read by
+ * `src/ai/millHunt.ts`): two fixed lines of stops in walking order, one per storey, that the guards search room by room
+ * along the players' only way out (start bay to the ladder, stair head to the hatch), and the search order (`phases`).
+ * Every stop is two spots 1.0 - 1.5 m apart (`pt` the leader's or a solo's, `pt2` the partner's) and 2 - 4 aims (yaw, 0 = +z,
+ * growing to +x, written left to right): dark corners, the backs of cover, doorways, along the line both ways. Spots are
+ * hand-placed in the open floor, each 0.5 m clear of a collider and on the nav grid (tests/thornbeckMill.test.ts).
+ * Prototype numbers (G421): nothing tuned before Michael walks it.
+ * - Ground (y 0), start bay to the ladder foot, 17 stops. The start bay's first two stops (north of W1, east of W1) are
+ *   where G1 + G2 begin and look only away from the players' start-to-low-sacks run (piano-escape PLAN ":348", the start
+ *   is survivable); the third, east of W1's south end, is the first to look at the low sacks Sa.
+ * - Gallery (y `DECK_Y`), the hoist door to the hatch, 10 stops, z 15.6 - 16.8 (the rail at z 15, the wall at 18, the
+ *   sack stacks GS1 - GS3 and the crane bar leave a band 1.9 m deep). Every gallery stop has an aim into the hall (south:
+ *   the covered hall, plan check 2 fold-in 1) and, beside the stair head, the stairwell. Both end on L1 / the hatch.
+ * - Room boxes are the path spaces (`THORNBECK_SPACES`; the aisle's box takes in its corner notch). The mill bay's
+ *   bin-row niche (x 18.8 - 20) lies outside every box: it is aimed at, not stood in.
+ */
+export const THORNBECK_HUNT: HuntDef = {
+  lines: [
+    {
+      id: 'ground',
+      floorY: 0,
+      rooms: [
+        { id: 'startBay', box: THORNBECK_SPACES.startBay },
+        { id: 'aisle', box: [9.4, 0, 20, 5.2] },
+        { id: 'millBay', box: THORNBECK_SPACES.millBay },
+        { id: 'sackBay', box: THORNBECK_SPACES.sackBay },
+        { id: 'office', box: THORNBECK_SPACES.office },
+        { id: 'lobby', box: THORNBECK_SPACES.lobby },
+      ],
+      stops: [
+        // start bay: north of W1 (G1 + G2's side), east of W1, then east of W1's south end (the low sacks Sa)
+        { pt: [4.6, 8.4], pt2: [5.8, 8.4], room: 'startBay', aims: [-1.53, 1.11, 1.86] },
+        { pt: [8.0, 6.6], pt2: [8.0, 5.4], room: 'startBay', aims: [-0.6, 0, 0.58, 2.68] },
+        { pt: [7.6, 3.2], pt2: [8.8, 3.2], room: 'startBay', aims: [-2.02, -0.67, 2.36] },
+        // aisle: the corner notch's mouth, Sb1's back, Sb2 and its east side (the hide spot behind Sb2)
+        { pt: [11.4, 2.6], pt2: [11.4, 1.4], room: 'aisle', aims: [-1.57, -0.49, 1.57, 2.1] },
+        { pt: [15.4, 2.2], pt2: [15.4, 1.0], room: 'aisle', aims: [-2.03, -1.57, 1.07, 1.57] },
+        { pt: [17.9, 1.7], pt2: [17.9, 0.6], room: 'aisle', aims: [-1.56, 0.19, 0.99, 1.55] },
+        // mill bay round the roller mill M1: south, east, then M1's shadow (K2) and the bin-row niche
+        { pt: [21.8, 1.9], pt2: [21.8, 0.8], room: 'millBay', aims: [-1.57, -0.23, 0.8, 1.56] },
+        { pt: [25.0, 3.6], pt2: [25.0, 2.4], room: 'millBay', aims: [-2.08, -0.92, -0.02, 2.91] },
+        { pt: [23.0, 7.0], pt2: [24.2, 7.0], room: 'millBay', aims: [-2.34, -1.5, -0.38, 0.23] },
+        // sack bay: behind Sd2 and Sd1, behind Sd3, then outside the office west door
+        { pt: [20.4, 9.6], pt2: [20.4, 10.8], room: 'sackBay', aims: [-1.82, -0.58, 1.65] },
+        { pt: [22.6, 11.9], pt2: [22.6, 10.7], room: 'sackBay', aims: [-1.39, 1.32, 2.29] },
+        { pt: [25.2, 12.2], pt2: [25.2, 11.0], room: 'sackBay', aims: [-2.61, -1.57, 0.98] },
+        // office: west door, the desk (the hide spot beside it), north door
+        { pt: [27.9, 12.0], pt2: [26.9, 12.0], room: 'office', aims: [-3.03, -1.42, 1.18] },
+        { pt: [28.2, 8.4], pt2: [29.4, 8.4], room: 'office', aims: [-2.3, -0.73, 0.11, 1.27] },
+        { pt: [29.6, 12.1], pt2: [30.9, 12.1], room: 'office', aims: [-2.13, -0.68, 1.57] },
+        // lobby: the door in, then the ladder foot (L1 and the hatch above it)
+        { pt: [27.6, 15.4], pt2: [27.6, 16.6], room: 'lobby', aims: [-0.62, 1.68, 2.57] },
+        { pt: [30.3, 14.4], pt2: [30.3, 15.5], room: 'lobby', aims: [-2.81, -1.4, 0.95] },
+      ],
+    },
+    {
+      id: 'gallery',
+      floorY: DECK_Y,
+      rooms: [
+        { id: 'landing', box: [0, 15, 7, 18] },
+        { id: 'stairHead', box: [7, 15, 12, 18] },
+        { id: 'craneWest', box: [12, 15, 16, 18] },
+        { id: 'craneEast', box: [16, 15, 20, 18] },
+        { id: 'eastWest', box: [20, 15, 26, 18] },
+        { id: 'eastEnd', box: [26, 15, 32, 18] },
+      ],
+      stops: [
+        // landing: hoist door and GS1 (the hide spot behind it)
+        { pt: [1.3, 16.8, DECK_Y], pt2: [1.3, 15.7, DECK_Y], room: 'landing', aims: [-1.34, 1.31, 3.14] },
+        { pt: [4.6, 16.7, DECK_Y], pt2: [4.6, 15.6, DECK_Y], room: 'landing', aims: [-1.56, 0.77, 1.55, 3.14] },
+        // stair head: the stairwell (bolted to guards), the hall
+        { pt: [7.9, 16.6, DECK_Y], pt2: [7.9, 15.6, DECK_Y], room: 'stairHead', aims: [-1.55, 1.54, 2.46, 3.14] },
+        { pt: [10.9, 16.7, DECK_Y], pt2: [10.9, 15.6, DECK_Y], room: 'stairHead', aims: [-2.0, 1.55, 3.14] },
+        // crane bay: the crane well below, GS2's front from the east half
+        { pt: [13.6, 16.7, DECK_Y], pt2: [13.6, 15.6, DECK_Y], room: 'craneWest', aims: [-1.56, 0, 1.56, 3.14] },
+        { pt: [17.5, 16.7, DECK_Y], pt2: [17.5, 15.6, DECK_Y], room: 'craneEast', aims: [-1.56, 0, 1.33, 3.14] },
+        // east gallery: GS2 and its back (the hide spot), GS3
+        { pt: [21.0, 16.4, DECK_Y], pt2: [22.1, 15.7, DECK_Y], room: 'eastWest', aims: [-1.54, 0.79, 3.14] },
+        { pt: [24.6, 16.7, DECK_Y], pt2: [24.6, 15.6, DECK_Y], room: 'eastWest', aims: [-1.56, -0.87, 1.03, 3.14] },
+        // east end: GS3, the hatch and L1
+        { pt: [27.4, 16.4, DECK_Y], pt2: [28.5, 15.7, DECK_Y], room: 'eastEnd', aims: [-1.54, -0.48, 1.62, 3.14] },
+        { pt: [30.0, 16.8, DECK_Y], pt2: [30.0, 15.7, DECK_Y], room: 'eastEnd', aims: [-1.58, 0.88, 2.07, 3.14] },
+      ],
+    },
+  ],
+  // one row per phase, [ground room, gallery room]: both lines widen along the players' route on one clock (A4)
+  phases: [
+    ['startBay', 'stairHead'],
+    ['aisle', 'craneWest'],
+    ['millBay', 'craneEast'],
+    ['sackBay', 'eastWest'],
+    ['office', 'eastEnd'],
+    ['lobby', 'eastEnd'],
+  ],
+};
+
 /** The scene's one section: the start, the `clear` objective, the exit zone on the hoist platform, 12 guards, the stair gate bolt. */
 export const THORNBECK_SECTORS: readonly SectorDef[] = [
   {
@@ -220,6 +317,8 @@ export const THORNBECK_SECTORS: readonly SectorDef[] = [
     perStage: 0,
     // the one directed path; the ladder leg (ladder foot -> deck) is a climb
     routes: [{ name: 'The directed path', pts: THORNBECK_PATH.map((s) => s.pt), obj: 17, climbs: [11] }],
+    // (guard-ai mill-hunt H1) the hunt's lines, stops, aims and search order
+    hunt: THORNBECK_HUNT,
   },
 ];
 

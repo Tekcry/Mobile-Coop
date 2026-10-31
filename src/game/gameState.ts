@@ -14,6 +14,8 @@ import { LIVE_RIGS } from '../player/characterRig';
 import { LIVE_DOGS } from '../ai/dogModel';
 import type { WeatherChoice } from '../world/mapDef';
 import type { MapDef } from '../world/mapDef';
+import type { CampaignSave } from '../save/campaignRecord';
+import type { CampaignResultView } from './mission/campaignRating';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { PauseScreen, type ObjectiveLine } from '../ui/screens/pauseScreen';
@@ -191,6 +193,15 @@ export interface GameOptions {
   courseBay?: number;
   /** 3.0 weather (visual only; the map's `weathers`). */
   weather?: WeatherChoice;
+  /**
+   * (campaign-mode CM3, PLAN 3.4) Sector Ops' mission for a co-op match: the start's `sm` (`MissionDef.id`; '' none).
+   * Absent: the page's own `?mission=` (`missionParam()`, a URL boot). Set only with `flags.campaign` and `flags.missions`.
+   */
+  sectorMission?: string;
+  /** (campaign-mode CM3) Sector Ops: the section a co-op match starts at (1-based, the start's `bay`; `flags.campaign` only). */
+  sectorStart?: number;
+  /** (campaign-mode CM3, host) A Continue: the `campaign:save` record the mission resumes from (A7, A9). */
+  campaignResume?: CampaignSave;
 }
 
 /** What the coop layer plugs into a session. */
@@ -249,6 +260,8 @@ export interface NetAttachment {
   radioLine?(text: string): void;
   /** Host, Sector Ops: revive syringes left this op (co-op only). */
   revivesLeft?(): number;
+  /** (campaign-mode CM5) Host, Sector Ops: revives used this mission (the campaign save's `revivesUsed`, G126). */
+  revivesUsed?(): number;
   /** (section-rating) Host: a rating's syringe grant, added to the op's revive cap. */
   addSyringes?(n: number): void;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
@@ -668,6 +681,8 @@ export class GameState implements AppState {
   net: NetAttachment | null = null;
   /** (section-rating) The op's rated sections in order (Sector Ops: the host's mode, or the co-op client's mirror), for the results lines. */
   readonly sectionRatings: RatingView[] = [];
+  /** (campaign-mode CM5) A campaign mission's end panel (the host's mode, or the co-op client from the host's `pc`); null: none. */
+  campaignResult: CampaignResultView | null = null;
   /** Coop client: enemies, waves and objectives are driven by the host. */
   readonly puppet: boolean;
   /** Who a takedown can be done on (enemies; co-op clients: the host's enemies as puppets). */
@@ -750,7 +765,11 @@ export class GameState implements AppState {
       lampBeams: mapLampBeams(world.map.theme),
     });
     // 3.2 baked lamps: the characters' soft shadows from every lamp
-    if (world.lamps) world.lamps.capsules = this.charOccluders ? this.charCapsules : this.rtCapsules;
+    if (world.lamps) {
+      world.lamps.capsules = this.charOccluders ? this.charCapsules : this.rtCapsules;
+      // (char-shadow-meter S4) the field counts the character shadows: the picture's darkness curve too
+      world.lamps.charLevel = !!this.charOccluders;
+    }
     this.weather = new Weather(this.scene, kind);
     // (no rain under roofs: the canonical shapes' tops; render only)
     this.weather.occluder = (x, z) => world.roofAt(x, z);
@@ -1322,6 +1341,8 @@ export class GameState implements AppState {
     const nav: ResultsNav = { coop: !!this.net };
     if (names.length) nav.kit = names.join(', ');
     if (this.sectionRatings.length) nav.ratings = this.sectionRatings;
+    // (campaign-mode CM6) a campaign mission's panel (the host's end, or the client's from `pc`)
+    if (this.campaignResult) nav.campaign = this.campaignResult;
     const cb = this.cb;
     const id = this.stats.missionId;
     if (!this.net && id && cb.missions) {

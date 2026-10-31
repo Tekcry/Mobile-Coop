@@ -312,3 +312,97 @@ describe('route-run plan: identical step lists merge', () => {
     expect((walkedBy(q.runs[0]!) as LinkStep[]).map((s) => s.index)).toEqual([0, 1, 2]);
   });
 });
+
+describe('route-run plan: a split rejoined, then a path back through a leg space (Marlow re-plan A7)', () => {
+  const graph = read<Graph>(path.join(ROOT, 'docs/marlow-replan/graph.json'));
+  const p = plan([graph], null);
+  const full = p.runs.find((r) => r.id === 'full')!;
+
+  it('starts each split once: the A7 data hall split is not forked again after its rejoin at the cage', () => {
+    const ids = full.steps.filter((s): s is SplitStep => s.type === 'split').map((s) => s.id);
+    expect(ids.filter((id) => id === 'a7')).toHaveLength(1);
+    expect(String(full.unplannable ?? '')).not.toMatch(/split a7/);
+  });
+});
+
+describe('route-run plan: a split entered through a co-op link (Marlow re-plan A8 high, A28)', () => {
+  const graph = read<Graph>(path.join(ROOT, 'docs/marlow-replan/graph.json'));
+  // the declared graph has no `at` on a few walk links (the route-run's --points auto table measures them): fill them so
+  // the run is judged on its plan alone
+  const filled = clone(graph);
+  for (const l of filled.links) if (!Array.isArray(l.at)) l.at = [0, 0, 0];
+  const p = plan([filled], null);
+  const high = p.runs.find((r) => r.id === 'A8-high')!;
+  const indices = (steps: Step[]) => linksOf(steps).map((s) => s.index);
+  const linkIndex = (from: string, to: string, kind: string) =>
+    graph.links.findIndex((l) => l.from === from && l.to === to && l.kind === kind);
+
+  it('plans A8-high with one a8 split, forked at the hall where B boosts A up and keeps to the counters', () => {
+    expect(high.unplannable).toBeNull();
+    const splits = high.steps.filter((s): s is SplitStep => s.type === 'split');
+    expect(splits.map((s) => s.id)).toEqual(['a8']);
+    const sp = splits[0]!;
+    expect(sp.fork).toBe('a8-hall');
+    expect(sp.rejoin).toBe('a8-lobby-outer');
+    // leg a (leader): the leg-up onto the gallery's west return, round to the gallery, the office, its stair down
+    expect(indices(sp.a)).toEqual([
+      linkIndex('a8-hall', 'a8-gallery-west', 'coop_boost'),
+      linkIndex('a8-gallery-west', 'a8-gallery', 'opening'),
+      linkIndex('a8-gallery', 'a8-office', 'door'),
+      linkIndex('a8-office', 'a8-lobby-outer', 'fire_stair'),
+    ]);
+    expect(linksOf(sp.a)[0]).toMatchObject({ action: 'stub', from: 'a8-hall', to: 'a8-gallery-west' });
+    // leg b (follower): stays on the floor, behind the counters to the board, through the grille
+    expect(linksOf(sp.b).map((s) => [s.from, s.to])).toEqual([
+      ['a8-hall', 'a8-counters'], ['a8-counters', 'a8-board'], ['a8-board', 'a8-lobby-outer'],
+    ]);
+    expect(linksOf(sp.b).every((s) => s.action !== 'stub')).toBe(true);
+    expectContinuous(high.steps, 'a8-vestibule', 'a8-dock');
+  });
+
+  it('keeps A8-loud and the full run forking at the hall, the A7 split once', () => {
+    for (const id of ['A8-loud', 'full']) {
+      const r = p.runs.find((x) => x.id === id)!;
+      const forks = r.steps.filter((s): s is SplitStep => s.type === 'split').map((s) => `${s.id}@${s.fork}`);
+      expect(forks.filter((f) => f.startsWith('a8@'))).toEqual(['a8@a8-hall']);
+      expect(String(r.unplannable ?? '')).not.toMatch(/split/);
+    }
+  });
+
+  it('never walks back past a second co-op link: only the leg\'s first link may be co-op', () => {
+    const g: Graph = {
+      meta: { sections: ['S'], mode: 'campaign' },
+      spaces: [
+        { id: 'in', section: 'S', type: 'connector', tags: ['entry'], area: [[0, 0, 1, 1]] },
+        { id: 'f', section: 'S', type: 'connector', tags: [], area: [[0, 0, 1, 1]] },
+        { id: 'u1', section: 'S', type: 'connector', tags: [], area: [[0, 0, 1, 1]] },
+        { id: 'u2', section: 'S', type: 'connector', tags: [], area: [[0, 0, 1, 1]] },
+        { id: 'la', section: 'S', type: 'encounter', tags: ['split:x:a'], area: [[0, 0, 1, 1]] },
+        { id: 'lb', section: 'S', type: 'connector', tags: ['split:x:b'], area: [[0, 0, 1, 1]] },
+        { id: 'r', section: 'S', type: 'connector', tags: ['exit'], area: [[0, 0, 1, 1]] },
+      ],
+      links: [
+        { from: 'in', to: 'f', kind: 'opening', route: 'shadow', length: 5, at: [0, 0, 0] },
+        { from: 'f', to: 'u1', kind: 'coop_boost', route: 'high', time_s: 6, at: [0, 0, 0] },
+        { from: 'u1', to: 'u2', kind: 'coop_boost', route: 'high', time_s: 6, at: [0, 0, 0] },
+        { from: 'u2', to: 'la', kind: 'opening', route: 'high', length: 5, at: [0, 0, 0] },
+        { from: 'f', to: 'lb', kind: 'opening', route: 'shadow', length: 5, at: [0, 0, 0] },
+        { from: 'la', to: 'r', kind: 'opening', route: 'high', length: 5, at: [0, 0, 0] },
+        { from: 'lb', to: 'r', kind: 'opening', route: 'shadow', length: 5, at: [0, 0, 0] },
+      ],
+    };
+    const run = plan([g], null, { speed: 1.3 }).runs.find((r) => r.kind === 'high')!;
+    expect(run.unplannable).toMatch(/split x leg b: no solo link from u2 to lb/);
+    // one co-op link back to a fork with a solo way into the other leg: planned
+    const one = clone(g);
+    one.links[1] = { from: 'f', to: 'u2', kind: 'coop_boost', route: 'high', time_s: 6, at: [0, 0, 0] };
+    one.links.splice(2, 1);
+    const ok = plan([one], null, { speed: 1.3 }).runs.find((r) => r.kind === 'high')!;
+    expect(ok.unplannable).toBeNull();
+    const sp = ok.steps.find((s): s is SplitStep => s.type === 'split')!;
+    expect(sp.fork).toBe('f');
+    expect(linksOf(sp.a).map((s) => s.action)).toEqual(['stub', 'walk', 'walk']);
+    expect(linksOf(sp.b).map((s) => s.to)).toEqual(['lb', 'r']);
+    expectContinuous(ok.steps, 'in', 'r');
+  });
+});

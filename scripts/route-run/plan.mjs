@@ -19,7 +19,8 @@
 //      `walk`, `ladder`, `drop`, `window`, `hatch`, `duct`, `rappel`, a rare solo kind's own name, or `stub` for a
 //      co-op kind; `from` / `to` in walking order, `reverse` when that is against the link's declared direction)
 //   `{ type: 'objective', space }`
-//   `{ type: 'split', id, fork, a: steps, b: steps, rejoin }` (leader leg a, follower leg b, both wait at `rejoin`).
+//   `{ type: 'split', id, fork, a: steps, b: steps, rejoin }` (leader leg a, follower leg b, both wait at `rejoin`;
+//      `fork` is where the robots part: a leg may open with the path's own arcs from it, a co-op one only first (A28)).
 //
 // Rules (route-runs BRIEF "Which routes", A7, A8; J12 BRIEF A9, A23, A26):
 //   Campaign / Sector Ops, per section: for each encounter space and each of `shadow`, `high`, `loud` it declares (an
@@ -361,39 +362,76 @@ function linkStep(ctx, arc) {
  *  problems } (arcs: every arc walked, legs included). */
 function buildSteps(ctx, items, end, soloArcs) {
   const steps = [];
+  const rejoined = new Set();
   const walked = [];
   const problems = [];
   const pushArc = (list, a) => {
     list.push({ type: 'walk', to: ctx.linkAt(a.link), space: a.from, link: a.link.index }, linkStep(ctx, a));
     walked.push(a);
   };
+  // Top-level arcs pushed since the last objective or split (with the step and walked counts before each): a split's
+  // fork may lie back along them (A28, below).
+  const tail = [];
+  const pushTop = (a) => {
+    tail.push({ arc: a, steps: steps.length, walked: walked.length });
+    pushArc(steps, a);
+  };
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     if (it.objective) {
       steps.push({ type: 'walk', to: ctx.centre(it.objective), space: it.objective, link: null },
         { type: 'objective', space: it.objective });
+      tail.length = 0;
       continue;
     }
     const leg = ctx.legOf.get(it.to);
+    if (leg && rejoined.has(leg.id)) { pushTop(it); continue; }
     if (!leg || ctx.legOf.get(it.from)?.id === leg.id) {
-      pushArc(steps, it);
+      pushTop(it);
       continue;
     }
-    // Entering split `leg.id` from its fork: skip the path's own leg arcs up to the rejoin, then walk both legs as
-    // declared (spaces in file order, the fastest solo link between each pair), as J12 counts the legs.
-    const fork = it.from;
+    // Entering split `leg.id`: skip the path's own leg arcs up to the rejoin, then walk both legs as declared (spaces in
+    // file order, the fastest solo link between each pair), as J12 counts the legs.
     let j = i;
     while (j < items.length && (items[j].objective || ctx.legOf.get(items[j].to)?.id === leg.id)) j++;
     if (j >= items.length) {
       problems.push(`split ${leg.id}: the path ends inside the split`);
-      pushArc(steps, it);
+      pushTop(it);
       continue;
     }
     const rejoin = items[j].to;
     const legs = ctx.splits.get(leg.id);
+    // The fork is where the two robots part: the space the path enters the leg from, unless the other leg cannot be
+    // entered from there alone. Then it lies back along the path's own arcs (none inside a leg space), and those arcs
+    // open the entered leg (A28, Marlow A8 high: B boosts A from the hall onto the gallery's west return, then keeps to
+    // the counters; A walks on alone). A co-op link among them is the leg's first link, from the fork: after the boost
+    // nobody is left to help again.
+    const other = leg.side === 'a' ? 'b' : 'a';
+    const soloInto = (x) => soloArcs.some((a) => a.from === x && a.to === legs[other][0]);
+    let fork = it.from;
+    let back = tail.length;
+    while (!soloInto(fork) && back > 0) {
+      const prev = tail[back - 1].arc;
+      if (ctx.legOf.has(prev.from)) break;
+      if (back < tail.length && COOP_KINDS.has(tail[back].arc.link.kind)) break;
+      back -= 1;
+      fork = prev.from;
+    }
+    if (!soloInto(fork)) {
+      // no space back along the path leads into the other leg alone: the entry's own space, and its problem below
+      fork = it.from;
+      back = tail.length;
+    }
+    const prefix = tail.slice(back).map((t) => t.arc);
+    if (prefix.length) {
+      steps.length = tail[back].steps;
+      walked.length = tail[back].walked;
+    }
+    tail.length = 0;
     const block = { type: 'split', id: leg.id, fork, a: [], b: [], rejoin };
     for (const side of ['a', 'b']) {
-      const seq = [fork, ...legs[side], rejoin];
+      if (side === leg.side) for (const a of prefix) pushArc(block[side], a);
+      const seq = [side === leg.side ? it.from : fork, ...legs[side], rejoin];
       for (let k = 0; k + 1 < seq.length; k++) {
         let best = null;
         for (const a of soloArcs) {
@@ -408,6 +446,7 @@ function buildSteps(ctx, items, end, soloArcs) {
       }
     }
     steps.push(block);
+    rejoined.add(leg.id);
     // objectives met inside the skipped leg arcs are not dropped
     for (let k = i; k <= j; k++) if (items[k].objective) steps.push({ type: 'walk', to: ctx.centre(items[k].objective), space: items[k].objective, link: null }, { type: 'objective', space: items[k].objective });
     i = j;

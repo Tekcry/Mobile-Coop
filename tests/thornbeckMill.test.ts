@@ -20,6 +20,7 @@ import {
   THORNBECK_GUARDS_16,
   THORNBECK_GUARD_TAGS,
   THORNBECK_HIDE_SPOTS,
+  THORNBECK_HUNT,
   THORNBECK_HOIST_DOOR,
   THORNBECK_KILL_SPOTS,
   THORNBECK_LADDER,
@@ -613,5 +614,201 @@ describe('(walk ~09:50) the roof reads as a roof', () => {
     for (const [, , y] of THORNBECK_LAMPS) expect(y).toBeLessThan(ROOF_BEAM_Y);
     const chains = b.cylinders.filter((c) => !c.collide && c.r < 0.015 && Math.abs(c.c[1] + c.h / 2 - 9) < 1e-6);
     expect(chains.length).toBe(THORNBECK_LAMPS.length);
+  });
+});
+
+describe('Thornbeck Mill: the hunt data (guard-ai mill-hunt H1)', () => {
+  const hunt = sector.hunt!;
+  const ground = hunt.lines[0]!;
+  const gallery = hunt.lines[1]!;
+  const lines = [ground, gallery];
+  const at = (p: readonly number[]): [number, number] => [p[0]!, p[1]!];
+  /** Yaw (0 = +z, growing to +x) from a spot to a point. */
+  const bearing = (from: readonly number[], x: number, z: number): number => Math.atan2(x - from[0]!, z - from[1]!);
+  const angDiff = (a: number, c: number): number => Math.abs(Math.atan2(Math.sin(a - c), Math.cos(a - c)));
+  /** An aim covers a spot when the spot's bearing is within this of the aim (the plan's ~35 degrees). */
+  const COVER = (35 * Math.PI) / 180;
+  type StopLike = { pt: readonly number[]; pt2: readonly number[]; aims: readonly number[] };
+  /** Does an aim from the leader's or the partner's spot cover the point? */
+  const covers = (stop: StopLike, x: number, z: number): boolean => [stop.pt, stop.pt2].some((p) => stop.aims.some((a) => angDiff(a, bearing(p, x, z)) <= COVER));
+  /** Plan distance from the nearer of the stop's two spots to a point. */
+  const near = (stop: StopLike, x: number, z: number): number => Math.min(hyp2(stop.pt[0]! - x, stop.pt[1]! - z), hyp2(stop.pt2[0]! - x, stop.pt2[1]! - z));
+
+  it("the section carries THORNBECK_HUNT: two lines (ground, gallery), the plan's rooms, 14 - 18 ground and 8 - 12 gallery stops", () => {
+    expect(sector.hunt).toBe(THORNBECK_HUNT);
+    expect(hunt.lines).toHaveLength(2);
+    expect(ground.id).toBe('ground');
+    expect(ground.floorY).toBe(0);
+    expect(gallery.id).toBe('gallery');
+    expect(gallery.floorY).toBe(DECK_Y);
+    expect(ground.rooms.map((r) => r.id)).toEqual(['startBay', 'aisle', 'millBay', 'sackBay', 'office', 'lobby']);
+    expect(gallery.rooms.map((r) => r.id)).toEqual(['landing', 'stairHead', 'craneWest', 'craneEast', 'eastWest', 'eastEnd']);
+    expect(ground.stops.length).toBeGreaterThanOrEqual(14);
+    expect(ground.stops.length).toBeLessThanOrEqual(18);
+    expect(gallery.stops.length).toBeGreaterThanOrEqual(8);
+    expect(gallery.stops.length).toBeLessThanOrEqual(12);
+    // the gallery's rooms are the plan's six x ranges over z 15 - 18; the ground's are the path spaces (the aisle's takes in its notch)
+    expect(gallery.rooms.map((r) => [r.box[0], r.box[2]])).toEqual([[0, 7], [7, 12], [12, 16], [16, 20], [20, 26], [26, 32]]);
+    for (const r of gallery.rooms) expect([r.box[1], r.box[3]]).toEqual([15, 18]);
+    for (const r of ground.rooms.filter((q) => q.id !== 'aisle')) expect(r.box).toEqual(THORNBECK_SPACES[r.id as keyof typeof THORNBECK_SPACES]);
+  });
+
+  it('every pt and pt2 is 0.5 m clear of a collider and inside its room box', () => {
+    const bad: string[] = [];
+    for (const line of lines) {
+      line.stops.forEach((st, i) => {
+        const room = line.rooms.find((r) => r.id === st.room);
+        if (!room) {
+          bad.push(`${line.id} stop ${i}: room ${st.room} is not a room of the line`);
+          return;
+        }
+        for (const [what, p] of [['pt', st.pt], ['pt2', st.pt2]] as const) {
+          const c = clearance(p[0], p[1], line.floorY);
+          if (c < 0.5 - 1e-6) bad.push(`${line.id} stop ${i} ${what} (${p[0]}, ${p[1]}): ${c.toFixed(3)} m clear`);
+          if (!inRect(room.box, p[0], p[1])) bad.push(`${line.id} stop ${i} ${what} (${p[0]}, ${p[1]}) is outside ${st.room}`);
+          if ((p[2] ?? 0) !== line.floorY) bad.push(`${line.id} stop ${i} ${what} is not on y ${line.floorY}`);
+        }
+      });
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("pt2 lies 1.0 - 1.5 m from pt (the partner's lane, the paired kill's distance)", () => {
+    const bad: string[] = [];
+    for (const line of lines) {
+      line.stops.forEach((st, i) => {
+        const d = hyp2(st.pt[0] - st.pt2[0], st.pt[1] - st.pt2[1]);
+        if (d < 1.0 - 1e-6 || d > 1.5 + 1e-6) bad.push(`${line.id} stop ${i}: ${d.toFixed(3)} m`);
+      });
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('adjacent stops are 2.5 - 4.5 m apart, every pt and pt2 is on the nav grid of its storey, and each leg is walkable', () => {
+    const bad: string[] = [];
+    for (const line of lines) {
+      line.stops.forEach((st, i) => {
+        for (const [what, p] of [['pt', st.pt], ['pt2', st.pt2]] as const) {
+          const c = nav.cellOf(p[0], p[1], line.floorY);
+          if (!nav.isWalkable(c) || Math.abs(nav.height[c]! - line.floorY) > 0.6) bad.push(`${line.id} stop ${i} ${what} (${p[0]}, ${p[1]}) is off the grid`);
+        }
+        const next = line.stops[i + 1];
+        if (!next) return;
+        const d = hyp2(st.pt[0] - next.pt[0], st.pt[1] - next.pt[1]);
+        if (d < 2.5 - 1e-6 || d > 4.5 + 1e-6) bad.push(`${line.id} stops ${i} -> ${i + 1}: ${d.toFixed(3)} m apart`);
+        if (!nav.findPath(at(st.pt), at(next.pt), 200000, line.floorY, line.floorY)) bad.push(`${line.id} stops ${i} -> ${i + 1}: no path`);
+        if (!nav.findPath(at(st.pt2), at(next.pt2), 200000, line.floorY, line.floorY)) bad.push(`${line.id} stops ${i} -> ${i + 1}: no path for pt2`);
+      });
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('every stop has 2 - 4 finite aims', () => {
+    for (const line of lines) {
+      line.stops.forEach((st, i) => {
+        expect(st.aims.length, `${line.id} stop ${i}`).toBeGreaterThanOrEqual(2);
+        expect(st.aims.length, `${line.id} stop ${i}`).toBeLessThanOrEqual(4);
+        for (const a of st.aims) expect(Number.isFinite(a), `${line.id} stop ${i}`).toBe(true);
+      });
+    }
+  });
+
+  it("a room's stops are consecutive in the line, and every room has a stop", () => {
+    for (const line of lines) {
+      const seen: string[] = [];
+      for (const st of line.stops) if (seen[seen.length - 1] !== st.room) seen.push(st.room);
+      // each room appears as one run, and the runs follow the rooms' listed order
+      expect(seen, `${line.id} runs`).toEqual(line.rooms.map((r) => r.id));
+    }
+  });
+
+  it("every phase row names a room of each line, in line order, and the rows are the plan's", () => {
+    expect(hunt.phases).toEqual([
+      ['startBay', 'stairHead'],
+      ['aisle', 'craneWest'],
+      ['millBay', 'craneEast'],
+      ['sackBay', 'eastWest'],
+      ['office', 'eastEnd'],
+      ['lobby', 'eastEnd'],
+    ]);
+    for (const row of hunt.phases) {
+      expect(row).toHaveLength(lines.length);
+      row.forEach((room, k) => expect(lines[k]!.rooms.some((r) => r.id === room), `${room} on ${lines[k]!.id}`).toBe(true));
+    }
+    // the order never steps back along a line
+    lines.forEach((line, k) => {
+      const idx = hunt.phases.map((row) => line.rooms.findIndex((r) => r.id === row[k]));
+      for (let i = 1; i < idx.length; i++) expect(idx[i]!, `${line.id} row ${i}`).toBeGreaterThanOrEqual(idx[i - 1]!);
+    });
+  });
+
+  it('every hide spot is aimed at (within 35 degrees) from a stop of its storey within 8 m', () => {
+    const missed: string[] = [];
+    for (const [what, x, z, y] of THORNBECK_HIDE_SPOTS) {
+      const line = y > 1 ? gallery : ground;
+      const ok = line.stops.some((st) => near(st, x, z) <= 8 && covers(st, x, z));
+      if (!ok) missed.push(what);
+    }
+    expect(missed).toEqual([]);
+  });
+
+  it('the final rooms aim at L1 / the hatch and the doors in; every gallery stop has an aim into the hall (plan check 2)', () => {
+    const lobby = ground.stops.filter((s) => s.room === 'lobby');
+    expect(lobby.some((s) => covers(s, THORNBECK_LADDER.x, THORNBECK_LADDER.z)), 'lobby aims at L1').toBe(true);
+    // the lobby's only door in is the office's north door (x 29 - 30.2, z 12.9)
+    expect(lobby.some((s) => covers(s, 29.6, 12.9)), 'lobby aims at the door in').toBe(true);
+    // the hatch (x 30.8 - 31.6, z 15.2 - 16.0) is L1's top: the gallery's last room aims at it
+    const end = gallery.stops.filter((s) => s.room === 'eastEnd');
+    expect(end.some((s) => covers(s, 31.2, 15.6)), 'eastEnd aims at the hatch').toBe(true);
+    // the stair head aims at the stairwell, the landing at the hoist door
+    expect(gallery.stops.filter((s) => s.room === 'stairHead').some((s) => covers(s, THORNBECK_STAIR_GATE.x, 15.0)), 'stair head aims at the stairwell').toBe(true);
+    expect(gallery.stops.filter((s) => s.room === 'landing').some((s) => covers(s, THORNBECK_HOIST_DOOR.x, THORNBECK_HOIST_DOOR.z)), 'landing aims at the hoist door').toBe(true);
+    // south is the hall: cos(yaw) below -0.7 (within about 45 degrees of due south)
+    gallery.stops.forEach((st, i) => expect(st.aims.some((a) => Math.cos(a) < -0.7), `gallery stop ${i} has a hall-facing aim`).toBe(true));
+  });
+
+  it("fold-in 1: the start bay's first stops (G1 + G2) aim away from the players' start-to-low-sacks run", () => {
+    const g1 = THORNBECK_GUARDS[0]!;
+    const g2 = THORNBECK_GUARDS[1]!;
+    // the run: both players' starts, then to behind the low sacks Sa (the first hide spot)
+    const sa = THORNBECK_HIDE_SPOTS[0]!;
+    const run: [number, number][] = [];
+    const legs: readonly (readonly [number, number])[] = [[sector.start2!.x, sector.start2!.z], [sector.start.x, sector.start.z], [sa[1], sa[2]]];
+    for (let k = 0; k + 1 < legs.length; k++) {
+      const a = legs[k]!;
+      const c = legs[k + 1]!;
+      const n = Math.ceil(hyp2(c[0] - a[0], c[1] - a[1]) / 0.5);
+      for (let j = 0; j <= n; j++) run.push([a[0] + ((c[0] - a[0]) * j) / n, a[1] + ((c[1] - a[1]) * j) / n]);
+    }
+    const nearest = (g: SectorGuard): number => {
+      let best = 0;
+      let bd = Infinity;
+      ground.stops.forEach((st, i) => {
+        const d = near(st, g.x, g.z);
+        if (d < bd) {
+          bd = d;
+          best = i;
+        }
+      });
+      return best;
+    };
+    const first = [...new Set([nearest(g1), nearest(g2)])];
+    // they are the line's first stops, in the start bay
+    for (const i of first) {
+      expect(i, 'a first stop').toBeLessThanOrEqual(1);
+      expect(ground.stops[i]!.room).toBe('startBay');
+    }
+    // no aim from either spot of those stops comes within 40 degrees of any point of the run
+    const AWAY = (40 * Math.PI) / 180;
+    const bad: string[] = [];
+    for (const i of first) {
+      const st = ground.stops[i]!;
+      for (const p of [st.pt, st.pt2]) {
+        for (const a of st.aims) {
+          for (const [rx, rz] of run) if (angDiff(a, bearing(p, rx, rz)) < AWAY) bad.push(`stop ${i} aim ${a} sees (${rx.toFixed(1)}, ${rz.toFixed(1)})`);
+        }
+      }
+    }
+    expect([...new Set(bad)]).toEqual([]);
   });
 });

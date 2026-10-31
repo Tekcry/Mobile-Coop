@@ -6,7 +6,11 @@ import type { GameState } from './gameState';
 import { SightWorld } from './sectorCheck';
 import { JOIN_START_M, slotSpawn, walkCrossesLocked, type LeafSeg, type SlotPoint, type SlotSpawnKind, type SpawnBody, type SpawnProbe } from './spawnSlots';
 import { courseSlotPoints, courseStartCheckpoint } from './modes/courseMode';
-import { missionParam, missionStartSector } from './mission/sectorMission';
+import { boundMissionId, missionStartIndex, missionStartSector, pickMission } from './mission/sectorMission';
+import type { MissionDef } from './mission/missionDef';
+import type { SectorDef } from './sectors';
+import { sectorStartIndex } from './sectorStart';
+import { flags } from '../core/flags';
 
 /**
  * (coop-rejoin) The game's spawn checks (`spawnSlots.ts` is the pure side): a body overlapping the level's solid pieces
@@ -111,12 +115,37 @@ export function offSection(g: GameState, checkpoint: readonly SlotPoint[], x: nu
  * Sector Ops mission whose start section it is (default this page's `?mission=`; (NET3) a co-op client passes the one
  * the host's `start` carried, null for none).
  */
-export function startSlotPoints(g: GameState, bay = g.opts.courseBay ?? 1, mission: string | null = missionParam()): SlotPoint[] {
+export function startSlotPoints(g: GameState, bay = g.opts.courseBay ?? 1, mission: string | null = boundMissionId(g.opts)): SlotPoint[] {
   if (g.opts.mode === 'course' && g.world.layout.course) return courseSlotPoints(g, courseStartCheckpoint(g, bay));
-  // (mission-framework EN4, A23) a `?mission=` that starts at a later section starts there
-  const s = g.opts.mode === 'sector' ? missionStartSector(g.world.map.sectors, g.world.map.missions, mission) : undefined;
-  if (s) return s.start2 ? [{ ...s.start }, { ...s.start2 }] : [{ ...s.start }];
+  if (g.opts.mode === 'sector') {
+    // (campaign-mode CM3) a co-op start at a later section (the start's `bay`, `flags.campaign`) starts there
+    const at = flags.campaign ? sectorResumePoints(g.world.map.sectors, g.world.map.missions, mission, g.opts.sectorStart ?? 1) : null;
+    if (at) return at;
+    // (mission-framework EN4, A23) a `?mission=` that starts at a later section starts there
+    const s = missionStartSector(g.world.map.sectors, g.world.map.missions, mission);
+    if (s) return s.start2 ? [{ ...s.start }, { ...s.start2 }] : [{ ...s.start }];
+  }
   return g.world.layout.playerSpawns.slice(0, 2).map((p) => ({ x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw }));
+}
+
+/**
+ * (campaign-mode CM3, plan check polish 1) The slot points of a Sector Ops start at section `start` (1-based, past 1),
+ * where the host's run puts its checkpoint: with a mission, the section's own start (`applyMissionResume` through
+ * `applyMissionStart`; not before the mission's start section); plain Sector Ops, the checkpoint of the connector before
+ * it (the start-at-section path, `applySectorStart`). Null: start 1, a section the run cannot start at, or no sectors.
+ */
+export function sectorResumePoints(sectors: readonly SectorDef[] | undefined, missions: readonly MissionDef[] | undefined, mission: string | null, start: number): SlotPoint[] | null {
+  if (!sectors || !Number.isInteger(start) || start < 2) return null;
+  const i = start - 1;
+  const def = pickMission(missions, mission);
+  if (def) {
+    const s = sectors[i];
+    if (!s || i < missionStartIndex(def, sectors)) return null;
+    return s.start2 ? [{ ...s.start }, { ...s.start2 }] : [{ ...s.start }];
+  }
+  if (sectorStartIndex(sectors, start) !== i) return null;
+  const c = sectors[i - 1]!.connector!;
+  return c.checkpoint2 ? [{ ...c.checkpoint }, { ...c.checkpoint2 }] : [{ ...c.checkpoint }];
 }
 
 /** Player slot `slot`'s spot in an area (`slotSpawn` with this level's checks); `others` are the players placed. */

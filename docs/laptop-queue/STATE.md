@@ -1,6 +1,12 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-26: laptop-queue-10 (feature/laptop-queue-10b): hung runs cut after 17 min (F10), each attempt its own run
+  folder (F31), desktop sized by parts and handing off at the first failure or no result (F14, F11), desktop train-soon
+  hold and CPU reading that counts the e2e browsers (F9, F24), stacked PRs after master-based ones (F22), quarantine
+  keys (F26), a renamed request is a move (F15), fix / front before an aged alone (F39), a parked run stops (F40). Knobs
+  and rules: RULES.md "Machines", testing-tools.md "Laptop queue" and "Flakes and quarantine"; resume:
+  docs/archive/laptop-queue-10/STATE.md.
 - 2026-10-26: laptop-queue-8 (feature/laptop-queue-8): fixes first (`fix` label or `--fix`), a new head keeps its
   request's place and stops the old run, a train preempt keeps passed suites, the desktop takes the smallest request
   and skips any over 15 min (CPU mode knob), a docs-only PR commit carries affected-e2e. Rules: RULES.md "Machines",
