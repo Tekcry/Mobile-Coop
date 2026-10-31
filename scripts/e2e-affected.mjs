@@ -25,8 +25,7 @@ export const GPU = ['e2e-darkness', 'e2e-parity', 'e2e-desktop:3', 'e2e-coop-gpu
 export const AUDIO = ['e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
 
 /**
- * The suites an affected request runs as a gate (laptop-queue lib affectedSuites: the service's affected pass and
- * request.mjs --affected): `suites` without the GPU-only, LEGACY and AUDIO suites, whole or as a part
+ * The suites an affected run takes as a gate (`run-e2e.mjs --affected`, through affectedPick): `suites` without the GPU-only, LEGACY and AUDIO suites, whole or as a part
  * (docs/systems/testing-tools.md: GPU suites never, legacy and audio REPORT ONLY). A request's suites run by name, where
  * nothing is REPORT ONLY, so left in they ran and gated affected-e2e (audit 2026-10-25: PR #400's request named
  * e2e-coop-gpu, e2e-darkness, e2e-bunker, ...). A part list entry (e2e-desktop:3, e2e-wall:flanker) drops only that part
@@ -515,19 +514,4 @@ export function affectedPick(files, { max, wide = false, protocolTs = '', times 
   const all = affectedGateSuites(withWireSuites(selectSuites(files, map), files, protocolTs));
   const wire = typeof protocolTs === 'string' && protocolTs !== '' && touchesWire(files.map(norm), wirePaths(protocolTs));
   return capAffected(files, all, { max: max ?? (wide ? 0 : AFFECTED_MAX), map, times, wire });
-}
-
-// ---- auto-train's auto-drop (scripts/auto-train.mjs pickDrops): which suites a train member reaches ----
-
-/** The suites a change's paths reach under `map` (DIRECT_COVERS by default), `smoke` aside, parts as their suite: a Set. */
-export function suiteSetFor(files, map = DIRECT_COVERS) {
-  const out = new Set();
-  for (const f of files ?? []) for (const s of suitesForFile(String(f), map) ?? []) out.add(String(s).split(':')[0]);
-  return out;
-}
-
-/** Every prefix of `map` (QUICK_COVERS by default, any row, not only the first match) whose row names `suite` (parts as their suite), plus `src/` for a CORE suite (an unlisted src path runs CORE). */
-export function coverFolders(suite, map = QUICK_COVERS) {
-  const keys = Object.entries(map).filter(([, list]) => list.some((s) => s.split(':')[0] === suite)).map(([p]) => p);
-  return CORE.includes(suite) ? [...keys, 'src/'] : keys;
 }
