@@ -1,15 +1,18 @@
 /**
- * (coop-kit K5a) Plank Bridge's world piece: one scaffold board mesh per plank spot (one thin-instanced box), drawn from
- * its kit device (`game/kit/plankBridge.ts` `PlankDevice`): on its stack or the floor where it lies, and while carried
- * between the two carriers' hand points (the device's ends, set each fixed step on every page from the drawn bodies:
- * no board pose on the wire). No collider yet (the laid board's static collider is K5b).
+ * (coop-kit K5a, K5b) Plank Bridge's world piece: one scaffold board mesh per plank spot (one thin-instanced box), drawn
+ * from its kit device (`game/kit/plankBridge.ts` `PlankDevice`): on its stack or the floor where it lies, while carried
+ * between the two carriers' hand points (the device's ends, set each fixed step on every page from the drawn bodies: no
+ * board pose on the wire), sliding out while it is laid. (K5b) A laid, settled board (`laid`) gets a static collider
+ * (width x thickness x length, at its pose) so both players walk across it at any pace; it goes when the board is lifted
+ * or reset. Not a nav link: guards do not path over it (PLAN).
  *
  * The world (`world.ts`) builds `PlankBoards(scene, level)` when the level has plank spots (`kitSpotsOf`, every spot
  * whatever the flags, as the devices: inert while the id is off, the live board lies on its stack); the move's `tick`
  * calls `update(devices.list)` each fixed step after it set the ends, on host and client. Babylon only through
  * `core/babylon`.
  */
-import { Color3, CreateBox, Matrix, PBRMaterial, Quaternion, Vector3, type Mesh, type Scene } from '../core/babylon';
+import { Color3, CreateBox, Matrix, PBRMaterial, PhysicsBody, PhysicsMotionType, PhysicsShapeBox, Quaternion, TransformNode, Vector3, type Mesh, type Scene } from '../core/babylon';
+import { G } from '../physics/groups';
 import type { KitDevice } from '../game/kit/registry';
 import { kitSpotsOf } from '../game/kit/kitApi';
 import { isPlankDevice, newPlankDevice, plankPose, PLANK, type PlankDevice, type PlankPose } from '../game/kit/plankBridge';
@@ -23,9 +26,12 @@ interface Slot {
   index: number;
   /** The pose last written (a redraw only when it moved). */
   readonly pose: PlankPose;
+  /** (K5b) The laid board's static body (null when not laid). */
+  body: PhysicsBody | null;
+  node: TransformNode | null;
 }
 
-/** The level's live scaffold boards (render only). */
+/** The level's live scaffold boards (render, and (K5b) a laid board's collider). */
 export class PlankBoards {
   private readonly slots: Slot[] = [];
   private readonly byId = new Map<string, Slot>();
@@ -37,7 +43,10 @@ export class PlankBoards {
   private readonly p = new Vector3();
   private readonly at: PlankPose = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 };
 
-  constructor(scene: Scene, level: unknown) {
+  constructor(
+    private readonly scene: Scene,
+    level: unknown,
+  ) {
     const spots = kitSpotsOf(level, 'plankBridge');
     if (!spots.length) return;
     const mat = new PBRMaterial('plankMat', scene);
@@ -56,7 +65,7 @@ export class PlankBoards {
     for (let i = 0; i < spots.length; i++) {
       // the board on its stack until the devices exist (the same pose a fresh device has)
       const d = newPlankDevice(spots[i]!);
-      const slot: Slot = { id: d.id, len: d.len, index: i, pose: { x: NaN, y: 0, z: 0, yaw: 0, pitch: 0 } };
+      const slot: Slot = { id: d.id, len: d.len, index: i, pose: { x: NaN, y: 0, z: 0, yaw: 0, pitch: 0 }, body: null, node: null };
       this.slots.push(slot);
       this.byId.set(slot.id, slot);
       this.write(slot, plankPose(d, this.at));
@@ -68,6 +77,13 @@ export class PlankBoards {
   /** The boards' mesh (null without plank spots). */
   get boardMesh(): Mesh | null {
     return this.mesh;
+  }
+
+  /** (K5b, tests) How many laid boards have a collider now. */
+  get colliders(): number {
+    let n = 0;
+    for (const s of this.slots) if (s.body) n++;
+    return n;
   }
 
   private write(s: Slot, at: PlankPose): void {
@@ -84,7 +100,32 @@ export class PlankBoards {
     this.m.copyToArray(this.buf!, s.index * 16);
   }
 
-  /** Follow the kit devices (`TeamController.devices.list`): each board at its device's pose. Allocation-free. */
+  /** (K5b) The laid board's static box at its pose (the shutter curtain's filter: a level static the bodies stand on). */
+  private addBody(s: Slot, at: PlankPose): void {
+    if (s.body) return;
+    const node = new TransformNode(`plank-${s.id}`, this.scene);
+    node.position.set(at.x, at.y, at.z);
+    node.rotationQuaternion = Quaternion.RotationYawPitchRoll(at.yaw, at.pitch, 0);
+    const body = new PhysicsBody(node, PhysicsMotionType.STATIC, false, this.scene);
+    const shape = new PhysicsShapeBox(Vector3.Zero(), Quaternion.Identity(), new Vector3(PLANK.width, PLANK.thick, s.len), this.scene);
+    shape.filterMembershipMask = G.STATIC;
+    shape.filterCollideMask = 0xffffffff & ~G.STATIC;
+    body.shape = shape;
+    s.body = body;
+    s.node = node;
+  }
+
+  private removeBody(s: Slot): void {
+    if (!s.body) return;
+    s.body.shape?.dispose();
+    s.body.dispose();
+    s.node?.dispose();
+    s.body = null;
+    s.node = null;
+  }
+
+  /** Follow the kit devices (`TeamController.devices.list`): each board at its device's pose; (K5b) a laid one's collider
+   *  on, any other's off. Allocation-free while nothing is laid or lifted. */
   update(devices: readonly KitDevice[]): void {
     if (!this.mesh) return;
     let moved = false;
@@ -95,6 +136,8 @@ export class PlankBoards {
       const s = this.byId.get(d.id);
       if (!s) continue;
       const at = plankPose(d, this.at);
+      if (d.laid && !s.body) this.addBody(s, at);
+      else if (!d.laid && s.body) this.removeBody(s);
       const o = s.pose;
       if (at.x === o.x && at.y === o.y && at.z === o.z && at.yaw === o.yaw && at.pitch === o.pitch) continue;
       this.write(s, at);
@@ -107,6 +150,7 @@ export class PlankBoards {
   }
 
   dispose(): void {
+    for (const s of this.slots) this.removeBody(s);
     this.mesh?.material?.dispose();
     this.mesh?.dispose();
     this.mesh = null;

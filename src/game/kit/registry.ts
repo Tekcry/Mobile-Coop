@@ -175,6 +175,9 @@ export interface KitMove<R extends object = object> {
   gap?(h: KitHost, run: R): number;
   /** Once per level per controller: add this move's devices (the kit device hook). */
   setupDevices?(h: KitHost, run: R, devices: KitDevices, level: unknown): void;
+  /** (coop-kit K5b) A section restart or a station retry (`TeamController.resetKit`: both pages' checkpoint resets, the
+   *  course host's retry): this move's devices back to their start state and a running move of this kind ended. */
+  reset?(h: KitHost, run: R): void;
 }
 
 // ---- the registry ----

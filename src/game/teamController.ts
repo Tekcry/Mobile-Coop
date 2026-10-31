@@ -1410,7 +1410,8 @@ export class TeamController implements KitHost {
     }
   }
 
-  /** (J9 S1, A27) A section restart puts the kit back: our own shutter move ends, every shutter drops shut at once. */
+  /** (J9 S1, A27) A section restart puts the kit back: our own shutter move ends, every shutter drops shut at once.
+   *  (coop-kit K5b) Then every registered move's own `reset` (Plank Bridge: the boards home). */
   resetKit(): void {
     if (kitKindOf(this.state) === 'shutter') this.end(true);
     const l = this.devices.list;
@@ -1418,6 +1419,8 @@ export class TeamController implements KitHost {
       const d = l[i]!;
       if (isShutterDevice(d)) resetShutter(d);
     }
+    const ms = kitMoves();
+    for (let i = 0; i < ms.length; i++) ms[i]!.reset?.(this, this.kitRunOf(ms[i]!));
   }
 
   /** Back to free movement. */

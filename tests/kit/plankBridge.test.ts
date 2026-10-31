@@ -2,8 +2,9 @@
 // (headless, fake GameStates; each page sees the other through its mates list, one step late): lift a spot's board,
 // carry it 10 m at the slower stick, turn, put it down and lift it again with the hand gap within 0.25 m of the board's
 // length on both pages; B or a hit drops it; a restart puts it back on its stack; `?kitmoves=0` and single player offer
-// nothing.
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+// nothing. (coop-kit K5b) The lay, the cross and the guards' notice: see the K5b blocks at the end (an analytic box world
+// behind the stub's static ray).
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../../src/core/babylon';
 import { EventBus } from '../../src/core/events';
 import { flags, readKitMoves } from '../../src/core/flags';
@@ -11,8 +12,30 @@ import { hyp2 } from '../../src/core/mathx';
 import { checkTeamRequest, PLANK_SUB, type TeamRequest, type TeamSide } from '../../src/game/teamMoves';
 import { addKitSpot, KIT_PAIR, type KitSpot } from '../../src/game/kit/kitApi';
 import { registerKitMove } from '../../src/game/kit/registry';
-import { carryVelocity, checkPlank, newPlankDevice, PLANK, PLANK_MOVE, plankEndNear, plankGap, plankPose, putPlankDown, type PlankDevice } from '../../src/game/kit/plankBridge';
+import {
+  carryVelocity,
+  checkPlank,
+  crossStep,
+  layPlank,
+  layS,
+  layYaw,
+  newLayPlan,
+  newPlankDevice,
+  PLANK,
+  PLANK_MOVE,
+  planLay,
+  plankEndNear,
+  plankGap,
+  plankLookPoint,
+  plankNoticedBy,
+  plankPose,
+  putPlankDown,
+  slidePlank,
+  type PlankDevice,
+  type PlankRay,
+} from '../../src/game/kit/plankBridge';
 import { TeamController, type TeamMate, type TeamStart } from '../../src/game/teamController';
+import { StealthSystems } from '../../src/game/stealthSystems';
 import type { GameEvents } from '../../src/game/gameEvents';
 
 const kitMoves0 = flags.kitMoves;
@@ -32,6 +55,54 @@ const DT = 1 / 60;
 const SPOT: KitSpot = { id: 'a2-plank', kind: 'plankBridge', x: 0, y: 0, z: 0, yaw: Math.PI / 2, w: 3.9, h: 0.16 };
 const LEN = 3.9;
 
+/** (K5b) An axis-aligned box [x0, x1, y0, y1, z0, z1] of the static world. */
+type Box = readonly [number, number, number, number, number, number];
+
+/** (K5b) The static ray over boxes: the hit distance along the segment, its length when clear. A segment that starts
+ *  inside a box does not hit it (a convex cast from inside). */
+function boxRay(boxes: readonly Box[]): PlankRay {
+  return (ax, ay, az, bx, by, bz) => {
+    const d = [bx - ax, by - ay, bz - az] as const;
+    const o = [ax, ay, az] as const;
+    const len = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+    let best = 1;
+    for (const b of boxes) {
+      let t0 = -Infinity;
+      let t1 = Infinity;
+      for (let k = 0; k < 3; k++) {
+        const lo = b[k * 2]!;
+        const dk = d[k]!;
+        const ok = o[k]!;
+        const hi = b[k * 2 + 1]!;
+        if (Math.abs(dk) < 1e-12) {
+          if (ok < lo || ok > hi) t0 = Infinity;
+          continue;
+        }
+        const u0 = (lo - ok) / dk;
+        const u1 = (hi - ok) / dk;
+        t0 = Math.max(t0, Math.min(u0, u1));
+        t1 = Math.min(t1, Math.max(u0, u1));
+      }
+      if (t0 <= t1 && t0 > 0 && t0 < best) best = t0;
+    }
+    return best * len;
+  };
+}
+
+/** (K5b) A gap along x from 0 to `gap` (near floor x < 0, a 1.6 m pit, far floor `dy` over the near one); `slot`: A2's
+ *  far barrier (1.1 m) with its raised panel (0.25-1.1 m, its face 0.15 m out over the pit) at z -0.5..0.5. */
+function gapWorld(gap: number, dy = 0, slot = false): Box[] {
+  const w: Box[] = [
+    [-60, 0, -1, 0, -20, 20],
+    [0, gap, -3, -1.6, -20, 20],
+    [gap, 60, -1, dy, -20, 20],
+  ];
+  if (slot) {
+    w.push([gap, gap + 0.04, 0, 1.1, -20, -0.5], [gap, gap + 0.04, 0, 1.1, 0.5, 20], [gap - 0.15, gap + 0.04, 0.25, 1.1, -0.5, 0.5]);
+  }
+  return w;
+}
+
 interface Page {
   id: string;
   tm: TeamController;
@@ -41,28 +112,36 @@ interface Page {
   ends: string[];
   health: { hp: number };
   events: EventBus<GameEvents>;
+  /** (K5b) Toasts (polite refusals) and the mode's done calls. */
+  toasts: string[];
+  done: unknown[][];
 }
 
-function page(id: string, x: number, z: number, anchors: object, mateIds: readonly string[]): Page {
+function page(id: string, x: number, z: number, anchors: object, mateIds: readonly string[], world: readonly Box[] = [], puppet = false): Page {
   const controller = { pos: new Vector3(x, 0, z), renderPos: new Vector3(), yaw: 0, renderYaw: 0, override: null as unknown, grounded: true, swallowCrouch: false, crouched: false, crouchIntent: false, autoCrouch: false, setCrouchToggle: () => {}, wishDir: new Vector3() };
   const mates: TeamMate[] = mateIds.map((m) => ({ id: m, pos: new Vector3(99, 0, 99), yaw: 0, mode: 'ground', sub: 0, s: 0 }));
   const asked: unknown[][] = [];
   const ends: string[] = [];
   const health = { hp: 100 };
   const events = new EventBus<GameEvents>();
+  const toasts: string[] = [];
+  const done: unknown[][] = [];
+  const ray = boxRay(world);
   const g = {
     player: { alive: true, controller, pose: { traverse: 'none', traverseT: 0, tumble: 0 } },
     net: { teamMates: () => mates, teamRequest: (...a: unknown[]) => asked.push(a), teamHangEnd: (k: string) => ends.push(k) },
-    app: { toasts: { show: () => {} } },
+    app: { toasts: { show: (t: string) => toasts.push(t) } },
     traversal: { attached: false, committed: null, attach: { kind: 'none', phase: 'off' } },
     takedown: { active: null },
     strike: { active: false },
     target: { health },
-    ballistics: { ray: () => ({ hit: false, distance: 0, point: new Vector3() }) },
+    ballistics: { ray: () => ({ hit: false, distance: 0, point: new Vector3() }), hitDistance: (a: Vector3, b: Vector3) => ray(a.x, a.y, a.z, b.x, b.y, b.z) },
     world: { level: { anchors } },
     events,
+    puppet,
+    mode: { onKitDone: (...a: unknown[]) => done.push(a) },
   };
-  return { id, tm: new TeamController(g as never), controller, mates, asked, ends, health, events };
+  return { id, tm: new TeamController(g as never), controller, mates, asked, ends, health, events, toasts, done };
 }
 
 /** Two pages: `pb` at the board's -x end (offers first), `pa` at its +x end. */
@@ -361,8 +440,9 @@ describe('lift, carry 10 m, turn, put down, lift again (K5a, two pages)', () => 
     B.controller.wishDir.set(1, 0, 0);
     steps(A, B, seen, 3);
     expect(dev(A).x).toBeGreaterThan(2);
-    A.events.emit('checkpointRestart', {});
-    B.events.emit('checkpointRestart', {});
+    // (K5b) the kit's reset hook (`resetKit`: every checkpoint reset on both pages, the course host's station retry)
+    A.tm.resetKit();
+    B.tm.resetKit();
     expect([A.tm.state, B.tm.state]).toEqual(['none', 'none']);
     steps(A, B, seen, 0.2);
     for (const p of [A, B]) {
@@ -439,5 +519,317 @@ describe('offers off (K5a)', () => {
     B.controller.pos.set(-3, 0, 0);
     steps(A, B, seen, DT, { coopB: true });
     expect(B.tm.state).toBe('none');
+  });
+});
+
+// ---- (coop-kit K5b) the lay, the cross, the guards ----
+
+/** The stack 6 m short of a gap at x 0 (board along x: ends at -7.95 and -4.05). */
+const STACK: KitSpot = { id: 'a2-plank', kind: 'plankBridge', x: -6, y: 0, z: 0, yaw: Math.PI / 2, w: 3.9, h: 0.16 };
+const LAY_PROMPT = 'Co-op: lay the board over the gap (plank bridge)';
+
+/** Two pages over `world`: `pb` (the stub host) at the stack's -x end, `pa` (a client page) at its +x end. */
+function gapPair(world: readonly Box[]): { A: Page; B: Page; seen: { a: number; b: number } } {
+  const anchors = {};
+  addKitSpot(anchors, STACK);
+  const B = page('pb', -8.3, 0, anchors, ['pa'], world);
+  const A = page('pa', -3.7, 0, anchors, ['pb'], world, true);
+  sync(A, B);
+  return { A, B, seen: { a: 0, b: 0 } };
+}
+
+/** Lift at the stack and carry +x (A in front) until A stands `short` m from the near edge (x 0). */
+function carryToEdge(A: Page, B: Page, seen: { a: number; b: number }, short = 0.6): void {
+  liftUp(A, B, seen);
+  A.controller.wishDir.set(1, 0, 0);
+  B.controller.wishDir.set(1, 0, 0);
+  for (let i = 0; i < 600 && A.controller.pos.x < -short; i++) steps(A, B, seen, DT);
+  A.controller.wishDir.set(0, 0, 0);
+  B.controller.wishDir.set(0, 0, 0);
+  steps(A, B, seen, PLANK.layEvery + 0.05);
+}
+
+/** A presses Co-op; the stub host checks the lay and starts it on both pages; returns the start. */
+function layIt(A: Page, B: Page, seen: { a: number; b: number }): TeamStart {
+  const n = A.asked.length;
+  steps(A, B, seen, DT, { coopA: true });
+  expect(A.asked).toHaveLength(n + 1);
+  const [kind, partner, target, s, gy, lx, lz] = A.asked[n] as [string, string, number, number, number, number, number];
+  expect([kind, partner, target]).toEqual(['plankBridge', 'pb', 0]);
+  const r: TeamRequest = { kind: 'plankBridge', a: side(A), b: side(B), target: 0, targetUp: 0, sinceLast: 9, spot: dev(B), land: { x: lx, y: gy, z: lz } };
+  expect(checkTeamRequest(r)).toBeNull();
+  const start: TeamStart = { kind: 'plankBridge', a: 'pa', b: 'pb', target: 0, s, l: [lx, gy, lz] };
+  A.tm.begin(start, 'pa');
+  B.tm.begin(start, 'pb');
+  return start;
+}
+
+/** Walk page `p` (its own body) to x `x1` along z 0 at 1.5 m/s, on the laid board's top where it is under the feet. */
+function walk(A: Page, B: Page, seen: { a: number; b: number }, p: Page, x1: number): void {
+  const d = dev(p);
+  const x0 = p.controller.pos.x;
+  const n = Math.ceil(Math.abs(x1 - x0) / (1.5 * DT));
+  for (let i = 1; i <= n; i++) {
+    const x = x0 + ((x1 - x0) * i) / n;
+    const onBoard = x >= Math.min(d.n.x, d.f.x) && x <= Math.max(d.n.x, d.f.x);
+    p.controller.pos.set(x, onBoard ? d.n.y + PLANK.thick / 2 : 0, 0);
+    steps(A, B, seen, DT);
+  }
+}
+
+describe('the lay search (K5b)', () => {
+  const plan = newLayPlan();
+  const at = (world: readonly Box[], x: number, z = 0) => planLay(boxRay(world), x, 0, z, 1, 0, LEN, plan);
+
+  it('a 3.0 m gap: the board centred, 0.45 m bearing each end; no edge within 1.0 m: nothing', () => {
+    expect(at(gapWorld(3), -0.6).why).toBe('');
+    expect(plan.gap).toBeCloseTo(3, 1);
+    expect(plan.nx).toBeCloseTo(-0.45, 1);
+    expect(plan.fx).toBeCloseTo(3.45, 1);
+    expect([plan.ny, plan.fy, plan.nz, plan.fz]).toEqual([0, 0, 0, 0]);
+    // the front carrier's body out over the edge (feet 0.2 m past it): the same board
+    expect(at(gapWorld(3), 0.2).why).toBe('');
+    expect(plan.nx).toBeCloseTo(-0.45, 1);
+    expect(at(gapWorld(3), -1.5).why).toBe('noEdge');
+    expect(planLay(boxRay([]), 0, 0, 0, 1, 0, LEN, plan).why).toBe('noEdge');
+  });
+
+  it('the A2 board slot: under the raised panel the board lays; beside it the barrier is in the way', () => {
+    expect(at(gapWorld(3, 0, true), -0.6, 0).why).toBe('');
+    expect(plan.fx).toBeCloseTo(3.45, 1);
+    expect(at(gapWorld(3, 0, true), -0.6, 1).why).toBe('blocked');
+  });
+
+  it('too wide (3.5 m), too narrow, a far side 0.5 m higher: each refused with its reason', () => {
+    expect(at(gapWorld(3.5), -0.6).why).toBe('wide');
+    expect(at(gapWorld(0.6), -0.6).why).toBe('narrow');
+    expect(at(gapWorld(3, 0.5), -0.6).why).toBe('level');
+    // a far side 0.15 m higher is level enough: the board slopes up to it
+    expect(at(gapWorld(3, 0.15), -0.6).why).toBe('');
+    expect(plan.fy).toBeCloseTo(0.15, 6);
+  });
+
+  it('the wire lay phase carries the axis yaw in [2, 3)', () => {
+    for (const y of [0, Math.PI / 2, -Math.PI / 2, Math.PI, 3]) {
+      const s = layS(y);
+      expect(s).toBeGreaterThanOrEqual(2);
+      expect(s).toBeLessThan(3);
+      expect(Math.cos(layYaw(s) - y)).toBeCloseTo(1, 6);
+    }
+  });
+});
+
+describe('the host lay rule (K5b)', () => {
+  const carried = (): PlankDevice => {
+    const d = newPlankDevice(STACK);
+    d.phase = 'carried';
+    return d;
+  };
+  const front = (extra: Partial<TeamSide> = {}): TeamSide => ({ id: 'a', x: -0.6, y: 0, z: 0, mode: 'boost', alive: true, sub: PLANK_SUB, s: 1, ...extra });
+  const rear = (extra: Partial<TeamSide> = {}): TeamSide => ({ id: 'b', x: -5.2, y: 0, z: 0, mode: 'brace', alive: true, sub: PLANK_SUB, s: 1, ...extra });
+  const req = (land: { x: number; y: number; z: number }, a = front(), b = rear(), spot: PlankDevice = carried()): TeamRequest => ({ kind: 'plankBridge', a, b, target: 0, targetUp: 0, sinceLast: 9, spot, land });
+
+  it('the pair carrying that board, the far end ahead in reach and level: allowed (either side asks)', () => {
+    expect(checkPlank(req({ x: 3.45, y: 0, z: 0 }))).toBeNull();
+    expect(checkTeamRequest(req({ x: 3.45, y: 0, z: 0 }))).toBeNull();
+    expect(checkPlank(req({ x: 3.45, y: 0, z: 0 }, rear({ id: 'a' }), front({ id: 'b' })))).toBeNull();
+  });
+
+  it('refused: not level, too far, off the carry, not carrying it, the board not carried, the id off', () => {
+    expect(checkPlank(req({ x: 3.45, y: 0.5, z: 0 }))).toBe('noTarget');
+    expect(checkPlank(req({ x: 3.45, y: -0.4, z: 0 }))).toBe('noTarget');
+    expect(checkPlank(req({ x: 6, y: 0, z: 0 }))).toBe('far');
+    expect(checkPlank(req({ x: 0, y: 0, z: 3.5 }))).toBe('far');
+    expect(checkPlank(req({ x: 3.45, y: 0, z: 0 }, front({ mode: 'ground' })))).toBe('notOffering');
+    expect(checkPlank(req({ x: 3.45, y: 0, z: 0 }, front({ s: 2 })))).toBe('notOffering');
+    expect(checkPlank(req({ x: 3.45, y: 0, z: 0 }, front(), rear(), newPlankDevice(STACK)))).toBe('busy');
+    const k = flags.kitMoves;
+    flags.kitMoves = readKitMoves('0');
+    try {
+      expect(checkPlank(req({ x: 3.45, y: 0, z: 0 }))).toBe('notOffering');
+    } finally {
+      flags.kitMoves = k;
+    }
+  });
+
+  it('a laid board can be lifted again (once settled)', () => {
+    const d = newPlankDevice(STACK);
+    layPlank(d, [3.45, 0, 0], Math.PI / 2, 0, 'pa', 'pb');
+    const lift = (): TeamRequest => ({
+      kind: 'plankBridge',
+      a: { id: 'a', x: 3.8, y: 0, z: 0, mode: 'ground', alive: true },
+      b: { id: 'b', x: -0.8, y: 0, z: 0, mode: 'brace', alive: true, sub: PLANK_SUB, s: -1 },
+      target: 0,
+      targetUp: 0,
+      sinceLast: 9,
+      spot: d,
+    });
+    expect(checkPlank(lift())).toBe('busy');
+    slidePlank(d, PLANK.layTime);
+    expect(checkPlank(lift())).toBeNull();
+  });
+});
+
+describe('lay over a 3.0 m gap and walk across (K5b, two pages)', () => {
+  it('both pages lay the same board; both cross; the host page tells the mode once per crossing; lifted again it carries on', () => {
+    const { A, B, seen } = gapPair(gapWorld(3));
+    carryToEdge(A, B, seen);
+    // both pages offer the lay (A in front searches from itself, B from its partner)
+    expect([A.tm.prompt, B.tm.prompt]).toEqual([LAY_PROMPT, LAY_PROMPT]);
+    const start = layIt(A, B, seen);
+    expect(Math.cos(layYaw(start.s) - Math.PI / 2)).toBeCloseTo(1, 4);
+    expect([A.tm.state, B.tm.state]).toEqual(['plankLayA', 'plankLay']);
+    expect([A.tm.wireS, B.tm.wireS]).toEqual([1, 1]);
+    for (const p of [A, B]) expect([dev(p).phase, dev(p).laid, dev(p).slide]).toEqual(['laid', false, 0]);
+    expect(dev(A).n).toEqual(dev(B).n);
+    expect(dev(A).f).toEqual(dev(B).f);
+    expect(dev(B).n.x).toBeCloseTo(-0.45, 1);
+    expect(dev(B).f.x).toBeCloseTo(3.45, 1);
+    steps(A, B, seen, PLANK.layTime + 0.05);
+    expect([A.tm.state, B.tm.state]).toEqual(['none', 'none']);
+    // side a freed the host's pair
+    expect(A.ends).toEqual(['drop']);
+    for (const p of [A, B]) {
+      const d = dev(p);
+      expect([d.phase, d.laid, d.opens]).toEqual(['laid', true, 1]);
+      expect(plankGap(d)).toBeCloseTo(LEN, 6);
+      expect(Math.min(d.a.x, d.b.x)).toBeCloseTo(d.n.x, 6);
+      expect(Math.max(d.a.x, d.b.x)).toBeCloseTo(d.f.x, 6);
+    }
+    expect(B.done).toEqual([]);
+
+    // A (the client) walks across: the host page names A the crosser and its own player (undefined) the layer
+    walk(A, B, seen, A, 3.8);
+    expect(B.done).toEqual([['plankBridge', 'a2-plank', 'pa', undefined]]);
+    // B (the host's own player) walks across: once more
+    walk(A, B, seen, B, 3.9);
+    expect(B.done).toEqual([
+      ['plankBridge', 'a2-plank', 'pa', undefined],
+      ['plankBridge', 'a2-plank', undefined, 'pa'],
+    ]);
+    // the client page never tells the mode
+    expect(A.done).toEqual([]);
+    // back the other way: no done call
+    walk(A, B, seen, B, -0.8);
+    expect(B.done).toHaveLength(2);
+
+    // lifted again from the laid board (B at the near end, A at the far end): carried, not laid, on both pages
+    seen.a = A.ends.length;
+    seen.b = B.ends.length;
+    liftUp(A, B, seen);
+    for (const p of [A, B]) expect([dev(p).phase, dev(p).laid]).toEqual(['carried', false]);
+    const run: Run = { gaps: [] };
+    A.controller.wishDir.set(0, 0, 1);
+    B.controller.wishDir.set(0, 0, 1);
+    steps(A, B, seen, 1, {}, run);
+    expectBand(run.gaps);
+    expect(A.controller.pos.z).toBeGreaterThan(0.5);
+  });
+
+  it('a 3.5 m gap and a far side 0.5 m higher: no lay prompt; Co-op is refused politely, nothing asked', () => {
+    const cases: [Box[], string][] = [
+      [gapWorld(3.5), 'The board does not reach across here'],
+      [gapWorld(3, 0.5), 'The far side is not level with this one'],
+    ];
+    for (const [world, text] of cases) {
+      const { A, B, seen } = gapPair(world);
+      carryToEdge(A, B, seen);
+      expect(A.tm.prompt).toBe('Carrying the board: B puts it down');
+      const n = A.asked.length;
+      steps(A, B, seen, DT, { coopA: true });
+      expect(A.asked).toHaveLength(n);
+      expect(A.toasts).toEqual([text]);
+      expect(A.tm.state).toBe('plankCarryA');
+    }
+  });
+
+  it('a reset puts a laid board home on both pages; a client page with no word of it goes home when the mate offers there', () => {
+    const { A, B, seen } = gapPair(gapWorld(3));
+    carryToEdge(A, B, seen);
+    layIt(A, B, seen);
+    steps(A, B, seen, PLANK.layTime + 0.05);
+    A.tm.resetKit();
+    B.tm.resetKit();
+    for (const p of [A, B]) expect([dev(p).phase, dev(p).laid, dev(p).x, dev(p).noticed]).toEqual(['stack', false, -6, -1]);
+
+    // again, but only the host resets (the course host's station retry): B offers at the stack, A's page follows
+    seen.a = A.ends.length;
+    seen.b = B.ends.length;
+    A.controller.pos.set(-3.7, 0, 0);
+    B.controller.pos.set(-8.3, 0, 0);
+    steps(A, B, seen, PLANK.resetHoldOff + 0.05);
+    carryToEdge(A, B, seen);
+    layIt(A, B, seen);
+    steps(A, B, seen, PLANK.layTime + 0.05);
+    B.tm.resetKit();
+    expect([dev(A).phase, dev(B).phase]).toEqual(['laid', 'stack']);
+    B.controller.pos.set(-8.3, 0, 0);
+    A.controller.pos.set(-3.7, 0, 0);
+    steps(A, B, seen, DT, { coopB: true });
+    expect(B.tm.state).toBe('plankOffer');
+    steps(A, B, seen, DT * 2);
+    expect(dev(A).phase).toBe('stack');
+    expect(A.tm.prompt).toBe('Co-op: take the other end (plank bridge)');
+  });
+});
+
+describe('the crossing rule and the guards notice (K5b)', () => {
+  const laid = (): PlankDevice => {
+    const d = newPlankDevice(STACK);
+    layPlank(d, [3.45, 0, 0], Math.PI / 2, 0, 'pa', 'pb');
+    slidePlank(d, PLANK.layTime);
+    return d;
+  };
+
+  it('on the middle marks; off past the far edge on its floor crosses; a fall into the gap does not', () => {
+    const d = laid();
+    const top = PLANK.thick;
+    expect(crossStep(d, 1.5, top, 0, true, false)).toBe(1);
+    expect(crossStep(d, 3.8, 0, 0, true, false)).toBe(0);
+    expect(crossStep(d, 3.8, 0, 0, true, true)).toBe(2);
+    expect(crossStep(d, 3.8, 0, 0, false, true)).toBe(1);
+    expect(crossStep(d, 1.5, -1.6, 0.6, true, true)).toBe(0);
+    expect(crossStep(d, -0.9, 0, 0, true, true)).toBe(0);
+  });
+
+  it('a calm guard facing it within range sees it (once per lay) and comes to the end on his side', () => {
+    const d = laid();
+    expect(plankNoticedBy(d, 1.5, 0, 6, Math.PI)).toBe(true);
+    expect(plankNoticedBy(d, 1.5, 0, 6, 0)).toBe(false);
+    expect(plankNoticedBy(d, 1.5, 0, 9.6, Math.PI)).toBe(false);
+    expect(plankNoticedBy(d, 1.5, 2, 6, Math.PI)).toBe(false);
+    expect(plankNoticedBy(newPlankDevice(STACK), -6, 0, 3, Math.PI)).toBe(false);
+    const look = plankLookPoint(d, 5, 2, { x: 0, z: 0 });
+    expect(look.x).toBeCloseTo(3.45 + PLANK.lookOff, 1);
+
+    const guard = { alive: true, alerted: false, pos: new Vector3(4.5, 0, 5), yaw: Math.PI, hear: vi.fn() };
+    const clear = vi.fn(() => true);
+    const g = {
+      world: { layout: {}, level: { lights: {} }, doors: { list: [], onSound: null } },
+      events: { emit: vi.fn() },
+      hud: { feedItem() {} },
+      player: { alive: true },
+      team: { devices: { list: [d] } },
+      ballistics: { clear },
+    };
+    const em = { alarms: [], bodies: [], enemies: [guard], lightsOut: vi.fn(), breakers: null, anyAlerted: false };
+    const ints = { add: vi.fn(), setEnabled: vi.fn(), setIndicator: vi.fn(), remove: vi.fn() };
+    const ss = new StealthSystems(g as never, em as never, ints as never, () => {});
+    for (let i = 0; i < 60; i++) ss.fixedUpdate();
+    expect(guard.hear).toHaveBeenCalledTimes(1);
+    const [hx, hz, r] = guard.hear.mock.calls[0] as [number, number, number];
+    expect(hx).toBeCloseTo(3.45 + PLANK.lookOff, 1);
+    expect(hz).toBeCloseTo(0, 6);
+    expect(r).toBe(PLANK.noticeRange + 2);
+    expect(d.noticed).toBe(d.opens);
+    // laid again (a new lay): a blocked sight line is not noticed; a clear one is
+    layPlank(d, [3.45, 0, 0], Math.PI / 2, 0, 'pa', 'pb');
+    slidePlank(d, PLANK.layTime);
+    clear.mockReturnValue(false);
+    for (let i = 0; i < 60; i++) ss.fixedUpdate();
+    expect(guard.hear).toHaveBeenCalledTimes(1);
+    clear.mockReturnValue(true);
+    for (let i = 0; i < 60; i++) ss.fixedUpdate();
+    expect(guard.hear).toHaveBeenCalledTimes(2);
   });
 });
