@@ -396,7 +396,7 @@ export class SettingsScreen extends MenuScreen {
             : ''),
       }),
       grp('Benchmark'),
-      desc(button('Run (current settings)', () => app.benchmark?.('current'), { key: 'bench-current' }), `A ${BENCH.seconds} s camera flight through the Warehouse with your settings: average and 1 % low frame rate.`),
+      desc(button('Run (current settings)', () => app.benchmark?.('current'), { key: 'bench-current' }), `A ${BENCH.seconds} s camera flight through the Test Chamber with your settings: average and 1 % low frame rate.`),
       desc(button('Every preset', () => app.benchmark?.('presets'), { class: 'subtle', key: 'bench-presets' }), 'The same flight on every preset, Low to Epic.'),
       desc(button('Resolutions', () => app.benchmark?.('resolutions'), { class: 'subtle', key: 'bench-res' }), 'The flight at each of this monitor\'s resolutions (in fullscreen).'),
       desc(button('Feature costs', () => app.benchmark?.('features'), { class: 'subtle', key: 'bench-features' }), 'Your settings, then each costly feature off in turn: what to cut on this device.'),

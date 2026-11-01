@@ -457,7 +457,9 @@ async function boot(): Promise<void> {
     s.started ??= Date.now();
     benchTag(`Run ${s.idx + 1}/${s.runs.length} · ${run.label} · loading`);
     app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx }, false);
-    startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: s });
+    // (clean-up G2c) the flight runs through the Test Chamber's rooms in the test mode (the Warehouse goes in stage H); every
+    // guard of its room squads is passive for the flight
+    startGame({ map: getMap('studio'), mode: 'test', seed: 1, benchmark: s });
   };
   // (anim-studio) Main menu / Settings > Test Chamber: the studio stage in Free Roam (single player)
   // (G2c, N17) in the test mode with the three passive practice guards (`?practice=0` leaves them out, the tests do): the stage
