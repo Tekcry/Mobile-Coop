@@ -21,8 +21,8 @@ import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
 import type { AnimSource } from '../anim/animSource';
 
-/** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 83;
+/** The wire version. Only this line holds it; tests read it. Bump it in the PR that changes the wire (history: CHANGELOG, docs/systems/coop.md). */
+export const PROTOCOL_VERSION = 84;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
