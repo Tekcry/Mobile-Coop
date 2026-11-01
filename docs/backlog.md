@@ -77,7 +77,7 @@ Format: `N. Item - destination - status`.
     - Grenade does not work. Phase 4 (gear, D9).
     - Sticky cam view cannot be reopened after closing. Phase 4 (gear, D9).
     - Downed partner is not obvious. Phase 4 (revive, partner state readouts).
-    - Objectives confusing, easy to get lost or separated. Phase 4 (compass bar) and Phase 5 (objective chain).
+    - Objectives confusing, easy to get lost or separated. Phase 4 (navigation aid, decision D8) and Phase 5 (objective chain).
     - Marlow Yard's last section too short and poorly designed. Phase 6 (prologue rebuild).
 
 ## Flaky e2e suites
