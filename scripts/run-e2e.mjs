@@ -49,15 +49,13 @@ const REPORT = ['anim-audit'];
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
 // (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages. (J14) Parts 5-8
 // are the same four pairs on the re-planned yard (map `ctcourseReplan`, `scripts/e2e-ctcourse/replan/`).
-// (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6-9 (campusOps, solo: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5; split in F33 so no part nears the kill)
-// (mission-framework EN2) e2e-sectorops:mission = the campus test mission (`scripts/e2e-sectorops-mission.mjs`, its own script: PART_SCRIPT)
+// (clean-up F) e2e-sectorops is now only the two Tallow Wharf parts below (parts 1-9 and `mission` ran on the Warehouse Ops and Saltmarsh Park maps, removed)
 // (campaign-mode CM7) e2e-coop = part 1 (the suite as it was: `scripts/e2e-coop.mjs` ignores `--part`) and `campaign` (the campaign in the co-op lobby, three browser contexts: `scripts/e2e-coop-campaign.mjs`, PART_SCRIPT)
 // (mission-framework GB6) e2e-sectorops:wharf-tgc / :wharf-tkl = the Tallow Wharf missions in co-op (scripts/e2e-sectorops-wharf.mjs --mission=<id>)
-// (light-parity C2) e2e-parity = 1 campus S1-S2, 2 campus S3-S5, 3 Marlow Yard, 4 Warehouse (GPU only; trains via laptop-queue TRAIN_PARITY)
-const PARTS = { 'e2e-parity': ['1', '2', '3', '4'], 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'mission', 'wharf-tgc', 'wharf-tkl'], 'e2e-coop': ['1', 'campaign'] };
+// (light-parity C2) e2e-parity = 3 Marlow Yard, 4 Warehouse (parts 1-2, Saltmarsh Park, removed in clean-up F) (GPU only; trains via laptop-queue TRAIN_PARITY)
+const PARTS = { 'e2e-parity': ['3', '4'], 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['wharf-tgc', 'wharf-tkl'], 'e2e-coop': ['1', 'campaign'] };
 /** A part that lives in its own script (run with no `--part`): the script name, or `[script, ...args]`. */
 const PART_SCRIPT = {
-  'e2e-sectorops:mission': 'e2e-sectorops-mission',
   'e2e-sectorops:wharf-tgc': ['e2e-sectorops-wharf', '--mission=threeGreyCoats'],
   'e2e-sectorops:wharf-tkl': ['e2e-sectorops-wharf', '--mission=twoKeyLedger'],
   'e2e-coop:campaign': 'e2e-coop-campaign',

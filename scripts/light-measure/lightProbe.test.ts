@@ -129,7 +129,7 @@ it('scan every map', () => {
 
 it('Sector Ops S1 goods-in bay', () => {
   if (process.env.PROBE_S1 !== '1') return;
-  const map = MAPS.find((m) => m.id === 'warehouseOps')!;
+  const map = MAPS.find((m) => m.id === 'warehouse')!;
   const b = new LevelBuilder();
   map.build(b, 0);
   const { field } = bake(map, b);
@@ -200,13 +200,13 @@ it('Marlow S2 wall-top lamp (M5)', () => {
 
 it('S1 bake time', () => {
   if (process.env.PROBE_S1 !== '1') return;
-  const map = MAPS.find((m) => m.id === 'warehouseOps')!;
+  const map = MAPS.find((m) => m.id === 'warehouse')!;
   const b = new LevelBuilder();
   map.build(b, 0);
   const t0 = performance.now();
   const { bake: bk } = bake(map, b);
-  out['warehouseOpsBakeMs'] = Math.round(performance.now() - t0);
-  out['warehouseOpsVisBytes'] = bk.lamps!.r.vis.length;
+  out['warehouseBakeMs'] = Math.round(performance.now() - t0);
+  out['warehouseVisBytes'] = bk.lamps!.r.vis.length;
 }, 600_000);
 
 it('write', () => {

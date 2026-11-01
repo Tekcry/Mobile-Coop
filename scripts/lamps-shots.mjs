@@ -12,7 +12,7 @@ const PORT = Number(process.env.E2E_PORT ?? 4189);
 const URL = `http://127.0.0.1:${PORT}/`;
 const GFX = 'epic';
 // The whole warehouse is built at once (a section change only moves guards and doors), so every view is a teleport.
-const QUERY = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
+const QUERY = 'autostart=warehouse&mode=clear';
 
 // name, player feet [x, y, z], camera [x, y, z], target [x, y, z]; lamp positions are the S*_LIGHT_PASS tables
 const ROWS = [
