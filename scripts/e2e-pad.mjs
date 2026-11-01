@@ -201,7 +201,8 @@ try {
   await page.evaluate(() => window.__play('warehouse', 'sandbox', 'realistic'));
   // (marlow-bays item 29) the warehouse match builds its voxel world in workers first: under a loaded run (E2E_JOBS=2) that
   // took over 30 s on the laptop; the match start is the real condition, waited for as e2e-lib waits for an autostart
-  await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 120000 });
+  // (one-game) map-ready is on by default: the sim is held until its load gate releases (__mapReady.released; not with `?mapready=0`)
+  await page.waitForFunction(() => window.__app.current?.player && (/[?&]mapready=0(&|$)/.test(location.search) || window.__mapReady?.released), null, { timeout: 120000 });
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
   assert(rd.p === 1.3 && rd.l === 'Realistic' && (rd.m === null || rd.m === 1.3), `the match runs Realistic (${JSON.stringify(rd)})`);
   // (anim-rework S1) the pad: D-pad up / down no longer step a speed (the stick sets it), LB held opens the selection
