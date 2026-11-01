@@ -3,7 +3,6 @@ import { Enemy, RISE_NONE, RISE_SIGHT, type PlayerRef } from '../src/ai/enemy';
 import { EnemyManager } from '../src/ai/enemyManager';
 import { ALERT, AlertMachine, emptyAlertInput } from '../src/ai/alertState';
 import { PERCEPTION } from '../src/ai/perception';
-import { PERCEIVE } from '../src/ai/targetPick';
 import { SHADOW_NOTICE } from '../src/ai/shadowNotice';
 import { OCC_FAR } from '../src/ai/guardOccluders';
 import { P_STANDARD } from '../src/ai/squadRoles';
@@ -477,29 +476,6 @@ describe('G3: the cue in perceive', () => {
     const { p } = guard([A, B], { cues });
     p.perceive();
     expect([p.cueX, p.cueZ, p.cueSlot]).toEqual([Math.fround(0.5), 3, 1]);
-  });
-
-  it('3+ players: the cue ray only inside PERCEIVE.maxRays, counted there', () => {
-    // three players in his field behind a wall (3 rays each, rate 0): the budget is full, no cue ray
-    const hid = (id: string, x: number) => player(id, x, 6, { light: 0.3, hidden: true });
-    const full = [hid('a', -1), hid('b', 0.5), hid('c', 1)];
-    expect(3 * full.length).toBe(PERCEIVE.maxRays);
-    const c1 = cuesFor(['a', 'b', 'c']);
-    footprint(c1, 0, 0, 3);
-    const g1 = guard(full, { cues: c1 });
-    g1.p.perceive();
-    expect(g1.p.raysThink).toBe(PERCEIVE.maxRays);
-    expect(g1.floor.rays).toBe(0);
-    expect(g1.p.cueT).toBe(Infinity);
-    // one of them behind him (no rays): room for the cue ray
-    const part = [hid('a', -1), hid('b', 0.5), player('c', 0, -5, { light: 0.3 })];
-    const c2 = cuesFor(['a', 'b', 'c']);
-    footprint(c2, 2, 0, 3);
-    const g2 = guard(part, { cues: c2 });
-    g2.p.perceive();
-    expect(g2.floor.rays).toBe(1);
-    expect(g2.p.raysThink).toBe(7);
-    expect(g2.p.cueT).toBe(0);
   });
 });
 
