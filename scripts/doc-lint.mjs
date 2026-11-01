@@ -5,7 +5,7 @@
 //                STATE resume blocks as WARN.
 //   citations    every G<n> cited exists in docs/DECISIONS.md; a fully replaced G cited as current in VISION, RULES,
 //                the bible, level-design or docs/systems/*.md is an error unless the line also cites a replacement.
-//   links        relative markdown links and backticked repo paths resolve (archive and fenced code skipped).
+//   links        relative markdown links and backticked repo paths resolve (fenced code skipped).
 //   owners       docs/doc-owners.json: a key rule restated outside its owner file (WARN).
 //   sizes        docs/doc-lint.json budgets: VISION words (body and with header), RULES / CLAUDE / testing-tools lines
 //                (ERROR); job STATE resume blocks over 40 lines and ROADMAP "Decided" before today (WARN).
@@ -13,8 +13,7 @@
 //   headers      G344: each current doc names its owner and status in its first lines: `Owner: <who>. Status: current.`
 //                (or `history`; also inside `<!-- ... -->`). ERROR for the core set (docs/doc-lint.json), WARN for the rest.
 // Scope: the current docs (CLAUDE.md, README.md, TESTING.md, docs/*.md, docs/systems/, docs/templates/; docs/doc-lint.json).
-// Job docs (docs/<job>/) are the job's record and move to docs/archive/ with its final PR (`Job-done:`), so only their
-// STATE resume block size is checked. docs/doc-lint.json `known` lists stale lines another PR fixes (printed as WARN).
+// Job docs (docs/<job>/) are the job's record, so only their STATE resume block size is checked. docs/doc-lint.json `known` lists stale lines another PR fixes (printed as WARN).
 // Usage: node scripts/doc-lint.mjs [--root <dir>] [--config-root <dir>] [--today YYYY-MM-DD] [--quiet] [--json]
 //   --config-root reads the three JSON files from another checkout (default: --root).
 //   --quiet prints errors and the summary only; --json prints the findings as JSON.
@@ -219,7 +218,7 @@ export function linkPath(file, target) {
 // generated files, a planned file, a removed one.
 export const SKIP_PATHS_RE = new RegExp([
   /\borigin\/(?!master\b)[\w./-]+/.source,
-  /\bon (?:the )?(?:branch )?`?(?:feature|cloud-queue|laptop-queue|train)\b/.source,
+  /\bon (?:the )?(?:branch )?`?feature\b/.source,
   /https?:\/\//.source,
   /git-?ignored|\bgenerated\b|\bnot committed\b/.source,
   /\b(?:new|planned|to be (?:added|written|built)|not built)\b/.source,
@@ -232,8 +231,7 @@ export const resolves = (p, exists) => exists(p) || (!/\.[a-z0-9]+$/i.test(p) &&
 
 /**
  * Links: relative markdown links and backticked repo paths in `scope` files resolve in the repo (`exists(path)` covers
- * files and folders). Fenced code is skipped; `offBranch` globs are paths that live on another branch
- * (docs/orchestrator/** on feature/menu). Backticked paths are skipped on a line that names another branch
+ * files and folders). Fenced code is skipped; `offBranch` globs are paths that live on another branch. Backticked paths are skipped on a line that names another branch
  * (`origin/<b>`, "on feature/..."), an external URL, a git-ignored or generated path, a planned file ("new", "planned")
  * or a removed one ("removed", "gone", "was"). A module path without an extension (`src/save/ratingRecord`) resolves to
  * .ts / .tsx / .mjs / .js / .json / .md. `errorScope` globs give ERROR; other files in `scope` and `warnScope` ones

@@ -10,9 +10,7 @@
   ],
   "allow": [
     "docs/DECISIONS.md",
-    "docs/archive/**",
-    "docs/ROADMAP.md",
-    "docs/orchestrator/**"
+    "docs/ROADMAP.md"
   ],
   "terms": [
     {

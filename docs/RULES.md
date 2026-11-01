@@ -12,7 +12,7 @@ follow-ups in the repo docs.
 
 ## Sessions
 **Titles** are message addresses. Each session sets its own title as its first step (set_session_title "self") and never
-renames mid-run. Boot lines: `docs/orchestrator/PROMPTS.md`; per-title start: `docs/orchestrator/BOOT.md` (both on
+renames mid-run. Boot lines: docs/orchestrator/PROMPTS.md; per-title start: docs/orchestrator/BOOT.md (both on
 origin/feature/menu). Effort is the lead's; its agents keep their own model and effort. Old names in older docs: CT Core
 Build = Player Build, Menu Notes Build = Marlow Build, Course Ready Build = Sector Ops Build, Character Build = Test
 Runner. Session layout (G364); "Started by" is who opens the session at each swap:
@@ -33,7 +33,7 @@ triages the Inbox every cron run, plans and starts jobs (no job starts unless it
 its next feature, brings Michael decisions, writes the walk cards, keeps auto-train and the laptop queue moving (failed
 trains, conflicts, stale claims), and folds ROADMAP "Decided" into `docs/DECISIONS.md` daily (a docs PR). Master always
 holds every finished update: green trains merge without asking Michael; ask him when unsure. Its cron prompt is in
-`docs/orchestrator/STATE.md`. Every other session messages it only when a PR opens or is train-ready, when blocked, or
+docs/orchestrator/STATE.md. Every other session messages it only when a PR opens or is train-ready, when blocked, or
 when Michael is needed (G305); progress goes in the job's STATE. No session waits on another (G420): the first time it
 would, and never over 10 min, it messages the orchestrator, which unblocks it the same turn. A session that hears a new
 idea from Michael sends it verbatim to the orchestrator, which adds it to the ROADMAP Inbox the same turn.
@@ -79,7 +79,7 @@ with an Opus plan; the orchestrator assigns it (G283).
   pointers; done list and history below it).
 - Prototype, not polish (G421, G422): no fine-tuning (feel, animation, lux, perf) before Michael has played; build
   playable pieces (a level that can be finished), not polish or new test machinery. Fixes first (G417, G418): open
-  `docs/orchestrator/FIXES.md` rows come before feature work; a fix PR without a repeat guard (unit test, e2e step,
+  docs/orchestrator/FIXES.md rows come before feature work; a fix PR without a repeat guard (unit test, e2e step,
   alert or audit check) is not done; the cron watches a shipped fix for a day and reopens it if it returns.
 - The loop (G87): implementer, fresh checker, at most 1 fix round per slice unless the
   work is broken. Checkers block on broken, unplayable or off-intent work; cosmetic notes go on the job's polish list.
@@ -182,7 +182,7 @@ with an Opus plan; the orchestrator assigns it (G283).
   suite (no result: every suite), whose verdict is final. Both locks also cover builds, Blender bakes and heavy jobs.
 - Requests: `node scripts/laptop-queue/request.mjs --sha <full sha> --pr <n> --suites "<suites>" --set <name>
   --requester "<title>"` (or `--alone --step "<cmd>"`); verdicts are `laptop-e2e/<set>` commit statuses. Withdraw a
-  stale request; `docs/orchestrator/queue-audit.sh` flags them.
+  stale request; docs/orchestrator/queue-audit.sh flags them.
 - Locks: `node scripts/heavy-lock.mjs take C:/NightShift/heavy.lock "<session> | <job>" --pid "$(cat /proc/$$/winpid)"`,
   the run, then `node scripts/heavy-lock.mjs release C:/NightShift/heavy.lock "<session> | <job>"` in the same shell
   command; per run, never held across a fix loop. A lock whose pid is dead on this host is stale and the next `take`
@@ -195,7 +195,7 @@ with an Opus plan; the orchestrator assigns it (G283).
 **Swaps and context.** Michael swaps accounts at 100% of whichever meter caps first, the 5-hour or the weekly (1% weekly
 is about 6% of a 5-hour window).
 - A save: at ~92% of that meter, and whenever the orchestrator calls one. The orchestrator refreshes
-  `docs/orchestrator/HANDOFF.md` "State at the switch" and gives Michael only the orchestrator boot line (PROMPTS.md
+  docs/orchestrator/HANDOFF.md "State at the switch" and gives Michael only the orchestrator boot line (PROMPTS.md
   section 1) as the last thing in a message; every save prints it, even when no swap is planned (Michael 2026-10-24
   ~23:20). Every lead commits and pushes each agent worktree as WIP, keeps its STATE resume block current and queues its
   next long runs; all keep working to 100%.
@@ -227,7 +227,7 @@ prune ("Docs"); unmerged branches are never touched, and any other branch deleti
 ## Docs
 - Map: `docs/VISION.md` the game, `docs/RULES.md` process, `docs/DECISIONS.md` why (every G entry and its history),
   `docs/design-bible.md` systems, `docs/level-design.md` maps, `docs/INDEX.md` lookup (module map, doc index),
-  `docs/systems/*.md` detail per system, `docs/<job>/` one job's record. `docs/ROADMAP.md` and `docs/orchestrator/`
+  `docs/systems/*.md` detail per system, `docs/<job>/` one job's record. `docs/ROADMAP.md` and docs/orchestrator/
   are the orchestrator's, edited on feature/menu and synced to master by the trains; doc lint skips their stale-term,
   owner and header checks and only warns on ROADMAP "Decided" entries older than today. Job STATE resume blocks get
   stale-term warnings (job-owned).
