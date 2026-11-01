@@ -1,4 +1,4 @@
-﻿// 3.6 Phase 1 Step 4b: darkness is dark (bible 1.10 L5 / L7). (clean-up G2c) On the Test Chamber: the 0.12 card is found in its dark
+// 3.6 Phase 1 Step 4b: darkness is dark (bible 1.10 L5 / L7). (clean-up G2c) On the Test Chamber: the 0.12 card is found in its dark
 // side room (the annex's dark bay and aisle), the 0.70 card in the lit main room; the thermal door check has one grunt in the dark
 // bay. A matte 50% grey card is placed at points whose
 // static gameplay level is about 0.12 and 0.70, facing the strongest light there, with the camera 0.8 m in front of it; the final
