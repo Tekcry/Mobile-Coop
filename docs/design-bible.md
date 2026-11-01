@@ -768,7 +768,7 @@ Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
   signs, place names) and an optional hint layer, off by default (G290, G336). Marlow Yard keeps its guidance marks
   (Section 7, G292). World pings (G135) stay: a player places one for the partner; they are never objective markers.
 - **Field menu** (pause): objectives, radio log, interrogation notes.
-- **Dev menus:** Anim Studio only from the main menu; the animation tuner stays in the in-game menu (G313).
+- **Dev menus:** Test Chamber (was the Anim Studio) from the main menu, and in the co-op lobby for two; the animation tuner opens in the Test Chamber only (G313, changed by Michael's clean-up G1 instruction).
 - **Remapping:** full remapping with conflict warnings and a reset; remap capture cancels with Menu / Start or Esc, and B
   stays bindable (G22, 5.17 D7).
 
@@ -787,9 +787,9 @@ Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
   matching, no root motion driving control. The exception is mocap locomotion from CMU takes (G264) and Mixamo clips
   retargeted onto the game's own rigs, never the Mixamo skeleton (G406): kept as captured over the limits and feel
   notes below (G271), more clips without sheets (G273). Three animation sets, Hand-made, CMU and Mixamo, are picked by
-  one toggle in the menus (Options, and the same switch in the Anim Studio), saved with the settings; the default stays
+  one toggle in the menus (Options, and the same switch in the Test Chamber), saved with the settings; the default stays
   today's moves, and a move the chosen set has no clip for keeps today's clip (G409, G410). Every Mixamo clip with a use
-  goes in the game, for every move the CMU set covers and more; Michael fine-tunes them in the Anim Studio, whose set
+  goes in the game, for every move the CMU set covers and more; Michael fine-tunes them in the Test Chamber, whose set
   filter (Hand-made, CMU, Mixamo or All) lists one set's animations (G408, G409). Whether the corrections over the
   capture stay is decided at his animation walk (G399). Every animation gets fixed, the normal ones too (G312).
 - **Every animation looks realistic and believable**: no instant or unrealistic motion, no clipping (G199), no awkward
@@ -869,7 +869,7 @@ out, and ragdoll hand-offs with no snap.
 - **Feedback tool:** Michael tags in-game feedback notes and photos `anim`; every tagged note becomes a fix item.
 - **Anim tuner (G219):** live sliders per state and gun hold per weapon and state, functional not pretty, saved in
   IndexedDB, exported as JSON, pad control; it opens from a menu and works by touch (G220).
-- **Tuner v2 (G226):** the Anim Studio stage with free view, loop player, undo / A-B / presets; per-joint offsets, hand
+- **Tuner v2 (G226):** the Test Chamber stage with free view, loop player, undo / A-B / presets; per-joint offsets, hand
   and foot placement, stepping, per-key editing exported as clip keys, a weapon group (gun scale visual only).
 - **Tuner additions (G228):** smooth state changes, Import JSON, wider ranges, a bake script into the code defaults, a
   bypass button, slow motion 0.1-1x, slider search, per-limb IK weight; no copy state to state.

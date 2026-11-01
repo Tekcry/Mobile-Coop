@@ -345,7 +345,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
 - (anim-studio-2) Team-move animation tuning: the tuner's Co-op sections (`anim/moveTune.ts`, one per move: role A, role
   B, contact) apply to the LOCAL player's own role only (`GameState` writes `MOVE_TUNE_TEAM` from `TeamController`).
   `RemoteAvatar` never reads the live values: the partner plays the BASE table (pose-parity: `moveTuneSelectBase` with its role from the wire, `teamRowOfWire`, and its posed traversal; the Body root offsets and wall gap from its own applied base, `bodyRigRoot`), i.e. the shared defaults until an export is folded into the
-  code. Nothing goes on the wire; visual only (the paths, timing and capsule are the game's). The Anim Studio plays both
+  code. Nothing goes on the wire; visual only (the paths, timing and capsule are the game's). The Test Chamber plays both
   roles of each move on one clock with two local puppets (`anim/studioPairs.ts`).
 - (anim-n4b, track A) Team-move poses (`anim/clips/team.ts`, `TeamPoser`, one per rig: the local player, each
   `RemoteAvatar`, the studio puppets): role B works the move on the brace clip (hands on the contact through

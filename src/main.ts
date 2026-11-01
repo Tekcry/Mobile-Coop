@@ -294,12 +294,13 @@ async function boot(): Promise<void> {
       ctx: 'Playtest notes: write one, read the list, export them.',
       action: () => a.screens.push(new SettingsScreen(a).openTab('feedback')),
     }),
-    // (anim-studio) the developer stage: the loop player, the animation tuner and the viewing aids (single player)
+    // (anim-studio) the Test Chamber: the loop player, the animation tuner and the viewing aids (single player; two players
+    // join one from Co-op)
     (a) => ({
       key: 'anim-studio',
-      label: 'Anim Studio (dev)',
+      label: 'Test Chamber',
       order: 95,
-      ctx: 'Developer tool: a plain stage with Wren, the loop player (every clip and state), the animation tuner, viewing aids and snapshots. Pad and keyboard.',
+      ctx: 'A plain room to test everything: Wren, the loop player (every clip and state), the animation tuner, viewing aids and snapshots. Pad and keyboard. Two players can share it from Co-op.',
       action: () => a.studio?.(),
     }),
   );
@@ -458,7 +459,7 @@ async function boot(): Promise<void> {
     app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx }, false);
     startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: s });
   };
-  // (anim-studio) Main menu / Pause > Anim Studio (dev): the studio stage in Free Roam (single player)
+  // (anim-studio) Main menu / Settings > Test Chamber: the studio stage in Free Roam (single player)
   app.studio = () => startGame({ map: getMap('studio'), mode: 'sandbox', seed: 1 });
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;

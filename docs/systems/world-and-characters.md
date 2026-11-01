@@ -329,7 +329,7 @@ Plan and rules: docs/sector-redesign/briefs/ART-PLAN.md; builds: docs/sector-red
   head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
   clock); no wire change.
 - (mocap-trial, mixamo-retarget) The Animation source setting (`anim/animSource.ts`; Options > Gameplay, and the same
-  switch in the Anim Studio) picks Hand-made, CMU (the default: the CMU mocap locomotion, `anim/mocap.ts`) or Mixamo
+  switch in the Test Chamber) picks Hand-made, CMU (the default: the CMU mocap locomotion, `anim/mocap.ts`) or Mixamo
   (the CMU set with the Mixamo captures on top) (G410). Page overrides: `?anim=hand|cmu|mixamo`, then `?mocap=0/1` and
   `?mixamo=0/1`, then the animation tuner's More > Panel box (this page only, not saved). Today a co-op partner drawn
   here uses this machine's source; G411 sends each player's own source (a wire change). `LOCO.set` picks the
