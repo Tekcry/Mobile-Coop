@@ -76,7 +76,8 @@ const run = async (params, scenarios) => {
 };
 
 // (G2b) the Test Chamber's main room: the open floor z 17-23 (the anim lane), the low wall at x 4, the door wall at z 4. The player parks at
-// (27, 1.5) where a scenario wants him out of the way (the dark-bay park of the spec is the annex's, G2c).
+// (27, 1.5) where a scenario wants him out of the way; (G2c) the drone scenario parks him in the annex's dark bay (35.3, 1.5) and the
+// officer's alarm run uses the annex's panel (`alarm-0`, hall, x 28.45).
 await run('autostart=studio&mode=test', [
   [
     'heavy',
@@ -135,6 +136,8 @@ await run('autostart=studio&mode=test', [
           break;
         }
         t.tp(lx, 0, 9, 0);
+        // (G2c: no alarm run: the annex's panels now exist, and an alerted guard would otherwise go for one, as the sniper below)
+        g.enemyMgr.alarmRaised = true;
         const p = t.spawn('enforcer', lx, 21, Math.PI, true);
         t.step(0.5);
         const d0 = Math.hypot(p.pos.x - lx, p.pos.z - 9);
@@ -292,7 +295,7 @@ await run('autostart=studio&mode=test', [
         const t = window.__t;
         const g = window.__app.current;
         const em = g.enemyMgr;
-        t.tp(27, 0, 1.5, 0); // PARK
+        t.tp(35.3, 0, 1.5, 0); // (G2c) PARK_A: the annex's dark bay, 31 m from the operator and behind two walls
         const op = t.spawn('droneOp', 5, 21, Math.PI);
         t.freeze(op);
         t.step(0.3);

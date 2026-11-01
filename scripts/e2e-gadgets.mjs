@@ -1,4 +1,4 @@
-// Gadgets on the night Warehouse (Clear rules): the wheel (hold opens it, time slows, the stick picks, release
+// Gadgets on the Test Chamber (G2c; was the night Warehouse; the test mode's stealth rules): the wheel (hold opens it, time slows, the stick picks, release
 // selects; a clicked slot selects), the held gadget button's predicted arc, sleeping gas (knock-out), flashbang (blind
 // then alert, white-out when facing it), EMP (lights out, back after), noisemaker (lure), sticky cam (feed view,
 // lure ping, gas, exit), proximity mine.
@@ -8,7 +8,7 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 let failed = false;
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio&mode=test' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);
@@ -26,6 +26,8 @@ try {
       V,
       reset() {
         g.gadgets.clearWorld();
+        // (G2c) and the frag the arc scenario threw: on the Test Chamber it lands near the next scenario's guards
+        g.grenades.clear();
         em.clear();
         g.traversal.reset();
         st.releaseAll();
@@ -74,7 +76,7 @@ try {
       const st = a.input.state;
       // pad / keyboard: held open, the stick picks
       a.input.setMode('gamepad');
-      t.tp(2, 0, -2.2, 0);
+      t.tp(20, 0, 21, 0);
       t.step(0.3);
       const p0 = g.player.position.clone();
       st.set('t', 'gadgetWheel', true);
@@ -181,7 +183,7 @@ try {
       const a = window.__app;
       const g = a.current;
       const st = a.input.state;
-      t.tp(2, 0, -2.2, 0, 0.2);
+      t.tp(20, 0, 21, 0, 0.2);
       t.step(0.3);
       const n0 = g.weapons.gadgets.counts.frag;
       st.set('t', 'grenade', true);
@@ -207,11 +209,12 @@ try {
       const t = window.__t;
       const g = window.__app.current;
       const em = g.enemyMgr;
-      t.tp(2, 0, -6, 0);
-      const e = t.spawn(2, 0.5, 0);
-      const far = t.spawn(9, 0.5, 0);
+      // (G2c) the lit main room: the cloud (radius 3.6) on the guard 6.5 m ahead, the far guard 7 m off it
+      t.tp(20, 0, 15, 0);
+      const e = t.spawn(20, 21.5, 0);
+      const far = t.spawn(27, 21.5, 0);
       t.step(0.3);
-      t.blast('gas', 2.3, 0.2, 0.8);
+      t.blast('gas', 20.3, 0.2, 21.8);
       t.step(2.2);
       const ko = !e.alive && em.bodies.some((b) => !b.lethal);
       return { ko, farAlive: far.alive, gassed: g.gadgets.stats.gassed };
@@ -225,11 +228,12 @@ try {
       const t = window.__t;
       const g = window.__app.current;
       // the operator looks at it; the guard faces it
-      t.tp(2, 0, -2.2, 0, 0); // A2.1: -4 puts the rigid camera behind a one-sided wall
-      const e = t.spawn(2, 2, Math.PI);
+      // (G2c) in the dark: the annex's dark bay (ambient 0.12); the operator at its south end, the guard 4.2 m ahead facing back
+      t.tp(31, 0, 1.5, 0, 0);
+      const e = t.spawn(31, 5.7, Math.PI);
       t.step(0.3);
       const calm = !e.alerted;
-      t.blast('flash', 2, 0.6, -0.5);
+      t.blast('flash', 31, 0.6, 3.2);
       t.step(0.15);
       const blind = e.blindT;
       const white = g.post['flash'];
@@ -265,14 +269,14 @@ try {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
-      t.tp(2, 0, -6, 0);
+      // (G2c) the door wall (z 4, x 7-13): thrown north from (8, 1.5, 1.5) it sticks to the wall's south face
+      t.tp(20, 0, 21, 0);
       // (facing away from the operator: only the noise reaches them) one on this side of the wall it sticks to,
-      // one about as far again behind it (muffled)
-      const e = t.spawn(9, -6, Math.PI / 2);
-      const behind = t.spawn(9, 4, Math.PI / 2);
+      // one about as far again behind it (muffled: past 5.85 m, 13 x 0.45, through the one wall)
+      const e = t.spawn(2, 1.5, -Math.PI / 2);
+      const behind = t.spawn(8, 11, Math.PI / 2);
       t.step(0.3);
-      // thrown ahead: it sticks to the wall's near face
-      g.weapons.onThrow('noise', new t.V(2, 1.5, -5.5), new t.V(0, 2, 5));
+      g.weapons.onThrow('noise', new t.V(8, 1.5, 1.5), new t.V(0, 2, 5));
       t.step(2.5);
       return { stuck: g.gadgets.noisers.length, pulses: g.gadgets.stats.pulses, level: e.level, behind: behind.level };
     });
@@ -287,11 +291,12 @@ try {
       const a = window.__app;
       const g = a.current;
       const st = a.input.state;
-      t.tp(2, 0, -6, 0);
-      const e = t.spawn(4, 3, Math.PI);
+      // (G2c) the operator in the open middle; the cam thrown north from (8, 1.5, 1.5) sticks to the door wall's south face
+      t.tp(20, 0, 21, 0);
+      const e = t.spawn(10.5, 1.5, -Math.PI / 2);
       t.step(0.3);
       const p0 = g.player.position.clone();
-      g.weapons.onThrow('stickyCam', new t.V(2, 1.5, -5.5), new t.V(0, 2, 5));
+      g.weapons.onThrow('stickyCam', new t.V(8, 1.5, 1.5), new t.V(0, 2, 5));
       t.step(1);
       const view = g.gadgets.remote;
       g.frameUpdate(1 / 120, 1);
@@ -324,13 +329,14 @@ try {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
-      t.tp(2, 0, -6, 0);
+      // (G2c) the dark bay, clear of the dumpster: laid at (33, 1.5), the operator back at (33, 7.5)
+      t.tp(33, 0, 1.5, 0);
       t.step(0.3);
       g.weapons.gadgets.select('mine');
       t.tap('grenade');
       const placed = g.gadgets.mines.length;
       const m = g.gadgets.mines[0];
-      t.tp(2, 0, -12, 0);
+      t.tp(33, 0, 7.5, 0);
       t.step(1.7);
       const e = t.spawn(m.p.x + 0.6, m.p.z, 0);
       t.step(0.3);
