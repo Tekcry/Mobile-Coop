@@ -1,11 +1,13 @@
 /**
+ * (Test reference: the removed Operator Lab's retarget, kept so tests/operatorsRuntime.test.ts can check the runtime
+ * poser, src/operators/runtime/pose.ts, against an independent implementation.)
  * Drives the operator skeleton from the game's CharacterRig (pure maths, no Babylon). The rig stands with its arms
  * hanging; the operator is bound in an A-pose (D13). Each mapped joint takes the rig node's world rotation as a delta
  * from the rig's rest (identity) after the A-pose arm chain has been swung down to hang (`hang`); unmapped joints
  * (fingers, toes, hero end points) follow their nearest mapped ancestor. Positions come from forward kinematics over
  * the bind offsets, so the operator's own proportions hold; only root, body and pelvis take the rig's translation.
  */
-import { qinv, qmul, rotate, type GlbNode, type Quat, type V3 } from './glb';
+import { qinv, qmul, rotate, type GlbNode, type Quat, type V3 } from '../../src/operators/lab/glb';
 
 /** Operator joint name to the rig node (the names `CharacterRig` gives its nodes, without the rig prefix). */
 export const JOINT_TO_RIG: Readonly<Record<string, string>> = {

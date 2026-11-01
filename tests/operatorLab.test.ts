@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bindWorld, parseGlb, qmul, rotate, type GlbNode, type Quat, type V3 } from '../src/operators/lab/glb';
-import { arc, buildRetarget, poseSkeleton } from '../src/operators/lab/retarget';
-import { CLOSEUPS, COLOUR_BLIND, LIGHT_RIGS, POSES, PRESETS, TURNAROUND, calloutsFor, ktx2RemoteUrls, simulate } from '../src/operators/lab/labData';
-import { KITS } from '../src/operators/kit';
+import { bindWorld, parseGlb } from '../src/operators/lab/glb';
+import { LIGHT_RIGS, POSES, PRESETS, ktx2RemoteUrls } from '../src/operators/lab/labData';
 
 /** A one-triangle skinned GLB written the way Blender's exporter writes it (right-handed, +Z forward). */
 function tinyGlb(): ArrayBuffer {
@@ -83,153 +81,17 @@ describe('glb reader', () => {
   });
 });
 
-describe('retarget', () => {
-  const ID: Quat = [0, 0, 0, 1];
-  // a root, a pelvis, and a left arm bound out at 45 degrees (the A-pose)
-  const nodes: GlbNode[] = [
-    { name: 'root', parent: -1, t: [0, 0, 0], r: ID },
-    { name: 'pelvis', parent: 0, t: [0, 1, 0], r: ID },
-    { name: 'shL', parent: 1, t: [-0.2, 0.5, 0], r: ID },
-    { name: 'elL', parent: 2, t: [-0.2, -0.2, 0], r: ID },
-    { name: 'fingerL_1_1', parent: 3, t: [-0.05, -0.05, 0], r: ID },
-  ];
-  const w = bindWorld(nodes);
-  const rt = buildRetarget(nodes, w.pos, [0, 1, 2, 3, 4]);
-  const none = (): null => null;
-
-  it('arc turns one direction onto another', () => {
-    const q = arc([1, 0, 0], [0, 1, 0]);
-    const v = rotate(q, [1, 0, 0]);
-    expect(v[1]).toBeCloseTo(1);
-    expect(Math.abs(v[0])).toBeLessThan(1e-9);
-  });
-
-  it('swings the A-pose arm down to hang when the rig is at rest', () => {
-    const p: V3[] = [];
-    const r: Quat[] = [];
-    poseSkeleton(nodes, w.pos, w.rot, rt, () => ({ rot: ID, move: [0, 0, 0] }), p, r);
-    // the elbow hangs straight below the shoulder, the upper arm length kept
-    expect(p[3]![0]).toBeCloseTo(p[2]![0], 6);
-    expect(p[2]![1] - p[3]![1]).toBeCloseTo(Math.hypot(0.2, 0.2), 6);
-    // the fingers follow the arm
-    expect(p[4]![0]).toBeCloseTo(p[3]![0] - 0.0, 1);
-  });
-
-  it('leaves the bind pose alone with no rig driving it and no arm correction', () => {
-    const flat = buildRetarget(nodes.slice(0, 2), w.pos, [0, 1]);
-    const p: V3[] = [];
-    const r: Quat[] = [];
-    poseSkeleton(nodes.slice(0, 2), w.pos, w.rot, flat, none, p, r);
-    expect(p[1]).toEqual(w.pos[1]);
-  });
-
-  it('moves root, body and pelvis with the rig and turns children with a rotated parent', () => {
-    const half = Math.SQRT1_2;
-    const p: V3[] = [];
-    const r: Quat[] = [];
-    poseSkeleton(nodes, w.pos, w.rot, rt, (n) => (n === 'pelvis' ? { rot: [0, half, 0, half], move: [0, -0.3, 0] } : { rot: ID, move: [0, 0, 0] }), p, r);
-    expect(p[1]![1]).toBeCloseTo(0.7, 6);
-    // the pelvis turned 90 degrees about Y: the shoulder offset (-0.2, 0.5, 0) lands on +Z
-    expect(p[2]![2]).toBeCloseTo(0.2, 5);
-    expect(qmul(r[1]!, ID)[1]).toBeCloseTo(half, 6);
-  });
-});
-
 describe('lab data', () => {
   it('lighting rigs, presets and poses have unique ids and the BRIEF lists', () => {
     // the BRIEF's six rigs, plus step 11's calibrated close-up rigs and the rim silhouette (A78) (and the whole-figure rig, fix round 1)
     expect(LIGHT_RIGS.map((r) => r.id)).toEqual(['studio', 'raking', 'detail', 'detailRear', 'detailFront', 'figure', 'rim', 'menu', 'hollowmere', 'dark', 'nightvision']);
     expect(PRESETS.map((p) => p.id)).toEqual(['low', 'high', 'epic']);
     expect(POSES.map((p) => p.id)).toEqual(['apose', 'idle', 'crouch', 'sneak', 'aimPistol', 'aimRifle', 'climbReach']);
-    expect(TURNAROUND).toHaveLength(5);
   });
   it('darkness has no lights except the goggle glow', () => {
     const d = LIGHT_RIGS.find((r) => r.id === 'dark')!;
     expect(d.lights).toHaveLength(0);
     expect(d.glow).toBe(true);
-  });
-  it('close-ups sit between 0.3 and 1 m', () => {
-    for (const c of CLOSEUPS) if (c.rig) expect(LIGHT_RIGS.some((r) => r.id === c.rig)).toBe(true);
-    for (const c of CLOSEUPS) expect(c.distance).toBeGreaterThanOrEqual(0.3);
-    for (const c of CLOSEUPS) expect(c.distance).toBeLessThanOrEqual(1);
-  });
-  it('colour-blind matrices keep neutral grey neutral and turn the green glow towards yellow', () => {
-    expect(simulate('normal', [0.3, 0.6, 0.2])).toEqual([0.3, 0.6, 0.2]);
-    for (const k of Object.keys(COLOUR_BLIND)) {
-      const g = simulate(k, [0.5, 0.5, 0.5]);
-      expect(Math.abs(g[0] - g[1])).toBeLessThan(0.02);
-    }
-    const d = simulate('deuteranopia', [0.35, 1, 0.19]);
-    expect(d[0]).toBeGreaterThan(0.35);
-  });
-  it('callouts list only built kit items in the close-up zone', () => {
-    const built = new Set(['suit', 'harnessShoulders']);
-    const shoulder = CLOSEUPS.find((c) => c.id === 'shoulder')!;
-    const ids = calloutsFor(KITS.wren.items, built, shoulder).map((i) => i.id);
-    expect(ids).toContain('harnessShoulders');
-    expect(calloutsFor(KITS.wren.items, built, CLOSEUPS.find((c) => c.id === 'boots')!)).toHaveLength(0);
-  });
-  it('callouts name only what each frame shows (fix round 3, item 2)', () => {
-    const all = new Set(KITS.wren.items.map((i) => i.id));
-    const ids = (id: string) => calloutsFor(KITS.wren.items, all, CLOSEUPS.find((c) => c.id === id)!).map((i) => i.id);
-    // the earpiece is in the ear under the hood: never called out; its cable is
-    for (const c of CLOSEUPS) expect(ids(c.id)).not.toContain('earpiece');
-    expect(ids('collar')).toContain('earpieceCable');
-    expect(ids('head')).not.toContain('batteryPack');
-    expect(ids('neckRear')).toEqual(expect.arrayContaining(['batteryPack', 'goggleBand', 'goggleCable']));
-    expect(ids('neckRear')).not.toContain('earpieceCable');
-    expect(ids('collar')).not.toContain('headHarness');
-    expect(ids('chestFront')).not.toContain('ptt');
-    // a kit item from another zone that is in frame (the belt closure) is called out through `include`
-    expect(ids('beltFront')).toEqual(expect.arrayContaining(['magBuckle', 'waistBelt', 'pistolMagPouch']));
-    expect(ids('beltFront')).not.toContain('slingSocket');
-    // the sling socket's own view (DESIGN.md loadout table): the left hip from the side (step 11b, D28: the 9 o'clock
-    // pistol magazines, the socket behind them, the pod; the belt and the cam pouch at the front edge called out too)
-    expect(ids('hipL').sort()).toEqual(['camMinePouch', 'gloves', 'magPouches', 'pistolMagPouch', 'ribSegments', 'sleeveHanger', 'slingSocket', 'waistBelt']);
-    // every identifiable item in frame is called out (11-fixes-r4 item 1), one assertion per changed close-up
-    expect(ids('collar')).toContain('harnessShoulders');
-    expect(ids('chestFront')).toEqual(expect.arrayContaining(['harnessShoulders', 'magBuckle', 'torsoSideStraps', 'magPouches']));
-    expect(ids('ptt')).toContain('suitZip');
-    expect(ids('beltFront')).toContain('ribSegments');
-    expect(ids('thighL')).toEqual(expect.arrayContaining(['knife', 'throwableSleeves', 'sleevePanel']));
-    expect(ids('buckle')).not.toContain('pistolMagPouch');
-    expect(ids('buckle')).toEqual(expect.arrayContaining(['magBuckle', 'camMinePouch', 'medPouch', 'ribSegments']));
-    expect(calloutsFor(KITS.wren.items, new Set(['suit']), CLOSEUPS.find((c) => c.id === 'beltFront')!)).toHaveLength(0);
-  });
-  it('the step 11 retry audit calls out every identifiable item in all 22 close-ups (11-fixes-r4, SPEC 1)', () => {
-    const all = new Set(KITS.wren.items.map((i) => i.id));
-    const ids = (id: string) => calloutsFor(KITS.wren.items, all, CLOSEUPS.find((c) => c.id === id)!).map((i) => i.id);
-    const suit = (id: string) => CLOSEUPS.find((c) => c.id === id)!.suit ?? [];
-    expect(ids('head')).toEqual(expect.arrayContaining(['harnessShoulders', 'sideStraps']));
-    expect(KITS.wren.items.find((i) => i.id === 'sideStraps')!.attach).toContain('brow rivet');
-    expect(ids('neckRear')).toEqual(expect.arrayContaining(['crownStrap', 'sideStraps', 'harnessShoulders']));
-    expect(ids('chestFront')).toContain('pistolMagPouch');
-    expect(ids('chestRear')).toEqual(expect.arrayContaining(['harnessShoulders', 'torsoSideStraps', 'pistolMagPouch', 'gloves']));
-    expect(ids('shoulder')).toEqual(expect.arrayContaining(['chestPlate', 'suitZip', 'gadgetSlot', 'magPouches', 'torsoSideStraps', 'gloves', 'hood', 'balaclava']));
-    expect(suit('handPalm')).toContain('shell');
-    expect(suit('handBack')).toContain('shell');
-    expect(ids('belt')).toEqual(expect.arrayContaining(['medPouch', 'camMinePouch', 'magBuckle', 'ribSegments', 'magPouches', 'knife', 'sleeveHanger', 'gloves']));
-    expect(ids('knee')).toEqual(expect.arrayContaining(['legBands', 'magBuckle', 'thighHolster']));
-    expect(suit('boots')).toEqual(expect.arrayContaining(['shell', 'seams']));
-    expect(ids('collar')).toEqual(expect.arrayContaining(['magBuckle', 'chinStrap', 'radioCable']));
-    expect(ids('ribsSide')).toEqual(expect.arrayContaining(['suitZip', 'magPouches', 'waistBelt', 'medPouch', 'gloves']));
-    expect(ids('backPlate')).toEqual(expect.arrayContaining(['harnessShoulders', 'torsoSideStraps', 'pistolMagPouch', 'gloves']));
-    expect(suit('ptt')).toEqual(expect.arrayContaining(['shell', 'seams', 'elbow']));
-    expect(ids('beltFront')).toEqual(expect.arrayContaining(['magPouches', 'medPouch', 'thighHolster', 'throwableSleeves', 'sleeveHanger']));
-    expect(ids('hipL')).toEqual(expect.arrayContaining(['magPouches', 'ribSegments', 'sleeveHanger', 'gloves']));
-    expect(ids('beltBack')).toEqual(expect.arrayContaining(['waistBelt', 'pistolMagPouch', 'slingSocket', 'throwableSleeves', 'thighHolster']));
-    expect(ids('thighR')).toEqual(expect.arrayContaining(['gloves', 'magBuckle', 'knife']));
-    expect(ids('thighL')).toContain('magBuckle');
-    expect(ids('forearm')).toEqual(expect.arrayContaining(['gloves', 'pistolMagPouch']));
-    expect(ids('underarm')).toEqual(expect.arrayContaining(['chestPlate', 'ribSegments', 'magPouches', 'suitZip']));
-    expect(suit('buckle')).toEqual(expect.arrayContaining(['shell', 'seams']));
-    // 11-retry-fixes-r1: thumb loops hidden under the glove cuffs are never called out; the edge items are
-    expect(ids('handPalm')).not.toContain('thumbLoops');
-    expect(ids('handBack')).not.toContain('thumbLoops');
-    expect(ids('forearm')).not.toContain('thumbLoops');
-    expect(ids('forearm')).toEqual(expect.arrayContaining(['waistBelt', 'sleeveHanger', 'magBuckle']));
-    expect(ids('neckRear')).toContain('goggle');
-    expect(ids('beltFront')).toContain('sleevePanel');
   });
 });
 

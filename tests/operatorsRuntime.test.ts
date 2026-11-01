@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { bindWorld, parseGlb, qmul, type GlbModel, type Quat, type V3 } from '../src/operators/lab/glb';
 import { operatorNodes } from './helpers/operatorFixture';
-import { buildRetarget, poseSkeleton, type RigJoint } from '../src/operators/lab/retarget';
+import { buildRetarget, poseSkeleton, type RigJoint } from './helpers/retargetReference';
 import { GOGGLE_GLOW, GoggleState, goggleRange, partitionGoggle } from '../src/operators/runtime/goggle';
 import { bandLod, CloseCameras, pickLod } from '../src/operators/runtime/lodPick';
 import {
@@ -30,7 +30,7 @@ function setRot(rig: Float64Array, name: string, q: Quat): void {
   rig.set(q.map((v) => v / n), j * TRS + 3);
 }
 
-/** The rig's world (root-space) rotations, for the Lab's reference retarget. */
+/** The rig's world (root-space) rotations, for the reference retarget (tests/helpers/retargetReference.ts). */
 function rigWorld(rig: Float64Array): Map<string, Quat> {
   const out = new Map<string, Quat>();
   const rot: Quat[] = [];
@@ -222,7 +222,7 @@ describe('operator runtime: poser (rig -> operator skeleton)', () => {
     }
   });
 
-  it('matches the Operator Lab retarget for a posed rig and a pelvis drop', () => {
+  it('matches the reference retarget for a posed rig and a pelvis drop', () => {
     const rig = rigRest();
     const poser = new OperatorPoser(setup);
     poser.setRest(rig);

@@ -3,7 +3,7 @@
  * pose authority (SPEC 6.3): every frame its joints' local transforms go in, the operator joints' local transforms
  * come out and are copied into the TransformNodes the operator's bones are linked to (Bone.linkTransformNode).
  *
- * Same maths as the Operator Lab's retarget (src/operators/lab/retarget.ts), rewritten on flat typed arrays and in
+ * Same maths as the old Operator Lab's retarget (kept as tests/helpers/retargetReference.ts), rewritten on flat typed arrays and in
  * the rig root's space (the operator's root node sits under `rig.root`, so position and yaw come for free):
  * - each operator joint takes the root-space rotation of its rig joint (or of the nearest mapped ancestor: fingers,
  *   toes, hands) as a delta from the rig's rest (identity), after the A-pose arm chain is swung down to hang (D13);

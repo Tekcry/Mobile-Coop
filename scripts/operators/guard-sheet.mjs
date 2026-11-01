@@ -6,7 +6,7 @@
 //   to <out>/sheet/guard-sheet.png)
 //
 // Laptop GPU run: E2E_GPU=1 (hardware GPU; without it the render is software GL and the sheet says so), port 4189 (E2E_PORT
-// or --port). Builds guards.html alone (vite.operators.config.ts with GUARD_SHEET_ONLY=1, into build/guards-lab/), serves
+// or --port). Builds guards.html (vite.operators.config.ts, into build/guards-lab/), serves
 // it with the bake out dir at /__guards/ (GUARD_SHEET_IN), drives `window.__guards` (src/operators/lab/guardSheet.ts:
 // every tile drawn by the game's guard runtime) in headless Chromium, composes the tiles on a canvas and writes one PNG.
 // The tile plan, labels and layout are guardSheetPlan.mjs (pure, tests/guardSheetPlan.test.ts).
@@ -87,7 +87,6 @@ const { GPU, launchOptions } = await import('../e2e-lib.mjs');
 const vite = await import('vite');
 if (!GPU) console.warn('guard-sheet: E2E_GPU is not 1: this is a software-GL render and must not be claimed as a GPU result.');
 process.env.E2E_PORT = String(opts.port);
-process.env.GUARD_SHEET_ONLY = '1';
 process.env.GUARD_SHEET_IN = inDir;
 const BASE = `http://127.0.0.1:${opts.port}`;
 
