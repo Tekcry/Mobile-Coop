@@ -94,6 +94,7 @@ interface FakeEnemy {
   hold: RoomDef | null;
   setPatrol: ReturnType<typeof vi.fn>;
   passive?: boolean;
+  practice?: boolean;
   key?: number;
   alive?: boolean;
   id?: string;
