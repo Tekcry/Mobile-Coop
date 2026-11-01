@@ -8,7 +8,7 @@ Player counts per mode: campaign missions and Marlow Yard (Course mode) take exa
 Ops takes 1 to 4 (G308, built by coop4 in PR #317, live when it ships with no off switch, G381; until it lands,
 `capacity('sector')` on master is still 2). No bot
 partner (G48), no player-versus-player mode (G8, G9; Wave, deathmatch and free-for-all are deleted). Co-op is tested
-with two browser tabs (four for Sector Ops once coop4 lands), the two-page e2e suites and the bunker's solo switch (G48). Every feature works in co-op; committed moves are host-approved; vision,
+with two browser tabs (four for Sector Ops once coop4 lands), the two-page e2e suites and the course's solo switch (G48). Every feature works in co-op; committed moves are host-approved; vision,
 camera and rumble stay local; partners never pass through each other (loco D8, G52). Small animation fields may go
 over the wire so a partner looks exact on every screen (G400); remotes still pose from `MoveState`.
 

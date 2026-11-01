@@ -58,7 +58,7 @@ This page lists the suites and how they are picked.
   (`--affected`) and `WIDE_COVERS` (`--affected --wide`). Edit them there and keep their rule comments true. A name with a
   part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts.
 - The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
-  on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, `e2e-bunker` (these four get `LEGACY=1`, so
+  on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear` (these three get `LEGACY=1`, so
   `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
   `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-score`, `e2e-foley`,
   `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-parity` (parts 1-4), `e2e-desktop:3`, `e2e-coop-gpu`. REPORT: `anim-audit`
@@ -103,8 +103,8 @@ This page lists the suites and how they are picked.
   `ctcourseGreybox.ts`) -> `e2e-ctcourse`; `src/player/smoothBody*` and `bodyEffectRecovery` also `e2e-guard-carry`.
   Every LEGACY and GPU suite is reachable from the area that owns it (an affected pick gates them out at any size and with `--wide`; `--quick` runs LEGACY / AUDIO REPORT ONLY, GPU only `--gpu`):
   `src/progression` -> progression, `src/cosmetics` -> cosmetics, `clearMode` -> clear, `missionMode` -> modes,
-  `infiltrationMode` and `src/game/missions.ts` -> missions, `src/ai/archetypes` / `enemyDefs` -> enemies, the Fallow files
-  (`src/world/maps/bunker*`) -> bunker, `src/world/maps/warehouse.ts` / `warehouseDress` -> ct-warehouse, the camera files
+  `infiltrationMode` and `src/game/missions.ts` -> missions, `src/ai/archetypes` / `enemyDefs` -> enemies,
+  `src/world/maps/warehouse.ts` / `warehouseDress` -> ct-warehouse, the camera files
   (`shoulderCamera`, `cameraBounds`, `src/config/camera`) -> camera-bounds, the lamp files -> darkness, `src/net/remoteAvatar` /
   `remotePlayer` -> coop-gpu. The other folders (input, ui, physics, cover, vfx, security, audio, ...) keep their quick row.
   Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**`, `scripts/e2e-times.json` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
@@ -136,7 +136,7 @@ behind a VPN adapter).
   camera), `e2e-mouse`, `e2e-pad` (input timing), `e2e-desktop` (benchmark flights, the 15 s resolution revert, shader
   compiles), `e2e-offline`, and the rAF-sampled foot-slide check in `e2e-move`. The light bake is about 0.5 s a page
   load so it is not shared between browsers.
-- Two-page suites (`?net=local`): the `until()` helper in `e2e-net-lib`, `e2e-coop`, `e2e-course` and `e2e-bunker`
+- Two-page suites (`?net=local`): the `until()` helper in `e2e-net-lib`, `e2e-coop` and `e2e-course`
   polls from Node (`page.evaluate` every 50-100 ms): in a desktop context the in-page polling stops on the background
   page. A throwing predicate shows as a timeout.
 - Boot waits: with `autostart` in `params`, `launch` / `openPage` wait (120 s cap) for the match; a page that hosts a
@@ -170,7 +170,7 @@ behind a VPN adapter).
   / roll / heavy + noise + recovery); grab while falling; zipline; open / glazed windows; duct unscrew, crawl, vent drop
   + roll, kick; keyboard E, crouch lets go, vent hold by key; planted hands / feet locked (< 1 cm), arms reach grips
 - `e2e-anchors` every placed anchor on Proving (ladders, drainpipes, pipes, ziplines, ducts, windows both sides) is
-  offered from its approach and engages; hangable lips (`--only=warehouse` / `--only=bunker` run a parked map by hand)
+  offered from its approach and engages; hangable lips (`--only=warehouse` runs the parked map by hand)
 - `e2e-stealth` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving, aiming, after a traversal,
   no residual offsets, level horizon after a shake)
 - `e2e-weapons-carry` Free Roam loadout (the two CT kit guns, plus a `pistolSd,rifle` loadout): back guns within 10 deg
@@ -316,9 +316,6 @@ behind a VPN adapter).
   `marlowLightingSchedule` (`tests/marlow*.test.ts`; `marlowT1a` / `marlowT2` are the animation tuner's). A set's light
   levels are re-tuned with `CTLIGHT_WRITE=<set>|all npx vitest run tests/ctcourseLight.test.ts`, which writes
   `tests/ctcourse/<set>.light.json` (`CTLIGHT_PRINT=1` prints every set's json), then rerun without the variable.
-- `e2e-bunker` (LEGACY) two pages on `?net=local&autostart=bunker&mode=course`, Fallow by bay: B1 the objective list on both
-  pages, every course prompt on the client, "Waiting for partner", the seal and the locked rear door; B2 a lane lever
-  pulled by the client unlocks the doors on both pages
 - `e2e-ct-warehouse` (LEGACY) the Warehouse CT routes (Hunter, guards frozen): drainpipe -> roof, rappel -> kick through the
   dispatch window, skylight drop, the pump house boost target, press wall jump, corridor split + drop, deck pipe + drop,
   yard fence + the nav path round it
@@ -461,7 +458,7 @@ behind a VPN adapter).
   writes nothing; a real run writes the source files, the key JSONs (Keys) and the ledger `src/anim/tuneBakeLog.json`,
   then prints the key clips' rebake commands (Blender is never run). Shared targets, refusals and the mapping:
   docs/archive/anim-tuner/BAKE.md. Pure logic in `src/anim/tuneBake.ts` (tests: `tests/animTuneBake.test.ts`, on temp copies).
-- `node scripts/plan-svg.mjs [mapId]` top-down plan SVGs of a built map, one per storey (default `bunker`; output in
+- `node scripts/plan-svg.mjs [mapId]` top-down plan SVGs of a built map, one per storey (default `ctcourse`; output in
   `test-results/training/`, never committed)
 - `node scripts/anim-audit.mjs [url] [--local | --remote] [--quick] [--only=<scenario>] [--out=dir] [--shots]
   [--strict] [--compare=<file>] [--band=<file>]`: the animation audit (bible 5.12.2, 5.12.4.2), local player and

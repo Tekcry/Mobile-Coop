@@ -9,8 +9,8 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
 - `docs/templates/map-spec.md`: the template for a new map's spec (fill it, then run its phases).
 - Map specs: Marlow Yard in `docs/marlow-final/` (SPEC.md, PLAN.md), Saltmarsh Park in `docs/sector-redesign/`
   (SPEC.md, PLAN.md), Tallow Wharf (campaign Mission 1) and the first four mission prototypes in `docs/missions/` (the
-  mission-framework job, PR #372), Kestrel in `docs/kestrel/` (paused, G53), the Fallow bunker in
-  docs/archive/training/. Decided, not built yet (G55): one folder per map under one maps folder. The retired maps
+  mission-framework job, PR #372), Kestrel in `docs/kestrel/` (paused, G53).
+  Decided, not built yet (G55): one folder per map under one maps folder. The retired maps
   (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) are deleted; their design files are in docs/archive/maps/.
 
 ## World and player
@@ -18,8 +18,7 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   `LevelBuilder` and returns a `MapLayout` (spawns, props, objectives, pickups, optional `rooms`). Register in
   `world/maps/index.ts` (`MAPS`: `warehouse`, `warehouseOps` (the old Sector Ops map), `campusOps` (Saltmarsh Park,
   Sector Ops), `proving` (Proving Grounds), `kestrel`, `seclab` (debug map, off every menu), `ctcourse` (Marlow Yard,
-  Course mode), `courselab`, and with `?legacy=1` `bunker` (the Fallow bunker, built from `bunkerUpper` /
-  `bunkerPlant` / `bunkerShaft` / `bunkerDeep`); an unknown id falls back to Proving Grounds). `listed.ts`
+  Course mode), `courselab`; an unknown id falls back to Proving Grounds). `listed.ts`
   `LISTED_MAP_IDS` (`warehouse`, `proving`, `kestrel`, `campusOps`) is the pure list content filters on (`MISSIONS` = `ALL_MISSIONS` on listed maps); the first map listing a
   mode is its default (a mode change on the Play screen starts on its default map). The 2.x maps are parked in
   `maps/parked.ts` (not imported). Free Roam

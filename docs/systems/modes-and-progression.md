@@ -1,6 +1,6 @@
 # Modes, the course, parked modes and the parked economy
 Owner: the orchestrator. Status: current.
-Purpose: the game modes as built, the Fallow training course, what `?legacy=1` parks, and the parked arsenal / suit /
+Purpose: the game modes as built, the training course, what `?legacy=1` parks, and the parked arsenal / suit /
 HQ economy and cosmetics.
 Design authority: docs/DECISIONS.md (G2, G7, G8, G111, G116, G184, G290, G349, G353, G370, G371, G384, G385), then
 docs/design-bible.md (Sections 5.8 and 6).
@@ -30,7 +30,7 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
 | --- | --- | --- | --- |
 | `infiltration` | Infiltration | Play screen (default), co-op lobby | Live; the campaign's mission runner until the mission framework job ("Campaign" is the player-facing name, kestrel 2026-10-11) |
 | `sandbox` | Free Roam | Play screen, co-op lobby | Live; no guards (Proving Grounds adds training dummies) |
-| `course` | Training course | Co-op only (two players) | Live on Marlow Yard (`ctcourse`, the co-op training course, G292; `?autostart=ctcourse&mode=course`); also on `courselab` and the Fallow bunker (older course maps) |
+| `course` | Training course | Co-op only (two players) | Live on Marlow Yard (`ctcourse`, the co-op training course, G292; `?autostart=ctcourse&mode=course`); also on `courselab` (an older course map) |
 | `sector` | Sector Ops | Main menu, solo or co-op lobby | Live on `campusOps` (Saltmarsh Park) and `warehouseOps` (the old map); see below |
 | `clear` | Hunter | `?legacy=1` | Parked (G7: comes back later) |
 | `mission` | Mission | `?legacy=1` | Parked (the old mission mode; it does not return as team-versus-team, G8) |
@@ -137,7 +137,7 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   Synced takedowns count in `BayStats.synced`. The best per set goes to `rating:sections` under `ctcourse`. The
   finale keeps its Ghost / Silent / Loud tier; its marks are a results line beside it.
 
-## The training course (`course`: Marlow Yard, the Fallow bunker)
+## The training course (`course`: Marlow Yard)
 - `game/modes/courseMode.ts` runs the pure `game/course/CourseState` (gates, airlocks, drills, restart) from a map's
   `MapLayout.course`; co-op only (host P1, client P2; `?autostart=courselab&mode=course` single player for tests); radio
   as LANTERN barks. Wire and drill ticks: coop.md. HUD: ui.md.
@@ -149,7 +149,6 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   (G80). Team moves work anywhere with room (G151 replaced G81's marked spots).
 - Friendly fire: a host option, on by default (G141, settles G49). As built it is on in Course mode only, with no host
   option yet (`CoopHost.ff`).
-- Decided, not built yet (G79): the bunker's drills are rebuilt on the CT moves after the prototype.
 
 ## Parked content (`?legacy=1`)
 - `flags.legacy` (`?legacy=1`, URL only, never saved) and `core/legacy.ts` (pure, `tests/legacy.test.ts`):
