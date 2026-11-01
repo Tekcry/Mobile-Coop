@@ -126,7 +126,11 @@ export const studio: MapDef = {
     b.light({ kind: 'lamp', x: SIZE - 5, y: 6, z: C, radius: 11, intensity: 0.6, color: [1, 0.96, 0.9] });
     b.light({ kind: 'lamp', x: C, y: 6, z: 5, radius: 11, intensity: 0.6, color: [1, 0.96, 0.9] });
     return {
-      playerSpawns: [{ pos: new Vector3(C, 0, C), yaw: 0 }],
+      // (G1) the partner's slot in a co-op room: 2 m east of the first, clear of the props (all round the walls)
+      playerSpawns: [
+        { pos: new Vector3(C, 0, C), yaw: 0 },
+        { pos: new Vector3(C + 2, 0, C), yaw: 0 },
+      ],
       enemySpawns: [],
       props: [],
       objectives: [],

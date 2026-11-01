@@ -3,6 +3,7 @@ import { animTuneAllowed } from '../src/ui/tunerGate';
 import { MAPS, DEV_MAPS, getMap } from '../src/world/maps';
 import { STUDIO_MAP_ID } from '../src/anim/studio';
 import { STUDIO_MAP_ID as TINY_ID } from '../src/anim/studioMapId';
+import { LevelBuilder } from '../src/world/levelBuilder';
 import { studio } from '../src/world/maps/studio';
 
 /** (G1) The Test Chamber: the animation tuner opens there only; the map is a dev scene with a spot for each of two players. */
@@ -35,5 +36,19 @@ describe('Test Chamber: the map', () => {
     expect(MAPS.some((m) => m.id === 'studio')).toBe(false);
     expect(DEV_MAPS).toContain(studio);
     expect(getMap('studio')).toBe(studio);
+  });
+
+  it('has a spawn for each of the two players: 2 m apart, clear of every solid prop', () => {
+    const b = new LevelBuilder();
+    const lay = studio.build(b, 0);
+    expect(lay.playerSpawns).toHaveLength(2);
+    const [a, p] = lay.playerSpawns;
+    expect(Math.hypot(p!.pos.x - a!.pos.x, p!.pos.z - a!.pos.z)).toBeCloseTo(2, 6);
+    expect(p!.pos.y).toBe(a!.pos.y);
+    for (const s of lay.playerSpawns) {
+      // a solid box standing on the floor (not the roof slab) within 1 m of the spot (footprint grown by 1 m) would crowd the player
+      const crowded = b.boxes.some((x) => x.collide && x.c[1] + x.s[1] / 2 > 0.3 && x.c[1] - x.s[1] / 2 < 2 && Math.abs(s.pos.x - x.c[0]) < x.s[0] / 2 + 1 && Math.abs(s.pos.z - x.c[2]) < x.s[2] / 2 + 1);
+      expect(crowded).toBe(false);
+    }
   });
 });

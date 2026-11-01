@@ -51,14 +51,16 @@ const REPORT = ['anim-audit'];
 // are the same four pairs on the re-planned yard (map `ctcourseReplan`, `scripts/e2e-ctcourse/replan/`).
 // (clean-up F) e2e-sectorops is now only the two Tallow Wharf parts below (parts 1-9 and `mission` ran on the Warehouse Ops and Saltmarsh Park maps, removed)
 // (campaign-mode CM7) e2e-coop = part 1 (the suite as it was: `scripts/e2e-coop.mjs` ignores `--part`) and `campaign` (the campaign in the co-op lobby, three browser contexts: `scripts/e2e-coop-campaign.mjs`, PART_SCRIPT)
+// (clean-up G1) e2e-coop:chamber = two players in the Test Chamber from the co-op lobby (scripts/e2e-coop-chamber.mjs, PART_SCRIPT)
 // (mission-framework GB6) e2e-sectorops:wharf-tgc / :wharf-tkl = the Tallow Wharf missions in co-op (scripts/e2e-sectorops-wharf.mjs --mission=<id>)
 // (light-parity C2) e2e-parity = 3 Marlow Yard, 4 Warehouse (parts 1-2, Saltmarsh Park, removed in clean-up F) (GPU only; trains via laptop-queue TRAIN_PARITY)
-const PARTS = { 'e2e-parity': ['3', '4'], 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['wharf-tgc', 'wharf-tkl'], 'e2e-coop': ['1', 'campaign'] };
+const PARTS = { 'e2e-parity': ['3', '4'], 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['wharf-tgc', 'wharf-tkl'], 'e2e-coop': ['1', 'campaign', 'chamber'] };
 /** A part that lives in its own script (run with no `--part`): the script name, or `[script, ...args]`. */
 const PART_SCRIPT = {
   'e2e-sectorops:wharf-tgc': ['e2e-sectorops-wharf', '--mission=threeGreyCoats'],
   'e2e-sectorops:wharf-tkl': ['e2e-sectorops-wharf', '--mission=twoKeyLedger'],
   'e2e-coop:campaign': 'e2e-coop-campaign',
+  'e2e-coop:chamber': 'e2e-coop-chamber',
 };
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));

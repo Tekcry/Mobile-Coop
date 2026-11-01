@@ -9,6 +9,7 @@ import { MenuScreen, type LegendItem } from '../ui/menuScreen';
 import { Osk } from '../ui/osk';
 import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
+import { STUDIO_MAP_ID } from '../anim/studioMapId';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { MISSIONS, missionById } from '../game/missions';
 import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
@@ -426,6 +427,21 @@ function lobbyModes(current: NetMode): typeof MODE_OPTS {
   return cur && !shown.includes(cur) ? [...shown, cur] : shown;
 }
 /**
+ * (G1) The Test Chamber in the lobby: Free Roam on the dev map `studio` (not in `MAPS`), shown as its own Mode choice.
+ * Nothing new on the wire: the room's mode is `sandbox` and its map id `studio`; both players spawn in the chamber (the
+ * map's two spawns) and its single-player stage (loop player, puppets) stays off in a room.
+ */
+const CHAMBER = 'chamber';
+const CHAMBER_LABEL = 'Test Chamber';
+const isChamber = (mode: string, map: string): boolean => mode === 'sandbox' && map === STUDIO_MAP_ID;
+/** The Mode row's choices: the lobby's modes and the Test Chamber (the mode set already, when it is one, is listed once). */
+function lobbyModeChoices(mode: NetMode, map: string): { value: NetMode | typeof CHAMBER; label: string }[] {
+  return [...lobbyModes(isChamber(mode, map) ? 'course' : mode), { value: CHAMBER, label: CHAMBER_LABEL }];
+}
+/** A room's mode and map as the lobby and the room list name them (a dev map is in no list: `getMap` names it). */
+const modeLabel = (mode: string, map: string): string => (isChamber(mode, map) ? CHAMBER_LABEL : (MODE_OPTS.find((m) => m.value === mode)?.label ?? mode));
+const mapLabel = (id: string): string => MAPS.find((m) => m.id === id)?.name ?? (id === STUDIO_MAP_ID ? getMap(id).name : id);
+/**
  * The maps the host can pick for a mode: the campaign is Marlow Yard only (the course lab with `?legacy=1`).
  * (J14 R1 fix 8) With `?marlowreplan=1` that is the re-planned yard (`roomMap`), so it is offered and named once.
  */
@@ -548,7 +564,7 @@ class LobbyScreen extends MenuScreen {
     const cap = s.cap;
     const block = s.isHost ? s.campaignBlock : null;
     if (!s.hostId) this.status.textContent = 'Connecting to host…';
-    else if (s.overCapacity) this.status.textContent = `${s.campaign ? 'The campaign' : MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
+    else if (s.overCapacity) this.status.textContent = `${s.campaign ? 'The campaign' : modeLabel(s.mode, s.map)} takes ${cap} players - pick another mode or wait for someone to leave.`;
     // (mission-rules R4) why the campaign cannot start yet
     else if (block) this.status.textContent = block === CAMPAIGN_TWO_PLAYERS && ps.length < 2 ? `${block}. Share the code to invite your partner.` : `${block}.`;
     else if (s.isHost) this.status.textContent = ps.length < 2 ? `${courseStartBlock(s.mode, ps.length) ? `${COURSE_TWO_PLAYERS}. ` : ''}Share the code to invite your partner.` : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
@@ -559,6 +575,7 @@ class LobbyScreen extends MenuScreen {
     const s = this.c.session;
     const maps = MAPS.filter((m) => m.modes.includes(s.mode));
     const infil = s.mode === 'infiltration';
+    const chamber = isChamber(s.mode, s.map);
     const diffLabel = (): string => DIFFICULTY_OPTS.find((d) => d.value === s.difficulty)?.label ?? '';
     if (!s.isHost) {
       const map = MAPS.find((m) => m.id === s.map);
@@ -567,12 +584,12 @@ class LobbyScreen extends MenuScreen {
       // (campaign-mode CM4) the rows as today with `flags.campaign` off (`lobbyRows`); on a campaign entry the Map row is
       // the campaign's Mission row, its context the briefing (this peer's own spoilers)
       const row = (r: LobbyRow): HTMLElement => {
-        if (r === 'mode') return lr('Mode', entry ? 'Campaign' : (MODE_OPTS.find((m) => m.value === s.mode)?.label ?? ''));
+        if (r === 'mode') return lr('Mode', entry ? 'Campaign' : modeLabel(s.mode, s.map));
         if (r === 'mission') return lr('Mission', missionById(s.mission)?.name ?? '');
         if (r === 'campaign') return this.campaignRow(lr('Mission', entry ? entryRowText(entry) : ''));
         if (r === 'difficulty' || r === 'difficultyLocked') return lr('Difficulty', diffLabel());
         if (r === 'weather') return lr('Weather', WEATHER_LABEL[s.weather]);
-        return lr('Map', map?.name ?? s.map);
+        return lr('Map', map?.name ?? mapLabel(s.map));
       };
       this.opts.replaceChildren(...lobbyRows({ campaign: flags.campaign, host: false, mode: s.mode, entry, continued: false, weather: !!map?.weathers }).map(row));
       this.applyBrief();
@@ -581,7 +598,7 @@ class LobbyScreen extends MenuScreen {
     if (infil) {
       const m = missionById(s.mission) ?? MISSIONS[0]!;
       if (s.mission !== m.id || s.map !== m.map) s.setSettings(s.mode, m.map, s.difficulty, m.id);
-    } else if (!maps.some((m) => m.id === s.map)) s.setSettings(s.mode, (lobbyMaps(s.mode)[0] ?? maps[0]!).id, s.difficulty);
+    } else if (!chamber && !maps.some((m) => m.id === s.map)) s.setSettings(s.mode, (lobbyMaps(s.mode)[0] ?? maps[0]!).id, s.difficulty);
     // the host's pick (a map already set that the list leaves out, by a test or a dev tab, stays listed)
     const cur = maps.find((m) => m.id === s.map);
     const pick = lobbyMaps(s.mode);
@@ -595,7 +612,8 @@ class LobbyScreen extends MenuScreen {
           // (campaign-mode CM4) a campaign entry reads as Campaign (Sector Ops on Tallow with a mission too); leaving it
           // leaves its map and mission
           return [
-            choice('Mode', lobbyModes(s.mode), () => (entry ? 'course' : s.mode), (v) => {
+            choice('Mode', lobbyModeChoices(s.mode, s.map), () => (chamber ? CHAMBER : entry ? 'course' : s.mode), (v) => {
+              if (v === CHAMBER) return set('sandbox', STUDIO_MAP_ID, s.difficulty, '', '');
               if (entry?.mode === 'sector' && v !== 'sector' && v !== 'course') return set(v, lobbyMaps(v)[0]?.id ?? s.map, s.difficulty, v === 'infiltration' ? MISSIONS[0]!.id : '', '');
               if (entry?.mode === 'sector') return v === 'course' ? set('course', CAMPAIGN_MAP, s.difficulty, '', '') : set('sector', lobbyMaps('sector')[0]?.id ?? s.map, s.difficulty, '', '');
               set(v, MAPS.find((m) => m.id === s.map)?.modes.includes(v) ? s.map : (lobbyMaps(v)[0]?.id ?? s.map), s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '');
@@ -651,6 +669,8 @@ class LobbyScreen extends MenuScreen {
             ),
           ];
         default:
+          // (G1) the Test Chamber is its own room: the map is part of the mode choice
+          if (chamber) return [lockedRow('Map', CHAMBER_LABEL, 'Set by the mode.', 'The Test Chamber is one room: pick another mode to choose a map.')];
           return [choice('Map', shownMaps.map((m) => ({ value: m.id, label: m.name })), () => s.map, (v) => set(s.mode, v, s.difficulty))];
       }
     };
@@ -914,8 +934,8 @@ class BrowseScreen extends MenuScreen {
   }
 
   private row(r: ListedRoom): HTMLElement {
-    const map = MAPS.find((m) => m.id === r.map)?.name ?? r.map;
-    const mode = MODE_OPTS.find((m) => m.value === r.mode)?.label ?? r.mode;
+    const map = mapLabel(r.map);
+    const mode = modeLabel(r.mode, r.map);
     const b = button(`${r.code} · ${map}`, () => this.join(r.code), { class: 'menu-item ms-item', key: `room-${r.code}`, sub: `${mode} · host ${r.host}` });
     b.append(h('span', { class: 'ms-ctr', text: `${r.players} / ${r.cap}` }));
     b.dataset.ctx = `<p>Join ${r.host}'s room ${r.code} (${map}, ${mode}).</p>`;

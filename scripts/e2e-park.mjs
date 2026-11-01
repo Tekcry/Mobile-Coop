@@ -41,8 +41,8 @@ try {
   const badge = await G(() => ({ any: !!document.querySelector('.main-menu .badge'), level: !!document.querySelector('.badge-level'), credits: !!document.querySelector('.badge .credits') }));
   assert(!badge.any && !badge.level && !badge.credits, `no profile badge, level or credits (${JSON.stringify(badge)})`);
   const keys = await G(() => [...document.querySelectorAll('.main-menu [data-key]')].map((b) => b.dataset.key));
-  // (anim-studio) plus the developer row Anim Studio (dev) last
-  assert(JSON.stringify(keys) === JSON.stringify(['coop', 'loadout', 'settings', 'feedback', 'anim-studio']), `the flat main menu: Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (${keys})`);
+  // (anim-studio) plus the developer row Test Chamber last
+  assert(JSON.stringify(keys) === JSON.stringify(['coop', 'loadout', 'settings', 'feedback', 'anim-studio']), `the flat main menu: Co-op, Loadout, Settings, Feedback, Test Chamber (${keys})`);
   // Loadout (slice 4, D-11: the issued kit, read only; the old screen stays under ?legacy=1)
   await menuClick(page, 'Loadout');
   await page.waitForSelector('.kit-screen .ms-item');
@@ -81,7 +81,9 @@ try {
   });
   // (sector-ops slice 3) co-op is the campaign: Marlow Yard in Course mode by default; no Sector Ops map is listed
   assert(lob.mode0 === 'course' && lob.map0 === 'ctcourse', `a new room starts on the campaign, Marlow Yard (${lob.mode0}, ${lob.map0})`);
-  assert(JSON.stringify(lob.seen) === JSON.stringify(['Campaign']), `the lobby lists Campaign only (${lob.seen})`);
+  // (clean-up G1) plus the Test Chamber: Free Roam on the dev map `studio` (e2e-coop:chamber starts it)
+  assert(JSON.stringify(lob.seen) === JSON.stringify(['Campaign', 'Test Chamber']), `the lobby lists Campaign and the Test Chamber only (${lob.seen})`);
+  assert(lob.maps['Campaign'] === 'ctcourse' && lob.maps['Test Chamber'] === 'studio', `the Test Chamber is the studio map, the Campaign Marlow Yard (${JSON.stringify(lob.maps)})`);
 
   // saves are untouched by parking: the export keeps its internal magic and an exported file imports (what e2e-progression
   // checked, now that it is a legacy suite), the campaign's loadout choice included
