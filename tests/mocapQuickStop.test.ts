@@ -14,8 +14,12 @@
  * 1.9 / 13.8; before (a7147e26) one-frame 1.3, 7.7, 8.9, 10.5 (slide 5.3 cm at 2.8), braked 1.6, 3.0, 3.2.
  */
 import { afterAll, describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { setMocapLocomotion } from '../src/anim/mocap';
 import { driveRig, plantSlide, pops, type Plan, type Rec } from './helpers/mocapMeasure';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 /** Allowance (deg) on ON <= OFF (mocapSprint, mocapRunTurn: a frame's worst bone moves 1-2 deg with the phase alone). */
 const POP_MARGIN = 2;

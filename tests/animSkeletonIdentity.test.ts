@@ -44,7 +44,11 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { runIdentity, type IdentityFixture } from './helpers/animSkeletonIdentity';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 const FIXTURE = 'tests/fixtures/anim-skeleton-identity.json';
 const CAPTURE = process.env.ANIM_SKELETON_CAPTURE === '1';

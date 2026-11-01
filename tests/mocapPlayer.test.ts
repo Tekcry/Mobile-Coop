@@ -9,7 +9,11 @@
  */
 import { appendFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { ctBoth, flickPlan, fmtPlayer, playerFails, startStopPlan, straightFeet, turnFeet, type Target } from './helpers/mocapPlayer';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 interface Case { label: string; target: Target; steps: number; recFrom: number; tgl?: boolean }
 
