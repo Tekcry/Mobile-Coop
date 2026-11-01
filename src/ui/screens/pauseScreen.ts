@@ -175,7 +175,7 @@ export class PauseScreen extends MenuScreen {
       // (anim-tuner pass 2-3) the animation tuner without F3 (pad, phone): opens the panel and resumes, so you can move and
       // tune; before Quit, so Up from Resume still wraps to Quit. (G1) Listed in the Test Chamber only; (G2c) and only while
       // its animation stage is on (the main menu row, `?stage=1`): the plain room and the co-op room keep F3 > Anim and Settings.
-      ...(app.debug.animTune.canOpen && !!(app.current as { studio?: unknown } | null)?.studio
+      ...(app.debug.animTune.pauseRow
         ? [
             item(
               'Animation tuner (dev)',
