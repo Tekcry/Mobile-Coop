@@ -508,6 +508,8 @@ export class AnimTunePanel {
   menuPaused: (() => boolean) | null = null;
   /** (G1) Whether the tuner may open here (set by the app: the Test Chamber only, `tunerGate.ts`); unset = never. */
   allowed: (() => boolean) | null = null;
+  /** (G2c) Whether the animation stage runs in this match (set by the app): the pause menu's tuner row needs it. */
+  stageOn: (() => boolean) | null = null;
   private coopOn = false;
   /** (fix round) When the pad was last polled (ms): the free view's pad input clears once it goes stale. */
   private lastPoll = 0;
@@ -2769,6 +2771,12 @@ export class AnimTunePanel {
   /** (G1) The tuner may open here (the Test Chamber only; the pause and Settings rows ask this to list themselves). */
   get canOpen(): boolean {
     return this.allowed?.() ?? false;
+  }
+
+  /** (G2c) The pause menu lists its tuner row: the tuner may open here and the animation stage is on (the plain Test Chamber
+   *  and the co-op room keep F3 > Anim and the Settings row, not the pause one). */
+  get pauseRow(): boolean {
+    return this.canOpen && (this.stageOn?.() ?? false);
   }
 
   /** (G1) A new game state is in: a panel left open where it may not be goes away. */

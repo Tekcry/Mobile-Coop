@@ -99,6 +99,8 @@ export class App {
     tune.coop = () => !!(this.state as { net?: unknown } | null)?.net;
     // (G1) the tuner opens in the Test Chamber (the `studio` map) only: the match's map decides, a menu has none
     tune.allowed = () => animTuneAllowed((this.state as { opts?: { map?: { id?: string } } } | null)?.opts?.map?.id);
+    // (G2c) the animation stage runs only from the main menu row and `?stage=1`: the pause menu's tuner row follows it
+    tune.stageOn = () => !!(this.state as { studio?: unknown } | null)?.studio;
     // (tuner-ui) the pause menu open: the menus get the pad, the tuner waits
     tune.menuPaused = () => !!(this.state as { menuPaused?: boolean } | null)?.menuPaused;
     // (marlow-bays item 9) the tuner's mouse mode: drag view frees the pointer; a capture lost in its game camera goes
