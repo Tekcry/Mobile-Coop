@@ -1,4 +1,4 @@
-// Weapon clipping sweep (Proving Grounds): every frame of movement scenarios, points along the held
+// Weapon clipping sweep (the Test Chamber, G2b): every frame of movement scenarios, points along the held
 // gun are checked against the world (chest -> stock, then along the gun: blocked = through a wall) and against
 // the legs (thigh / calf capsules). Bars: no frame with the gun > 2 cm into the world; legs graze <= 2.5 cm.
 // Scenarios: walking / crouch-walking along a wall both sides, sprint, crouch run; (anim-rework S4) crouched holstered (the knee hand, arms vs legs).  `node scripts/e2e-clip.mjs [url] [--only=name] [--log]`
@@ -7,7 +7,7 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 const log = process.argv.includes('--log');
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
 let failed = false;
 try {
 // (the sim advances only through stepHeadless: on a hardware GPU the live loop would run ~150 steps of the match in the wait below, a different
@@ -108,16 +108,19 @@ const res = await page.evaluate(([only, log]) => {
   const merge = (r, r2) => { r.n += r2.n; r.body += r2.body; r.maxBody = Math.max(r.maxBody, r2.maxBody); r.minKnees = Math.min(r.minKnees, r2.minKnees); r.minFeet = Math.min(r.minFeet, r2.minFeet); r.log.push(...r2.log); return r; };
   const tpY = (x, y, z, yaw) => { g.traversal.reset(); st.releaseAll(); c.teleport(new V(x, y, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; a.loop.stepHeadless(0.5, 120); };
   const T = {
-    'ladder climb': () => { tpY(25.2, 0, 11, Math.PI / 2); st.tap('jump'); return runBody(7, () => move(0, 1)); },
-    'ladder down + slide': () => { tpY(26.7, 3.6, 11, -Math.PI / 2); st.tap('jump'); const r = runBody(2.5, () => move(0, -1)); move(0, 0); st.tap('drop'); const r2 = runBody(2); return merge(r, r2); },
-    'drainpipe + lip': () => { tpY(27.8, 0, 8.95, 0); st.tap('jump'); const r = runBody(5, () => move(0, 1)); st.tap('jump'); const r2 = runBody(1.5); return merge(r, r2); },
-    'hang shimmy + corner': () => { tpY(25.45, 0, 16, Math.PI / 2); st.tap('jump'); runBody(0.5); return runBody(4.5, (t) => move(t < 1 ? 1 : -1, 0)); },
-    'hang climb up': () => { tpY(25.45, 0, 16, Math.PI / 2); st.tap('jump'); runBody(0.6); st.tap('jump'); return runBody(1.6); },
-    'pipe hand over hand': () => { tpY(25.5, 0, 23.1, 0); p.cam.yaw = Math.PI / 2; st.tap('jump'); return runBody(3, () => move(0, 1)); },
-    'duct crawl + vent': () => { tpY(21.75, 3.2, -5, Math.PI / 2); st.tap('jump'); runBody(0.8); return runBody(8, () => move(0, 1)); },
-    'window vault': () => { tpY(26, 0, -9.2, 0); st.tap('jump'); return runBody(1.5); },
-    'zipline': () => { tpY(26.5, 3.6, 10.2, Math.PI); st.tap('jump'); return runBody(3); },
-    'landing roll': () => { tpY(24, 3.4, 4, 0); return runBody(2); },
+    'ladder climb': () => { tpY(3.8, 0, 9, -Math.PI / 2); st.tap('jump'); return runBody(7, () => move(0, 1)); },
+    'ladder down + slide': () => { tpY(2.35, 3.0, 9, Math.PI / 2); st.tap('jump'); const r = runBody(2.5, () => move(0, -1)); move(0, 0); st.tap('drop'); const r2 = runBody(2); return merge(r, r2); },
+    'drainpipe + lip': () => { tpY(3.55, 0, 10.4, -Math.PI / 2); st.tap('jump'); const r = runBody(5, () => move(0, 1)); st.tap('jump'); const r2 = runBody(1.5); return merge(r, r2); },
+    'hang shimmy + corner': () => { tpY(4, 0, 24.4, 0); st.tap('jump'); runBody(0.5); return runBody(4.5, (t) => move(t < 1 ? 1 : -1, 0)); },
+    'hang climb up': () => { tpY(4, 0, 24.4, 0); st.tap('jump'); runBody(0.6); st.tap('jump'); return runBody(1.6); },
+    'pipe hand over hand': () => { tpY(25.2, 0, 6.5, Math.PI / 2); p.cam.yaw = 0; st.tap('jump'); return runBody(3, () => move(0, 1)); },
+    // (G2b) the floor duct (`ducts[0]`, x 21-25 at z 14) and the booth's roof duct, a ceiling vent over the booth (`ducts[1]`, 0.75 m of crawl)
+    // (the far grate is opened first: the controller unscrews it at the path's end, and until then the head, 0.5 m ahead of the feet, reads the closed grate)
+    'duct crawl + vent': () => { tpY(20.4, 0, 14, Math.PI / 2); g.world.breakables.open(`grate:${g.world.level.anchors.ducts[0].id}:exit`, 'unscrew'); st.tap('jump'); runBody(0.8); return runBody(8, () => move(0, 1)); },
+    'booth vent drop': () => { tpY(27.5, 4.42, 26.7, -Math.PI / 2); st.tap('jump'); runBody(0.8); return runBody(8, () => move(0, 1)); },
+    'window vault': () => { tpY(18, 0, 2.8, 0); st.tap('jump'); return runBody(1.5); },
+    'zipline': () => { tpY(5.3, 2.42, 26.4, Math.PI); st.tap('jump'); return runBody(3); },
+    'landing roll': () => { tpY(20, 3.4, 21, 0); return runBody(2); },
   };
   const tp = (x, z, yaw) => { st.releaseAll(); if (c.crouched) c['crouchToggled'] = false; c.teleport(new V(x, 0, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; a.loop.stepHeadless(0.5, 120); };
   const run = (sec, f) => { const acc = { n: 0, wall: 0, maxPen: 0, leg: 0, minLeg: 9, minHead: 9, minChest: 9, minElbow: 9, minKnees: 9, minFeet: 9, log: [] }; let t = 0; while (t < sec) { f?.(t); a.loop.stepHeadless(1 / 30, 120); t += 1 / 30; check(acc); } return acc; };
@@ -165,7 +168,7 @@ const res = await page.evaluate(([only, log]) => {
     // (anim-rework S4) crouched holstered: down into the squat (the hands onto the knees), its idle, the sneak, the crouch
     // walk and run, a stop back into the squat, up to standing
     'crouched holstered': () => {
-      tp(0, -14, Math.PI / 2);
+      tp(9, 20, Math.PI / 2);
       p.stance.holster();
       runLimbs(0.6);
       st.tap('crouch');
@@ -186,15 +189,15 @@ const res = await page.evaluate(([only, log]) => {
     },
   };
   const S = {
-    'aim every weapon': () => { tp(0, -14, Math.PI / 2); const acc = run(0.1); for (let i = 0; i < g.weapons.slots.length; i++) { st.tap('swapNext'); run(1.2); st.set('t', 'ads', true); const r = run(1.6, (t) => { p.cam.pitch = -0.7 + t * 0.9; }); st.set('t', 'ads', false); for (const k of ['n', 'wall', 'leg']) acc[k] += r[k]; acc.maxPen = Math.max(acc.maxPen, r.maxPen); acc.minLeg = Math.min(acc.minLeg, r.minLeg); acc.minHead = Math.min(acc.minHead, r.minHead); acc.minChest = Math.min(acc.minChest, r.minChest); if (r.chestAt !== undefined && r.minChest <= acc.minChest) acc.chestAt = r.chestAt; acc.log.push(...r.log); } p.cam.pitch = 0; return acc; },
-    'aim walking + crouched': () => { tp(0, -14, Math.PI / 2); st.set('t', 'ads', true); const r1 = run(1.5, () => move(0.7, 0.7)); st.tap('crouch'); const r2 = run(1.5, () => move(-0.7, 0.5)); st.set('t', 'ads', false); r1.n += r2.n; r1.minHead = Math.min(r1.minHead, r2.minHead); r1.minChest = Math.min(r1.minChest, r2.minChest); r1.minLeg = Math.min(r1.minLeg, r2.minLeg); r1.wall += r2.wall; r1.leg += r2.leg; return r1; },
-    'walk wall left': () => { tp(-8.3, 0.5, 0); return run(2.5, () => move(0, 0.5)); },
-    'walk wall right': () => { tp(-8.3, 4.5, Math.PI); return run(2.5, () => move(0, 0.5)); },
-    'crouchwalk wall left': () => { tp(-8.3, 0.5, 0); st.tap('crouch'); return run(2.5, () => move(0, 0.6)); },
+    'aim every weapon': () => { tp(9, 20, Math.PI / 2); const acc = run(0.1); for (let i = 0; i < g.weapons.slots.length; i++) { st.tap('swapNext'); run(1.2); st.set('t', 'ads', true); const r = run(1.6, (t) => { p.cam.pitch = -0.7 + t * 0.9; }); st.set('t', 'ads', false); for (const k of ['n', 'wall', 'leg']) acc[k] += r[k]; acc.maxPen = Math.max(acc.maxPen, r.maxPen); acc.minLeg = Math.min(acc.minLeg, r.minLeg); acc.minHead = Math.min(acc.minHead, r.minHead); acc.minChest = Math.min(acc.minChest, r.minChest); if (r.chestAt !== undefined && r.minChest <= acc.minChest) acc.chestAt = r.chestAt; acc.log.push(...r.log); } p.cam.pitch = 0; return acc; },
+    'aim walking + crouched': () => { tp(9, 20, Math.PI / 2); st.set('t', 'ads', true); const r1 = run(1.5, () => move(0.7, 0.7)); st.tap('crouch'); const r2 = run(1.5, () => move(-0.7, 0.5)); st.set('t', 'ads', false); r1.n += r2.n; r1.minHead = Math.min(r1.minHead, r2.minHead); r1.minChest = Math.min(r1.minChest, r2.minChest); r1.minLeg = Math.min(r1.minLeg, r2.minLeg); r1.wall += r2.wall; r1.leg += r2.leg; return r1; },
+    'walk wall left': () => { tp(11.6, 24.3, Math.PI / 2); return run(2.5, () => move(0, 0.5)); },
+    'walk wall right': () => { tp(16.4, 24.3, -Math.PI / 2); return run(2.5, () => move(0, 0.5)); },
+    'crouchwalk wall left': () => { tp(11.6, 24.3, Math.PI / 2); st.tap('crouch'); return run(2.5, () => move(0, 0.6)); },
     // (anim-rework S3) the sling draw (LT from holstered, M2: off the sling under the arm, up into the shoulder), the glide
     // strafing both ways and backing up, then low ready (LT let go) into a crouch and back up drawn
     'sling draw + glide': () => {
-      tp(0, -14, Math.PI / 2);
+      tp(9, 20, Math.PI / 2);
       // (anim-natural N3) the holster takes 1.0 s and the hand lets go over 0.4 s more; the LT sling draw takes 1.5 s:
       // holstered before LT, drawn before the glide (the old 0.8 s / 1.0 s waits pressed LT mid-holster and glided mid-draw)
       p.stance.holster();
@@ -218,8 +221,8 @@ const res = await page.evaluate(([only, log]) => {
       }
       return r;
     },
-    'sprint': () => { tp(0, -14, Math.PI / 2); st.tap('dash'); return run(2, () => move(0, 1)); },
-    'crouch run': () => { tp(0, -14, Math.PI / 2); st.tap('crouch'); return run(2, () => move(0, 1)); },
+    'sprint': () => { tp(9, 20, Math.PI / 2); st.tap('dash'); return run(2, () => move(0, 1)); },
+    'crouch run': () => { tp(9, 20, Math.PI / 2); st.tap('crouch'); return run(2, () => move(0, 1)); },
   };
   const out = [];
   for (const [k, f] of Object.entries(T)) {
