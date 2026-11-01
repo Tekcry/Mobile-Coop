@@ -174,7 +174,7 @@ describe('PatrolWalker.giveUp and the storey check (pure)', () => {
   it('a post guard straight under his post on another storey is not on it (`away`)', () => {
     const p = new PatrolWalker(null, 0, 0, 0);
     expect(p.step(0.1, 0.1, 0)).toBeNull();
-    expect(p.step(0.1, 0.1, 0, Number.NaN, true)).toEqual([0, 0]);
+    expect(p.step(0.1, 0.1, 0, true)).toEqual([0, 0]);
   });
 });
 

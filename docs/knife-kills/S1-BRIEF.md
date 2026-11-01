@@ -1,5 +1,5 @@
 # piano-knife S1: paired knife kill core (solo / host, stand-in clips)
-Owner: Night Shift | Player Build. Status: current. Builder: Opus. Checkers: two independent Opus (`src/ai/enemy.ts`
+Owner: Night Shift | Player Build. Status: history (the piano scene was removed in cleanup stage E; the knife kills are every map's lethal takedown, `docs/systems/takedowns.md`). Builder: Opus. Checkers: two independent Opus (`src/ai/enemy.ts`
 is an AI file, RULES "The loop"). Base: origin/master at build start. Est. ~1200 lines with tests.
 
 Read first: `BRIEF.md` (A1, A2, A3, A5, A6, A8, A14, A15) and `PLAN.md` sections 1-2. Prototype mode: the numbers below

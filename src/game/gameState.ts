@@ -154,9 +154,6 @@ import { contextPing } from '../input/conflicts';
 import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_ORBIT, FREE_SET, FREE_VIEW, FreeViewCore, orbitAngleDeg, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
-import { IntroPose } from './introPose'; // (piano-knife S4b) the piano intro pose
-import type { IntroVariant } from '../anim/introBreath';
-import { setCloseCamera } from '../operators/runtime/figure';
 import { MOVE_TUNE_TEAM, teamContactK, teamRoleGroup } from '../anim/moveTune';
 import { TEAM_POSE_LOCAL, teamLinkFrame, teamPoseOfState } from '../anim/clips/team'; // (anim-n4b, track A)
 import { clearGripAxis } from '../player/attachGrips';
@@ -324,19 +321,6 @@ export interface SessionCallbacks {
   briefing?(missionId: string): void;
 }
 
-/**
- * (piano-escape S2) A scene's render-only view override (`game/pianoIntroView.ts`): `frame` places the rendered camera
- * after the game view each frame (gameplay keeps reading `cam.gamePos`). While `holdsInput` the operator takes no move
- * or button input (the scene reads its own button); while `ownsPause` the pause button is the scene's (its skip hold).
- */
-export interface SceneView {
-  readonly holdsInput: boolean;
-  readonly ownsPause: boolean;
-  frame(dt: number): void;
-  /** (walk ~09:42) A tap of the pause or View button while the view owns pause (read in the fixed step, where the edge lives). */
-  tap?(): void;
-}
-
 /** Hook for progression (Phase 6): turns session stats into rewards shown on the results screen. */
 export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTMLElement | null>;
 
@@ -431,8 +415,6 @@ export class GameState implements AppState {
   /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
   lightLevel = 1;
   private lightT = 0;
-  /** (piano SO5) The lightning level set last step (`updateLight`). */
-  private flashWas = 0;
   /** (char-shadow-meter S2) The character contract, filled every sim step from the sim; null with the flag off. Guard AI's
    *  `fillOccluders` and Player's `fillOperator` replace the interim fills later (PLAN section 6). */
   readonly charOccluders: CharOccluders | null = flags.charShadowLight ? new CharOccluders() : null;
@@ -482,8 +464,6 @@ export class GameState implements AppState {
   private postKey = '';
   private beatT = 0;
   private letterboxT = 0;
-  /** (piano-escape S2) The scene's render-only view override (`SceneView`); null on every other map. */
-  sceneView: SceneView | null = null;
   readonly dummies: TrainingDummy[] = [];
   private paused = false;
   private menuOpen = false;
@@ -1121,8 +1101,6 @@ export class GameState implements AppState {
         crouchToggle: () => app.settings.get().gameplay.crouchToggle,
         // (anim-studio-2) the traversal loops and the pairs' viewing spot
         teleport: (x, y, z, yaw) => g.studioTeleport(x, y, z, yaw),
-        // (piano-knife S4b) the intro rows
-        introPose: (on, v) => g.introPose(on, v),
         doorOpen: () => {
           const d = world.doors.list[0];
           if (d && d.target === 0) g.startDoorOpen(0, () => world.doors.open(d, 'quiet'));
@@ -2014,15 +1992,6 @@ export class GameState implements AppState {
     reg.tickFlicker(this.net?.simTime?.() ?? this.time);
     // (LR16-5b) the swinging pendants, on the same clock, before the meter samples (light parity)
     reg.tickSway(this.net?.simTime?.() ?? this.time);
-    // (piano SO5) lightning: this step's flash on the same shared clock, set once before the meter, the guards and the
-    // picture read it; the meter samples every step while a flash is lit (and the step after) so a short strike shows
-    const lt = this.world.lightning;
-    if (lt) {
-      const fl = lt.levelAt(this.net?.simTime?.() ?? this.time);
-      this.world.setFlash(fl);
-      if (fl > 0 || this.flashWas > 0) this.lightT = 0;
-      this.flashWas = fl;
-    }
     this.lightT -= dt;
     if (this.lightT > 0) return;
     this.lightT = 1 / LIGHT.playerHz;
@@ -2278,12 +2247,7 @@ export class GameState implements AppState {
     // (map-ready S2) held: no step (suites calling `stepHeadless` directly), the clock stays at 0
     if (this.exited || this.holding) return;
     const realIn = this.app.input.state;
-    // (piano-escape S2) a scene view held: the pause button is its skip (hold), its own button its press
-    const sv = this.sceneView;
-    // (walk ~09:42) owns-pause read once: a tap that skips moves the intro past it, and must not then open the pause menu
-    const svPause = !!sv?.ownsPause;
-    if (svPause && (realIn.pressed('pause') || realIn.pressed('objective'))) sv?.tap?.();
-    if (realIn.pressed('pause') && !svPause) {
+    if (realIn.pressed('pause')) {
       this.gadgets.closeWheel(false);
       this.pause();
       return;
@@ -2295,7 +2259,7 @@ export class GameState implements AppState {
     // the devices' buttons
     // (anim-studio) the studio's loop player drives the game while it plays a loop
     // (tuner-ui) the pause menu open (co-op: the shared sim runs on): no synthesised input at all, the body stands
-    const real = this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp : this.studio?.drives ? this.studio.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
+    const real = this.paused || this.menuOpen ? this.menuInp : this.studio?.drives ? this.studio.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
     this.time += dt;
     // back from down / dead (respawn, revive, co-op): the speed gear starts over
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
@@ -3474,8 +3438,6 @@ export class GameState implements AppState {
       else this.gadgets.look(look.x, look.y);
       look.x = look.y = 0;
     }
-    // (piano-escape S8 check) a scene view holding the input owns the camera: no look turns it (play starts as it set it)
-    if (this.sceneView?.holdsInput) look.x = look.y = 0;
     this.app.input.setAds(this.player.ads);
     // suppression: the aim wanders (smooth, small) while rounds are cracking past
     // scoped (marksman optics): a slow breathing sway, steadier crouched and still
@@ -3496,13 +3458,8 @@ export class GameState implements AppState {
     this.stealth?.frameUpdate();
     this.net?.carry?.frameUpdate();
     this.takedown.frameUpdate();
-    const sv = this.sceneView;
-    // (piano-escape) the scene's camera films the operator: the tight-space body fade stays off while it holds the view
-    this.player.cam.sceneOwned = !!sv?.holdsInput;
-    this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxListOpen ? this.blankInp.move : this.app.input.state.move);
+    this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxListOpen ? this.blankInp.move : this.app.input.state.move);
     this.takedown.frameLate(); // (piano-knife S1) a knife kill's guard off the attacker's drawn root, before enemies pose
-    // (piano-escape S2) the scene's view places the rendered camera after the game view (render only)
-    sv?.frame(dt);
     // (anim-studio) the stage lights onto this frame's root and camera (after the player and the camera moved)
     this.studio?.lightsFrame();
     this.gadgets.frameUpdate(dt);
@@ -3789,7 +3746,6 @@ export class GameState implements AppState {
     }
     const pose = pl.pose;
     pose.wall = w.active;
-    pose.intro = w.active && w.intro; // (piano-knife S4b)
     // (F4) at an edge the side is the edge's open side (the end at b is the body's left), never the slide or the camera
     pose.wallSide = w.active ? wallFacing(w.edge, w.dir) : 0;
     // (step 12, A3) the head-first peek past the edge (the hit volumes follow the rig: guards see the real body, never
@@ -3932,25 +3888,6 @@ export class GameState implements AppState {
   private wallCoreOf(): WallCore {
     const segs = this.world.level.coverSegments;
     return (this.wallCore ??= new WallCore(segs, buildWallLinks(segs), COVER_STANDOFF));
-  }
-
-  private introCtl: IntroPose | null = null;
-  /**
-   * (piano-knife S4b) The piano intro pose (Campaign's pianoScene: on at the intro's start, off at the cut; the Anim
-   * Studio's intro rows): back to the nearest high face, the pistol at low ready with its slide locked back, the
-   * captured breath, the hero LOD. False: no high face within reach (nothing changed) or already off.
-   */
-  introPose(on: boolean, variant: IntroVariant = 'stand'): boolean {
-    const c = (this.introCtl ??= new IntroPose({
-      wall: () => this.wallCoreOf(),
-      player: this.player,
-      pistol: () => {
-        const i = this.weapons.sidearmIndex;
-        return i >= 0 ? this.weapons.slots[i]!.model : null;
-      },
-      closeUp: (o) => setCloseCamera(this.player.cam.camera, o),
-    }));
-    return c.set(on, variant);
   }
 
   /** (anim-studio-2) The studio's loops: Wren to a spot facing `yaw`, out of any anchor, wall, door move or committed

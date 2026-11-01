@@ -1,5 +1,5 @@
 # piano-knife: clips to download
-Owner: Night Shift | Player Build. Status: current. For the orchestrator (downloads need Michael's go-ahead).
+Owner: Night Shift | Player Build. Status: history (the piano scene was removed in cleanup stage E; the knife kills are every map's lethal takedown, `docs/systems/takedowns.md`). For the orchestrator (downloads need Michael's go-ahead).
 
 **Blocked: Mixamo downloads wait until Michael signs in to Mixamo.** Nothing before S2 needs them: S1 runs on the
 stand-ins already in the repo (below), S3 on S1's rows, S4b on `standing_idle` until I1 lands.

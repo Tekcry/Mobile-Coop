@@ -5,12 +5,10 @@ import { seclab } from './seclab';
 import { courselab } from './courselab';
 import { ctcourse, ctcourseReplan } from './ctcourse';
 import { tallowWharf } from './tallowWharf';
-import { flags } from '../../core/flags';
 import { warehouse } from './warehouse';
 import { warehouseOps } from './warehouseOps';
 import { campusOps } from './campusOps';
 import { studio } from './studio';
-import { thornbeckMill } from './thornbeckMill';
 
 /**
  * The listed maps (3.0): Warehouse runs every mode; Saltmarsh Park (`campusOps`, sector-redesign) is listed from slice 3 (`listed.ts`); Proving Grounds is the basic test range (Free
@@ -20,7 +18,7 @@ import { thornbeckMill } from './thornbeckMill';
  * re-plan) `ctcourseReplan` sits after `ctcourse` (so `ctcourse` stays the course default): unlisted like it, dark behind
  * `flags.marlowReplan` (a host's room names it in `start`), and every map-wide check builds it.
  */
-export const MAPS: MapDef[] = [warehouse, warehouseOps, campusOps, provingGrounds, kestrel, seclab, ctcourse, ctcourseReplan, tallowWharf, courselab, ...(flags.pianoEscape ? [thornbeckMill] : [])];
+export const MAPS: MapDef[] = [warehouse, warehouseOps, campusOps, provingGrounds, kestrel, seclab, ctcourse, ctcourseReplan, tallowWharf, courselab];
 
 /** (anim-studio) Dev scenes that are not levels: never listed, never in a menu or a co-op lobby, not in `MAPS` (the map
  *  checks and the level design standard bind playable maps); reached by `getMap` (`?autostart=studio`, the Anim Studio

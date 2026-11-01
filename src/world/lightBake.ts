@@ -129,7 +129,7 @@ export async function bakeLevelLight(inp: LightBakeInput): Promise<LightBake> {
     }
     // (map-ready S4) the build's pre-baked lamps under this exact key: no baker, no workers; the file is the cache, so
     // nothing is written. A miss (another key, no file, a dev build) bakes on this PC as before. (piano SO2) every
-    // shipped map (`SHIPPED_BAKE_MAPS`), with a section split (campusOps) or without (thornbeckMill: one file)
+    // shipped map (`SHIPPED_BAKE_MAPS`), with a section split (campusOps) or without (one file)
     if (flags.mapReady && lampKey && shipsBake(inp.mapId)) {
       const shipped = await readShippedLamps({ mapId: inp.mapId, key: lampKey, lights: baked.lights, lo: inp.lo, hi: inp.hi });
       if (held.dead) return null;

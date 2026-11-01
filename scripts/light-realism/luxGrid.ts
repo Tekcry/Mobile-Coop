@@ -119,7 +119,6 @@ const r2 = (v: number): number => Math.round(v * 100) / 100;
 const LOADERS: Record<string, () => Promise<MapDef>> = {
   campusOps: async () => (await import('../../src/world/maps/campusOps')).campusOps,
   warehouse: async () => (await import('../../src/world/maps/warehouse')).warehouse,
-  thornbeckMill: async () => (await import('../../src/world/maps/thornbeckMill')).thornbeckMill,
 };
 export const MAP_IDS = Object.keys(LOADERS);
 

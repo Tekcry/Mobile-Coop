@@ -51,8 +51,7 @@ import { DualClock } from '../game/dualTakedown';
 import { assistHolder } from './assistTakedown';
 import type { TakedownVictim } from '../game/takedownController';
 import { stationHeal } from '../game/medkit';
-import { REVIVES_PER_MISSION, ReviveClock } from '../game/reviveClock';
-import { isPianoScene } from '../game/pianoScene';
+import { ReviveClock } from '../game/reviveClock';
 import { campaignReviveCap, isCampaignMission } from '../game/mission/campaign';
 import type { MissionDef } from '../game/mission/missionDef';
 import { pickMission } from '../game/mission/sectorMission';
@@ -243,8 +242,6 @@ export class CoopHost implements NetAttachment {
     // G126) a campaign mission: 2 at every difficulty. `g.world.map` is set: the world is built before `attach`.
     // (campaign-mode CM3) a Continue keeps its revives used (`campaignResume` is set only with `flags.campaign`)
     this.campaign = matchRevives(this.reviveClock, mode, g.opts.difficulty, g.world.map.missions, s.sectorMission, g.opts.campaignResume);
-    // (piano-escape S4) a scene map on the Sector Ops runtime keeps the campaign cap (`REVIVES_PER_MISSION`, PLAN "Downed")
-    if (mode === 'sector' && isPianoScene(g.world.map)) this.reviveClock.cap = REVIVES_PER_MISSION;
     this.lampTx = mode === 'sector' ? new LampSender() : null;
     this.lampShots = hostLampShots(mode);
     this.soloRemotes = g.remotePlayers;

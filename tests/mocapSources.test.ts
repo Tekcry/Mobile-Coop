@@ -38,9 +38,9 @@ function modules(dir: string, src: 'cmu' | 'mixamo'): Module[] {
 }
 
 // (mixamo-retarget I9) the Anim Studio only Mixamo clips sit one folder down (`place` studio, BATCH2-PLAN I7); (piano-knife
-// S2) so do the piano scene's (`place` piano)
+// S2) so do the knife kills' (`place` knife)
 const MODS = [
-  ...modules(CMU_DIR, 'cmu'), ...modules(MIXAMO_DIR, 'mixamo'), ...modules(`${MIXAMO_DIR}/studio`, 'mixamo'), ...modules(`${MIXAMO_DIR}/piano`, 'mixamo'),
+  ...modules(CMU_DIR, 'cmu'), ...modules(MIXAMO_DIR, 'mixamo'), ...modules(`${MIXAMO_DIR}/studio`, 'mixamo'), ...modules(`${MIXAMO_DIR}/knife`, 'mixamo'),
 ];
 /** (I9) The pack folders and their names as the Mixamo site gives them (BATCH2-PLAN "(4) Art-credits rows"). */
 const PACKS: Record<string, string> = {
@@ -79,7 +79,7 @@ describe('mocap sources: the table against the clip modules', () => {
       if (m.dir === 'mixamo') {
         // the slug rule (PLAN "Clip map"): mocap_<slug> in <slug>.ts (keyed) or trav_<slug>.ts (channel)
         const slug = name.slice(6);
-        expect(m.path.replace(/\/(studio|piano)\//, '/')).toBe(`${MIXAMO_DIR}/${m.kind === 'trav' ? 'trav_' : ''}${slug}.ts`);
+        expect(m.path.replace(/\/(studio|knife)\//, '/')).toBe(`${MIXAMO_DIR}/${m.kind === 'trav' ? 'trav_' : ''}${slug}.ts`);
       }
     }
     for (const name of MOCAP_SOURCE_NAMES) expect(inModules.has(name), `${name}: the row's module exists`).toBe(true);

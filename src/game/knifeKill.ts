@@ -11,7 +11,7 @@
  * hand IK puts the grip hand, the knife tip and the guard's hands on their marks. Phases are shares of `seconds`:
  * `contact` the stab lands, `limp` the guard dies (the ragdoll takes him).
  *
- * (piano-knife S2) The clips are Michael's Mixamo downloads (CLIP-LIST), emitted into `src/anim/clips/mixamo/piano/` (the
+ * (piano-knife S2) The clips are Michael's Mixamo downloads (CLIP-LIST), emitted into `src/anim/clips/mixamo/knife/` (the
  * piano scene's own lazy clips; the S1 stand-ins are gone): attacker `Stabbing` (behind, behindLow, front) and
  * `Standing Melee Attack Downward` (corner); victim `Falling Forward Death` (behind), `Dying` (behindLow, front) and
  * `Falling Back Death` (corner). The attacker clips are 2.1-2.6 s long and the move 1.0-1.5 s (A15): the move plays the
@@ -162,20 +162,20 @@ const VIC: (KeyedClip | null)[] = [null, null, null, null];
 let loading: Promise<void> | null = null;
 let ready = false;
 
-/** The clip modules by clip name (each its own chunk by a literal path: the piano scene's clips, `clips/mixamo/piano/`,
+/** The clip modules by clip name (each its own chunk by a literal path: the knife clips, `clips/mixamo/knife/`,
  *  stay off the entry chunk; the Studio reaches them through its lazy set). */
 function loadClip(name: string): Promise<KeyedClip | null> {
   switch (name) {
     case 'mocap_stabbing':
-      return import('../anim/clips/mixamo/piano/stabbing').then((m) => m.MOCAP_STABBING);
+      return import('../anim/clips/mixamo/knife/stabbing').then((m) => m.MOCAP_STABBING);
     case 'mocap_standing_melee_attack_downward':
-      return import('../anim/clips/mixamo/piano/standing_melee_attack_downward').then((m) => m.MOCAP_STANDING_MELEE_ATTACK_DOWNWARD);
+      return import('../anim/clips/mixamo/knife/standing_melee_attack_downward').then((m) => m.MOCAP_STANDING_MELEE_ATTACK_DOWNWARD);
     case 'mocap_falling_forward_death':
-      return import('../anim/clips/mixamo/piano/falling_forward_death').then((m) => m.MOCAP_FALLING_FORWARD_DEATH);
+      return import('../anim/clips/mixamo/knife/falling_forward_death').then((m) => m.MOCAP_FALLING_FORWARD_DEATH);
     case 'mocap_dying':
-      return import('../anim/clips/mixamo/piano/dying').then((m) => m.MOCAP_DYING);
+      return import('../anim/clips/mixamo/knife/dying').then((m) => m.MOCAP_DYING);
     case 'mocap_falling_back_death':
-      return import('../anim/clips/mixamo/piano/falling_back_death').then((m) => m.MOCAP_FALLING_BACK_DEATH);
+      return import('../anim/clips/mixamo/knife/falling_back_death').then((m) => m.MOCAP_FALLING_BACK_DEATH);
     default:
       return Promise.resolve(null);
   }

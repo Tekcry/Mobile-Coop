@@ -152,8 +152,6 @@ export const SECTION_RULE: Readonly<Record<string, ReachRule>> = {
   weapon: 'after',
   gun: 'after',
   speed: 'after',
-  // (piano-knife S4b) the intro breath is added to the spine after the blend, whatever the source
-  intro: 'after',
   body: 'layer',
   step: 'probe',
   weight: 'probe',

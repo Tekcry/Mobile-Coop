@@ -32,7 +32,6 @@ import { attackerHands, newPairTrack, pairHandsOff, resetPairTrack, victimHands,
 import { KnifeModel } from '../weapons/knifeModel';
 import { WREN_HANDS } from '../operators/handFrame';
 import { ease } from './closeQuarters';
-import type { IntroVariant } from '../anim/introBreath';
 
 /** What the stage needs from the match (GameState). */
 export interface StudioHost {
@@ -58,13 +57,7 @@ export interface StudioHost {
    *  class in the loadout (no-op without one). */
   weaponClass(): string;
   switchWeapon(cls: string): void;
-  /** (piano-knife S4b) GameState.introPose. */
-  introPose(on: boolean, variant: IntroVariant): boolean;
 }
-
-/** (piano-knife S4b) The intro rows' spot: the climbing platform's south face (z 8, x 0-3, 3 m high:
- *  `STUDIO_PROPS.platform`, the back-to-wall wall), facing away from it. */
-const STUDIO_INTRO = { x: 1.5, z: 7.55, yaw: Math.PI };
 
 /** The pairs' viewing spot: Wren (hidden) stands here, so the camera and the free view frame the team block. */
 const PAIR_VIEW = { x: PAIR_STATION.x, z: PAIR_STATION.z - 6.5, yaw: 0 };
@@ -143,8 +136,6 @@ export class StudioStage {
   private hidden = false;
   /** Wren is away from the middle (a pair or a loop moved her): back to it for a state or a clip. */
   private away = false;
-  /** (piano-knife S4b) An intro row holds the intro pose. */
-  private introOn = false;
   // (anim-studio-2) the traversal loop
   private readonly trav = newTravState();
   private readonly travOut = newTravOut();
@@ -491,11 +482,6 @@ export class StudioStage {
     else if (!wantGuard && this.guard) this.dropGuard();
     this.detach();
     if (clipChanged) {
-      // (piano-knife S4b) an intro row's pose ends with the row
-      if (this.introOn) {
-        this.host.introPose(false, 'stand');
-        this.introOn = false;
-      }
       mixamoStudioEntry(e.id); // (mixamo-retarget I2) a traversal capture's loop plays that capture (else none)
       this.pairPhase = 0;
       this.holdTr.n = 0;
@@ -515,12 +501,6 @@ export class StudioStage {
         this.host.doorsShut();
         this.host.teleport(STUDIO_MID, 0, STUDIO_MID, 0);
         this.away = false;
-      }
-      // (piano-knife S4b) an intro row: Wren's back to the platform face, the intro pose on
-      if (e.intro) {
-        this.host.teleport(STUDIO_INTRO.x, 0, STUDIO_INTRO.z, STUDIO_INTRO.yaw);
-        this.away = true;
-        this.introOn = this.host.introPose(true, e.intro);
       }
     }
     // (piano-knife S1) a knife pair: the clips (loaded once), the knife in her hand
@@ -914,7 +894,6 @@ export class StudioStage {
     for (const p of this.stageLights) p.dispose();
     this.stageLights.length = 0;
     delete (window as unknown as { __studioStage?: unknown }).__studioStage;
-    if (this.introOn) this.host.introPose(false, 'stand'); // (piano-knife S4b)
     this.detach();
     this.dropGuard();
     this.dropPuppet();

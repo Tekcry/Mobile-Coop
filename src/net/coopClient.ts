@@ -73,8 +73,6 @@ import { placeSlot, startSlotPoints } from '../game/spawnPlace';
 import { practiceFromRh } from '../game/sectorStart';
 import type { SlotPoint } from '../game/spawnSlots';
 import { SectorListMirror } from '../game/sectorObjectives';
-import { PianoScene, isPianoScene, nearestEmpItem, pianoClientWorld } from '../game/pianoScene';
-import { PianoIntroView } from '../game/pianoIntroView';
 import type { ObjectiveLine } from '../ui/screens/pauseScreen';
 
 const SEND_HZ = 20;
@@ -158,8 +156,6 @@ export class CoopClient implements NetAttachment {
   private readonly crateSpent = new Set<string>();
   /** Sector Ops: the client's mirror of the cameras and lasers. */
   private sec: CtDevices | null = null;
-  /** (piano-escape S4) The piano scene on this page (a scene map in Sector Ops): its own intro, ended by the host's EMP. */
-  private piano: PianoScene | null = null;
   /** (hud-guidance B4, HG8) Sector Ops: the field menu's full list, from the host's live section and objective line. */
   private list: SectorListMirror | null = null;
   /** (mission NET) The host's mission as applied here (`mission.runner`; null runner: none). */
@@ -266,24 +262,6 @@ export class CoopClient implements NetAttachment {
       this.sec = ct;
       g.ctDev = ct;
       this.list = new SectorListMirror(g.world.map.sectors ?? []);
-      // (piano-escape S4) a scene map: this page's own intro and empty kit (before the checkpoint records the loadout);
-      // our EMP press goes to the host as a `use` of the nearest EMP item; the host's press (`ep`) ends our intro
-      if (isPianoScene(g.world.map)) {
-        const sc = new PianoScene(
-          g,
-          undefined,
-          pianoClientWorld(g, {
-            view: (intro, onSkip) => new PianoIntroView(g, intro, onSkip),
-            askEmp: () => this.s.toHost({ t: 'use', id: nearestEmpItem(g.world.map, g.player.position.x, g.player.position.z) }),
-          }),
-        );
-        this.piano = sc;
-        sc.start();
-        this.offs.push(() => {
-          sc.dispose();
-          this.piano = null;
-        });
-      }
       // (sector-restart, M9) our loadout as section 1 begins: a checkpoint restart gives it back
       g.weapons.markCheckpoint();
       // (slice L) the host's lamps (`lamps`); our lamp rounds go to the host below
@@ -1150,8 +1128,6 @@ export class CoopClient implements NetAttachment {
       if (msg.dn) ct.applyDestroyed(msg.dn);
       if (msg.sec) ct.apply(msg.sec);
     }
-    // (piano-escape S4) the host's EMP press: our intro ends, the lightning's t0 and the music switch (once)
-    if (msg.ep !== undefined) this.piano?.hostEmp(msg.ep);
     if (msg.lk) {
       const doors = this.g.world.doors;
       for (const d of doors.list) {
@@ -1225,12 +1201,6 @@ export class CoopClient implements NetAttachment {
 
   private onEndMsg(raw: EndStats): void {
     this.ended = true;
-    // (piano-escape S4) a scene: no results screen; our page fades with the host's (2 s, the piano with it), then the
-    // host takes both pages back to the room's lobby (the session's `lobby`)
-    if (this.piano) {
-      this.piano.finish();
-      return;
-    }
     const end = clampEnd(raw, this.time);
     // (sector-ops step 3, M7) a completed op fills this player's star too (no best time: the host keeps the clock)
     // (campaign-mode CM5, MF11) never for a campaign mission: its record is the campaign's (`campaignFinish`)
@@ -1257,8 +1227,6 @@ export class CoopClient implements NetAttachment {
 
   fixedUpdate(dt: number): void {
     this.time += dt;
-    // (piano-escape S4) the scene's prompt (our press to the host) and the cut on our own clock
-    this.piano?.step(dt, true);
     this.sendT -= dt;
     // (coop-fix) snapshots stopped (a stalled or gone host): say so on the net-status line until the next one
     this.sinceSnap += dt;

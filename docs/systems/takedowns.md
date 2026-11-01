@@ -192,7 +192,7 @@ The close strike of G42 / G155; this is the build.
 - Tests: `tests/elbowStrike.test.ts`, `tests/committedMoves.test.ts`; e2e-pad, e2e-mouse, e2e-takedown, e2e-netmove
   (`strike`, `denied`), e2e-coop; anim-audit scenario `strike`.
 
-## Knife kills (every map; piano-knife S1, S2, S3, `docs/piano-knife/`; knife-kills)
+## Knife kills (every map; piano-knife S1, S2, S3, `docs/knife-kills/`; knife-kills)
 - (knife-kills, owner decision; first built for the removed piano scene) On every map the lethal takedown on a guard on
   two legs from a kind with a row is the paired knife kill: `TakedownController.start` with `lethal` true (the context
   prompts' A hold Kill, a lethal-only offer's Kill, a lethal-only offer started with no choice). No gate, no switch.
@@ -204,7 +204,7 @@ The close strike of G42 / G155; this is the build.
   window, inverted, hang-down, ...) or a dog, the lethal takedown is the classic lethal move (blow arc, 3 m noise).
 - Rows (`KNIFE_KILLS`, wire order `behind`, `behindLow`, `corner`, `front`; `pickKnifeKill`): behind (crouched: the rise),
   corner / overCover, front / side. The pairs (S2, Michael's Mixamo downloads in
-  `src/anim/clips/mixamo/piano/`): behind `stabbing` + `falling_forward_death`,
+  `src/anim/clips/mixamo/knife/`): behind `stabbing` + `falling_forward_death`,
   behindLow and front `stabbing` + `dying`, corner `standing_melee_attack_downward` + `falling_back_death`. The move is
   1.5 s (A15); the attacker clips are 2.1-2.6 s, so each row plays its clip's window (`attackerFrom` .. `attackerTo`)
   around the stab at the clip's own speed. The rows' timing, windows, `victimTo`, `standoff` and `side` are measured

@@ -43,9 +43,9 @@ export interface ShippedManifest {
 /**
  * (piano SO2) The maps whose lamps ship pre-built: `scripts/prebake/plan.ts` bakes exactly these and the game reads
  * `bakes/<id>.json` for exactly these (`world/lightBake.ts`). A map with a section split (`sectionBakeFor`) ships one
- * file per section, a map without (thornbeckMill) one file.
+ * file per section, a map without one file.
  */
-export const SHIPPED_BAKE_MAPS: readonly string[] = ['campusOps', 'thornbeckMill'];
+export const SHIPPED_BAKE_MAPS: readonly string[] = ['campusOps'];
 
 /** Does the bake id `mapId` ship its lamps pre-built? (`?fullbright`'s own id never does.) */
 export function shipsBake(mapId: string): boolean {

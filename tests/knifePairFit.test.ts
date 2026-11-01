@@ -22,11 +22,11 @@ import path from 'node:path';
 import { runRow, stabPhase, standsUntil, worstContact, type RowResult } from './helpers/knifePairRun';
 import { KNIFE_KILLS } from '../src/game/knifeKill';
 import type { KeyedClip } from '../src/anim/keyed';
-import { MOCAP_STABBING, MOCAP_STABBING_SECONDS } from '../src/anim/clips/mixamo/piano/stabbing';
-import { MOCAP_STANDING_MELEE_ATTACK_DOWNWARD, MOCAP_STANDING_MELEE_ATTACK_DOWNWARD_SECONDS } from '../src/anim/clips/mixamo/piano/standing_melee_attack_downward';
-import { MOCAP_FALLING_FORWARD_DEATH } from '../src/anim/clips/mixamo/piano/falling_forward_death';
-import { MOCAP_DYING } from '../src/anim/clips/mixamo/piano/dying';
-import { MOCAP_FALLING_BACK_DEATH } from '../src/anim/clips/mixamo/piano/falling_back_death';
+import { MOCAP_STABBING, MOCAP_STABBING_SECONDS } from '../src/anim/clips/mixamo/knife/stabbing';
+import { MOCAP_STANDING_MELEE_ATTACK_DOWNWARD, MOCAP_STANDING_MELEE_ATTACK_DOWNWARD_SECONDS } from '../src/anim/clips/mixamo/knife/standing_melee_attack_downward';
+import { MOCAP_FALLING_FORWARD_DEATH } from '../src/anim/clips/mixamo/knife/falling_forward_death';
+import { MOCAP_DYING } from '../src/anim/clips/mixamo/knife/dying';
+import { MOCAP_FALLING_BACK_DEATH } from '../src/anim/clips/mixamo/knife/falling_back_death';
 
 // the knife's GLB is not loaded headless (the tip is the node's frame and `KNIFE_TIP`)
 vi.mock('../src/weapons/weaponMesh', () => ({ loadWeaponMesh: () => false }));

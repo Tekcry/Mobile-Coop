@@ -1,5 +1,5 @@
 # piano-knife S4a: empty pistol (slide locked back)
-Owner: Night Shift | Player Build. Status: current. Builder: Sonnet 5.5 from this brief. Checker: one Opus (render
+Owner: Night Shift | Player Build. Status: history (the piano scene was removed in cleanup stage E; the knife kills are every map's lethal takedown, `docs/systems/takedowns.md`). Builder: Sonnet 5.5 from this brief. Checker: one Opus (render
 code and the weapon pipeline; no AI or `src/net` file, RULES "The loop"). Branch `feature/piano-knife-s4a` in
 `C:/NightShift/Mobile-Coop-piano-knife-s4a`, cut from origin/master at build start (6845009d9 when written); PR base
 `master`. Est. ~200 lines plus the rebuilt `pistolSd.glb`. Runs parallel with S1 (no shared file).
@@ -234,7 +234,7 @@ stores (-x, y, z), the reader mirrors x back), so "back" is -Z.
   one doc line are added. The lead updates PLAN section 3.
 - Not touched: everything in "Out of scope"; the S1 files (`knifeKill.ts`, `knifePair.ts`, `killDrive.ts`,
   `takedownController.ts`, `gameState.ts`, `enemy.ts`, `animGraph.ts`, `knifeModel.ts`, studio files);
-  `docs/piano-knife/*` (the job branch's). Wire: none. Save paths: none. Maps: none. Flags: none.
+  `docs/knife-kills/*` (was `docs/piano-knife/`) (the job branch's). Wire: none. Save paths: none. Maps: none. Flags: none.
 
 ## Tests (one closest set, run once; a red test gets one fix and one rerun)
 - `tests/pistolSlide.test.ts` (item 7) and `tests/weaponMesh.test.ts` (item 6).

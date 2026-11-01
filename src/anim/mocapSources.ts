@@ -91,7 +91,6 @@ export const MOCAP_SOURCES: Readonly<Record<string, MocapSource>> = {
   mocap_aa_stand_to_cover: { source: 'mixamo', title: 'Action Adventure Pack: stand to cover', take: 'pack-action-adventure/stand to cover.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'wallIdle', cycle: 1.067 } },
   mocap_aa_stand_to_cover_2: { source: 'mixamo', title: 'Action Adventure Pack: stand to cover (2)', take: 'pack-action-adventure/stand to cover (2).fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'wallIdle', cycle: 1.1 } },
   mocap_aa_walking: { source: 'mixamo', title: 'Action Adventure Pack: walking', take: 'pack-action-adventure/walking.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'walk', cycle: 1.033, move: 'fwd', circle: true } },
-  mocap_breathing_idle: { source: 'mixamo', title: 'Breathing Idle', take: 'Breathing Idle.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'idle', cycle: 9.933 } },
   mocap_carry_body_idle: { source: 'mixamo', title: 'Carry Body Idle', take: 'Carry Body Idle.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'carry', cycle: 10 } },
   mocap_carry_body_walking: { source: 'mixamo', title: 'Carry Body Walking', take: 'Carry Body Walking.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'carry', cycle: 2.867, move: 'fwd', circle: true } },
   mocap_cover_idle: { source: 'mixamo', title: 'Cover Idle', take: 'Cover Idle (standing cover against object).fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'wallIdle', cycle: 2.267 } },

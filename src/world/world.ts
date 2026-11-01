@@ -49,8 +49,6 @@ import { torchShadowSpec } from './torchShadowSet';
 import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField, type FieldDoor } from './lightField';
 import { moonLight } from './lampMath';
-import { LEVEL_TO_RENDER } from './darkCurve';
-import { DEMO_LIGHTNING, FLASH_GAIN, Lightning } from './lightning';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 import { KitRender } from './kit/kitRender';
 import { PropRender } from './props/propRender';
@@ -94,12 +92,6 @@ export class World {
   private readonly charSet = new Set<AbstractMesh>();
   /** 3.6: gameplay light (`LightField`): the canonical bake + the registry's state + closed doors. */
   readonly lightField: LightField;
-  /** (piano SO5) The map's lightning (`MapDef.lightning`, or the `?lightning=1` demo loop); null without. `GameState`
-   *  sets its level each sim step through `setFlash`. */
-  readonly lightning: Lightning | null;
-  /** (piano SO5) The sun / moon light's own intensity, and its intensity per gameplay level (the flash's share). */
-  private readonly sunBase: number;
-  private readonly sunPerLevel: number;
   /** Window glass and duct grates (separate bodies that open). */
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
@@ -198,29 +190,6 @@ export class World {
     this.lightDoors = shutterLeaves.length ? [...this.doors.list, ...shutterLeaves] : this.doors.list;
     // 3.6: the one light function every gameplay light query goes through (closed doors cut lamps)
     this.lightField = new LightField(lightBake, level.lights, this.lightDoors);
-    // (piano SO5) lightning: the map's strikes, or the dev demo loop; the sun / moon light carries its share on screen
-    // at the map's own intensity per gameplay level (no moon: the curve's level-to-render gain)
-    const lt = map.lightning ?? (flags.lightning ? DEMO_LIGHTNING : null);
-    this.lightning = lt ? new Lightning(lt) : null;
-    const mL = moonLight(th);
-    this.sunBase = th.sunIntensity;
-    this.sunPerLevel = mL > 0 ? th.sunIntensity / mL : LEVEL_TO_RENDER;
-  }
-
-  /**
-   * (piano SO5) This sim step's lightning level (`Lightning.levelAt`): the light field (the meter, guard sight) and the
-   * picture (the baked lamps' moon term, the sun / moon light's intensity) take the one value, so a lit window pool and
-   * the meter agree. Allocation-free.
-   */
-  setFlash(level: number): void {
-    const f = this.lightField;
-    f.setFlash(level);
-    const v = f.flashLevel;
-    // (piano SO5b) the openings' flash lights: intensity x the flash (the field's level / FLASH_GAIN), the same value
-    // for the field and the baked lamps' texels (`flickering`); a map without openings returns at once
-    this.level.lights.setSkyFlash(v / FLASH_GAIN);
-    if (this.lamps) this.lamps.skyFlash = v;
-    this.sun.intensity = this.sunBase + v * this.sunPerLevel;
   }
 
   static async create(engine: Engine, mapIn: MapDef, opts: WorldOptions): Promise<World> {
@@ -233,7 +202,7 @@ export class World {
     scene.autoClearDepthAndStencil = true;
     await enablePhysics(scene);
     const b = new LevelBuilder();
-    // the map, its flicker, the lightning openings' flash lights and the sway pendants, in the one order the prebake
+    // the map, its flicker and the sway pendants, in the one order the prebake
     // shares (`mapLights.ts`: its lamp key is always this one); before the build, so the hangers the sway claims (drawn
     // by the light rig, with the swing) never mesh
     const layout = buildMapLights(b, map, opts.seed);

@@ -22,9 +22,6 @@ export const CAMPUS_RECTS = [
   { s: 'S5', rect: [-70, 18, -26, 70] },
 ];
 
-/** Copy of `src/world/lampFlicker.ts` `FLICKER_FLASH`: the storm flash lights' mode (the pin leaves them to `setFlash`). */
-export const FLICKER_FLASH = 3;
-
 /**
  * The DARK_TARGETS row a field level falls in, else null. 0.12 / 0.40 / 0.70: within 0.03; 0.27: within 0.02 and under
  * the 0.28 meter threshold (A6). Self-contained on purpose: `findCards` sends its source into the page.
@@ -119,31 +116,25 @@ export function addMeter(res, id, ok) {
 // ---- page helpers ------------------------------------------------------------------------------------------------------
 
 /**
- * (A7) Hold every moving light still for a read: the flicker and sway ticks do nothing, every flickering light (but the
- * storm flash lights, `FLICKER_FLASH`) sits at multiplier 1, the lightning level reads 0, the flash is cleared and the
- * picture draws no character shadows. `unpinLights` puts the four back. Gameplay code is untouched; the originals live on `window.__pin`.
+ * (A7) Hold every moving light still for a read: the flicker and sway ticks do nothing, every flickering light sits at
+ * multiplier 1 and the picture draws no character shadows. `unpinLights` puts the three back. Gameplay code is untouched; the originals live on `window.__pin`.
  */
 export function pinLights(page) {
-  return page.evaluate((flash) => {
+  return page.evaluate(() => {
     const g = window.__app.current;
     const reg = g.world.level.lights;
-    const lt = g.world.lightning;
     const lamps = g.world.lamps;
     if (!window.__pin) {
-      window.__pin = { tickFlicker: reg.tickFlicker, tickSway: reg.tickSway, levelAt: lt ? lt.levelAt : null, capsules: lamps ? lamps.capsules : null };
+      window.__pin = { tickFlicker: reg.tickFlicker, tickSway: reg.tickSway, capsules: lamps ? lamps.capsules : null };
     }
     reg.tickFlicker = () => {};
     reg.tickSway = () => {};
     // (check finding 1) no character shadow in the picture: the parked player and frozen guards may stand between a card
     // and its lamp (`BakedLamps.capsules` null = 0 capsules)
     if (lamps) lamps.capsules = null;
-    for (const id of reg.flickering) if (reg.flickerMode(id) !== flash) reg.lights[id].flicker = 1;
+    for (const id of reg.flickering) reg.lights[id].flicker = 1;
     reg.flickerVersion++;
-    if (lt) {
-      lt.levelAt = () => 0;
-      g.world.setFlash(0);
-    }
-  }, FLICKER_FLASH);
+  });
 }
 
 /** Put back what `pinLights` replaced and bump `flickerVersion` (the renderers re-write the flickering lights). */
@@ -155,7 +146,6 @@ export function unpinLights(page) {
     if (!pin) return;
     reg.tickFlicker = pin.tickFlicker;
     reg.tickSway = pin.tickSway;
-    if (g.world.lightning && pin.levelAt) g.world.lightning.levelAt = pin.levelAt;
     if (g.world.lamps) g.world.lamps.capsules = pin.capsules;
     reg.flickerVersion++;
     window.__pin = null;

@@ -222,8 +222,6 @@ export class LightRig {
       const l = reg.lights[i]!;
       // moving lights (enemy flashlights) have no fixed bulb
       if (l.kind === 'flashlight') continue;
-      // (piano SO5b) a lightning opening's flash light is the sky through a window: no fitting
-      if (l.flash) continue;
       // (LR16-5b) a swinging pendant's fitting is drawn by `buildSway` (a zero matrix here)
       if (reg.sway && reg.sway.indexOf(i) >= 0) continue;
       const f = l.fixture;

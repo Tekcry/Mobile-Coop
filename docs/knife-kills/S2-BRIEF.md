@@ -1,5 +1,5 @@
 # piano-knife S2: real knife clips (Mixamo pairs, CMU 18-23 check)
-Owner: Night Shift | Player Build. Status: current. Builder: Opus (animation). Checker: one Opus (no AI or `src/net`
+Owner: Night Shift | Player Build. Status: history (the piano scene was removed in cleanup stage E; the knife kills are every map's lethal takedown, `docs/systems/takedowns.md`). Builder: Opus (animation). Checker: one Opus (no AI or `src/net`
 file; RULES "The loop"). Branch `feature/piano-knife-s2` in `C:/NightShift/Mobile-Coop-piano-knife-s2`, from
 origin/master after S1 merges (S2 builds on S1's real API; if S1 has its checker PASS but is not merged when S2 starts,
 the lead may branch from S1's PASS head instead; never merge master). Est. ~800 lines with tests (~1000 if a CMU pair

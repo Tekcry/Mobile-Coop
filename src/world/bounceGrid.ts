@@ -179,9 +179,8 @@ export class BounceGrid {
     const ls = reg.lights;
     for (let i = 0; i < this.ids.length; i++) {
       const l = ls[this.ids[i]!];
-      // (lit as `LightField.lampInto` reads it; (piano SO5b) a lightning opening's flash light gives no bounce: the grid
-      // follows `version` only, never the flash)
-      const want = l && l.on && !l.destroyed && l.intensity > 0 && !l.flash ?Math.round(l.intensity * BOUNCE_WEIGHT) : 0;
+      // (lit as `LightField.lampInto` reads it)
+      const want = l && l.on && !l.destroyed && l.intensity > 0 ? Math.round(l.intensity * BOUNCE_WEIGHT) : 0;
       const had = this.w[i]!;
       if (want === had) continue;
       this.w[i] = want;

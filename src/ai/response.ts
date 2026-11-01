@@ -66,12 +66,7 @@ export function paceSpeed(rush: boolean, calm: number, walk: number, run: number
 export const SEARCH_PLAIN = 0;
 export const SEARCH_BODY = 1;
 export const SEARCH_DEVICE = 2;
-/** (piano escape GA3) The scene blackout's search round its intro wall: rings out to `BLACKOUT_SEARCH.max` (6 m). */
-export const SEARCH_BLACKOUT = 3;
-export type SearchKind = typeof SEARCH_PLAIN | typeof SEARCH_BODY | typeof SEARCH_DEVICE | typeof SEARCH_BLACKOUT;
-
-/** (piano escape GA3) The blackout search's ring: the plain search's length, look and first radius, kept to ~6 m. */
-export const BLACKOUT_SEARCH = { r0: 2, step: 2, max: 6 } as const;
+export type SearchKind = typeof SEARCH_PLAIN | typeof SEARCH_BODY | typeof SEARCH_DEVICE;
 
 /** One kind of search: its length (s), the ring's first radius, growth per point and cap (m), the look at each point (s). */
 export interface SearchSpec {
@@ -89,7 +84,6 @@ export const SEARCH: readonly SearchSpec[] = [
   PLAIN,
   { time: ALERT.searchTime * BODY_SEARCH.timeMul, r0: BODY_SEARCH.r0, step: BODY_SEARCH.step, max: BODY_SEARCH.max, look: BODY_SEARCH.look },
   PLAIN,
-  { time: ALERT.searchTime, r0: BLACKOUT_SEARCH.r0, step: BLACKOUT_SEARCH.step, max: BLACKOUT_SEARCH.max, look: PATROL.searchLook },
 ];
 
 /** The numbers of search kind `kind` (an unknown kind: plain). */

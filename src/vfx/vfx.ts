@@ -185,8 +185,7 @@ export class Vfx {
     t.m.isVisible = true;
   }
 
-  /** A muzzle flash at `pos`. (guard-ai piano GA4) `life` (s, default 0.05): a slow-motion actor (`GuardActor`) passes
-   *  0.05 / its rate so the flash plays at its rate. */
+  /** A muzzle flash at `pos`, lit for `life` s (default 0.05). */
   muzzleFlash(pos: Vector3, size = 0.22, life = 0.05): void {
     const f = this.flashes[(this.fIdx = (this.fIdx + 1) % this.flashes.length)]!;
     f.active = true;

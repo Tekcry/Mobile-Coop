@@ -1,6 +1,6 @@
 // (map-ready S4) Prebake phase (c), per map not cached: the shards joined into one gzip file per section (each lamp in
 // the file of the lowest section it counts for, `lampSectionMasks`; lamps of no section in `s<sections>`; a map with
-// no section split, thornbeckMill, ships every lamp in `s0`) and the manifest `<h>/<map>.json`; the shard files go.
+// no section split ships every lamp in `s0`) and the manifest `<h>/<map>.json`; the shard files go.
 // The caps, `current.json` and the prune are `scripts/prebake.mjs`'s.
 import { createHash } from 'node:crypto';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';

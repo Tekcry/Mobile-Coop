@@ -1,5 +1,5 @@
 # piano-knife: state
-Owner: Night Shift | Player Build. Status: current.
+Owner: Night Shift | Player Build. Status: history (the piano scene was removed in cleanup stage E; the knife kills are every map's lethal takedown, `docs/systems/takedowns.md`).
 
 ## Resume
 - Job: knife kill animations (paired, Michael ~19:45) + intro pose for the piano escape scene (ROADMAP Now row 20, main

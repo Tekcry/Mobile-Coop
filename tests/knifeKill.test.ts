@@ -92,7 +92,7 @@ describe('piano-knife S1: the rows', () => {
     });
     const src = fs.readFileSync('src/game/knifeKill.ts', 'utf8');
     expect(src).not.toMatch(/^import\s[^;]*clips\//m);
-    expect(src).toContain("import('../anim/clips/mixamo/piano/stabbing')");
+    expect(src).toContain("import('../anim/clips/mixamo/knife/stabbing')");
   });
 
   it('buckleAt: 0 before contact, never past 1, back to 0 after rise + decay', () => {

@@ -533,8 +533,7 @@ function nearest(reg: LightRegistry, x: number, y: number, z: number, out: Int32
   const ls = reg.lights;
   for (let i = 0; i < ls.length; i++) {
     const l = ls[i]!;
-    // ((piano SO5b) a lightning opening's light between strikes takes no slot)
-    if (!l.on || l.destroyed || (l.flash && l.flicker <= 0)) continue;
+    if (!l.on || l.destroyed) continue;
     const dx = l.x - x;
     const dy = l.y - y;
     const dz = l.z - z;
