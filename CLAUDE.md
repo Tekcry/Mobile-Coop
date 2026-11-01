@@ -4,21 +4,21 @@ Owner: the orchestrator. Status: current.
 Night Shift is an original third-person co-op stealth game built on pure Chaos Theory (CT): a PWA (Vite + TypeScript +
 Babylon.js 9 + Havok) on GitHub Pages, desktop only, pad first.
 
-**Read at start:** `git show origin/master:docs/RULES.md` (process: sessions, jobs, tests, machines, merges) and
-`git show origin/master:docs/VISION.md` (the game). Any CLAUDE.md, RULES.md or VISION.md in a branch or worktree may be
-stale; origin/master wins. Module map and doc index: `docs/INDEX.md` (read on demand).
+**Read at start (from 2026-11-01):** the pinned GitHub issue "Night Shift - control panel" (live state), then
+`docs/plan/MASTER-PLAN-PROMPT.md` (process: section 16; phases: section 7), `docs/plan/DECISIONS-2026-11.md` (Michael's
+decisions since the refresh) and `docs/plan/CLEANUP-PLAN-2026-11-01.md` (the direction). `docs/RULES.md` and
+`docs/VISION.md` are history (the old process and the old vision); new short ones come in Phase 1. Read docs from
+origin/master; a branch or worktree copy may be stale. Module map and doc index: `docs/INDEX.md` (read on demand).
 
-**Authority order (G86)** - the only copy; other docs point here. The higher source wins; report the conflict.
-1. Michael's current instruction, then his recorded words in `docs/ROADMAP.md` "Decided" (on origin/feature/menu) that
-   are not yet folded into DECISIONS.
-2. `docs/DECISIONS.md` (the G entries).
-3. `docs/design-bible.md` (gameplay) and `docs/story.md` (story and in-game text).
-4. Job and map docs: the job's BRIEF and PLAN, `docs/level-design.md` and the map's documents.
-5. `docs/RULES.md`, this file and `docs/systems/*.md`.
-6. Code and tests.
-
-Every decision is also written into the bible. `docs/VISION.md` summarises 1-3; where it differs, the higher source wins
-and the orchestrator fixes VISION.
+**Authority order (G86, revised 2026-11-01)** - the only copy; other docs point here. The higher source wins; report
+the conflict.
+1. Michael's current instruction, then `docs/plan/DECISIONS-2026-11.md` and the control panel's "Decided by Michael".
+2. `docs/plan/MASTER-PLAN-PROMPT.md` and `docs/plan/CLEANUP-PLAN-2026-11-01.md`.
+3. `docs/DECISIONS.md` (the G entries, frozen at G434): still binding where 1-2 do not replace them.
+4. `docs/design-bible.md` (gameplay) and `docs/story.md` (story and in-game text), where 1-3 do not replace them.
+5. Job and map docs, `docs/level-design.md` and the map's documents.
+6. This file and `docs/systems/*.md`.
+7. Code and tests.
 
 ## Hard rules (code)
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.

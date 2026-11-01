@@ -1,5 +1,10 @@
 # Night Shift - process rules
-Owner: the orchestrator. Status: current.
+Owner: the orchestrator. Status: history.
+
+**Replaced 2026-11-01.** This is the old process (merge trains, test queues, machines, watchdogs, scheduled tasks), kept
+as history. The process now: `docs/plan/MASTER-PLAN-PROMPT.md` section 16 and the pinned control panel issue: one main
+session, helpers report back to it, every change goes branch -> PR -> GitHub CI -> merge when green, no automation.
+A new short RULES.md comes in Phase 1.
 
 The one place for session, job, machine, merge and test rules; current rules only. Every session reads them from master: `git show origin/master:docs/RULES.md`, never a branch or
 worktree copy. The game itself: `docs/VISION.md`. Code hard rules and the authority order: `CLAUDE.md`.

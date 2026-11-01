@@ -1,7 +1,8 @@
 # Night Shift - module map and doc index
 Owner: the orchestrator. Status: current.
 
-Read on demand (`CLAUDE.md` points here). Rules: `docs/RULES.md`; the game: `docs/VISION.md` (both from origin/master).
+Read on demand (`CLAUDE.md` points here). From 2026-11-01: the control panel issue, `docs/plan/MASTER-PLAN-PROMPT.md` and
+`docs/plan/DECISIONS-2026-11.md` (`CLAUDE.md` "Read at start"); `docs/RULES.md` and `docs/VISION.md` are history.
 
 ## Module map (`src/`)
 | Module | Responsibility |
@@ -27,15 +28,17 @@ Read on demand (`CLAUDE.md` points here). Rules: `docs/RULES.md`; the game: `doc
 | `editor/`, `security/`, `dev/` | Kestrel level editor and its security devices (dev only; Kestrel paused, G53); editor bridge |
 | `pwa/`, `config/` | Service worker, fullscreen, gestures; JSON / TS content and feel tables |
 
-Maps: Marlow Yard (`ctcourse`, Course mode, `?autostart=ctcourse&mode=course`), Sector Ops Saltmarsh Park (`campusOps`;
-the old `warehouseOps` stays selectable, frozen, G390).
+Maps: Marlow Yard (`ctcourse`, Course mode, `?autostart=ctcourse&mode=course`), the Test Chamber (`studio`, Free Roam or
+test mode), Tallow Wharf (campaign preview). Saltmarsh Park and Warehouse Ops were removed in clean-up F.
 
 ## Doc index
 | File | Covers | Read when |
 | --- | --- | --- |
-| `docs/RULES.md` | Sessions, jobs, intake, walk pacing, train-ready, test tiers, machines, swaps, commands, ports, definition of done | Every session start (from origin/master) |
-| `docs/VISION.md` | The game summary (modes, player counts) and the current-focus pointer (ROADMAP Now) | Every session start (from origin/master) |
-| `docs/DECISIONS.md` | Michael's decisions G1 onward, deferred and unanswered items | Any design or process question |
+| `docs/plan/MASTER-PLAN-PROMPT.md` | The orchestrator brief: phases, gates, process (section 16) | Every session start (section 16) |
+| `docs/plan/DECISIONS-2026-11.md` | Michael's decisions since 2026-11-01 | Every session start |
+| `docs/RULES.md` | History: the old process (trains, queues, machines), replaced 2026-11-01 | Only for history |
+| `docs/VISION.md` | History: the old vision, replaced 2026-11-01 (v3 comes in Phase 1) | Only for history |
+| `docs/DECISIONS.md` | Michael's decisions G1-G434 (frozen 2026-11-01; still binding where not replaced) | Any design question the newer docs do not settle |
 | `docs/design-bible.md` | Pillars, systems, out-of-scope list, level and platform rules | The sections the job touches |
 | `docs/ROADMAP.md` (on origin/feature/menu) | Now, Inbox (Michael's new ideas), Waiting on Michael, Decided, Done (owned by the orchestrator) | The entries a resume block names |
 | `docs/story.md` | Story, setting, characters, radio and writing rules | Any in-game text, briefing or mission writing |
