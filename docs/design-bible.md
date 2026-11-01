@@ -1162,7 +1162,7 @@ in `docs/level-design.md` section 13, its owner. The light plan carries each spa
 ## 9. How we build
 
 The process lives in `docs/RULES.md` ("Sessions": the orchestrator, machines, jobs, test tiers, branches; commands;
-definition of done) and `docs/systems/session-method.md` (the job lead's loop). In short:
+definition of done). In short:
 
 - **Authority order:** Section 0 (G86).
 - **Branches:** master is the only base. One branch per job from master, one PR each (G83); green PRs ride automatic
@@ -1283,7 +1283,7 @@ design calls and technical assumptions.
 - Next: <the next step, or "job complete - STOP">
 ```
 
-(Appendix A, the old phase spec template, is history: jobs are set up by `docs/systems/session-method.md`.)
+(Appendix A, the old phase spec template, is history.)
 
 ## Appendix C - Checker checklist
 

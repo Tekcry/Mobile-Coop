@@ -1,8 +1,8 @@
 # <job>: brief
 <!-- Owner: the orchestrator (template). Status: current. -->
 
-<!-- How to use: copy to docs/<job>/BRIEF.md, fill every <...>, delete these comments. Gate 1 of the intake
-     (docs/systems/session-method.md "Intake"). The plan checker compares the PLAN against the two Michael sections,
+<!-- How to use: copy to docs/<job>/BRIEF.md, fill every <...>, delete these comments. Gate 1 of the intake.
+     The plan checker compares the PLAN against the two Michael sections,
      so they hold his words and clicks exactly, never a summary. -->
 
 Lead: <session title>. Started: <YYYY-MM-DD HH:MM>. Base: master <sha>.

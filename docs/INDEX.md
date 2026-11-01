@@ -42,7 +42,7 @@ the old `warehouseOps` stays selectable, frozen, G390), Fallow (`bunker`, parked
 | `docs/story.md` | Story, setting, characters, radio and writing rules | Any in-game text, briefing or mission writing |
 | `docs/level-design.md`, `docs/templates/map-spec.md`, `docs/design/scale-sheet.md` | The map standard (engine facts in Section 12), the map spec template, the size sheet | Any map or engine-fact change |
 | `docs/level-validator/` | The level-graph schema and an example graph (`scripts/level-validate.mjs`) | Map graphs, validator runs |
-| `docs/templates/` | BRIEF, PLAN, plan check, sign-off, walk card and map spec templates | Starting a job or a walk card |
+| `docs/templates/` | BRIEF, PLAN, sign-off, walk card and map spec templates | Starting a job or a walk card |
 | `docs/ct-prototype/`, `docs/marlow-final/` | Marlow Yard, the co-op training course (`CTCOURSE-SPEC.md`), its slices and playtests | Marlow Yard work |
 | `docs/sector-redesign/` | Sector Ops Saltmarsh Park: spec, slices, lighting | Sector Ops work |
 | `docs/coop4/` | Sector Ops up to 4 players | Co-op player count work |
@@ -53,13 +53,8 @@ the old `warehouseOps` stays selectable, frozen, G390), Fallow (`bunker`, parked
 | `docs/research/` | Night vision and lamp research | Vision and light work |
 | `docs/backlog.md` | Playtest feedback and bugs (new ideas from Michael go to the ROADMAP Inbox) | Adding feedback |
 | `TESTING.md` | The short desktop checklist and the release checklist | Ending a job |
-| `docs/systems/testing-tools.md` | Every e2e suite, the test queue, flakes and quarantine, helper scripts, debug overlay | Running or writing tests, judging a failure |
-| `docs/systems/auto-train.md` | Auto-train (rolling merge trains) | Trains |
-| `docs/systems/watchdog.md` | The watchdog: alerts, fixes, the train-ready label convention | Labels, stuck pipeline |
-| `docs/systems/swaps.md` | Swap save and boot commands, worktree clean-up | Swaps |
-| `docs/laptop-queue/` | The laptop queue job (BRIEF, STATE, visual gate); its first build plan is archived | Queue changes |
+| `docs/systems/testing-tools.md` | Every e2e suite, flakes and quarantine, helper scripts, debug overlay | Running or writing tests, judging a failure |
 | `docs/systems/deploy.md` | Branches and the Pages slots | Releases, preview builds |
-| `docs/systems/session-method.md`, `docs/systems/agent-preamble.md` | The job lead's loop (intake detail, implementer, checker, fix round); the shared subagent preamble | Running a job or writing its prompts |
 | `docs/systems/input-and-loop.md` | Game loop, actions, pad and keyboard bindings | Input work |
 | `docs/systems/ui.md` | HUD, menus, display, feedback, photo mode | UI work |
 | `docs/systems/world-and-characters.md` | Maps, level builder, the shared character rig | Maps, rig, animation |
@@ -78,7 +73,6 @@ the old `warehouseOps` stays selectable, frozen, G390), Fallow (`bunker`, parked
 | `docs/systems/performance.md` | Frame, CPU, draw and memory budgets; perf script budgets | Every job end |
 | `docs/systems/conventions.md` | Robustness rules, conventions, full module table, hot paths, project overview | Code conventions |
 | `docs/kestrel/` | The Kestrel map project and editor (paused, G53) | Kestrel work only |
-| `docs/process-audit/` | Process audits; `rules-history-2026-10-24.md`, the rule text before the 2026-10-24 rewrite | The origin of a rule |
 
 History (do not read unless a job names it): `docs/archive/progress.md` (history and the older follow-up backlog) and
 `docs/archive/`: every finished job's folder `docs/archive/<job>/` (for example `locomotion/` with `CT-RESEARCH.md`

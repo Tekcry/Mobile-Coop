@@ -1,7 +1,7 @@
 # <job>: sign-off <n> - <map / section / look name>
 <!-- Owner: the orchestrator (template). Status: current. -->
 
-<!-- Gate 4 of the intake (docs/systems/session-method.md "Intake"), for maps, layouts and looks only. ONE page:
+<!-- Gate 4 of the intake, for maps, layouts and looks only. ONE page:
      Michael reads it in under a minute and clicks one decision. Copy to docs/<job>/SIGNOFF.md (or SIGNOFF-<n>.md),
      fill every <...>, delete these comments. Nothing past this point (greybox, detail art, look build) starts until
      he clicks. The orchestrator asks the decision as native multiple choice by day and records the pick below. -->

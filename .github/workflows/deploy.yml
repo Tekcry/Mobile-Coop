@@ -4,26 +4,12 @@ name: Build and deploy to GitHub Pages
 # Chaos Theory movement preview (ct-movement branch) at /<repo>/ct/ and the Kestrel map project (feature/kestrel branch)
 # at /<repo>/kestrel/. A push to the default branch, or a passing "Preview check" on dev / ct-movement / feature/kestrel,
 # rebuilds them all. Each slot is its own build, service worker and save database; the other slots are only rebuilt
-# from their own branches.
-# Releases (scripts/merge-train.mjs, audit 2026-10-24 finding 9): the merge commit carries the line
-# "merge-train: Pages deploy is dispatched after dev moves", so neither its master push nor dev's Preview check deploys;
-# after dev moves, merge-train dispatches this workflow once with tested_sha = the head CI passed on. When the live
-# tree equals that head's tree, lint and vitest are skipped (CI already ran them on it). Each build writes
-# version.json ({ version, sha }) into its slot; merge-train reads /preview/version.json to confirm the release.
+# from their own branches. Each build writes version.json ({ version, sha }) into its slot.
 on:
   push:
     branches: [main, master]
   pull_request:
   workflow_dispatch:
-    inputs:
-      tested_sha:
-        description: The commit CI passed on (a train head); lint and vitest are skipped when the live tree equals its tree
-        required: false
-        default: ''
-      version:
-        description: The released version (log only)
-        required: false
-        default: ''
   workflow_run:
     workflows: [Preview check]
     types: [completed]
@@ -40,8 +26,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # pull requests: check the change only (no deploy). lint, test, build-check and pr-size run in parallel; `check` is the
-  # one status name merge-train and CLAUDE.md use, and it fails unless all four passed (a skipped need must not pass).
+  # pull requests: check the change only (no deploy). lint, test and build-check run in parallel; `check` is the one
+  # status name to require, and it fails unless all three passed (a skipped need must not pass).
   lint:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -107,63 +93,26 @@ jobs:
             prebake-
       - run: npm run build
 
-  # PR size cap (intake gates, 2026-10-24; docs/systems/session-method.md "Intake"): <= 1500 changed lines vs the merge
-  # base, excluding generated assets, snapshots, lockfiles and docs; train/* and docs-only PRs are exempt. Over the cap
-  # it fails unless the PR has the `big-pr` label (orchestrator-approved). The label is read live, so after adding it
-  # `gh run rerun <run id> --failed` reruns this job and `check`.
-  pr-size:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - name: PR size (<= 1500 counted lines, or the big-pr label)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BASE_REF: ${{ github.base_ref }}
-          HEAD_REF: ${{ github.head_ref }}
-          PR: ${{ github.event.pull_request.number }}
-        # The script (and its one local import) comes from the BASE branch, not the PR head: branches cut before the
-        # gate existed lack scripts/pr-size.mjs. git still runs in the checkout, so the measured diff is unchanged.
-        run: |
-          mkdir -p "$RUNNER_TEMP/pr-size"
-          for f in pr-size.mjs glob-match.mjs; do
-            git show "origin/$BASE_REF:scripts/$f" > "$RUNNER_TEMP/pr-size/$f"
-          done
-          node "$RUNNER_TEMP/pr-size/pr-size.mjs" --base "origin/$BASE_REF" --head HEAD --branch "$HEAD_REF" --pr "$PR"
-
   check:
-    needs: [lint, test, build-check, pr-size]
+    needs: [lint, test, build-check]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: All of lint, test, build-check and pr-size passed
+      - name: All of lint, test and build-check passed
         run: |
-          echo "lint=${{ needs.lint.result }} test=${{ needs.test.result }} build-check=${{ needs['build-check'].result }} pr-size=${{ needs['pr-size'].result }}"
+          echo "lint=${{ needs.lint.result }} test=${{ needs.test.result }} build-check=${{ needs['build-check'].result }}"
           test "${{ needs.lint.result }}" = success
           test "${{ needs.test.result }}" = success
           test "${{ needs['build-check'].result }}" = success
-          test "${{ needs['pr-size'].result }}" = success
 
   build:
     if: >-
       github.event_name != 'pull_request'
-      && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success'
-          && !contains(github.event.workflow_run.head_commit.message, 'merge-train: Pages deploy is dispatched after dev moves')))
-      && (github.event_name != 'push' || !contains(github.event.head_commit.message, 'merge-train: Pages deploy is dispatched after dev moves'))
+      && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     env:
       # Pages serves project sites from /<repo-name>/
       BASE: /${{ github.event.repository.name }}/
-      TESTED_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.tested_sha || '' }}
     steps:
       - name: Live (default branch)
         uses: actions/checkout@v4
@@ -184,16 +133,11 @@ jobs:
         if: steps.nm.outputs.cache-hit != 'true'
         working-directory: live
         run: npm ci
-      - name: Lint and test live (skipped on a release dispatch whose tree CI already tested)
+      - name: Lint and test live
         working-directory: live
         run: |
-          if [ -n "$TESTED_SHA" ] && git fetch --no-tags --depth=1 origin "$TESTED_SHA" && [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse 'FETCH_HEAD^{tree}')" ]; then
-            echo "live tree == tree of the tested head $TESTED_SHA: lint and vitest skipped (CI passed on it)"
-          else
-            echo "no tested head, or the live tree differs from it: lint and vitest run"
-            npm run lint
-            npm test
-          fi
+          npm run lint
+          npm test
       - name: Campus prebake cache (live)
         uses: actions/cache@v4
         with:

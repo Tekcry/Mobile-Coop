@@ -1,9 +1,8 @@
 # <job>: plan
 <!-- Owner: the orchestrator (template). Status: current. -->
 
-<!-- How to use: copy to docs/<job>/PLAN.md, fill every <...>, delete these comments. Gate 2 of the intake
-     (docs/systems/session-method.md "Intake"). Keep the claims block's fence and keys exactly: scripts/claims-check.mjs
-     parses it. Commit and push BRIEF + PLAN before the plan checker starts. -->
+<!-- How to use: copy to docs/<job>/PLAN.md, fill every <...>, delete these comments. Gate 2 of the intake.
+     Commit and push BRIEF + PLAN before the plan checker starts. -->
 
 Lead: <session title>. Planner: <model>, master <sha>. Brief: `docs/<job>/BRIEF.md`.
 

@@ -8,9 +8,9 @@
 // the projected grid points and the bible L5 display-target check. `--video <s>`: after the presets, one more Epic
 // browser records a headless fly-through of the section's views (the look video each lighting PR carries).
 // Output: <out>/shots.json, <out>/<preset>-<view>.png, <out>/flythrough-<preset>.webm.
-// Needs dist/ served on E2E_PORT (the laptop queue's `serve ` step prefix: scripts/laptop-queue/serve.mjs). GPU:
-// E2E_GPU=1 (the queue sets it). Never headed.
-//   E2E_GPU=1 E2E_PORT=4189 node scripts/laptop-queue/serve.mjs scripts/light-realism/shots.mjs --map campusOps --section 1 --label before [--presets low,epic] [--video 90] [--push shots/light-realism-s1]
+// Needs dist/ served on E2E_PORT (scripts/serve-dist.mjs serves it and runs this script). GPU:
+// E2E_GPU=1. Never headed.
+//   E2E_GPU=1 E2E_PORT=4189 node scripts/serve-dist.mjs scripts/light-realism/shots.mjs --map campusOps --section 1 --label before [--presets low,epic] [--video 90] [--push shots/light-realism-s1]
 //   node scripts/light-realism/shots.mjs --dry-run [--map campusOps --section 1] [--push shots/light-realism-s1]   (no browser, no server)
 // --push <branch>: after the run, commit <out> onto that branch (shots/light-realism-<name> only) under
 // <prefix>/ with git plumbing (a temp index; HEAD, index and working tree untouched), as the visual-gate VG7 pusher
@@ -435,7 +435,7 @@ async function main() {
     return 0;
   }
   if (!(await fetch(URL).then(() => true, () => false))) {
-    console.error(`shots: nothing serves ${URL} (run it through scripts/laptop-queue/serve.mjs)`);
+    console.error(`shots: nothing serves ${URL} (run it through scripts/serve-dist.mjs)`);
     return 2;
   }
   const { launch } = await import(pathToFileURL(path.join(ROOT, 'scripts/e2e-lib.mjs')).href);

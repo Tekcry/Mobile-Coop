@@ -1,7 +1,7 @@
 # Walk card <version> - <release title>
 <!-- Owner: the orchestrator (template). Status: current. -->
 
-<!-- One per release (docs/RULES.md "Walk pacing"; docs/systems/session-method.md "Walk card"). Copy to docs/walks/<version>.md, fill
+<!-- One per release (docs/RULES.md "Walk pacing"). Copy to docs/walks/<version>.md, fill
      every <...>, delete these comments. At most 10 minutes for Michael: items ranked by risk, highest first; cut the
      low-risk tail instead of going over. Each item names its look video or shot so he can judge before he plays.
      His verdicts go in the Result column; an accepted item switches its flag on, a rejected one becomes a fix slice. -->

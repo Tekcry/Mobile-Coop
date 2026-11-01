@@ -1,6 +1,6 @@
 // Route-run results branch (J13 R4a, BRIEF A9): `--publish` commits one run log to the branch `route-run-results` at
 // `<map>/<sha8>-<time>/` with git plumbing only (a temp index, no checkout: never the working tree, the worktree index or
-// HEAD), as scripts/laptop-queue/request.mjs does, retrying on a lost push race. `--merge` reads them back.
+// HEAD), retrying on a lost push race. `--merge` reads them back.
 //   publishLog({ map, sha, time, files: { name: text } }) -> { dir, commit }
 //   readParts(map, sha) -> [{ dir, log }]   the published logs of one map and commit (desktop: fetches the branch)
 // Pure helpers (tests/routeRunCli.test.ts): `partDir`, `pickParts`.

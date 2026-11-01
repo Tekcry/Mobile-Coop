@@ -29,8 +29,7 @@ This page lists the suites and how they are picked.
 
 ## The runner (`scripts/run-e2e.mjs`)
 - Serves `dist/` once (`vite preview`; needs a prior `npm run build`) and runs the suites in a pool, each suite its own
-  process and browser, the slowest first (`scripts/e2e-times.json`, rewritten locally by a clean full run; the laptop
-  queue keeps its own times seeded from it and never rewrites the committed file). Each suite's
+  process and browser, the slowest first (`scripts/e2e-times.json`, rewritten locally by a clean full run). Each suite's
   output prints as one block and is kept in `test-results/e2e/`. `e2e-desktop` runs as jobs `e2e-desktop:1`, `:2`, `:4`
   (`--part=N`; its sections are independent); part 3 (the Epic renderer) is in the GPU list. `e2e-ctcourse` runs as
   `e2e-ctcourse:1` to `:4` (marlow-final: A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages started at its first
@@ -40,10 +39,9 @@ This page lists the suites and how they are picked.
   `e2e-sectorops` runs as `e2e-sectorops:1` to `:9` (sector-fixes-r RE: the suite before slice R, the solo route checks,
   the co-op routes of sections 1-3, and parts 6-9 the solo campusOps (Saltmarsh Park) checks: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5 (split from one part 6 in F33: it ran near the 900 s kill); `PARTS` in `scripts/run-e2e.mjs`);
   named alone its nine parts run as parallel jobs.
-- Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`). The laptop queue sets it per run (the numbers:
-  `docs/RULES.md` "Machines"); cloud VMs use `E2E_JOBS=2`.
+- Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); cloud VMs use `E2E_JOBS=2`.
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails, quarantined or not: a quarantine forgives an assert (exit 1)
-  only, never a timeout, signal or other code (`scripts/e2e-verdict.mjs`). The laptop queue runs with `E2E_SUITE_TIMEOUT=900`
+  only, never a timeout, signal or other code (`scripts/e2e-verdict.mjs`). Long runs use `E2E_SUITE_TIMEOUT=900`
   (e2e-desktop about 553 s, e2e-mouse about 405 s solo). `E2E_REPORT` (space or comma list) makes those suites or parts REPORT ONLY.
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
   changed folders (`QUICK_COVERS` in `scripts/e2e-affected.mjs`, master's map unchanged, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
@@ -58,8 +56,7 @@ This page lists the suites and how they are picked.
 - The folder -> suites maps live in `scripts/e2e-affected.mjs` (pure, tested by `tests/e2eAffected.test.ts`): `QUICK_COVERS`
   (`--quick`, master's map and rules unchanged; the test holds a frozen copy and checks it row by row), `DIRECT_COVERS`
   (`--affected`) and `WIDE_COVERS` (`--affected --wide`). Edit them there and keep their rule comments true. A name with a
-  part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts. `scripts/auto-train.mjs` reads them too (auto-drop:
-  `suiteSetFor` over `DIRECT_COVERS` picks the failed train's culprit, `coverFolders` over `QUICK_COVERS` is its fallback).
+  part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts.
 - The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
   on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, `e2e-bunker` (these four get `LEGACY=1`, so
   `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
@@ -85,10 +82,10 @@ This page lists the suites and how they are picked.
   `stepHeadless`, screenshots).
 
 ## Choosing suites for a change
-- `node scripts/run-e2e.mjs --affected <base-ref> [--wide]` (e.g. `origin/master`): the suites a PR must pass (the laptop is the bottleneck, so the default is the DIRECT tier; `--wide` adds the cross-area readers). Changed files =
+- `node scripts/run-e2e.mjs --affected <base-ref> [--wide]` (e.g. `origin/master`): the suites a PR must pass (the default is the DIRECT tier; `--wide` adds the cross-area readers). Changed files =
   `git diff --name-only <merge-base of base and HEAD> HEAD` (committed work only, so it works on a detached commit on the
-  laptop; `--quick` reads the working tree). Add `--list` to print the chosen suites one per line and exit without running
-  (what the laptop queue service and leads use to know what a PR must pass). The list is `affectedPick`: the map, the wire rule
+  laptop; `--quick` reads the working tree). Add `--list` to print the chosen suites one per line and exit without running.
+  The list is `affectedPick`: the map, the wire rule
   (a change on the wire, `src/net/` or a file `src/net/protocol.ts` imports, read at HEAD, also adds the co-op group:
   `withWireSuites`, after the map), the gate (GPU, LEGACY and AUDIO left out), then the cap: `AFFECTED_MAX` suites, the closest
   (1, G421, RULES "Test tiers"; the co-op group stays whole; ranking in `rankAffected`'s comment; `--affected-max=N` / `E2E_AFFECTED_MAX`, 0 = no cap; `--wide`
@@ -568,12 +565,9 @@ a map passes when no run has a dead stop. Detections, notices and times never fa
   (default 2; a selftest takes its fixture's), `--pace sneak|walk|run` (default `sneak`: crouched at
   `split_speed_mps`), `--detections forgive|keep` (default `forgive`: each detected guard is calmed after it is logged),
   `--out <dir>`, `--publish`, `--dry-run` (prints the plan, opens no browser). Query params on `<url>` are kept.
-- Request (laptop only, a browser run, `E2E_GPU=1` is set for alone steps): one alone request per section, so a train
-  preempts one section at most:
-  `node scripts/laptop-queue/request.mjs --sha <full sha> --alone --step "serve scripts/route-run.mjs
-  http://127.0.0.1:4189/ --graph docs/sector-redesign/graph/campusOps-S1.json --points auto --section S1 --publish"
-  --set route-run-s1 --requester "<lead title>"`; verdict `laptop-e2e/alone-route-run-s1`. Not an e2e suite: never in
-  `npm run e2e` or `affected-e2e`. A crash or timeout mid-run is not a pass. Selftests (a fixture carries its own graph,
+- On a served build, one section per run (`scripts/serve-dist.mjs` serves `dist/` on `E2E_PORT` and runs the script):
+  `E2E_GPU=1 E2E_PORT=4189 node scripts/serve-dist.mjs scripts/route-run.mjs http://127.0.0.1:4189/ --graph <graph> --section S1`.
+  Not an e2e suite: never in `npm run e2e`. A crash or timeout mid-run is not a pass. Selftests (a fixture carries its own graph,
   points and `expect` block): `tests/fixtures/route-run/selftest*.graph.json` (default `selftest.graph.json`).
 - Outputs (in `--out`, default a temp folder that is printed): `route-run-log.json` (the run log), `route-run.json` and
   `REPORT.md` (summary per run, every detection, notice, dead stop, stub and drill, the walk-card lines), `shots/` (one
@@ -616,145 +610,20 @@ a map passes when no run has a dead stop. Detections, notices and times never fa
   campaign strict-rule restarts are not watched; only course mode (Marlow Yard) has drill and restart handling.
 - Tests: `npx vitest run tests/routeRun*.test.ts` (pure parts).
 
-## Laptop queue
-A laptop service (`scripts/laptop-queue/service.mjs`, scheduled every minute) runs e2e and posts each verdict as a
-commit status on the tested sha (no message). Slots, job counts, desktop gates: `docs/RULES.md` "Machines".
-- Request (from any desktop, never touches your working tree): `node scripts/laptop-queue/request.mjs --sha <ref> [--pr N]
-  [--set name] [--jobs N] [--requester "<title>"] (--suites "e2e-coop e2e-netmove" | --full | --alone --step "<cmd>" [--env K=V])`.
-  Needs a pushed sha; pushes `requests/<id>.json` to the `laptop-queue` branch, prints the id (`--dry-run`: shows, no push).
-  An `--alone` step may start with `serve ` (`serve.mjs`); a `scripts/perf.mjs` step gets `--budget` unless it says `--no-budget` (`perfStep`).
-- Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head
-  whose `auto-train/*` failed or errored is skipped), then train reruns, then pr / full (one slot): fixes (PR label
-  `fix`, `request.mjs --fix` or a laptop rerun of a desktop red, F52; `LQ_FIX_FIRST` 0 = off), front branches
-  (`LQ_FRONT_BRANCHES`; by design: Michael's Mixamo priority), master-based PRs green smallest first (`LQ_GREEN_FIRST`;
-  a non-front request over `LQ_GREEN_MAX_WAIT_MIN` (30) first) then by arrival, then stacked PRs (base not master;
-  `LQ_STACKED_LAST` 0 = off) by the same rules; fixes, front and stacked have no wait bound. A superseding request keeps
-  its place; a head conflicting with master gets no affected run. An alone run (both slots) over 30 min old
-  (`ALONE_AGE_MIN`) goes after fixes and front branches, before other pr work (`LQ_FRONT_BEFORE_ALONE` 0 = alone first).
-  Moved heads: `docs/systems/auto-train.md` "What the laptop queue service provides".
-- Train reruns (auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
-  `"trainRerun": true` (kind pr): right after trains, before every other request and alone run, never held, at
-  `E2E_JOBS=1`, sharded over both slots when free (`LQ_RERUN_SHARD`), else one (never the desktop). Context
-  `laptop-e2e/<set>` (auto-train sends `--set train<n>-rerun`; no `--set`: `laptop-e2e/rerun-<suites without e2e->`).
-  A full pass also posts `laptop-e2e` success, "laptop rerun passed: <suites> (desktop fail)", replacing the desktop's
-  failure so release sees the train green; a fail posts only its own context and comments on the PR.
-- Duplicates: a new request that runs exactly what another one runs (same sha, kind, suites sorted or steps in order,
-  env, set, jobs, pr; any requester) is marked done unrun as "duplicate of <id>" (one push, no status) while that one is
-  open (older), claimed or running on either worker, or was done on this worker within `LQ_DUP_WINDOW_MIN` (60) min with
-  result success. A failed, errored or incomplete result never retires a new request (reruns of a failure run).
-  Supersede retires one requester's older pr / full requests; on the same sha it hands over. A duplicate affected
-  request hands `affected-e2e` to the surviving one (pending "handed over to <id>") or posts success when it repeats a
-  recent pass, never retired against another requester's run; an affected request or laptop rerun withdrawn before it ran posts error "withdrawn by the requester (not
-  run)". state.json keeps done entries 7 days.
-- Yield: while a train head is pending, a pr / full / alone run that has not started its suites or steps (lock, fetch,
-  npm ci, build) gives its slot back and stays queued (log "<id>: yields to train <n>"). A started run goes on unless
-  lib `cutShort` stops it: withdrawn (file gone two listings in a row); parked (in `parked/`: stops with the withdrawn
-  error, runs again when moved back; `LQ_PARKED_CUT` 0 = as withdrawn); hung (no suite result or start header for 17 min: failure "hung", a train posts its unfinished suites as
-  FAIL, the desktop hands off; `LQ_SUITE_IDLE_MIN` 15, never under the 900 s suite timeout + 2 min, 0 = off); a plain pr
-  run under 80% of its expected wall when a train is pending and every other run on the worker is a plain pr; an alone
-  run under 10 min old (queued again first); a run on an old PR head once a newer head queues (`LQ_STOP_SUPERSEDED` 0 =
-  off). A train preempt keeps the passed suites (`LQ_KEEP_FINISHED` 0 = off); a train rerun never yields.
-- Train soon (lib `nextTrain`): the laptop predicts the next train head (ETA) and, while no train is pending, holds new
-  claims until ETA + `LQ_TRAIN_LATE_MIN` (5) min. Candidates: train-ready PRs whose head is in no open train and not in
-  `origin/master`; green = `check` passed (its first-seen-green time is kept in state.json), running = `check` not done,
-  a failed or missing check counts for nothing. Held while: a train PR has no version head yet (up to
-  `LQ_TRAIN_BUILD_MAX_MIN` (20) min; ETA = now); an open train has its `laptop-e2e` success (merge = then +
-  `LQ_TRAIN_MERGE_LAG_MIN` (2)) or the last train merged, with green or running candidates: ETA = max(merge +
-  `LQ_TRAIN_GAP_MIN` (6.5), newest first-seen-green + `LQ_TRAIN_READY_LAG_MIN` (3)); no train open and green candidates
-  long after the merge: ETA = newest first-seen-green + 3. Running heads keep a merge hold on but never set the ETA or
-  start a hold. Any other open train: no hold. Under the hold only train reruns and pr runs that fit start (lib
-  `fitsBeforeTrain`: expected wall known, not alone / full, now + `LQ_FIT_PREP_S` (120) s + 1.2 x wall <= ETA); a fitted
-  run an early train catches falls to `cutShort`'s 80% rule. The desktop holds the same way at one job
-  (`LQ_DESKTOP_TRAIN_SOON` 0 = the build marker only). An aged alone gets the gap after it (`LQ_ALONE_GAP`).
-- Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
-  `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
-  PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/` (retries `-2/`, `-3/`).
-- Light parity on every train (Michael 2026-10-25, Q27; J20): each train run adds the four `e2e-parity` parts and `e2e-darkness` (lib `TRAIN_PARITY`), so a
-  light-meter-vs-picture failure fails `laptop-e2e` and holds the release. Off with no release: `config/train-parity.json`
-  `{ "off": true, "why", "by" }` on `laptop-queue` (pending says "; parity off"; delete to undo; tell Sector Ops) or `LQ_TRAIN_PARITY=off`.
-- Affected e2e on every PR head (process audit 2026-10-24; laptop only, every `LQ_AFFECTED_POLL_MIN` (2; 0 = off) min): each
-  open non-train, non-draft PR head with no `affected-e2e` status and no open affected request gets the suites `request.mjs
-  --affected` picks (merge-base with `origin/master`, `--no-renames`, the DIRECT tier; lib `affectedSuites`). Only gate suites
-  gate, also in a desktop failure's laptop rerun (`affectedGateSuites`: no GPU, LEGACY or AUDIO); LEGACY / AUDIO ones go in its
-  `report` list in the slots the cap leaves (lib `affectedReport`) and run after them with `E2E_REPORT`, REPORT ONLY (J20 T4).
-  None reached: `affected-e2e` success "no browser suites (docs / unit only)". Otherwise it enqueues a pr request (requester
-  `affected-e2e`, set `affected`, PR number, branch) and posts `affected-e2e` pending; the verdict goes to
-  `laptop-e2e/affected` and `affected-e2e` (failures comment on the PR as usual). A conflicting head gets error, not a run;
-  F51: after master moves, open affected requests' PRs are re-read (`LQ_MERGE_RECHECK_S` 60 s, `LQ_MERGE_RECHECK_MIN` 10 min)
-  until known and a conflict retires at once. A newer head on the same branch supersedes the older open request (its
-  `affected-e2e` gets error "superseded"); other PRs never supersede each other and take turns by the order above.
-  Opt out: label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork
-  heads (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
-  affected request is requested again (4.101.1). A head with only docs-only commits since the last final verdict carries it, or
-  waits for a live older request (`LQ_PR_CARRY` 0 = off).
-- Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
-- Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
-  log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
-- Desktop overflow lane: the same service with `LQ_WORKER=desktop` takes pr requests only (fixes first, then smallest
-  first, stacked last) in `C:/NightShift/Mobile-Coop-testrun-<port>` (slots and locks: `docs/RULES.md` "Machines" and
-  "Ports"), `E2E_GPU=1 E2E_JOBS=1`; it skips any over `LQ_DESKTOP_MAX_MIN` (15) min by the head's run-e2e parts (no time = the median). Start gates: `docs/RULES.md`
-  "Machines"; env `LQ_DESKTOP_BACKLOG` (service default 3, `install-task.ps1` 0), `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2`
-  (80; CPU of Normal or higher priority processes plus the queue's own e2e browsers, lib `gatedCpu`; `LQ_CPU_COUNT_E2E`
-  0 = browsers not counted; `LQ_DESKTOP_CPU_MODE=total` = whole machine), `LQ_LAPTOP_SILENT_MIN` (10); starts and CPU
-  refusals log gated / total CPU. Train soon (above); no new start while auto-train's build marker
-  (`docs/systems/auto-train.md`; `LQ_BUILD_MARKER`) is under `LQ_BUILD_MARKER_MAX_MIN` (30) min old. Fail fast (`LQ_DESKTOP_FAIL_FAST` 0 = at the end): a
-  counted failure (failed + unfinished suites), a hung run or no result (all suites) queues the laptop rerun (not for a
-  draft PR, F34). Statuses read "desktop: ..."; logs `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/`.
-- Claims: before a run each worker pushes `claims/<id>.json` (a train: `claims/<sha>.json`) to `laptop-queue`, marked
-  done after. Both workers heartbeat their running claims (`LQ_HEARTBEAT_MIN` 5; a failed push retries each loop); an
-  open claim unbeaten for `LQ_CLAIM_BEATS` (4) beats, 20 min, is taken over (no beat field: `LQ_CLAIM_MAX_H`, 3 h) and
-  the run that lost it stops, posting nothing. A lost train verdict or done claim retries each pass (`LQ_TRAIN_RETRY` 0
-  = off); the alone hold drops a head whose verdict this worker holds or that has a done claim. A renamed request (same
-  sha, kind, set, requester, suites) is a move: its run goes on (`LQ_MOVED` 0 = withdrawn).
-- Spare work (laptop only): once both slots sit idle with no open request and no pending train for `LQ_SPARE_IDLE_MIN`
-  (5; 0 = off) min, the service queues the next job of `docs/laptop-queue/spare-jobs.json` (round-robin, never a set
-  already queued on that sha) on the `origin/master` head as an ordinary request (requester `laptop-queue spare`). Spare
-  work never blocks real work: a waiting real request or a train stops a spare run, and `pick` starts no spare while a
-  real request is listed. `request.mjs` refuses unknown suite names at request time.
-- Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
-  Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
-- Scheduled tasks: e2e runs go through the queue (`request.mjs`). The permanent tasks are the task guard's allowlist in code (`TASK_ALLOW` in `scripts/laptop-queue/lib.mjs`): `NightShift-laptop-queue`
-  (`install-task.ps1`), `NightShift-desktop-queue` (`install-task.ps1 -Worker desktop`), `NightShift auto-train`
-  (`scripts/auto-train-task.ps1`) and `NightShift watchdog` (`scripts/watchdog-task.ps1`, `docs/systems/watchdog.md`).
-  The only way to schedule an ad-hoc run is `powershell -NoProfile -ExecutionPolicy Bypass -File
-  scripts/laptop-queue/one-shot-task.ps1 -Name NightShift-run-<what> -Command "<powershell command>" [-At <time>]
-  [-ExpireMinutes 240] [-WhatIf]`: one hidden run that expires at At + ExpireMinutes, then Windows deletes the task.
-- Task guard: at start and every `LQ_TASK_GUARD_MIN` (10; 0 = off) min on both workers, disable (Disable-ScheduledTask
-  only; never stop, kill or delete; a running instance keeps running) every enabled task not on the allowlist (above,
-  plus `LQ_TASK_ALLOW`, a comma list) and not a `NightShift-run-*` with an expiry, when it is named `NightShift-*` or
-  its action mentions `C:\NightShift\scratch` or `laptop-runner.ps1` (so a task launched from a `.vbs` in scratch, as
-  the watchdog's is, needs the allowlist). Log line "task guard: disabled <name> (<state>, <why>)"; each pass that
-  disabled something pushes `alerts/<ts>-<worker>-tasks.json` ({ worker, disabled, at }) to the `laptop-queue` branch
-  for the orchestrator. `--dry-run` logs "would disable" / "keeps" only.
-
 ## Flakes and quarantine
 The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; replaces "flake stands" and the old
 `KNOWN_FLAKY` list in `docs/backlog.md`).
 - What counts: an assert failure (exit 1) of a quarantined suite before its expiry prints KNOWN FLAKY (owner, expiry), not a
-  fail (an entry with `keys` forgives only those); a timeout or crash always fails (J20 T8). Any other failure counts only if
+  fail; a timeout or crash always fails (J20 T8). Any other failure counts only if
   a solo rerun on the same sha fails too; fail then pass on the same sha is a flake: a pass, and its owner fixes the test in
   the next batch PR.
 - Committed quarantine: `scripts/e2e-quarantine.json` lists { suite, owner, expiry, reason, keys } (a part like `e2e-sectorops:6`
   or a whole suite) and `owners` (every REQUIRED suite has one). Add an entry only with an owner, an ISO expiry and the failure
   under `docs/backlog.md` "Flaky e2e suites"; expired counts again; the owner removes it once fixed (`tests/e2eQuarantine.test.ts`
   enforces it, `_doc` names this heading). run-e2e also reads `E2E_QUARANTINE_FILE`.
-- Keys (`LQ_QUARANTINE_KEYS` 0 = off): an entry forgives only failures whose assert key (lib `assertKey`) is in its
-  `keys`. A keyless one forgives for `LQ_KEYLESS_QUARANTINE_H` (48; 0 = to its expiry) h after a worker first sees it.
-- Auto-quarantine (laptop queue): a failed, non-quarantined suite reruns once alone on the same sha; a pass is a flake
-  (state.json `flakes`, runs per day in `suiteRuns`). A suite may flake 2 times in 7 days (lib `FLAKE_BUDGET`,
-  `FLAKE_BUDGET_DAYS`); the next flake quarantines it for 48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`, owner from
-  `owners`, else the orchestrator; `keys` from the flakes that tripped the budget): later runs print it KNOWN FLAKY instead of
-  rerunning it. `flake-budget.md` there lists each suite that flaked, failed KNOWN FLAKY (`knownFlaky`) or is quarantined in the window, with its BLOCKING state (line 1 says rates
-  read high until 7 days are counted); a run that flaked or hit a quarantined failure adds it to its PR comment (a pass only on a
-  new flake). Only flakes after a suite's last auto quarantine count; an auto entry just expires. One automatic list, the
-  laptop's (F48): the desktop drops its own, forgives only the committed list, decides no quarantine or blocking, and reruns its
-  failures on the laptop. Older commits ignore `E2E_QUARANTINE_FILE`. Slow table: 7 days of `SLOW:` lines (F35), "; slow:".
 - Hard-rule checks (vitest): `tests/noRouteTimer.test.ts` (rule 6, G334; allowlist `pairGates[].window`, SECTOR holds);
   `tests/importBoundary.test.ts` (rule 10: quality, `qualityManager`, governor fenced; allowlist `benchmark.ts`, display
   readers); `tests/replayDeterminism.test.ts` (rule 8, G143; `Math.random` allowlist in `src/ai` shrinks as Guard AI seeds).
-- Repeat quarantine (Q30, "Becomes blocking"; lib `REPEAT_DAYS` 14): due a second auto quarantine within 14 days of the last, a
-  suite stays blocking (normal rule); once per 14 days the laptop pushes `alerts/<ts>-<worker>-fixjob-<suite>.json` to `laptop-queue`
-  and comments "BLOCKING: <suite> needs a fix job"; the orchestrator's cron reads `alerts/*-fixjob-*.json`, opens the fix job.
 
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches

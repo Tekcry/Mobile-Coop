@@ -76,13 +76,13 @@ Format: `N. Item - destination - status`.
 the expiry, a failure in any other suite does. Remove the entry when the test is fixed. Rerun a suspect alone
 (`E2E_PORT=4191 node scripts/run-e2e.mjs e2e-coop`) before reading anything into one failure.
 
-Process audit (2026-10-19, approved by Michael; `docs/process-audit/REPORT.md` section 2): the co-op suites are fixed
+Process audit (2026-10-19, approved by Michael): the co-op suites are fixed
 by their own desktop job (the likely shared cause: wall-clock waits against a sim slower than real time on software
 GL); the rest are parked, not fixed. Co-op test fix (2026-10-19, `docs/archive/coop-tests/`): the cause confirmed and fixed
 (sim-clock waits), plus stale test numbers (the walk-off crouch, the medkit heal) and a crouch race; e2e-coop,
 e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop. `KNOWN_FLAKY` is e2e-pad only.
 
-- **Four load flakes (fixed in the tests, flake-fix 2026-10-22; `docs/flake-fix/`)** - each passed solo and failed under
+- **Four load flakes (fixed in the tests, flake-fix 2026-10-22)** - each passed solo and failed under
   `E2E_JOBS=2` on the laptop. Not on `KNOWN_FLAKY`.
   - e2e-stealth-ai "the guard there sees the peeking head only" (los true, head false): the spot was picked from one
     look at the held peek, but the pose sways a few mm and the picked spot cleared the chest by about 5 mm, so the

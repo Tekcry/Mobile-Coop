@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
 import { selectSuites as selectUntyped, suitesForFile as fileUntyped, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS, CORE, LEGACY, GPU, affectedGateSuites, affectedReportSuites, withWireSuites } from '../scripts/e2e-affected.mjs';
 // @ts-expect-error plain .mjs process script without types
-import { affectedPick as pickUntyped, capAffected, rankAffected, suiteTime, parseAffectedMax, AFFECTED_MAX, COOP, suiteSetFor } from '../scripts/e2e-affected.mjs';
+import { affectedPick as pickUntyped, capAffected, rankAffected, suiteTime, parseAffectedMax, AFFECTED_MAX, COOP } from '../scripts/e2e-affected.mjs';
 
 type Covers = Record<string, string[]>;
 const wireSuites = withWireSuites as (suites: string[], files: string[], protocolTs: string) => string[];
@@ -309,18 +309,6 @@ describe('affected requests skip GPU and legacy suites (testing-tools: GPU never
   });
 });
 
-describe('laptop-queue lib affectedSuites applies the gate (the service affected pass and request.mjs --affected)', () => {
-  it('a Fallow / lamp change requests no legacy or GPU suite', async () => {
-    // @ts-expect-error plain .mjs process script without types
-    const { affectedSuites } = await import('../scripts/laptop-queue/lib.mjs');
-    const run = (files: string) => (args: string[]) => (args[0] === 'merge-base' ? 'b'.repeat(40) : files);
-    const got = affectedSuites(run('src/world/maps/bunker.ts\nsrc/world/lightBake.ts\n'), 'a'.repeat(40), { wide: true });
-    expect(got.suites).toContain('smoke');
-    expect(got.suites).toContain('e2e-lightbake');
-    for (const s of ['e2e-bunker', 'e2e-darkness', 'e2e-security', 'e2e-coop-gpu']) expect(got.suites).not.toContain(s);
-  });
-});
-
 describe('J20', () => {
   const protocol = readFileSync(new URL('../src/net/protocol.ts', import.meta.url), 'utf8');
   it('wire files pull the co-op group', () => {
@@ -487,9 +475,5 @@ describe('affected-cap: the closest suites, at most the cap (the cases below use
     expect(bases(pick(files, { wide: true, max: 3 })).size).toBe(3);
     // a row naming the whole group under another map does not force the group (the DIRECT row of src/ui does not name it)
     expect(cap(['src/ui/y.ts'], ['e2e-coop', 'e2e-ctcourse', 'e2e-netmove', 'e2e-pad'], { max: 3, map: { 'src/ui/': [...group, 'e2e-pad'] }, times: T })).toEqual(['e2e-coop', 'e2e-netmove', 'e2e-pad']);
-  });
-  it('auto-drop still sees every suite a change reaches (suiteSetFor uncapped)', () => {
-    const got = [...(suiteSetFor(['src/player/traversal.ts', 'src/weapons/w.ts']) as Set<string>)].sort();
-    expect(got).toEqual(['e2e-anim', 'e2e-clip', 'e2e-combat', 'e2e-move', 'e2e-sectorops', 'e2e-stealth', 'e2e-stealth-ai', 'e2e-traverse', 'e2e-weapons-carry']);
   });
 });

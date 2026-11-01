@@ -4,9 +4,9 @@ import path from 'node:path';
 // @ts-expect-error plain .mjs process script without types
 import { fragmentNames, parseFragment } from '../scripts/changelog-assemble.mjs';
 
-// Every changes/*.md (but README) must parse as merge-train will parse it at the train build, so a bad fragment fails
-// the PR's CI instead of the train (train 39 lost a build on a fragment without its "# <title>" line). The rules live
-// in `parseFragment` only.
+// Every changes/*.md (but README) must parse as scripts/changelog-assemble.mjs will parse it at a release, so a bad
+// fragment fails the PR's CI instead of the release (train 39 lost a build on a fragment without its "# <title>" line).
+// The rules live in `parseFragment` only.
 const root = path.resolve(__dirname, '..');
 
 describe('changes/ fragments', () => {

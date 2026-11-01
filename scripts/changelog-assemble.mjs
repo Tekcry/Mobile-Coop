@@ -1,7 +1,7 @@
 // Changelog assembler (merge-tools): turns the changes/ fragments (one per PR, format in changes/README.md) into ONE
 // released section at the top of CHANGELOG.md, then deletes the consumed fragments. Legacy "## Unreleased - <job>"
 // blocks above the newest released heading are folded in too (branches cut before the switch), their headings removed.
-// The orchestrator runs it at the version step (G183); scripts/merge-train.mjs calls it for trains and lone PRs.
+// Run it by hand at the version step (G183).
 // Usage: node scripts/changelog-assemble.mjs <version> <title> <date> <prPrimary> [memberPRs...]
 //   e.g. node scripts/changelog-assemble.mjs 4.56.0 "Train 5: lamps, wheel" 2026-10-23 130 125 127
 // Exit: 0 written, 1 nothing to assemble or a bad fragment / argument.
