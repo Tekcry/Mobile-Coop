@@ -79,6 +79,9 @@ Format: `N. Item - destination - status`.
     - Downed partner is not obvious. Phase 4 (revive, partner state readouts).
     - Objectives confusing, easy to get lost or separated. Phase 4 (navigation aid, decision D8) and Phase 5 (objective chain).
     - Marlow Yard's last section too short and poorly designed. Phase 6 (prologue rebuild).
+33. **Prop pushing looks frame-rate dependent (G2b play tests, 2026-11-01).** The same "player pushes props" step moved
+    the crate 6.4 m in software graphics but 2.7 m on the RTX 4090. Check the push force per step against the frame time.
+    Phase 2-4 (movement and props).
 
 ## Flaky e2e suites
 
