@@ -22,7 +22,7 @@ import type { MotionState } from '../anim/motion';
 import type { AnimSource } from '../anim/animSource';
 
 /** The wire version. Only this line holds it; tests read it. Bump it in the PR that changes the wire (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 85;
+export const PROTOCOL_VERSION = 86;
 /** Room cap on the wire: two players in every mode (`COOP_MAX`, `COURSE_MAX`). */
 export const MAX_PLAYERS = 2;
 export const COOP_MAX = 2;
