@@ -34,7 +34,7 @@ describe('levels', () => {
 });
 
 describe('rewards', () => {
-  const s = emptyStats('mission', 'depot');
+  const s = emptyStats('course', 'ctcourse');
   s.byKind = { ...emptyKinds(), grunt: 10, runner: 4, heavy: 1 };
   s.kills = 15;
   s.headshots = 3;
@@ -51,22 +51,13 @@ describe('rewards', () => {
     expect(r.xp).toBe(r.lines.reduce((a, l) => a + l.xp, 0));
     expect(r.credits).toBeGreaterThan(0);
   });
-  it('Clear mode: no per-room rewards, a single completion reward', () => {
-    const c = emptyStats('clear', 'warehouse');
-    c.objectives = 9;
-    c.won = true;
-    const r = computeRewards(c, 'normal');
-    expect(r.lines.map((l) => l.label)).toEqual(['Operation complete']);
-    c.won = false;
-    expect(computeRewards(c, 'normal').lines).toEqual([]);
-  });
   it('hard pays more than normal, easy less', () => {
     expect(computeRewards(s, 'realistic').xp).toBeGreaterThan(computeRewards(s, 'normal').xp);
     expect(computeRewards(s, 'rookie').xp).toBeLessThan(computeRewards(s, 'normal').xp);
   });
   it('sandbox pays nothing; nonsense input is clamped', () => {
-    expect(computeRewards(emptyStats('sandbox', 'proving'), 'normal').xp).toBe(0);
-    const bad = emptyStats('mission', 'depot');
+    expect(computeRewards(emptyStats('sandbox', 'kestrel'), 'normal').xp).toBe(0);
+    const bad = emptyStats('course', 'ctcourse');
     bad.byKind = { ...emptyKinds(), grunt: -5, runner: Number.NaN, heavy: 1e9 };
     bad.objectives = 1e6;
     const r = computeRewards(bad, 'normal');
@@ -127,7 +118,7 @@ import { applySession, buyUnlock, buyUpgrade, loadoutEntries, setAttachment, set
 describe('profile operations', () => {
   it('applySession awards xp/credits, level-ups, mastery and lifetime stats', () => {
     const s = defaultSave();
-    const st = emptyStats('mission', 'depot');
+    const st = emptyStats('course', 'ctcourse');
     st.byKind = { ...emptyKinds(), grunt: 12, runner: 0, heavy: 0 };
     st.kills = 12;
     st.objectives = 2;
@@ -163,7 +154,7 @@ describe('profile operations', () => {
     expect(setAttachment(s, 'rifle', 'grip', true)).toBe(false); // not owned
     buyUnlock(s, 'att:grip');
     expect(setAttachment(s, 'rifle', 'grip', true)).toBe(true);
-    const lo = loadoutEntries(s, 'mission', true);
+    const lo = loadoutEntries(s, 'course', true);
     expect(lo.map((e) => e.id)).toEqual(['pistolSd', 'rifle']);
     expect(lo[1]!.mods!.recoil).toBeCloseTo(0.88);
   });

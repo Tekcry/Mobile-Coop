@@ -16,7 +16,6 @@ import { LevelBuilder, type LevelBuildOptions } from '../src/world/levelBuilder'
 import { ctcourse } from '../src/world/maps/ctcourse';
 import { EXIT_ZONE, HALL_H, HOLD_BOX, HOLD_H, HOLD_IDS, SET_BOX, SET_IDS } from '../src/world/maps/ctcourseSets/types';
 import { MARLOW_LEVEL } from '../src/world/lighting/levels';
-import { warehouse } from '../src/world/maps/warehouse';
 import type { MapDef } from '../src/world/mapDef';
 import { dressingOn } from '../src/world/detailPass';
 import { bakeLamps } from '../src/voxel/lampBake';
@@ -49,7 +48,7 @@ function prepared(map: MapDef, mode: Mode): { b: LevelBuilder; light: ReturnType
 const MODES: Mode[] = ['smooth', 'smoothLow', 'cheap'];
 
 describe('smooth world: the light shapes are the same on every path', () => {
-  for (const map of [ctcourse, warehouse]) {
+  for (const map of [ctcourse]) {
     it(`${map.id}: shapes, bounds, hash and lights match on every path`, () => {
       const ref = prepared(map, 'smooth');
       for (const mode of MODES) {

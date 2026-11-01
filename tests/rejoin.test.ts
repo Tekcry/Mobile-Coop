@@ -166,7 +166,7 @@ describe('rejoin session (R2-R3)', () => {
   it('the token goes to the host alone, and a live joiner\'s slot is never taken, even with its token', () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
-    host.setSettings('infiltration', 'warehouse', 'normal');
+    host.setSettings('test', 'chamber', 'normal');
     const sniff = h.make('Z');
     const seen: string[] = [];
     sniff.onMessage = (m) => {
@@ -187,7 +187,7 @@ describe('rejoin session (R2-R3)', () => {
   it('a non-full room: the token hello moves a rejoin from its fresh entry to its held slot', async () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
-    host.setSettings('infiltration', 'warehouse', 'normal');
+    host.setSettings('test', 'chamber', 'normal');
     const c1 = sess(h.make('C1'), 'client', 'ABCDE', prof('Cli'), 'tokA');
     host.startMatch();
     await c1.transport.leave();

@@ -12,7 +12,6 @@ import { applySession, loadoutEntries } from '../src/progression/profile';
 import { computeRewards } from '../src/progression/rewards';
 import { defaultSave } from '../src/save/schema';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { provingGrounds } from '../src/world/maps/provingGrounds';
 import { chamber } from '../src/world/maps/chamber';
 import { getMap } from '../src/world/maps';
 
@@ -29,9 +28,9 @@ describe('G2a: the wire and the URL take mode "test"', () => {
     expect(Number.isInteger(PROTOCOL_VERSION)).toBe(true);
     expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(87);
   });
-  it('?mode=test reads as test; hunter is still clear; an unknown value is none', () => {
+  it('?mode=test reads as test; the removed modes and an unknown value are none', () => {
     expect(readMode('test')).toBe('test');
-    expect(readMode('hunter')).toBe('clear');
+    for (const gone of ['hunter', 'clear', 'mission', 'infiltration']) expect(readMode(gone)).toBeNull();
     expect(readMode('sandbox')).toBe('sandbox');
     expect(readMode('tester')).toBeNull();
     expect(readMode(null)).toBeNull();
@@ -51,7 +50,7 @@ describe('G2a: practiceMode (sandbox and test save nothing)', () => {
   it('only the two practice modes', () => {
     expect(practiceMode('sandbox')).toBe(true);
     expect(practiceMode('test')).toBe(true);
-    for (const m of ['mission', 'clear', 'infiltration', 'course', 'sector'] as const) expect(practiceMode(m)).toBe(false);
+    for (const m of ['course', 'sector'] as const) expect(practiceMode(m)).toBe(false);
   });
   it('a test match pays nothing, counts no stats and no challenges, and issues the sandbox loadout', () => {
     const st = emptyStats('test', 'chamber');
@@ -72,17 +71,7 @@ describe('G2a: practiceMode (sandbox and test save nothing)', () => {
 });
 
 describe('G2a: the layout carries the dummies', () => {
-  it('Proving Grounds lists its four (the ones gameState built by hand before)', () => {
-    const d = provingGrounds.build(new LevelBuilder(), 0).dummies!;
-    expect(d.map((x) => [x.pos.x, x.pos.y, x.pos.z, x.yaw, x.strafe ?? 0])).toEqual([
-      [-4, 0, 8, Math.PI, 0],
-      [3, 0, 10, Math.PI, 2.5],
-      [0, 0, 24, Math.PI, 4],
-      [-14, 0, 14, Math.PI * 0.75, 0],
-    ]);
-  });
-  it('Proving Grounds and the Test Chamber take the test mode as well as Free Roam; the Chamber has its two (G2b)', () => {
-    expect(provingGrounds.modes).toEqual(['sandbox', 'test']);
+  it('the Test Chamber takes the test mode as well as sandbox; the Chamber has its two (G2b)', () => {
     expect(chamber.modes).toEqual(['sandbox', 'test']);
     expect(getMap('chamber')).toBe(chamber);
     const d = chamber.build(new LevelBuilder(), 0).dummies!;

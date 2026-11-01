@@ -76,7 +76,7 @@ describe('coop-real F1b: Course mode client lamp shots reach the host', () => {
     for (const f of [hostLampShots, clientLampShots]) {
       expect(f('course')).toBe(true);
       expect(f('sector')).toBe(true);
-      for (const m of ['infiltration', 'sandbox', 'clear', undefined]) expect(f(m)).toBe(false);
+      for (const m of ['test', 'sandbox', undefined]) expect(f(m)).toBe(false);
     }
   });
 

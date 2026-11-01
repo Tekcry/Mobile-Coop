@@ -12,7 +12,6 @@ import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import type { MapDef } from '../src/world/mapDef';
 import { ctcourse } from '../src/world/maps/ctcourse';
-import { warehouse } from '../src/world/maps/warehouse';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
 import { bakeLamps, LAMP_GRID, LAMP_GRID_MAX_LIGHTS, LAMP_GRID_SLOTS, LAMP_STRIDE, lampColumnDist, lampGrid, lampGridBase, lampPlanReach } from '../src/voxel/lampBake';
@@ -127,7 +126,7 @@ function check(map: MapDef, id: string): Result {
 }
 
 describe('(sector-fixes L) lampGrid reach listing is lossless on real maps', () => {
-  const maps: [MapDef, string][] = [[ctcourse, 'ctcourse'], [warehouse, 'warehouse']];
+  const maps: [MapDef, string][] = [[ctcourse, 'ctcourse']];
   for (const [map, id] of maps) {
     it(`${id}: the reach listing sums every light the radius listing does`, () => {
       const res = check(map, id);

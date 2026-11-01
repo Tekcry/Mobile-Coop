@@ -37,17 +37,17 @@ describe('campaign arsenal (G76: the CT kit)', () => {
     expect(campaignLoadout({ primary: 'pistolSd', secondary: 'pistolSd' })).toEqual({ primary: 'pistolSd', secondary: 'rifle' });
   });
 
-  it('applied at use: Infiltration and other modes issue the save loadout; sandbox issues both guns', () => {
+  it('applied at use: Sector Ops and other modes issue the save loadout; sandbox issues both guns', () => {
     const s = defaultSave();
     s.loadout = { primary: 'rifle', secondary: 'pistolSd' };
-    expect(loadoutEntries(s, 'infiltration', true).map((e) => e.id)).toEqual(['rifle', 'pistolSd']);
-    expect(loadoutEntries(s, 'mission', true).map((e) => e.id)).toEqual(['rifle', 'pistolSd']);
+    expect(loadoutEntries(s, 'sector', true).map((e) => e.id)).toEqual(['rifle', 'pistolSd']);
+    expect(loadoutEntries(s, 'course', true).map((e) => e.id)).toEqual(['rifle', 'pistolSd']);
     expect(loadoutEntries(s, 'sandbox', true).map((e) => e.id)).toEqual(['rifle', 'pistolSd']);
   });
 
-  it('co-op (D8): the lobby loadout is the loadout Infiltration issues', () => {
+  it('co-op (D8): the lobby loadout is the loadout Sector Ops issues', () => {
     const s = defaultSave();
-    const issued = loadoutEntries(s, 'infiltration', true).map((e) => e.id);
+    const issued = loadoutEntries(s, 'sector', true).map((e) => e.id);
     expect(lobbyLoadout(s, true)).toEqual(issued);
     expect(lobbyLoadout(s, false)).toEqual([s.loadout.primary, s.loadout.secondary]);
     expect(campaignKit({ primary: 'pistolSd', secondary: 'rifle' })).toEqual({ primary: 'rifle', sidearm: 'pistolSd' });
@@ -61,21 +61,21 @@ describe('campaign arsenal (G76: the CT kit)', () => {
     expect(campaignAttachments('pistolSd', [])).toEqual([]);
     const s = defaultSave();
     s.loadout = { primary: 'pistolSd', secondary: 'rifle' };
-    const rifle = loadoutEntries(s, 'infiltration', true).find((e) => e.id === 'rifle')!;
+    const rifle = loadoutEntries(s, 'sector', true).find((e) => e.id === 'rifle')!;
     expect(rifle.attachments).toContain('suppressor');
     expect(rifle.mods?.noise).toBeLessThan(1);
     expect(s.weapons.rifle.attachments).toEqual([]);
-    expect(loadoutEntries(s, 'mission', true).find((e) => e.id === 'rifle')!.attachments).toEqual([]);
+    expect(loadoutEntries(s, 'course', true).find((e) => e.id === 'rifle')!.attachments).toEqual([]);
     // pistolSd keeps its integral suppressor (quiet with no part fitted)
-    expect(computeStats(WEAPONS.pistolSd, s.weapons.pistolSd.upgrades, loadoutEntries(s, 'infiltration', true).find((e) => e.id === 'pistolSd')!.mods).noise).toBeLessThan(1);
+    expect(computeStats(WEAPONS.pistolSd, s.weapons.pistolSd.upgrades, loadoutEntries(s, 'sector', true).find((e) => e.id === 'pistolSd')!.mods).noise).toBeLessThan(1);
   });
 
-  it('?legacy=1 Infiltration is not the campaign: no issued suppressor, the same as its lobby loadout (D8)', () => {
+  it('with campaignOpen off nothing is issued: no suppressor, the same as the lobby loadout (D8)', () => {
     const s = defaultSave();
     s.loadout = { primary: 'rifle', secondary: 'pistolSd' };
-    expect(loadoutEntries(s, 'infiltration', false).map((e) => e.id)).toEqual(lobbyLoadout(s, false));
-    expect(loadoutEntries(s, 'infiltration', false).find((e) => e.id === 'rifle')!.attachments).toEqual([]);
-    expect(loadoutEntries(s, 'infiltration', true).find((e) => e.id === 'rifle')!.attachments).toContain('suppressor');
+    expect(loadoutEntries(s, 'sector', false).map((e) => e.id)).toEqual(lobbyLoadout(s, false));
+    expect(loadoutEntries(s, 'sector', false).find((e) => e.id === 'rifle')!.attachments).toEqual([]);
+    expect(loadoutEntries(s, 'sector', true).find((e) => e.id === 'rifle')!.attachments).toContain('suppressor');
   });
 
   it('both CT kit guns take the suppressor', () => {

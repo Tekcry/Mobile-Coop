@@ -23,8 +23,6 @@ import {
 import { DIFFICULTIES } from '../src/ai/archetypes';
 import type { GearTag } from '../src/ai/gear';
 import { MAX_ENEMIES } from '../src/net/protocol';
-import { warehouse } from '../src/world/maps/warehouse';
-import { LevelBuilder } from '../src/world/levelBuilder';
 import { ENEMIES } from '../src/ai/enemyDefs';
 
 const pose = (x: number) => ({ x, y: 0, z: 0, yaw: 0 });
@@ -305,12 +303,3 @@ describe('sector rules', () => {
   });
 });
 
-describe('the plain Warehouse', () => {
-  it('the plain Warehouse is unchanged by the south band switch (318 boxes, 14 cylinders, 5 doors; captured before)', () => {
-    const w = new LevelBuilder();
-    warehouse.build(w, 0);
-    expect(w.boxes.length).toBe(318);
-    expect(w.cylinders.length).toBe(14);
-    expect(w.anchors.doors.length).toBe(5);
-  });
-});

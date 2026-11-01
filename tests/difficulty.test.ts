@@ -33,7 +33,7 @@ describe('fixed difficulty levels (G106: no custom sliders)', () => {
   });
 
   it('rewards pay the level', () => {
-    const stats = { mode: 'clear', won: true, byKind: {} } as unknown as Parameters<typeof computeRewards>[0];
+    const stats = { mode: 'sector', won: true, byKind: {} } as unknown as Parameters<typeof computeRewards>[0];
     const r = computeRewards(stats, 'realistic');
     expect(r.lines.some((l) => l.label === `Difficulty x${DIFFICULTY.realistic.reward}`)).toBe(true);
   });

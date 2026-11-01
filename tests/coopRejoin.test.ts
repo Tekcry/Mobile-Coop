@@ -83,7 +83,7 @@ describe('the match going to one client again (late)', () => {
   it('no lateBay (or not the course): the match start as it was', () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
-    host.setSettings('infiltration', 'warehouse', 'normal');
+    host.setSettings('test', 'chamber', 'normal');
     host.lateBay = () => 4;
     host.startMatch();
     const c = sess(h.make('C1'), 'client', 'ABCDE', prof('Cli'), 'tokA');

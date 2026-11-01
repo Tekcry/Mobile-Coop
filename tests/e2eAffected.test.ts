@@ -38,7 +38,6 @@ const MASTER_QUICK: [string, string[]][] = [
   ['src/core/', ['e2e-offline', 'e2e-move', 'e2e-combat', 'e2e-anim']],
   ['src/input/', ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-menus']],
   ['src/ui/hud/ratingCard', ['e2e-section-rating']],
-  ['src/ui/screens/missionsScreen', ['e2e-sectorops', 'e2e-menus', 'e2e-pad', 'e2e-park']],
   ['src/ui/', ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus']],
   ['src/game/course/', ['e2e-course', 'e2e-ctcourse', 'e2e-coop']],
   ['src/game/modes/courseMode.ts', ['e2e-course', 'e2e-ctcourse', 'e2e-coop', 'e2e-section-rating']],
@@ -213,12 +212,7 @@ describe('--affected: the DIRECT tier (default)', () => {
     const rows: [string, string][] = [
       ['src/progression/xp.ts', 'e2e-progression'],
       ['src/cosmetics/catalogue.ts', 'e2e-cosmetics'],
-      ['src/game/modes/clearMode.ts', 'e2e-clear'],
-      ['src/game/missions.ts', 'e2e-missions'],
-      ['src/game/modes/infiltrationMode.ts', 'e2e-missions'],
-      ['src/game/modes/missionMode.ts', 'e2e-modes'],
       ['src/ai/archetypes.ts', 'e2e-enemies'],
-      ['src/world/maps/warehouse.ts', 'e2e-ct-warehouse'],
       ['src/player/shoulderCamera.ts', 'e2e-camera-bounds'],
       ['src/config/camera.ts', 'e2e-camera-bounds'],
       ['src/world/lightBake.ts', 'e2e-darkness'],
@@ -282,9 +276,9 @@ describe('affected requests skip GPU and legacy suites (testing-tools: GPU never
   const gate = affectedGateSuites as (s: string[]) => string[];
   it('drops every GPU-only and LEGACY suite, whole or as a part, and keeps the rest in order', () => {
     // PR #400's affected request (2026-10-25) named these beside the required suites
-    const req = ['anim-audit', 'e2e-anchors', 'e2e-clear', 'e2e-camera-bounds', 'e2e-coop-gpu', 'e2e-darkness', 'e2e-desktop', 'e2e-lightbake', 'e2e-security', 'smoke'];
+    const req = ['anim-audit', 'e2e-anchors', 'e2e-progression', 'e2e-camera-bounds', 'e2e-coop-gpu', 'e2e-darkness', 'e2e-desktop', 'e2e-lightbake', 'e2e-security', 'smoke'];
     expect(gate(req)).toEqual(['anim-audit', 'e2e-anchors', 'e2e-desktop', 'e2e-lightbake', 'smoke']);
-    expect(gate(['e2e-desktop:3', 'e2e-desktop:1', 'e2e-wall:flanker', 'e2e-wall', 'e2e-clear:1'])).toEqual(['e2e-desktop:1', 'e2e-wall']);
+    expect(gate(['e2e-desktop:3', 'e2e-desktop:1', 'e2e-modes', 'e2e-wall', 'e2e-progression:1'])).toEqual(['e2e-desktop:1', 'e2e-wall']);
     for (const s of [...(LEGACY as string[]), ...(GPU as string[])]) expect(gate([s, 'smoke']), s).toEqual(['smoke']);
     expect(gate([])).toEqual([]);
   });
@@ -322,7 +316,7 @@ describe('J20', () => {
   it('the gate drops audio, the report list keeps LEGACY and AUDIO only', () => {
     const gate = affectedGateSuites(['e2e-foley', 'e2e-coop']) as string[];
     expect(gate).toEqual(['e2e-coop']);
-    expect(reportSuites(['smoke', 'e2e-security', 'e2e-foley', 'e2e-darkness', 'e2e-wall:flanker'])).toEqual(['e2e-security', 'e2e-foley', 'e2e-wall:flanker']);
+    expect(reportSuites(['smoke', 'e2e-security', 'e2e-foley', 'e2e-darkness', 'e2e-modes'])).toEqual(['e2e-security', 'e2e-foley', 'e2e-modes']);
   });
 });
 

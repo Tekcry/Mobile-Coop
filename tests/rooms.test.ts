@@ -127,16 +127,17 @@ describe('map room layouts', async () => {
       for (const r of rooms)
         for (const s of r.squad ?? []) {
           expect(inRoom(r, s.x, s.z, 0, s.y ?? r.minY ?? 0), `${r.id} squad at ${s.x},${s.z}`).toBe(true);
-          // raised posts: the Warehouse mezzanine, the Embassy gate tower, upper storeys (`y`)
-          const deck = s.y ?? (map.id === 'warehouse' && r.id === 'mezz' ? 2.6 : map.id === 'embassy' && s.kind === 'sniper' ? 3.2 : 0);
+          // raised posts: upper storeys (`y`)
+          const deck = s.y ?? 0;
           expect(blocked(b, s.x, s.z, deck, 0.3), `${r.id} squad at ${s.x},${s.z} inside geometry`).toBe(false);
         }
       for (const sp of layout.enemySpawns) expect(blocked(b, sp.x, sp.z, 0, 0.3), `spawn ${sp.x},${sp.z}`).toBe(false);
       for (const sp of layout.playerSpawns) expect(blocked(b, sp.pos.x, sp.pos.z, 0, 0.35), `player spawn ${sp.pos.x},${sp.pos.z}`).toBe(false);
     });
   }
-  it('Warehouse is the default map for every mode (3.0: the only playable map)', () => {
-    for (const mode of ['clear', 'sandbox', 'mission', 'infiltration'] as const) expect(MAPS.find((m) => m.modes.includes(mode))?.id).toBe('warehouse');
-    expect(MAPS.map((m) => m.id)).toEqual(['warehouse', 'proving', 'kestrel', 'seclab', 'ctcourse', 'ctcourseReplan', 'tallowWharf', 'courselab']);
+  it('the map list, and the default map of a mode is the first that supports it', () => {
+    expect(MAPS.find((m) => m.modes.includes('sandbox'))?.id).toBe('kestrel');
+    expect(MAPS.find((m) => m.modes.includes('course'))?.id).toBe('ctcourse');
+    expect(MAPS.map((m) => m.id)).toEqual(['kestrel', 'seclab', 'ctcourse', 'ctcourseReplan', 'tallowWharf', 'courselab']);
   });
 });

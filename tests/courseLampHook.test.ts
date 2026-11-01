@@ -100,8 +100,8 @@ describe('coop-real F1c: the Course mode onRay chain (real CoopClient constructo
     expect(order).toEqual(['lamp', 'sway', 'ricochet']);
   });
 
-  it('Infiltration: no lamp hook (outside Sector Ops and Course mode), sway then ricochet', () => {
-    const { g } = make('infiltration', { n: 2 });
+  it('Test mode: no lamp hook (outside Sector Ops and Course mode), sway then ricochet', () => {
+    const { g } = make('test', { n: 2 });
     g.weapons.onRay!(A, B);
     expect(order).toEqual(['sway', 'ricochet']);
     expect(lampSpy).not.toHaveBeenCalled();
