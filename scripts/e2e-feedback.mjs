@@ -3,7 +3,7 @@
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
 const G = (f, a) => page.evaluate(f, a);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const click = (sel, text) => G(([s, t]) => [...document.querySelectorAll(s)].filter((e) => !e.closest('[hidden]')).find((e) => !t || new RegExp(t).test(e.textContent)).click(), [sel, text]);
@@ -19,7 +19,7 @@ try {
   const form = await G(() => !!document.querySelector('.feedback-screen'));
   assert(form, 'the pause menu opens a feedback note');
   const ctx = await G(() => document.querySelector('.feedback-ctx').textContent);
-  assert(/map: proving/.test(ctx) && /position:/.test(ctx) && /version:/.test(ctx), `the note carries the game context (${ctx.slice(0, 80)})`);
+  assert(/map: studio/.test(ctx) && /position:/.test(ctx) && /version:/.test(ctx), `the note carries the game context (${ctx.slice(0, 80)})`);
   await page.fill('.feedback-text', 'Ladder clips the wall\nat the top');
   // photo mode
   const before = await G(() => { const g = window.__app.current; const c = g.player.cam.camera; return { p: g.player.position.clone(), cam: c.position.clone(), t: g.time ?? 0 }; });
@@ -88,7 +88,7 @@ try {
   await click('.feedback-screen .btn', 'Save feedback');
   await wait(400);
   const stored = await G(async () => (await window.__app.feedback.all()).map((e) => ({ text: e.text, photos: e.photos.length, type: e.photos[0]?.type, map: e.context.map })));
-  assert(stored.length === 1 && stored[0].photos === 2 && stored[0].type === 'image/jpeg' && stored[0].map === 'proving', `saved to the device with its photos (${JSON.stringify(stored)})`);
+  assert(stored.length === 1 && stored[0].photos === 2 && stored[0].type === 'image/jpeg' && stored[0].map === 'studio', `saved to the device with its photos (${JSON.stringify(stored)})`);
   // persists across a reload (IndexedDB), listed in Settings > Feedback, exported as one HTML file
   await page.goto(url + '?gfx=min');
   await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });

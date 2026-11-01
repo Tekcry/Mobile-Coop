@@ -1,5 +1,6 @@
 // (CT prototype A3: the CT shuffle 0.35 m/s, peek at once, no pull-away, no SWAT turn, no lean-out, aiming leaves.)
-// Locomotion step 11: back-to-wall. Proving Grounds: the context press enters within 0.5 m (a 0.2-0.45 s settle onto the
+// (clean-up G2b) The Test Chamber carries the solo parts (utostart=studio; the corner takedown with &mode=test).
+// Locomotion step 11: back-to-wall. The Chamber: the context press enters within 0.5 m (a 0.2-0.45 s settle onto the
 // body line), the stick slides along the wall at the gear's pace (gear <= 4) and quieter than walking, the slide
 // stops at an outside end (edge flag), pulling the stick away leaves; MoveState `wall` from the core. Warehouse
 // (Clear): a guard in combat against a player held on a wall gets the flanker assignment and lobs a grenade to
@@ -86,13 +87,13 @@ const HARNESS = () => {
 };
 
 async function proving() {
-  const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+  const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
   try {
     const G = (f, a) => page.evaluate(f, a);
     await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
     await G(HARNESS);
     const seg = await G(() => window.__w.find(true, 60));
-    assert(seg >= 0, `a free high wall on Proving (${seg})`);
+    assert(seg >= 0, `a free high wall in the Test Chamber (${seg})`);
     await G((i) => { const s = window.__app.current.world.level.coverSegments[i]; window.__w.place(i, s.len / 2, 0.35 + 0.7); }, seg);
     await G(() => window.__w.run(0.4, 0, 0, 'cover'));
     assert((await G(() => window.__w.state())).phase === 'off', "no entry from 0.7 m (playtest 2: entry within 0.5 m)");
@@ -245,29 +246,29 @@ async function flank() {
   }
 }
 
-/** (A3, G36, G137) The edge verb on Proving: the peek at once at a doorway end, the strict peek camera, the weapon hand on
+/** (A3, G36, G137) The edge verb on the Test Chamber: the peek at once at a doorway end, the strict peek camera, the weapon hand on
  *  the open side, and aiming leaves the wall (the lean-out is gone, G52). */
 async function edges() {
-  const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+  const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
   try {
     const G = (f, a) => page.evaluate(f, a);
     await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
     await G(HARNESS);
     await G(() => window.__w.run(0.1));
-    // the doorway: a high segment near z = +-8 with a free outside end
+    // the doorway: a high segment of the door wall (z 4) with a free outside end
     const d = await G(() => {
       const g = window.__app.current;
       const L = g.wallCore.links;
       const segs = g.world.level.coverSegments;
       for (let i = 0; i < segs.length; i++) {
         const s = segs[i];
-        if (s.low || Math.abs(Math.abs(s.az) - 8) > 0.4 || Math.abs(s.nz) < 0.99 || s.len < 1.5) continue;
+        if (s.low || Math.abs(s.az - 4) > 0.4 || Math.abs(s.nz) < 0.99 || s.len < 1.5) continue;
         if (L.kB[i] === 0) return { i, end: 1, len: s.len };
         if (L.kA[i] === 0) return { i, end: -1, len: s.len };
       }
       return null;
     });
-    assert(!!d, `the Proving doorway has a free wall end (${JSON.stringify(d)})`);
+    assert(!!d, `the Test Chamber's door wall has a free wall end (${JSON.stringify(d)})`);
     const sx = d.end; // +t is the camera's right when facing the wall
     const k0 = d.end > 0 ? d.len - 0.8 : 0.8;
     await G(([i, k]) => window.__w.place(i, k, 0.35 + 0.4), [d.i, k0]);
@@ -312,9 +313,9 @@ async function edges() {
   }
 }
 
-/** (step 12) Corner takedown on Warehouse: back to a wall at an outside edge, a guard round it -> kind `corner`. */
+/** (step 12) Corner takedown on the Test Chamber (test mode): back to a wall at an outside edge, a guard round it -> kind `corner`. */
 async function cornerTakedown() {
-  const { browser, page } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+  const { browser, page } = await launch({ url, params: 'autostart=studio&mode=test' });
   try {
     const G = (f, a) => page.evaluate(f, a);
     await page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
@@ -327,7 +328,11 @@ async function cornerTakedown() {
       const V = g.player.position.constructor;
       for (let i = 0; i < segs.length; i++) {
         const s = segs[i];
-        if (s.low || s.len < 2 || L.kB[i] !== 0 || Math.abs(s.y - g.player.position.y) > 3) continue;
+        // (G2b) a face of the room (the outside of a block that touches the perimeter, or a room-long face, would put the player or the guard outside the room and strand the player)
+        if (s.low || s.len < 2 || s.len > 14 || L.kB[i] !== 0 || Math.abs(s.y - g.player.position.y) > 3) continue;
+        const mx = s.ax + s.tx * s.len / 2 + s.nx * 0.8;
+        const mz = s.az + s.tz * s.len / 2 + s.nz * 0.8;
+        if (mx < 0.5 || mx > 27.5 || mz < 0.5 || mz > 27.5) continue;
         window.__w.place(i, s.len - 0.7, 0.35 + 0.45);
         window.__w.run(0.6, 0, 0, 'cover');
         if (g.wallCore.phase !== 'on' || g.wallCore.seg !== i) continue;
@@ -364,11 +369,11 @@ try {
     console.log('guards flank and flush a wall-held player (Warehouse)');
     await flank();
   } else {
-    console.log('back-to-wall on Proving');
+    console.log('back-to-wall on the Test Chamber');
     await proving();
-    console.log('edge verb on Proving: peek at once, strict camera, aiming leaves (A3)');
+    console.log('edge verb on the Test Chamber: peek at once, strict camera, aiming leaves (A3)');
     await edges();
-    console.log('corner takedown from the wall (Warehouse, step 12)');
+    console.log('corner takedown from the wall (Test Chamber, test mode, step 12)');
     await cornerTakedown();
   }
 } catch (e) {

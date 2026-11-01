@@ -1,11 +1,14 @@
-// Multi-level AI: the layered nav grid (a storey per surface), ladder links both ways, chases across storeys.
+// Multi-level AI: the layered nav grid (a storey per surface), ladder links both ways, chases across storeys. On the Test Chamber (G2b):
+// the platform's ladder (base (3.05, 0, 9), top 3.0 m; the chase floor is (9.05, 9)).
 import { launch, frames, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=mission' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio&mode=test' });
 let failed = false;
 /** (havok-stall) Math.random's seed for the ladder chases. */
 const LADDER_SEED = 7919;
+/** The grid's default storeys per column (DEFAULT_NAV_LAYERS, src/ai/navBuild.ts:14). */
+const DEFAULT_NAV_LAYERS = 3;
 /** (guard-ai S13) Sim seconds the manual clock runs before the chases (the player's physics and the world settle). */
 const SETTLE_S = 2;
 /** (guard-ai S13) Wall-clock safety net per chase (ms); the sim budget below ends a chase long before it. */
@@ -31,10 +34,10 @@ try {
   const nav = await G(() => {
     const n = window.__app.current.enemyMgr.nav;
     const ladders = n.links.filter((l) => l.kind === 'ladder' && n.walk[l.a] && n.walk[l.b]).length;
-    return { layers: n.layers, ladders };
+    return { layers: n.layers, ladders, anchors: window.__app.current.world.level.anchors.ladders.length };
   });
-  assert(nav.layers === 3, `the grid holds three storeys per column (${nav.layers})`);
-  assert(nav.ladders >= 6, `every Warehouse ladder joins two storeys both ways (${nav.ladders} links)`);
+  assert(nav.layers === DEFAULT_NAV_LAYERS, `the grid holds the default storeys per column (${nav.layers})`);
+  assert(nav.anchors >= 1 && nav.ladders >= 2 * nav.anchors, `every ladder joins two storeys both ways: two link entries each (${nav.ladders} links, ${nav.anchors} ladder)`);
 
   // (havok-stall) the chases are deterministic: the sim runs on the manual clock (no real-time frames move it between
   // the steps), and each chase draws its random numbers (the guard's think ticks) from a fixed seed. Unseeded, the
