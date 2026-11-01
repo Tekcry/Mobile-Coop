@@ -70,6 +70,9 @@ export class TestMode implements GameMode {
       return false;
     }
     e.passive = true;
+    // outside the awareness roster (no key): a guard going down in the room makes nobody cautious, so the others keep standing
+    // their posts like dummies (a keyed passive guard turned 'searching' when a mate was taken down)
+    e.key = -1;
     em.placeSlot(e, s);
     p.e = e;
     p.down = 0;

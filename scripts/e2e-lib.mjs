@@ -190,7 +190,10 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   const p = /(^|&)gfx=/.test(params) || /[?&]gfx=/.test(url) ? params : params ? `${params}&gfx=min` : 'gfx=min';
   // 3.2.0 speed gears: the operator spawns in gear 3 (2.0 m/s standing); suites written for the 2.x full-stick jog
   // (2.8 m/s) start in gear 4, which is that pace, unless they name a gear (`gear=none` keeps the real default)
-  const g = /(^|&)gear=/.test(p) || /[?&]gear=/.test(url) ? p : `${p}&gear=4`;
+  const g1 = /(^|&)gear=/.test(p) || /[?&]gear=/.test(url) ? p : `${p}&gear=4`;
+  // (G2c, N17) the Test Chamber's practice guards stand in the main menu start and the co-op lobby start; tests that do not
+  // ask for them (`practice=1`) get none, so every suite's room is as it always was
+  const g = /(^|&)practice=/.test(g1) || /[?&]practice=/.test(url) ? g1 : `${g1}&practice=0`;
   // 3.5: the parked modes and the economy are behind ?legacy=1 (`npm run e2e:legacy` sets LEGACY=1; a suite can name `legacy=1` itself)
   const q0 = process.env.LEGACY === '1' && !/(^|&)legacy=/.test(g) && !/[?&]legacy=/.test(url) ? `${g}&legacy=1` : g;
   // (locomotion step 20b, D11) E2E_NETSIM=typical: the ?net=local pages run the transport's network simulator

@@ -6,7 +6,8 @@ import { capacity, COOP_MAX, NET_MODES, parseMessage, PROTOCOL_VERSION } from '.
 import { emptyStats, practiceMode } from '../src/game/modes/gameMode';
 import { TestMode } from '../src/game/modes/testMode';
 import type { GameState } from '../src/game/gameState';
-import type { RoomDef } from '../src/world/rooms';
+import type { RoomDef, SquadSlot } from '../src/world/rooms';
+import { PRACTICE_CLEAR_M, PRACTICE_RESPAWN_S, practiceDownTime, practiceDue } from '../src/game/modes/practiceGuards';
 import { applySession, loadoutEntries } from '../src/progression/profile';
 import { computeRewards } from '../src/progression/rewards';
 import { defaultSave } from '../src/save/schema';
@@ -92,29 +93,45 @@ describe('G2a: the layout carries the dummies', () => {
 interface FakeEnemy {
   hold: RoomDef | null;
   setPatrol: ReturnType<typeof vi.fn>;
+  passive?: boolean;
+  key?: number;
+  alive?: boolean;
+  id?: string;
 }
 
 /** A GameState with just what `TestMode` touches. */
-function fake(rooms: RoomDef[] = [], aliveAtStart = false) {
+function fake(rooms: RoomDef[] = [], aliveAtStart = false, practice?: SquadSlot[]) {
   let alive = aliveAtStart;
+  const players: { feet: { x: number; z: number } }[] = [{ feet: { x: 14, z: 14 } }];
   const spawned: { kind: string; pos: Vector3; alerted: boolean; yaw: number; e: FakeEnemy }[] = [];
   const em = {
     alive: 0,
     stealth: false,
     coordinated: false,
     spawn: vi.fn((kind: string, pos: Vector3, alerted: boolean, yaw: number) => {
-      const e: FakeEnemy = { hold: null, setPatrol: vi.fn() };
+      const e: FakeEnemy = { hold: null, setPatrol: vi.fn(), alive: true, id: `e${spawned.length + 1}`, key: 3 };
       spawned.push({ kind, pos, alerted, yaw, e });
       em.alive++;
       return e;
     }),
+    placeSlot: vi.fn(),
+    despawn: vi.fn((e: FakeEnemy) => {
+      if (e.alive) em.alive--;
+      e.alive = false;
+    }),
+    bodies: [] as { enemyId: string; carried: boolean }[],
     joinSquad: vi.fn(),
   };
   const g = {
     enemyMgr: em,
-    opts: { benchmark: undefined as unknown },
+    opts: { benchmark: undefined as unknown, practice: practice !== undefined },
     hud: { setObjective: vi.fn(), banner: vi.fn() },
-    world: { layout: { rooms, playerSpawns: [{ pos: new Vector3(1, 0, 2), yaw: 0.5 }, { pos: new Vector3(3, 0, 2), yaw: 0.5 }, { pos: new Vector3(5, 0, 2), yaw: 0 }] } },
+    playerRefsInto: (out: unknown[]) => {
+      out.length = 0;
+      out.push(...players);
+      return out;
+    },
+    world: { layout: { rooms, practice, playerSpawns: [{ pos: new Vector3(1, 0, 2), yaw: 0.5 }, { pos: new Vector3(3, 0, 2), yaw: 0.5 }, { pos: new Vector3(5, 0, 2), yaw: 0 }] } },
     anyPlayerAlive: () => alive,
     reviveAll: vi.fn(() => {
       alive = true;
@@ -122,7 +139,7 @@ function fake(rooms: RoomDef[] = [], aliveAtStart = false) {
     endSession: vi.fn(),
   };
   const mode = new TestMode(g as unknown as GameState);
-  return { g, em, mode, spawned, setAlive: (v: boolean) => (alive = v) };
+  return { g, em, mode, spawned, players, setAlive: (v: boolean) => (alive = v) };
 }
 
 const ROOMS: RoomDef[] = [
@@ -227,5 +244,116 @@ describe('G2a: TestMode', () => {
     mode.dispose();
     mode.fixedUpdate(10);
     expect(g.reviveAll).not.toHaveBeenCalled();
+  });
+});
+
+describe('G2c: a passive slot makes a passive guard', () => {
+  it('populate() sets passive on a slot that has it, and only on that one', () => {
+    const rooms: RoomDef[] = [{ id: 'a', name: 'A', minX: 0, maxX: 4, minZ: 0, maxZ: 4, squad: [{ kind: 'grunt', x: 1, z: 1, yaw: 0, passive: true }, { kind: 'grunt', x: 3, z: 3, yaw: 0 }] }];
+    const { mode, spawned } = fake(rooms);
+    expect(mode.populate()).toBe(2);
+    expect(spawned[0]!.e.passive).toBe(true);
+    expect(spawned[1]!.e.passive).toBeUndefined();
+  });
+});
+
+describe('G2c: the practice guards (decision N17)', () => {
+  const SLOTS: SquadSlot[] = [
+    { kind: 'grunt', x: 12.75, z: 16.75, yaw: 0, passive: true },
+    { kind: 'grunt', x: 15.25, z: 16.75, yaw: 0, passive: true },
+    { kind: 'grunt', x: 19.75, z: 16.25, yaw: -2, passive: true },
+  ];
+  it('the rule: the clock runs while he is down and starts over when he stands; due after 10 s with nobody within 2.5 m', () => {
+    expect(PRACTICE_RESPAWN_S).toBe(10);
+    expect(PRACTICE_CLEAR_M).toBe(2.5);
+    expect(practiceDownTime(0, 0.5, true)).toBe(0.5);
+    expect(practiceDownTime(7, 0.5, true)).toBe(7.5);
+    expect(practiceDownTime(7, 0.5, false)).toBe(0);
+    expect(practiceDue(9.99, 99)).toBe(false);
+    expect(practiceDue(10, 99)).toBe(true);
+    expect(practiceDue(30, 2.49)).toBe(false);
+    expect(practiceDue(30, 2.5)).toBe(true);
+  });
+  it('without opts.practice nobody is placed; with it start() places the layout slots: passive, calm, outside the awareness roster', () => {
+    const none = fake(ROOMS, false, SLOTS);
+    none.g.opts.practice = false;
+    none.mode.start();
+    expect(none.em.spawn).not.toHaveBeenCalled();
+    const { em, mode, spawned } = fake([], false, SLOTS);
+    mode.start();
+    expect(em.spawn).toHaveBeenCalledTimes(3);
+    expect(spawned.every((s) => !s.alerted && s.kind === 'grunt')).toBe(true);
+    expect(spawned.map((s) => [s.pos.x, s.pos.z, s.yaw])).toEqual(SLOTS.map((s) => [s.x, s.z, s.yaw]));
+    expect(spawned.every((s) => s.e.passive === true && s.e.key === -1)).toBe(true);
+    expect(em.placeSlot).toHaveBeenCalledTimes(3);
+  });
+  it('?guards=1 does not place them (the room squads only)', () => {
+    flags.guards = true;
+    const { em, mode } = fake(ROOMS, false, SLOTS);
+    mode.start();
+    expect(em.spawn).toHaveBeenCalledTimes(6);
+  });
+  it('a downed guard comes back at his spot after 10 s and is a fresh passive guard', () => {
+    const { em, mode, spawned } = fake([], false, SLOTS);
+    mode.start();
+    const first = spawned[0]!.e;
+    first.alive = false;
+    mode.fixedUpdate(9.5);
+    expect(em.despawn).not.toHaveBeenCalled();
+    mode.fixedUpdate(0.6);
+    expect(em.despawn).toHaveBeenCalledWith(first);
+    expect(spawned).toHaveLength(4);
+    expect([spawned[3]!.pos.x, spawned[3]!.pos.z]).toEqual([12.75, 16.75]);
+    expect(spawned[3]!.e.passive).toBe(true);
+    // the next down starts a new 10 s
+    spawned[3]!.e.alive = false;
+    mode.fixedUpdate(9);
+    expect(spawned).toHaveLength(4);
+    mode.fixedUpdate(1.1);
+    expect(spawned).toHaveLength(5);
+  });
+  it('a player within 2.5 m of the spot keeps him away until he steps off', () => {
+    const { mode, spawned, players } = fake([], false, SLOTS);
+    mode.start();
+    spawned[1]!.e.alive = false;
+    players[0]!.feet = { x: 15.25, z: 15.0 };
+    mode.fixedUpdate(12);
+    expect(spawned).toHaveLength(3);
+    mode.fixedUpdate(5);
+    expect(spawned).toHaveLength(3);
+    players[0]!.feet = { x: 15.25, z: 14.2 };
+    mode.fixedUpdate(0.1);
+    expect(spawned).toHaveLength(4);
+  });
+  it('a body being carried is left alone; the guards that still stand are never replaced', () => {
+    const { em, mode, spawned } = fake([], false, SLOTS);
+    mode.start();
+    spawned[0]!.e.alive = false;
+    em.bodies.push({ enemyId: spawned[0]!.e.id!, carried: true });
+    mode.fixedUpdate(30);
+    expect(spawned).toHaveLength(3);
+    em.bodies[0]!.carried = false;
+    mode.fixedUpdate(0.1);
+    expect(spawned).toHaveLength(4);
+    expect(em.despawn).toHaveBeenCalledTimes(1);
+  });
+  it('a spawn the cap refuses is tried again after another 10 s, not every step', () => {
+    const { em, mode, spawned } = fake([], false, SLOTS.slice(0, 1));
+    em.spawn.mockReturnValueOnce(null as never);
+    mode.start();
+    expect(spawned).toHaveLength(0);
+    mode.fixedUpdate(9);
+    expect(em.spawn).toHaveBeenCalledTimes(1);
+    mode.fixedUpdate(1.1);
+    expect(em.spawn).toHaveBeenCalledTimes(2);
+    expect(spawned).toHaveLength(1);
+  });
+  it('dispose() ends the rule', () => {
+    const { mode, spawned } = fake([], false, SLOTS);
+    mode.start();
+    spawned[0]!.e.alive = false;
+    mode.dispose();
+    mode.fixedUpdate(30);
+    expect(spawned).toHaveLength(3);
   });
 });

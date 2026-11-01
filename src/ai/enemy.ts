@@ -2937,7 +2937,8 @@ export class Enemy implements Damageable {
 
   /** Not in combat: notice a downed body (light, distance, field of view, line of sight). One ray at most. */
   private lookForBodies(eye: Vector3): void {
-    if (this.alerted || this.def.melee) return;
+    // (G2c) a passive guard sees nothing: a practice guard taken down beside him does not send him searching
+    if (this.alerted || this.passive || this.def.melee) return;
     const bodies = this.ctx.bodies();
     let pick: Body | null = null;
     let pd = Infinity;
