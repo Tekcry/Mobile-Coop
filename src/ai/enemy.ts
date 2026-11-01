@@ -1250,6 +1250,8 @@ export class Enemy implements Damageable {
 
   /** A passive guard: sees and hears nothing (the benchmark flight, tests). */
   passive = false;
+  /** (G2c) A Test Chamber practice guard (TestMode.startPractice): passive, and he also looks past bodies. */
+  practice = false;
   /** (PR 3) What INTERROGATE gets out of him (null: nothing, or spent); set by the squad slot that spawned him. */
   info: GuardInfo | null = null;
   /** (guard-ai S4, design 4) Stable guard key in his section (0-31: the awareness roster), stamped at spawn by the
@@ -2937,8 +2939,8 @@ export class Enemy implements Damageable {
 
   /** Not in combat: notice a downed body (light, distance, field of view, line of sight). One ray at most. */
   private lookForBodies(eye: Vector3): void {
-    // (G2c) a passive guard sees nothing: a practice guard taken down beside him does not send him searching
-    if (this.alerted || this.passive || this.def.melee) return;
+    // (G2c) a Test Chamber practice guard sees no body: one taken down beside him does not send him searching (any other passive guard looks as before)
+    if (this.alerted || this.practice || this.def.melee) return;
     const bodies = this.ctx.bodies();
     let pick: Body | null = null;
     let pd = Infinity;

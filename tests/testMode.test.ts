@@ -284,7 +284,7 @@ describe('G2c: the practice guards (decision N17)', () => {
     expect(em.spawn).toHaveBeenCalledTimes(3);
     expect(spawned.every((s) => !s.alerted && s.kind === 'grunt')).toBe(true);
     expect(spawned.map((s) => [s.pos.x, s.pos.z, s.yaw])).toEqual(SLOTS.map((s) => [s.x, s.z, s.yaw]));
-    expect(spawned.every((s) => s.e.passive === true && s.e.key === -1)).toBe(true);
+    expect(spawned.every((s) => s.e.passive === true && s.e.practice === true && s.e.key === -1)).toBe(true);
     expect(em.placeSlot).toHaveBeenCalledTimes(3);
   });
   it('?guards=1 does not place them (the room squads only)', () => {
