@@ -136,7 +136,8 @@ try {
   });
 
   console.log('proving grounds, test mode');
-  await boot('autostart=proving&mode=test', async (page, G) => {
+  // (one-game) `mapready=0` for this boot: map-ready crashes the render on the Warehouse and Proving Grounds (goes when stage H deletes those maps)
+  await boot('autostart=proving&mode=test&mapready=0', async (page, G) => {
     await frames(page, 2);
     const s = await G(() => {
       const g = window.__app.current;
