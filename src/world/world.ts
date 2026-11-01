@@ -25,7 +25,6 @@ import type { MapDef, MapLayout } from './mapDef';
 import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
 import { LightRig } from './lightRig';
-import { CampusArtRender } from './campusArt/campusArtRender';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
 import { ShutterDoors, shutterLightLeaves, type ShutterNav } from './shutterDoor';
@@ -107,8 +106,6 @@ export class World {
    * leaves, then each shutter as an always-shut leaf. The same array as `doors.list` on a map without shutters.
    */
   readonly lightDoors: readonly FieldDoor[];
-  /** (sector-redesign ART-KIT) The campus art (render only; null: no art, `?gfx=min`, or a failed load: the greybox shows). */
-  campusArt: CampusArtRender | null = null;
   /** (marlow-final M5) The facility kit's meshes over the level (null: the map places none, `?gfx=min`, or the GLB
    *  failed to load - the greybox boxes under it then show). Render only. */
   kit: KitRender | null = null;
@@ -264,14 +261,6 @@ export class World {
       // (LR16-3) open door leaves and props (a pushed or carried crate) cast into the lamps' character shadow maps
       w.charShadows.setDynamic(w.doors, w.props);
       w.useBakedMoon();
-    }
-    // (sector-redesign ART-KIT) the campus art over the greybox: PBR path only; a failed load leaves the boxes drawn
-    if (layout.campusArt?.placements.length && atlas && !opts.cheap) {
-      try {
-        w.campusArt = await CampusArtRender.create(scene, layout.campusArt, level.lights, level, (m) => w.lightRig.addCaster(m));
-      } catch (e) {
-        console.warn('[campus-art] failed to load; the greybox shows', e);
-      }
     }
     return w;
   }
@@ -640,7 +629,6 @@ export class World {
     this.torchShadows?.dispose();
     this.lamps?.dispose();
     this.breakables.dispose();
-    this.campusArt?.dispose();
     this.doors.dispose();
     this.shutters?.dispose();
     this.planks?.dispose();

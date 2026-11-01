@@ -7,7 +7,6 @@ import { seenAt } from '../src/ai/perception';
 import { ELECTRO } from '../src/vfx/visionLook';
 import { Vector3 } from '../src/core/babylon';
 import { validateSecurity, type CameraDevice } from '../src/security/data';
-import { WAREHOUSE_OPS_SECURITY } from '../src/world/maps/warehouseSectors';
 
 const DEG = Math.PI / 180;
 const fixed: CameraDevice = { id: 'f', kind: 'camera', level: 'ground', at: [0, 0], y: 3, facing: 30, reason: 't' };
@@ -187,26 +186,6 @@ describe('(sector-fixes C) the camera aim', () => {
     expect(new CameraUnit(fixed, 0).covers(Math.sin(30 * DEG) * 5, 4, Math.cos(30 * DEG) * 5)).toBe(true);
     // a head past its range is not seen
     expect(u.covers(0, 1.7, 10.5)).toBe(false);
-  });
-
-  it('every Sector Ops camera watches a floor patch: aimed, ranged, its frame centre on the floor at aim, 1 m over its lens out of frame', () => {
-    expect(validateSecurity(WAREHOUSE_OPS_SECURITY)).toEqual([]);
-    const levels = WAREHOUSE_OPS_SECURITY.levels ?? {};
-    for (const d of WAREHOUSE_OPS_SECURITY.devices) {
-      expect(d.aim, d.id).toBeGreaterThan(0);
-      expect(d.range, d.id).toBeLessThanOrEqual(CAMERA.rangeMax);
-      // (camera-range) every Sector Ops range is the aim rule's: 2 x aim
-      expect(d.range, d.id).toBe(CAMERA.aimReach * d.aim!);
-      const fy = levels[d.level] ?? 0;
-      const u = new CameraUnit(d, fy);
-      // at its sweep centre (the frame there faces the facing the data names)
-      u.clock = d.sweep ? CAMERA.sweepPause + Math.abs(d.sweep[1] - d.sweep[0]) * DEG / CAMERA.sweepSpeed / 2 : 0;
-      u.yaw = sweepYaw(d, u.clock);
-      const f = d.facing * DEG;
-      expect(u.covers(u.x + Math.sin(f) * d.aim!, fy + 0.01, u.z + Math.cos(f) * d.aim!), d.id).toBe(true);
-      expect(u.covers(u.x + Math.sin(f) * 6, u.y + 1, u.z + Math.cos(f) * 6), d.id).toBe(false);
-      expect(u.covers(u.x + Math.sin(f) * (d.range! + 0.5), fy + 1.7, u.z + Math.cos(f) * (d.range! + 0.5)), d.id).toBe(false);
-    }
   });
 
   it('the map data rule: aim and range within their limits', () => {

@@ -108,12 +108,6 @@ export interface Flags {
    *  ship pre-built, the costly parts are kept between matches, the lobby preloads. `?mapready=1` on; default off.
    *  On /preview/ default on (preview-flags). */
   mapReady: boolean;
-  /** (campus-greybox; owner Sector Ops Build) The Saltmarsh Park sections (1-5) built from their v2 layouts
-   *  (`src/world/maps/campusV2/`) instead of the live ones. Default `CAMPUS_V2_ON` (none: production unchanged); a
-   *  section joins it when Michael accepts its walk. `?campusv2=1,3`: exactly those sections; `?campusv2=0`: none. Every
-   *  co-op peer must open the same link (the layout is not on the wire).
-   *  On /preview/ every section (preview-flags). */
-  campusV2: readonly number[];
   /** (mission-framework, owner Campaign Build) Missions on Sector Ops maps (`?mission=<id>` picks one) and the Hints
    *  setting; `?missions=1` on. Switch-on: Michael's walk of Three Grey Coats / Two-Key Ledger, target 2026-10-27; then
    *  the default flips to `!== '0'`. Tests set `flags.missions` (a plain object) in `beforeAll` and restore it. On
@@ -183,17 +177,6 @@ export function readCoopKit(v: string | null, kit: ReadonlySet<string>): boolean
   return v === '1' || (v !== '0' && (kit.has('pull') || kit.has('shutter')));
 }
 
-/** (campus-greybox) The campus sections switched on to their v2 layouts by default: a section number joins this list
- *  when Michael accepts that section's walk (switch-on; the date goes in the PR body and the ROADMAP). */
-export const CAMPUS_V2_ON: readonly number[] = [];
-
-/** (campus-greybox) `?campusv2=` as a sorted section list (1-5); absent or unreadable: the default. "0" means none.
- *  On /preview/ (preview-flags) the default is every section. */
-export function readCampusV2(v: string | null, preview = false): readonly number[] {
-  if (v === null || !/^[0-5](,[0-5])*$/.test(v)) return preview ? CAMPUS_V2_ALL : CAMPUS_V2_ON;
-  return [...new Set(v.split(',').map(Number))].filter((n) => n > 0).sort((a, b) => a - b);
-}
-
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
 export function onOffFlag(v: string | null): boolean | null {
   return v === '1' ? true : v === '0' ? false : null;
@@ -209,9 +192,6 @@ export const PREVIEW_ON: boolean =
 export function darkFlag(v: string | null, preview: boolean): boolean {
   return v === '1' || (v !== '0' && preview);
 }
-
-/** (preview-flags) Every campus section, the /preview/ default for `campusV2`. */
-export const CAMPUS_V2_ALL: readonly number[] = [1, 2, 3, 4, 5];
 
 function readParams(): URLSearchParams {
   try {
@@ -295,7 +275,6 @@ export const flags: Flags = {
   marlowReplan: darkFlag(params.get('marlowreplan'), PREVIEW_ON),
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
-  campusV2: readCampusV2(params.get('campusv2'), PREVIEW_ON),
   contextPrompts: darkFlag(params.get('ctxprompts'), PREVIEW_ON),
   // (campaign-mode A10) dark until Michael's walk of Mission 1: `?campaign=1` on; on /preview/ on (preview-flags)
   campaign: darkFlag(params.get('campaign'), PREVIEW_ON),

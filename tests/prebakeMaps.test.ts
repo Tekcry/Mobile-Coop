@@ -1,7 +1,7 @@
 /**
- * (piano SO2) The prebake takes a list of maps (`SHIPPED_BAKE_MAPS`: campusOps; the storm mill left it with its scene)
+ * (piano SO2) The prebake takes a list of maps (`SHIPPED_BAKE_MAPS`: empty since Saltmarsh Park left, clean-up F; the mechanism stays)
  * and the game reads `bakes/<map>.json` for each of them the same way:
- * - the prebake builds exactly the shipped maps, each with the game's own key (campusOps' build unchanged);
+ * - the prebake builds exactly the shipped maps (none today), each with the game's own key (checked on Tallow Wharf);
  * - the build's emit plugin ships every map's files from its own `<h>` folder (and still reads the one-map shape);
  * - `bakeLevelLight` reads the shipped files for a shipped map with no section split (a test map put on the list here),
  *   byte for byte the bake a PC makes; a map not on the list never asks for one.
@@ -22,16 +22,16 @@ import type * as ShippedBake from '../src/world/shippedBake';
 import { sectionBakeFor } from '../src/world/sectionBake';
 import { packLamps, SHIPPED_BAKE_MAPS, shipsBake, type ShippedManifest } from '../src/world/shippedBake';
 import { bakedLights, bakeLevelLight, lampKeyOf } from '../src/world/lightBake';
-import { campusOps } from '../src/world/maps/campusOps';
+import { tallowWharf } from '../src/world/maps/tallowWharf';
 import type { MapDef } from '../src/world/mapDef';
 import { buildMapLights } from '../src/world/mapLights';
 import { dressingOn } from '../src/world/detailPass';
-import { buildCampus, PREBAKE_MAPS } from '../scripts/prebake/plan';
+import { buildMap, PREBAKE_MAPS } from '../scripts/prebake/plan';
 import { currentMaps, shippedBakes } from '../scripts/prebake/emit';
 
 // (the cache write is spied; everything else in lampJobs is the real module)
 vi.mock('../src/voxel/lampJobs', async (orig) => ({ ...(await orig<typeof LampJobs>()), saveLamps: vi.fn(async () => undefined) }));
-// (a shipped map with no section split: a test map on the list; the real list is campusOps only)
+// (a shipped map with no section split: a test map on the list; the real list is empty)
 vi.mock('../src/world/shippedBake', async (orig) => {
   const m = await orig<typeof ShippedBake>();
   return { ...m, shipsBake: (id: string): boolean => id === 'so2-shipped' || m.shipsBake(id) };
@@ -60,20 +60,17 @@ describe('prebake and game build one light set (piano SO2)', () => {
 });
 
 describe('prebake: the shipped maps', () => {
-  it("bakes exactly SHIPPED_BAKE_MAPS (campusOps), under the game key, master's key unchanged", () => {
-    expect(SHIPPED_BAKE_MAPS).toEqual(['campusOps']);
+  it('bakes exactly SHIPPED_BAKE_MAPS (none), and the prebake builds a map under the game key', () => {
+    expect(SHIPPED_BAKE_MAPS).toEqual([]);
     expect(PREBAKE_MAPS.map((d) => d.id)).toEqual([...SHIPPED_BAKE_MAPS]);
-    expect(shipsBake('campusOps')).toBe(true);
-    expect(shipsBake('campusOps:fullbright')).toBe(false);
+    expect(shipsBake('tallowWharf')).toBe(false);
     expect(shipsBake('warehouse')).toBe(false);
-    const campus = buildCampus();
-    expect(campus.map).toBe('campusOps');
-    expect(campus.key).toBe(gameKey(campusOps));
-    expect(campus.key).toBe('lamps:campusOps:v7:c1:2kzmx6:1itu5fu');
-    expect(sectionBakeFor('campusOps')).not.toBeNull();
+    expect(sectionBakeFor('tallowWharf')).toBeNull();
+    const wharf = buildMap(tallowWharf);
+    expect(wharf.map).toBe('tallowWharf');
+    expect(wharf.key).toBe(gameKey(tallowWharf));
   }, 120_000);
 });
-
 describe('prebake: the build emits every map (scripts/prebake/emit.ts)', () => {
   type Hook = (this: { emitFile: (f: { type: string; fileName: string; source: Uint8Array }) => string }) => void;
   const run = (root: string): string[] => {
@@ -88,14 +85,14 @@ describe('prebake: the build emits every map (scripts/prebake/emit.ts)', () => {
     const root = mkdtempSync(join(tmpdir(), 'prebake-maps-'));
     try {
       const c = join(root, '.prebake-cache');
-      for (const [h, map] of [['ha', 'campusOps'], ['hb', 'otherMap']] as const) {
+      for (const [h, map] of [['ha', 'tallowWharf'], ['hb', 'otherMap']] as const) {
         mkdirSync(join(c, h), { recursive: true });
         writeFileSync(join(c, h, `${map}.json`), h);
         writeFileSync(join(c, h, `${map}-${h}-s0.bin.gz`), `${h}0`);
       }
-      const cur = { maps: [{ map: 'campusOps', h: 'ha', files: ['campusOps.json', 'campusOps-ha-s0.bin.gz'] }, { map: 'otherMap', h: 'hb', files: ['otherMap.json', 'otherMap-hb-s0.bin.gz'] }] };
+      const cur = { maps: [{ map: 'tallowWharf', h: 'ha', files: ['tallowWharf.json', 'tallowWharf-ha-s0.bin.gz'] }, { map: 'otherMap', h: 'hb', files: ['otherMap.json', 'otherMap-hb-s0.bin.gz'] }] };
       writeFileSync(join(c, 'current.json'), JSON.stringify(cur));
-      expect(run(root)).toEqual(['bakes/campusOps.json=ha', 'bakes/campusOps-ha-s0.bin.gz=ha0', 'bakes/otherMap.json=hb', 'bakes/otherMap-hb-s0.bin.gz=hb0']);
+      expect(run(root)).toEqual(['bakes/tallowWharf.json=ha', 'bakes/tallowWharf-ha-s0.bin.gz=ha0', 'bakes/otherMap.json=hb', 'bakes/otherMap-hb-s0.bin.gz=hb0']);
       expect(currentMaps({ h: 'ha', files: ['x'] })).toEqual([{ h: 'ha', files: ['x'] }]);
       expect(currentMaps({})).toEqual([]);
     } finally {

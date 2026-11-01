@@ -19,7 +19,7 @@ import { LIGHT } from '@src/world/lights';
 import type { MapDef } from '@src/world/mapDef';
 
 const OUT = process.env.PROBE_OUT ?? 'shadow-probe.json';
-const MAP_IDS = (process.env.PROBE_MAPS ?? 'warehouseOps,campusOps,ctcourse,warehouse').split(',');
+const MAP_IDS = (process.env.PROBE_MAPS ?? 'ctcourse,warehouse').split(',');
 const out: Record<string, unknown> = { mode: 'photometric' };
 const r3 = (v: number): number => Math.round(v * 1000) / 1000;
 const band = (v: number): number => (v < LIGHT.shadow ? 0 : v < LIGHT.lit ? 1 : 2);

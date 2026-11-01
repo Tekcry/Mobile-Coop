@@ -33,7 +33,7 @@
 //
 // Usage (the laptop, port 4189, after `npm ci` + `npm run build`, from the repo root; headless, never headed; ~2 min per
 // map x count):
-//   E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs [--maps=sectorops,ctcourse,campusops] [--counts=12,16,24] [--warm=5]
+//   E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs [--maps=ctcourse,warehouse:clear] [--counts=12,16,24] [--warm=5]
 //     [--secs=10] [--out=docs/guard-cap] [--gfx=epic] [--viewport=1920x1080] [--kind=grunt] [--cells=patrol,away,alert]
 //   --counts=0,12,16,24 adds the no-guard baseline (recommended: per-guard cost = slope). --maps also takes `<mapId>:<mode>`.
 //   Exits at once without E2E_GPU=1 unless --software is given (a software-GL dry run: not a perf result). --warm is
@@ -60,7 +60,7 @@ const { launch, GPU, waitOperator } = await import('./e2e-lib.mjs');
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => argv.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3) ?? d;
-const MAPS = opt('maps', 'sectorops,ctcourse').split(',').filter(Boolean);
+const MAPS = opt('maps', 'ctcourse').split(',').filter(Boolean);
 const COUNTS = opt('counts', '12,16,24').split(',').filter(Boolean).map(Number);
 // (review G6) at least 5 s of warm-up before every cell (JIT, shader compiles, the guards settling on their beats)
 const WARM_ASKED = Number(opt('warm', '5'));
@@ -87,15 +87,8 @@ if (!GPU && !SOFTWARE) {
 
 /** Map aliases: the URL query (each map's own guards are removed after boot). */
 const MAP_Q = {
-  // Sector Ops (warehouseOps): no section guards spawn (`sectorGuards=0`); section 1's start
-  sectorops: 'autostart=warehouseOps&mode=sector&sectorGuards=0',
   // Marlow Yard, the co-op training course, solo page (its two passive squad guards are removed)
   ctcourse: 'autostart=ctcourse&mode=course',
-  // (guard-models G8) Saltmarsh Park in Sector mode; `sectorGuards=0` as for sectorops (the fallback
-  // `autostart=campusops&mode=sandbox` never booted: wrong-case map id, and sandbox has no enemy manager)
-  campusops: 'autostart=campusOps&mode=sector&sectorGuards=0',
-  // (sector-redesign ART-KIT) Saltmarsh Park (campusOps), no section guards spawn; section 1's start
-  campus: 'autostart=campusOps&mode=sector&sectorGuards=0',
 };
 const mapQuery = (m) => MAP_Q[m] ?? (m.includes(':') ? `autostart=${m.split(':')[0]}&mode=${m.split(':')[1]}` : `autostart=${m}&mode=sandbox`);
 

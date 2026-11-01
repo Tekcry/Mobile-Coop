@@ -23,34 +23,11 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   magazine, no floating parts.
 - [ ] Every menu works by pad alone: the stick and d-pad move the focus ring, A selects, B goes back, LB / RB switch
   tabs, sliders and choices change with left / right. Prompts show the pad's glyphs (Xbox letters or PlayStation shapes).
-- [ ] The main menu shows Sector Ops, Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
-  `?legacy=1`). Sector Ops opens the op list (Saltmarsh Park and the old Warehouse op, four stars each), then its
-  briefing: the sectors listed, Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
-- [ ] (sector-marks) Sector Ops: no green disc or glowing pole at any connector or at the extraction (host and co-op
-  client). Each Saltmarsh Park objective says what and where: S1 the gatehouse, S2 the facilities office, S3 the
-  prototype store, S4 the server cage, S5 the strongroom.
-- [ ] Sector Ops on Saltmarsh Park (`campusOps`): five sections, S1 gatehouse and car park, S2 HQ atrium, S3 labs, S4
-  data hall, S5 Old House. Each objective unlocks the connector room's door; standing in the room shuts it behind you,
-  the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when there
-  were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room. Solo
-  finishes it (team doors keep a solo route, G280).
+- [ ] The main menu shows Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
+  `?legacy=1`). There is no Sector Ops entry (clean-up F removed the menu, its two maps and the stars).
 - [ ] (G339) No minimap, compass or objective dots in Sector Ops, Marlow Yard (co-op) or free roam; the Marlow drill
   pointer and pings still show.
-- [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes
-  and objective read by lamp light, with dark
-  pockets between; sections 2 and 3 each offer three routes (docs/archive/warehouse-s23/WALK.md). Every lamp is an LED
-  fitting (sector-fixes L): a flush panel under a room ceiling, a strip on short wires under the roof, a slim bulkhead on
-  a wall bracket; a room's fittings share one height on a regular grid or row (some dark, over the pockets), none stands
-  on the roof or near a climbing pipe, ladder or duct (the yard drainpipe's lamp is 1 m beside it); none floats or pokes
-  through a ceiling; a lamp switched off or shot goes dark on its diffuser. The roof's open strips are pale corrugated
-  sheets (moonlight still comes through); the walls carry pipes, trays, signs and fire points, trusses span the roof,
-  and the halls' dead corners hold pallets, drums and cartons, none on a route or patrol.
-- [ ] (fog fix) Saltmarsh Park on Epic, then High: the atrium, the S3 hall and the L1 offices read clear across the room;
-  ceiling lights glow with a short, faint haze under their shade (no long beams), guard torches still beam, and the
-  light meter reads as before.
-- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star and every easier one are
-  filled beside Sector Ops (Saltmarsh Park's stars) and in the op list (best time in the context panel). Co-op Sector
-  Ops: the HUD shows Syringes (2 on Normal); a downed partner is revived until they run out, then a down restarts the
+- [ ] Co-op Sector Ops (clean-up F removed the menu and the stars): the HUD shows Syringes (2 on Normal); a downed partner is revived until they run out, then a down restarts the
   section with both players at the room.
 - [ ] (sector-batch) Sector Ops result: a run with no kill and no alarm ends "PERFECT" on the result line and the
   extraction banner (with "GHOST" too when never spotted); an alarm takes Perfect away.
@@ -82,19 +59,13 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
   beam has a soft edge, and the meter fades with it at the beam's edge (LR16 fix).
-- [ ] (section-bake) Saltmarsh Park cold load: clear the site data (or a private window), start the campus and time
-  the load against the last build: it starts sooner. In S1 the car park floods and the meter read as before; within
-  the first minute nothing on screen pops (far buildings' lamps fade in). Play into S2 through C1: S2 is lit at once.
-  Co-op: a client joining while the host is in S2 or later gets the section's lamps within seconds. Reload: a warm
-  load as before.
-- [ ] Failing tube (LR16-5): stand under the stutter tube (Warehouse Ops: the trade offices corridor panel, west half;
-  campusOps: HQ L1 breakout kitchen; Marlow Yard: the A7 south rack strip): every few seconds it chatters or drops
+- [ ] Failing tube (LR16-5): stand under the stutter tube (the Warehouse: the service corridor strip; Marlow Yard: the A7 south rack strip): every few seconds it chatters or drops
   out, the floor, the fitting and the light meter go with it; shoot it and it stays dark.
 - [ ] Swinging pendants (LR16-5b, Marlow Yard only): fire past a hung fitting (the A4 aisle-2 strips), or throw a
   grenade near it: the fitting and its two rods swing as one, up to a hand's width, and settle in about 15 s; the pool
   of light, a guard's shadow and the light meter sway with it. Shoot one out: it swings dark. Co-op: both players see
   the same swing (no lag beyond the kick).
-- [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
+- [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign only (no Sector Ops map is listed). The room holds two players at most.
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
   it raises the joiner's light meter as it raises the host's.
@@ -107,8 +78,6 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
 - [ ] Co-op two intruders (guard-ai S24): split up and get seen apart (host in one room, joiner in another): each
   fight stays on its own player (the guards who saw the host hunt the host's last seen spot, the joiner's hunt his);
   out of sight, nobody walks to where a player really is without having seen or heard him. Solo is unchanged.
-  (coop4, once 3-4 players can join Sector Ops) The same with three or four players apart; on an alarm the
-  reinforcements go for different players, the one the alarm raiser saw first; 2-player play is unchanged.
 - [ ] Co-op guard AI (guard-ai S9): on the joiner, guards' lines and radio calls show as on the host; a cautious guard
   carries his weapon at low ready on both screens; after an alarm stage 2 / 3 the joiner sees the vests and helmets and
   a response team's shield; the joiner's headshot on a helmeted guard pings as a deflect and the helmet falls on both.
@@ -282,17 +251,10 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   - G10a look fixes: the uniforms read as the faction colour (not near black), the lightest skin tone is not chalky, the
     hair-cap hairline is smooth (no saw teeth), the heavy and enforcer show only their eyes through the balaclava (no
     skin at the mouth or chin), no green dots on the faces.
-- [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
-  they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
-  to where his partner was headed.
-- [ ] Armour (guard-ai S16, campus S4): stand on the data hall floor in front of the NOC window and get seen: the NOC
-  pair aim at you but fire no round into the bulletproof glass (no sparks on it); after a moment they move (down to the
-  hall, or another spot) or hold. A plain window still lets their rounds through.
 - [ ] Response teams (guard-ai S13, guard-rules S1 / S5, Sector Ops, Normal): raise the alarm twice (guard-rules S5:
   once the first team is in and searching, or a minute later, a guard who sees you again raises the next stage; up to
-  three guard alarms a section, Marlow Yard still one): every guard now wears armour and a helmet. In Saltmarsh Park
-  sections 4 and 5 each alarm's team comes in behind a shield guard; in sections 1-3, the warehouse and Marlow Yard the
-  team is armed guards only. Hide: after about a minute at your last spot the team walks the section point to point
+  three guard alarms a section, Marlow Yard still one): every guard now wears armour and a helmet. On Marlow Yard
+  the team is armed guards only. Hide: after about a minute at your last spot the team walks the section point to point
   (shield first where there is one, the rest close behind, a look round at each, torches in the dark), still hunting
   minutes later; the cameras are as before. A restart drops the gear with the stage.
 - [ ] Helmets and dogs (guard-rules S1 / S2, Sector Ops): on Realistic every guard wears a helmet from the start; on
@@ -467,7 +429,7 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
 
 ### Context prompts (preview only; context-prompts, `docs/context-prompts/PLAN.md` section 8 walk items)
 On /preview/ they are on; on any other build add `?ctxprompts=1` (`?ctxprompts=0` brings back the old box to compare).
-Main menu > Sector Ops > Saltmarsh Park > Start, pad first, then keyboard (E is A, Space is Y). How it works:
+Main menu > Co-op > Host a room > Start (Marlow Yard), pad first, then keyboard (E is A, Space is Y). How it works:
 `docs/systems/input-and-loop.md` "Context prompts".
 - [ ] At a closed door the prompt fades in on the door, no box top right: tap A opens, hold A bashes (a guard right
   behind it drops), tap Y peeks, hold Y feeds the optic cable. A ring fills round the glyph while a button is held.

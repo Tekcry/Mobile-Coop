@@ -10,9 +10,6 @@ import { segmentHousingT } from '../src/security/camera';
 import type { CameraDevice } from '../src/security/data';
 import { SecuritySystem, type SecurityHost } from '../src/security/securitySystem';
 import type { PlayerRef } from '../src/ai/enemy';
-import { LevelBuilder } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
-import { runtimeNav } from './helpers/runtimeNav';
 
 const clear = glassMembership('clear', false);
 const frosted = glassMembership('frosted', false);
@@ -99,17 +96,5 @@ describe('polish 11: a round takes the nearest camera housing on its line', () =
     const sys = new SecuritySystem({ devices: [{ ...far, bulletproof: false, id: 'far2' }, { ...near, bulletproof: true }] }, host);
     expect(sys.shotRay(from, to)).toBeNull();
     expect(sys.cameras.every((c) => c.mode !== 'destroyed')).toBe(true);
-  });
-});
-
-describe('polish 6 (S5 L11): no guard path through the open sash into the light well (runtime nav)', () => {
-  it('the anteroom is walkable; the well is not reached from it', () => {
-    const b = new LevelBuilder();
-    const lay = campusOps.build(b, 0);
-    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, campusOps.navLayers ?? 3, lay.navSeeds ?? []);
-    expect(nav.isWalkable(nav.cellOf(-44.5, 36, 0))).toBe(true);
-    // the well holds no seed: cut off from the flood its cells drop out (findPath would snap the goal to the anteroom)
-    const inWell = nav.isWalkable(nav.cellOf(-48, 36, 0));
-    expect(inWell ? nav.findPath([-44.5, 36], [-48, 36], 200000, 0, 0) : null).toBeNull();
   });
 });

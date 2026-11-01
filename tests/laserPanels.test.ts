@@ -1,8 +1,7 @@
 /**
  * (sector-fixes P, item 6, Michael 2026-10-22: "If there's lasers, there should be panels nearby that power them which
  * can be interrupted using the jammer. Must be hard to access and not in plain sight. Electro vision should show the
- * panel.") The laser power panels: the pure rules (`game/laserPanels.ts`), every map's data, each panel's placement
- * traced through the level's pieces (hidden from the floor round its band, jammable from a reachable vantage), and the
+ * panel.") The laser power panels: the pure rules (`game/laserPanels.ts`), every map's data, and the
  * jam path in `CtDevices` with a stand-in match (host and client).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -27,11 +26,6 @@ import {
 import type { CtDevices as CtDevicesT } from '../src/game/ctDevices';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { MAPS } from '../src/world/maps';
-import { warehouseOps } from '../src/world/maps/warehouseOps';
-import { WAREHOUSE_OPS_PANELS } from '../src/world/maps/warehouseSectors';
-import { SightWorld } from '../src/game/sectorCheck';
-import { distToSegment } from '../src/game/jammer';
-import { hyp2, hyp3 } from '../src/core/mathx';
 
 const L1: LaserDef = { id: 'l1', x1: 10, z1: 4, x2: 10, z2: 10, ys: [0.35, 0.9, 1.45], label: 'Test laser' };
 const L2: LaserDef = { id: 'l2', x1: 14, z1: 4, x2: 14, z2: 10, ys: [0.35, 0.9, 1.45] };
@@ -112,97 +106,12 @@ describe('(sector-fixes P) the panel rules', () => {
 
 describe('(sector-fixes P) every map with lasers has their panels', () => {
   it('every laser in every map has exactly one panel and every panel powers lasers that exist', () => {
-    let lasers = 0;
     for (const map of MAPS) {
       const lay = map.build(new LevelBuilder(), 0);
       expect(checkPanels(lay.lasers ?? [], lay.laserPanels ?? []), map.id).toEqual([]);
       // (marlow-final 0d) Marlow Yard's lasers come and go with its set slices (A5, A8): the frame there checks them (J14: both layouts)
-      if (map.id !== 'ctcourse' && map.id !== 'ctcourseReplan') lasers += (lay.lasers ?? []).length;
     }
-    // Sector Ops' five bands and Saltmarsh Park's four (las-gown, las-store; sector-redesign slice 3; + S4's las-tray,
-    // S5's las-shaft) = 9. Marlow Yard's lasers are left out above (marlow-final 0d); master's count of 10 included
-    // Marlow Yard's station 4
-    expect(lasers).toBe(9);
-    expect(WAREHOUSE_OPS_PANELS.map((p) => p.id)).toEqual(['panel-workshop', 'panel-deck', 'panel-vna', 'panel-mezz']);
-    expect(WAREHOUSE_OPS_PANELS.find((p) => p.id === 'panel-mezz')!.lasers).toEqual(['laser-deck-stairs', 'laser-deck-west']);
   });
-});
-
-/**
- * Placement (Michael: "near", "hard to access and not in plain sight", reachable with the jammer). Per panel: the feet
- * spot it is jammed from (a top a player climbs to, or round a corner), and the floor regions round its band it must be
- * hidden from [x0, z0, x1, z1, floor y]: from every free spot there (eye 1.6 m), no line reaches it inside the game's
- * `JAMMER.losSlack` (the jam's own line test).
- */
-interface Place {
-  map: 'w';
-  panel: LaserPanelDef;
-  jam: [number, number, number];
-  hidden: [number, number, number, number, number][];
-}
-const W = (id: string): LaserPanelDef => WAREHOUSE_OPS_PANELS.find((p) => p.id === id)!;
-const PLACES: Place[] = [
-  // the workshop floor, both sides of the band: the void's east wall; jammed from the catwalk through its opening
-  { map: 'w', panel: W('panel-workshop'), jam: [10.5, 3.0, -9.55], hidden: [[8.4, -17.6, 23.6, -9.4, 0]] },
-  // the open deck north of the AHU, both sides of the band; jammed round the AHU from the deck's south-west corner (re-merge with R: moved 0.4 m west off R1's plant-room sill)
-  { map: 'w', panel: W('panel-deck'), jam: [-3.6, 3.3, -17.2], hidden: [[-7.5, -15.0, 4.5, -14.3, 3.3]] },
-  // the VNA aisle and the gangway round the sensor; jammed from R1N's top across the aisle
-  { map: 'w', panel: W('panel-vna'), jam: [-18.75, 4.0, 12.5], hidden: [[-19.6, 8, -12.6, 17.6, 0]] },
-  // the deck strip both bands cross, and the hall floor south of the deck; jammed along the slot behind the shelving
-  { map: 'w', panel: W('panel-mezz'), jam: [19, 0, 17.4], hidden: [[8.5, 12.2, 23.5, 14.2, 3.3], [0, 0, 23.5, 11, 0]] },
-];
-
-describe('(sector-fixes P) each panel: near its band, hidden from the floor round it, jammable from a spot a player reaches', () => {
-  const bw = new LevelBuilder();
-  const wl = warehouseOps.build(bw, 0);
-  const worlds = { w: new SightWorld(bw.boxes, bw.cylinders) };
-  const lasersOf = { w: wl.lasers ?? [] };
-  /** The jam's line test: clear up to `JAMMER.losSlack` short of the target (`CtDevices.clearFrom`). */
-  const jamLine = (w: SightWorld, ax: number, ay: number, az: number, t: { x: number; y: number; z: number }): boolean => {
-    const d = hyp3(t.x - ax, t.y - ay, t.z - az);
-    const k = Math.max(0, (d - JAMMER.losSlack) / d);
-    return w.clear(ax, ay, az, ax + (t.x - ax) * k, ay + (t.y - ay) * k, az + (t.z - az) * k);
-  };
-
-  for (const pl of PLACES) {
-    it(pl.panel.id, () => {
-      const w = worlds[pl.map];
-      const t = panelTarget(pl.panel, { x: 0, y: 0, z: 0 });
-      // mounted: a solid face just behind its back, or a solid top just under its housing (the rack-top one)
-      const bx = pl.panel.x - Math.sin(pl.panel.yaw) * 0.05;
-      const bz = pl.panel.z - Math.cos(pl.panel.yaw) * 0.05;
-      const onWall = !w.clear(t.x, t.y, t.z, bx, pl.panel.y, bz);
-      const onTop = !w.clear(t.x, t.y, t.z, t.x, pl.panel.y - PANEL.h / 2 - 0.1, t.z);
-      expect(onWall || onTop, 'a solid face behind the panel or a top under it').toBe(true);
-      // near: its nearest band within 8 m, every band it powers within 15 m
-      const ds = pl.panel.lasers.map((id) => {
-        const l = lasersOf[pl.map].find((q) => q.id === id)!;
-        const fy = l.floorY ?? 0;
-        const dy = Math.max(0, fy - t.y, t.y - (fy + l.ys[l.ys.length - 1]!));
-        return hyp2(distToSegment(t.x, t.z, l.x1, l.z1, l.x2, l.z2), dy);
-      });
-      expect(Math.min(...ds), 'near its band').toBeLessThan(8);
-      expect(Math.max(...ds), 'near every band it powers').toBeLessThan(15);
-      // the vantage: a free spot on a solid top (or the ground), a clear line from the eye within the jammer's range
-      const [jx, jy, jz] = pl.jam;
-      expect(w.blocked(jx, jy, jz), 'the vantage is free').toBe(false);
-      if (jy > 0) expect(w.clear(jx, jy + 0.1, jz, jx, jy - 0.2, jz), 'the vantage stands on a top').toBe(false);
-      const ey = jy + 1.6;
-      expect(w.clear(jx, ey, jz, t.x, t.y, t.z), 'a clear line from the vantage').toBe(true);
-      expect(hyp3(t.x - jx, t.y - ey, t.z - jz)).toBeLessThan(JAMMER.range - 2);
-      // hidden: no jam line from any free spot of the regions round the band
-      const seen: string[] = [];
-      for (const [x0, z0, x1, z1, fy] of pl.hidden) {
-        for (let x = x0; x <= x1 + 1e-6; x += 0.5) {
-          for (let z = z0; z <= z1 + 1e-6; z += 0.5) {
-            if (w.blocked(x, fy, z)) continue;
-            if (jamLine(w, x, fy + 1.6, z, t)) seen.push(`(${x}, ${fy}, ${z})`);
-          }
-        }
-      }
-      expect(seen, 'hidden from the floor round its band').toEqual([]);
-    });
-  }
 });
 
 // ---- the jam path in CtDevices (a stand-in match, as tests/laserAlarm.test.ts) ----

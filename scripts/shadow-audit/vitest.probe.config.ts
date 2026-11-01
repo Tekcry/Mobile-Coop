@@ -1,5 +1,5 @@
 // Shadow accuracy probe (sector-redesign shadow audit): read-only, prints numbers to PROBE_OUT. Not part of `npm test`.
-// From the repo root:  [PROBE_MAPS=warehouseOps,ctcourse] PROBE_OUT=<file.json> \
+// From the repo root:  [PROBE_MAPS=warehouse,ctcourse] PROBE_OUT=<file.json> \
 //   npx vitest run --config scripts/shadow-audit/vitest.probe.config.ts shadowProbe
 // PROBE_TREE may name another worktree (read-only): `@src` resolves there. Results: docs/sector-redesign/checks/shadow-audit.md.
 import { fileURLToPath } from 'node:url';

@@ -5,7 +5,7 @@
 // light field as `tests/warehouseS1Light.test.ts` does and reads `LightField.levelAt`.
 //   npm run lamp-audit                       writes docs/sector-redesign/checks/lr16-lamp-audit.md
 //   node scripts/lamp-audit.mjs --json       prints every row as JSON on stdout (no file written)
-//   node scripts/lamp-audit.mjs --map=campusOps,warehouseOps   only those maps
+//   node scripts/lamp-audit.mjs --map=warehouse,ctcourse   only those maps
 //   node scripts/lamp-audit.mjs --no-views   lamp audit only (skips the bakes)
 // Read-only: it never changes lamp data (LR16d moves lamps from the table).
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -19,13 +19,12 @@ const views = !process.argv.includes('--no-views');
 const only = process.argv.find((a) => a.startsWith('--map='))?.slice(6).split(',');
 const OUT = resolve(root, 'docs/sector-redesign/checks/lr16-lamp-audit.md');
 /** The LR16 plan's map list ("Per-map lamp audit (LR16c)"): `LISTED_MAP_IDS` plus these; `*` = every id with the prefix. */
-const PLAN = ['warehouseOps', 'ctcourse*', 'embassy', 'dustDepot', 'courselab'];
+const PLAN = ['ctcourse*', 'embassy', 'dustDepot', 'courselab'];
 /** Plan names whose map id differs (the plan names the file). */
 const ALIAS = { dustDepot: 'depot' };
 /** Flags decided to stay (LR16dx, `docs/sector-redesign/checks/lr16dx-build.md`): `map:id` -> why. A re-run lists them as
  *  decided, not as moves to make; one that no longer flags shows "no longer flagged" (drop it here). */
 const DECIDED = {
-  'warehouseOps:44': 'the mess panel: the mess is 1.7 m deep (z -10.65 to -8.95), so no spot is 1 m off both long walls; centred (0.85 m each side) is the realistic place',
 };
 const log = (s) => process.stderr.write(s + '\n');
 /** The bake modules (loaded in the run, read by `bakeField`). */

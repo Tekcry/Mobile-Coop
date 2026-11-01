@@ -22,8 +22,6 @@ import {
 } from '../../src/game/mission/sectorMission';
 import { SectorMode } from '../../src/game/modes/sectorMode';
 import { SectorRun, type SectorDef, type SectorPhase } from '../../src/game/sectors';
-import { CAMPUS_SECTORS } from '../../src/world/maps/campusSectors';
-import { CAMPUS_MISSION_TEST } from '../../src/world/maps/campusMissionTest';
 import { THREE_GREY_COATS } from '../../src/world/maps/tallowWharfMissions';
 import { WHARF_SECTORS } from '../../src/world/maps/tallowWharfSectors';
 
@@ -214,13 +212,6 @@ describe('SectorMission helpers', () => {
     expect(pickMission([twoSections()], 'op')?.id).toBe('op');
     expect(pickMission([twoSections()], null)).toBeNull();
     expect(pickMission(undefined, 'op')).toBeNull();
-  });
-
-  it('the campus test mission passes checkMission on the real sectors (3 steps, one rule, intel -> exploit, extraction)', () => {
-    expect(checkMission(CAMPUS_MISSION_TEST, sectorGuardIds(CAMPUS_SECTORS))).toEqual([]);
-    const kinds = CAMPUS_MISSION_TEST.steps.map((s) => s.kind);
-    expect(kinds).toEqual(['intel', 'exploit', 'extract']);
-    expect(CAMPUS_MISSION_TEST.rules.length).toBe(1);
   });
 });
 

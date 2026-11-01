@@ -315,50 +315,6 @@ describe('(guard-ai sweep fix) a guard standing in a blocked cell walks out of i
   });
 });
 
-describe('(guard-ai sweep fix round) out of a blocked cell a thin wall splits: his own side, never through it', () => {
-  it('warehouseOps 0.1 m panel at (-13.5, -21.2): a guard in its cell walks out on the side he stands, whichever way he is sent', async () => {
-    const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { warehouseOps } = await import('../src/world/maps/warehouseOps');
-    const { runtimeNav } = await import('./helpers/runtimeNav');
-    const { Enemy: EnemyClass } = await import('../src/ai/enemy');
-    const { MotionDriver, emptyMotionInput } = await import('../src/anim/motion');
-    const b = new LevelBuilder();
-    const lay = warehouseOps.build(b, 0);
-    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, warehouseOps.navLayers ?? 3, lay.navSeeds ?? []);
-    // the panel's cell (blocked) with walkable cells north and south of it
-    expect(nav.isWalkable(nav.cellOf(-13.5, -21.25, 0))).toBe(false);
-    expect(nav.isWalkable(nav.cellOf(-13.5, -20.75, 0))).toBe(true);
-    expect(nav.isWalkable(nav.cellOf(-13.5, -21.75, 0))).toBe(true);
-    const walker = (x: number, z: number) => {
-      const list: unknown[] = [];
-      const e = Object.assign(Object.create(EnemyClass.prototype) as Enemy, {
-        health: { alive: true }, taken: false, pos: new Vector3(x, 0, z), vel: new Vector3(), desired: new Vector3(), tmp: new Vector3(),
-        sepOut: { x: 0, z: 0 }, motion: new MotionDriver(0), motionIn: emptyMotionInput(), navCell: -1, yaw: 0, target: null,
-        def: { walkSpeed: 0.9, runSpeed: 3.2, kind: 'grunt', scale: 1, quadruped: false },
-        ctx: { nav, enemies: () => list, players: () => [] }, outP: [0, 0],
-      }) as unknown as { move(dt: number, goal: P2 | null, speed: number, face: number | null): void; pos: Vector3 };
-      Object.defineProperty(e, 'aimedMotion', { value: false });
-      list.push(e);
-      return e;
-    };
-    // the panel's faces: z -21.25 .. -21.15
-    for (const [z0, north] of [[-21.05, true], [-21.4, false]] as const) {
-      for (const goal of [[-13.5, -25], [-13.5, -17]] as P2[]) {
-        const e = walker(-13.5, z0);
-        let crossed = false;
-        for (let i = 0; i < 60 * 3; i++) {
-          e.move(1 / 60, goal, 1.4, null);
-          if (north ? e.pos.z < -21.15 : e.pos.z > -21.25) crossed = true;
-        }
-        expect(crossed, `from z ${z0} towards ${goal[1]}`).toBe(false);
-        // sent his own way he is out on walkable ground; sent across he stays on his side
-        const out = nav.isWalkable(nav.cellOf(e.pos.x, e.pos.z, 0));
-        if ((goal[1] > z0) === north) expect(out, `from z ${z0} towards ${goal[1]}`).toBe(true);
-      }
-    }
-  });
-});
-
 describe('(polish2 A184) an investigation behind a locked door with no way round: the near side, then the look', () => {
   it('a noise inside the locked room: he walks to the closure\'s near side and the look (`investigateLook`) ends it, not `investigateMax`', async () => {
     const { AlertMachine, ALERT, emptyAlertInput } = await import('../src/ai/alertState');

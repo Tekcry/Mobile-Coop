@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { BAND_MAX_FACTOR, bandCheck, LAMP_LUX_BASE, lampLux, levelToLux, luxToLevel, LUX_ANCHORS, LUX_CEIL, LUX_FLOOR, LUX_OFFSET, LUX_SLOPE, sumLux } from '../src/world/lux';
 import { LIGHT } from '../src/world/lights';
 import { moonLight } from '../src/world/lampMath';
-import { campusOps } from '../src/world/maps/campusOps';
+import { tallowWharf } from '../src/world/maps/tallowWharf';
 import { DISTANCES, ENGINE_COLUMN, FLOOR_LEVEL, NIGHT_FLOOR, PASS, REFERENCE, engineLevel, engineProfile, fitReference, runCalibration } from '../scripts/light-realism/calibrate';
 
 const CAL_MD = readFileSync(join(__dirname, '../docs/light-realism/measure/calibration.md'), 'utf8');
@@ -36,8 +36,8 @@ describe('lux curve (A2)', () => {
     expect(levelToLux(0.14)).toBeCloseTo(0.37, 2);
     expect(levelToLux(0.244)).toBeCloseTo(0.77, 2);
     expect(levelToLux(0.3)).toBeCloseTo(1.15, 2);
-    // the campus theme's moon is the 0.104 the reference test uses
-    expect(moonLight(campusOps.theme)).toBeCloseTo(NIGHT_FLOOR.moon, 3);
+    // the Tallow Wharf theme's moon is the 0.104 the reference test uses
+    expect(moonLight(tallowWharf.theme)).toBeCloseTo(NIGHT_FLOOR.moon, 3);
   });
 
   it('clamps at 0 and 1', () => {

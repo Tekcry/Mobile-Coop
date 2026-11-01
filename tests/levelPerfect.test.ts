@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 // @ts-expect-error plain .mjs process script without types
-import { mergeGraphs, validate } from '../scripts/level-validate.mjs';
+import { validate } from '../scripts/level-validate.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { checkPerfect } from '../scripts/level-checks/perfect.mjs';
 
@@ -158,10 +158,8 @@ describe('validator-port S6: ghost and no-kill paths (A10, A11)', () => {
     expect((validate(killVault('training'), { metrics: METRICS }) as Report).errors).toContain(`${TO_VAULT} ${KILL}`);
   });
 
-  it('the worked example and the campus graphs have ghost paths: nothing to report', () => {
+  it('the worked example has a ghost path: nothing to report', () => {
     expect(perfect(read('docs/level-validator/example.graph.json') as Graph)).toEqual(EMPTY);
-    const campus = [1, 2, 3, 4, 5].map((n) => read(`docs/sector-redesign/graph/campusOps-S${n}.json`));
-    expect(perfect(mergeGraphs(campus) as Graph)).toEqual(EMPTY);
   });
 });
 

@@ -9,7 +9,7 @@
 import { fieldFactor, motionFactor, PERCEPTION } from './perception';
 
 /** Up to this many players are perceived (= MAX_PLAYERS in src/net/protocol.ts; src/ai must not import src/net). */
-export const MAX_INTRUDERS = 4;
+export const MAX_INTRUDERS = 2;
 
 /** `all` false: the nearest player only (today). `sticky` false: in combat the best-seen player each think. */
 export const TARGETS = { all: true, sticky: true } as const;

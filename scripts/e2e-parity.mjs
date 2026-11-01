@@ -1,9 +1,8 @@
 // Light parity (J11 light-parity C1, G391 / bible L5, Q27 "Yes, every release"): on every carded map at Low and Epic, a matte 50%
 // grey card at points whose field level matches a DARK_TARGETS row (0.12, 0.27, 0.40, 0.70) reads as display luminance inside the
 // row's band, and the light meter equals the field there (0.02), with every moving light held still (`pinLights`).
-// Carded: Saltmarsh Park (campusOps, each of S1-S5; v1 as it ships), ctcourse (Marlow Yard) and the Warehouse. Not carded: warehouseOps
-// (frozen, Q26), provingGrounds, kestrel, seclab / courselab (J11 BRIEF A1, A5).
-//   parts: 1 campusOps S1-S2, 2 campusOps S3-S5, 3 ctcourse, 4 warehouse (`--part=N`, none = all); each runs Low then Epic.
+// Carded: ctcourse (Marlow Yard) and the Warehouse. Not carded: provingGrounds, kestrel, seclab / courselab (J11 BRIEF A1, A5).
+//   parts: 3 ctcourse, 4 warehouse (`--part=N`, none = all; parts 1-2, Saltmarsh Park, left in clean-up F); each runs Low then Epic.
 //   lines: `<look> <id> level <l> luma <v> band <min>-<max> ok|MISS|KNOWN MISS (...)`, `<look> <id> meter <m> field <f> ok|MISS`,
 //   and per part `PARITY-SUMMARY {"part", "cards", "meter", "known", "misses", "s"}` (the walk card's "Light parity" source).
 // (char-shadow-meter S4, J16) Part 4 also runs the character-shadow card on its own `charlight=1` pages (char shadows Off,
@@ -11,7 +10,7 @@
 // the character contract; one `CHARSHADOW {..}` line after part 4's summary (`charShadowCard`, PLAN sections 3 and 5).
 // Reads final pixels: E2E_GPU=1 only. Helpers and unit-tested pure parts: `parity-lib.mjs` / `tests/parityLib.test.ts`.
 import { launch, frames, GPU } from './e2e-lib.mjs';
-import { CAMPUS_RECTS, DARK_TARGETS, addCard, addMeter, cardId, expiredKnown, findCards, inBand, knownFor, measure, meterRow, newResults, pickCards, pinLights, rowFor, summaryLine, unpinLights } from './parity-lib.mjs';
+import { DARK_TARGETS, addCard, addMeter, cardId, expiredKnown, findCards, inBand, knownFor, measure, meterRow, newResults, pickCards, pinLights, rowFor, summaryLine, unpinLights } from './parity-lib.mjs';
 
 if (!GPU) {
   console.log('E2E ERROR: e2e-parity reads final pixels: E2E_GPU=1 only');
@@ -21,7 +20,7 @@ if (!GPU) {
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const PART = Number(process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? 0);
 const want = (n) => PART === 0 || PART === n;
-// one launch each, a fresh profile (every per-preset setting at its default); no `campusv2` param: what ships is carded (v1)
+// one launch each, a fresh profile (every per-preset setting at its default)
 const LOOKS = [
   { name: 'low', params: 'gfx=low' },
   { name: 'epic', params: 'gfx=epic' },
@@ -37,10 +36,7 @@ const ROWS = DARK_TARGETS.map((t) => t.level);
  */
 const KNOWN = [];
 
-const campus = (a, b) => CAMPUS_RECTS.slice(a, b).map((c) => ({ s: c.s, rect: c.rect, min: 3 }));
 const PARTS = [
-  { n: 1, map: 'campusOps', params: 'autostart=campusOps&mode=sector', sections: campus(0, 2), bake: true },
-  { n: 2, map: 'campusOps', params: 'autostart=campusOps&mode=sector', sections: campus(2, 5), bake: true },
   { n: 3, map: 'ctcourse', params: 'autostart=ctcourse&mode=course', sections: [{ s: 'all', rect: null, min: 8 }], bake: false },
   { n: 4, map: 'warehouse', params: 'autostart=warehouse&mode=clear', sections: [{ s: 'all', rect: null, min: 4 }], bake: false },
 ];

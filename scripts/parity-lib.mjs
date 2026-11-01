@@ -13,15 +13,6 @@ export const DARK_TARGETS = [
   { level: 0.7, band: 'lit', min: 0.45, max: 1 },
 ];
 
-/** The first rect [x0, z0, x1, z1] of each `CAMPUS_BAKE.regions` entry (`src/world/maps/campusBake.ts`), S1..S5. */
-export const CAMPUS_RECTS = [
-  { s: 'S1', rect: [-40, -84, 26, -34] },
-  { s: 'S2', rect: [-44, -30, 4, 6] },
-  { s: 'S3', rect: [10, -30, 70, 0] },
-  { s: 'S4', rect: [-10, 16, 40, 48] },
-  { s: 'S5', rect: [-70, 18, -26, 70] },
-];
-
 /**
  * The DARK_TARGETS row a field level falls in, else null. 0.12 / 0.40 / 0.70: within 0.03; 0.27: within 0.02 and under
  * the 0.28 meter threshold (A6). Self-contained on purpose: `findCards` sends its source into the page.

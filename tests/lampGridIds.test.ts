@@ -1,12 +1,12 @@
 /**
  * (F56) The lamp grid lists lights by id + 1 in a `Uint16Array` (`LAMP_GRID_MAX_LIGHTS`, 65535; was 255 in a
- * `Uint8Array`). Saltmarsh Park with every section v2 (the /preview/ build) has more than 255 lamps: the ones past the
+ * `Uint8Array`). A large Sector Ops map has more than 255 lamps: the ones past the
  * 255th (the S5 service stair) got no id, dark in the picture and the meter. Here: a map of 300 lamps lists every lamp
  * under its own id, the field (meter and guards) reads light from lamp 256+, the data texture (the picture) carries ids
- * past 255, and the all-v2 campus lists every lamp.
+ * past 255.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { bakeLamps, LAMP_GRID, LAMP_GRID_MAX_LIGHTS, LAMP_GRID_SLOTS, LAMP_GRID_TEXELS, LAMP_STRIDE, lampGrid, lampGridBase } from '../src/voxel/lampBake';
+import { bakeLamps, LAMP_GRID, LAMP_GRID_MAX_LIGHTS, LAMP_GRID_SLOTS, LAMP_GRID_TEXELS, lampGrid, lampGridBase } from '../src/voxel/lampBake';
 import { packShapes, type VoxelShape } from '../src/voxel/shapes';
 import { LightRegistry } from '../src/world/lights';
 import { bakedLights, type LightBake } from '../src/world/lightBake';
@@ -109,31 +109,4 @@ describe('(F56) more than 255 lamps', () => {
     const back = unpackLamps(packLamps(ids, ids.map(one)));
     expect(back && [...back.ids]).toEqual(ids);
   });
-});
-
-describe('(F56) Saltmarsh Park, every section v2 (the /preview/ build)', () => {
-  it('has more than 255 lamps and the grid lists every one; no 2 m column past its slots', async () => {
-    vi.resetModules();
-    const { flags, CAMPUS_V2_ALL } = await import('../src/core/flags');
-    flags.campusV2 = CAMPUS_V2_ALL;
-    const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { campusOps } = await import('../src/world/maps/campusOps');
-    const { canonicalLightSet } = await import('../src/voxel/lightShapes');
-    const { dressingOn } = await import('../src/world/detailPass');
-    const lb = new LevelBuilder();
-    campusOps.build(lb, 0);
-    const set = canonicalLightSet(lb.boxes, lb.cylinders, campusOps.id, dressingOn(campusOps));
-    const L = bakedLights(lb.lights).lights;
-    const n = L.length / LAMP_STRIDE;
-    const g = lampGrid(L, set.lo, set.hi);
-    const seen = new Uint8Array(n);
-    for (let v = 0; v < g.data.length; v++) if (g.data[v]! > 0) seen[g.data[v]! - 1] = 1;
-    const missing: number[] = [];
-    for (let i = 0; i < n; i++) if (!seen[i]) missing.push(i);
-    console.info(`[lampGridIds] campusOps all-v2: ${n} lamps, ${g.cols} x ${g.rows} columns (grid ${g.data.byteLength} B), worst column ${g.worst} of ${LAMP_GRID_SLOTS} slots`);
-    expect(n).toBeGreaterThan(255);
-    expect(g.dropped).toBe(0);
-    expect(missing, 'lamps listed in no column').toEqual([]);
-    expect(g.worst).toBeLessThanOrEqual(LAMP_GRID_SLOTS);
-  }, 300_000);
 });

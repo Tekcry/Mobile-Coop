@@ -4,7 +4,7 @@
 // 10 s after the reveal (programs, lamp landings, atlas uploads, materials, pop-ins, frame intervals), the bake source,
 // the bake's ms and the heap. GPU numbers only with `E2E_GPU=1` (software GL otherwise: never quote it).
 // Usage (repo root, a built dist/ served on E2E_PORT, default 4189):
-//   node scripts/map-ready-measure.mjs [--out <file.json>] [--gated] [--maps campusOps,ctcourse,warehouse] [--skip-a16]
+//   node scripts/map-ready-measure.mjs [--out <file.json>] [--gated] [--maps ctcourse,warehouse]
 //     [--runs cold] [--compile-order serial]
 // (map-ready S14) `--runs cold`: only each map's cold run. `--compile-order serial`: the gate's S2 compile order
 // (`compileorder=serial`; default parallel, cut A). After each run's after-window the script waits for the compile log
@@ -12,12 +12,11 @@
 // row's `compile`, and prints per run its summary, peak in flight, the group start times and the 8 longest programs.
 // Per map: a cold run (a new browser: fresh profile, no bake cache, no GPU program cache), 3 cached runs (reload in the
 // same context), a repeat run in the same page (quit to the menu, `__play` the same map), then the next map in the list
-// in that page (row `<next> | after <map>`; with one `--maps` entry the next from all maps). Then the A16 rows on campusOps:
-// (a) a solo restart (`cb.restart()`, seed + 1) and (b) a co-op start after a solo bake (net=local, two pages).
+// in that page (row `<next> | after <map>`; with one `--maps` entry the next from all maps).
 // Output: the JSON (`--out`) and a markdown table on stdout. The lead runs it on the laptop (map-ready S1 step 6).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { GPU, launch, openPage } from './e2e-lib.mjs';
+import { GPU, launch } from './e2e-lib.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => {
@@ -38,11 +37,10 @@ const COMPILE_TIMEOUT = 150000;
 const OUT = arg('--out', null);
 /** ms past the reveal the after-window may take (it closes 10 s after the reveal on a rendering page). */
 const AFTER_TIMEOUT = 60000;
-/** ms a load may take to reach its reveal (a cold campus bake included). */
+/** ms a load may take to reach its reveal (a cold bake included). */
 const LOAD_TIMEOUT = 300000;
 
 const ALL = [
-  { map: 'campusOps', mode: 'sector', params: 'autostart=campusOps&mode=sector' },
   { map: 'ctcourse', mode: 'course', params: 'autostart=ctcourse&mode=course&course=solo' },
   { map: 'warehouse', mode: 'clear', params: 'autostart=warehouse&mode=clear' },
 ];
@@ -148,71 +146,6 @@ async function perMap(m) {
   }
 }
 
-/** A16 (a): after a cold campus load and its section bake, a solo restart (seed + 1) reads its bake source. */
-async function a16Restart() {
-  const m = ALL[0];
-  console.log('map-ready measure: A16 (a) campusOps solo restart');
-  const { browser, page } = await launch({ url: URL, params: paramsOf(m) });
-  try {
-    await record(page, 'A16 (a) first load');
-    await poll(page, () => { const s = window.__app.current?.world.lightBake?.sections; return !s || s.done; }, null, LOAD_TIMEOUT, 'the section bake');
-    await page.evaluate(() => {
-      window.__mapReady = null;
-      window.__compileLog = null;
-      window.__app.current.cb.restart();
-    });
-    keep(m.map, 'A16 solo restart', await record(page, 'A16 (a) restart'));
-  } catch (e) {
-    fail.push(`A16 (a): ${String(e?.message ?? e)}`);
-  } finally {
-    await browser.close();
-  }
-}
-
-/**
- * A16 (b): page A plays campus solo until its section bake is written, quits, hosts; page B joins; the host starts
- * Sector Ops on campusOps; both pages' bake source. (The steps of `hostAndJoin` / `startMode`, scripts/e2e-net-lib.mjs,
- * copied: that file is not imported.)
- */
-async function a16Coop() {
-  console.log('map-ready measure: A16 (b) campusOps co-op start');
-  const q = `net=local&gfx=epic${extra}`;
-  const { browser, ctx, page: A } = await launch({ url: URL, params: q });
-  try {
-    await poll(A, () => typeof window.__play === 'function', null, 60000, 'the menu');
-    await A.evaluate(() => window.__play('campusOps', 'sector'));
-    await poll(A, () => !!window.__mapReady && window.__mapReady.released, null, LOAD_TIMEOUT, 'A16 (b) solo load');
-    await poll(A, () => { const s = window.__app.current?.world.lightBake?.sections; return !s || s.done; }, null, LOAD_TIMEOUT, 'the section bake');
-    await A.evaluate(() => window.__app.current.cb.quit());
-    await poll(A, () => !!document.querySelector('.main-menu'), null, 60000, 'the main menu');
-    // host a room, B joins with the code (hostAndJoin)
-    await A.click('.main-menu .btn:has-text("Co-op")');
-    await A.click('.btn:has-text("Host a room")');
-    await poll(A, () => !!document.querySelector('.lobby-screen') && !!window.__coop, null, 15000, 'host lobby');
-    const code = await A.evaluate(() => window.__coop.session.code);
-    const { page: B } = await openPage(ctx, URL, q);
-    await B.click('.main-menu .btn:has-text("Co-op")');
-    await B.click('.btn:has-text("Join with code")');
-    await B.keyboard.type(code.toLowerCase());
-    await B.keyboard.press('Enter');
-    await poll(A, (k) => window.__coop.session.players.size === k, 2, 15000, 'host sees client');
-    // start the match (startMode)
-    for (const P of [A, B]) await P.evaluate(() => { window.__mapReady = null; window.__compileLog = null; });
-    await A.evaluate(([m, mp]) => window.__coop.session.setSettings(m, mp, 'normal', ''), ['sector', 'campusOps']);
-    await B.evaluate(() => window.__coop.session.setReady(true));
-    await poll(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
-    await A.evaluate(() => window.__coop.session.startMatch());
-    for (const [P, who] of [[A, 'host'], [B, 'client']]) {
-      await poll(P, () => !!window.__mapReady && window.__mapReady.released, null, LOAD_TIMEOUT, `A16 (b) ${who} load`);
-      keep('campusOps', `A16 co-op ${who}`, await P.evaluate(() => JSON.parse(JSON.stringify(window.__mapReady))));
-    }
-  } catch (e) {
-    fail.push(`A16 (b): ${String(e?.message ?? e)}`);
-  } finally {
-    await browser.close();
-  }
-}
-
 const f1 = (v) => (typeof v === 'number' && v >= 0 ? (v / 1000).toFixed(1) : '-');
 const f0 = (v) => (typeof v === 'number' ? Math.round(v).toString() : '-');
 
@@ -254,10 +187,6 @@ function compileTables() {
 async function main() {
   console.log(`map-ready measure on ${URL}${GPU ? ' (E2E_GPU=1)' : ' (software GL: timings are not the GPU numbers)'}${GATED ? ', gated (mapready=1)' : ''}${SERIAL ? ', compile order serial' : ''}${COLD_ONLY ? ', cold runs only' : ''}`);
   for (const m of MAPS) await perMap(m);
-  if (!has('--skip-a16')) {
-    await a16Restart();
-    await a16Coop();
-  }
   const res = { url: URL, gpu: GPU, gated: GATED, compileOrder: SERIAL ? 'serial' : 'parallel', runs: COLD_ONLY ? 'cold' : 'all', at: new Date().toISOString(), rows, failures: fail };
   if (OUT) {
     mkdirSync(dirname(resolve(OUT)), { recursive: true });

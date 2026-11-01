@@ -74,13 +74,13 @@ try {
   assert((gate.gate.startsWith('ready') || /^timeout: .*cap of 12 s/.test(gate.gate)) && gate.lod === gate.want && !gate.hold, `load screen: the menu shows with Wren's close-up LOD drawn (${JSON.stringify(gate)})`);
 
   console.log('main menu: keyboard');
-  assert((await fk()) === 'sectorops', `default focus Sector Ops (${await fk()})`);
+  assert((await fk()) === 'coop', `default focus Co-op (${await fk()})`);
   await key('ArrowDown');
   const k1 = await fk();
   await key('KeyS');
   const k2 = await fk();
   await key('KeyW');
-  assert(k1 !== 'sectorops' && k2 !== k1 && (await fk()) === k1, `arrows and WASD move the focus (${k1}, ${k2}, back to ${await fk()})`);
+  assert(k1 !== 'coop' && k2 !== k1 && (await fk()) === k1, `arrows and WASD move the focus (${k1}, ${k2}, back to ${await fk()})`);
   await key('ArrowUp');
   await key('ArrowUp');
   const wrapped = await fk();
@@ -371,19 +371,19 @@ try {
       await F.page.waitForFunction(() => window.__app.screens.top?.el.classList.contains('main-menu'), null, { timeout: 10000 }).catch(() => {});
       await F.page.waitForTimeout(300);
       const s = await F.page.evaluate(() => ({ top: window.__app.screens.top?.el.classList[1], depth: window.__app.screens.depth, f: window.__app.nav.focused?.dataset.key, phase: window.__app.current?.titleLight?.phase }));
-      assert(s.top === 'main-menu' && s.depth === 1 && s.f === 'sectorops' && s.phase === 'done', `click to start, Enter skips to the lit main menu and opens nothing (${JSON.stringify(s)})`);
+      assert(s.top === 'main-menu' && s.depth === 1 && s.f === 'coop' && s.phase === 'done', `click to start, Enter skips to the lit main menu and opens nothing (${JSON.stringify(s)})`);
     } finally {
       await F.browser.close();
     }
   }
 
-  // slice 4 (sector-ops slice 1): Sector Ops and its briefing, the issued kit; Missions, Training and Free roam only
+  // slice 4: the issued kit; Missions, Training and Free roam only
   // with ?legacy=1 (e2e-park)
   await key('Escape');
   assert((await top()) === 'main-menu', 'Esc: Settings back to the main menu');
   const menuKeys = await G(() => [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(','));
   // (anim-studio) the developer row Anim Studio (dev) last
-  assert(menuKeys === 'sectorops,coop,loadout,settings,feedback,anim-studio', `the main menu is Sector Ops, Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (${menuKeys})`);
+  assert(menuKeys === 'coop,loadout,settings,feedback,anim-studio', `the main menu is Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (${menuKeys})`);
   // (marlow-bays R1) no rejoin row without a room; a room left in the last 10 minutes shows "Rejoin <code>" after Co-op
   const rj = await G(() => {
     sessionStorage.setItem('ns-rejoin', JSON.stringify({ code: 'ABCDE', role: 'client', at: Date.now(), mode: 'course', map: 'ctcourse', difficulty: 'normal', mission: '', weather: 'clear', bay: 2 }));
@@ -392,36 +392,10 @@ try {
     const label = document.querySelector('.main-menu [data-key="rejoin"] .btn-label')?.textContent ?? '';
     return { keys, label };
   });
-  assert(rj.keys === 'sectorops,rejoin,coop,loadout,settings,feedback,anim-studio' && rj.label === 'Rejoin ABCDE', `a left room shows Rejoin <code> on the main menu (${JSON.stringify(rj)})`);
+  assert(rj.keys === 'rejoin,coop,loadout,settings,feedback,anim-studio' && rj.label === 'Rejoin ABCDE', `a left room shows Rejoin <code> on the main menu (${JSON.stringify(rj)})`);
   await G(() => {
     sessionStorage.removeItem('ns-rejoin');
   });
-  await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="sectorops"]')));
-  await key('Enter');
-  // (sector-ops M7) Sector Ops opens the op list: the Warehouse with its four difficulty stars
-  assert((await top()) === 'sectorops-screen' && (await fk()) === 'op-warehouseOps', `Enter opens the op list on the Warehouse (${await top()}, ${await fk()})`);
-  const opStars = await G(() => document.querySelector('.sectorops-screen [data-op="warehouseOps"] .ms-ctr')?.textContent ?? '');
-  assert(/^[★☆]{4}$/.test(opStars), `the op shows four difficulty stars (${opStars})`);
-  await key('Enter');
-  assert((await top()) === 'briefing-screen' && (await fk()) === 'deploy', `the op opens the Sector Ops briefing on Start (${await fk()})`);
-  const nSec = await G(() => document.querySelectorAll('.briefing-screen .br-obj li').length);
-  assert(nSec >= 3, `the briefing lists the sectors (${nSec})`);
-  const diff0 = await G(() => document.querySelector('.briefing-screen [data-diff="choice"] .choice-val').textContent);
-  await key('ArrowUp');
-  await key('ArrowUp');
-  assert((await fk()) === 'difficulty', `Up reaches Difficulty (${await fk()})`);
-  await key('ArrowRight');
-  const diff1 = await G(() => document.querySelector('.briefing-screen [data-diff="choice"] .choice-val').textContent);
-  assert(diff0 === 'Normal' && diff1 === 'Realistic' && (await G(() => document.querySelectorAll('.briefing-screen [data-diff]:not([data-diff="choice"])').length)) === 0, `four fixed levels, no Custom (${diff0} -> ${diff1})`);
-  await key('ArrowLeft');
-  await G(() => window.__app.input.setMode('gamepad'));
-  await press(page, BTN.B);
-  await frames(page, 3);
-  assert((await top()) === 'sectorops-screen', 'B: Briefing back to the op list');
-  await press(page, BTN.B);
-  await frames(page, 3);
-  assert((await top()) === 'main-menu', 'B: the op list back to the main menu');
-  await G(() => window.__app.input.setMode('kbm'));
   await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="loadout"]')));
   await key('Enter');
   assert((await top()) === 'kit-screen', 'Loadout opens the issued kit');

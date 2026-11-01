@@ -99,11 +99,6 @@ export const QUICK_COVERS = {
   'src/game/rating/': ['e2e-section-rating', 'e2e-sectorops', 'e2e-course'],
   'src/save/ratingRecord': ['e2e-section-rating'],
   'src/game/sectors': ['e2e-sectorops'],
-  'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
-  'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
-  // (sector-fixes-r RE) the Sector Ops section files (warehouseS1-S3: the co-op routes and team doors) and the usual world
-  // suites; (sector-fixes-r fix) not e2e-ctcourse: Marlow Yard never loads warehouseOps
-  'src/world/maps/warehouseS': ['e2e-sectorops', 'e2e-lightbake', 'e2e-levels', 'e2e-anchors'],
   'src/game/': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops'],
   'src/physics/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-ct'],
   // the camera files (CAM): the camera bounds suite on top of what their folders run
@@ -187,11 +182,6 @@ export const WIDE_COVERS = {
   'src/game/rating/': ['e2e-section-rating', 'e2e-sectorops', 'e2e-course'],
   'src/save/ratingRecord': ['e2e-section-rating', 'e2e-sectorops', 'e2e-menus'],
   'src/game/sectors': ['e2e-sectorops'],
-  'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
-  'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
-  // (sector-fixes-r RE) the Sector Ops section files (warehouseS1-S3: the co-op routes and team doors) and the usual world
-  // suites; (sector-fixes-r fix) not e2e-ctcourse: Marlow Yard never loads warehouseOps
-  'src/world/maps/warehouseS': ['e2e-sectorops', 'e2e-lightbake', 'e2e-levels', 'e2e-anchors'],
   'src/game/modes/clearMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-clear'],
   'src/game/modes/missionMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-modes'],
   'src/game/modes/infiltrationMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-missions'],
@@ -209,13 +199,11 @@ export const WIDE_COVERS = {
   'src/anim/': ['anim-audit', 'e2e-anim', 'e2e-clip', 'e2e-weapons-carry', 'e2e-move', 'e2e-takedown'],
   'src/cover/': ['e2e-stealth', 'e2e-clip', 'e2e-tactics', 'e2e-wall'],
   // (train 30) weapons.lastShotNoise drives guard hearing: the stealth AI suite and Sector Ops part 1 read it
-  'src/weapons/': ['e2e-combat', 'e2e-weapons-carry', 'e2e-enemies', 'e2e-gadgets', 'e2e-clip', 'e2e-stealth-ai', 'e2e-sectorops:1'],
-  'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-levels', 'e2e-tactics', 'e2e-takedown', 'e2e-enemies', 'e2e-weapons-carry', 'e2e-coop', 'e2e-sectorops:1', 'e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9'],
+  'src/weapons/': ['e2e-combat', 'e2e-weapons-carry', 'e2e-enemies', 'e2e-gadgets', 'e2e-clip', 'e2e-stealth-ai', 'e2e-sectorops'],
+  'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-levels', 'e2e-tactics', 'e2e-takedown', 'e2e-enemies', 'e2e-weapons-carry', 'e2e-coop', 'e2e-sectorops'],
   'src/world/maps/kestrel': ['e2e-kestrel'],
   'src/world/maps/courselab.ts': ['e2e-course'],
   'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
-  'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
-  'src/world/maps/campus': ['e2e-sectorops', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse', 'e2e-section-rating'],
   // (marlow-final 0d) the Marlow Yard set parts, facility and greybox helpers: e2e-ctcourse, and e2e-section-rating (rates A2-A8)
   'src/world/maps/ctcourseSets/': ['e2e-ctcourse', 'e2e-section-rating'],
@@ -317,27 +305,21 @@ export const DIRECT_COVERS = {
   'src/anim/': ['e2e-anim', 'e2e-clip', 'e2e-move'],
   'src/cover/': ['e2e-stealth', 'e2e-clip', 'e2e-tactics', 'e2e-wall'],
   // (train 30) weapons.lastShotNoise drives guard hearing: e2e-stealth-ai and Sector Ops part 1 read it
-  'src/weapons/': ['e2e-combat', 'e2e-weapons-carry', 'e2e-stealth-ai', 'e2e-sectorops:1'],
+  'src/weapons/': ['e2e-combat', 'e2e-weapons-carry', 'e2e-stealth-ai', 'e2e-sectorops'],
   // the enemy archetypes (heavy, enforcer, sniper, dog): their legacy suite
-  'src/ai/archetypes': ['e2e-enemies', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops:1'],
-  'src/ai/enemyDefs': ['e2e-enemies', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops:1'],
-  'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops:1'],
+  'src/ai/archetypes': ['e2e-enemies', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops'],
+  'src/ai/enemyDefs': ['e2e-enemies', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops'],
+  'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops'],
   // the map files with their own suite
   'src/world/maps/kestrel': ['e2e-kestrel'],
   'src/world/maps/courselab.ts': ['e2e-course'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse'],
   'src/world/maps/ctcourseSets/': ['e2e-ctcourse'],
   'src/world/maps/ctcourseGreybox.ts': ['e2e-ctcourse'],
-  'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
-  'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
-  'src/world/maps/warehouseS': ['e2e-sectorops', 'e2e-levels', 'e2e-anchors'],
   // (mission-framework GB6) Tallow Wharf: its missions run in e2e-sectorops (wharf-tgc / wharf-tkl)
   'src/world/maps/tallowWharf': ['e2e-sectorops', 'e2e-levels', 'e2e-anchors'],
   // the Warehouse map itself: its routes suite (legacy) and the usual world suites
   'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
-  'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
-  // (J20 T5) Saltmarsh Park: its suite is e2e-sectorops parts 6-9
-  'src/world/maps/campus': ['e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9', 'e2e-levels', 'e2e-anchors'],
   // the lamp files: the bake suite, the desktop renderer and the GPU light read-backs (e2e-darkness, e2e-parity; dropped outside --gpu)
   'src/world/light': LIGHT,
   'src/world/lamp': LIGHT,

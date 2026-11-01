@@ -29,15 +29,13 @@ import {
 } from '../src/world/lampFlicker';
 import { contribution, LightRegistry } from '../src/world/lights';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
-import { warehouseOps } from '../src/world/maps/warehouseOps';
 import { warehouse } from '../src/world/maps/warehouse';
 import { ctcourse } from '../src/world/maps/ctcourse';
 import { LISTED_MAP_IDS } from '../src/world/maps/listed';
 import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 
 const DT = 1 / 60;
-const SEED = lampSeed(mapFlickerSeed('warehouseOps', 1), 40);
+const SEED = lampSeed(mapFlickerSeed('warehouse', 1), 40);
 
 describe('fire flicker', () => {
   it('stays in 0.75..1, moves smoothly, at a few Hz, around its mean', () => {
@@ -161,7 +159,7 @@ describe('determinism (host and client agree with no wire change)', () => {
       r.add({ x: 0, y: 3, z: 0, radius: 6 });
       r.add({ kind: 'fire', x: 4, y: 1, z: 0, radius: 5, intensity: 0.7 });
       r.add({ x: 8, y: 3, z: 0, radius: 6 });
-      r.flickerSeed = mapFlickerSeed('warehouseOps', 7);
+      r.flickerSeed = mapFlickerSeed('warehouse', 7);
       r.setFlicker(2, FLICKER_STUTTER);
       return r;
     };
@@ -175,7 +173,7 @@ describe('determinism (host and client agree with no wire change)', () => {
     }
     // a different map or match seed is a different pattern
     const other = make();
-    other.flickerSeed = mapFlickerSeed('campusOps', 7);
+    other.flickerSeed = mapFlickerSeed('ctcourse', 7);
     let diff = 0;
     for (let i = 0; i < 400; i++) {
       host.tickFlicker(i * 0.1);
@@ -240,9 +238,9 @@ describe('registry flicker state', () => {
 });
 
 describe('stutter tubes per main map', () => {
-  const maps = { campusOps, warehouseOps, warehouse, ctcourse };
-  it('covers campusOps, warehouseOps, ctcourse and every listed main map with a live lamp', () => {
-    for (const id of ['campusOps', 'warehouseOps', 'ctcourse', ...LISTED_MAP_IDS.filter((m) => m === 'warehouse')]) {
+  const maps = { warehouse, ctcourse };
+  it('covers ctcourse and every listed main map with a live lamp', () => {
+    for (const id of ['ctcourse', ...LISTED_MAP_IDS.filter((m) => m === 'warehouse')]) {
       const m = maps[id as keyof typeof maps];
       const b = new LevelBuilder();
       m.build(b, 0);
@@ -293,7 +291,7 @@ describe('the meter and the guards follow the flicker (light parity)', async () 
     reg.ambient = 0.05;
     reg.add({ x: 0, y: 3, z: 0, radius: 6, intensity: 0.9, group: 4 });
     reg.add({ x: 8, y: 3, z: 0, radius: 6, intensity: 0.9 });
-    reg.flickerSeed = mapFlickerSeed('warehouseOps', 3);
+    reg.flickerSeed = mapFlickerSeed('warehouse', 3);
     reg.setFlicker(0, FLICKER_STUTTER);
     const shapes = packShapes([{ kind: 'box', c: [0, -0.25, 0], s: [24, 0.5, 24], yaw: 0, pitch: 0, mat: 1 }]);
     const lo: [number, number, number] = [-11, -1, -11];
@@ -356,7 +354,7 @@ describe('a lamp that is off stays off (flicker never relights it)', () => {
   const make = (): LightRegistry => {
     const r = new LightRegistry();
     r.add({ x: 0, y: 3, z: 0, radius: 6, intensity: 0.9, group: 2, destructible: true });
-    r.flickerSeed = mapFlickerSeed('campusOps', 9);
+    r.flickerSeed = mapFlickerSeed('ctcourse', 9);
     r.setFlicker(0, FLICKER_STUTTER);
     return r;
   };
@@ -401,8 +399,8 @@ describe('a lamp that is off stays off (flicker never relights it)', () => {
     // a full restart builds the map again (World.create): same tube, same seed, the clock from 0, the same values
     const build = (): LightRegistry => {
       const b = new LevelBuilder();
-      warehouseOps.build(b, 4);
-      applyMapFlicker(b.lights, 'warehouseOps', 4);
+      warehouse.build(b, 4);
+      applyMapFlicker(b.lights, 'warehouse', 4);
       return b.lights;
     };
     const a = build();

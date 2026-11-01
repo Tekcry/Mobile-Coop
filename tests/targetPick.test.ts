@@ -110,9 +110,9 @@ describe('pickTarget', () => {
     expect(pickTarget(2, false, -1, -1, L(0, 0), D(0, 0), D(4, 4))).toBe(0);
   });
 
-  it('TARGETS.all false gives the nearest (nearestTarget); the defaults are all and sticky; four players at most', () => {
+  it('TARGETS.all false gives the nearest (nearestTarget); the defaults are all and sticky; two players at most', () => {
     expect(TARGETS).toEqual({ all: true, sticky: true });
-    expect(MAX_INTRUDERS).toBe(4);
+    expect(MAX_INTRUDERS).toBe(2);
     expect(nearestTarget(3, D(7, X, 3))).toBe(2);
     expect(nearestTarget(2, D(4, 4))).toBe(0);
     expect(nearestTarget(2, D(X, X))).toBe(-1);
@@ -145,7 +145,8 @@ describe('coop4 AI2: pickTarget with 4 players', () => {
 });
 
 describe('coop4 AI2: perceiveOrder and the ray budget (A181)', () => {
-  const out = new Int8Array(MAX_INTRUDERS);
+  // the pure helper's own n (the game caps at MAX_INTRUDERS = 2; the helper stays general)
+  const out = new Int8Array(4);
   const order = (n: number, cur: number, hunt: number, dist: Float64Array, rr: number) => {
     const m = perceiveOrder(n, cur, hunt, dist, rr, out);
     return Array.from(out.subarray(0, m));
@@ -218,7 +219,7 @@ describe('coop4 AI2: perceiveOrder and the ray budget (A181)', () => {
   });
 
   it('no allocation: the same out array, nothing returned but a count', () => {
-    const o = new Int8Array(MAX_INTRUDERS);
+    const o = new Int8Array(4);
     expect(perceiveOrder(4, -1, -1, D(1, 2, 3, 4), 3, o)).toBe(4);
     expect(Array.from(o)).toEqual([3, 0, 1, 2]);
   });

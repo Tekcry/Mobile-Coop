@@ -1,4 +1,4 @@
-// (map-ready S4) The prebake's shared part: each shipped map (`SHIPPED_BAKE_MAPS`: campusOps; piano SO2 made it a list)
+// (map-ready S4) The prebake's shared part: each shipped map (`SHIPPED_BAKE_MAPS`, empty since Saltmarsh Park left in clean-up F; piano SO2 made it a list)
 // built in Node the way `World.create` builds its light set (the shared `buildMapLights` in
 // `world/mapLights.ts`: the builder, the flicker pass, the sway pass; then
 // `prepare`: the light set ignores `detail`), its fixed lights and the game's own lamp key
@@ -9,7 +9,6 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LevelBuilder } from '../../src/world/levelBuilder';
 import type { MapDef } from '../../src/world/mapDef';
-import { campusOps } from '../../src/world/maps/campusOps';
 import { buildMapLights } from '../../src/world/mapLights';
 import { dressingOn } from '../../src/world/detailPass';
 import { bakedLights, lampKeyOf } from '../../src/world/lightBake';
@@ -23,11 +22,11 @@ export const PREBAKE_SEED = 1;
 /** Shard files (`shard-<i>.prebake.ts`): lamp j of every map goes to shard j % SHARDS. */
 export const SHARDS = 8;
 /** (prebake-preview) The build variant this prebake is for: the /preview/ build (`PREVIEW_ON`, from the `define` in
- *  `vitest.prebake.config.ts`) bakes its own campus layout; `scripts/prebake.mjs` keeps one cache folder per variant. */
+ *  `vitest.prebake.config.ts`) bakes its own layout; `scripts/prebake.mjs` keeps one cache folder per variant. */
 export const VARIANT: 'live' | 'preview' = PREVIEW_ON ? 'preview' : 'live';
 
 /** The map definitions the prebake can build, by id. */
-const MAP_DEFS: Readonly<Record<string, MapDef>> = { campusOps };
+const MAP_DEFS: Readonly<Record<string, MapDef>> = {};
 
 /** The maps the prebake bakes, in `SHIPPED_BAKE_MAPS` order (the game reads `bakes/<id>.json` for exactly these). */
 export const PREBAKE_MAPS: readonly MapDef[] = SHIPPED_BAKE_MAPS.map((id) => {
@@ -88,11 +87,6 @@ export function buildMap(def: MapDef): BuiltMap {
   const { lights } = bakedLights(b.lights);
   const key = lampKeyOf(id, light.hash, lights);
   return { map: id, shapes: light.shapes, lo: light.lo, hi: light.hi, lights, key, h: folderOf(key) };
-}
-
-/** campusOps' light set (the campus tests and `prebakePreview.test.ts` read it). */
-export function buildCampus(): BuiltMap {
-  return buildMap(campusOps);
 }
 
 /** `<h>/<map>.json` holds `key` and every file it names is there (a partial restore bakes again). */

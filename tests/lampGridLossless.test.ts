@@ -1,7 +1,7 @@
 /**
  * (sector-fixes L, checker) `lampGrid` lists a cone light only in the 2 m columns its beam can reach (`lampPlanReach` /
  * `lampColumnDist`). This proves on real maps that the listing drops no light: for Marlow Yard (ctcourse),
- * the base Warehouse and Sector Ops (warehouseOps, all three sections), the lamp light the field sums from the
+ * and the base Warehouse, the lamp light the field sums from the
  * new listing equals, at every sample point, the sum over a reference listing of every light whose falloff radius
  * touches the column, uncapped (each lamp's term is exactly 0 outside its radius, so that reference holds every term).
  * It also reports where the old listing (the same radius rule, capped at `LAMP_GRID_SLOTS`) differed: only columns
@@ -13,7 +13,6 @@ import { LevelBuilder } from '../src/world/levelBuilder';
 import type { MapDef } from '../src/world/mapDef';
 import { ctcourse } from '../src/world/maps/ctcourse';
 import { warehouse } from '../src/world/maps/warehouse';
-import { warehouseOps } from '../src/world/maps/warehouseOps';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
 import { bakeLamps, LAMP_GRID, LAMP_GRID_MAX_LIGHTS, LAMP_GRID_SLOTS, LAMP_STRIDE, lampColumnDist, lampGrid, lampGridBase, lampPlanReach } from '../src/voxel/lampBake';
@@ -128,7 +127,7 @@ function check(map: MapDef, id: string): Result {
 }
 
 describe('(sector-fixes L) lampGrid reach listing is lossless on real maps', () => {
-  const maps: [MapDef, string][] = [[ctcourse, 'ctcourse'], [warehouse, 'warehouse'], [warehouseOps, 'warehouseOps']];
+  const maps: [MapDef, string][] = [[ctcourse, 'ctcourse'], [warehouse, 'warehouse']];
   for (const [map, id] of maps) {
     it(`${id}: the reach listing sums every light the radius listing does`, () => {
       const res = check(map, id);

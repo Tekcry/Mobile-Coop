@@ -42,16 +42,7 @@ try {
   assert(!badge.any && !badge.level && !badge.credits, `no profile badge, level or credits (${JSON.stringify(badge)})`);
   const keys = await G(() => [...document.querySelectorAll('.main-menu [data-key]')].map((b) => b.dataset.key));
   // (anim-studio) plus the developer row Anim Studio (dev) last
-  assert(JSON.stringify(keys) === JSON.stringify(['sectorops', 'coop', 'loadout', 'settings', 'feedback', 'anim-studio']), `the flat main menu: Sector Ops, Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (${keys})`);
-  await menuClick(page, 'Sector Ops');
-  // (sector-ops M7) the op list: the Warehouse with its four difficulty stars, then its briefing
-  await page.waitForSelector('.sectorops-screen [data-op="warehouseOps"]');
-  await G(() => document.querySelector('.sectorops-screen [data-op="warehouseOps"]').click());
-  await page.waitForSelector('.briefing-screen [data-key="deploy"]');
-  assert((await G(() => document.querySelectorAll('.briefing-screen .br-obj li').length)) >= 3, 'Sector Ops opens its briefing with the sectors');
-  await G(() => window.__app.screens.pop());
-  await G(() => window.__app.screens.pop());
-
+  assert(JSON.stringify(keys) === JSON.stringify(['coop', 'loadout', 'settings', 'feedback', 'anim-studio']), `the flat main menu: Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (${keys})`);
   // Loadout (slice 4, D-11: the issued kit, read only; the old screen stays under ?legacy=1)
   await menuClick(page, 'Loadout');
   await page.waitForSelector('.kit-screen .ms-item');
@@ -88,10 +79,9 @@ try {
     }
     return { mode0, map0, seen, maps };
   });
-  // (sector-ops slice 3) co-op is the campaign: Marlow Yard in Course mode by default; the host can switch to Sector Ops
+  // (sector-ops slice 3) co-op is the campaign: Marlow Yard in Course mode by default; no Sector Ops map is listed
   assert(lob.mode0 === 'course' && lob.map0 === 'ctcourse', `a new room starts on the campaign, Marlow Yard (${lob.mode0}, ${lob.map0})`);
-  assert(JSON.stringify(lob.seen) === JSON.stringify(['Campaign', 'Sector Ops']), `the lobby lists Campaign and Sector Ops (${lob.seen})`);
-  assert(lob.maps['Sector Ops'] === 'warehouseOps', `Sector Ops runs on the Warehouse sectors (${JSON.stringify(lob.maps)})`);
+  assert(JSON.stringify(lob.seen) === JSON.stringify(['Campaign']), `the lobby lists Campaign only (${lob.seen})`);
 
   // saves are untouched by parking: the export keeps its internal magic and an exported file imports (what e2e-progression
   // checked, now that it is a legacy suite), the campaign's loadout choice included
@@ -115,7 +105,7 @@ try {
   assert(lbadge.level && lbadge.credits, 'the profile badge shows level and credits');
   // (sector-ops slice 1) Missions and Free roam only with ?legacy=1
   const lkeys = await GL(() => [...document.querySelectorAll('.main-menu [data-key]')].map((b) => b.dataset.key));
-  assert(['sectorops', 'missions', 'coop', 'freeroam', 'loadout', 'settings', 'feedback', 'legacy'].every((k) => lkeys.includes(k)), `the legacy main menu keeps Missions and Free roam (${lkeys})`);
+  assert(['missions', 'coop', 'freeroam', 'loadout', 'settings', 'feedback', 'legacy'].every((k) => lkeys.includes(k)), `the legacy main menu keeps Missions and Free roam (${lkeys})`);
   await menuClick(L, 'Missions');
   await L.waitForSelector('.missions-screen .ms-item');
   const mk = await GL(() => ({ n: document.querySelectorAll('.missions-screen .ms-item').length, total: window.__missions.length }));

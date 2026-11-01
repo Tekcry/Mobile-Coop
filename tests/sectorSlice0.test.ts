@@ -7,7 +7,6 @@ import { ENEMIES } from '../src/ai/enemyDefs';
 import { ENEMY_KINDS } from '../src/ai/enemyDefs';
 import { WIRE_CAMERAS, liveCameraPeak, validateSecurity, type CameraDevice } from '../src/security/data';
 import { SECURITY_LIMITS } from '../src/config/security';
-import { WAREHOUSE_OPS_SECURITY } from '../src/world/maps/warehouseSectors';
 
 // (sector-redesign slice 0) engine prerequisites: restart resets lamps and doors (G22), dogs cannot be palm-struck
 // (G20 / G42), the camera cap per live section (G1)
@@ -106,7 +105,6 @@ describe('camera cap per live section (G1)', () => {
   it('counts untagged cameras plus the busiest section', () => {
     expect(liveCameraPeak([])).toBe(0);
     expect(liveCameraPeak([cam('a'), cam('b', 0), cam('c', 0), cam('d', 1)])).toBe(3);
-    expect(liveCameraPeak(WAREHOUSE_OPS_SECURITY.devices)).toBe(3);
   });
 
   it('12 per section passes where 12 per map did not; 13 in one section, or more than the wire carries, fails', () => {

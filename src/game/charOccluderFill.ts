@@ -19,7 +19,7 @@ import { posedHeadSample } from '../player/wallController';
 import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
 
 /** The interim fill (BRIEF A10): today's `rtCapsule` numbers (gameState.ts `rtCapsule`: radius, the foot lift, the top
- *  below the head, the shortest top), the guard cull (m, horizontal, from any player), player slots (MAX_PLAYERS 4,
+ *  below the head, the shortest top), the guard cull (m, horizontal, from any player), player slots (MAX_PLAYERS 2,
  *  src/net/protocol.ts, restated here: single player never imports src/net). */
 export const FILL = { r: 0.22, footLift: 0.25, topDrop: 0.2, minTop: 0.5, reach: 30, players: 4 } as const;
 /** `pin` stride per player slot: feet x, y, z; sample height h (the meter's); head offset ox, oz. */

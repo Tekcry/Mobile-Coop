@@ -62,7 +62,7 @@ Plan and rules: docs/sector-redesign/briefs/ART-PLAN.md; builds: docs/sector-red
 
 - **Generated, not drawn.** Headless Blender scripts in the repo (`scripts/campus-props/`: `lib.py`, `kit.py`,
   `hero_s1.py` .. `hero_s5.py`, driver `build.mjs`; `npm run campus-props:build [-- --set kit|hero-s<N>]`). Output is
-  deterministic (byte-identical GLB per run) and lands in `src/world/campusArt/assets/` as `campus-kit.glb/.json` and
+  deterministic (byte-identical GLB per run) and landed in the removed Saltmarsh Park art folder (clean-up F) as `campus-kit.glb/.json` and
   `hero-s<N>.glb/.json`. Factor-only materials, no UVs, no textures. The kit is 60 ids, about 7 k triangles.
 - **Base dressing by room tag.** Each section lists an art tag per room (`S<N>_ART_TAGS`, `artTags.ts`). The rule table
   (`dressRules.ts`, `DRESS_RULES`, plus `DOOR_EXTRAS`) fills free floor, wall and ceiling by tag: `per`, `max`, `perRun`,
@@ -107,14 +107,14 @@ Plan and rules: docs/sector-redesign/briefs/ART-PLAN.md; builds: docs/sector-red
     piece's range.
   - A visual piece that writes no box (a skin, a decal, a frame) keeps the rules its mount gives it, as above.
   - Every art box is `noLedge`. Light class and the three prop classes: ART-PLAN section 2.
-- **Gameplay gate.** `tests/campusArtGameplay.test.ts` (`-t S<N>`): legs, protected nav cells, patrols, cover, lips,
+- **Gameplay gate.** The campus gameplay gate test (removed in clean-up F): legs, protected nav cells, patrols, cover, lips,
   cameras, lasers, reach, ledges, split gaps (computed from the greybox, whatever the dressing order), `checkDressing`,
-  budgets. `tests/campusArtLight.test.ts` bakes and checks every protected point within 0.02. Others: `campusArtKit`
+  budgets. The campus light test (removed in clean-up F) baked and checks every protected point within 0.02. Others: `campusArtKit`
   (the API above, one case per kit item), `campusDressRules`, `campusArtRender`, `campusS<N>Dress`.
 - **Render.** `campusArtRender.ts` draws one instanced mesh per (section, material); the World hook and
   `BuiltLevel.hidePieces` (`levelBuilder.ts`) hide the boxes a skin replaces.
 - **Budget.** At most 40 draws, 150 k triangles and 2500 placements per section. Now: S1 35 / S2 33 / S3 27 / S4 19 /
-  S5 29 draws; the campus is 143 draws and 186 k triangles (1930 placements). S1 sits at 35 of 40. Perf budgets: `docs/systems/performance.md`; shots: `scripts/campus-art-shots.mjs`.
+  S5 29 draws; the campus is 143 draws and 186 k triangles (1930 placements). S1 sits at 35 of 40. Perf budgets: `docs/systems/performance.md`; shots: the campus art shots script (removed in clean-up F).
 
 ## Characters (one rig for player, enemies, coop remotes, dummies and the menu operator)
 - (anim-natural-n2) Wren's body motion layer (`src/anim/bodyMotion.ts`, pure): per tuner body row (`BODY_MOTION`,

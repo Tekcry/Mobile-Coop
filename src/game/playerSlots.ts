@@ -1,5 +1,5 @@
 /**
- * (coop4 N0, A19) Player slots: the fixed 0..3 place each player has in a match (pure: no Babylon, no src/net; single
+ * (coop4 N0, A19) Player slots: the fixed 0..1 place each player has in a match (pure: no Babylon, no src/net; single
  * player uses it too). Slot 0 is the host (or the solo player); a joiner takes the lowest free slot; a dropped player's
  * slot is held for their rejoin; slots never move during a match and are compacted only at a match start.
  *
@@ -10,8 +10,8 @@ import type { PlayerRef } from '../ai/enemy';
 import type { MoveState } from '../player/moveState';
 
 /** Players a match can have (= MAX_PLAYERS in net/protocol.ts = MAX_INTRUDERS in ai/targetPick.ts; a test keeps them equal). */
-export const PLAYER_SLOTS = 4;
-export type PlayerSlot = 0 | 1 | 2 | 3;
+export const PLAYER_SLOTS = 2;
+export type PlayerSlot = 0 | 1;
 
 /** A player as the game and the guards see it: its fixed slot this match (0 = the host / solo) and its movement state. */
 export interface TeamFields {
@@ -56,7 +56,7 @@ export function slotFromList(players: readonly { readonly id: string; readonly h
  * `compact` renumbers at a match start. `slotOf` scans a fixed array and allocates nothing (per frame safe).
  */
 export class SlotTable {
-  /** Slots this table hands out (the mode's cap, 1..PLAYER_SLOTS: Sector Ops 4, the campaign 2). */
+  /** Slots this table hands out (the mode's cap, 1..PLAYER_SLOTS: 2). */
   readonly cap: number;
   private readonly ids: (string | null)[] = [];
   private readonly held: boolean[] = [];

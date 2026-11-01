@@ -1,6 +1,6 @@
 // (map-ready S4, fix (2)) The shipped maps' lamps baked at build time (`npm run build` runs this first; brief
 // docs/map-ready/briefs/S4.md, BRIEF A15; piano SO2: every map in `SHIPPED_BAKE_MAPS`, src/world/shippedBake.ts:
-// campusOps). Never committed: the files go to `.prebake-cache/` (gitignored; CI keeps it with
+// the list is empty since clean-up F, so the build ships no bake). Never committed: the files go to `.prebake-cache/` (gitignored; CI keeps it with
 // actions/cache) and the build emits them as `bakes/*` (scripts/prebake/emit.ts).
 //   PREBAKE=0 node scripts/prebake.mjs     -> "prebake skipped" (and `current.json` removed): the build ships no bake,
 //                                             the PC bakes as today
@@ -14,9 +14,8 @@
 // Then here, per map: the caps (16 MB a file, 48 MB the map, compressed: over -> every size printed, exit 1); then
 // .prebake-cache/current.json ({ maps: [{ map, h, files }] }, what the build emits) and the prune (only the maps'
 // folders stay, and the other build variant's: `variants.json`).
-// (prebake-preview) The /preview/ build (`VITE_PREVIEW=1`) bakes the preview's own campus layout: the prebake's vitest
-// config defines `__PREVIEW__` / `__PREVIEW_ID__` from the same env as vite.config.ts, so `flags` (campusV2 every
-// section) and the lamp key match what /preview/ computes. The live game and the named slots (/ct/) bake the live layout.
+// (prebake-preview) The /preview/ build (`VITE_PREVIEW=1`) bakes the preview's own layout: the prebake's vitest
+// config defines `__PREVIEW__` / `__PREVIEW_ID__` from the same env as vite.config.ts, so `flags` and the lamp key match what /preview/ computes. The live game and the named slots (/ct/) bake the live layout.
 import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

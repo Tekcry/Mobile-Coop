@@ -1,7 +1,7 @@
 /**
  * (guard-ai play pass, docs/guard-ai/PLAY-PASS.md Slice B) The guards Michael meets on /preview/ all spawn where they
- * are authored and can walk their routes: Marlow Yard as the re-planned yard (`ctcourseReplan`) and Saltmarsh Park S1
- * from its v2 parts (`campusV2` on), on the guards' runtime nav grid (`tests/helpers/runtimeNav.ts`), with the doors
+ * are authored and can walk their routes: Marlow Yard as the re-planned yard (`ctcourseReplan`) and Tallow Wharf section 1
+ * (`tallowWharf`), on the guards' runtime nav grid (`tests/helpers/runtimeNav.ts`), with the doors
  * locked at the start shut on a second grid. `tests/guardPlayProbe.test.ts` stays the report (`GUARD_PROBE=1`).
  *
  * Plus the mode side (P3-1 to P3-3): Course mode's alarm banner promises no reinforcements on a map that has none, one
@@ -50,16 +50,13 @@ describe('guard play pass: every guard spawns and walks his route', () => {
     expect(faults).toEqual([]);
   });
 
-  it('Saltmarsh Park S1 v2 (campusOps, campusV2 on): every guard slot, reinforce point and entry', { timeout: 300_000 }, async () => {
-    vi.resetModules();
-    const { flags } = await import('../src/core/flags');
-    flags.campusV2 = [1, 2, 3, 4, 5];
+  it('Tallow Wharf section 1: every guard slot, reinforce point and entry', { timeout: 300_000 }, async () => {
     const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { campusOps } = await import('../src/world/maps/campusOps');
+    const { tallowWharf } = await import('../src/world/maps/tallowWharf');
     const b = new LevelBuilder();
-    const lay = campusOps.build(b, 0);
-    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, campusOps.navLayers ?? 3, lay.navSeeds ?? []);
-    const s = campusOps.sectors![0]!;
+    const lay = tallowWharf.build(b, 0);
+    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, tallowWharf.navLayers ?? 3, lay.navSeeds ?? []);
+    const s = tallowWharf.sectors![0]!;
     // the doors shut at the section's start: locked anchors, and the door nearest each keypad, bolt and pair gate
     const locked = new Set<number>();
     for (const a of b.anchors.doors) if (a.locked) locked.add(a.id);
@@ -77,7 +74,7 @@ describe('guard play pass: every guard spawns and walks his route', () => {
       const id = nearestDoor(p.at[0], p.at[1]);
       if (id >= 0) locked.add(id);
     }
-    const navL = runtimeNav(b, lay.playerSpawns[0]!.pos, campusOps.navLayers ?? 3, lay.navSeeds ?? []);
+    const navL = runtimeNav(b, lay.playerSpawns[0]!.pos, tallowWharf.navLayers ?? 3, lay.navSeeds ?? []);
     closeDoors(b, navL, locked);
     expect(s.guards.length).toBeGreaterThan(0);
     const faults: string[] = [];

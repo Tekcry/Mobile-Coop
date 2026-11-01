@@ -2,20 +2,12 @@
 // constants equal the game's, the row windows (A6), the band check, the card picker, the KNOWN list lookups and the summary line.
 import { describe, expect, it } from 'vitest';
 import { DARK_TARGETS } from '../src/world/darkCurve';
-import { CAMPUS_BAKE } from '../src/world/maps/campusBake';
 // @ts-expect-error plain .mjs script without types
 import * as P from '../scripts/parity-lib.mjs';
 
 describe('parity-lib copies the game\'s constants', () => {
   it('DARK_TARGETS equals darkCurve\'s', () => {
     expect(P.DARK_TARGETS).toEqual(DARK_TARGETS.map((t) => ({ ...t })));
-  });
-  it('CAMPUS_RECTS are the first rect of each CAMPUS_BAKE region', () => {
-    expect(P.CAMPUS_RECTS).toHaveLength(CAMPUS_BAKE.regions.length);
-    P.CAMPUS_RECTS.forEach((c: { s: string; rect: number[] }, k: number) => {
-      expect(c.s).toBe(`S${k + 1}`);
-      expect(c.rect).toEqual([...CAMPUS_BAKE.regions[k]![0]!]);
-    });
   });
 });
 
@@ -70,11 +62,11 @@ describe('pickCards', () => {
 });
 
 describe('cardId and the KNOWN list', () => {
-  const card = { map: 'campusOps', section: 'S1', row: 0.12, x: -12.46, z: -60 };
-  const entry = { map: 'campusOps', section: 'S1', row: 0.12, near: [-12, -60], r: 3, conf: 'T1', owner: 'lead', until: '2026-11-02' };
+  const card = { map: 'tallowWharf', section: 'S1', row: 0.12, x: -12.46, z: -60 };
+  const entry = { map: 'tallowWharf', section: 'S1', row: 0.12, near: [-12, -60], r: 3, conf: 'T1', owner: 'lead', until: '2026-11-02' };
   const now = new Date('2026-10-30T12:00:00Z');
   it('cardId formats map:section:row:x,z to a decimal', () => {
-    expect(P.cardId('campusOps', 'S1', 0.12, -12.46, -60)).toBe('campusOps:S1:0.12:-12.5,-60.0');
+    expect(P.cardId('tallowWharf', 'S1', 0.12, -12.46, -60)).toBe('tallowWharf:S1:0.12:-12.5,-60.0');
     expect(P.cardId('warehouse', 'all', 0.4, 3, 4.25)).toBe('warehouse:all:0.4:3.0,4.3');
   });
   it('knownFor matches inside r, same map, section and row, not past until', () => {

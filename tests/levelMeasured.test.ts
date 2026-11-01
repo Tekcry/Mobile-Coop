@@ -492,18 +492,4 @@ describe('level-checks/measured: the presence gate and measured splits (V2, A5)'
     expect(strict.errors.filter((e) => !e.includes('--require-measured'))).toEqual([]);
     expect(strict.errors.length).toBeGreaterThanOrEqual(enc.length);
   });
-
-  it('the campus graphs (measured by S10) carry measured on every encounter; their only ERRs are sees_pct target misses', () => {
-    const read = (p: string): Graph => JSON.parse(fs.readFileSync(path.join(ROOT, p), 'utf8')) as Graph;
-    const g = mergeGraphs([1, 2, 3, 4, 5].map((i) => read(`docs/sector-redesign/graph/campusOps-S${i}.json`))) as Graph;
-    const enc = g.spaces.filter((s) => s.type === 'encounter');
-    expect(enc.length).toBeGreaterThan(0);
-    expect(enc.filter((s) => !s.measured).map((s) => s.id)).toEqual([]);
-    // Before S10 the campus had no ERR here; the as-built campus misses only the vantage target (PLAN section 6).
-    const miss = /^[\w-]+: measured sees_pct [\d.]+ below 0\.7 \(declared [\d.]+\)$/;
-    for (const strict of [false, true]) {
-      const r = only(g, strict);
-      expect(r.errors.filter((e) => !miss.test(e)), `requireMeasured ${strict}`).toEqual([]);
-    }
-  });
 });

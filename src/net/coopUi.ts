@@ -20,7 +20,6 @@ import { DIRECTORY_ROOM, DirectoryBrowser, DirectoryPoster, type ListedRoom, typ
 import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
 import { loadCourseRecord, lobbyStartBay, startableBays, type CourseRecord } from '../save/courseRecord';
-import { loadSectorRecord, starsOf, starsText, type SectorRecord } from '../save/sectorRecord';
 import { clearCampaignSave, loadCampaignProgress, loadCampaignSave, type CampaignProgress, type CampaignSave } from '../save/campaignRecord';
 import {
   CONTINUE_VALUE,
@@ -418,11 +417,11 @@ const MODE_OPTS: { value: NetMode; label: string }[] = [
 /** The campaign's first (and for now only) level: Marlow Yard in Course mode (sector-ops M1). */
 const CAMPAIGN_MAP = 'ctcourse';
 /**
- * (sector-ops slice 3) The campaign and Sector Ops; Hunter, Infiltration and Free Roam only with `?legacy=1` (the mode
+ * (sector-ops slice 3; clean-up F) The campaign only (no Sector Ops map is listed); Hunter, Infiltration and Free Roam only with `?legacy=1` (the mode
  * already set stays listed).
  */
 function lobbyModes(current: NetMode): typeof MODE_OPTS {
-  const shown = flags.legacy ? visibleModes(MODE_OPTS, true) : MODE_OPTS.filter((m) => m.value === 'course' || m.value === 'sector');
+  const shown = flags.legacy ? visibleModes(MODE_OPTS, true) : MODE_OPTS.filter((m) => m.value === 'course');
   const cur = MODE_OPTS.find((m) => m.value === current);
   return cur && !shown.includes(cur) ? [...shown, cur] : shown;
 }
@@ -652,7 +651,7 @@ class LobbyScreen extends MenuScreen {
             ),
           ];
         default:
-          return [choice('Map', shownMaps.map((m) => ({ value: m.id, label: this.mapLabel(m.id, m.name) })), () => s.map, (v) => set(s.mode, v, s.difficulty))];
+          return [choice('Map', shownMaps.map((m) => ({ value: m.id, label: m.name })), () => s.map, (v) => set(s.mode, v, s.difficulty))];
       }
     };
     const rows = lobbyRows({ campaign: flags.campaign, host: true, mode: s.mode, entry, continued: s.campaignResume !== null, weather: !!weathers });
@@ -791,20 +790,6 @@ class LobbyScreen extends MenuScreen {
       s.courseBay = Number(v) || 1;
     });
   }
-  /** (sector-ops M7) Sector Ops: the host's map row shows each op's difficulty stars (the host's record). */
-  private mapLabel(id: string, name: string): string {
-    if (this.c.session.mode !== 'sector') return name;
-    if (this.sectorRec === null) {
-      this.sectorRec = undefined;
-      void loadSectorRecord().then((r) => {
-        this.sectorRec = r;
-        if (this.c.session.mode === 'sector') this.buildOpts();
-      });
-    }
-    return this.sectorRec ? `${name}  ${starsText(starsOf(this.sectorRec, id))}` : name;
-  }
-  /** The host's Sector Ops record (null: not read yet; undefined: loading). */
-  private sectorRec: SectorRecord | null | undefined = null;
   /** The host's course record (null: not read yet; undefined: loading). */
   private courseRec: CourseRecord | null | undefined = null;
 

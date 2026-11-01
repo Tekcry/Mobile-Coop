@@ -1,7 +1,7 @@
 // (prebake-preview) Which Pages slot a build is, read from the build's environment (`VITE_PREVIEW=1`: /preview/;
 // `VITE_PREVIEW_ID=<id>`: a named slot such as /ct/). The one reader for `vite.config.ts` (the game's `__PREVIEW__` and
 // `__PREVIEW_ID__`) and the campus prebake (`scripts/prebake/vitest.prebake.config.ts` defines the same two), so the
-// prebake builds campusOps under the flag defaults the shipped game has (`PREVIEW_ON`, `src/core/flags.ts`). Pure:
+// prebake builds the shipped maps under the flag defaults the shipped game has (`PREVIEW_ON`, `src/core/flags.ts`). Pure:
 // no Node or browser API (vite.config.ts loads it in Node).
 
 export interface PreviewBuild {

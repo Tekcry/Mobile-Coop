@@ -21,8 +21,8 @@ import { hyp2 } from '../src/core/mathx';
 import { SightWorld } from '../src/game/sectorCheck';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { buildCtcourse } from '../src/world/maps/ctcourse';
-import { warehouseOps } from '../src/world/maps/warehouseOps';
-import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
+import { tallowWharf } from '../src/world/maps/tallowWharf';
+import { WHARF_SECTORS } from '../src/world/maps/tallowWharfSectors';
 
 /** (coop-rejoin, walk items 4 and 7) Two-slot spawn points, the fallback offset slot and the host's join spawn. */
 
@@ -233,11 +233,11 @@ describe('map data: the fallback slot clears the level in every spawn area', () 
     }
   });
 
-  it('Sector Ops (warehouse): every section start and connector checkpoint has a clear slot 1', () => {
+  it('Sector Ops engine (Tallow Wharf): every section start and connector checkpoint has a clear slot 1', () => {
     const b = new LevelBuilder();
-    warehouseOps.build(b, 0);
+    tallowWharf.build(b, 0);
     const w = new SightWorld(b.boxes, b.cylinders);
-    for (const s of WAREHOUSE_SECTORS) {
+    for (const s of WHARF_SECTORS) {
       const areas = [[s.start, s.start2], [s.connector?.checkpoint, s.connector?.checkpoint2]] as const;
       for (const [p0, p1] of areas) {
         if (!p0) continue;

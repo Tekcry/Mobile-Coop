@@ -649,63 +649,6 @@ describe('the board: the breaker walker is the witness nearest the switch by pat
     ]);
     expect(sends(straight, 'breaker', [0, 0, 0], ws)).toEqual([[1, MODE_BREAKER]]);
   });
-
-  it("Sector Ops campus on the guards' runtime nav: the S2 reception panel sends #1, the S3 switch bank #16 (the maps' lures)", async () => {
-    const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { campusOps } = await import('../src/world/maps/campusOps');
-    const { runtimeNav } = await import('./helpers/runtimeNav');
-    const b = new LevelBuilder();
-    const lay = campusOps.build(b, 0);
-    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, campusOps.navLayers ?? 3, lay.navSeeds ?? []);
-    // the manager's own path length over the real grid (what the board scores with in the game)
-    const world = { level: { lights: new LightRegistry(), cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };
-    const em = new EnemyManager({} as Scene, world as unknown as World, nav, {} as DamageRegistry, { clear: vi.fn(() => true) } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
-    const paths = (em as unknown as { paths: PathLen }).paths;
-    const secs = campusOps.sectors!;
-    const sws = lay.switches!;
-    // guard `n` of section `sec` where `EnemyManager.spawn` puts him (the walkable cell centre by his slot), or at (x, z)
-    const w = (sec: number, n: number, x?: number, z?: number) => {
-      const g = secs[sec]!.guards[n - 1]!;
-      const c = nav.nearestWalkable(x ?? g.x, z ?? g.z, 8, g.y ?? 0);
-      const [cx, cz] = nav.center(c);
-      return [n, cx, nav.height[c]!, cz, g.kind === 'officer', g.role ?? ''] as const;
-    };
-    const dist = (g: readonly (number | boolean | string)[], p: readonly number[]) => Math.hypot((g[1] as number) - p[0]!, (g[3] as number) - p[2]!);
-    // S2: the reception panel (s2-atrium); #1 the reception officer at his desk (the e2e's 11.95 m), #2 the lobby patrol
-    // at his first stop. On master (the light check) #2 went first and #1 as the pair's second (the e2e: #1 walked
-    // 12 m -> 3 m); the one walker of the weighted pick was #2 (officer x fixed post 2.4 against rover 0.8) and #1
-    // stayed put, while #2 turned the circuit back on (884b89c0: "12.0 m -> 12.0 m, lamps on 4")
-    const pn = lay.boards!.find((q) => q.groups.includes(50))!; // (LR16-4) the reception panel is a board now
-    const p2: [number, number, number] = [pn.pos.x, nav.heightAt(pn.pos.x, pn.pos.z, pn.pos.y), pn.pos.z];
-    const s2 = [w(1, 1), w(1, 2)];
-    expect(dist(s2[0]!, p2)).toBeCloseTo(11.95, 1);
-    expect(sends(paths, 'light', p2, s2)).toEqual([
-      [2, MODE_LIGHT],
-      [1, MODE_LIGHT],
-    ]);
-    expect(sends(paths, 'breaker', p2, s2)).toEqual([[1, MODE_BREAKER]]);
-    // S3: the switch bank's row-1 breaker (s3-hb-1); #16 the crane-bay sentry at his sweep post (the e2e's 3.87 m), #6
-    // the hall patrol at his first stop: weighted, #6 (path 9.9 x rover 0.8) just beat #16 (5.3 x fixed 1.5), so #16
-    // only acked (884b89c0: "3.9 m -> 3.9 m"); on master he went as the pair's second
-    const bk = sws.find((s) => s.group === 60)!;
-    const p3: [number, number, number] = [bk.pos.x, nav.heightAt(bk.pos.x, bk.pos.z, bk.pos.y), bk.pos.z];
-    const s3 = [w(2, 16), w(2, 6)];
-    expect(dist(s3[0]!, p3)).toBeCloseTo(3.87, 1);
-    expect(sends(paths, 'light', p3, s3)).toEqual([
-      [6, MODE_LIGHT],
-      [16, MODE_LIGHT],
-    ]);
-    expect(sends(paths, 'breaker', p3, s3)).toEqual([[16, MODE_BREAKER]]);
-    // and from anywhere on #6's round
-    const round = secs[2]!.guards[5]!.route!;
-    for (let i = 0; i < round.length; i++) {
-      const a = round[i]!;
-      const c = round[(i + 1) % round.length]!;
-      for (let t = 0; t < 1; t += 0.25) {
-        expect(sends(paths, 'breaker', p3, [w(2, 16), w(2, 6, a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t)])).toEqual([[16, MODE_BREAKER]]);
-      }
-    }
-  });
 });
 
 // ----- StealthSystems: the guard's reset is the player's toggle (light parity) -----

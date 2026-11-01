@@ -74,7 +74,7 @@ describe('NET3: the sector mission on the start message', () => {
 
   it('clamps `sm`: a mission id (camelCase, dashes, digits) passes; anything else is none', () => {
     expect(sectorMissionId('threeGreyCoats')).toBe('threeGreyCoats');
-    expect(sectorMissionId('campus-test_2')).toBe('campus-test_2');
+    expect(sectorMissionId('plain-test_2')).toBe('plain-test_2');
     for (const bad of ['a b', 'x'.repeat(65), 12, null, { id: 'x' }, '<script>']) {
       expect(sectorMissionId(bad)).toBe('');
       expect('sm' in (wire({ ...startMsg(base), sm: bad }) as object)).toBe(false);
@@ -96,19 +96,19 @@ describe('NET3: the sector mission on the start message', () => {
     expect(cli.sectorMission).toBe('twoKeyLedger');
   });
 
-  // (mission-rules R4) a campaign match never starts alone, so the late join runs on the campus Sector Ops test mission
+  // (mission-rules R4) a campaign match never starts alone, so the late join runs on a plain (non-campaign) Sector Ops mission id on the proving map
   it('a late joiner gets the running match with the same mission', () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
-    host.sectorMission = 'campusMissionTest';
-    host.setSettings('sector', 'campusOps', 'normal');
-    expect(host.startMatch()?.sectorMission).toBe('campusMissionTest');
+    host.sectorMission = 'plainTest';
+    host.setSettings('sector', 'proving', 'normal');
+    expect(host.startMatch()?.sectorMission).toBe('plainTest');
     const late = sess(h.make('L'), 'client', 'ABCDE', prof('Late'));
     late.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Late', tag: {}, look: {} }, 'H');
-    expect(late.sectorMission).toBe('campusMissionTest');
+    expect(late.sectorMission).toBe('plainTest');
   });
 
-  // (mission-rules R4) Tallow with no mission is refused (a campaign map needs a campaign mission): campus instead
+  // (mission-rules R4) Tallow with no mission is refused (a campaign map needs a campaign mission): a map with no campaign missions instead
   it('a host with no mission, or not in Sector Ops: no `sm`, and the client follows (none)', () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
@@ -117,7 +117,7 @@ describe('NET3: the sector mission on the start message', () => {
     let got: StartInfo | null = null;
     cli.events.on('start', (s) => (got = s));
     host.sectorMission = '';
-    host.setSettings('sector', 'campusOps', 'normal');
+    host.setSettings('sector', 'proving', 'normal');
     expect(host.startMatch()).not.toBeNull();
     expect('sectorMission' in got!).toBe(false);
     expect(cli.sectorMission).toBe('');

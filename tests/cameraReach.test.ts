@@ -7,7 +7,6 @@
 import { describe, expect, it } from 'vitest';
 import { writeFileSync } from 'node:fs';
 import { buildMap, floorPatch, scanCamera, STANCES, zones, type CamModel, type CamScan, type MapWorld } from './cameraReachScan';
-import { warehouseOps } from '../src/world/maps/warehouseOps';
 import { ctcourse } from '../src/world/maps/ctcourse';
 import { seclab } from '../src/world/maps/seclab';
 import { sightRate } from '../src/ai/perception';
@@ -42,7 +41,6 @@ const CASES: MapCase[] = [
   // (marlow-final 0d) the old station 3 camera (cam-s3, its hallway zones) went with the old bays; the rebuilt Marlow
   // Yard's cameras are scanned by their rooms with the every-camera checks below
   { map: ctcourse, intent: {} },
-  { map: warehouseOps, intent: {} },
   {
     map: seclab,
     zoneOf: (x) => labZone(x),
@@ -132,8 +130,8 @@ function report(rs: Row[]): string {
 describe('camera reach on every live map (camera-range)', () => {
   it('writes the table on request', () => {
     const rs = all();
-    // (marlow-final 0d) Sector Ops 7 + the Security Lab 2, plus the rebuilt Marlow Yard's cameras (its sets own the count)
-    expect(rs.filter((r) => r.map !== 'ctcourse').length).toBe(9);
+    // (marlow-final 0d) the Security Lab 2, plus the rebuilt Marlow Yard's cameras (its sets own the count)
+    expect(rs.filter((r) => r.map !== 'ctcourse').length).toBe(2);
     expect(rs.some((r) => r.map === 'ctcourse')).toBe(true);
     if (process.env.CAMERA_REACH_WRITE === '1') writeFileSync('docs/archive/camera-range/MEASURE.md', report(rs));
     // (train build) all live maps; ~140 s on a loaded desktop

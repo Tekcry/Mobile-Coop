@@ -21,7 +21,7 @@ import type { VitePWAOptions } from 'vite-plugin-pwa';
 type RuntimeCaching = NonNullable<NonNullable<VitePWAOptions['workbox']>['runtimeCaching']>;
 
 export const RUNTIME_CACHING: RuntimeCaching = [
-  // (map-ready S4) the shipped campus lamps (`bakes/campusOps-<h>-s<k>.bin.gz`, `world/shippedBake.ts`): the lamp key's
+  // (map-ready S4) the shipped lamps (`bakes/<map>-<h>-s<k>.bin.gz`, `world/shippedBake.ts`): the lamp key's
   // hash is in each name, so cache-first never serves a stale file (16 entries: room for two builds of the campus' up to 6 files)
   {
     urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/bakes\/[^/]+\.bin\.gz$/.test(url.pathname),
@@ -32,7 +32,7 @@ export const RUNTIME_CACHING: RuntimeCaching = [
       cacheableResponse: { statuses: [200] },
     },
   },
-  // (map-ready S4) the bake manifest (`bakes/campusOps.json`) keeps its name across builds: network first, so a deploy's
+  // (map-ready S4) the bake manifest (`bakes/<map>.json`) keeps its name across builds: network first, so a deploy's
   // new key is read when online and the last one offline
   {
     urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/bakes\/[^/]+\.json$/.test(url.pathname),
