@@ -136,7 +136,7 @@ export interface SectorDef {
   perStage: number;
   /**
    * (guard-rules S1, A4, G307 (3)) The response teams are led by a riot-shield guard (`responseTeam`'s `shield`). Default
-   * false: armed guards only (S1-S3, warehouseOps; the campaign must never set it, M2). Campus S4 and S5 set it.
+   * false: armed guards only (the campaign must never set it, M2). Saltmarsh Park S4 and S5 set it before clean-up F.
    */
   shieldTeams?: boolean;
   /**

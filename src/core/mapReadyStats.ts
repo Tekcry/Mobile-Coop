@@ -182,7 +182,7 @@ export class MapReadyStats {
     a.done = true;
   }
 
-  /** One line for `feedbackContext()`, e.g. "campusOps reveal 8.4 s, after 10 s: 0 programs, 3 landings, 0 pop-ins, p95 18 ms, bake cache". */
+  /** One line for `feedbackContext()`, e.g. "tallowWharf reveal 8.4 s, after 10 s: 0 programs, 3 landings, 0 pop-ins, p95 18 ms, bake cache". */
   summary(): string {
     const r = this.record;
     const a = r.after;

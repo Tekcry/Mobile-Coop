@@ -140,7 +140,7 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   sees past their wall) and reports any that cut a ceiling, hang in the air or miss a wall; the light never moves.
   `world/fixtureModels.ts` (pure) builds the meshes; `LightRig.buildFittings` draws a body (one shared pale PBR material)
   and an emissive diffuser per model, thin-instanced, and every link (wires, brackets) as one box mesh.
-  `tests/warehouseLamps.test.ts` pins every mount (3 cm), one height and a full regular grid per room, no lamp on or over
+  The Warehouse Ops mount test (removed with that map in clean-up F) pinned every mount (3 cm), one height and a full regular grid per room, no lamp on or over
   a roof and none within 0.8 m of a climbing pipe, ladder or duct. Each fitting's radius and intensity were tuned against
   the section light tests' bands (`tests/warehouseS{1,2,3}Light.test.ts`); a layout change re-runs them.
 - Roof sheets (warehouse-lamps; `LevelBuilder.sheet`, `world/roofSheets.ts`): a translucent sheet is a collision-only

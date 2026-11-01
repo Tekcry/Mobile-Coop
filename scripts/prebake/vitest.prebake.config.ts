@@ -2,7 +2,7 @@
 // `scripts/light-measure` pattern. The shard files run in parallel: `PREBAKE_THREADS` workers (default all cores but
 // one, at most 4: the desktop CPU target).
 // (prebake-preview) `define`: the game build's `__PREVIEW__` / `__PREVIEW_ID__` from the same env (`previewBuildOf`,
-// shared with vite.config.ts), so `flags` (`PREVIEW_ON`: campusV2 every section on /preview/) and the campus layout,
+// shared with vite.config.ts), so `flags` (`PREVIEW_ON`) and the map layout,
 // lamps and lamp key are the ones the build being made ships with.
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';

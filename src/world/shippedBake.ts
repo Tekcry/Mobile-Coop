@@ -45,7 +45,7 @@ export interface ShippedManifest {
  * `bakes/<id>.json` for exactly these (`world/lightBake.ts`). A map with a section split (`sectionBakeFor`) ships one
  * file per section, a map without one file.
  */
-export const SHIPPED_BAKE_MAPS: readonly string[] = ['campusOps'];
+export const SHIPPED_BAKE_MAPS: readonly string[] = [];
 
 /** Does the bake id `mapId` ship its lamps pre-built? (`?fullbright`'s own id never does.) */
 export function shipsBake(mapId: string): boolean {

@@ -18,7 +18,6 @@
 import { AMBIENT_CELL } from './ambientGrid';
 import { BOX_STRIDE, LAMP_CELL, LAMP_STRIDE, lampBox } from '../voxel/lampBake';
 import { BOUNCE, BOUNCE_BOX_STRIDE, type LampBounce } from '../voxel/lampBounce';
-import { CAMPUS_BAKE } from './maps/campusBake';
 
 /** Plan rect [x0, z0, x1, z1] (world m, x0 < x1, z0 < z1). */
 export type PlanRect = readonly [number, number, number, number];
@@ -37,7 +36,6 @@ export const MAX_BAKE_SECTIONS = 30;
 
 /** (SB1) The maps that bake per section, by map id. Every other map (and `?fullbright`'s own id) bakes in full. */
 export const SECTION_BAKE_MAPS: Readonly<Record<string, SectionBakeDef>> = {
-  campusOps: CAMPUS_BAKE,
 };
 
 export function sectionBakeFor(mapId: string): SectionBakeDef | null {

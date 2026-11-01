@@ -8,7 +8,6 @@ import type { LaserDef } from '../game/jammer';
 import type { LaserPanelDef } from '../game/laserPanels';
 import type { PassZone } from '../game/ctDevices';
 import type { ScannerDef } from '../game/scanners';
-import type { CampusArtLayout } from './maps/campusDress';
 import type { CourseLayout } from '../game/course/courseDef';
 import type { SectorDef } from '../game/sectors';
 import type { MissionDef } from '../game/mission/missionDef';
@@ -113,8 +112,6 @@ export interface MapLayout {
    *  `camSize`; neither given: the camera's probes decide (`world/camSpaces.ts`). Local only. */
   camSpaces?: CamSpace[];
   camSize?: CamSize;
-  /** (sector-redesign ART-KIT) The campus art placements (`maps/campusDress.ts`), drawn by `CampusArtRender`; gameplay never reads them. */
-  campusArt?: CampusArtLayout;
   /** (marlow-final M5) The facility kit's drawn pieces (`world/kit/facilityKit.ts` `FacilityKit.layout`): visual only,
    *  the kit wrote their gameplay boxes into the builder itself. */
   kit?: KitLayout;

@@ -1,5 +1,5 @@
 // Serve dist/ on E2E_PORT (default 4189) with vite preview, run one node script against it, stop the server.
-// Used by GPU tools that need a served build (scripts/light-realism/shots.mjs, scripts/perf.mjs runs).
+// Used by GPU tools that need a served build (GPU tools such as scripts/perf.mjs runs).
 //   E2E_PORT=4189 node scripts/serve-dist.mjs scripts/perf.mjs http://127.0.0.1:4189/ --desktop --json
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';

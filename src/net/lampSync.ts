@@ -12,7 +12,7 @@ import { lightOnRay, type LightDef, type LightRegistry } from '../world/lights';
  * reading, comparing and applying allocate nothing (only an encode for a send builds its strings).
  */
 
-/** Lights a `lamps` message can carry (registry ids 0..LAMP_MAX-1; warehouseOps has 133). */
+/** Lights a `lamps` message can carry (registry ids 0..LAMP_MAX-1). */
 export const LAMP_MAX = 1024;
 /** Characters a bitset can take (`LAMP_MAX` / 6, rounded up). */
 export const LAMP_CHARS = Math.ceil(LAMP_MAX / 6);

@@ -193,8 +193,6 @@ export interface StutterTube {
  * one (this branch's base; it drops out at the master merge). Never in A2 / A4 / A6 / A8 (PR #257 owns those sets).
  */
 export const STUTTER_TUBES: Readonly<Record<string, readonly StutterTube[]>> = {
-  campusOps: [{ x: -25, y: 7.9, z: -26, why: 'HQ L1 breakout kitchen fitting (back room off the south ring, not on a player route); the two break guards loop under it' }],
-  warehouseOps: [{ x: -3.4, y: 2.75, z: -12.3, why: 'Trade offices corridor panel, west half: the corridor guard walks under it and both section 1 routes pass it' }],
   warehouse: [{ x: 9, y: 5.05, z: -9, why: 'Service corridor strip (the corridor between the fire walls), over the corridor patrol' }],
   ctcourse: [
     { x: 81.6, y: 3.8, z: 57.4, why: "A7 data hall: the south aisle's rack-row strip, on the technician's loop between R0 and R1" },
