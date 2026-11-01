@@ -63,3 +63,35 @@ rewrite: this file, the "history" status on `docs/RULES.md` and `docs/VISION.md`
 exactly as it is. Declined: hollowing out the team block. Layout: `docs/plan/TEST-CHAMBER-SPEC.md`.
 
 **N11. The Test Chamber may be rearranged.** Michael: "I want to keep the rooms look but I don't mind if you move things around, so long as there is sufficient room in the middle like it currently is to test animations, which also has clear lighting. You can change lighting elsewhere as needed." Props may move; the open, clearly lit middle for animation tests stays; lighting outside the middle may change.
+
+**N12. No assumed rules.** Michael: "Don't assume any additional rules. If you need to ask and clarify, do so first."
+Anything his words or decisions do not settle is asked (native multiple choice) before it is acted on; the master
+brief's "assume reversible decisions while he is away" no longer applies to rules or design limits.
+
+**N13. The old assumed decisions, settled by Michael** (native multiple choice): the internet co-op fix runs after
+clean-up stage I; Tallow Wharf and its Sector Ops engine stay until the Mission 1 engine is decided; the co-op lobby has
+one "Test Chamber" option; the hold-menu knife-kill gap is settled by switching context prompts on for everyone (N14).
+
+**N14. One game, one branch.** Michael: "Nothing is happening with the master version, i use the preview as master.
+Should we just update the master to the current state, and delete all other branches and start again with branches?
+There's too much scattered across the GitHub, I don't want Claude to get confused with old outdated information
+constantly." Decided: master is the only build, with every feature the preview switched on now on by default (context
+prompts included); the preview, CT and Kestrel copies of the site go and old preview links forward to the main game;
+every other GitHub branch is deleted, with no backup (all merged work is on master and every pull request keeps its
+final version); each job branch is deleted when it merges.
+
+**N15. More settled calls** (native multiple choice): the Test Chamber wall texture is left for now; the playthrough
+bugs stay in `docs/backlog.md` item 32 for their phases; the map id `studio` is renamed to the Test Chamber inside the
+code right after the Test Chamber steps; the Test Chamber work stays in separate tested steps; the co-op version is
+raised with each change that alters co-op messages.
+
+**N16. The separate music session waits for the vision** (native multiple choice): it starts after the clean-up, when
+Phase 1 sets the sonic identity.
+
+**N17. The Test Chamber's dark area and practice guards** (native multiple choice): the dark test area is a side room
+off the east wall, behind a door, in the same look as the main room (the main room is unchanged; the Test Chamber gets
+about 8 m wider). Passive practice guards: three ordinary guards (two side by side with their backs to the player, one
+facing), present in co-op Test Chamber games and the solo main-menu Test Chamber start (not in the automated tests);
+a guard taken down comes back at his spot about 10 seconds later once nobody is standing there. Michael on the guards:
+"there should be a passive guard or guards as needed to test animations, unless it's already included in the anim
+tools."
