@@ -22,7 +22,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   fractions of the frame: right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H, 0.4 % H gap, rows 3.34 % H apart, cap height 2.0 % H, uppercase Barlow
   Condensed. Our own look: steel borders, the highlight a thin outline with bright corner ticks (no fill), a fill line
   on a hold row. It writes the DOM only when `ContextMenu.version` changes. Logic: `docs/systems/input-and-loop.md`.
-- (context-prompts S4, S5; dark behind `contextPrompts`, on in /preview/) The context prompt view replaces that box and
+- (context-prompts S4, S5; behind `contextPrompts`, on by default, `?ctxprompts=0` off) The context prompt view replaces that box and
   the centre use prompt: neither shows under the flag, nor the old `takedown` world prompt. Which button does what on
   each target and the anchors: `docs/context-prompts/PLAN.md` sections 2 and 5; the logic: input-and-loop.md
   "Context prompts".

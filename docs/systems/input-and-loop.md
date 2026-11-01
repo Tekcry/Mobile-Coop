@@ -178,8 +178,8 @@ Edit the table and the code together.
 - Not built: `access.holdToggle` does not latch the menu (it still works on the team-move direct path); locked doors
   list nothing (no PICK LOCK / BREAK LOCK yet); no traversal rows (rope, climb: Y does those).
 
-### Context prompts (dark behind `contextPrompts`; context-prompts P1-P4)
-Flag `contextPrompts` (`?ctxprompts=1` / `0`, on in /preview/, G416; owner Player Build, switch-on at Michael's walk).
+### Context prompts (behind `contextPrompts`, on by default; context-prompts P1-P4)
+Flag `contextPrompts` (`?ctxprompts=1` / `0`, on by default since one-game 2026-11-01; owner Player Build).
 Off, everything above is unchanged. On, the button for each action shows on the thing it acts on and one press runs it;
 there is no list, no BACK TO GAME row and no box. Michael's words and picks, and A1-A26: `docs/context-prompts/BRIEF.md`;
 the per-target action table (which button does what on each target): PLAN section 2; the look: `docs/systems/ui.md`.
