@@ -31,6 +31,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
   `medkit`, pickup kind `medkit`). Earlier steps: git log and docs/archive/locomotion/LOG.md. Next wire train: afp AF6 (#247), the partner's gait - `PlayerState.t` (the joiner's send clock, timed by the host through a `ClockSync`), `gph` (gait clock), `qs` / `hs` (the CT stop), `mo` / `mt` (motion state and its time), `ax` / `az` (acceleration); the partner renders 0.13 s (host) / 0.16 s (joiner) behind.
 - Caps: `MAX_PLAYERS` 4 (room cap on the wire), `MAX_ENEMIES` 32, `MAX_EVENTS` 48, `MAX_ITEMS` 128, `MAX_DOORS` 256.
+- Protocol 90 (clean-up I): `hello` and `PlayerInfo` carry the name, the weapon `loadout` and the token only - no `tag` (title / emblem / colour) and no `look` (every player is Wren in the default look; a peer's extra fields parse and are dropped); the `end` stats carry no `weaponKills`. A player's pings and lobby dot use the fixed `PLAYER_COLOUR` (`protocol.ts`; per-operator colours are future work).
 - `NetMode`: `course | sector | test` (protocol 89, clean-up H: `sandbox`, `clear` and `infiltration` left the wire); (G2a, protocol 87) `test` is the Test Chamber's
   mode (`TestMode`: guards by test, revives, no progression; the lobby's "Test Chamber" mode starts map `chamber` in it,
   two players); `capacity(mode)` gates joins and `startMatch`. On
@@ -72,7 +73,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   before. Duct grates and window glass still open on one page only (pre-existing, backlog).
 
 ## Session and sims
-- `NetSession`: lobby state (each `PlayerInfo` carries name, tag, look and the validated weapon `loadout`), ready /
+- `NetSession`: lobby state (each `PlayerInfo` carries name and the validated weapon `loadout`), ready /
   start, routing. A new host room starts on the campaign (Marlow Yard in Course mode).
   Clients accept authoritative messages (lobby / start / snap / ev / end) only from the host; the host accepts gameplay
   messages only from lobby members. No host migration.
@@ -161,7 +162,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   read; the dog's `dogHead` at `DOG_MEAN_PHASE`): the same as the host's `wireHead` for the same state, 1.2 cm from the
   host's sim head at any gait phase.
   `CoopClient`: `EnemyPuppet`s + `RemoteAvatar`s interpolated with `SnapshotBuffer` / `ClockSync` (`interp.ts`), sends
-  `pstate` at 20 Hz and hits as `shot`; rewards come from `clampEnd` + `coopSessionStats` of the host report.
+  `pstate` at 20 Hz and hits as `shot`; the results come from `clampEnd` + `coopSessionStats` of the host report.
 - Drawn state (D8, A20 / A41): the host keeps `w` only if it is in the player's lobby `loadout` and forces `dw` 0 while
   the claimed mode has busy hands (attached except split / rappel / inverted pipe, takedown, brace / boost / stacked
   bottom) or the player is downed. `takeShot` refuses a client shot unless the host's `dw` is 2 (no hip fire) and the

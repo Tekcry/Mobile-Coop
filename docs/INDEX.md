@@ -22,7 +22,6 @@ Read on demand (`CLAUDE.md` points here). From 2026-11-01: the control panel iss
 | `vfx/` | Pooled effects, post stack, TAAU, weather, silhouettes |
 | `net/` | Co-op: transports, protocol, session, host and client sims, lobby UI |
 | `operators/` | Wren and guard art assets (offline pipeline output, `scripts/operators/`) |
-| `progression/`, `cosmetics/` | XP, unlocks, upgrades, suit / HQ; avatar catalogue (hidden; stage I removes them) |
 | `save/`, `feedback/` | IndexedDB wrapper, schema, migrations; playtest notes and crash log |
 | `audio/` | WebAudio mixer, synth voices, CC0 foley, weapon sounds and music |
 | `editor/`, `security/`, `dev/` | Kestrel level editor and its security devices (dev only; Kestrel paused, G53); editor bridge |
@@ -67,8 +66,8 @@ Mission, Infiltration, Free Roam, `?legacy=1`, the Warehouse, Proving Grounds an
 | `docs/systems/takedowns.md` | Takedowns, grab, palm strike | Takedown work |
 | `docs/knife-kills/` | The paired knife kills' decisions and slices (built as piano-knife for the removed piano scene; now every map's lethal takedown) | Knife kill work |
 | `docs/systems/gadgets.md` | Gadgets, wheel, remote views | Gadget work |
-| `docs/systems/modes-and-progression.md` | Modes as built, the course, arsenal / suit / HQ, cosmetics (hidden) | Mission framework |
-| `docs/systems/saves.md` | Progression maths, save schema, migrations | Any save change |
+| `docs/systems/modes-and-progression.md` | Modes as built, the course, arsenal and gear (no progression or cosmetics) | Mission framework |
+| `docs/systems/saves.md` | Save schema (v11), migrations, the records | Any save change |
 | `docs/systems/combat.md` | Weapon data, firing, damage | Weapon work |
 | `docs/systems/coop.md` | Transports, host / client sims, sync, team moves | Co-op work |
 | `docs/systems/audio.md` | Audio engine, foley, weapon sounds, music | Sound work |

@@ -9,7 +9,7 @@ docs/design-bible.md (Section 5.6).
   of the kit. Every other gun is deleted (docs/archive/consolidation/deleted-guns.md).
 - Decided, not built yet (G76): the rifle's attachments are a sniper, a shotgun and a launcher; the knife's role and the
   attachment set are settled by the CT co-op research. No attachment mode or knife verb exists in code (the knife is
-  drawn on Wren only, `weapons/knifeModel.ts`); the rifle keeps the legacy progression attachments (red dot, 4x scope,
+  drawn on Wren only, `weapons/knifeModel.ts`); the rifle keeps the legacy attachments (red dot, 4x scope,
   suppressor, compensator, grip, laser, magazines).
 - Built (G152): the pistol's held jammer, one camera, laser or lamp at a time while the player stands still
   (`game/jammer.ts`; `docs/systems/gadgets.md`, Held pistol jammer). It replaced the pistol "disruptor" shot.
