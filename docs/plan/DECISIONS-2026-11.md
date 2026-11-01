@@ -95,3 +95,20 @@ facing), present in co-op Test Chamber games and the solo main-menu Test Chamber
 a guard taken down comes back at his spot about 10 seconds later once nobody is standing there. Michael on the guards:
 "there should be a passive guard or guards as needed to test animations, unless it's already included in the anim
 tools."
+
+**N18. Slim the guard play-test move (G2d) to essentials** (native multiple choice, reviewing whether every step is
+needed): only the core guard tests move to the Test Chamber - seeing, hearing, search, bodies and co-op guard sync; the
+detailed tests for systems later phases will rework are dropped (restorable from git history). Kept as planned: the
+internal rename, stages H and I, the co-op fix after I, and stage J. The keep / drop list was shown before G2d was built
+(merged in #743).
+
+**N19. Overnight work while Michael sleeps** (native multiple choice, 2026-11-01/02): a choice his decisions do not
+cover takes the orchestrator's recommended option and is listed on the control panel for his morning review; G2d is
+built from the N18 definition; each change merges to master when all checks are green; the laptop stays awake.
+
+**N20. Overnight safety net** (2026-11-01/02): a one-off restart was scheduled for 03:00 in case the overnight session
+stopped, standing down if the panel or a worktree had changed in the last hour. At the next logical stage the
+orchestrator tells Michael so he can clear the session; with no reply in 10 minutes work carries on in the same session.
+
+**N21. One-game follow-ups** (native multiple choice, on #740): fast map loading (`mapReady`) is on by default; nothing
+is kept from the old preview save (start fresh); new unfinished features default on (`?flag=0` turns one off).
