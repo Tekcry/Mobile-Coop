@@ -62,7 +62,7 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   cut at the outer angle). Flashlights: the linear `lampTerm`. `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL`
   and the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only,
   `LAMP_LEVEL_GAIN` 1.2 gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`. `?gfx=min` keeps Babylon's linear
-  real lights for the picture (the field is photometric). History: `docs/archive/lighting-review/PROPOSAL.md` section 7
+  real lights for the picture (the field is photometric). History: docs/archive/lighting-review/PROPOSAL.md section 7
   (LR13), numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
 - (shadow audit; always on since LR16a) `world/shadowAccuracy.ts`: the field reads the ambient fill trilinearly as the
   shaders do; each lamp's door list skips doorways the lamp cannot see (`doorSeen`, `bakeVisSampler`; field and shaders
@@ -237,7 +237,7 @@ Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; bui
 - The character-shadow picker holds a swinging lamp's slot and re-renders its map every frame (`moving`).
 
 ## Character silhouette shadows (LR14, sector-redesign charshadow)
-Rendering only (plan and budget: `docs/archive/lighting-review/LR14-PLAN.md`; build report:
+Rendering only (plan and budget: docs/archive/lighting-review/LR14-PLAN.md; build report:
 `docs/sector-redesign/checks/lr14-build.md`). As in CT, the lamps nearest the player throw the real shape of a guard,
 the partner, a body or a held weapon; static geometry stays in the baked visibility atlas; every other lamp keeps the
 capsules.

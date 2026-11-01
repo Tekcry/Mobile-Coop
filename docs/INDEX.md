@@ -74,9 +74,6 @@ the old `warehouseOps` stays selectable, frozen, G390), Fallow (`bunker`, parked
 | `docs/systems/conventions.md` | Robustness rules, conventions, full module table, hot paths, project overview | Code conventions |
 | `docs/kestrel/` | The Kestrel map project and editor (paused, G53) | Kestrel work only |
 
-History (do not read unless a job names it): `docs/archive/progress.md` (history and the older follow-up backlog) and
-`docs/archive/`: every finished job's folder `docs/archive/<job>/` (for example `locomotion/` with `CT-RESEARCH.md`
-and `PROTOTYPE-PLAN.md`, `consolidation/` the 4.0.0 merge, `training/` the Fallow bunker run, `prompts/` old phase
-specs and the music spec), retired maps, the old changelog, testing and progress history, the pre-prototype CT
-movement build and the laptop queue's first plan `laptop-queue-PLAN-2026-10-23.md`. Each live job folder `docs/<job>/`
-holds that job's BRIEF, PLAN and STATE; a released job's folder moves to `docs/archive/<job>/`.
+History: docs/archive/ (every finished job's folder, retired maps, the old progress, testing and changelog history)
+was removed on 2026-11-01. Paths under it that docs still cite are in git history: `git log --all -- docs/archive/<path>`
+finds the deleting commit, then `git show <commit>^:docs/archive/<path>` prints the file.

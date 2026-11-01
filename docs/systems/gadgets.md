@@ -95,7 +95,7 @@ Design authority: docs/DECISIONS.md (G76, G99-G102, G152, G153), then docs/desig
   by the guard terms with the falloff over that range, 1 - (d / range)^2 (`CAMERA.edgePow`), not the guard's 25 m: close
   to the old fill times inside the zone, 0 at its edge, so the picked-up reach (`cameraReach`) is ~0.84-0.97 of the range
   by stance. One `cameraSight` serves the host's think and the co-op client's cue: no wire change. Measured per camera:
-  `docs/archive/camera-range/MEASURE.md` (`tests/cameraReach.test.ts`).
+  docs/archive/camera-range/MEASURE.md (`tests/cameraReach.test.ts`).
 - Cue (`security/cameraCue.ts`, `vfx/cameraCueView.ts`): the sample grid spans the pitched field, the rays reach
   `cueReach(range)`, and the shader's frame mask (`CUE_MASK_GLSL`, mirrored by `cueEdge`) takes the camera's pitch and
   range, so the grid is drawn only where the camera can detect. Normal vision is very subtle (`CUE.line` 0.055,

@@ -392,7 +392,7 @@ one, it leaves this list.
   reach). Map decisions that relied on "a loud shot alerts every guard within 28 m": the Sector Ops suppressed-shot spot
   check (`e2e-sectorops`, its control now fires from beside the guard). No map spec relies on everyone walking over.
 - Kestrel (paused, G53) and the Fallow bunker (parked) rely on the old speeds, camera and moves; they are re-checked if
-  they resume (`docs/kestrel/00-facts.md`, `docs/archive/maps/`).
+  they resume (`docs/kestrel/00-facts.md`, docs/archive/maps/).
 - Doors (sector-batch, G41): the light cut `DOOR_SHUT` went from 0.05 to 0.15 of the swing (12.1). Map decisions that
   relied on 0.05: none.
 
