@@ -1,10 +1,10 @@
-// Takedowns on the night Warehouse (Clear rules): ground behind / front / side (side only on a
+// Takedowns on the Test Chamber (G2b, test mode; was the night Warehouse, Clear rules): ground behind / front / side (side only on a
 // calm guard), (G5, Michael 08:10) one context menu row per takedown (a knockout; RT held is the lethal strike, anim-rework S1), the attacker aligned within 5 cm, interrupted by
-// damage, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
+// damage, from above (a drop off the platform), from below (hanging at the ledge wall's lip),
 // through a window; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
 // from a pipe and a split, an inverted choke; (G348) none on a dog; (context-prompts S3) the prompts under ?ctxprompts=1.
 // (knife-kills, owner decision) The lethal takedown (A hold Kill under the prompts) on a guard on two legs is the paired
-// knife kill on every map: solo on the Warehouse, then co-op on Proving Free Roam (two tabs, ?net=local): the host's
+// knife kill on every map: solo on the Test Chamber, then co-op in its test mode (two tabs, ?net=local): the host's
 // and the client's lethal takedowns play the knife kill on both pages (the partner's figure poses the guard), a
 // client's knockout stays a knockout. (Moved here from the removed piano e2e.) `node scripts/e2e-takedown.mjs [url] [--only=name]`
 import { launch, openPage, assert, frames } from './e2e-lib.mjs';
@@ -29,7 +29,7 @@ const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 let failed = false;
 
 /**
- * (knife-kills) The co-op run: a host and a client on Proving Free Roam; the host spawns three calm, frozen guards; the
+ * (knife-kills) The co-op run: a host and a client in the Test Chamber's test mode; the host spawns three calm, frozen guards; the
  * host knife-kills G1 from behind, the client knife-kills G2 from behind, the client knocks out G3. Each kill: the
  * attacker's page runs the knife row, the other page's figure of the attacker poses that guard (`RemoteKnife`), the
  * host's guard dies (a lethal body). A page in the background stops its frames: a pump steps it (as e2e-ctcourse).
@@ -66,7 +66,7 @@ async function coopKnife() {
     pumping = false;
   }, 40);
   try {
-    await net.startMode('sandbox', 'proving');
+    await net.startMode('test', 'studio');
     for (const P of [A, B]) await knifeClipsIn(P);
     // three guards ahead of the host's spawn, facing +z (away from an attacker south of them), frozen and calm (a host
     // step hook keeps every live, untaken guard unaware and every client unspotted)
@@ -126,7 +126,7 @@ async function coopKnife() {
     assert(hs.kr === 0 && hs.knife && !hs.grab, `the host's lethal takedown from behind is the knife kill, row behind (${JSON.stringify(hs)})`);
     assert((await hostStepResult(B, seeB, 8000, "the client's figure of the host poses G1")) === true, "the client's figure of the host plays the paired kill on G1's puppet");
     await waitSim((KNIFE.free + 0.6) * 1000);
-    assert(!(await hostEnemy(g1)).alive && (await lethalBodies()) === l0 + 1, 'G1 is dead on the host (a lethal body)');
+    assert(!(await hostEnemy(g1))?.alive && (await lethalBodies()) === l0 + 1, 'G1 is dead on the host (a lethal body)');
     assert(await GA(() => !window.__app.current.takedown.busy), 'the host is free after the kill');
 
     // ---- the client's knife kill on G2: the host's figure of the client poses G2
@@ -144,7 +144,7 @@ async function coopKnife() {
     assert(cs.kr === 0 && cs.knife && !cs.grab, `the client's lethal takedown from behind is the knife kill (${JSON.stringify(cs)})`);
     assert((await hostStepResult(A, seeA, 8000, "the host's figure of the client poses G2")) === true, "the host's figure of the client plays the paired kill on G2");
     await waitSim((KNIFE.free + 0.6) * 1000);
-    assert(!(await hostEnemy(g2)).alive && (await lethalBodies()) === l0 + 2, 'G2 is dead on the host (a lethal body)');
+    assert(!(await hostEnemy(g2))?.alive && (await lethalBodies()) === l0 + 2, 'G2 is dead on the host (a lethal body)');
 
     // ---- the client's knockout on G3: no knife, a knockout on the host
     const k0 = await koBodies();
@@ -160,7 +160,7 @@ async function coopKnife() {
     const ks = await hostStepResult(B, kk, 8000, 'the client starts its knockout on G3');
     assert(ks.kr === -1 && !ks.knife, `the client's knockout is no knife kill (${JSON.stringify(ks)})`);
     await waitSim(2500);
-    assert(!(await hostEnemy(g3)).alive && (await koBodies()) === k0 + 1 && (await lethalBodies()) === l0 + 2, 'G3 is knocked out on the host (no lethal body)');
+    assert(!(await hostEnemy(g3))?.alive && (await koBodies()) === k0 + 1 && (await lethalBodies()) === l0 + 2, 'G3 is knocked out on the host (no lethal body)');
 
     const errs = errors.flat().filter((e) => !/GPU stall|GL Driver|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
     assert(errs.length === 0, `co-op knife: no console errors (${errs.join(' | ')})`);
@@ -170,7 +170,7 @@ async function coopKnife() {
     await nb.close();
   }
 }
-const { browser, ctx, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+const { browser, ctx, page, errors } = await launch({ url, params: 'autostart=studio&mode=test' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);
@@ -263,8 +263,8 @@ try {
       const g = window.__app.current;
       const em = g.enemyMgr;
       // behind (the guard faces away), tap: knocked out
-      t.tp(2, 0, -2.2, 0);
-      const e = t.spawn(2, -1, 0);
+      t.tp(20, 0, 19.8, 0);
+      const e = t.spawn(20, 21, 0);
       t.step(0.4);
       const offer = g.takedown.offer?.plan.kind;
       const prompt = document.querySelector('.wp-takedown.show') !== null;
@@ -277,8 +277,8 @@ try {
       const ko = em.bodies.find((b) => !b.lethal) !== undefined && !e.alive;
       // front: (G5, Michael 08:10: no knock out / kill rows) one row, Takedown: a tap knocks him out
       t.reset();
-      t.tp(2, 0, -2.2, 0);
-      const e2 = t.spawn(2, -1, Math.PI);
+      t.tp(20, 0, 19.8, 0);
+      const e2 = t.spawn(20, 21, Math.PI);
       // (a guard that has not noticed the operator yet: in the dark)
       e2.passive = true;
       t.step(0.4);
@@ -289,8 +289,8 @@ try {
       const frontKo = em.bodies.find((b) => !b.lethal) !== undefined && !e2.alive;
       // side: only on a calm guard
       t.reset();
-      t.tp(2, 0, -2.2, 0);
-      const e3 = t.spawn(2, -1, Math.PI / 2);
+      t.tp(20, 0, 19.8, 0);
+      const e3 = t.spawn(20, 21, Math.PI / 2);
       t.step(0.4);
       const sideCalm = g.takedown.offer?.plan.kind;
       e3.alert();
@@ -300,8 +300,8 @@ try {
       const sideAlert = g.takedown.offer?.plan.kind ?? null;
       // a guard in combat who has seen this operator: no takedown; one alerted without seeing them (radioed): yes
       t.reset();
-      t.tp(2, 0, -2.2, 0);
-      const e4 = t.spawn(2, -1, Math.PI);
+      t.tp(20, 0, 19.8, 0);
+      const e4 = t.spawn(20, 21, Math.PI);
       let k = 0;
       while (!e4.alerted && k++ < 120) t.step(1 / 60);
       e4.update = () => {};
@@ -309,10 +309,10 @@ try {
       const seenOffer = g.takedown.offer?.plan.kind ?? null;
       const spotted = g.spottedLocal;
       t.reset();
-      t.tp(2, 0, -2.2, 0);
+      t.tp(20, 0, 19.8, 0);
       // (nobody in combat for a moment: no guard knows the operator is there any more)
       t.step(0.1);
-      const e5 = t.spawn(2, -1, Math.PI);
+      const e5 = t.spawn(20, 21, Math.PI);
       e5.passive = true;
       e5.alert();
       e5.update = () => {};
@@ -336,8 +336,8 @@ try {
       const t = window.__t;
       const g = window.__app.current;
       const em = g.enemyMgr;
-      t.tp(2, 0, -2.2, 0);
-      const e = t.spawn(2, -1, Math.PI);
+      t.tp(20, 0, 19.8, 0);
+      const e = t.spawn(20, 21, Math.PI);
       e.setGear({ helmet: true, armour: true });
       e.passive = true;
       t.step(0.4);
@@ -355,8 +355,8 @@ try {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
-      t.tp(2, 0, -2.2, 0);
-      const d = g.enemyMgr.spawn('dog', new t.V(2, 0, -1), false, 0);
+      t.tp(20, 0, 19.8, 0);
+      const d = g.enemyMgr.spawn('dog', new t.V(20, 0, 21), false, 0);
       d.update = () => {};
       t.step(0.4);
       const offer = g.takedown.offer?.plan.kind ?? null;
@@ -376,8 +376,8 @@ try {
       const g = window.__app.current;
       const c = g.player.controller;
       const st0 = window.__app.input.state;
-      t.tp(2, 0, -2.2, 0);
-      const e = t.spawn(2, -1, 0);
+      t.tp(20, 0, 19.8, 0);
+      const e = t.spawn(20, 21, 0);
       t.step(0.4);
       const lbl = g.hud.world.label('takedown');
       const offerRows = g.ctxMenu.opts.slice(0, g.ctxMenu.count).map((o) => o.label).join(' / ');
@@ -452,14 +452,14 @@ try {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
-      t.tp(2, 0, -2.2, 0);
-      const e = t.spawn(2, -1, 0);
+      t.tp(20, 0, 19.8, 0);
+      const e = t.spawn(20, 21, 0);
       e.info = { lines: ['Lab door is 4471.'], codes: [{ flag: 'e2e-code', label: 'Lab door 4471' }] };
       g.mode.onIntelCode = (f) => (window.__intelCodes ??= []).push(f);
       // (batch-23) patrol timing: a second guard walking a route away from the hold; the intel reads it through the
       // Guard AI getter `Enemy.patrolRoute` (ping-pong 6 m, 5 s waits: 12 m / (walkSpeed x PACE.patrol 1.1) + 10 s)
-      const route = { points: [[10, -2], [16, -2]], wait: 5 };
-      const p = t.spawn(10, -2, Math.PI / 2);
+      const route = { points: [[12, 21], [18, 21]], wait: 5 };
+      const p = t.spawn(12, 21, Math.PI / 2);
       p.setPatrol(route);
       const getter = p.patrolRoute === route;
       const loop = Math.round(12 / (p.def.walkSpeed * 1.1) + 10);
@@ -503,8 +503,8 @@ try {
       const t = window.__t;
       const g = window.__app.current;
       const st = window.__app.input.state;
-      t.tp(2, 0, -2.2, 0);
-      const e = t.spawn(2, -1, 0);
+      t.tp(20, 0, 19.8, 0);
+      const e = t.spawn(20, 21, 0);
       t.step(0.4);
       t.press();
       t.step(1.2);
@@ -515,8 +515,8 @@ try {
       t.run(1.0);
       const killed = !e.alive && g.enemyMgr.bodies.some((b) => b.lethal);
       t.reset();
-      t.tp(2, 0, -2.2, 0);
-      const e1 = t.spawn(2, -1, 0);
+      t.tp(20, 0, 19.8, 0);
+      const e1 = t.spawn(20, 21, 0);
       t.step(0.4);
       t.press();
       t.step(1.2);
@@ -526,8 +526,8 @@ try {
       const carried = !e1.alive && g.stealth.carrying && !g.stealth.busy && !!g.stealth.carry;
       t.reset();
       g.stealth.carry = null;
-      t.tp(2, 0, -2.2, 0);
-      const e2 = t.spawn(2, -1, 0);
+      t.tp(20, 0, 19.8, 0);
+      const e2 = t.spawn(20, 21, 0);
       t.step(0.4);
       t.press();
       t.step(1.2);
@@ -561,8 +561,8 @@ try {
       const st = window.__app.input.state;
       const L = g.world.level.anchors;
       // a pipe hung at runtime over open floor (no visual): hang under it and drop on a guard below
-      const pipe = L.add({ kind: 'pipeH', a: { x: 0, y: 3.6, z: -1.5 }, b: { x: 4, y: 3.6, z: -1.5 }, hangHeight: 3.6, radius: 0.06 });
-      t.tp(2, 0, -1.2, 0);
+      const pipe = L.add({ kind: 'pipeH', a: { x: 18, y: 3.6, z: 19.7 }, b: { x: 22, y: 3.6, z: 19.7 }, hangHeight: 3.6, radius: 0.06 });
+      t.tp(20, 0, 20.0, 0);
       t.step(0.2);
       g.traversal.attachCtl.attachTo(pipe, 2, 'below', 1);
       t.step(0.8);
@@ -577,7 +577,7 @@ try {
       // inverted on the same pipe (lower: 3 m), a guard right beneath: choke him up
       t.reset();
       pipe.a.y = pipe.b.y = pipe.hangHeight = 3.0;
-      t.tp(2, 0, -1.2, 0);
+      t.tp(20, 0, 20.0, 0);
       t.step(0.2);
       g.traversal.attachCtl.attachTo(pipe, 2, 'below', 1);
       t.step(0.8);
@@ -594,7 +594,7 @@ try {
       t.press();
       t.run(1.6);
       const invDone = !e2.alive && g.traversal.attached && g.traversal.attachCtl.pipe.mode === 'inverted';
-      // a split (the Warehouse's generated gap): a guard below
+      // a split (the Test Chamber's fin beside the team block: the generated gap): a guard below
       t.reset();
       const sg = L.splits[0];
       let splitOffer = 'none';
@@ -627,8 +627,8 @@ try {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
-      t.tp(2, 0, -2.2, 0);
-      const e = t.spawn(2, -1, 0);
+      t.tp(20, 0, 19.8, 0);
+      const e = t.spawn(20, 21, 0);
       t.step(0.4);
       t.press();
       t.step(0.15);
@@ -648,10 +648,10 @@ try {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
-      // on the mezzanine deck at the zipline gap, a guard on the floor below
-      t.tp(12, 2.6, 12.45, Math.PI);
+      // on the platform's south edge (top 3.0), a guard on the floor below
+      t.tp(1.5, 3.02, 8.45, Math.PI);
       t.step(0.3);
-      const e = t.spawn(12, 10.9, Math.PI);
+      const e = t.spawn(1.5, 6.9, Math.PI);
       t.step(0.4);
       const offer = g.takedown.offer?.plan.kind;
       t.press();
@@ -667,17 +667,17 @@ try {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
-      // a hangable piece of the mezzanine's front lip (the railings cut it into pieces)
-      const L = g.world.level.anchors.ledges.filter((l) => l.canHang && Math.abs(l.top - 2.6) < 0.1 && Math.abs(l.a.z - 12) < 0.25 && Math.abs(l.b.z - 12) < 0.25).sort((p, q) => q.len - p.len)[0];
-      if (!L) return { err: 'no mezzanine lip' };
+      // the ledge wall's south lip (top 2.4, z 25; the longest hangable piece)
+      const L = g.world.level.anchors.ledges.filter((l) => l.canHang && Math.abs(l.top - 2.4) < 0.1 && Math.abs(l.a.z - 25) < 0.25 && Math.abs(l.b.z - 25) < 0.25).sort((p, q) => q.len - p.len)[0];
+      if (!L) return { err: 'no ledge-wall lip' };
       const s = L.len / 2;
       const lx = L.a.x + L.tx * s;
-      t.tp(lx, 0, 11.4, 0);
+      t.tp(lx, 0, 24.4, 0);
       t.step(0.2);
       g.traversal.attachCtl.attachTo(L, s, 'below');
       t.step(1.2);
       const hanging = g.traversal.attached;
-      const e = t.spawn(lx + 0.2, 12.6, 0, 2.6);
+      const e = t.spawn(lx + 0.2, 25.6, 0, 2.4);
       t.step(0.4);
       const offer = g.takedown.offer?.plan.kind;
       t.press();
@@ -685,7 +685,7 @@ try {
       return { hanging, offer, done: !e.alive, stillHanging: g.traversal.attached };
     });
     assert(!r.err, r.err ?? '');
-    assert(r.hanging, 'hanging at the mezzanine lip');
+    assert(r.hanging, 'hanging at the ledge wall lip');
     assert(r.offer === 'below', `a guard at the lip above: pull him over (${r.offer})`);
     assert(r.done && r.stillHanging, 'done, still hanging');
   });
@@ -694,10 +694,10 @@ try {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
-      // the workshop's open yard window (x 11.5, z -18): player inside, a guard outside
-      t.tp(11.5, 0, -17.3, Math.PI);
+      // the window wall's open window (x 18, z 4): player north of it, a guard south
+      t.tp(18, 0, 4.7, Math.PI);
       t.step(0.6);
-      const e = t.spawn(11.5, -18.9, Math.PI);
+      const e = t.spawn(18, 3.1, Math.PI);
       t.step(0.5);
       const hint = !!g.traversal.hintWindow;
       const offer = g.takedown.offer?.plan.kind;
@@ -812,8 +812,8 @@ try {
       const out = [];
       for (const kind of ['grunt', 'heavy']) {
         t.reset();
-        t.tp(2, 0, -1.9, 0);
-        const e = g.enemyMgr.spawn(kind, new t.V(2, 0, -1), true, Math.PI);
+        t.tp(20, 0, 20.1, 0);
+        const e = g.enemyMgr.spawn(kind, new t.V(20, 0, 21), true, Math.PI);
         e['stagger'] = 99;
         t.step(0.2);
         st.set('t', 'fire', true);
@@ -839,7 +839,7 @@ try {
   if (!only || 'context prompts'.includes(only)) {
     console.log('context prompts');
     await page.close();
-    const p2 = await openPage(ctx, url, 'autostart=warehouse&mode=clear&ctxprompts=1');
+    const p2 = await openPage(ctx, url, 'autostart=studio&mode=test&ctxprompts=1');
     await frames(p2.page, 10);
     // (knife-kills) the knife clips in before the stepped run (the hold's kill is the knife kill)
     await knifeClipsIn(p2.page);
@@ -872,10 +872,10 @@ try {
         step(0.1);
       };
       const at = (yaw) => {
-        c.teleport(new V(2, 0, -2.2), 0);
+        c.teleport(new V(20, 0, 19.8), 0);
         g.player.cam.yaw = 0;
         g.player.cam.pitch = 0;
-        const e = em.spawn('grunt', new V(2, 0, -1), false, yaw);
+        const e = em.spawn('grunt', new V(20, 0, 21), false, yaw);
         e.passive = true;
         step(0.4);
         return e;
@@ -981,7 +981,7 @@ try {
     assert(real2.length === 0, `ctx: no console errors (${real2.join(' | ')})`);
   }
 
-  // (knife-kills; moved from the removed piano e2e) co-op on Proving Free Roam (two tabs, ?net=local): the host's lethal
+  // (knife-kills; moved from the removed piano e2e) co-op in the Test Chamber (two tabs, ?net=local): the host's lethal
   // takedown plays the paired knife kill and the client's figure of the host poses the guard; the client's lethal
   // takedown plays it on the host too; both guards die (lethal bodies); a client's knockout stays a knockout
   if (!only || 'co-op knife'.includes(only)) {

@@ -1,4 +1,4 @@
-// Close-quarters and combat checks on Proving Grounds: hit volumes following crouch, and in a fight:
+// Close-quarters and combat checks on the Test Chamber (G2b): hit volumes following crouch, and in a fight:
 // suppression, exposure HUD, and footstep noise investigation. (Player cover checks left with step 05.)
 import { launch, frames, assert } from './e2e-lib.mjs';
 
@@ -7,7 +7,7 @@ let failed = false;
 let browser;
 let errors = [];
 try {
-  ({ browser, page: globalThis.page, errors } = await launch({ url, params: 'autostart=proving' }));
+  ({ browser, page: globalThis.page, errors } = await launch({ url, params: 'autostart=studio' }));
   const page = globalThis.page;
   const G = (f, a) => page.evaluate(f, a);
   const tp = (x, z, yaw) => G(([x, z, yaw]) => { const g = window.__app.current; const p = g.player; p.controller.teleport(new p.controller.pos.constructor(x, 0, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; }, [x, z, yaw]);
@@ -31,7 +31,7 @@ try {
   }, [seconds, mx, my, ads, probe ?? null]);
 
   console.log('hit volumes');
-  await tp(0, -2, 0);
+  await tp(20, 21, 0);
   await run(0.3, 0, 0, false);
   const stand = await G(() => { const g = window.__app.current; return g.target.headPoint(new g.player.position.constructor()).y; });
   await G(() => window.__app.input.state.tap('crouch'));
@@ -47,9 +47,9 @@ try {
 }
 await browser?.close();
 
-// a fight: suppression, exposure and noise (alerted grunts on Proving Grounds; the mission squads cleared)
+// a fight: suppression, exposure and noise (alerted grunts at the chamber's five enemy spawns)
 try {
-  const l = await launch({ url, params: 'autostart=proving&mode=mission' });
+  const l = await launch({ url, params: 'autostart=studio&mode=test' });
   browser = l.browser;
   errors = errors.concat(l.errors);
   const page = l.page;
@@ -65,7 +65,7 @@ try {
     g.enemyMgr.stealth = false;
     const sp = g.world.layout.enemySpawns;
     for (let i = 0; i < 5 && sp.length; i++) g.enemyMgr.spawn('grunt', sp[i % sp.length].clone(), true);
-    p.controller.teleport(new p.controller.pos.constructor(-3.7, 0, -6), -Math.PI / 2);
+    p.controller.teleport(new p.controller.pos.constructor(2.7, 0, 17), Math.PI / 2);
     p.cam.yaw = -Math.PI / 2;
     a.loop.stepHeadless(0.3);
     let maxS = 0;
@@ -90,8 +90,8 @@ try {
     const m = g.enemyMgr;
     m.clear();
     const p = g.player;
-    p.controller.teleport(new p.controller.pos.constructor(0, 0, -14), 0);
-    const e = m.spawn('grunt', new p.controller.pos.constructor(0, 0, -24), false, Math.PI);
+    p.controller.teleport(new p.controller.pos.constructor(8, 0, 11), 0);
+    const e = m.spawn('grunt', new p.controller.pos.constructor(8, 0, 1), false, Math.PI);
     // a crouched sneak: near silent; a sprint carries
     p.controller['crouchToggled'] = true;
     a.input.state.move.y = 0.3;
@@ -99,15 +99,17 @@ try {
     const creepNoise = g.noise;
     p.controller['crouchToggled'] = false;
     const z0 = e.pos.z;
+    const x0 = e.pos.x;
     a.input.state.move.y = 0;
     g.noise = 0;
-    // through the wall between them a 16 m noise is muffled (not heard at 10 m); a louder one is
+    // through the door wall (z 4) between them a 16 m noise is muffled (not heard at 10 m); a louder one is.
+    // (G2b) the test mode's coordinated hearing makes a wall x0.45, and walking over needs 10 < R x 0.45 x 0.5, so R > 44.4: 45
     m.hear(p.position, 16);
     a.loop.stepHeadless(3);
     const muffled = e.level;
-    m.hear(p.position, 26);
+    m.hear(p.position, 45);
     a.loop.stepHeadless(7);
-    return { creepNoise, moved: Math.hypot(e.pos.x - 0, e.pos.z - z0), alerted: e.alerted, level: e.level, muffled };
+    return { creepNoise, moved: Math.hypot(e.pos.x - x0, e.pos.z - z0), alerted: e.alerted, level: e.level, muffled };
   });
   assert(n.creepNoise < 1, `a crouched sneak is near silent (${n.creepNoise.toFixed(1)} m)`);
   assert(n.moved > 1, `a heard footstep draws an unalerted enemy to investigate (${n.moved.toFixed(2)} m, ${n.level})`);

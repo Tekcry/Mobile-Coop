@@ -1,4 +1,4 @@
-// Enemy archetypes on the night Warehouse (Clear rules): heavy (plates, weak back / face plate, no frontal
+// Enemy archetypes on the Test Chamber (G2b: the test mode; its guards' rules are the Clear ones; the Perfectionist part is the Warehouse's, H deletes it): heavy (plates, weak back / face plate, no frontal
 // choke), enforcer (shield stops frontal rounds, no frontal grab, pushes forward), sniper (laser, glint refuses a
 // mark, relocates after its shots), runner (draws, fires bursts, never strikes, presses in), dog (smells a hidden
 // crouched operator in the dark, no takedown (G348), gas knocks it out),
@@ -75,7 +75,9 @@ const run = async (params, scenarios) => {
   await browser.close();
 };
 
-await run('autostart=warehouse&mode=clear', [
+// (G2b) the Test Chamber's main room: the open floor z 17-23 (the anim lane), the low wall at x 4, the door wall at z 4. The player parks at
+// (27, 1.5) where a scenario wants him out of the way (the dark-bay park of the spec is the annex's, G2c).
+await run('autostart=studio&mode=test', [
   [
     'heavy',
     async (G) => {
@@ -83,8 +85,8 @@ await run('autostart=warehouse&mode=clear', [
         const t = window.__t;
         const g = window.__app.current;
         // face to face, a step apart
-        t.tp(8, 0, 2.6, 0);
-        const e = t.spawn('heavy', 8, 3.6, Math.PI);
+        t.tp(8, 0, 21, 0);
+        const e = t.spawn('heavy', 8, 22, Math.PI);
         t.freeze(e);
         t.step(0.4);
         const offer = g.takedown.offer;
@@ -111,33 +113,33 @@ await run('autostart=warehouse&mode=clear', [
       const r = await G(() => {
         const t = window.__t;
         const g = window.__app.current;
-        t.tp(8, 0, 2.6, 0);
-        const e = t.spawn('enforcer', 8, 3.6, Math.PI);
+        t.tp(8, 0, 21, 0);
+        const e = t.spawn('enforcer', 8, 22, Math.PI);
         t.freeze(e);
         t.step(0.4);
         const frontOffer = g.takedown.offer?.plan.kind ?? null;
         const front = t.hit(e, 0, 1);
         const back = t.hit(e, 0, -1);
         // behind him: offered
-        t.tp(8, 0, 4.6, Math.PI);
+        t.tp(8, 0, 23, Math.PI);
         e.yaw = Math.PI;
         t.step(0.4);
         const behindOffer = g.takedown.offer?.plan.kind ?? null;
         // alerted, in sight: he walks into it
         t.reset();
-        // a clear line down the floor
+        // a clear line up the floor (x 12, z 9 to 21)
         const nav = g.enemyMgr.nav;
-        let lx = 8;
-        for (let x = -2; x <= 22; x += 1) if (nav.lineClear([x, 7], [x, -4])) {
+        let lx = 12;
+        for (let x = 12; x <= 16; x += 1) if (nav.lineClear([x, 21], [x, 9])) {
           lx = x;
           break;
         }
-        t.tp(lx, 0, -4, 0);
-        const p = t.spawn('enforcer', lx, 7, Math.PI, true);
+        t.tp(lx, 0, 9, 0);
+        const p = t.spawn('enforcer', lx, 21, Math.PI, true);
         t.step(0.5);
-        const d0 = Math.hypot(p.pos.x - lx, p.pos.z + 4);
+        const d0 = Math.hypot(p.pos.x - lx, p.pos.z - 9);
         t.step(4);
-        const d1 = Math.hypot(p.pos.x - lx, p.pos.z + 4);
+        const d1 = Math.hypot(p.pos.x - lx, p.pos.z - 9);
         return { frontOffer, front: front.dealt, back: back.dealt, blocks: e.shieldBlocks, behindOffer, d0, d1 };
       });
       assert(r.front === 0 && r.blocks === 1 && r.back > 0, `the shield stops frontal rounds (front ${r.front}, back ${r.back.toFixed(1)})`);
@@ -151,10 +153,12 @@ await run('autostart=warehouse&mode=clear', [
       const r = await G(() => {
         const t = window.__t;
         const g = window.__app.current;
-        t.tp(8, 0, -4, 0);
+        // the sniper at (8, 24) shoots across the room at the player (20, 17); the low wall's west face is his cover
+        const yawP = Math.atan2(8 - 20, 24 - 17);
+        t.tp(20, 0, 17, yawP);
         // (no alarm run: an alerted sniper would otherwise go for a panel)
         g.enemyMgr.alarmRaised = true;
-        const e = t.spawn('sniper', 8, 9, Math.PI, true);
+        const e = t.spawn('sniper', 8, 24, yawP + Math.PI, true);
         const p0 = e.pos.clone();
         let laser = false;
         let glintMax = 0;
@@ -167,7 +171,7 @@ await run('autostart=warehouse&mode=clear', [
               `gate=${e.fireGate.blocked ? 1 : 0}/${e.fireGate.heldTicks} carry=${e.carry.phase} ` +
               `at=${e.pos.x.toFixed(1)},${e.pos.z.toFixed(1)} alarm=${e['alarm'] ? 1 : 0}`,
           );
-        for (let i = 0; i < 90 && e.relocations === 0; i++) {
+        for (let i = 0; i < 300 && e.relocations === 0; i++) {
           t.step(0.1);
           g.frameUpdate(1 / 120, 1);
           laser = laser || e['laser'].isVisible;
@@ -201,19 +205,17 @@ await run('autostart=warehouse&mode=clear', [
         const t = window.__t;
         const g = window.__app.current;
         const em = g.enemyMgr;
-        // (runner-armed triage) a clear lane down the floor, as the enforcer's above: x 8 is not one (the conveyor,
-        // x -1..9 z 8.15..9.05, stands across it and (8, 9) is inside it, so the spawn snapped behind it and his straight
-        // press-in step ran into it)
+        // a clear lane up the floor, as the enforcer's above (x 12, z 9 to 21)
         const nav = em.nav;
-        let lx = 8;
-        for (let x = -2; x <= 22; x += 1) if (nav.lineClear([x, 7], [x, -4])) {
+        let lx = 12;
+        for (let x = 12; x <= 16; x += 1) if (nav.lineClear([x, 21], [x, 9])) {
           lx = x;
           break;
         }
-        t.tp(lx, 0, -4, 0);
+        t.tp(lx, 0, 9, 0);
         // (no alarm run: an alerted armed guard would otherwise go for a panel, as the sniper above)
         em.alarmRaised = true;
-        const e = t.spawn('runner', lx, 7, Math.PI, true);
+        const e = t.spawn('runner', lx, 21, Math.PI, true);
         // the brain's trace (printed when he does not press in)
         const trace = [];
         let strikes = 0;
@@ -223,7 +225,7 @@ await run('autostart=warehouse&mode=clear', [
           prev?.(x);
         };
         try {
-          const feet = () => Math.hypot(e.pos.x - lx, e.pos.z + 4);
+          const feet = () => Math.hypot(e.pos.x - lx, e.pos.z - 9);
           const d0 = feet();
           for (let k = 0; k < 16; k++) {
             t.step(0.5);
@@ -250,21 +252,21 @@ await run('autostart=warehouse&mode=clear', [
         const t = window.__t;
         const g = window.__app.current;
         const c = g.player.controller;
-        // crouched, still, behind the dog in the dark: out of its smell first, then inside it
-        const e = t.spawn('dog', 8, 4, 0);
+        // crouched, still, behind the dog (no darkness needed: its smell is 6 m x 0.7): out of its smell first, then inside it
+        const e = t.spawn('dog', 20, 21, 0);
         c['crouchToggled'] = true;
-        t.tp(8, 0, -3.5, 0);
+        t.tp(20, 0, 13.5, 0);
         t.step(2);
         const far = e.meter;
-        t.tp(8, 0, 1.6, 0);
+        t.tp(20, 0, 18.6, 0);
         t.step(2.5);
         const near = e.meter;
         const level = e.level;
         // (G348, guard-rules S2) no takedown on a dog: behind it, no offer, the press does nothing, it stays up
         t.reset();
-        const d = t.spawn('dog', 8, 4, 0);
+        const d = t.spawn('dog', 20, 21, 0);
         t.freeze(d);
-        t.tp(8, 0, 2.9, 0);
+        t.tp(20, 0, 19.9, 0);
         t.step(0.4);
         const offer = g.takedown.offer?.plan.kind ?? null;
         window.__app.input.state.set('t', 'interact', true);
@@ -290,8 +292,8 @@ await run('autostart=warehouse&mode=clear', [
         const t = window.__t;
         const g = window.__app.current;
         const em = g.enemyMgr;
-        t.tp(-30, 0, -30, 0);
-        const op = t.spawn('droneOp', 8, 4, Math.PI);
+        t.tp(27, 0, 1.5, 0); // PARK
+        const op = t.spawn('droneOp', 5, 21, Math.PI);
         t.freeze(op);
         t.step(0.3);
         const d = em.drones[0];
@@ -311,7 +313,7 @@ await run('autostart=warehouse&mode=clear', [
         const shotDown = em.drones.length === 0;
         // an EMP drops a second one
         t.reset();
-        const op2 = t.spawn('droneOp', 8, 4, Math.PI);
+        const op2 = t.spawn('droneOp', 5, 21, Math.PI);
         t.freeze(op2);
         t.step(0.3);
         const d2 = em.drones[0];
@@ -332,10 +334,10 @@ await run('autostart=warehouse&mode=clear', [
         const t = window.__t;
         const g = window.__app.current;
         const em = g.enemyMgr;
-        t.tp(-30, 0, -30, 0);
-        const o = t.spawn('officer', 8, 4, 0);
-        const m = t.spawn('grunt', 10, 5, 0);
-        const far = t.spawn('grunt', 8, -14, 0);
+        t.tp(27, 0, 1.5, 0); // PARK
+        const o = t.spawn('officer', 8, 21, 0);
+        const m = t.spawn('grunt', 10, 22, 0);
+        const far = t.spawn('grunt', 22, 21, 0);
         t.step(1);
         const buff = m.buff && !far.buff;
         // the alarm: the officer runs it before a closer guard
@@ -366,9 +368,9 @@ await run('autostart=warehouse&mode=clear', [
         const t = window.__t;
         const g = window.__app.current;
         const em = g.enemyMgr;
-        t.tp(-30, 0, -30, 0);
-        const a = t.spawn('grunt', 8, 4, 0);
-        const b = t.spawn('grunt', 14, 4, 0);
+        t.tp(27, 0, 1.5, 0); // PARK
+        const a = t.spawn('grunt', 8, 21, -Math.PI / 2);
+        const b = t.spawn('grunt', 14, 21, 0);
         em.joinSquad(a, 77);
         em.joinSquad(b, 77);
         t.step(0.5);
@@ -393,8 +395,8 @@ await run('autostart=warehouse&mode=clear', [
       const r = await G(() => {
         const t = window.__t;
         const g = window.__app.current;
-        t.tp(8, 0, 0, 0);
-        const e = t.spawn('grunt', 8, 6, Math.PI);
+        t.tp(16, 0, 17, 0);
+        const e = t.spawn('grunt', 16, 23, Math.PI);
         t.step(0.3);
         e.alert();
         t.step(0.05);
