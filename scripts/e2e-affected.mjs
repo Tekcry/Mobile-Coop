@@ -154,7 +154,7 @@ export const WIDE_COVERS = {
   'src/game/studioStage': ['e2e-studio', 'e2e-tuner-phone'],
   // (marlow-bays item 26) the free view's touch orbit, pinch and pan
   'src/player/freeView': ['e2e-tuner-phone', 'e2e-studio', 'anim-audit', 'e2e-anim', 'e2e-move'],
-  'src/world/maps/studio.ts': ['e2e-studio'],
+  'src/world/maps/studio.ts': ['e2e-studio', 'e2e-testmode'],
   'src/save/animTuneStore': ['e2e-studio', 'e2e-menus'],
   'src/ui/studio': ['e2e-studio'],
   'src/ui/tuneSnapshots': ['e2e-studio', 'e2e-menus'],
@@ -182,6 +182,8 @@ export const WIDE_COVERS = {
   'src/game/rating/': ['e2e-section-rating', 'e2e-sectorops', 'e2e-course'],
   'src/save/ratingRecord': ['e2e-section-rating', 'e2e-sectorops', 'e2e-menus'],
   'src/game/sectors': ['e2e-sectorops'],
+  // (clean-up G2a) the Test Chamber's test mode: its suite, and the co-op rooms that run it (revives, the lobby's Test Chamber)
+  'src/game/modes/testMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-testmode', 'e2e-coop'],
   'src/game/modes/clearMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-clear'],
   'src/game/modes/missionMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-modes'],
   'src/game/modes/infiltrationMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-missions'],
@@ -214,6 +216,8 @@ export const WIDE_COVERS = {
   'src/world/bakedLamps': lightSuites(),
   'src/world/ambientGrid': lightSuites(),
   'src/world/darkCurve': lightSuites(),
+  // (clean-up G2a) Proving Grounds lists its dummies in the layout: the combat suite and the test-mode smoke build them
+  'src/world/maps/provingGrounds.ts': ['e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse', 'e2e-combat', 'e2e-testmode'],
   'src/world/': ['e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/voxel/': lightSuites([]),
   'src/vfx/': ['e2e-desktop'],
@@ -248,7 +252,7 @@ export const DIRECT_COVERS = {
   'src/anim/moveTune': ['e2e-studio', 'e2e-anim'],
   'src/game/studioStage': ['e2e-studio', 'e2e-tuner-phone'],
   'src/player/freeView': ['e2e-studio', 'e2e-tuner-phone'],
-  'src/world/maps/studio.ts': ['e2e-studio'],
+  'src/world/maps/studio.ts': ['e2e-studio', 'e2e-testmode'],
   'src/save/animTuneStore': ['e2e-studio', 'e2e-menus'],
   'src/ui/studio': ['e2e-studio'],
   'src/ui/tuneSnapshots': ['e2e-studio', 'e2e-menus'],
@@ -267,6 +271,8 @@ export const DIRECT_COVERS = {
   'src/game/course/': [...GAME, 'e2e-course', 'e2e-ctcourse'],
   'src/game/modes/courseMode.ts': [...GAME, 'e2e-course', 'e2e-ctcourse', 'e2e-section-rating'],
   'src/game/modes/sectorMode.ts': [...GAME, 'e2e-sectorops', 'e2e-section-rating'],
+  // (clean-up G2a) the Test Chamber's test mode: its suite, and the co-op rooms that run it (revives, the lobby's Test Chamber)
+  'src/game/modes/testMode.ts': [...GAME, 'e2e-testmode', 'e2e-coop'],
   'src/game/modes/clearMode.ts': [...GAME, 'e2e-sectorops', 'e2e-clear'],
   'src/game/modes/missionMode.ts': [...GAME, 'e2e-sectorops', 'e2e-modes'],
   'src/game/modes/infiltrationMode.ts': [...GAME, 'e2e-sectorops', 'e2e-missions'],
@@ -326,6 +332,8 @@ export const DIRECT_COVERS = {
   'src/world/bakedLamps': LIGHT,
   'src/world/ambientGrid': LIGHT,
   'src/world/darkCurve': LIGHT,
+  // (clean-up G2a) Proving Grounds lists its dummies in the layout: the combat suite and the test-mode smoke build them
+  'src/world/maps/provingGrounds.ts': ['e2e-levels', 'e2e-anchors', 'e2e-combat', 'e2e-testmode'],
   'src/world/': ['e2e-levels', 'e2e-anchors'],
   'src/voxel/': LIGHT,
   'src/vfx/': ['e2e-desktop'],

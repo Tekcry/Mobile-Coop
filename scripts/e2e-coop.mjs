@@ -2217,7 +2217,7 @@ try {
 }
 
 // (context-prompts S5, PLAN 8) the context prompts in co-op (`?ctxprompts=1` on both pages, dark until switch-on), on
-// Proving in Free Roam: the host offers a leg-up beside a switch: the switch's prompt shows on it (no centre prompt) and A
+// Proving in the test mode (G2a; Free Roam has no revive point): the host offers a leg-up beside a switch: the switch's prompt shows on it (no centre prompt) and A
 // uses it while the offer stands (rows 42-43); the team-move prompts are the short move names, the waiting text a small
 // second line, and the client's "Take the leg-up" sits on the host (rows 38-39); the downed client: the host's hold A on
 // the revive point fills and revives (row 27); the old box never shows on either page.
@@ -2241,11 +2241,12 @@ if (!failed) {
     await B2.keyboard.type(code.toLowerCase());
     await B2.keyboard.press('Enter');
     await until(A2, () => window.__coop.session.players.size === 2, null, 15000, 'ctx: the client joins');
-    await GA(() => window.__coop.session.setSettings('sandbox', 'proving', 'normal', ''));
+    // (G2a) the test mode: a Free Roam room has no `g.mode`, so a downed client got no revive point (it respawned in 3 s)
+    await GA(() => window.__coop.session.setSettings('test', 'proving', 'normal', ''));
     await GB(() => window.__coop.session.setReady(true));
     await until(A2, () => window.__coop.session.allReady, null, 8000, 'ctx: everyone ready');
     await GA(() => window.__coop.session.startMatch());
-    for (const P of [A2, B2]) await until(P, () => window.__app.current?.opts?.mode === 'sandbox' && !!window.__app.current.net && !window.__app.current.isEnded, null, LOAD_MS, 'ctx: Free Roam on both pages');
+    for (const P of [A2, B2]) await until(P, () => window.__app.current?.opts?.mode === 'test' && !!window.__app.current.net && !window.__app.current.isEnded, null, LOAD_MS, 'ctx: the test mode on both pages');
     await until(A2, () => [...window.__app.current.net.remotes.values()].some((r) => r.state), null, 15000, 'ctx: client states reach the host');
     // the old box and the centre prompt never show (checked on every poll from here)
     const noBox = () => !document.querySelector('.hud-ctx.show') && window.__app.current.ctxMenu.state === 'none';
