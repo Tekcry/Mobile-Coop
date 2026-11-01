@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { animTuneAllowed } from '../src/ui/tunerGate';
 import { MAPS, DEV_MAPS, getMap } from '../src/world/maps';
-import { STUDIO_MAP_ID } from '../src/anim/studio';
-import { STUDIO_MAP_ID as TINY_ID } from '../src/anim/studioMapId';
+import { CHAMBER_MAP_ID } from '../src/anim/chamber';
+import { CHAMBER_MAP_ID as TINY_ID } from '../src/anim/chamberMapId';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { studio } from '../src/world/maps/studio';
-import { STUDIO_PROPS } from '../src/anim/studioProps';
-import { TRAV_ENTRIES } from '../src/anim/studioTraversal';
+import { chamber } from '../src/world/maps/chamber';
+import { CHAMBER_PROPS } from '../src/anim/chamberProps';
+import { TRAV_ENTRIES } from '../src/anim/chamberTraversal';
 
 /** (G1) The Test Chamber: the animation tuner opens there only; the map is a dev scene with a spot for each of two players. */
 describe('Test Chamber: the animation tuner gate', () => {
-  it('opens on the studio map only', () => {
-    expect(animTuneAllowed('studio')).toBe(true);
-    expect(animTuneAllowed(STUDIO_MAP_ID)).toBe(true);
+  it('opens on the chamber map only', () => {
+    expect(animTuneAllowed('chamber')).toBe(true);
+    expect(animTuneAllowed(CHAMBER_MAP_ID)).toBe(true);
   });
 
   it('is shut on every playable map, in a menu (no map) and on an unknown id', () => {
@@ -20,29 +20,29 @@ describe('Test Chamber: the animation tuner gate', () => {
     expect(animTuneAllowed(undefined)).toBe(false);
     expect(animTuneAllowed(null)).toBe(false);
     expect(animTuneAllowed('')).toBe(false);
-    expect(animTuneAllowed('Studio')).toBe(false);
+    expect(animTuneAllowed('Chamber')).toBe(false);
     expect(animTuneAllowed('proving')).toBe(false);
   });
 
-  it('the studio id is one constant, kept as the internal id (scripts, saves and ?autostart=studio use it)', () => {
-    expect(TINY_ID).toBe('studio');
-    expect(STUDIO_MAP_ID).toBe(TINY_ID);
+  it('the chamber id is one constant, kept as the internal id (scripts, saves and ?autostart=chamber use it)', () => {
+    expect(TINY_ID).toBe('chamber');
+    expect(CHAMBER_MAP_ID).toBe(TINY_ID);
   });
 });
 
 describe('Test Chamber: the map', () => {
-  it('is named Test Chamber, keeps the id studio, and stays out of MAPS (in DEV_MAPS; getMap finds it)', () => {
-    expect(studio.id).toBe('studio');
-    expect(studio.name).toBe('Test Chamber');
-    expect(studio.description).not.toMatch(/anim studio/i);
-    expect(MAPS.some((m) => m.id === 'studio')).toBe(false);
-    expect(DEV_MAPS).toContain(studio);
-    expect(getMap('studio')).toBe(studio);
+  it('is named Test Chamber, keeps the id chamber, and stays out of MAPS (in DEV_MAPS; getMap finds it)', () => {
+    expect(chamber.id).toBe('chamber');
+    expect(chamber.name).toBe('Test Chamber');
+    expect(chamber.description).not.toMatch(/anim studio/i);
+    expect(MAPS.some((m) => m.id === 'chamber')).toBe(false);
+    expect(DEV_MAPS).toContain(chamber);
+    expect(getMap('chamber')).toBe(chamber);
   });
 
   it('has a spawn for each of the two players: 2 m apart, clear of every solid prop', () => {
     const b = new LevelBuilder();
-    const lay = studio.build(b, 0);
+    const lay = chamber.build(b, 0);
     expect(lay.playerSpawns).toHaveLength(2);
     const [a, p] = lay.playerSpawns;
     expect(Math.hypot(p!.pos.x - a!.pos.x, p!.pos.z - a!.pos.z)).toBeCloseTo(2, 6);
@@ -56,7 +56,7 @@ describe('Test Chamber: the map', () => {
 
   it('(G2b) has five enemy spawns, two dummies and the props clear of every solid box, a nav seed on the ledge wall and tight cam spaces for the booth and the tunnel', () => {
     const b = new LevelBuilder();
-    const lay = studio.build(b, 0);
+    const lay = chamber.build(b, 0);
     expect(lay.enemySpawns).toHaveLength(5);
     expect(lay.dummies).toHaveLength(2);
     expect(lay.dummies![1]!.strafe).toBeGreaterThan(0);
@@ -90,7 +90,7 @@ function solidAt(b: LevelBuilder, px: number, pz: number, m: number): boolean {
 describe('Test Chamber: the annex (G2c)', () => {
   const build = () => {
     const b = new LevelBuilder();
-    const lay = studio.build(b, 0);
+    const lay = chamber.build(b, 0);
     return { b, lay };
   };
   const has = (b: LevelBuilder, cx: number, cy: number, cz: number, sx: number, sy: number, sz: number): boolean => b.boxes.some((x) => [cx, cy, cz, sx, sy, sz].every((v, i) => Math.abs((i < 3 ? x.c[i]! : x.s[i - 3]!) - v) < 1e-6));
@@ -103,7 +103,7 @@ describe('Test Chamber: the annex (G2c)', () => {
     expect(has(b, 28.15, 4, 24.3, 0.3, 8, 7.4)).toBe(true);
     expect(has(b, 28.15, (2.1 + 8) / 2, 20, 0.3, 8 - 2.1, 1.2)).toBe(true);
     // nothing else of the main room moved: the rappel booth still ends at x 28
-    expect(STUDIO_PROPS.booth.x1).toBe(28);
+    expect(CHAMBER_PROPS.booth.x1).toBe(28);
   });
 
   it('three doors in order: the old door wall, the annex door (leaf along +z) and partition A\'s (leaf along +x)', () => {

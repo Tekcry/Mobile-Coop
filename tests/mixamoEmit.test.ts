@@ -13,7 +13,7 @@ import { MOCAP_SOURCES } from '../src/anim/mocapSources';
 
 type V = number[];
 type Rig = { names: string[]; parent: Record<string, string | null>; bind: Record<string, V>; height: number; leg: number };
-interface Recipe { slug: string; kind: string; file: string; title: string; note?: string; travel: string; pack?: string | null; place?: string; mirror?: boolean; inPlace: boolean | string; channels: string[]; studio: { body: string; move?: string; crouch?: boolean; circle?: boolean } }
+interface Recipe { slug: string; kind: string; file: string; title: string; note?: string; travel: string; pack?: string | null; place?: string; mirror?: boolean; inPlace: boolean | string; channels: string[]; chamber: { body: string; move?: string; crouch?: boolean; circle?: boolean } }
 interface Def { name: string; frames: number; pel: number[]; q: number[]; arm: number[]; head?: number[]; feet?: number[]; stride?: number; duty: number; half: number }
 interface Out { def: Def; seconds: number; report: Record<string, unknown> }
 interface Res { out: Out; kind: string; fallback: string | null }
@@ -97,8 +97,8 @@ describe('mixamoEmit: recipes', () => {
     expect(() => E.validateRecipes(bad('kneel_down', { note: undefined }))).toThrow(/kneel_down: note/);
     expect(() => E.validateRecipes(bad('standing_idle', { inPlace: false }))).toThrow(/a loop is in place/);
     expect(() => E.validateRecipes(bad('crouched_walking', { travel: 'none' }))).toThrow(/a gait travels/);
-    expect(() => E.validateRecipes(bad('cross_punch', { studio: { body: 'boxing' } }))).toThrow(/body boxing is not a body state/);
-    expect(() => E.validateRecipes(bad('cross_punch', { studio: { body: 'idle', move: 'fwd' } }))).toThrow(/only a gait moves/);
+    expect(() => E.validateRecipes(bad('cross_punch', { chamber: { body: 'boxing' } }))).toThrow(/body boxing is not a body state/);
+    expect(() => E.validateRecipes(bad('cross_punch', { chamber: { body: 'idle', move: 'fwd' } }))).toThrow(/only a gait moves/);
     expect(() => E.validateRecipes(bad('cross_punch', { trim: [2, 1] }))).toThrow(/trim/);
     expect(() => E.validateRecipes(bad('cross_punch', { speed: 3 }))).toThrow(/unknown field speed/);
     expect(() => E.validateRecipes({ version: 2, clips: {} })).toThrow(/version: 1/);
@@ -116,7 +116,7 @@ describe('mixamoEmit: recipes', () => {
     expect(() => E.validateRecipes(bad('pistol_strafe', { gait: 'strafe' }))).toThrow(/travel auto gait names its forward band/);
     expect(() => E.validateRecipes(bad('rifle_walk_backward', { gait: 'strafe' }))).toThrow(/sideways gait/);
     expect(() => E.validateRecipes(bad('cross_punch', { mirror: 'yes' }))).toThrow(/mirror must be a boolean/);
-    expect(() => E.validateRecipes(bad('cross_punch', { place: 'menu' }))).toThrow(/place from game \/ studio \/ knife/);
+    expect(() => E.validateRecipes(bad('cross_punch', { place: 'menu' }))).toThrow(/place from game \/ chamber \/ knife/);
     expect(() => E.validateRecipes(bad('rifle_idle', { title: 'Pro Rifle Pack: idle' }))).toThrow(/title "Pro Rifle Pack: idle" != "idle"/);
     expect(() => E.validateRecipes(bad('rifle_idle', { file: 'pack-sword/idle.fbx' }))).toThrow(/no site name|slugs to sword_idle/);
   });
@@ -130,13 +130,13 @@ describe('mixamoEmit: recipes', () => {
     expect(E.rowTitle(by('pistol_strafe_2'))).toBe('Pistol/Handgun Locomotion Pack: pistol strafe (2)');
     expect(E.rowTitle(by('walking_left_turn_mirror'))).toBe('Walking Left Turn (Mirror = right turn)');
     expect(E.rowTitle(by('kneel_down'))).toBe('Kneel Down');
-    expect(E.modulePath(by('aa_idle'), 'D').replace(/\\/g, '/')).toBe('D/studio/aa_idle.ts');
+    expect(E.modulePath(by('aa_idle'), 'D').replace(/\\/g, '/')).toBe('D/chamber/aa_idle.ts');
     expect(E.modulePath(by('rifle_idle'), 'D').replace(/\\/g, '/')).toBe('D/rifle_idle.ts');
     // (piano-knife S2) a knife kill clip sits in `knife/`
     expect(E.modulePath(by('stabbing'), 'D').replace(/\\/g, '/')).toBe('D/knife/stabbing.ts');
-    // batch 2: a pack file, a place named or a game slot; the rest of batch 2 is Anim Studio only (piano-knife S2: the
+    // batch 2: a pack file, a place named or a game slot; the rest of batch 2 is Test Chamber only (piano-knife S2: the
     // knife kills' clips are place knife)
-    for (const r of rs) if (r.pack || RECIPES.clips[r.slug]!.place || GAME_B2.has(r.slug)) expect(r.place, r.slug).toBe(GAME_B2.has(r.slug) ? 'game' : KNIFE.has(r.slug) ? 'knife' : 'studio');
+    for (const r of rs) if (r.pack || RECIPES.clips[r.slug]!.place || GAME_B2.has(r.slug)) expect(r.place, r.slug).toBe(GAME_B2.has(r.slug) ? 'game' : KNIFE.has(r.slug) ? 'knife' : 'chamber');
     for (const slug of KNIFE) expect(by(slug).place, slug).toBe('knife');
   });
 });
@@ -298,8 +298,8 @@ describe('mixamoEmit: the source rows', () => {
 /** The committed modules (each built through keyedClip when imported). */
 const MODULES = {
   ...import.meta.glob('../src/anim/clips/mixamo/*.ts', { eager: true }),
-  // (I9) the Anim Studio only clips
-  ...import.meta.glob('../src/anim/clips/mixamo/studio/*.ts', { eager: true }),
+  // (I9) the Test Chamber only clips
+  ...import.meta.glob('../src/anim/clips/mixamo/chamber/*.ts', { eager: true }),
   // (piano-knife S2) the knife kills' clips
   ...import.meta.glob('../src/anim/clips/mixamo/knife/*.ts', { eager: true }),
 } as Record<string, Record<string, unknown>>;
@@ -316,7 +316,7 @@ describe('mixamoEmit: the committed keyed modules', () => {
       expect(clip.name).toBe(`mocap_${slug}`);
       const first = readFileSync(p.replace(/^\.\.\//, ''), 'utf8').split('\n')[0]!;
       // (I7) the folder follows the recipe's place
-      expect(p.includes('/mixamo/studio/'), slug).toBe(RECIPES.clips[slug]!.place === 'studio');
+      expect(p.includes('/mixamo/chamber/'), slug).toBe(RECIPES.clips[slug]!.place === 'chamber');
       expect(p.includes('/mixamo/knife/'), slug).toBe(RECIPES.clips[slug]!.place === 'knife');
       expect(first).toMatch(/GENERATED.*Do not edit/);
       const row = MOCAP_SOURCES[clip.name]!;
@@ -324,7 +324,7 @@ describe('mixamoEmit: the committed keyed modules', () => {
       const r = RECIPES.clips[slug]!;
       expect(row.title).toBe(E.rowTitle(r));
       expect(row.take).toBe(RECIPES.clips[slug]!.file);
-      expect(row.studio.kind).toBe('keyed');
+      expect(row.chamber.kind).toBe('keyed');
     }
   });
 
@@ -333,7 +333,7 @@ describe('mixamoEmit: the committed keyed modules', () => {
     for (const [p, mod] of keyedMods) {
       const slug = /\/([a-z0-9_]+)\.ts$/.exec(p)![1]!;
       const clip = mod[`MOCAP_${slug.toUpperCase()}`] as KeyedClip;
-      const st = MOCAP_SOURCES[clip.name]!.studio;
+      const st = MOCAP_SOURCES[clip.name]!.chamber;
       if (st.kind !== 'keyed') throw new Error(slug);
       const N = clip.frames;
       if (PLAN_KINDS[slug] === 'timed') {
@@ -373,7 +373,7 @@ describe('mixamoEmit: the committed keyed modules', () => {
       errs.sort((a, b) => a - b);
       expect(errs.length, slug).toBeGreaterThan(0);
       expect(errs[errs.length >> 1]!, `${slug}: planted foot vs the root, median cm/frame`).toBeLessThan(1);
-      // the Studio walks it at its own pace: a gait's row moves forward over its cycle
+      // the Chamber walks it at its own pace: a gait's row moves forward over its cycle
       // (the sideways ones: the right on the treadmill, the left in place, as the CMU strafes)
       // (I7) a backward one backs along the treadmill
       expect(st.move ?? 'none', slug).toBe(clip.travel === 'z' ? 'fwd' : clip.travel === '+x' ? 'side' : clip.travel === '-z' ? 'back' : 'none');

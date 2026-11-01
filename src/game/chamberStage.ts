@@ -14,17 +14,17 @@ import { clearGripAxis } from '../player/attachGrips';
 import { TUNE_BODY, TUNE_PIN } from '../anim/tune';
 import { TUNE_FLAGS, TUNE_STATE_BAG } from '../anim/tuneRegistry';
 import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
-import { newStudioDrive } from '../anim/studioDrive';
-import { mixamoStudioEntry } from '../anim/mixamo';
-import { newPairRole, pairFrames, pairPose, ropeHoldLine, ropeLine, type PairRole } from '../anim/studioPairs';
+import { newChamberDrive } from '../anim/chamberDrive';
+import { mixamoChamberEntry } from '../anim/mixamo';
+import { newPairRole, pairFrames, pairPose, ropeHoldLine, ropeLine, type PairRole } from '../anim/chamberPairs';
 import { TeamPoser } from '../anim/clips/team';
-import { newTravOut, newTravState, PAIR_STATION, STUDIO_MID, travTick, type TravButton, type TravEntry } from '../anim/studioTraversal';
-import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioBodyPin, studioReset, studioScrub, studioSpot, studioStepPhase, studioWeaponFor, spotShift, stageLightPlace, stageViewYaw, studioCq, holdPairTravel, type GuardLoop, type HoldTravel, type StudioEntry, type StudioInputOut } from '../anim/studio';
+import { newTravOut, newTravState, PAIR_STATION, CHAMBER_MID, travTick, type TravButton, type TravEntry } from '../anim/chamberTraversal';
+import { STAGE_LIGHTS, CHAMBER, CHAMBER_LIGHT, CHAMBER_PAIR, CHAMBER_RIGS, CHAMBER_TARGET, chamberAdvance, chamberEntry, chamberInput, chamberKeyInfo, chamberKeyPhase, chamberBodyPin, chamberReset, chamberScrub, chamberSpot, chamberStepPhase, chamberWeaponFor, spotShift, stageLightPlace, stageViewYaw, chamberCq, holdPairTravel, type GuardLoop, type HoldTravel, type ChamberEntry, type ChamberInputOut } from '../anim/chamber';
 import { buildEnemyRig } from '../ai/enemyRig';
 import { ENEMIES } from '../ai/enemyDefs';
 import { TUNE_WHO } from '../anim/tuneGuard';
 import type { WeaponModel } from '../weapons/weaponModel';
-import { loadStudioCaptures, stageLightKeep, stageLightMeshes } from '../anim/studio';
+import { loadChamberCaptures, stageLightKeep, stageLightMeshes } from '../anim/chamber';
 import { LOD_NAMES } from '../operators/runtime/manifest';
 import { newKillDrive } from '../anim/killDrive'; // (piano-knife S1) the knife pairs
 import { attackerPhase, bucklePitchOf, buckleAt, KNIFE, KNIFE_KILLS, knifeClip, knifeClipsReady, loadKnifeClips, victimPhase } from './knifeKill';
@@ -34,7 +34,7 @@ import { WREN_HANDS } from '../operators/handFrame';
 import { ease } from './closeQuarters';
 
 /** What the stage needs from the match (GameState). */
-export interface StudioHost {
+export interface ChamberHost {
   readonly player: Player;
   readonly scene: Scene;
   readonly world: World;
@@ -61,8 +61,8 @@ export interface StudioHost {
 
 /** The pairs' viewing spot: Wren (hidden) stands here, so the camera and the free view frame the team block. */
 const PAIR_VIEW = { x: PAIR_STATION.x, z: PAIR_STATION.z - 6.5, yaw: 0 };
-const ROPE_KEY = 'studio-pair-rope';
-const ROPE_HOLD_KEY = 'studio-pair-rope-hold';
+const ROPE_KEY = 'chamber-pair-rope';
+const ROPE_HOLD_KEY = 'chamber-pair-rope-hold';
 const TRAV_BUTTONS: readonly TravButton[] = ['jump', 'interact', 'drop', 'cover'];
 
 /** A puppet's pose bag (reused). */
@@ -71,33 +71,33 @@ function newPose(): RigPose {
 }
 
 /**
- * (anim-studio) The Anim Studio stage (the `studio` map, single player only): opens the tuner panel docked and the debug
- * overlay (the crab readout), plays the loop player's choice (`STUDIO.entry`):
+ * (anim-studio) The Test Chamber stage (the `chamber` map, single player only): opens the tuner panel docked and the debug
+ * overlay (the crab readout), plays the loop player's choice (`CHAMBER.entry`):
  * - a procedural state by synthesised input (`input`, per fixed step: the stick, aim, crouch and draw; `frame` turns the
  *   game camera so a moving loop walks the 2 m circle);
- * - a keyed clip through a drive on the rig's graph (`studioDrive.ts`): in place (treadmill feet, the studio owns the
+ * - a keyed clip through a drive on the rig's graph (`chamberDrive.ts`): in place (treadmill feet, the chamber owns the
  *   phase: scrub and step) or, with root motion on, along the circle on the graph's gait clock;
  * - an optional guard figure (a plain rig, no AI, no hitboxes) at the hold offset in front of Wren; a guard clip plays on
  *   it while it is on.
  * (anim-studio-2)
  * - a co-op pair: two Wren puppets (plain local rigs with her figure; Wren herself is hidden and stands back so the camera
- *   frames them) posed through the team move's own paths and timing on ONE clock (`studioPairs.ts`), each through its
+ *   frames them) posed through the team move's own paths and timing on ONE clock (`chamberPairs.ts`), each through its
  *   role's move section (`moveTune.ts`) exactly as the local player is in real play; no network;
  * - a hold pair: Wren's hold clip and the guard's clip in place on one clock (both drives held to the pair's phase);
  * - a traversal loop: Wren is reset to the prop's start, walks in and plays the move by synthesised input on the real
- *   geometry and anchors (`studioTraversal.ts`), then again.
+ *   geometry and anchors (`chamberTraversal.ts`), then again.
  * Leaving (`dispose`) takes every drive off, removes the guard and the puppets, closes what it opened and resets the
- * studio state.
+ * chamber state.
  */
-export class StudioStage {
+export class ChamberStage {
   /** The game's input while a loop plays (none of the devices' buttons reach the game then, except pause). */
   readonly inp = new InputState();
-  private readonly out: StudioInputOut = { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false };
-  private readonly drive = newStudioDrive();
+  private readonly out: ChamberInputOut = { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false };
+  private readonly drive = newChamberDrive();
   /** (anim-studio-2) The guard's drive in a hold pair. */
-  private readonly gdrive = newStudioDrive();
+  private readonly gdrive = newChamberDrive();
   /** (piano-knife S1) A knife pair: Wren's and the guard's kill drives, the hands' tracking, the root scratch, the knife
-   *  in Wren's hand (the Studio's own, made on first use) and the loop's last time (a wrap starts the hands afresh). */
+   *  in Wren's hand (the Chamber's own, made on first use) and the loop's last time (a wrap starts the hands afresh). */
   private readonly kAD = newKillDrive();
   private readonly kVD = newKillDrive();
   private readonly kTrack = newPairTrack();
@@ -158,14 +158,14 @@ export class StudioStage {
   private puppetGun: WeaponModel | null = null;
   private readonly puppetPose: RigPose = newPose();
 
-  constructor(private readonly host: StudioHost) {
-    studioReset();
-    STUDIO.active = true;
+  constructor(private readonly host: ChamberHost) {
+    chamberReset();
+    CHAMBER.active = true;
     // (mixamo-retarget I9 fix round) batch 2's captures, one lazy chunk (once; the loop list fills when it lands)
-    void loadStudioCaptures();
-    STUDIO_RIGS.push(host.player.rig);
+    void loadChamberCaptures();
+    CHAMBER_RIGS.push(host.player.rig);
     for (const l of STAGE_LIGHTS) {
-      const p = new PointLight(`studio-stage-${l.name}`, new Vector3(0, -50, 0), host.scene);
+      const p = new PointLight(`chamber-stage-${l.name}`, new Vector3(0, -50, 0), host.scene);
       // the game's range falloff (her PBR materials would take the inverse square otherwise)
       p.falloffType = PointLight.FALLOFF_STANDARD;
       p.range = l.range;
@@ -177,7 +177,7 @@ export class StudioStage {
       this.stageLights.push(p);
     }
     // (test hook) the stage lights: place, intensity, the meshes they light
-    (window as unknown as { __studioStage?: unknown }).__studioStage = {
+    (window as unknown as { __chamberStage?: unknown }).__chamberStage = {
       lights: () =>
         this.stageLights.map((p) => ({ name: p.name, x: p.position.x, y: p.position.y, z: p.position.z, intensity: p.intensity, enabled: p.isEnabled(), meshes: p.includedOnlyMeshes.length })),
       root: () => {
@@ -187,7 +187,7 @@ export class StudioStage {
         const viewYaw = c ? stageViewYaw(r.position.x, r.position.z, c.x, c.z, r.rotation.y) : r.rotation.y;
         return { x: r.position.x, y: r.position.y, z: r.position.z, yaw: r.rotation.y, viewYaw };
       },
-      // (studio-pairs, AUDIT fix 12) each pair puppet's figure: the LOD shown, its meshes drawn (enabled) and whether
+      // (chamber-pairs, AUDIT fix 12) each pair puppet's figure: the LOD shown, its meshes drawn (enabled) and whether
       // they are ready to draw (material and shaders; false = not drawn this frame), its root. (fix 12 GPU round) `lod`
       // is the LOD index (`LOD_NAMES`: 0 hero, 1 LOD0, 2 LOD1, 3 LOD2), so 1 is LOD0; `lodName` spells it out
       puppets: () =>
@@ -199,7 +199,7 @@ export class StudioStage {
         }),
     };
     const d = host.debug;
-    // (marlow-bays item 29) the studio leaves the F3 debug readout as it is, off by default on every device (it covered
+    // (marlow-bays item 29) the chamber leaves the F3 debug readout as it is, off by default on every device (it covered
     // her); F3 and the tuner's More > Debug readout turn it on
     if (!d.animTune.isOpen) {
       d.animTune.reveal();
@@ -209,7 +209,7 @@ export class StudioStage {
 
   /** A loop plays (the game reads `inp`, not the devices). */
   get drives(): boolean {
-    return STUDIO.entry !== 'off';
+    return CHAMBER.entry !== 'off';
   }
 
   /** Per fixed step while `drives`: the loop's stick, aim, crouch (held, or one press per 0.5 s as a toggle) and draw
@@ -219,12 +219,12 @@ export class StudioStage {
     const fi = this.inp;
     fi.consumeEdges();
     fi.tick(dt);
-    const e = studioEntry(STUDIO.entry);
+    const e = chamberEntry(CHAMBER.entry);
     if (e.trav) return this.travInput(dt, e.trav);
-    const o = studioInput(e, STUDIO.rootMotion, this.out, STUDIO.spot);
+    const o = chamberInput(e, CHAMBER.rootMotion, this.out, CHAMBER.spot);
     fi.move.x = o.x;
     fi.move.y = o.y;
-    fi.set('studio', 'ads', o.ads);
+    fi.set('chamber', 'ads', o.ads);
     this.crouchCd = Math.max(0, this.crouchCd - dt);
     let crouch = false;
     if (!this.host.crouchToggle()) crouch = o.crouch;
@@ -232,13 +232,13 @@ export class StudioStage {
       crouch = true;
       this.crouchCd = 0.5;
     }
-    fi.set('studio', 'crouch', crouch);
+    fi.set('chamber', 'crouch', crouch);
     // a traversal loop's buttons up (the drop stays the crouch's alias)
-    for (let i = 0; i < TRAV_BUTTONS.length; i++) if (TRAV_BUTTONS[i] !== 'drop') fi.set('studio', TRAV_BUTTONS[i]!, false);
+    for (let i = 0; i < TRAV_BUTTONS.length; i++) if (TRAV_BUTTONS[i] !== 'drop') fi.set('chamber', TRAV_BUTTONS[i]!, false);
     this.drawTap(dt, o.drawn, o.ads);
     // (marlow-bays T1a, item 19) an armed loop plays with the picked gun (one swap request per 0.8 s until it is in hand)
     this.weaponCd = Math.max(0, this.weaponCd - dt);
-    const want = studioWeaponFor(e, STUDIO.weapon);
+    const want = chamberWeaponFor(e, CHAMBER.weapon);
     if (want && this.weaponCd <= 0 && this.host.weaponClass() !== want) {
       this.host.switchWeapon(want);
       this.weaponCd = 0.8;
@@ -251,8 +251,8 @@ export class StudioStage {
    * body goes back by what it moved and the planted feet with it, so the gait runs with no travel. No allocation.
    */
   afterStep(): void {
-    const e = studioEntry(STUDIO.entry);
-    const on = this.drives && studioSpot(e, STUDIO.spot);
+    const e = chamberEntry(CHAMBER.entry);
+    const on = this.drives && chamberSpot(e, CHAMBER.spot);
     const p = this.host.player.position;
     if (on && !this.spotOn) {
       this.spotX = p.x;
@@ -274,7 +274,7 @@ export class StudioStage {
       tap = true;
       this.drawCd = 0.6;
     }
-    this.inp.set('studio', 'draw', tap);
+    this.inp.set('chamber', 'draw', tap);
   }
 
   /** (anim-studio-2) A traversal loop's step: reset to the start, the walk in, the act's stick and buttons. */
@@ -292,14 +292,14 @@ export class StudioStage {
     if (o.call === 'doorOpen') this.host.doorOpen();
     fi.move.x = o.x;
     fi.move.y = o.y;
-    fi.set('studio', 'ads', false);
-    fi.set('studio', 'crouch', false);
+    fi.set('chamber', 'ads', false);
+    fi.set('chamber', 'crouch', false);
     for (let i = 0; i < TRAV_BUTTONS.length; i++) {
       const b = TRAV_BUTTONS[i]!;
-      fi.set('studio', b, b === o.hold || b === o.press);
+      fi.set('chamber', b, b === o.hold || b === o.press);
     }
     this.drawTap(dt, false, false);
-    const s = STUDIO_PAIR;
+    const s = CHAMBER_PAIR;
     s.travPhase = this.trav.phase;
     s.travStep = this.trav.step;
     s.travLoops = this.trav.loops;
@@ -311,37 +311,37 @@ export class StudioStage {
   /** Per rendered frame, before the player animates: the configuration, the circle's camera turn, the scrub / step
    *  requests, the guard figure, the pairs and the readout. */
   frame(dt: number, look: { x: number; y: number }): void {
-    const e = studioEntry(STUDIO.entry);
+    const e = chamberEntry(CHAMBER.entry);
     this.configure(e);
     // (marlow-bays item 29) a keyed clip of hers tunes with its own state (on the spot her pose alone says idle)
-    TUNE_PIN.body = this.drives ? studioBodyPin(e) : '';
+    TUNE_PIN.body = this.drives ? chamberBodyPin(e) : '';
     TUNE_PIN.rig = this.host.player.rig;
-    if (dt > 0 && this.drives && e.kind !== 'trav' && e.kind !== 'pair') look.x += studioInput(e, STUDIO.rootMotion, this.out, STUDIO.spot).turn * dt;
+    if (dt > 0 && this.drives && e.kind !== 'trav' && e.kind !== 'pair') look.x += chamberInput(e, CHAMBER.rootMotion, this.out, CHAMBER.spot).turn * dt;
     const d = this.drive;
     if (e.kind === 'pair') {
       // the pair's one clock: both rigs (the puppets, or Wren and the guard) at the same phase
-      if (dt > 0) this.pairPhase = studioAdvance(this.pairPhase, dt, e.cycle);
-      if (!Number.isNaN(STUDIO.seek)) this.pairPhase = studioScrub(STUDIO.seek);
-      if (STUDIO.step !== 0) this.pairPhase = studioStepPhase(this.pairPhase, e.team ? pairFrames(e.cycle) : (e.clip?.frames ?? 1), STUDIO.step);
+      if (dt > 0) this.pairPhase = chamberAdvance(this.pairPhase, dt, e.cycle);
+      if (!Number.isNaN(CHAMBER.seek)) this.pairPhase = chamberScrub(CHAMBER.seek);
+      if (CHAMBER.step !== 0) this.pairPhase = chamberStepPhase(this.pairPhase, e.team ? pairFrames(e.cycle) : (e.clip?.frames ?? 1), CHAMBER.step);
       d.phase = this.gdrive.phase = this.pairPhase;
     } else if (d.clip && d.inPlace) {
-      if (!Number.isNaN(STUDIO.seek)) d.phase = studioScrub(STUDIO.seek);
-      if (STUDIO.step !== 0) d.phase = studioStepPhase(d.phase, d.clip.frames, STUDIO.step);
+      if (!Number.isNaN(CHAMBER.seek)) d.phase = chamberScrub(CHAMBER.seek);
+      if (CHAMBER.step !== 0) d.phase = chamberStepPhase(d.phase, d.clip.frames, CHAMBER.step);
       // (marlow-bays T1a, item 15) onto a key (the Keys tab's pick), or the next key back / forward
-      const kp = studioKeyPhase(d.clip.name, d.phase, STUDIO.seekKey, STUDIO.keyStep);
+      const kp = chamberKeyPhase(d.clip.name, d.phase, CHAMBER.seekKey, CHAMBER.keyStep);
       if (!Number.isNaN(kp)) d.phase = kp;
-      else if (STUDIO.keyStep !== 0) d.phase = studioStepPhase(d.phase, d.clip.frames, STUDIO.keyStep);
+      else if (CHAMBER.keyStep !== 0) d.phase = chamberStepPhase(d.phase, d.clip.frames, CHAMBER.keyStep);
     }
-    if (e.kind === 'pair' && STUDIO.keyStep !== 0) {
+    if (e.kind === 'pair' && CHAMBER.keyStep !== 0) {
       // a pair has no key table: a frame step (as the old key step)
-      this.pairPhase = studioStepPhase(this.pairPhase, e.team ? pairFrames(e.cycle) : (e.clip?.frames ?? 1), STUDIO.keyStep);
+      this.pairPhase = chamberStepPhase(this.pairPhase, e.team ? pairFrames(e.cycle) : (e.clip?.frames ?? 1), CHAMBER.keyStep);
       d.phase = this.gdrive.phase = this.pairPhase;
     }
-    STUDIO.seek = Number.NaN;
-    STUDIO.step = 0;
+    CHAMBER.seek = Number.NaN;
+    CHAMBER.step = 0;
     // a key request waits for its clip's drive (a pick that changes the loop lands a frame later)
-    if (d.clip || e.kind !== 'keyed') STUDIO.seekKey = -1;
-    STUDIO.keyStep = 0;
+    if (d.clip || e.kind !== 'keyed') CHAMBER.seekKey = -1;
+    CHAMBER.keyStep = 0;
     this.holdTravel(e);
     if (this.guard) {
       if (e.knife !== undefined) this.knifeFrame(dt, e, e.knife);
@@ -349,9 +349,9 @@ export class StudioStage {
     }
     if (this.puppet && e.gloop) this.puppetFrame(dt, e.gloop);
     if (e.team) this.pairFrame(dt, e);
-    STUDIO.phase = e.kind === 'pair' ? this.pairPhase : d.clip ? d.phase : 0;
-    STUDIO.frames = e.team ? pairFrames(e.cycle) : d.clip ? d.clip.frames : 0;
-    studioKeyInfo(d.clip && !e.team ? d.clip.name : '', STUDIO.phase, STUDIO);
+    CHAMBER.phase = e.kind === 'pair' ? this.pairPhase : d.clip ? d.phase : 0;
+    CHAMBER.frames = e.team ? pairFrames(e.cycle) : d.clip ? d.clip.frames : 0;
+    chamberKeyInfo(d.clip && !e.team ? d.clip.name : '', CHAMBER.phase, CHAMBER);
   }
 
   /**
@@ -359,7 +359,7 @@ export class StudioStage {
    * placed in front of her) moves along the clip's travel at its pace, so the treadmill's planted feet stay on the floor
    * (on the spot they slid 22-32 cm); after `HOLD_PAIR_CYCLES` cycles back to the start at a heel strike. No allocation.
    */
-  private holdTravel(e: StudioEntry): void {
+  private holdTravel(e: ChamberEntry): void {
     const tr = holdPairTravel(e, this.pairPhase, this.holdTr);
     const dd = tr - this.holdOff;
     if (dd === 0) return;
@@ -376,7 +376,7 @@ export class StudioStage {
 
   /** (marlow-bays item 26 round) Per rendered frame, after the player animates and the camera updates: the stage
    *  lights onto this frame's root and camera. They were placed in `frame`, before the player moved, so they lagged her
-   *  root by one frame of motion (a slow frame on a busy machine: up to 0.1 m in e2e-studio). */
+   *  root by one frame of motion (a slow frame on a busy machine: up to 0.1 m in e2e-chamber). */
   lightsFrame(): void {
     this.stageFrame();
   }
@@ -394,7 +394,7 @@ export class StudioStage {
       const ms = root.getChildMeshes(false);
       if (ms.length !== this.stageMeshes) {
         this.stageMeshes = ms.length;
-        // (studio-pairs, AUDIT fix 12) her own meshes only: an instance's source is the shared part base, which lit
+        // (chamber-pairs, AUDIT fix 12) her own meshes only: an instance's source is the shared part base, which lit
         // every part instance in the scene (the hold pair's guard read white)
         const src = stageLightMeshes(ms, []);
         this.stageSrc = src;
@@ -404,7 +404,7 @@ export class StudioStage {
           p.setEnabled(src.length > 0);
         }
       } else {
-        // (studio-pairs, AUDIT fix 12 GPU round) a shared part base pushed into a list since (the N0 audit's pair rows
+        // (chamber-pairs, AUDIT fix 12 GPU round) a shared part base pushed into a list since (the N0 audit's pair rows
         // push `sourceMesh ?? mesh`) lit every part instance in the scene: the hold pair's guard read white on the GPU
         // sheets. Dropped here; anything else pushed (a puppet's figure) stays
         for (const p of this.stageLights) {
@@ -415,7 +415,7 @@ export class StudioStage {
       }
       this.fitStageMaterials();
     }
-    const k = STUDIO_LIGHT.scale;
+    const k = CHAMBER_LIGHT.scale;
     const pos = root.position;
     // (marlow-bays T2) placed toward the camera: key and fill on its side, the rim beyond her, the top light above
     const cam = this.host.scene.activeCamera;
@@ -433,7 +433,7 @@ export class StudioStage {
   }
 
   /**
-   * (studio-pairs, AUDIT fix 12 GPU round) The meshes of `old` not in `keep` lose the stage lights: their frozen
+   * (chamber-pairs, AUDIT fix 12 GPU round) The meshes of `old` not in `keep` lose the stage lights: their frozen
    * materials are frozen again (`freeze` marks them dirty), so the next frame recompiles them for the lights they still
    * take. A frozen material otherwise keeps the shader built with the stage lights' slots and only rebinds the lights
    * left, and the slots it no longer binds read whatever light block was bound there last (her stage lights).
@@ -470,19 +470,19 @@ export class StudioStage {
 
   /** Apply a changed choice: the drive onto the right rig (Wren, or the guard for a guard clip while it is on); a hold
    *  pair's two drives; a team pair's puppets; a traversal loop's start. */
-  private configure(e: StudioEntry): void {
-    const wantGuard = STUDIO.guard || (e.kind === 'pair' && (!!e.guardClip || e.knife !== undefined));
-    if (e.id === this.cEntry && STUDIO.rootMotion === this.cRoot && STUDIO.mirror === this.cMirror && wantGuard === this.cGuard) return;
+  private configure(e: ChamberEntry): void {
+    const wantGuard = CHAMBER.guard || (e.kind === 'pair' && (!!e.guardClip || e.knife !== undefined));
+    if (e.id === this.cEntry && CHAMBER.rootMotion === this.cRoot && CHAMBER.mirror === this.cMirror && wantGuard === this.cGuard) return;
     const clipChanged = e.id !== this.cEntry;
     this.cEntry = e.id;
-    this.cRoot = STUDIO.rootMotion;
-    this.cMirror = STUDIO.mirror;
+    this.cRoot = CHAMBER.rootMotion;
+    this.cMirror = CHAMBER.mirror;
     this.cGuard = wantGuard;
     if (wantGuard && !this.guard) this.makeGuard();
     else if (!wantGuard && this.guard) this.dropGuard();
     this.detach();
     if (clipChanged) {
-      mixamoStudioEntry(e.id); // (mixamo-retarget I2) a traversal capture's loop plays that capture (else none)
+      mixamoChamberEntry(e.id); // (mixamo-retarget I2) a traversal capture's loop plays that capture (else none)
       this.pairPhase = 0;
       this.holdTr.n = 0;
       this.holdTr.last = 0;
@@ -491,7 +491,7 @@ export class StudioStage {
       this.trav.step = 0;
       this.trav.t = 0;
       this.trav.loops = 0;
-      const s = STUDIO_PAIR;
+      const s = CHAMBER_PAIR;
       s.aState = s.bState = 'none';
       s.aGroup = s.bGroup = s.travPhase = s.attach = s.traverse = '';
       s.k = s.travLoops = 0;
@@ -499,7 +499,7 @@ export class StudioStage {
       // Wren back to the middle for a state, a clip or a hold pair (a loop or a team pair moved her)
       if (this.away && !e.trav) {
         this.host.doorsShut();
-        this.host.teleport(STUDIO_MID, 0, STUDIO_MID, 0);
+        this.host.teleport(CHAMBER_MID, 0, CHAMBER_MID, 0);
         this.away = false;
       }
     }
@@ -532,10 +532,10 @@ export class StudioStage {
     if (e.clip) {
       const pair = e.kind === 'pair';
       const rig = e.guard && this.guard ? this.guard : this.host.player.rig;
-      d.inPlace = pair || rig === this.guard || !(STUDIO.rootMotion && e.circle);
+      d.inPlace = pair || rig === this.guard || !(CHAMBER.rootMotion && e.circle);
       d.held = pair;
       d.cycle = e.cycle;
-      d.mirror = STUDIO.mirror;
+      d.mirror = CHAMBER.mirror;
       d.drawn = e.drawn;
       d.crouch = e.crouch;
       d.pace = e.pace;
@@ -543,7 +543,7 @@ export class StudioStage {
       d.dirZ = e.move === 'fwd' ? 1 : e.move === 'back' ? -1 : 0;
       if (clipChanged) d.phase = 0;
       d.inL = d.inR = true;
-      d.cq = studioCq(e); // (anim-n4b) a hold clip: the close-quarters layer on its keyed trunk
+      d.cq = chamberCq(e); // (anim-n4b) a hold clip: the close-quarters layer on its keyed trunk
       rig.graph.drive = d;
       rig.planner.L.init = rig.planner.R.init = false;
       this.target = rig;
@@ -554,7 +554,7 @@ export class StudioStage {
         g.inPlace = true;
         g.held = true;
         g.cycle = e.cycle;
-        g.mirror = STUDIO.mirror;
+        g.mirror = CHAMBER.mirror;
         g.drawn = g.crouch = false;
         // (anim-n4b) the pair walks together (it travels with the clip): the guard at her pace, so his planted feet stay
         // down too (his clip is keyed at 0.8 m/s: a slightly longer step)
@@ -567,18 +567,18 @@ export class StudioStage {
         this.guard.planner.L.init = this.guard.planner.R.init = false;
       }
     }
-    STUDIO_TARGET.rig = this.target ?? this.puppet;
-    STUDIO_TARGET.clip = this.target ? e.clip : null;
-    STUDIO_TARGET.drive = this.target ? d : null;
+    CHAMBER_TARGET.rig = this.target ?? this.puppet;
+    CHAMBER_TARGET.clip = this.target ? e.clip : null;
+    CHAMBER_TARGET.drive = this.target ? d : null;
   }
 
   /** (item 24, track A) The guard puppet: a grunt's rig as every guard gets it (its guard rows on, its gun in hand). */
   private makePuppet(): void {
     const w = this.host.world;
-    const { rig, gun } = buildEnemyRig(this.host.scene, w, ENEMIES.grunt, 'studio-guard-puppet');
+    const { rig, gun } = buildEnemyRig(this.host.scene, w, ENEMIES.grunt, 'chamber-guard-puppet');
     this.puppet = rig;
     this.puppetGun = gun;
-    STUDIO_RIGS.push(rig);
+    CHAMBER_RIGS.push(rig);
     TUNE_WHO.rig = rig;
     const r = this.host.player.rig.root;
     rig.root.position.copyFrom(r.position);
@@ -588,10 +588,10 @@ export class StudioStage {
   private dropPuppet(): void {
     const g = this.puppet;
     if (!g) return;
-    const i = STUDIO_RIGS.indexOf(g);
-    if (i >= 0) STUDIO_RIGS.splice(i, 1);
+    const i = CHAMBER_RIGS.indexOf(g);
+    if (i >= 0) CHAMBER_RIGS.splice(i, 1);
     if (TUNE_WHO.rig === g) TUNE_WHO.rig = null;
-    if (STUDIO_TARGET.rig === g) STUDIO_TARGET.rig = null;
+    if (CHAMBER_TARGET.rig === g) CHAMBER_TARGET.rig = null;
     TUNE_STATE_BAG.guardJoint = TUNE_STATE_BAG.guardStep = TUNE_STATE_BAG.guardWeight = '';
     this.puppetGun?.dispose();
     g.dispose();
@@ -656,10 +656,10 @@ export class StudioStage {
     look.colors.legs = '#4b525a';
     look.colors.helmet = '#5d646c';
     const w = this.host.world;
-    const rig = new CharacterRig(this.host.scene, (shape, hex) => w.parts.instance(shape, hex, 'studio-guard'), look, 1.75, 'studio-guard', { armor: true });
+    const rig = new CharacterRig(this.host.scene, (shape, hex) => w.parts.instance(shape, hex, 'chamber-guard'), look, 1.75, 'chamber-guard', { armor: true });
     for (const m of rig.renderMeshes) w.addShadowCaster(m);
     this.guard = rig;
-    STUDIO_RIGS.push(rig);
+    CHAMBER_RIGS.push(rig);
     this.guardFrame(0, false);
   }
 
@@ -668,8 +668,8 @@ export class StudioStage {
     if (!g) return;
     if (this.target === g) this.detach();
     if (g.graph.drive === this.gdrive) g.graph.drive = null;
-    const i = STUDIO_RIGS.indexOf(g);
-    if (i >= 0) STUDIO_RIGS.splice(i, 1);
+    const i = CHAMBER_RIGS.indexOf(g);
+    if (i >= 0) CHAMBER_RIGS.splice(i, 1);
     g.dispose();
     this.guard = null;
   }
@@ -700,7 +700,7 @@ export class StudioStage {
    * at the row's spot off her rendered root (`victimRoot`), her grip and knife hands (`attackerHands`) and his on her
    * forearm (`victimHands`). Before the clips resolve: the plain guard frame.
    */
-  private knifeFrame(dt: number, e: StudioEntry, k: number): void {
+  private knifeFrame(dt: number, e: ChamberEntry, k: number): void {
     const g = this.guard!;
     const ar = this.host.player.rig;
     if (!knifeClipsReady()) {
@@ -758,19 +758,19 @@ export class StudioStage {
         loadPlayLods(op.figure);
         return op;
       };
-      this.puppets = [make('studio-p1'), make('studio-p2')];
+      this.puppets = [make('chamber-p1'), make('chamber-p2')];
       this.puppetsShown = !on;
     }
     if (on === this.puppetsShown || !this.puppets) return;
     this.puppetsShown = on;
     for (const op of this.puppets) {
       op.figure.setEnabled(on);
-      const i = STUDIO_RIGS.indexOf(op.rig);
-      if (on && i < 0) STUDIO_RIGS.push(op.rig);
-      else if (!on && i >= 0) STUDIO_RIGS.splice(i, 1);
+      const i = CHAMBER_RIGS.indexOf(op.rig);
+      if (on && i < 0) CHAMBER_RIGS.push(op.rig);
+      else if (!on && i >= 0) CHAMBER_RIGS.splice(i, 1);
       op.rig.planner.L.init = op.rig.planner.R.init = false;
     }
-    STUDIO_PAIR.rigs = on ? 2 : 0;
+    CHAMBER_PAIR.rigs = on ? 2 : 0;
   }
 
   /** Wren hidden while the puppets play (her figure and her skeleton in the overlay). */
@@ -779,20 +779,20 @@ export class StudioStage {
     this.hidden = on;
     const pl = this.host.player;
     pl.figure.setEnabled(!on);
-    const i = STUDIO_RIGS.indexOf(pl.rig);
-    if (on && i >= 0) STUDIO_RIGS.splice(i, 1);
-    else if (!on && i < 0) STUDIO_RIGS.unshift(pl.rig);
+    const i = CHAMBER_RIGS.indexOf(pl.rig);
+    if (on && i >= 0) CHAMBER_RIGS.splice(i, 1);
+    else if (!on && i < 0) CHAMBER_RIGS.unshift(pl.rig);
   }
 
   /** Both roles at the pair clock's `t`, each puppet posed through its role's move section. */
-  private pairFrame(dt: number, e: StudioEntry): void {
+  private pairFrame(dt: number, e: ChamberEntry): void {
     const ps = this.puppets;
     if (!ps || !e.team) return;
     const t = this.pairPhase * e.cycle;
     pairPose(e.team, t, PAIR_STATION, PLAYER_HEIGHT, this.rA, this.rB);
     this.posePuppet(ps[0], this.rA, this.pA, this.tA, dt);
     this.posePuppet(ps[1], this.rB, this.pB, this.tB, dt);
-    const s = STUDIO_PAIR;
+    const s = CHAMBER_PAIR;
     s.aState = this.rA.state;
     s.bState = this.rB.state;
     s.aGroup = this.rA.group;
@@ -863,7 +863,7 @@ export class StudioStage {
       moveTuneEnd(rig);
       tp.end(rig);
     }
-    // (studio-pairs, AUDIT fix 12) no camera: the figure stays on its nearest game LOD (LOD0) through the loop. By the
+    // (chamber-pairs, AUDIT fix 12) no camera: the figure stays on its nearest game LOD (LOD0) through the loop. By the
     // view's distance the puppets stand at the LOD0 / LOD1 edge (8.8 m out, 7.2 m back) from a framing camera, and a
     // LOD shown for the first time draws nothing until its shaders compile (~0.5 s gone after a crossing or a wrap)
     partnerFigureFrame(op.figure, rig, dt, null);
@@ -883,8 +883,8 @@ export class StudioStage {
   }
 
   dispose(): void {
-    mixamoStudioEntry(''); // (mixamo-retarget I2) the Studio's capture pick ends with the Studio
-    // (piano-knife S1) the knife pair's drives and the Studio's knife
+    mixamoChamberEntry(''); // (mixamo-retarget I2) the Chamber's capture pick ends with the Chamber
+    // (piano-knife S1) the knife pair's drives and the Chamber's knife
     this.knifeOff();
     if (this.kKnife) {
       this.kKnife.show(false);
@@ -893,15 +893,15 @@ export class StudioStage {
     }
     for (const p of this.stageLights) p.dispose();
     this.stageLights.length = 0;
-    delete (window as unknown as { __studioStage?: unknown }).__studioStage;
+    delete (window as unknown as { __chamberStage?: unknown }).__chamberStage;
     this.detach();
     this.dropGuard();
     this.dropPuppet();
     this.hideWren(false);
     if (this.puppets) {
       for (const op of this.puppets) {
-        const i = STUDIO_RIGS.indexOf(op.rig);
-        if (i >= 0) STUDIO_RIGS.splice(i, 1);
+        const i = CHAMBER_RIGS.indexOf(op.rig);
+        if (i >= 0) CHAMBER_RIGS.splice(i, 1);
         op.figure.dispose();
         op.rig.dispose();
       }
@@ -916,6 +916,6 @@ export class StudioStage {
     if (this.openedPanel && d.animTune.isOpen) d.animTune.hide();
     TUNE_PIN.body = '';
     TUNE_PIN.rig = null;
-    studioReset();
+    chamberReset();
   }
 }

@@ -10,7 +10,7 @@ import { jointsMirror, jointsResetAll } from '../src/anim/tuneJoints';
 import { LEGD_OPT } from '../src/anim/legDelta';
 import { KD, KEYED_LEGD, KEYED_LEGD_SIDE, LEGD_FIELDS, LEGD_SIGN, mirrorKeyed, newKeyedPose, sampleKeyed } from '../src/anim/keyed';
 import type { CharacterRig } from '../src/player/characterRig';
-import type { StudioDrive } from '../src/anim/studioDrive';
+import type { ChamberDrive } from '../src/anim/chamberDrive';
 import type { KeyedClip } from '../src/anim/keyed';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -26,7 +26,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-type Built = { rig: CharacterRig; drive: StudioDrive };
+type Built = { rig: CharacterRig; drive: ChamberDrive };
 type Setup = { make: (name: string, clip: KeyedClip, phase: number) => Built; dispose: () => void };
 async function setup(): Promise<Setup> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
@@ -34,7 +34,7 @@ async function setup(): Promise<Setup> {
   const { PartLibrary } = await import('../src/world/partLibrary');
   const { defaultLook } = await import('../src/cosmetics/avatarLook');
   const { operatorRig } = await import('../src/operators/runtime/playerFigure');
-  const { newStudioDrive } = await import('../src/anim/studioDrive');
+  const { newChamberDrive } = await import('../src/anim/chamberDrive');
   const scene = new Scene(new NullEngine());
   const lib = new PartLibrary(scene);
   const made: { dispose(): void }[] = [];
@@ -42,7 +42,7 @@ async function setup(): Promise<Setup> {
     make: (name, clip, phase) => {
       const o = operatorRig(scene, (s, h, n) => lib.instance(s, h, n), defaultLook(), name);
       made.push(o.figure, o.rig);
-      const drive = newStudioDrive();
+      const drive = newChamberDrive();
       drive.clip = clip;
       drive.held = true;
       drive.phase = phase;

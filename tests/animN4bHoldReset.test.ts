@@ -1,6 +1,6 @@
 /**
  * (N4b train-8 fix) The Body base's hold and carry rows on the real rig (NullEngine CharacterRig, a Wren rig reading the
- * tables), as e2e-studio's Body block drives them through `__animBase`: a row set on the rig's own hold / carry state
+ * tables), as e2e-chamber's Body block drives them through `__animBase`: a row set on the rig's own hold / carry state
  * moves its pose, and a reset (the generated table loaded again) puts the pose back. A team holder's brace (the bend from
  * the team pose, clips/team.ts) takes neither row: the rows leave it as it was. And the team pose jumps to its phase's
  * weight on a paused scrub (`TeamPoser.jump`), where the ease (dt 0) never moved.
@@ -45,7 +45,7 @@ async function runRows(pose: Partial<RigPose>, rows: Record<string, Record<strin
     return [q.x, q.y, q.z, q.w] as Q;
   });
   const hipsY = (): number => rg.hips.getAbsolutePosition().y - rg.root.position.y;
-  // settled, then paused (dt 0) as the studio's Body block reads it
+  // settled, then paused (dt 0) as the chamber's Body block reads it
   for (let f = 0; f < 120; f++) step(1 / 60);
   for (let f = 0; f < 6; f++) step(0);
   const b0 = snap();

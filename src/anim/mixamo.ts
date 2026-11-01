@@ -1,7 +1,7 @@
 /**
  * (mixamo-retarget I2) The Mixamo traversal captures on Wren: which capture plays in each traversal slot. Pure data and
  * set-up code (no per-frame work): `setMixamo` (the `?mixamo=0/1` flag, `flags.mixamo`, default off) and
- * `setMixamoStudio` (the Anim Studio's pick) rebuild `WREN_TRAV` once per change; the graph (`animGraph.ts`, Wren rigs
+ * `setMixamoChamber` (the Test Chamber's pick) rebuild `WREN_TRAV` once per change; the graph (`animGraph.ts`, Wren rigs
  * only: `wrenReady`) reads it by reference every frame. A null slot is the hand-made clip (`clips/traverse.ts`), and with
  * every slot null (`any` false) the graph takes the hand-made path untouched (byte-identical: tests/mixamoTraverse.test.ts).
  * Guards share the hand-made `TRAVERSE_CLIP` table (`enemy.ts` climb) and never read this one.
@@ -74,10 +74,10 @@ export const MIXAMO_TRAV: Readonly<Record<string, { clip: Clip; slot: MixamoTrav
 
 /**
  * Per capture: whether it plays in the game with the flag on (PLAN "Switch-on": a clip that passes A8 and the checker).
- * The Studio's pick plays its capture whatever this says. Measured headless on Wren's rig (tests/mixamoTraverse.test.ts,
+ * The Chamber's pick plays its capture whatever this says. Measured headless on Wren's rig (tests/mixamoTraverse.test.ts,
  * docs/mixamo-retarget/I2-REPORT.md, I2B-REPORT.md): Michael 2026-10-26, the capture wins where it covers the same move
  * unless it is visibly broken in play (a spin, a pop, hands far off the grips); a worse number alone is tuned in the
- * Anim Studio. Hands on the lip stay a hard requirement where the game relies on grips (tests/climbHands.test.ts).
+ * Test Chamber. Hands on the lip stay a hard requirement where the game relies on grips (tests/climbHands.test.ts).
  */
 export const MIXAMO_ON: Record<string, boolean> = {
   hanging_idle: true,
@@ -103,7 +103,7 @@ export const MIXAMO_ON: Record<string, boolean> = {
   standing_idle: true,
   // (I4) on: the trunk turned -38.9 deg onto its travel at emit (recipe `turn`): knees 0.71-0.79 x hips (was 0.30-0.96),
   // knee out 3.5-4.0 cm (was 20; CMU 5.4-5.9), slide 0.00-0.01 cm, bone steps as CMU (9.8 / 14.2 / 15.4 deg); the elbows
-  // stay 27.2-27.7 cm out (CMU 5.3-5.4): the capture's own sneak pose (arms held wide), not a break; tune in the Studio
+  // stay 27.2-27.7 cm out (CMU 5.3-5.4): the capture's own sneak pose (arms held wide), not a break; tune in the Chamber
   crouched_walking: true,
   // (mixamo-retarget I3) the stance changes, measured headless on Wren's rig against the hand-made stance blend
   // (tests/mixamoStance.test.ts (d), docs/mixamo-retarget/I3-REPORT.md, I4-REPORT.md; on unless visibly broken)
@@ -126,7 +126,7 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // Before either goes on: the lethal takedown blow and its tail (`killWarp`, the victim at the hands, no bend) reach
   // `strikeShot` on the same arc and would play the take at the kill's pace; no AnimInput tells them apart yet (I5-REPORT)
   cross_punch: false,
-  // Studio only: the game's put down is the 0.8 s standing roll off the shoulder (bodyCarry `beginDrop`), not a kneel,
+  // Chamber only: the game's put down is the 0.8 s standing roll off the shoulder (bodyCarry `beginDrop`), not a kneel,
   // and its clock is not in the pose input (J19 R11, the kneeling put down, is not built)
   kneel_down: false,
   // (mixamo-retarget I6) the locomotion set (Michael 2026-10-26: a row plays unless visibly broken), measured headless on
@@ -223,8 +223,8 @@ export const MIXAMO_KEEP: Record<MixamoMove, Channel[]> = { hang: PEL_AT, climb:
 /** `MIXAMO_KEEP` as channel indices (rebuilt by `resolveMixamo`; the graph reads them). */
 export const KEEP_CH: Record<MixamoMove, number[]> = { hang: [], climb: [], crawl: [], climbUp: [], topOut: [] };
 
-/** The switch's state: `on` the flag, `studio` the Studio's capture slug ('' none). Written by the setters only. */
-export const MIXAMO: { on: boolean; studio: string } = { on: false, studio: '' };
+/** The switch's state: `on` the flag, `chamber` the Chamber's capture slug ('' none). Written by the setters only. */
+export const MIXAMO: { on: boolean; chamber: string } = { on: false, chamber: '' };
 
 /** The resolved Wren table the graph reads (the same object always: fields rewritten once per change). */
 export const WREN_TRAV: WrenTravTable = newWrenTrav();
@@ -240,14 +240,14 @@ export function newWrenTrav(): WrenTravTable {
 }
 
 /**
- * (source wire) Fill a traversal table for the captures on (`on`) or off and a Studio pick (`studio`, '' none) from
+ * (source wire) Fill a traversal table for the captures on (`on`) or off and a Chamber pick (`chamber`, '' none) from
  * `MIXAMO_ON` (pure; once per change). The page's `WREN_TRAV` and each Animation source's own table
  * (`animSource.ts` SOURCE_TABLES) are filled by it.
  */
-export function fillWrenTrav(T: WrenTravTable, on: boolean, studio: string): void {
+export function fillWrenTrav(T: WrenTravTable, on: boolean, chamber: string): void {
   for (const s of SLOTS) T[s] = null;
   if (on) for (const [slug, r] of Object.entries(MIXAMO_TRAV)) if (MIXAMO_ON[slug]) T[r.slot] = r.clip;
-  const pick = MIXAMO_TRAV[studio];
+  const pick = MIXAMO_TRAV[chamber];
   if (pick) {
     T[pick.slot] = pick.clip;
     // the free-hang climb is a whole climb-up (hang to standing): picked, it plays the crouch part too
@@ -283,9 +283,9 @@ export function fillWrenTrav(T: WrenTravTable, on: boolean, studio: string): voi
   }
 }
 
-/** Rebuild `WREN_TRAV` from the flag, `MIXAMO_ON` and the Studio's pick (once per change; not per frame). */
+/** Rebuild `WREN_TRAV` from the flag, `MIXAMO_ON` and the Chamber's pick (once per change; not per frame). */
 export function resolveMixamo(): void {
-  fillWrenTrav(WREN_TRAV, MIXAMO.on, MIXAMO.studio);
+  fillWrenTrav(WREN_TRAV, MIXAMO.on, MIXAMO.chamber);
   for (const m of Object.keys(MIXAMO_KEEP) as MixamoMove[]) {
     const out = KEEP_CH[m];
     out.length = 0;
@@ -301,7 +301,7 @@ export function resolveMixamo(): void {
 const RESOLVERS: (() => void)[] = [];
 
 /**
- * (Toggle) Register a resolver called at the end of every `resolveMixamo` (the flag, the Animation source, the Studio's
+ * (Toggle) Register a resolver called at the end of every `resolveMixamo` (the flag, the Animation source, the Chamber's
  * pick: once per change, never per frame), so another owner's Mixamo table (the kit clips) follows the switch without
  * editing `resolveMixamo`. It reads `MIXAMO` / `MIXAMO_ON`; it runs once now, so it starts in step.
  */
@@ -316,20 +316,20 @@ export function setMixamo(on: boolean): void {
   resolveMixamo();
 }
 
-/** The Anim Studio's pick: a traversal capture's slug (it plays on the Studio rig whatever the flag says), '' none. */
-export function setMixamoStudio(slug: string): void {
-  MIXAMO.studio = MIXAMO_TRAV[slug] ? slug : '';
+/** The Test Chamber's pick: a traversal capture's slug (it plays on the Chamber rig whatever the flag says), '' none. */
+export function setMixamoChamber(slug: string): void {
+  MIXAMO.chamber = MIXAMO_TRAV[slug] ? slug : '';
   resolveMixamo();
 }
 
 /**
- * The Studio's loop list entry id -> the pick: a capture's loop `trav:<loop>/<slug>` (studio.ts `captureEntries`) picks
- * that capture; any other entry (or leaving the Studio: '') clears it. Called on a change of entry only.
+ * The Chamber's loop list entry id -> the pick: a capture's loop `trav:<loop>/<slug>` (chamber.ts `captureEntries`) picks
+ * that capture; any other entry (or leaving the Chamber: '') clears it. Called on a change of entry only.
  */
-export function mixamoStudioEntry(id: string): void {
+export function mixamoChamberEntry(id: string): void {
   const m = /^trav:[^/]+\/(.+)$/.exec(id);
   const slug = m && MIXAMO_TRAV[m[1]!] ? m[1]! : '';
-  if (slug !== MIXAMO.studio) setMixamoStudio(slug);
+  if (slug !== MIXAMO.chamber) setMixamoChamber(slug);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

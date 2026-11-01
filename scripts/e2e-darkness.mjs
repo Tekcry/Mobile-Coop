@@ -11,7 +11,7 @@ import { findCards, measure, pinLights, readRgb, unpinLights } from './parity-li
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const LOOKS = [
-  { name: 'epic', params: 'autostart=studio&mode=test&gfx=epic' },
+  { name: 'epic', params: 'autostart=chamber&mode=test&gfx=epic' },
 ].filter((l) => !process.env.LOOK || process.env.LOOK === l.name);
 // (`darkCurve.ts` VISION_TARGETS)
 const NV = [
@@ -92,7 +92,7 @@ async function thermalChecks(page, look) {
     return { ghosts: g.doorGhosts?.count ?? -1, kind: g.post.visionKind, open: g.world.doors.list[i]?.open };
   }, i);
   // (G2c) a door whose empty leaf reads dark enough: the lit main room's leaf is a brighter blue, so the silhouette's margin over it
-  // is smaller (37,36,159 vs 49,46,121 at the studio door); the annex doors (dark side) read as the Warehouse's did. Each door that
+  // is smaller (37,36,159 vs 49,46,121 at the chamber door); the annex doors (dark side) read as the Warehouse's did. Each door that
   // shows the silhouette is read, the first with the dim blue margin is the one checked (the last read stands if none has it)
   let hit = null;
   let chest = null;

@@ -4,31 +4,31 @@ import { afterEach, describe, expect, it } from 'vitest';
 import '../src/anim/tune';
 import { TUNE_HOOKS, tuneGet, tuneResetAll, tuneSet } from '../src/anim/tuneRegistry';
 import {
-  STUDIO,
-  STUDIO_ENTRIES,
-  STUDIO_RADIUS,
-  STUDIO_RIGS,
-  studioAdvance,
-  studioEntry,
-  studioInput,
-  studioKey,
-  studioReset,
-  studioScrub,
-  studioSpeed,
-  studioStepPhase,
-  type StudioInputOut,
+  CHAMBER,
+  CHAMBER_ENTRIES,
+  CHAMBER_RADIUS,
+  CHAMBER_RIGS,
+  chamberAdvance,
+  chamberEntry,
+  chamberInput,
+  chamberKey,
+  chamberReset,
+  chamberScrub,
+  chamberSpeed,
+  chamberStepPhase,
+  type ChamberInputOut,
   CLIP_BODY,
   captureClip,
-  loadStudioCaptures,
-  studioBodyPin,
-} from '../src/anim/studio';
+  loadChamberCaptures,
+  chamberBodyPin,
+} from '../src/anim/chamber';
 import { MOCAP_SOURCE_NAMES, mocapSource } from '../src/anim/mocapSources';
 import { MOCAP_LAYERS } from '../src/anim/mocap';
 import { MOCAP_WALK } from '../src/anim/clips/mocap/walk';
-import { travEntry } from '../src/anim/studioTraversal';
+import { travEntry } from '../src/anim/chamberTraversal';
 import { loopGroups, plainLoop } from '../src/ui/tunerLayout';
 import { TUNE_CUR } from '../src/anim/tune';
-import { newStudioDrive, studioDriveTargets, studioFeet, treadmillFoot, wrap01, type StudioFoot, type TreadOut } from '../src/anim/studioDrive';
+import { newChamberDrive, chamberDriveTargets, chamberFeet, treadmillFoot, wrap01, type ChamberFoot, type TreadOut } from '../src/anim/chamberDrive';
 import { emptyTargets } from '../src/anim/animGraph';
 import { newKeyedPose, sampleKeyed } from '../src/anim/keyed';
 import { KEYED_WALK } from '../src/anim/clips/keyed/walk';
@@ -53,42 +53,42 @@ import { FREE_CFG, freeSnap, freeTimeScale } from '../src/player/freeView';
 afterEach(() => {
   TUNE_HOOKS.changed = null;
   tuneResetAll();
-  studioReset();
+  chamberReset();
 });
 
-describe('anim studio: the loop list', () => {
+describe('Test Chamber: the loop list', () => {
   it('has every keyed clip of src/anim/clips/keyed and the procedural states, ids unique', () => {
     const files = readdirSync('src/anim/clips/keyed').filter((f) => f.endsWith('.ts')).map((f) => f.slice(0, -3));
     // (mixamo-retarget M5) the motion captures are keyed loops too (their own group, below)
-    const keyed = STUDIO_ENTRIES.filter((e) => e.kind === 'keyed' && mocapSource(e.clip!.name) === null);
+    const keyed = CHAMBER_ENTRIES.filter((e) => e.kind === 'keyed' && mocapSource(e.clip!.name) === null);
     expect(keyed.map((e) => e.clip!.name).sort()).toEqual(files.sort());
     for (const e of keyed) expect(e.id).toBe(`keyed:${e.clip!.name}`);
-    const states = STUDIO_ENTRIES.filter((e) => e.kind === 'state').map((e) => e.id);
+    const states = CHAMBER_ENTRIES.filter((e) => e.kind === 'state').map((e) => e.id);
     for (const s of ['idle', 'walk', 'jog', 'run', 'crouchIdle', 'sneak', 'crouchWalk', 'lowReady', 'aimFwd', 'aimStrafe', 'aimBack']) expect(states).toContain(`state:${s}`);
-    const ids = STUDIO_ENTRIES.map((e) => e.id);
+    const ids = CHAMBER_ENTRIES.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(STUDIO_ENTRIES[0]!.id).toBe('off');
-    expect(studioEntry('nope').id).toBe('off');
+    expect(CHAMBER_ENTRIES[0]!.id).toBe('off');
+    expect(chamberEntry('nope').id).toBe('off');
     // every moving keyed clip has a cycle from its step and pace; the guard clips are marked
     for (const e of keyed) expect(e.cycle).toBeGreaterThan(0.2);
-    expect(studioEntry('keyed:walk').cycle).toBeCloseTo(1.0, 5);
+    expect(chamberEntry('keyed:walk').cycle).toBeCloseTo(1.0, 5);
     expect(keyed.filter((e) => e.guard).map((e) => e.clip!.name).every((n) => n.startsWith('guard_'))).toBe(true);
   });
 
   it('(mixamo-retarget M5) a "motion capture" group: every capture with its source in the label, picked up from its row', async () => {
-    // (I9 fix round) batch 2's captures load lazily, as the Studio opens
-    await loadStudioCaptures();
-    const ids = STUDIO_ENTRIES.map((e) => e.id);
+    // (I9 fix round) batch 2's captures load lazily, as the Chamber opens
+    await loadChamberCaptures();
+    const ids = CHAMBER_ENTRIES.map((e) => e.id);
     const capIdx: number[] = [];
     let keyedCaps = 0;
     let travCaps = 0;
     for (const name of MOCAP_SOURCE_NAMES) {
       const r = mocapSource(name)!;
       const word = r.source === 'cmu' ? 'CMU' : 'Mixamo';
-      const st = r.studio;
+      const st = r.chamber;
       if (st.kind === 'keyed') {
         // a keyed capture: through keyed() (`keyed:<clip name>`), its module's own clip, its cycle, the state it tunes in
-        const e = studioEntry(`keyed:${name}`);
+        const e = chamberEntry(`keyed:${name}`);
         expect(e.id, `${name} is in the loop list`).toBe(`keyed:${name}`);
         expect(e.kind).toBe('keyed');
         expect(e.clip).toBe(captureClip(name));
@@ -100,14 +100,14 @@ describe('anim studio: the loop list', () => {
         else expect(e.pace).toBe(0);
         expect([e.crouch, e.drawn, e.aim]).toEqual([st.crouch ?? false, st.drawn ?? false, st.aim ?? false]);
         expect(CLIP_BODY[name]).toBe(st.body);
-        expect(studioBodyPin(e), `${name}: the Studio pins the state the game plays it in`).toBe(st.body);
+        expect(chamberBodyPin(e), `${name}: the Chamber pins the state the game plays it in`).toBe(st.body);
         expect(loopGroups(e.id).body).toBe(st.body);
         capIdx.push(ids.indexOf(e.id));
         keyedCaps++;
       } else {
         // a channel capture: its prop's traversal loop under its own id, the source in the label
         const id = `${st.loop}/${name.slice(6)}`;
-        const e = studioEntry(id);
+        const e = chamberEntry(id);
         expect(e.id, `${name} is in the loop list`).toBe(id);
         expect(e.kind).toBe('trav');
         expect(e.trav!.prop).toBe(travEntry(st.loop)!.prop);
@@ -119,21 +119,21 @@ describe('anim studio: the loop list', () => {
     }
     // the CMU captures today (12 modules in clips/mocap); Mixamo rows as M3 / M4 add them
     expect(keyedCaps).toBeGreaterThanOrEqual(12);
-    expect(STUDIO_ENTRIES.filter((e) => e.label.startsWith('motion capture')).length).toBe(keyedCaps + travCaps);
+    expect(CHAMBER_ENTRIES.filter((e) => e.label.startsWith('motion capture')).length).toBe(keyedCaps + travCaps);
     // one group: together, after the hand-keyed clips, before the pairs
     const first = Math.min(...capIdx);
     expect(Math.max(...capIdx) - first + 1).toBe(capIdx.length);
-    expect(STUDIO_ENTRIES[first - 1]!.kind).toBe('keyed');
-    expect(mocapSource(STUDIO_ENTRIES[first - 1]!.clip!.name)).toBeNull();
-    expect(STUDIO_ENTRIES[first + capIdx.length]!.kind).toBe('pair');
+    expect(CHAMBER_ENTRIES[first - 1]!.kind).toBe('keyed');
+    expect(mocapSource(CHAMBER_ENTRIES[first - 1]!.clip!.name)).toBeNull();
+    expect(CHAMBER_ENTRIES[first + capIdx.length]!.kind).toBe('pair');
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('(M5) a capture plays on the drive as the game plays it: the mocap share and its layer scales; a hand-made clip not', () => {
     const o = emptyTargets();
-    const d = newStudioDrive();
+    const d = newChamberDrive();
     d.clip = MOCAP_WALK;
-    studioDriveTargets(d, o, 1 / 60);
+    chamberDriveTargets(d, o, 1 / 60);
     expect(o.keyMocap).toBe(1);
     // the arm swing slider is off the capture (MOCAP_LAYERS.armSwing 0), as in the game; on a hand-made clip it applies
     expect(MOCAP_LAYERS.armSwing).toBe(0);
@@ -144,7 +144,7 @@ describe('anim studio: the loop list', () => {
     try {
       d.phase = 0.25;
       d.held = true;
-      studioDriveTargets(d, o, 0);
+      chamberDriveTargets(d, o, 0);
       sampleKeyed(MOCAP_WALK, 0.25, 1, pose, null);
       const raw = Array.from(pose.arm);
       const got = Array.from(o.keyed.arm);
@@ -152,7 +152,7 @@ describe('anim studio: the loop list', () => {
       expect(got).toEqual(Array.from(pose.arm));
       expect(got).not.toEqual(raw);
       d.clip = KEYED_WALK;
-      studioDriveTargets(d, o, 0);
+      chamberDriveTargets(d, o, 0);
       expect(o.keyMocap).toBe(0);
       sampleKeyed(KEYED_WALK, 0.25, 1, pose, null);
       expect(Array.from(o.keyed.arm)).toEqual(Array.from(pose.arm));
@@ -161,53 +161,53 @@ describe('anim studio: the loop list', () => {
     }
   });
 
-  it('studio state resets to its defaults (inactive, idle, no rigs)', () => {
-    STUDIO.active = true;
-    STUDIO.entry = 'keyed:run';
-    STUDIO.mirror = true;
-    STUDIO.turntable = true;
-    STUDIO_RIGS.push({} as never);
-    studioReset();
-    expect(STUDIO.active).toBe(false);
-    expect(STUDIO.entry).toBe('state:idle');
-    expect(STUDIO.mirror).toBe(false);
-    expect(STUDIO.turntable).toBe(false);
-    expect(Number.isNaN(STUDIO.seek)).toBe(true);
-    expect(STUDIO_RIGS.length).toBe(0);
+  it('chamber state resets to its defaults (inactive, idle, no rigs)', () => {
+    CHAMBER.active = true;
+    CHAMBER.entry = 'keyed:run';
+    CHAMBER.mirror = true;
+    CHAMBER.turntable = true;
+    CHAMBER_RIGS.push({} as never);
+    chamberReset();
+    expect(CHAMBER.active).toBe(false);
+    expect(CHAMBER.entry).toBe('state:idle');
+    expect(CHAMBER.mirror).toBe(false);
+    expect(CHAMBER.turntable).toBe(false);
+    expect(Number.isNaN(CHAMBER.seek)).toBe(true);
+    expect(CHAMBER_RIGS.length).toBe(0);
   });
 });
 
-describe('anim studio: phase maths', () => {
+describe('Test Chamber: phase maths', () => {
   it('speed, advance, scrub and wrap', () => {
-    expect(studioSpeed(3)).toBe(2);
-    expect(studioSpeed(0)).toBe(0.1);
-    expect(studioSpeed(Number.NaN)).toBe(1);
-    expect(studioAdvance(0, 0.5, 1)).toBeCloseTo(0.5, 9);
-    expect(studioAdvance(0.75, 0.5, 1)).toBeCloseTo(0.25, 9);
-    expect(studioAdvance(0.2, 0.1, 1, 2)).toBeCloseTo(0.4, 9);
-    expect(studioAdvance(0.3, 0, 1)).toBe(0.3);
-    expect(studioScrub(-1)).toBe(0);
-    expect(studioScrub(2)).toBeLessThan(1);
+    expect(chamberSpeed(3)).toBe(2);
+    expect(chamberSpeed(0)).toBe(0.1);
+    expect(chamberSpeed(Number.NaN)).toBe(1);
+    expect(chamberAdvance(0, 0.5, 1)).toBeCloseTo(0.5, 9);
+    expect(chamberAdvance(0.75, 0.5, 1)).toBeCloseTo(0.25, 9);
+    expect(chamberAdvance(0.2, 0.1, 1, 2)).toBeCloseTo(0.4, 9);
+    expect(chamberAdvance(0.3, 0, 1)).toBe(0.3);
+    expect(chamberScrub(-1)).toBe(0);
+    expect(chamberScrub(2)).toBeLessThan(1);
     expect(wrap01(-0.25)).toBeCloseTo(0.75, 9);
     expect(wrap01(1)).toBe(0);
   });
 
   it('step: one key forward / back, wrapping; between keys to the next one in that direction', () => {
-    expect(studioStepPhase(0, 32, 1)).toBeCloseTo(1 / 32, 9);
-    expect(studioStepPhase(0, 32, -1)).toBeCloseTo(31 / 32, 9);
-    expect(studioStepPhase(31 / 32, 32, 1)).toBe(0);
-    expect(studioStepPhase(10.4 / 32, 32, 1)).toBeCloseTo(11 / 32, 9);
-    expect(studioStepPhase(10.4 / 32, 32, -1)).toBeCloseTo(10 / 32, 9);
-    expect(studioKey(10.4 / 32, 32)).toBe(10);
-    expect(studioKey(31.8 / 32, 32)).toBe(0);
+    expect(chamberStepPhase(0, 32, 1)).toBeCloseTo(1 / 32, 9);
+    expect(chamberStepPhase(0, 32, -1)).toBeCloseTo(31 / 32, 9);
+    expect(chamberStepPhase(31 / 32, 32, 1)).toBe(0);
+    expect(chamberStepPhase(10.4 / 32, 32, 1)).toBeCloseTo(11 / 32, 9);
+    expect(chamberStepPhase(10.4 / 32, 32, -1)).toBeCloseTo(10 / 32, 9);
+    expect(chamberKey(10.4 / 32, 32)).toBe(10);
+    expect(chamberKey(31.8 / 32, 32)).toBe(0);
   });
 
   it('the drive in place advances by dt / cycle (dt 0 holds), full keyed weight, the clip sampled at the phase', () => {
-    const d = newStudioDrive();
+    const d = newChamberDrive();
     d.clip = KEYED_WALK;
     d.cycle = 1;
     const o = emptyTargets();
-    studioDriveTargets(d, o, 0.25);
+    chamberDriveTargets(d, o, 0.25);
     expect(d.phase).toBeCloseTo(0.25, 9);
     expect(o.keyW).toBe(1);
     expect(o.keyArmW).toBe(1);
@@ -216,27 +216,27 @@ describe('anim studio: phase maths', () => {
     expect(o.gait.duty).toBe(KEYED_WALK.duty);
     const ref = sampleKeyed(KEYED_WALK, 0.25, 1, newKeyedPose());
     for (let i = 0; i < 3; i++) expect(o.keyed.pel[i]).toBeCloseTo(ref.pel[i]!, 9);
-    studioDriveTargets(d, o, 0);
+    chamberDriveTargets(d, o, 0);
     expect(d.phase).toBeCloseTo(0.25, 9);
     // root motion: the graph's gait clock
     d.inPlace = false;
     o.gait.phase = 0.6;
-    studioDriveTargets(d, o, 0.1);
+    chamberDriveTargets(d, o, 0.1);
     expect(d.phase).toBeCloseTo(0.6, 9);
     // off: nothing written
     d.clip = null;
     o.keyW = 0;
-    studioDriveTargets(d, o, 0.1);
+    chamberDriveTargets(d, o, 0.1);
     expect(o.keyW).toBe(0);
   });
 
   it('mirror: the pose mirrored, sampled half a cycle on', () => {
-    const d = newStudioDrive();
+    const d = newChamberDrive();
     d.clip = KEYED_GLIDE_STRAFE;
     d.mirror = true;
     d.phase = 0.1;
     const o = emptyTargets();
-    studioDriveTargets(d, o, 0);
+    chamberDriveTargets(d, o, 0);
     const ref = sampleKeyed(KEYED_GLIDE_STRAFE, 0.6, 1, newKeyedPose());
     expect(o.keyed.pel[0]).toBeCloseTo(-ref.pel[0]!, 9);
     expect(o.keyed.pel[1]).toBeCloseTo(ref.pel[1]!, 9);
@@ -246,7 +246,7 @@ describe('anim studio: phase maths', () => {
   });
 
   it('treadmill feet: the planted foot slides back under the body, the swing arcs forward and lifts', () => {
-    const d = newStudioDrive();
+    const d = newChamberDrive();
     d.clip = KEYED_WALK;
     d.pace = 1.4;
     d.cycle = 1;
@@ -288,53 +288,53 @@ describe('anim studio: phase maths', () => {
     expect(a.lift).toBe(0);
   });
 
-  it('studioFeet writes the planner feet under the root in place only; a heel strike lands once', () => {
-    const foot = (): StudioFoot => ({ x: 0, y: 0, z: 0, yaw: 0, contact: false, swing: -1, pitch: 0, landed: false, init: false });
+  it('chamberFeet writes the planner feet under the root in place only; a heel strike lands once', () => {
+    const foot = (): ChamberFoot => ({ x: 0, y: 0, z: 0, yaw: 0, contact: false, swing: -1, pitch: 0, landed: false, init: false });
     const pl = { L: foot(), R: foot() };
-    const d = newStudioDrive();
+    const d = newChamberDrive();
     d.clip = KEYED_WALK;
     d.pace = 1.4;
     d.cycle = 1;
     d.inPlace = false;
-    studioFeet(d, pl, 5, 0, 5, 0, 1);
+    chamberFeet(d, pl, 5, 0, 5, 0, 1);
     expect(pl.L.x).toBe(0);
     d.inPlace = true;
     d.phase = 0.99;
-    studioFeet(d, pl, 5, 1, 5, 0, 1);
+    chamberFeet(d, pl, 5, 1, 5, 0, 1);
     expect(pl.L.contact).toBe(false);
     d.phase = 0.001;
-    studioFeet(d, pl, 5, 1, 5, 0, 1);
+    chamberFeet(d, pl, 5, 1, 5, 0, 1);
     expect(pl.L.contact && pl.L.landed).toBe(true);
     expect(pl.L.x).toBeCloseTo(5 - KEYED_WALK.half, 6);
     expect(pl.L.y).toBe(1);
-    studioFeet(d, pl, 5, 1, 5, 0, 1);
+    chamberFeet(d, pl, 5, 1, 5, 0, 1);
     expect(pl.L.landed).toBe(false);
   });
 
   it('synthesised input: a state walks the circle, a keyed clip only with root motion', () => {
-    const o: StudioInputOut = { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false };
-    studioInput(studioEntry('state:walk'), false, o);
+    const o: ChamberInputOut = { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false };
+    chamberInput(chamberEntry('state:walk'), false, o);
     expect(o.y).toBeCloseTo(stickMagFor(1.4, false), 9);
-    expect(o.turn).toBeCloseTo(1.4 / STUDIO_RADIUS, 9);
-    studioInput(studioEntry('state:aimStrafe'), false, o);
+    expect(o.turn).toBeCloseTo(1.4 / CHAMBER_RADIUS, 9);
+    chamberInput(chamberEntry('state:aimStrafe'), false, o);
     expect(o.x).toBeGreaterThan(0);
     expect(o.ads && o.drawn).toBe(true);
-    studioInput(studioEntry('state:sneak'), false, o);
+    chamberInput(chamberEntry('state:sneak'), false, o);
     expect(o.crouch).toBe(true);
-    studioInput(studioEntry('keyed:walk'), false, o);
+    chamberInput(chamberEntry('keyed:walk'), false, o);
     expect(o.x === 0 && o.y === 0 && o.turn === 0).toBe(true);
-    studioInput(studioEntry('keyed:walk'), true, o);
+    chamberInput(chamberEntry('keyed:walk'), true, o);
     expect(o.y).toBeGreaterThan(0);
     // a keyed crouch clip stands (its pelvis offset is from the standing rest)
-    studioInput(studioEntry('keyed:sneak'), true, o);
+    chamberInput(chamberEntry('keyed:sneak'), true, o);
     expect(o.crouch).toBe(false);
     // in place only (no circle): no move even with root motion
-    studioInput(studioEntry('keyed:wall_slide'), true, o);
+    chamberInput(chamberEntry('keyed:wall_slide'), true, o);
     expect(o.x === 0 && o.y === 0).toBe(true);
   });
 });
 
-describe('anim studio: the drive on the real rig', () => {
+describe('Test Chamber: the drive on the real rig', () => {
   it('a keyed sneak in place: the hips drop by its pelvis offset, the feet step on the treadmill; off: the rig as before', async () => {
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
     const { Scene } = await import('../src/core/babylon');
@@ -347,8 +347,8 @@ describe('anim studio: the drive on the real rig', () => {
     const run = (drive: boolean): { hips: number; zMin: number; zMax: number; swings: number; landed: number } => {
       const rg = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());
       rg.carrier = true;
-      const e = studioEntry('keyed:sneak');
-      const d = newStudioDrive();
+      const e = chamberEntry('keyed:sneak');
+      const d = newChamberDrive();
       d.clip = e.clip;
       d.cycle = e.cycle;
       d.pace = e.pace;
@@ -384,7 +384,7 @@ describe('anim studio: the drive on the real rig', () => {
   });
 });
 
-describe('anim studio: snapshots', () => {
+describe('Test Chamber: snapshots', () => {
   const G = 'walk';
   const ID = 'trackMul';
 
@@ -478,7 +478,7 @@ describe('anim studio: snapshots', () => {
   });
 });
 
-describe('anim studio: free view aids', () => {
+describe('Test Chamber: free view aids', () => {
   it('camera snaps look at the body from the front, side, back and above', () => {
     const o = { yaw: 0, pitch: 0 };
     freeSnap('front', 0.3, o);
@@ -491,7 +491,7 @@ describe('anim studio: free view aids', () => {
     expect(o.pitch).toBe(-FREE_CFG.pitchMax);
   });
 
-  it('the game speed goes above 1x only with the studio maximum', () => {
+  it('the game speed goes above 1x only with the chamber maximum', () => {
     expect(freeTimeScale(1.8)).toBe(1);
     expect(freeTimeScale(1.8, 2)).toBe(1.8);
     expect(freeTimeScale(5, 2)).toBe(2);

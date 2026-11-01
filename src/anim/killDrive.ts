@@ -2,7 +2,7 @@
  * (piano-knife S1) The paired knife kill's clip on a rig (pure, Babylon-free; no allocation per call). A drive set on a
  * graph (`AnimGraph.kill`) plays a captured clip at a phase the takedown owns (the attacker's move, or the victim's
  * clip on the same clock), mixed over the graph's keyed targets by `w`, with the victim's buckle (a fold of the spine
- * and chest timed to the stab) on top. Unlike the Studio's drive it plays on any rig (it never reads `keyedOk`, so a
+ * and chest timed to the stab) on top. Unlike the Chamber's drive it plays on any rig (it never reads `keyedOk`, so a
  * guard's graph takes it too) and the feet stay the planner's (planted: no treadmill, no clip feet).
  */
 import { KQ, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';

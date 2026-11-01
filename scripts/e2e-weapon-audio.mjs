@@ -5,7 +5,7 @@
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber' });
 let failed = false;
 const G = (f, a) => page.evaluate(f, a);
 /** Run `s` s of game time holding pad buttons; returns the loudest noise radius and the most voices seen. */

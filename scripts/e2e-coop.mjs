@@ -11,7 +11,7 @@
 // (guard-ai S26) The partner is heard: a searcher hears the client run behind him, and only the client is located.
 // (guard-models G9) A guard's look seed (and, with the guard models on, his visible pieces) is equal on the host and the
 // client; after a course bay restart the same slot has the same seed on both.
-// (clean-up G2d, decision N18) The matches are co-op Test Chamber matches (map `studio`, test mode: the host runs the guards'
+// (clean-up G2d, decision N18) The matches are co-op Test Chamber matches (map `chamber`, test mode: the host runs the guards'
 // systems, no objective, guards only when the test spawns them; positions: docs/plan/TEST-CHAMBER-SPEC.md section 3 and
 // section 9). They were Infiltration matches on the Warehouse. Dropped (restorable from git history): the guard-ai S9 block
 // (stage gear, a bark, caution, a shield-led team, a deflect), the joint interrogation, the Infiltration objectives check and
@@ -33,7 +33,7 @@ const wait = (ms) => waitSim(ms);
 let failed = false;
 const errs = [];
 // (G2d) the match every guard part runs: the Test Chamber in the test mode (mode, map, mission)
-const MISSION = ['test', 'studio', ''];
+const MISSION = ['test', 'chamber', ''];
 // (G2d) a test-mode match has no guards of its own: five grunts stand in the annex hall (calm, behind the divider from the
 // players in the main room), their ids returned; the cap is 12 (`MAX_ALIVE`)
 const HALL = [[29.6, 17], [31.2, 17], [32.8, 17], [34.4, 17], [35.8, 17], [30.4, 19.2]];
@@ -2053,7 +2053,7 @@ if (!failed) {
     await B2.keyboard.press('Enter');
     await until(A2, () => window.__coop.session.players.size === 2, null, 15000, 'ctx: the client joins');
     // (G2a) the test mode: a Free Roam room has no `g.mode`, so a downed client got no revive point (it respawned in 3 s)
-    await GA(() => window.__coop.session.setSettings('test', 'studio', 'normal', ''));
+    await GA(() => window.__coop.session.setSettings('test', 'chamber', 'normal', ''));
     await GB(() => window.__coop.session.setReady(true));
     await until(A2, () => window.__coop.session.allReady, null, 8000, 'ctx: everyone ready');
     await GA(() => window.__coop.session.startMatch());

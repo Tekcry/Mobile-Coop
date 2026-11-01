@@ -1,6 +1,6 @@
 /**
  * anim-skeleton S2 (A5): the bit-identity harness. Drives Wren rigs (`operatorRig`, untuned) in node through every keyed
- * clip (the studio's drive), a few procedural states and a partner-style sequence (no motion driver, as
+ * clip (the chamber's drive), a few procedural states and a partner-style sequence (no motion driver, as
  * `RemoteAvatar.update` poses it), and hashes, every step, the world matrix and local TRS of each joint that existed
  * before T3 plus the poser's output for those joints on every shipped LOD file. Written against the pre-S2 code and run
  * there first to capture `tests/fixtures/anim-skeleton-identity.json`; `tests/animSkeletonIdentity.test.ts` asserts the
@@ -92,8 +92,8 @@ export async function runIdentity(only?: readonly string[]): Promise<IdentityFix
   const { readRig, rigNodes } = await import('../../src/operators/runtime/figure');
   const { OperatorPoser, poserSetup, RIG_JOINTS, TRS } = await import('../../src/operators/runtime/pose');
   const { parseGlb } = await import('../../src/operators/lab/glb');
-  const { STUDIO_ENTRIES } = await import('../../src/anim/studio');
-  const { newStudioDrive } = await import('../../src/anim/studioDrive');
+  const { CHAMBER_ENTRIES } = await import('../../src/anim/chamber');
+  const { newChamberDrive } = await import('../../src/anim/chamberDrive');
   const { WeaponModel, DEFAULT_WEAPON_COLORS } = await import('../../src/weapons/weaponModel');
   const { WEAPONS } = await import('../../src/weapons/weaponDefs');
 
@@ -117,8 +117,8 @@ export async function runIdentity(only?: readonly string[]): Promise<IdentityFix
   };
 
   const scenarios: Scenario[] = [];
-  // every keyed clip through the studio's drive: in place, the whole loop over the run (+ a few steps past the wrap)
-  for (const e of STUDIO_ENTRIES) {
+  // every keyed clip through the chamber's drive: in place, the whole loop over the run (+ a few steps past the wrap)
+  for (const e of CHAMBER_ENTRIES) {
     if (e.kind !== 'keyed' || !e.clip) continue;
     const steps = 48;
     scenarios.push({
@@ -126,7 +126,7 @@ export async function runIdentity(only?: readonly string[]): Promise<IdentityFix
       steps,
       setup: (hh, rig) => {
         if (e.drawn) hh.rifle(rig);
-        const d = newStudioDrive();
+        const d = newChamberDrive();
         d.clip = e.clip;
         d.inPlace = true;
         d.cycle = 40 * DT;

@@ -66,7 +66,7 @@ async function coopKnife() {
     pumping = false;
   }, 40);
   try {
-    await net.startMode('test', 'studio');
+    await net.startMode('test', 'chamber');
     for (const P of [A, B]) await knifeClipsIn(P);
     // three guards ahead of the host's spawn, facing +z (away from an attacker south of them), frozen and calm (a host
     // step hook keeps every live, untaken guard unaware and every client unspotted)
@@ -170,7 +170,7 @@ async function coopKnife() {
     await nb.close();
   }
 }
-const { browser, ctx, page, errors } = await launch({ url, params: 'autostart=studio&mode=test&ctxprompts=0' });
+const { browser, ctx, page, errors } = await launch({ url, params: 'autostart=chamber&mode=test&ctxprompts=0' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);
@@ -839,7 +839,7 @@ try {
   if (!only || 'context prompts'.includes(only)) {
     console.log('context prompts');
     await page.close();
-    const p2 = await openPage(ctx, url, 'autostart=studio&mode=test&ctxprompts=1');
+    const p2 = await openPage(ctx, url, 'autostart=chamber&mode=test&ctxprompts=1');
     await frames(p2.page, 10);
     // (knife-kills) the knife clips in before the stepped run (the hold's kill is the knife kill)
     await knifeClipsIn(p2.page);

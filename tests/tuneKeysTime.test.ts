@@ -13,7 +13,7 @@ import { keyClip, keyFrame, keyPhase, keyReadout, keyStep } from '../src/anim/ke
 import { KEY_SPAN, KEY_TIME_ID, KEY_TIMES, keyBasePos, keyRetimeRange, keyTimeOwner, keyTimeSolve, keyWarpPhase } from '../src/anim/tuneKeysTime';
 import { TUNE_EXPORT_MAGIC, tuneExport, tuneGet, tuneImport, tuneLoad, tuneResetAll, tuneSet, tuneSnapshot } from '../src/anim/tuneRegistry';
 import { tuneApplyValues, tuneValues } from '../src/anim/tuneHistory';
-import { studioKeyInfo, studioKeyPhase } from '../src/anim/studio';
+import { chamberKeyInfo, chamberKeyPhase } from '../src/anim/chamber';
 import { bakeCatalogue, tuneBake } from '../src/anim/tuneBake';
 
 const DIR = path.join(__dirname, '..', 'scripts', 'anim-keys', 'keys');
@@ -112,7 +112,7 @@ describe('item 23: the retime clamp and the mirror partner (pure)', () => {
 });
 
 describe('item 23: the live preview', () => {
-  it('a retime moves the key (and its mirror) in the readout and the studio, the pose comes along, a reset is bit-identical', () => {
+  it('a retime moves the key (and its mirror) in the readout and the chamber, the pose comes along, a reset is bit-identical', () => {
     const base = sweep(KEYED_SNEAK);
     const walk = sweep(KEYED_WALK);
     const sneak = keyClip('sneak')!;
@@ -126,11 +126,11 @@ describe('item 23: the live preview', () => {
     expect(keyPhase(sneak, 5)).toBe(33 / 48);
     expect(keyFrame(sneak, 1)).toBe(6);
     expect(keyReadout(sneak, 1)).toBe('sneak - key 2 of 8 (mirror of 6), frame 6');
-    // the studio pauses on the key at its new time and steps onto it
-    expect(studioKeyPhase('sneak', 0, 1, 0)).toBe(9 / 48);
+    // the chamber pauses on the key at its new time and steps onto it
+    expect(chamberKeyPhase('sneak', 0, 1, 0)).toBe(9 / 48);
     expect(keyStep(sneak, 0, 1)).toBe(1);
     const info = { keys: 0, key: -1, onKey: false };
-    studioKeyInfo('sneak', 9 / 48, info);
+    chamberKeyInfo('sneak', 9 / 48, info);
     expect(info.key === 1 && info.onKey).toBe(true);
     // the key's pose at its new time; the old frame now between keys
     expect(pose(KEYED_SNEAK, 9 / 48)).toEqual(atKey);

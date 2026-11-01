@@ -19,18 +19,18 @@ const coreSet = [...core, 'smoke'].sort();
 // Frozen copy of master's --quick map (scripts/run-e2e.mjs on origin/master d7a1b6c0, train 62, merged into this branch at 16f932a7): --quick must keep
 // master's picks exactly. Change it only together with a deliberate change to QUICK_COVERS.
 const MASTER_QUICK: [string, string[]][] = [
-  ['src/anim/studio', ['e2e-studio', 'anim-audit', 'e2e-anim']],
-  ['src/anim/tuneHistory', ['e2e-studio']],
-  ['src/anim/moveTune', ['e2e-studio', 'e2e-coop', 'e2e-traverse', 'e2e-anim']],
-  ['src/game/studioStage', ['e2e-studio', 'e2e-tuner-phone']],
-  ['src/player/freeView', ['e2e-tuner-phone', 'e2e-studio', 'anim-audit', 'e2e-anim', 'e2e-move']],
-  ['src/world/maps/studio.ts', ['e2e-studio']],
-  ['src/save/animTuneStore', ['e2e-studio', 'e2e-menus']],
-  ['src/ui/studio', ['e2e-studio']],
-  ['src/ui/tuneSnapshots', ['e2e-studio', 'e2e-menus']],
-  ['src/ui/overlayProject', ['e2e-studio', 'e2e-menus']],
-  ['src/ui/animTune', ['e2e-studio', 'e2e-tuner-phone', 'e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus']],
-  ['src/ui/tuner', ['e2e-studio', 'e2e-tuner-phone', 'e2e-menus']],
+  ['src/anim/chamber', ['e2e-chamber', 'anim-audit', 'e2e-anim']],
+  ['src/anim/tuneHistory', ['e2e-chamber']],
+  ['src/anim/moveTune', ['e2e-chamber', 'e2e-coop', 'e2e-traverse', 'e2e-anim']],
+  ['src/game/chamberStage', ['e2e-chamber', 'e2e-tuner-phone']],
+  ['src/player/freeView', ['e2e-tuner-phone', 'e2e-chamber', 'anim-audit', 'e2e-anim', 'e2e-move']],
+  ['src/world/maps/chamber.ts', ['e2e-chamber']],
+  ['src/save/animTuneStore', ['e2e-chamber', 'e2e-menus']],
+  ['src/ui/chamber', ['e2e-chamber']],
+  ['src/ui/tuneSnapshots', ['e2e-chamber', 'e2e-menus']],
+  ['src/ui/overlayProject', ['e2e-chamber', 'e2e-menus']],
+  ['src/ui/animTune', ['e2e-chamber', 'e2e-tuner-phone', 'e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus']],
+  ['src/ui/tuner', ['e2e-chamber', 'e2e-tuner-phone', 'e2e-menus']],
   ['src/core/quality', ['e2e-desktop', 'e2e-lightbake']],
   ['src/core/display', ['e2e-desktop']],
   ['src/core/settings', ['e2e-desktop', 'e2e-menus']],
@@ -178,7 +178,7 @@ describe('--affected: the DIRECT tier (default)', () => {
     for (const f of ['src/net/coopHost.ts', 'src/net/protocol.ts', 'src/net/coopUi.ts', 'src/save/schema.ts', 'src/save/migrations.ts', 'src/security/data.ts']) {
       expect(select([f]), f).toEqual(['e2e-coop', 'e2e-ctcourse', 'e2e-netmove', 'smoke']);
     }
-    expect(select(['src/save/animTuneStore.ts'])).toEqual(['e2e-menus', 'e2e-studio', 'smoke']);
+    expect(select(['src/save/animTuneStore.ts'])).toEqual(['e2e-chamber', 'e2e-menus', 'smoke']);
   });
 
   it('a suite script picks that suite, a helper what it serves, the runner and build files CORE', () => {
@@ -343,7 +343,7 @@ describe('affected-cap: the closest suites, at most the cap (the cases below use
     'e2e-desktop:1': 58, 'e2e-desktop:2': 37, 'e2e-desktop:3': 26, 'e2e-desktop:4': 38, 'e2e-enemies': 10, 'e2e-feedback': 8, 'e2e-gadgets': 7,
     'e2e-levels': 6, 'e2e-lightbake': 26, 'e2e-menus': 52, 'e2e-missions': 65, 'e2e-modes': 28, 'e2e-mouse': 40, 'e2e-move': 24,
     'e2e-netmove': 141, 'e2e-offline': 15, 'e2e-pad': 32, 'e2e-park': 6, 'e2e-sectorops': 43,
-    'e2e-stealth': 17, 'e2e-stealth-ai': 29, 'e2e-studio': 35,
+    'e2e-stealth': 17, 'e2e-stealth-ai': 29, 'e2e-chamber': 35,
     'e2e-tactics': 12, 'e2e-takedown': 10, 'e2e-traverse': 34, 'e2e-tuner-phone': 16, 'e2e-wall': 13, 'e2e-weapons-carry': 14, smoke: 8,
   });
   // a cap of 3 keeps the ranking visible in the picks below (the default, AFFECTED_MAX 1, takes the first of each)

@@ -1,14 +1,14 @@
 /**
- * (anim-studio) The Anim Studio's loop player drive (pure, Babylon-free; a dev aid). A drive set on one rig's graph
+ * (anim-studio) The Test Chamber's loop player drive (pure, Babylon-free; a dev aid). A drive set on one rig's graph
  * (`AnimGraph.drive`) plays a keyed clip straight onto that rig: the graph's keyed targets are replaced by the clip
  * sampled at the drive's phase (full weight, the trunk, pelvis and free arms), and in place the feet walk a treadmill
- * under the standing root (`studioFeet`), so scrub and step show the whole body. Null on every graph outside the
- * studio: the game never reads a drive.
+ * under the standing root (`chamberFeet`), so scrub and step show the whole body. Null on every graph outside the
+ * chamber: the game never reads a drive.
  *
- * - In place (`inPlace`): the studio owns the phase (advanced by the graph's dt over `cycle`, so the loop's time scale,
+ * - In place (`inPlace`): the chamber owns the phase (advanced by the graph's dt over `cycle`, so the loop's time scale,
  *   the freeze and the step all apply); the planted foot slides back under the body at `pace`, the swing foot arcs
  *   forward (the clip's duty, lift and track half width).
- * - Root motion (not in place): the body walks the studio circle by synthesised input and the clip is sampled on the
+ * - Root motion (not in place): the body walks the chamber circle by synthesised input and the clip is sampled on the
  *   graph's own gait clock (the planner's feet), so the legs and the clip agree.
  * - Mirror: the pose mirrored left / right, sampled half a cycle on (as the game's left strafe), so the feet still land
  *   on the clock (left heel strike at 0).
@@ -20,10 +20,10 @@ import { cqKeyedHold } from './cqGait';
 import { MOCAP_LAYERS } from './mocap';
 import { mocapSource } from './mocapSources';
 
-export interface StudioDrive {
+export interface ChamberDrive {
   /** The clip played (null: the drive does nothing). */
   clip: KeyedClip | null;
-  /** In place: the studio owns the phase and the treadmill feet; else the graph's gait clock and the planner's feet. */
+  /** In place: the chamber owns the phase and the treadmill feet; else the graph's gait clock and the planner's feet. */
   inPlace: boolean;
   /** (anim-studio-2) In place, the phase is set from outside each frame (a pair's one clock): the drive never advances it. */
   held: boolean;
@@ -50,7 +50,7 @@ export interface StudioDrive {
   cq: 'none' | 'still' | 'walk';
 }
 
-export function newStudioDrive(): StudioDrive {
+export function newChamberDrive(): ChamberDrive {
   return { clip: null, inPlace: true, held: false, phase: 0, cycle: 1, mirror: false, drawn: false, crouch: false, pace: 0, dirX: 0, dirZ: 1, live: 0, inL: true, inR: true, cq: 'none' };
 }
 
@@ -63,7 +63,7 @@ export function wrap01(p: number): number {
 /**
  * The graph's hook (end of `AnimGraph.update`, only when a drive is set): the clip over the targets. No allocation.
  */
-export function studioDriveTargets(d: StudioDrive, o: RigTargets, dt: number): void {
+export function chamberDriveTargets(d: ChamberDrive, o: RigTargets, dt: number): void {
   const c = d.clip;
   if (!c) return;
   if (d.inPlace) {
@@ -98,7 +98,7 @@ export function studioDriveTargets(d: StudioDrive, o: RigTargets, dt: number): v
 }
 
 /** A foot the treadmill writes (the planner's `FootState` fields it sets). */
-export interface StudioFoot {
+export interface ChamberFoot {
   x: number;
   y: number;
   z: number;
@@ -126,7 +126,7 @@ export interface TreadOut {
  * the right at 0.5; in stance the foot slides back along the travel by the stance distance (pace x cycle x duty), in
  * the swing it arcs forward (smoothstep along, the clip's lift as a half sine). No allocation.
  */
-export function treadmillFoot(d: StudioDrive, side: -1 | 1, scale: number, out: TreadOut): TreadOut {
+export function treadmillFoot(d: ChamberDrive, side: -1 | 1, scale: number, out: TreadOut): TreadOut {
   const c = d.clip;
   const duty = c ? Math.min(0.95, Math.max(0.05, c.duty)) : 0.6;
   const half = (c ? c.half : 0.08) * scale * TUNE_CUR.trackMul;
@@ -159,7 +159,7 @@ const TL: TreadOut = { x: 0, z: 0, lift: 0, contact: true, swing: -1 };
  * The rig's hook (after the foot planner, only when a drive is set): in place, the treadmill feet replace the planner's
  * under the standing root (`yaw` the root's). Off or with root motion: nothing. No allocation.
  */
-export function studioFeet(d: StudioDrive, pl: { L: StudioFoot; R: StudioFoot }, rx: number, ry: number, rz: number, yaw: number, scale: number): void {
+export function chamberFeet(d: ChamberDrive, pl: { L: ChamberFoot; R: ChamberFoot }, rx: number, ry: number, rz: number, yaw: number, scale: number): void {
   if (!d.clip || !d.inPlace) return;
   const c = Math.cos(yaw);
   const s = Math.sin(yaw);

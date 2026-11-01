@@ -121,7 +121,7 @@ export const FREE_CFG = {
   panMax: 3,
 };
 
-/** A game speed clamped to the slider's range (anything not finite: 1). (anim-studio) `max`: the studio allows 2x. */
+/** A game speed clamped to the slider's range (anything not finite: 1). (anim-studio) `max`: the chamber allows 2x. */
 export function freeTimeScale(v: number, max: number = GAME_SPEED.max): number {
   if (!Number.isFinite(v)) return 1;
   return Math.max(GAME_SPEED.min, Math.min(max, v));

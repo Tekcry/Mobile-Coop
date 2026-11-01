@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { stageLightKeep, stageLightMeshes } from '../src/anim/studio';
-import { newPairRole, pairCycle, pairPose } from '../src/anim/studioPairs';
-import { PAIR_STATION } from '../src/anim/studioTraversal';
+import { stageLightKeep, stageLightMeshes } from '../src/anim/chamber';
+import { newPairRole, pairCycle, pairPose } from '../src/anim/chamberPairs';
+import { PAIR_STATION } from '../src/anim/chamberTraversal';
 import { TEAM_MOVES } from '../src/anim/moveTune';
 import { pickLod } from '../src/operators/runtime/lodPick';
 import { LOD_0, LOD_1, LOD_2, LOD_NAMES } from '../src/operators/runtime/manifest';
 import { PLAYER_HEIGHT } from '../src/operators/runtime/playerFigure';
 
-/** (studio-pairs, AUDIT fix 12) The Anim Studio pairs: what the stage lights take, and the puppets' LOD. */
+/** (chamber-pairs, AUDIT fix 12) The Test Chamber pairs: what the stage lights take, and the puppets' LOD. */
 
-describe('anim studio pairs: the stage lights take her own meshes only', () => {
+describe('Test Chamber pairs: the stage lights take her own meshes only', () => {
   it('never an instance: its source is the shared part base, which would light every part instance (the guard)', () => {
     const base = { name: 'part-torso' };
     const base2 = { name: 'part-limbA' };
@@ -31,7 +31,7 @@ describe('anim studio pairs: the stage lights take her own meshes only', () => {
   });
 });
 
-describe('anim studio pairs: the puppets stay on one LOD through every loop', () => {
+describe('Test Chamber pairs: the puppets stay on one LOD through every loop', () => {
   // the pair view's framing camera (the N4b GPU audit's pair-boost camera: 7 m from the bounds centre, yaw 2.39)
   const CAM = { x: 14 + Math.sin(2.39) * 7, y: 2.17 + 0.5, z: 23.25 + Math.cos(2.39) * 7 };
   const ALL = (1 << LOD_0) | (1 << LOD_1) | (1 << LOD_2);
@@ -68,7 +68,7 @@ describe('anim studio pairs: the puppets stay on one LOD through every loop', ()
     expect(s.some((r) => r.n > 0)).toBe(true);
   });
 
-  it('the studio picks with no camera: LOD0 throughout, every move, both roles (only a load can change it)', () => {
+  it('the chamber picks with no camera: LOD0 throughout, every move, both roles (only a load can change it)', () => {
     const s = swaps(() => 0, ALL);
     for (const r of s) expect(r.n, r.move).toBe(0);
     // before LOD0 loads: the loaded one, held
@@ -77,14 +77,14 @@ describe('anim studio pairs: the puppets stay on one LOD through every loop', ()
   });
 });
 
-describe('anim studio pairs: a stage light list stays clean of the shared part bases (fix 12 GPU round)', () => {
+describe('Test Chamber pairs: a stage light list stays clean of the shared part bases (fix 12 GPU round)', () => {
   it('drops a pushed part base (it has instances) or instance, keeps her figure and a pushed puppet figure', () => {
     const lod0 = { name: 'wren-lod0-0' };
-    const puppet = { name: 'studio-p1-lod0-0', instances: [] as unknown[] };
+    const puppet = { name: 'chamber-p1-lod0-0', instances: [] as unknown[] };
     const guardTorso = { name: 'guard-torso' };
     // the shared torso base: the guard's torso is one of its instances
     const base = { name: 'part-torso', instances: [guardTorso] as unknown[] };
-    const inst = { name: 'studio-p1-part', sourceMesh: base };
+    const inst = { name: 'chamber-p1-part', sourceMesh: base };
     // as the N0 audit's pair rows leave it: her figure, a puppet's figure and the base it pushed for a puppet part
     const list = [lod0, puppet, base, inst];
     const out: object[] = [{ name: 'stale' }];

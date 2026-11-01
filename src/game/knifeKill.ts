@@ -163,7 +163,7 @@ let loading: Promise<void> | null = null;
 let ready = false;
 
 /** The clip modules by clip name (each its own chunk by a literal path: the knife clips, `clips/mixamo/knife/`,
- *  stay off the entry chunk; the Studio reaches them through its lazy set). */
+ *  stay off the entry chunk; the Chamber reaches them through its lazy set). */
 function loadClip(name: string): Promise<KeyedClip | null> {
   switch (name) {
     case 'mocap_stabbing':

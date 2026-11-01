@@ -1,11 +1,11 @@
 /**
- * (anim-studio) The Anim Studio's pure state (Babylon-free, no DOM; a dev aid): the loop player's list (every keyed
- * clip in `clips/keyed` and the procedural states), the studio's switches, the phase maths (speed, scrub, step), the
+ * (anim-studio) The Test Chamber's pure state (Babylon-free, no DOM; a dev aid): the loop player's list (every keyed
+ * clip in `clips/keyed` and the procedural states), the chamber's switches, the phase maths (speed, scrub, step), the
  * synthesised input of the procedural states and the rigs the viewing aids draw. The stage itself is
- * `game/studioStage.ts`, the panel `ui/studioPanel.ts`, the overlay `ui/studioOverlay.ts`.
+ * `game/chamberStage.ts`, the panel `ui/chamberPanel.ts`, the overlay `ui/chamberOverlay.ts`.
  *
- * Gameplay never reads any of this: only the studio stage (map `studio`, single player) writes the drive and reads the
- * input; leaving the studio resets it all (`studioReset`).
+ * Gameplay never reads any of this: only the chamber stage (map `chamber`, single player) writes the drive and reads the
+ * input; leaving the chamber resets it all (`chamberReset`).
  */
 import type { KeyedClip } from './keyed';
 import type { BodyGroup } from './tune';
@@ -40,26 +40,26 @@ import { KEYED_WALL_CROUCH_SLIDE } from './clips/keyed/wall_crouch_slide';
 import { KEYED_WALL_IDLE } from './clips/keyed/wall_idle';
 import { KEYED_WALL_PEEK } from './clips/keyed/wall_peek';
 import { KEYED_WALL_SLIDE } from './clips/keyed/wall_slide';
-import { wrap01 } from './studioDrive';
+import { wrap01 } from './chamberDrive';
 import { keyClip, keyCount, keyIdCount, keyNearest, keyPhase, keyStep as keyStep_ } from './keyTimeline';
 import { TEAM_MOVE_LABEL, TEAM_MOVES, TEAM_ROLE_LABEL, type TeamMoveId } from './moveTune';
-import { pairCycle } from './studioPairs';
+import { pairCycle } from './chamberPairs';
 import { KNIFE_KILL_IDS, KNIFE_KILLS } from '../game/knifeKill'; // (piano-knife S1) the knife pair rows
-import { travCycle, travEntry, TRAV_ENTRIES, type TravEntry, type TravStep } from './studioTraversal';
+import { travCycle, travEntry, TRAV_ENTRIES, type TravEntry, type TravStep } from './chamberTraversal';
 import { MOCAP_SOURCE_NAMES, MOCAP_SOURCE_WORD, mocapSource, type MocapSource } from './mocapSources';
 
-export { STUDIO_MAP_ID } from './studioMapId';
-/** The studio's speed range (the loop's time scale; above 1x only inside the studio). */
-export const STUDIO_SPEED = { min: 0.1, max: 2, step: 0.05 } as const;
+export { CHAMBER_MAP_ID } from './chamberMapId';
+/** The chamber's speed range (the loop's time scale; above 1x only inside the chamber). */
+export const CHAMBER_SPEED = { min: 0.1, max: 2, step: 0.05 } as const;
 /** The circle the moving loops walk (m), and the turntable's rates (deg / s). */
-export const STUDIO_RADIUS = 2;
+export const CHAMBER_RADIUS = 2;
 export const TURN_RATES = [10, 20, 45, 90] as const;
 
 /** Which way a clip travels in the body frame (the treadmill and the root-motion circle). */
-export type StudioMove = 'none' | 'fwd' | 'back' | 'side';
+export type ChamberMove = 'none' | 'fwd' | 'back' | 'side';
 
 /** One row of the loop player's list. */
-export interface StudioEntry {
+export interface ChamberEntry {
   /** `off`, `state:<name>`, `keyed:<clip name>`, `pair:<move>` (anim-studio-2: both roles of a co-op move, or a hold with the guard) or `trav:<move>` (a traversal loop on a prop). */
   id: string;
   label: string;
@@ -70,7 +70,7 @@ export interface StudioEntry {
   pace: number;
   /** Keyed: seconds per cycle (in place). */
   cycle: number;
-  move: StudioMove;
+  move: ChamberMove;
   /** Crouched (a state: the stance; a keyed clip: its pelvis offset is from the standing rest, the body stands). */
   crouch: boolean;
   /** The gun drawn, and raised to aim. */
@@ -80,15 +80,15 @@ export interface StudioEntry {
   circle: boolean;
   /** Keyed: a guard's clip (played on the guard figure when it is on). */
   guard: boolean;
-  /** (anim-studio-2) A co-op pair: the team move (both roles posed by `studioPairs.ts`), else null. */
+  /** (anim-studio-2) A co-op pair: the team move (both roles posed by `chamberPairs.ts`), else null. */
   team: TeamMoveId | null;
   /** (anim-studio-2) A hold pair: the guard's clip played with `clip` (Wren's hold) on one clock, else null. */
   guardClip: KeyedClip | null;
-  /** (anim-studio-2) A traversal loop (`studioTraversal.ts`), else null. */
+  /** (anim-studio-2) A traversal loop (`chamberTraversal.ts`), else null. */
   trav: TravEntry | null;
   /** (marlow-bays item 24, track A) A guard puppet's loop (`guard:<name>`: a real guard rig, no AI), else null. */
   gloop: GuardLoop | null;
-  /** (piano-knife S1) A knife kill pair: the `KNIFE_KILLS` row Wren and the guard play on one clock (`studioStage`
+  /** (piano-knife S1) A knife kill pair: the `KNIFE_KILLS` row Wren and the guard play on one clock (`chamberStage`
    *  through the game's `KillDrive` and `knifePair`); absent otherwise. */
   knife?: number;
 }
@@ -105,9 +105,9 @@ export interface GuardLoop {
   dash: boolean;
 }
 
-const off: StudioEntry = { id: 'off', label: 'off (you drive)', kind: 'off', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: null };
+const off: ChamberEntry = { id: 'off', label: 'off (you drive)', kind: 'off', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: null };
 
-function state(name: string, label: string, pace: number, move: StudioMove, crouch = false, drawn = false, aim = false): StudioEntry {
+function state(name: string, label: string, pace: number, move: ChamberMove, crouch = false, drawn = false, aim = false): ChamberEntry {
   return { id: `state:${name}`, label: `state: ${label}`, kind: 'state', clip: null, pace, cycle: 1, move, crouch, drawn, aim, circle: pace > 0, guard: false, team: null, guardClip: null, trav: null, gloop: null };
 }
 
@@ -115,7 +115,7 @@ function state(name: string, label: string, pace: number, move: StudioMove, crou
  * A keyed clip. `step` (m) the step length the clip is keyed at: in place the cycle is two steps at `pace`
  * (`cycle` = 2 step / pace); still clips give their own `cycle` (s; the one-shots their keyed length).
  */
-function keyed(clip: KeyedClip, o: { pace?: number; step?: number; cycle?: number; move?: StudioMove; crouch?: boolean; drawn?: boolean; aim?: boolean; circle?: boolean; guard?: boolean }): StudioEntry {
+function keyed(clip: KeyedClip, o: { pace?: number; step?: number; cycle?: number; move?: ChamberMove; crouch?: boolean; drawn?: boolean; aim?: boolean; circle?: boolean; guard?: boolean }): ChamberEntry {
   const pace = o.pace ?? 0;
   const cycle = o.cycle ?? (pace > 0 && o.step ? (2 * o.step) / pace : 4);
   return {
@@ -138,8 +138,8 @@ function keyed(clip: KeyedClip, o: { pace?: number; step?: number; cycle?: numbe
   };
 }
 
-/** (anim-studio-2) A co-op pair: both roles of a team move on one clock (`studioPairs.ts`). */
-function teamPair(m: TeamMoveId): StudioEntry {
+/** (anim-studio-2) A co-op pair: both roles of a team move on one clock (`chamberPairs.ts`). */
+function teamPair(m: TeamMoveId): ChamberEntry {
   return { id: `pair:${m}`, label: `pair: ${TEAM_MOVE_LABEL[m].replace('Co-op: ', '')} (${TEAM_ROLE_LABEL[m][0]}, ${TEAM_ROLE_LABEL[m][1]})`, kind: 'pair', clip: null, pace: 0, cycle: pairCycle(m), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: m, guardClip: null, trav: null, gloop: null };
 }
 
@@ -148,18 +148,18 @@ export const KNIFE_PAIR_REST = 0.5;
 
 /** (piano-knife S1) A knife kill pair (`pair:knife_<id>`): Wren and a guard through the game's kill drive and pairing
  *  (the real Mixamo pairs since piano-knife S2), the knife shown, looping with `KNIFE_PAIR_REST`. For the look video. */
-function knifePair(k: number): StudioEntry {
+function knifePair(k: number): ChamberEntry {
   const id = KNIFE_KILL_IDS[k]!;
   return { id: `pair:knife_${id}`, label: `pair: knife ${id}`, kind: 'pair', clip: null, pace: 0, cycle: KNIFE_KILLS[k]!.seconds + KNIFE_PAIR_REST, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: null, knife: k };
 }
 
 /** (anim-studio-2) A hold pair: Wren's hold clip and the guard's clip in place on one clock (Wren's keyed cycle). */
-function holdPair(name: string, wren: StudioEntry, guard: StudioEntry): StudioEntry {
+function holdPair(name: string, wren: ChamberEntry, guard: ChamberEntry): ChamberEntry {
   return { ...wren, id: `pair:${name}`, label: `pair: ${wren.clip!.name} + ${guard.clip!.name}`, kind: 'pair', circle: false, guard: false, team: null, guardClip: guard.clip, trav: null, gloop: null };
 }
 
 /** (anim-studio-2) A traversal loop on a prop. */
-function travel(t: TravEntry): StudioEntry {
+function travel(t: TravEntry): ChamberEntry {
   return { id: t.id, label: t.label, kind: 'trav', clip: null, pace: 0, cycle: travCycle(t), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: t, gloop: null };
 }
 
@@ -167,7 +167,7 @@ function travel(t: TravEntry): StudioEntry {
  * The loop player's list: off, the procedural states (synthesised input, on the circle), then every keyed clip of
  * `clips/keyed` (sampled straight onto the rig). Paces and step lengths from the clips' notes (scripts/anim-keys/keys).
  */
-const BASE_ENTRIES: readonly StudioEntry[] = [
+const BASE_ENTRIES: readonly ChamberEntry[] = [
   off,
   state('idle', 'idle', 0, 'none'),
   state('walk', 'walk', 1.4, 'fwd'),
@@ -212,10 +212,10 @@ const BASE_ENTRIES: readonly StudioEntry[] = [
   keyed(KEYED_GUARD_HELD_STUMBLE, { pace: 0.8, step: 0.26, move: 'back', guard: true }),
   keyed(KEYED_GUARD_CHOKE_SAG, { cycle: 5.5, guard: true }),
   keyed(KEYED_GUARD_KNIFE_COLLAPSE, { cycle: 3, guard: true }),
-  keyed(KEYED_SKELETON_TEST, { cycle: 2 }), // (anim-skeleton S3b) studio only: clavicles, fingers, an FK leg kick
+  keyed(KEYED_SKELETON_TEST, { cycle: 2 }), // (anim-skeleton S3b) chamber only: clavicles, fingers, an FK leg kick
 ];
 
-function base(id: string): StudioEntry {
+function base(id: string): ChamberEntry {
   return BASE_ENTRIES.find((e) => e.id === id)!;
 }
 
@@ -224,7 +224,7 @@ function base(id: string): StudioEntry {
  * / M4 generate them), found by file (`import.meta.glob`, as `tuneKeys.ts` finds the keyed clips), so a new module needs
  * only its row in `mocapSources.ts` to show in the loop list. Keyed clips only (a channel clip plays through its prop).
  * (mixamo-retarget I9 fix round) Batch 1, I4 and I6 load eagerly (the game imports them by path); batch 2's modules,
- * which no game code names, come in one lazy chunk when the Studio opens (`loadStudioCaptures`, `studioCapturesLazy.ts`).
+ * which no game code names, come in one lazy chunk when the Chamber opens (`loadChamberCaptures`, `chamberCapturesLazy.ts`).
  */
 const CAPTURE_CLIPS = new Map<string, KeyedClip>();
 function addCaptures(mods: readonly Record<string, unknown>[]): void {
@@ -236,7 +236,7 @@ function addCaptures(mods: readonly Record<string, unknown>[]): void {
   }
 }
 const MOCAP_MODS = import.meta.glob('./clips/mocap/*.ts', { eager: true });
-// the lazy set's file names negated (studioCapturesLazy.ts holds the same list)
+// the lazy set's file names negated (chamberCapturesLazy.ts holds the same list)
 const MIXAMO_EAGER_MODS = import.meta.glob(
   [
     './clips/mixamo/*.ts',
@@ -284,14 +284,14 @@ const CAPTURE_STEPS: Readonly<Record<string, readonly TravStep[]>> = {
  * (M5) The loop list's "motion capture" group: one loop per source row (table order: CMU, then Mixamo) whose clip is
  * found. A keyed capture through `keyed()` (in place on the treadmill at its own pace: its stride over its cycle), a
  * channel capture as its prop's traversal loop under its own id (`trav:<loop>/<slug>`): the game's traversal plays it
- * there. (I2) Choosing the loop picks its capture (`studioStage.ts` -> `mixamoStudioEntry`): it plays in its slot on
- * the Studio's Wren whatever the `?mixamo` flag says; leaving the loop or the Studio clears the pick.
+ * there. (I2) Choosing the loop picks its capture (`chamberStage.ts` -> `mixamoChamberEntry`): it plays in its slot on
+ * the Chamber's Wren whatever the `?mixamo` flag says; leaving the loop or the Chamber clears the pick.
  */
-function captureEntries(): StudioEntry[] {
-  const out: StudioEntry[] = [];
+function captureEntries(): ChamberEntry[] {
+  const out: ChamberEntry[] = [];
   for (const name of MOCAP_SOURCE_NAMES) {
     const r = mocapSource(name)!;
-    const st = r.studio;
+    const st = r.chamber;
     if (st.kind === 'keyed') {
       const clip = CAPTURE_CLIPS.get(name);
       if (!clip) continue;
@@ -316,29 +316,29 @@ function captureEntries(): StudioEntry[] {
   }
   return out;
 }
-const CAPTURE_ENTRIES: readonly StudioEntry[] = captureEntries();
-/** (I9 fix round) How many capture loops `STUDIO_ENTRIES` holds now (they sit right after `BASE_ENTRIES`). */
+const CAPTURE_ENTRIES: readonly ChamberEntry[] = captureEntries();
+/** (I9 fix round) How many capture loops `CHAMBER_ENTRIES` holds now (they sit right after `BASE_ENTRIES`). */
 let captureCount = CAPTURE_ENTRIES.length;
 let lazyCaptures: Promise<void> | null = null;
 let lazyLoaded = false;
 
-/** (I9 fix round) The lazy captures are in (`loadStudioCaptures` finished). */
-export function studioCapturesLoaded(): boolean {
+/** (I9 fix round) The lazy captures are in (`loadChamberCaptures` finished). */
+export function chamberCapturesLoaded(): boolean {
   return lazyLoaded;
 }
 
 /**
- * (mixamo-retarget I9 fix round) Loads the captures no game code names (batch 2: `studioCapturesLazy.ts`) as one chunk,
+ * (mixamo-retarget I9 fix round) Loads the captures no game code names (batch 2: `chamberCapturesLazy.ts`) as one chunk,
  * once, then refills the loop list's motion-capture group in table order (an entry already listed keeps its object).
- * Called when the Studio opens (the stage and the panel); off the frame loop: the fill runs once, in the import's
+ * Called when the Chamber opens (the stage and the panel); off the frame loop: the fill runs once, in the import's
  * callback. Later calls return the same promise, unless the load failed (the next call tries again). The promise always
- * resolves; `studioCapturesLoaded()` says whether the captures are in.
+ * resolves; `chamberCapturesLoaded()` says whether the captures are in.
  */
-export function loadStudioCaptures(): Promise<void> {
+export function loadChamberCaptures(): Promise<void> {
   if (!lazyCaptures) {
-    lazyCaptures = import('./studioCapturesLazy').then((m) => {
+    lazyCaptures = import('./chamberCapturesLazy').then((m) => {
       addCaptures(m.LAZY_CAPTURE_MODULES);
-      const had = new Map<string, StudioEntry>();
+      const had = new Map<string, ChamberEntry>();
       for (let i = 0; i < captureCount; i++) {
         const e = ENTRIES[BASE_ENTRIES.length + i]!;
         had.set(e.id, e);
@@ -348,20 +348,20 @@ export function loadStudioCaptures(): Promise<void> {
       captureCount = next.length;
       lazyLoaded = true;
     }, (e: unknown) => {
-      // (I9 polish) a failed chunk is not cached: the next Studio open asks again
+      // (I9 polish) a failed chunk is not cached: the next Chamber open asks again
       lazyCaptures = null;
-      console.warn(`Anim Studio: the batch 2 captures did not load (${e instanceof Error ? e.message : String(e)}); opening the Studio again retries`);
+      console.warn(`Test Chamber: the batch 2 captures did not load (${e instanceof Error ? e.message : String(e)}); opening the Chamber again retries`);
     });
   }
   return lazyCaptures;
 }
 
 /**
- * (I9 polish) Calls `refill` once the lazy captures are in, also when they already are (the panel's first Studio sync
+ * (I9 polish) Calls `refill` once the lazy captures are in, also when they already are (the panel's first Chamber sync
  * always refills, so a chunk that landed before it is never missed), or `failed` when the load failed.
  */
-export function whenStudioCaptures(refill: () => void, failed: () => void): Promise<void> {
-  return loadStudioCaptures().then(() => (lazyLoaded ? refill() : failed()));
+export function whenChamberCaptures(refill: () => void, failed: () => void): Promise<void> {
+  return loadChamberCaptures().then(() => (lazyLoaded ? refill() : failed()));
 }
 
 /** (item 24, track A) The guard puppet's paces (m/s): the grunt's walk x the patrol / investigate paces, its run. */
@@ -371,9 +371,9 @@ export const GUARD_PACE = { patrol: 0.99, alert: 1.08, run: 3.2 } as const;
  * The loop player's list: off, the procedural states, every keyed clip, (mixamo-retarget M5) the motion captures (CMU and
  * Mixamo, the source in each label), then (anim-studio-2) the pairs (each co-op team move with both operators, the holds
  * with the guard) and the traversal loops on the props.
- * (I9 fix round) The lazy captures join the motion-capture group in place when they load (`loadStudioCaptures`).
+ * (I9 fix round) The lazy captures join the motion-capture group in place when they load (`loadChamberCaptures`).
  */
-const ENTRIES: StudioEntry[] = [
+const ENTRIES: ChamberEntry[] = [
   ...BASE_ENTRIES,
   ...CAPTURE_ENTRIES,
   ...TEAM_MOVES.map(teamPair),
@@ -392,20 +392,20 @@ const ENTRIES: StudioEntry[] = [
   guardLoop('crouchAim', 'crouched aim', { speed: 0, aim: 1, crouch: true, wall: false, dash: false }),
   guardLoop('cover', 'wall cover', { speed: 0, aim: 1, crouch: false, wall: true, dash: false }),
 ];
-export const STUDIO_ENTRIES: readonly StudioEntry[] = ENTRIES;
+export const CHAMBER_ENTRIES: readonly ChamberEntry[] = ENTRIES;
 
 /** (item 24, track A) A guard puppet's loop: on the guard rig, on the spot (no key table: frames 0). Wren gets no input
  *  (she stands by, hidden): the loop's own stance is in `gloop`. */
-function guardLoop(name: string, label: string, g: GuardLoop): StudioEntry {
+function guardLoop(name: string, label: string, g: GuardLoop): ChamberEntry {
   return { id: `guard:${name}`, label: `guard: ${label}`, kind: 'guard', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: g };
 }
 
-/** (anim-n4b) Wren's hold clips that take the game's close-quarters layer on their keyed trunk (studioDrive `cq`): the
+/** (anim-n4b) Wren's hold clips that take the game's close-quarters layer on their keyed trunk (chamberDrive `cq`): the
  *  still hold braces, the hold walks counter-rotate. The choke and the knife are moves of their own (none). */
 const CQ_CLIPS: Readonly<Record<string, 'still' | 'walk'>> = { hold_idle: 'still', hold_fwd: 'walk', hold_back: 'walk', hold_side: 'walk' };
 
 /** (anim-n4b) The close-quarters layer an entry's clip of Wren's takes ('none': not a hold clip, or a guard's). */
-export function studioCq(e: StudioEntry): 'none' | 'still' | 'walk' {
+export function chamberCq(e: ChamberEntry): 'none' | 'still' | 'walk' {
   return e.clip && !e.guard ? (CQ_CLIPS[e.clip.name] ?? 'none') : 'none';
 }
 
@@ -424,7 +424,7 @@ export interface HoldTravel {
  * `phase`: the pace x the cycle time over the cycles done and this one (a wrap of the phase counts a cycle; a scrub back
  * over the wrap takes one off). 0 for any other entry. No allocation.
  */
-export function holdPairTravel(e: StudioEntry, phase: number, s: HoldTravel): number {
+export function holdPairTravel(e: ChamberEntry, phase: number, s: HoldTravel): number {
   if (e.kind !== 'pair' || e.team || !e.clip || e.pace <= 0) {
     s.n = 0;
     s.last = phase;
@@ -436,15 +436,15 @@ export function holdPairTravel(e: StudioEntry, phase: number, s: HoldTravel): nu
   return e.pace * e.cycle * (s.n + phase);
 }
 
-export function studioEntry(id: string): StudioEntry {
+export function chamberEntry(id: string): ChamberEntry {
   // a plain loop: called every fixed step and frame (no closure allocation)
-  for (let i = 0; i < STUDIO_ENTRIES.length; i++) if (STUDIO_ENTRIES[i]!.id === id) return STUDIO_ENTRIES[i]!;
+  for (let i = 0; i < CHAMBER_ENTRIES.length; i++) if (CHAMBER_ENTRIES[i]!.id === id) return CHAMBER_ENTRIES[i]!;
   return off;
 }
 
-/** (marlow-bays T1a, item 19) The studio's gun pick for every armed loop. */
-export type StudioWeapon = 'rifle' | 'pistol';
-export const STUDIO_WEAPONS: readonly StudioWeapon[] = ['rifle', 'pistol'];
+/** (marlow-bays T1a, item 19) The chamber's gun pick for every armed loop. */
+export type ChamberWeapon = 'rifle' | 'pistol';
+export const CHAMBER_WEAPONS: readonly ChamberWeapon[] = ['rifle', 'pistol'];
 
 /** The tuner's body state of each hand-keyed clip of Wren (the Keyed box's clip, a hold pair's clip). */
 const HAND_CLIP_BODY: Readonly<Record<string, BodyGroup>> = {
@@ -474,19 +474,19 @@ const HAND_CLIP_BODY: Readonly<Record<string, BodyGroup>> = {
   hold_knife: 'hold',
 };
 
-/** (mixamo-retarget M5) Each keyed capture's body state: its source row's `studio.body` (the state the game plays it in). */
+/** (mixamo-retarget M5) Each keyed capture's body state: its source row's `chamber.body` (the state the game plays it in). */
 function captureClipBody(): Record<string, BodyGroup> {
   const out: Record<string, BodyGroup> = {};
   for (const name of MOCAP_SOURCE_NAMES) {
-    const st = mocapSource(name)!.studio;
+    const st = mocapSource(name)!.chamber;
     if (st.kind === 'keyed') out[name] = st.body;
   }
   return out;
 }
 
 /**
- * The tuner's body state of each keyed clip Wren plays in the Studio: the hand-keyed clips, then (M5) every keyed capture,
- * so the Studio pins the state the game plays it in and the rows that tune it in the game show.
+ * The tuner's body state of each keyed clip Wren plays in the Chamber: the hand-keyed clips, then (M5) every keyed capture,
+ * so the Chamber pins the state the game plays it in and the rows that tune it in the game show.
  */
 export const CLIP_BODY: Readonly<Record<string, BodyGroup>> = { ...HAND_CLIP_BODY, ...captureClipBody() };
 
@@ -495,24 +495,24 @@ export const CLIP_BODY: Readonly<Record<string, BodyGroup>> = { ...HAND_CLIP_BOD
  * of hers (and a hold pair) its own state, so the panel's sliders for that state reach the clip (on the spot the pose
  * has no speed and alone would pick `idle`). A guard clip ('' : Wren stands by) and the procedural states are not pinned.
  */
-export function studioBodyPin(e: StudioEntry): BodyGroup | '' {
+export function chamberBodyPin(e: ChamberEntry): BodyGroup | '' {
   if (e.guard || !e.clip || e.team || (e.kind !== 'keyed' && e.kind !== 'pair')) return '';
   return CLIP_BODY[e.clip.name] ?? '';
 }
 
 /** (T1a) The weapon class a loop wants in hand ('' : holstered loops keep whatever is selected). */
-export function studioWeaponFor(e: StudioEntry, weapon: StudioWeapon): string {
+export function chamberWeaponFor(e: ChamberEntry, weapon: ChamberWeapon): string {
   return e.drawn ? weapon : '';
 }
 
 /** Front / side / top / back camera snaps (free-view orbit presets). */
-export type StudioSnap = 'front' | 'side' | 'back' | 'top';
+export type ChamberSnap = 'front' | 'side' | 'back' | 'top';
 
 /**
- * The studio's switches (written by the panel, read by the stage each frame). `seek` (NaN: none) and `step` (0: none)
+ * The chamber's switches (written by the panel, read by the stage each frame). `seek` (NaN: none) and `step` (0: none)
  * are requests the stage takes once. `phase` / `frames` are written back by the stage for the readout.
  */
-export const STUDIO = {
+export const CHAMBER = {
   active: false,
   entry: 'state:idle',
   mirror: false,
@@ -535,7 +535,7 @@ export const STUDIO = {
   seekKey: -1,
   keyStep: 0,
   /** (T1a, item 19) The gun every armed loop plays with ('rifle' or 'pistol'). */
-  weapon: 'rifle' as StudioWeapon,
+  weapon: 'rifle' as ChamberWeapon,
   /** Readout: the phase the pose shows (0..1) and the clip's frame count (0: a procedural state). */
   phase: 0,
   frames: 0,
@@ -552,43 +552,43 @@ export const STUDIO = {
   compareVer: 0,
 };
 
-const DEFAULTS = { ...STUDIO };
+const DEFAULTS = { ...CHAMBER };
 
 /**
  * (anim-studio-2) What a pair or a traversal loop is doing (written by the stage; the panel's readout and the test hooks):
  * each role's team state and tuner group, the contact weight, the clock each rig was posed at; the loop's phase, step,
  * count and the attach state Wren is in.
  */
-export const STUDIO_PAIR = { aState: 'none', bState: 'none', aGroup: '', bGroup: '', k: 0, tA: 0, tB: 0, cycle: 0, ay: 0, by: 0, rigs: 0, travPhase: '', travStep: 0, travLoops: 0, attach: '', traverse: '' };
-const PAIR_DEFAULTS = { ...STUDIO_PAIR };
+export const CHAMBER_PAIR = { aState: 'none', bState: 'none', aGroup: '', bGroup: '', k: 0, tA: 0, tB: 0, cycle: 0, ay: 0, by: 0, rigs: 0, travPhase: '', travStep: 0, travLoops: 0, attach: '', traverse: '' };
+const PAIR_DEFAULTS = { ...CHAMBER_PAIR };
 
-/** Leaving the studio: every switch back to its default (inactive). */
-export function studioReset(): void {
-  // (T1a) the gun pick is kept across studio visits, as the stage light
-  const weapon = STUDIO.weapon;
-  Object.assign(STUDIO, DEFAULTS);
-  STUDIO.weapon = weapon;
-  Object.assign(STUDIO_PAIR, PAIR_DEFAULTS);
-  STUDIO_RIGS.length = 0;
-  STUDIO_TARGET.rig = null;
-  STUDIO_TARGET.clip = null;
-  STUDIO_TARGET.drive = null;
+/** Leaving the chamber: every switch back to its default (inactive). */
+export function chamberReset(): void {
+  // (T1a) the gun pick is kept across chamber visits, as the stage light
+  const weapon = CHAMBER.weapon;
+  Object.assign(CHAMBER, DEFAULTS);
+  CHAMBER.weapon = weapon;
+  Object.assign(CHAMBER_PAIR, PAIR_DEFAULTS);
+  CHAMBER_RIGS.length = 0;
+  CHAMBER_TARGET.rig = null;
+  CHAMBER_TARGET.clip = null;
+  CHAMBER_TARGET.drive = null;
 }
 
-/** A clamped studio speed (anything not finite: 1). */
-export function studioSpeed(v: number): number {
+/** A clamped chamber speed (anything not finite: 1). */
+export function chamberSpeed(v: number): number {
   if (!Number.isFinite(v)) return 1;
-  return Math.max(STUDIO_SPEED.min, Math.min(STUDIO_SPEED.max, v));
+  return Math.max(CHAMBER_SPEED.min, Math.min(CHAMBER_SPEED.max, v));
 }
 
 /** The phase after `dt` s at `speed` x over a `cycle` s loop (wrapped 0..1). */
-export function studioAdvance(phase: number, dt: number, cycle: number, speed = 1): number {
+export function chamberAdvance(phase: number, dt: number, cycle: number, speed = 1): number {
   if (!(cycle > 0) || !(dt > 0)) return wrap01(phase);
   return wrap01(phase + (dt * speed) / cycle);
 }
 
 /** One key back (-1) or forward (+1): onto the next key of `frames`, wrapping (between keys: to the nearer one first). */
-export function studioStepPhase(phase: number, frames: number, dir: number): number {
+export function chamberStepPhase(phase: number, frames: number, dir: number): number {
   if (!(frames > 0)) return wrap01(phase);
   const f = wrap01(phase) * frames;
   const at = Math.abs(f - Math.round(f)) < 1e-6 ? Math.round(f) : dir > 0 ? Math.floor(f) : Math.ceil(f);
@@ -597,7 +597,7 @@ export function studioStepPhase(phase: number, frames: number, dir: number): num
 }
 
 /** A scrub position (any number) as a phase 0..1 (1 stays the last instant before the wrap). */
-export function studioScrub(v: number): number {
+export function chamberScrub(v: number): number {
   if (!Number.isFinite(v)) return 0;
   return Math.max(0, Math.min(0.9999, v));
 }
@@ -606,7 +606,7 @@ export function studioScrub(v: number): number {
  * (marlow-bays T1a, item 15) A keyed clip's key request: the phase of key `seekKey` (>= 0), else of the next key back /
  * forward (`keyStep` -1 / 1) from `phase`; NaN when there is nothing to do (no request, or a clip with no key table).
  */
-export function studioKeyPhase(clip: string, phase: number, seekKey: number, keyStep: number): number {
+export function chamberKeyPhase(clip: string, phase: number, seekKey: number, keyStep: number): number {
   const c = keyClip(clip);
   if (!c) return Number.NaN;
   if (seekKey >= 0) return keyPhase(c, Math.min(seekKey, keyIdCount(c) - 1)); // (item 25) a key id (added keys after the originals)
@@ -615,7 +615,7 @@ export function studioKeyPhase(clip: string, phase: number, seekKey: number, key
 }
 
 /** (T1a) The readout's key fields for a keyed clip at `phase` (no key table: 0 keys, key -1). No allocation. */
-export function studioKeyInfo(clip: string, phase: number, out: { keys: number; key: number; onKey: boolean }): void {
+export function chamberKeyInfo(clip: string, phase: number, out: { keys: number; key: number; onKey: boolean }): void {
   const c = clip ? keyClip(clip) : null;
   if (!c) {
     out.keys = 0;
@@ -631,13 +631,13 @@ export function studioKeyInfo(clip: string, phase: number, out: { keys: number; 
 }
 
 /** The key nearest a phase (0..frames-1). */
-export function studioKey(phase: number, frames: number): number {
+export function chamberKey(phase: number, frames: number): number {
   if (!(frames > 0)) return 0;
   return Math.round(wrap01(phase) * frames) % frames;
 }
 
 /** The synthesised input of a loop (per fixed step). */
-export interface StudioInputOut {
+export interface ChamberInputOut {
   /** Stick in the game camera's frame (x right, y forward). */
   x: number;
   y: number;
@@ -653,9 +653,9 @@ export interface StudioInputOut {
  * camera turns at pace / radius, so the heading follows the circle; aimed, the body keeps facing the view); a keyed
  * clip with root motion walks the circle at its pace standing (its own pelvis offset gives the crouch), in place it
  * stands. (tuner-ui) `spot`: a state loops on the spot, the stick in a straight line with no camera turn (the stage
- * holds the root, `studioSpot`). No allocation.
+ * holds the root, `chamberSpot`). No allocation.
  */
-export function studioInput(e: StudioEntry, rootMotion: boolean, out: StudioInputOut, spot = false): StudioInputOut {
+export function chamberInput(e: ChamberEntry, rootMotion: boolean, out: ChamberInputOut, spot = false): ChamberInputOut {
   out.x = out.y = out.turn = 0;
   out.ads = e.aim;
   out.drawn = e.drawn;
@@ -666,12 +666,12 @@ export function studioInput(e: StudioEntry, rootMotion: boolean, out: StudioInpu
   const mag = stickMagFor(e.pace, crouched);
   if (e.move === 'side') out.x = mag;
   else out.y = e.move === 'back' ? -mag : mag;
-  out.turn = spot && e.kind === 'state' ? 0 : e.pace / STUDIO_RADIUS;
+  out.turn = spot && e.kind === 'state' ? 0 : e.pace / CHAMBER_RADIUS;
   return out;
 }
 
 /** (tuner-ui) A state that loops on the spot (a moving state with `spot` on): the stage holds its root. */
-export function studioSpot(e: StudioEntry, spot: boolean): boolean {
+export function chamberSpot(e: ChamberEntry, spot: boolean): boolean {
   return spot && e.kind === 'state' && e.pace > 0;
 }
 
@@ -683,29 +683,29 @@ export function spotShift(px: number, pz: number, ax: number, az: number, out: {
 }
 
 /** A joint the overlay reads (a Babylon TransformNode, loosely typed). */
-export interface StudioJoint {
+export interface ChamberJoint {
   getAbsolutePosition(): { x: number; y: number; z: number };
 }
 /** A rig the viewing aids draw (a CharacterRig, loosely typed: no Babylon here). */
-export interface StudioRigView {
-  bones(): [StudioJoint, StudioJoint][];
+export interface ChamberRigView {
+  bones(): [ChamberJoint, ChamberJoint][];
   readonly root: { position: { x: number; y: number; z: number }; rotation: { y: number } };
   readonly planner: { L: { x: number; y: number; z: number; contact: boolean }; R: { x: number; y: number; z: number; contact: boolean } };
 }
 /** The rigs on the stage (Wren first, then the guard figure when on). Written by the stage. */
-export const STUDIO_RIGS: StudioRigView[] = [];
+export const CHAMBER_RIGS: ChamberRigView[] = [];
 /** The rig the loop player drives now, its clip and its drive (null: none), for the onion skin: `drive.live` is the
  *  phase the rig was posed at this frame. Written by the stage. */
-export const STUDIO_TARGET: { rig: StudioRigView | null; clip: KeyedClip | null; drive: { readonly live: number } | null } = { rig: null, clip: null, drive: null };
+export const CHAMBER_TARGET: { rig: ChamberRigView | null; clip: KeyedClip | null; drive: { readonly live: number } | null } = { rig: null, clip: null, drive: null };
 
 /**
- * (marlow-bays slice T, item 14) The studio's stage lights: a three-point rig (key, fill, rim) and a soft top light for
- * ambient that follow Wren (her root and her facing), so she stays lit as she moves. Rendering only, the studio only:
- * the game's light registry, the light field and the bake never see them. `STUDIO_LIGHT.scale` is the View tab's "Stage
- * light" slider (0 off .. 2; 1 the default, bright), kept across studio visits (not reset with the switches) and saved
+ * (marlow-bays slice T, item 14) The chamber's stage lights: a three-point rig (key, fill, rim) and a soft top light for
+ * ambient that follow Wren (her root and her facing), so she stays lit as she moves. Rendering only, the chamber only:
+ * the game's light registry, the light field and the bake never see them. `CHAMBER_LIGHT.scale` is the View tab's "Stage
+ * light" slider (0 off .. 2; 1 the default, bright), kept across chamber visits (not reset with the switches) and saved
  * with the tuner's own settings.
  */
-export const STUDIO_LIGHT = { scale: 1 };
+export const CHAMBER_LIGHT = { scale: 1 };
 export const STAGE_LIGHT_RANGE = { min: 0, max: 2, step: 0.05, def: 1 } as const;
 
 export interface StageLightDef {
@@ -756,7 +756,7 @@ export function stageViewYaw(rx: number, rz: number, cx: number, cz: number, fal
 }
 
 /**
- * (studio-pairs, AUDIT fix 12) The meshes the stage lights take, from her root's meshes (`ms`): her own, each once, never
+ * (chamber-pairs, AUDIT fix 12) The meshes the stage lights take, from her root's meshes (`ms`): her own, each once, never
  * an instance. An instance is drawn with its source's lights, and the source of a part instance is the world's shared
  * part base (`PartLibrary`): in the include list it lit every part instance in the scene. Her rig's parts are hidden
  * instances (her figure draws her), so the hold pair's guard (a parts rig in light grey cloth) took the four lights
@@ -770,12 +770,12 @@ export function stageLightMeshes<T extends object>(ms: readonly T[], out: T[]): 
 }
 
 /**
- * (studio-pairs, AUDIT fix 12 GPU round) A stage light's include list kept clean: every mesh of `list` except a shared
+ * (chamber-pairs, AUDIT fix 12 GPU round) A stage light's include list kept clean: every mesh of `list` except a shared
  * part base (a mesh with instances) or an instance, into `out` (cleared); true when one was dropped. Her own list
  * (`stageLightMeshes`) never holds one, but the list is a live array other code can push into: the N0 audit's pair
  * rows push each puppet mesh's `sourceMesh ?? mesh`, the shared part bases, and the list was only rewritten when her
  * mesh count changed, so the bases stayed through the hold rows that followed and lit the hold pair's guard (and her
- * slung gun) white. The studio drops them on its once-a-second check; anything else pushed (a puppet's figure) stays.
+ * slung gun) white. The chamber drops them on its once-a-second check; anything else pushed (a puppet's figure) stays.
  */
 export function stageLightKeep<T extends object>(list: readonly T[], out: T[]): boolean {
   out.length = 0;
@@ -793,12 +793,12 @@ export function stageLightKeep<T extends object>(list: readonly T[], out: T[]): 
  * list's animation-set filter: `all` (the whole list), `hand` (every loop that is not a capture), `cmu` / `mixamo`
  * (the captures of that source: `mocapSources.ts`). Separate from the in-game Animation source (`animSource.ts`).
  */
-export type StudioSet = 'all' | 'hand' | 'cmu' | 'mixamo';
-export const STUDIO_SETS: readonly StudioSet[] = ['all', 'hand', 'cmu', 'mixamo'];
-export const STUDIO_SET_LABEL: Readonly<Record<StudioSet, string>> = { all: 'All', hand: 'Hand-made', cmu: 'CMU', mixamo: 'Mixamo' };
+export type ChamberSet = 'all' | 'hand' | 'cmu' | 'mixamo';
+export const CHAMBER_SETS: readonly ChamberSet[] = ['all', 'hand', 'cmu', 'mixamo'];
+export const CHAMBER_SET_LABEL: Readonly<Record<ChamberSet, string>> = { all: 'All', hand: 'Hand-made', cmu: 'CMU', mixamo: 'Mixamo' };
 
 /** A loop's set: a keyed capture (`keyed:mocap_<x>`) or a traversal capture (`trav:<loop>/<slug>`) by its source row, else hand-made. */
-export function studioEntrySet(id: string): Exclude<StudioSet, 'all'> {
+export function chamberEntrySet(id: string): Exclude<ChamberSet, 'all'> {
   const m = /^keyed:(mocap_.+)$/.exec(id) ?? /^trav:[^/]+\/(.+)$/.exec(id);
   if (!m) return 'hand';
   const r = mocapSource(m[1]!.startsWith('mocap_') ? m[1]! : `mocap_${m[1]!}`);
@@ -806,8 +806,8 @@ export function studioEntrySet(id: string): Exclude<StudioSet, 'all'> {
 }
 
 /** The Loop list's ids in a set (list order). */
-export function studioEntriesOf(set: StudioSet): string[] {
+export function chamberEntriesOf(set: ChamberSet): string[] {
   const out: string[] = [];
-  for (const e of STUDIO_ENTRIES) if (set === 'all' || studioEntrySet(e.id) === set) out.push(e.id);
+  for (const e of CHAMBER_ENTRIES) if (set === 'all' || chamberEntrySet(e.id) === set) out.push(e.id);
   return out;
 }

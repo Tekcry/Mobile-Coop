@@ -32,14 +32,14 @@ describe('tuner v3: the keyed-clip effect table', () => {
   }, 300000);
 
   it('names why a slider does nothing now, and the state of a group', () => {
-    // (tuner-clarity S3) plain reasons (BRIEF A2; "Keyed" names the Anim Studio's box)
-    expect(sliderEffect('body', 'jog', 'strideMul', 'keyed')).toBe('Only when she really moves: untick Keyed in the Anim Studio to see it');
+    // (tuner-clarity S3) plain reasons (BRIEF A2; "Keyed" names the Test Chamber's box)
+    expect(sliderEffect('body', 'jog', 'strideMul', 'keyed')).toBe('Only when she really moves: untick Keyed in the Test Chamber to see it');
     expect(sliderEffect('body', 'jog', 'strideMul', 'procedural')).toBe('');
-    expect(sliderEffect('body', 'jog', 'armSwingMul', 'procedural')).toBe('Only on the clip on the spot: tick Keyed in the Anim Studio to see it');
+    expect(sliderEffect('body', 'jog', 'armSwingMul', 'procedural')).toBe('Only on the clip on the spot: tick Keyed in the Test Chamber to see it');
     expect(sliderEffect('body', 'jog', 'armSwingMul', 'keyed')).toBe('');
     expect(sliderEffect('body', 'jog', 'armSwingGrow', 'keyed')).toBe('Does nothing on the clip on the spot');
     expect(sliderEffect('body', 'jog', 'armSwingGrow', 'armed')).toBe('Does nothing in this move');
-    for (const r of Object.values(EFFECT_REASONS)) expect(r.replace(/\bKeyed in the Anim Studio\b/g, '')).not.toMatch(/procedural|keyed|mocap/i);
+    for (const r of Object.values(EFFECT_REASONS)) expect(r.replace(/\bKeyed in the Test Chamber\b/g, '')).not.toMatch(/procedural|keyed|mocap/i);
     expect(sliderEffect('joint', 'joint.jog', 'elbowR_x', 'keyed')).toBe('');
     // not probed: nothing is known, nothing greys
     expect(sliderEffect('body', 'ladder', 'kneeLiftMul', 'keyed')).toBe('');

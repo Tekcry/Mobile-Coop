@@ -6,7 +6,7 @@
 import { launch, frames, assert as hard } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber' });
 const G = (f, a) => page.evaluate(f, a);
 let failed = false;
 const assert = (cond, msg) => {

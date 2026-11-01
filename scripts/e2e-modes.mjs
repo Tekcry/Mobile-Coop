@@ -26,7 +26,7 @@ async function run(params, fn) {
 // (clean-up G2c) the ragdoll part runs on the Test Chamber in the test mode with its five squad guards (was the Warehouse mission).
 // The mission and enemy-type parts below stay on the Warehouse and the Proving Grounds: the Mission mode goes in stage H.
 console.log('ragdolls');
-await run('autostart=studio&mode=test&guards=1', async ({ G, sim }) => {
+await run('autostart=chamber&mode=test&guards=1', async ({ G, sim }) => {
   await G(() => { window.__app.current.target.damageMul = 0; });
   await sim(0.5);
   const alive = await G(() => window.__app.current.enemyMgr.alive);

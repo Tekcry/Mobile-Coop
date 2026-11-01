@@ -113,7 +113,7 @@ try {
   assert(await G(() => !!document.querySelector('.main-menu')), 'main menu offline');
   // (clean-up G2c) the guard match is the Test Chamber's test mode with its five squad guards (was the Warehouse mission); the
   // Infiltration match below stays on the Warehouse (the Infiltration mode goes in stage H)
-  await page.goto(url + '?autostart=studio&mode=test&guards=1&gfx=min');
+  await page.goto(url + '?autostart=chamber&mode=test&guards=1&gfx=min');
   await booted();
   // (load-latent-ui2) the match loads (shaders compile on the loading screen): 120 s, as the other match loads
   await page.waitForFunction(() => window.__app?.current?.enemyMgr, null, { timeout: 120000 });

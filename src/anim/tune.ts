@@ -341,10 +341,10 @@ export const TUNE_LOCAL: CurValues = defCur();
 export const TUNE_STATE = TUNE_STATE_BAG as { body: BodyGroup | ''; gun: GunGroup | ''; cam: CamGroup | '' } & Record<string, string>;
 /**
  * (marlow-bays item 29, tuner v3: "with Keyed ticked the Body sliders do nothing") The body state the local player's rig
- * tunes with, pinned ('' none: chosen from the pose by `selectBodyGroup`). The Anim Studio pins a keyed clip's own state
+ * tunes with, pinned ('' none: chosen from the pose by `selectBodyGroup`). The Test Chamber pins a keyed clip's own state
  * while it plays: a clip on the spot has no speed, so the pose alone picked `idle` and the jog's sliders never reached
  * the keyed jog (nor her Joints, Hands & feet and Limb reach rows: `tuneJointsRig` reads the pin too). Only `rig` (her
- * rig) is pinned. Written by the studio stage only (cleared when it leaves).
+ * rig) is pinned. Written by the chamber stage only (cleared when it leaves).
  */
 export const TUNE_PIN: { body: BodyGroup | ''; rig: unknown } = { body: '', rig: null };
 

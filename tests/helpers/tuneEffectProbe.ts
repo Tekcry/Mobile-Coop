@@ -2,7 +2,7 @@
  * (marlow-bays item 29, tuner v3) The keyed-clip effect probe: which Body tab sliders (Body, Joints, Limb reach) change
  * Wren's pose while a loop plays. Drives a Wren rig (`operatorRig`) in node through the local player's tuning window
  * (`player.ts`: tuneBegin, tuneV2Frame, tuneKeysFrame, moveTuneBegin, animate, moveTuneEnd, tuneEnd) per state in up to
- * three loops: its keyed clip on the spot (the studio's drive, the state pinned on her rig as the studio pins it), the
+ * three loops: its keyed clip on the spot (the chamber's drive, the state pinned on her rig as the chamber pins it), the
  * procedural state holstered and (a moving state) the procedural state with a rifle in hand. Each slider is moved half
  * way to its end (a joint angle 25 degrees) and the rig's joint world matrices over the run are compared with the
  * untouched run: any difference over `EPS` counts. The motion driver does not run here (no capsule): `strideMul` (the
@@ -75,8 +75,8 @@ async function probeKit() {
   const { defaultLook } = await import('../../src/cosmetics/avatarLook');
   const { operatorRig } = await import('../../src/operators/runtime/playerFigure');
   const { rigNodes } = await import('../../src/operators/runtime/figure');
-  const { newStudioDrive } = await import('../../src/anim/studioDrive');
-  const { studioEntry, studioBodyPin } = await import('../../src/anim/studio');
+  const { newChamberDrive } = await import('../../src/anim/chamberDrive');
+  const { chamberEntry, chamberBodyPin } = await import('../../src/anim/chamber');
   const { WeaponModel, DEFAULT_WEAPON_COLORS } = await import('../../src/weapons/weaponModel');
   const { WEAPONS } = await import('../../src/weapons/weaponDefs');
   const { TUNE_PIN, TUNE_STATE, tuneBegin, tuneEnd } = await import('../../src/anim/tune');
@@ -98,10 +98,10 @@ async function probeKit() {
     const op = operatorRig(scene, make, defaultLook(), 'probe');
     const rig: CharacterRig = op.rig;
     if (opts.player) rig.carrier = true;
-    const e = studioEntry(st.keyed);
+    const e = chamberEntry(st.keyed);
     if (loop === 'armed') new WeaponModel(scene, lib, WEAPONS.rifle, DEFAULT_WEAPON_COLORS, rig.root).hold(rig);
     if (loop === 'keyed') {
-      const d = newStudioDrive();
+      const d = newChamberDrive();
       d.clip = e.clip;
       d.inPlace = true;
       d.cycle = e.cycle;
@@ -109,7 +109,7 @@ async function probeKit() {
       d.dirZ = 1;
       rig.graph.drive = d;
     }
-    TUNE_PIN.body = loop === 'keyed' ? studioBodyPin(e) : '';
+    TUNE_PIN.body = loop === 'keyed' ? chamberBodyPin(e) : '';
     TUNE_PIN.rig = rig;
     const nodes = rigNodes(rig);
     const out = new Float64Array(STEPS * nodes.length * 16);
@@ -117,7 +117,7 @@ async function probeKit() {
     const crouch = st.crouch && loop !== 'keyed' ? 1 : 0;
     const wi = weightFrameIn();
     let plant = false;
-    // the studio's and the player's free movement pose (stride 'facing': the keyed arms and pelvis apply)
+    // the chamber's and the player's free movement pose (stride 'facing': the keyed arms and pelvis apply)
     const pose: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch, aimPitch: 0, aim: 0, kick: 0, stride: 'facing' };
     try {
       const warm = opts.player ? WARM : 0;

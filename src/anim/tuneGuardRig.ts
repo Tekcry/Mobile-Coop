@@ -183,7 +183,7 @@ const camSave = { lagX: 0, lagY: 0, lagZ: 0, dip: 0 };
 export function guardRigBegin(st: GuardRigState, pose: GuardRigPose, rig: GuardRigIn, dt: number): boolean {
   const r = guardRowOf(pose);
   st.row = r;
-  // the studio's guard puppet: the guard sections follow its row
+  // the chamber's guard puppet: the guard sections follow its row
   if (rig === TUNE_WHO.rig) {
     TUNE_STATE_BAG.guardJoint = r < 0 ? '' : GUARD_JOINT_GROUPS[r]!;
     TUNE_STATE_BAG.guardWeight = r < 0 ? '' : GUARD_WEIGHT_GROUPS[r]!;

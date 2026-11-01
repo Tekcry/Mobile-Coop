@@ -22,8 +22,8 @@ import {
   type TeamRigIn,
   type TeamRigPose,
 } from '../src/anim/clips/team';
-import { PAIR_PARTS, newPairRole, pairPose, ropeHoldLine, type PairRole } from '../src/anim/studioPairs';
-import { PAIR_STATION } from '../src/anim/studioTraversal';
+import { PAIR_PARTS, newPairRole, pairPose, ropeHoldLine, type PairRole } from '../src/anim/chamberPairs';
+import { PAIR_STATION } from '../src/anim/chamberTraversal';
 import { boostPath, KIT_SUB } from '../src/game/teamMoves';
 import { KIT_POSERS, registerKitPoser } from '../src/anim/clips/kit/posers';
 import { emptyMovePose, emptyMoveState, poseFromMoveState } from '../src/player/moveState';
@@ -42,7 +42,7 @@ function fakeRig(): FakeRig {
   return { reachL: { x: 0, y: 0, z: 0, w: 0 }, reachR: { x: 0, y: 0, z: 0, w: 0 }, plantR: { x: 0, y: 0, z: 0, w: 0 }, root: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0 } }, height: H };
 }
 
-/** One studio pair frame through the posers (as studioStage.posePuppet): the targets are read between begin and end. */
+/** One chamber pair frame through the posers (as chamberStage.posePuppet): the targets are read between begin and end. */
 interface Frame {
   a: PairRole;
   b: PairRole;
@@ -203,7 +203,7 @@ describe('team pose: the partner throw', () => {
     expect(offerHand).toBeLessThan(0.75);
     expect(maxHand).toBeGreaterThan(1.8);
     expect(Math.max(...bends) - Math.min(...bends)).toBeGreaterThan(0.4);
-    // the studio's thrower already faces the runner: no turn needed there
+    // the chamber's thrower already faces the runner: no turn needed there
     expect(faced).toBeLessThan(0.05);
   });
 

@@ -13,7 +13,7 @@
  * Rules (`keyLiveSolve`): an added key never sits on another key (an original key, deleted or not, or an earlier
  * slot); at least `KEY_MIN` keys a cycle stay (2 own keys with the Mirror box on): deletes past it are ignored.
  *
- * Key ids (the tuner, the studio and the key timeline index keys by them): 0 .. T-1 the original keys (a mirrored
+ * Key ids (the tuner, the chamber and the key timeline index keys by them): 0 .. T-1 the original keys (a mirrored
  * clip's own keys, then its mirrored half), T + s added slot s, T + S + s the mirror of slot s (Mirror box on).
  */
 import { KEY_SPAN, keyTimeCount, type KeyTimeClip } from './tuneKeysTime';

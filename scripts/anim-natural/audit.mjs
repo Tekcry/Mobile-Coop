@@ -6,13 +6,13 @@
 //   hands: wrist forward range (cm, root frame) and peak / mean wrist speed (m/s, root frame)
 //   feet: planted-foot slide (max cm per contact), the planted foot's yaw against the pelvis (deg: wind-up), contacts
 //   draw: draw progress, carry raise and the held gun's world speed (a stall = speed ~0 before the settle)
-// Groups: `studio` (Anim Studio loops, ?autostart=studio&gfx=high, on the spot, front 3/4 view), `proving` (scenarios on
+// Groups: `chamber` (Test Chamber loops, ?autostart=chamber&gfx=high, on the spot, front 3/4 view), `proving` (scenarios on
 // Proving Grounds at ?gfx=high: gait turns with a top-down foot plot, draws, starts / stops, one-shots), `all` (both).
-//   E2E_GPU=1 node scripts/anim-natural/audit.mjs <studio|proving|all> [--pass=1|2] [--only=a,b] [--dtmul=2.5]
+//   E2E_GPU=1 node scripts/anim-natural/audit.mjs <chamber|proving|all> [--pass=1|2] [--only=a,b] [--dtmul=2.5]
 // `--pass=2` runs only the second pass's rows (AUDIT.md "Pass 2": the rows pass 1 did not capture, the co-op pairs framed
 // on the puppets, the hit flinch, the aimed turn in place); no `--pass` runs every row of the group. Each row's metrics
 // entry carries `pass` and `row` (the COVERAGE # it covers). (pass 2) Proving cameras sit on the sun side (the theme's
-// directional light; NAT_SUN=0 keeps pass 1's sides); the studio pairs move the stage lights onto the puppets.
+// directional light; NAT_SUN=0 keeps pass 1's sides); the chamber pairs move the stage lights onto the puppets.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { launch, waitOperator } from '../e2e-lib.mjs';
@@ -21,7 +21,7 @@ import { launch, waitOperator } from '../e2e-lib.mjs';
 const PORT = Number(process.env.NAT_PORT ?? 4189);
 const OUT = 'docs/archive/anim-natural/audit';
 const MET = `${OUT}/metrics.json`;
-const group = process.argv[2] ?? 'studio';
+const group = process.argv[2] ?? 'chamber';
 const arg = (k, d) => process.argv.find((a) => a.startsWith(`--${k}=`))?.split('=')[1] ?? d;
 const only = arg('only', '') ? arg('only', '').split(',') : null;
 const pass = arg('pass', '') ? Number(arg('pass', '')) : 0;
@@ -33,8 +33,8 @@ const wanted = (e) => (only ? only.includes(e.n) : !pass || (e.pass ?? 1) === pa
 mkdirSync(OUT, { recursive: true });
 
 // ---- the rows ----
-// studio: id, frames, interval (s) of real sim time between frames, warm (s), weapon, camera azimuth (rad, + her right)
-const STUDIO = [
+// chamber: id, frames, interval (s) of real sim time between frames, warm (s), weapon, camera azimuth (rad, + her right)
+const CHAMBER = [
   { n: 'idle', id: 'state:idle', f: 12, dt: 1.0, warm: 1 },
   { n: 'walk', id: 'state:walk', f: 12, dt: 0.09, warm: 2 },
   { n: 'jog', id: 'state:jog', f: 12, dt: 0.06, warm: 2 },
@@ -69,7 +69,7 @@ const STUDIO = [
   // (their bounds), from the sun side of the station's south face; the stage lights moved onto them. Metrics: role A,
   // role B under `b`. Row 80 (downed) is the revive's role B.
   ...[['boost', 73], ['relay', 74], ['throw', 75], ['hang', 76], ['rope', 77], ['revive', '78, 80']].map(([m, row]) => ({ n: `pair-${m}`, id: `pair:${m}`, f: 18, pair: true, pass: 2, row })),
-  // (rows 43-46) the hold pairs: Wren's keyed hold clip and the guard's (studio only: no game code plays these clips)
+  // (rows 43-46) the hold pairs: Wren's keyed hold clip and the guard's (chamber only: no game code plays these clips)
   ...[['hold_idle', 43], ['hold_back', 44], ['hold_choke', 45], ['hold_knife', 46]].map(([m, row]) => ({ n: `pair-${m}`, id: `pair:${m}`, f: 12, hold: true, az: -Math.PI / 2, far: 3.8, pass: 2, row })),
 ];
 
@@ -573,27 +573,27 @@ const FIND_PEEKDOOR = () => {
   return { sx: a.hinge.x + tx * a.width * 0.5 + nx * 0.7, sz: a.hinge.z + tz * a.width * 0.5 + nz * 0.7, syaw: Math.atan2(-nx, -nz), y: a.hinge.y };
 };
 
-// ---- studio group ----
-async function runStudio() {
-  const { browser, page, errors } = await launch({ url: URL0, params: 'autostart=studio&stage=1&gfx=high', viewport: { width: 1200, height: 900 } });
+// ---- chamber group ----
+async function runChamber() {
+  const { browser, page, errors } = await launch({ url: URL0, params: 'autostart=chamber&stage=1&gfx=high', viewport: { width: 1200, height: 900 } });
   try {
-    await page.waitForFunction(() => !!window.__app?.current?.player && !!window.__studio?.state().active, null, { timeout: 300000 });
+    await page.waitForFunction(() => !!window.__app?.current?.player && !!window.__chamber?.state().active, null, { timeout: 300000 });
     if ((await waitOperator(page)) < 0) throw new Error('Wren LOD0 never reached the screen');
     await page.addStyleTag({ content: 'body > :not(#game), .hud, .screens, .toasts, .toast { display: none !important; }' });
     await page.evaluate(SAMPLER);
     await page.evaluate(() => window.dispatchEvent(new Event('resize')));
     await page.waitForTimeout(3000);
-    const ids = await page.evaluate(() => window.__studio.entries());
+    const ids = await page.evaluate(() => window.__chamber.entries());
     // (pass 2) the sun's azimuth (from her toward the light: the side a camera stands on to see her lit) for the pairs
     const sunAz = await page.evaluate(SUN_AZ);
-    for (const e of STUDIO) {
+    for (const e of CHAMBER) {
       if (!wanted(e)) continue;
       if (!ids.includes(e.id)) { console.log(`skip ${e.n}: no entry ${e.id}`); continue; }
       const t0 = Date.now();
       // a team pair's camera: from the station's south (the pairs face the block's south face), the sun side's 3/4
       const pairYaw = SUN && Number.isFinite(sunAz) ? pickSide(Math.PI, [-0.75, 0.75], sunAz) : Math.PI + 0.75;
       await page.evaluate(({ id, w, spot, az, far, pair, pairYaw }) => {
-        const S = window.__studio;
+        const S = window.__chamber;
         if (w) S.weapon(w);
         S.pick(id);
         S.spot(spot !== false);
@@ -623,7 +623,7 @@ async function runStudio() {
           if (m.pair && m.fix) {
             // (pass 2) the puppets: the camera fixed on the bounds of the whole cycle (centre, extent)
             const q = m.fix;
-            // the studio room is small: past 7 m the camera stood behind its props, so a big extent widens the view
+            // the chamber room is small: past 7 m the camera stood behind its props, so a big extent widens the view
             const D = Math.min(7, 2.4 + q.ext * 1.6);
             cam.fov = Math.max(0.62, 2 * Math.atan((q.ext * 0.62) / D));
             cam.position.set(q.x + Math.sin(m.yaw) * D, q.y + 0.5, q.z + Math.cos(m.yaw) * D);
@@ -643,7 +643,7 @@ async function runStudio() {
         };
         // (pass 2) the stage lights follow Wren (hidden at the viewing spot for a team pair): moved onto the puppets'
         // middle and made to light their meshes (their materials take the extra lights as the stage's own fit does)
-        const st = g.studio;
+        const st = g.chamber;
         if (st && !st.__natLF) {
           st.__natLF = st.lightsFrame.bind(st);
           st.lightsFrame = () => {
@@ -686,7 +686,7 @@ async function runStudio() {
       // one 60 Hz step: Wren (a hold pair: and the guard under `rowsB`); a team pair: role A and role B
       const step = (s) => page.evaluate(({ s }) => {
         const n = Math.max(1, Math.round(s * 60));
-        const st = window.__app.current.studio;
+        const st = window.__app.current.chamber;
         for (let i = 0; i < n; i++) {
           window.__app.loop.stepHeadless(1 / 60, 60);
           const ps = window.__natCam?.pair ? st?.puppets : null;
@@ -700,13 +700,13 @@ async function runStudio() {
         }
       }, { s });
       if (e.hold) await page.evaluate(() => { window.__natCam.hold = true; });
-      let cycle = e.pair || e.hold ? await page.evaluate(() => window.__studio.pair().cycle ?? 0) : 0;
+      let cycle = e.pair || e.hold ? await page.evaluate(() => window.__chamber.pair().cycle ?? 0) : 0;
       if (e.pair) {
         // the whole cycle's bounds (root, head, wrists, ankles of both puppets) fix the camera
         await page.evaluate(() => { window.__app.loop.stepHeadless(2 / 60, 60); });
-        cycle = (await page.evaluate(() => window.__studio.pair().cycle)) || 4;
+        cycle = (await page.evaluate(() => window.__chamber.pair().cycle)) || 4;
         const fix = await page.evaluate((cyc) => {
-          const ps = window.__app.current.studio.puppets;
+          const ps = window.__app.current.chamber.puppets;
           const b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
           for (let i = 0; i < Math.round(cyc * 60); i++) {
             window.__app.loop.stepHeadless(1 / 60, 60);
@@ -730,7 +730,7 @@ async function runStudio() {
         }, cycle);
         console.log(`  ${e.n}: cycle ${cycle.toFixed(2)} s, bounds centre ${fix.x.toFixed(2)},${fix.y.toFixed(2)},${fix.z.toFixed(2)} ext ${fix.ext.toFixed(2)} m, camera yaw ${pairYaw.toFixed(2)}`);
       } else if (e.hold) {
-        // the hold clips' keyed cycles (studio.ts: hold_idle 4 s, hold_back 2 x 0.28 m / 1.0 m/s, choke 5.5 s, knife 3 s)
+        // the hold clips' keyed cycles (chamber.ts: hold_idle 4 s, hold_back 2 x 0.28 m / 1.0 m/s, choke 5.5 s, knife 3 s)
         cycle = { hold_idle: 4, hold_back: 0.56, hold_choke: 5.5, hold_knife: 3 }[e.id.split(':')[1]] ?? 4;
       }
       const dt = e.pair || e.hold ? cycle / e.f : e.dt;
@@ -741,10 +741,10 @@ async function runStudio() {
         await page.waitForTimeout(120);
         const lab = await page.evaluate(() => {
           const g = window.__app.current;
-          const pr = window.__studio.pair();
+          const pr = window.__chamber.pair();
           if (window.__natCam?.pair) {
             // (rerun) each puppet's figure LOD (-1 = none drawn) and its root's distance to the camera: why they vanish
-            const ps = g.studio?.puppets ?? [];
+            const ps = g.chamber?.puppets ?? [];
             const cp = g.player.cam.camera.position;
             const lod = (op) => `${op.figure.current}@${Math.hypot(op.rig.root.position.x - cp.x, op.rig.root.position.y - cp.y, op.rig.root.position.z - cp.z).toFixed(1)}`;
             return `A ${pr.aState ?? ''} ${ps[0] ? lod(ps[0]) : ''} / B ${pr.bState ?? ''} ${ps[1] ? lod(ps[1]) : ''}`;
@@ -764,10 +764,10 @@ async function runStudio() {
       const rowsB = await page.evaluate(() => window.__nat.rowsB);
       const sum = summarise(rows, 1 / 60);
       const sumB = rowsB.length ? summarise(rowsB, 1 / 60) : null;
-      const what = e.pair ? 'Anim Studio pair (camera on both puppets, stage light moved onto them)' : 'Anim Studio, gfx=high, stage light';
+      const what = e.pair ? 'Test Chamber pair (camera on both puppets, stage light moved onto them)' : 'Test Chamber, gfx=high, stage light';
       const data = await compose(page, tiles, labels, `${e.n} (${e.id}${e.w ? ', ' + e.w : ''}) - ${what}`, 6, e.pair ? 300 : 240, 300);
       const [file, size] = writeWebp(e.n, data);
-      saveMet(`studio:${e.n}`, { id: e.id, weapon: e.w ?? null, file, pass: e.pass ?? 1, row: e.row ?? null, ...(sum ?? {}), ...(sumB ? { b: sumB } : {}) });
+      saveMet(`chamber:${e.n}`, { id: e.id, weapon: e.w ?? null, file, pass: e.pass ?? 1, row: e.row ?? null, ...(sum ?? {}), ...(sumB ? { b: sumB } : {}) });
       console.log(`${e.n}: ${file} ${size} B ${((Date.now() - t0) / 1000).toFixed(0)} s ${sum ? JSON.stringify({ trunk: sum.trunk, sway: sum.sway, feet: sum.feet }) : ''}${sumB ? ` B: ${JSON.stringify({ trunk: sumB.trunk, lean: sumB.lean })}` : ''}`);
       await page.evaluate(() => { window.__app.loop.manual = false; });
     }
@@ -844,7 +844,7 @@ async function runProving() {
         window.__natYaw0 = yaw;
         const orig = p.cam.update.bind(p.cam);
         const fixed = { x: 0, z: 0, set: false };
-        // (pass 2) an audit-only key light from the camera, on her meshes only (as the studio's stage light): in the
+        // (pass 2) an audit-only key light from the camera, on her meshes only (as the chamber's stage light): in the
         // daylight maps her dark suit renders as a flat black silhouette even from the sun side, so poses read but
         // limbs crossing the body do not. Rendering only (no game state reads it). NAT_KEY=0 turns it off.
         const sceneL = a.loop.scene;
@@ -1021,9 +1021,9 @@ async function runProving() {
 }
 
 try {
-  if (group === 'studio' || group === 'all') await runStudio();
+  if (group === 'chamber' || group === 'all') await runChamber();
   if (group === 'proving' || group === 'all') await runProving();
-  if (!['studio', 'proving', 'all'].includes(group)) throw new Error(`unknown group ${group}`);
+  if (!['chamber', 'proving', 'all'].includes(group)) throw new Error(`unknown group ${group}`);
 } finally {
   kill();
 }

@@ -297,11 +297,11 @@ async function boot(): Promise<void> {
     // (anim-studio) the Test Chamber: the loop player, the animation tuner and the viewing aids (single player; two players
     // join one from Co-op)
     (a) => ({
-      key: 'anim-studio',
+      key: 'test-chamber',
       label: 'Test Chamber',
       order: 95,
       ctx: 'A plain room to test everything: Wren, the loop player (every clip and state), the animation tuner, viewing aids and snapshots. Pad and keyboard. Two players can share it from Co-op.',
-      action: () => a.studio?.(),
+      action: () => a.chamber?.(),
     }),
   );
   if (flags.legacy) {
@@ -459,12 +459,12 @@ async function boot(): Promise<void> {
     app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx }, false);
     // (clean-up G2c) the flight runs through the Test Chamber's rooms in the test mode (the Warehouse goes in stage H); every
     // guard of its room squads is passive for the flight
-    startGame({ map: getMap('studio'), mode: 'test', seed: 1, benchmark: s });
+    startGame({ map: getMap('chamber'), mode: 'test', seed: 1, benchmark: s });
   };
-  // (anim-studio) Main menu / Settings > Test Chamber: the studio stage in Free Roam (single player)
+  // (anim-studio) Main menu / Settings > Test Chamber: the chamber stage in Free Roam (single player)
   // (G2c, N17) in the test mode with the three passive practice guards (`?practice=0` leaves them out, the tests do): the stage
   // and its loop player run as before, the guards stand outside the open middle
-  app.studio = () => startGame({ map: getMap('studio'), mode: 'test', seed: 1, stage: true, practice: flags.practice !== false });
+  app.chamber = () => startGame({ map: getMap('chamber'), mode: 'test', seed: 1, stage: true, practice: flags.practice !== false });
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
   // tests: start a match from the menu (Free roam left the main menu with sector-ops slice 1; e2e-pad still walks it)

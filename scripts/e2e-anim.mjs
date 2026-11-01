@@ -24,7 +24,7 @@ const FOOT = { back: FG.HEEL_BACK, down: FG.HEEL_DOWN, ball: FG.TOE_BALL };
 const url = process.argv[2] ?? 'http://localhost:4173/';
 // (mocap-trial M1) E2E_MOCAP=0 / 1 forces the mocap locomotion switch for the page (`?mocap=`); unset: the stored setting
 const mocapParam = process.env.E2E_MOCAP === '0' || process.env.E2E_MOCAP === '1' ? `&mocap=${process.env.E2E_MOCAP}` : '';
-const { browser, page, errors } = await launch({ url, params: `autostart=studio${mocapParam}` });
+const { browser, page, errors } = await launch({ url, params: `autostart=chamber${mocapParam}` });
 const G = (f, a) => page.evaluate(f, a);
 let failed = false;
 const within = (v, lo, hi) => v >= lo && v <= hi;

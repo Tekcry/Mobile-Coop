@@ -4,14 +4,14 @@
  * (`mixamo.ts` WREN_TRAV). The default (CMU) is today's game: the switch exactly as app.ts set it before the toggle
  * (`applyMocapSwitch(?mocap ?? tuner, true)`, the Mixamo flag off). The setting is saved with the settings (an old save
  * without the field takes the default); `?anim=` / `?mocap=` / `?mixamo=` override it for a page; other owners'
- * Mixamo tables follow through `addMixamoResolver`; the Anim Studio's set filter; the Now playing line's source.
+ * Mixamo tables follow through `addMixamoResolver`; the Test Chamber's set filter; the Now playing line's source.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ANIM_SOURCE, ANIM_SOURCE_DEFAULT, ANIM_SOURCES, applyAnimSource, parseAnimSource, resolveAnimSource, setAnimSource } from '../src/anim/animSource';
 import { applyMocapSwitch, HAND_KEYED_SET, LOCO, MOCAP_SET } from '../src/anim/mocap';
-import { addMixamoResolver, MIXAMO, MIXAMO_LOCO, MIXAMO_ON, MIXAMO_TRAV, setMixamo, setMixamoStudio, WREN_TRAV } from '../src/anim/mixamo';
+import { addMixamoResolver, MIXAMO, MIXAMO_LOCO, MIXAMO_ON, MIXAMO_TRAV, setMixamo, setMixamoChamber, WREN_TRAV } from '../src/anim/mixamo';
 import { defaultSettings, sanitizeSettings, settingAnimSource, SettingsStore } from '../src/core/settings';
-import { STUDIO_ENTRIES, studioEntriesOf, studioEntrySet } from '../src/anim/studio';
+import { CHAMBER_ENTRIES, chamberEntriesOf, chamberEntrySet } from '../src/anim/chamber';
 import { mocapSource } from '../src/anim/mocapSources';
 import { nowPlayingSourceText } from '../src/anim/nowPlaying';
 import { MOCAP_CROUCHED_WALKING } from '../src/anim/clips/mixamo/crouched_walking';
@@ -140,7 +140,7 @@ describe('animation source: saved with the settings', () => {
 });
 
 describe('addMixamoResolver: other owners follow the switch', () => {
-  it('runs once on registration and after every change (the flag, the source, the Studio pick)', () => {
+  it('runs once on registration and after every change (the flag, the source, the Chamber pick)', () => {
     const seen: boolean[] = [];
     addMixamoResolver(() => seen.push(MIXAMO.on));
     expect(seen.length).toBe(1);
@@ -149,8 +149,8 @@ describe('addMixamoResolver: other owners follow the switch', () => {
     setAnimSource('hand');
     expect(seen[seen.length - 1]).toBe(false);
     const n = seen.length;
-    setMixamoStudio('hanging_idle');
-    setMixamoStudio('');
+    setMixamoChamber('hanging_idle');
+    setMixamoChamber('');
     expect(seen.length).toBe(n + 2);
     // a source change that leaves the Mixamo half as it is rebuilds nothing
     setAnimSource('cmu');
@@ -158,22 +158,22 @@ describe('addMixamoResolver: other owners follow the switch', () => {
   });
 });
 
-describe('the Anim Studio: the animation-set filter on the Loop list', () => {
+describe('the Test Chamber: the animation-set filter on the Loop list', () => {
   it('All is the whole list; Hand-made, CMU and Mixamo split it with nothing left over', () => {
-    const all = STUDIO_ENTRIES.map((e) => e.id);
-    expect(studioEntriesOf('all')).toEqual(all);
-    const hand = studioEntriesOf('hand');
-    const cmu = studioEntriesOf('cmu');
-    const mix = studioEntriesOf('mixamo');
+    const all = CHAMBER_ENTRIES.map((e) => e.id);
+    expect(chamberEntriesOf('all')).toEqual(all);
+    const hand = chamberEntriesOf('hand');
+    const cmu = chamberEntriesOf('cmu');
+    const mix = chamberEntriesOf('mixamo');
     expect(hand.length + cmu.length + mix.length).toBe(all.length);
     expect(cmu.length).toBeGreaterThan(0);
     expect(mix.length).toBeGreaterThan(0);
     for (const id of cmu) expect(mocapSource(id.replace(/^keyed:/, ''))?.source, id).toBe('cmu');
     // every traversal capture is Mixamo, as is every keyed Mixamo capture
     for (const slug of Object.keys(MIXAMO_TRAV)) expect(mix.some((id) => id.endsWith(`/${slug}`)), slug).toBe(true);
-    for (const id of mix) expect(studioEntrySet(id)).toBe('mixamo');
-    expect(studioEntrySet('state:idle')).toBe('hand');
-    expect(studioEntrySet('trav:ledge')).toBe('hand');
+    for (const id of mix) expect(chamberEntrySet(id)).toBe('mixamo');
+    expect(chamberEntrySet('state:idle')).toBe('hand');
+    expect(chamberEntrySet('trav:ledge')).toBe('hand');
   });
 });
 

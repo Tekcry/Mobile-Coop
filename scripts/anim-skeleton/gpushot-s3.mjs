@@ -1,5 +1,5 @@
 // anim-skeleton S3b GPU look (desktop, E2E_GPU=1, under C:/NightShift/heavy.lock): serves dist/ on 4189, boots the Anim
-// Studio at ?gfx=high (Wren's LOD0, the studio's stage light), plays `keyed:skeleton_test` and pauses it at six frames
+// Chamber at ?gfx=high (Wren's LOD0, the chamber's stage light), plays `keyed:skeleton_test` and pauses it at six frames
 // (rest, shrug, right shoulder forward + curling, fist, kick chamber + spread, extension), each from a front three-quarter
 // camera, laid out as one labelled contact sheet: docs/archive/anim-skeleton/s3/skeleton-test-studio.webp (< 600 KB).
 //   E2E_GPU=1 node scripts/anim-skeleton/gpushot-s3.mjs            (needs a prior `npm run build`)
@@ -30,14 +30,14 @@ const kill = () => {
 process.on('exit', kill);
 await new Promise((r) => setTimeout(r, 4000));
 
-const { browser, page, errors } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: 'autostart=studio&stage=1&gfx=high', viewport: { width: 1200, height: 900 } });
+const { browser, page, errors } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: 'autostart=chamber&stage=1&gfx=high', viewport: { width: 1200, height: 900 } });
 try {
-  await page.waitForFunction(() => !!window.__app?.current?.player && !!window.__studio?.state().active, null, { timeout: 300000 });
+  await page.waitForFunction(() => !!window.__app?.current?.player && !!window.__chamber?.state().active, null, { timeout: 300000 });
   if ((await waitOperator(page)) < 0) throw new Error('Wren LOD0 never reached the screen');
   await page.addStyleTag({ content: 'body > :not(#game), .hud, .screens, .toasts, .toast { display: none !important; }' });
   await page.evaluate(() => {
-    window.__studio.pick('keyed:skeleton_test');
-    window.__studio.spot(true);
+    window.__chamber.pick('keyed:skeleton_test');
+    window.__chamber.spot(true);
     const p = window.__app.current.player;
     const orig = p.cam.update.bind(p.cam);
     // a full-body front three-quarter view (her right side toward the camera: the pushed shoulder, the kick in profile)
@@ -66,13 +66,13 @@ try {
   const tiles = [];
   const info = [];
   for (const [f, label] of FRAMES) {
-    await page.evaluate((v) => window.__studio.seek(v), f / 48);
+    await page.evaluate((v) => window.__chamber.seek(v), f / 48);
     await page.waitForTimeout(2000);
     info.push(
       await page.evaluate((f) => {
         const r = window.__app.current.player.rig;
         const q = (n) => n.rotationQuaternion.asArray().map((x) => +x.toFixed(3));
-        return { f, entry: window.__studio.state().entry, phase: +window.__studio.state().phase.toFixed(3), lod: window.__app.current.player.figure.current, keyed: r.keyedWalk, clavR: q(r.clavR), kneeL: q(r.kneeL), fingersR: [...r.fingers].slice(10).map((x) => +x.toFixed(2)) };
+        return { f, entry: window.__chamber.state().entry, phase: +window.__chamber.state().phase.toFixed(3), lod: window.__app.current.player.figure.current, keyed: r.keyedWalk, clavR: q(r.clavR), kneeL: q(r.kneeL), fingersR: [...r.fingers].slice(10).map((x) => +x.toFixed(2)) };
       }, f),
     );
     const buf = await page.screenshot({ clip: box });

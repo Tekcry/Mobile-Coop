@@ -4,7 +4,7 @@
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio&gear=none' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber&gear=none' });
 let failed = false;
 const G = (f, a) => page.evaluate(f, a);
 const tp = (x, y, z, yaw = 0) => G(([x, y, z, yaw]) => { const p = window.__app.current.player; p.controller.teleport(new p.controller.pos.constructor(x, y, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; }, [x, y, z, yaw]);

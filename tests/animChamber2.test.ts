@@ -17,12 +17,12 @@ import {
   trapezoid,
   travGroup,
 } from '../src/anim/moveTune';
-import { PAIR_PARTS, newPairRole, pairCycle, pairFrames, pairPose, stationLedge } from '../src/anim/studioPairs';
-import { PAIR_TOP, STUDIO_PROPS, STUDIO_SIZE } from '../src/anim/studioProps';
-import { PAIR_STATION, TRAV_ENTRIES, newTravOut, newTravState, travCycle, travEntry, travTick } from '../src/anim/studioTraversal';
-import { STUDIO_ENTRIES, studioAdvance, studioEntry, studioInput, studioStepPhase, type StudioInputOut } from '../src/anim/studio';
+import { PAIR_PARTS, newPairRole, pairCycle, pairFrames, pairPose, stationLedge } from '../src/anim/chamberPairs';
+import { PAIR_TOP, CHAMBER_PROPS, CHAMBER_SIZE } from '../src/anim/chamberProps';
+import { PAIR_STATION, TRAV_ENTRIES, newTravOut, newTravState, travCycle, travEntry, travTick } from '../src/anim/chamberTraversal';
+import { CHAMBER_ENTRIES, chamberAdvance, chamberEntry, chamberInput, chamberStepPhase, type ChamberInputOut } from '../src/anim/chamber';
 import { emptyTargets } from '../src/anim/animGraph';
-import { newStudioDrive, studioDriveTargets } from '../src/anim/studioDrive';
+import { newChamberDrive, chamberDriveTargets } from '../src/anim/chamberDrive';
 import { pickTraversal } from '../src/player/movement';
 import { LEDGE, REACH } from '../src/world/anchors';
 import { inBoostBand, ropeRoom } from '../src/game/teamMoves';
@@ -36,7 +36,7 @@ afterEach(() => {
   moveTuneSelect('', 0, 'none', false);
 });
 
-describe('anim studio 2: the move sections', () => {
+describe('Test Chamber 2: the move sections', () => {
   it('one section per team move (A, B, contact) and one for the traversal moves, every slider identity at default', () => {
     for (const m of TEAM_MOVES) {
       const sec = TUNE_SECTIONS.find((s) => s.id === `team_${m}`)!;
@@ -148,7 +148,7 @@ describe('anim studio 2: the move sections', () => {
     }
   });
 
-  it('the follow keys: the local role, or the studio pair while it plays', () => {
+  it('the follow keys: the local role, or the chamber pair while it plays', () => {
     moveTuneSelect('team.throw.b', 0, 'none');
     expect(TUNE_STATE_BAG.team).toBe('team.throw.b');
     expect(TUNE_STATE_BAG.trav).toBe('');
@@ -176,7 +176,7 @@ describe('anim studio 2: the move sections', () => {
   });
 });
 
-describe('anim studio 2: the pairs', () => {
+describe('Test Chamber 2: the pairs', () => {
   const H = 1.68;
 
   it('both roles are posed from one clock: the same t gives the same pair, a cycle later too', () => {
@@ -201,14 +201,14 @@ describe('anim studio 2: the pairs', () => {
   it('the pair clock: the phase advances once for both rigs; a step is one 30 fps frame', () => {
     const cyc = pairCycle('boost');
     let ph = 0;
-    for (let i = 0; i < 30; i++) ph = studioAdvance(ph, 1 / 60, cyc);
+    for (let i = 0; i < 30; i++) ph = chamberAdvance(ph, 1 / 60, cyc);
     expect(ph * cyc).toBeCloseTo(0.5, 6);
     const n = pairFrames(cyc);
-    expect(studioStepPhase(0, n, 1)).toBeCloseTo(1 / n, 9);
+    expect(chamberStepPhase(0, n, 1)).toBeCloseTo(1 / n, 9);
     // a hold pair's two drives are held to the pair's phase: the drive never moves it on its own
-    const d = newStudioDrive();
-    const g = newStudioDrive();
-    const e = studioEntry('pair:hold_choke');
+    const d = newChamberDrive();
+    const g = newChamberDrive();
+    const e = chamberEntry('pair:hold_choke');
     expect(e.kind).toBe('pair');
     expect(e.clip?.name).toBe('hold_choke');
     expect(e.guardClip?.name).toBe('guard_choke_sag');
@@ -217,8 +217,8 @@ describe('anim studio 2: the pairs', () => {
     d.held = g.held = true;
     d.cycle = g.cycle = e.cycle;
     d.phase = g.phase = 0.37;
-    studioDriveTargets(d, emptyTargets(), 0.25);
-    studioDriveTargets(g, emptyTargets(), 0.25);
+    chamberDriveTargets(d, emptyTargets(), 0.25);
+    chamberDriveTargets(g, emptyTargets(), 0.25);
     expect(d.phase).toBe(0.37);
     expect(g.phase).toBe(0.37);
     expect(d.live).toBe(g.live);
@@ -276,20 +276,20 @@ describe('anim studio 2: the pairs', () => {
   });
 
   it('the loop list has every pair and every traversal loop', () => {
-    const ids = STUDIO_ENTRIES.map((e) => e.id);
+    const ids = CHAMBER_ENTRIES.map((e) => e.id);
     for (const m of TEAM_MOVES) expect(ids).toContain(`pair:${m}`);
     for (const h of ['hold_idle', 'hold_back', 'hold_choke', 'hold_knife']) expect(ids).toContain(`pair:${h}`);
     for (const t of TRAV_ENTRIES) expect(ids).toContain(t.id);
     // pairs and loops never walk the circle (the stage owns them)
-    const out: StudioInputOut = { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false };
-    for (const e of STUDIO_ENTRIES.filter((x) => x.kind === 'pair' || x.kind === 'trav')) {
-      studioInput(e, true, out);
+    const out: ChamberInputOut = { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false };
+    for (const e of CHAMBER_ENTRIES.filter((x) => x.kind === 'pair' || x.kind === 'trav')) {
+      chamberInput(e, true, out);
       expect([out.x, out.y, out.turn]).toEqual([0, 0, 0]);
     }
   });
 });
 
-describe('anim studio 2: the traversal loops', () => {
+describe('Test Chamber 2: the traversal loops', () => {
   it('approach, act, reset: one teleport, the walk-in, each step pressed once, then again', () => {
     const e = travEntry('trav:ledge')!;
     const s = newTravState();
@@ -359,8 +359,8 @@ describe('anim studio 2: the traversal loops', () => {
   });
 });
 
-describe('anim studio 2: the props at the engine sizes', () => {
-  const P = STUDIO_PROPS;
+describe('Test Chamber 2: the props at the engine sizes', () => {
+  const P = CHAMBER_PROPS;
 
   it('the low wall is a vault, the ledge a jump-grab lip, the co-op lip in the boost band', () => {
     expect(pickTraversal({ height: P.lowWall.h, depth: P.lowWall.thick, landingClear: true, topClear: true })).toBe('vault');
@@ -389,12 +389,12 @@ describe('anim studio 2: the props at the engine sizes', () => {
   });
 
   it('every prop and start is inside the room, clear of the middle circle', () => {
-    const mid = STUDIO_SIZE / 2;
+    const mid = CHAMBER_SIZE / 2;
     for (const t of TRAV_ENTRIES) {
       expect(t.start.x).toBeGreaterThan(0);
-      expect(t.start.x).toBeLessThan(STUDIO_SIZE);
+      expect(t.start.x).toBeLessThan(CHAMBER_SIZE);
       expect(t.start.z).toBeGreaterThan(0);
-      expect(t.start.z).toBeLessThan(STUDIO_SIZE);
+      expect(t.start.z).toBeLessThan(CHAMBER_SIZE);
       expect(Math.hypot(t.start.x - mid, t.start.z - mid)).toBeGreaterThan(4);
     }
     expect(PAIR_STATION.top).toBe(PAIR_TOP);
@@ -402,13 +402,13 @@ describe('anim studio 2: the props at the engine sizes', () => {
   });
 });
 
-describe('anim studio 2: the studio map is real level geometry', () => {
+describe('Test Chamber 2: the chamber map is real level geometry', () => {
   it('the props give the game anchors, and the pairs use the team block\'s generated lip', async () => {
     const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { studio } = await import('../src/world/maps/studio');
+    const { chamber } = await import('../src/world/maps/chamber');
     const { generateLedges } = await import('../src/world/anchors');
     const b = new LevelBuilder();
-    studio.build(b, 0);
+    chamber.build(b, 0);
     const an = b.anchors;
     generateLedges(b.boxes, an);
     expect(an.ladders.length).toBe(1);
@@ -428,24 +428,24 @@ describe('anim studio 2: the studio map is real level geometry', () => {
     expect(an.windows[1]!.breakable).toBe(true);
     expect(an.ducts[0]!.exit.where).toBe('wall');
     expect(an.ducts[1]!.exit.where).toBe('ceiling');
-    expect(an.rappels[0]!.top.x).toBe(STUDIO_PROPS.rappel.x);
+    expect(an.rappels[0]!.top.x).toBe(CHAMBER_PROPS.rappel.x);
     // the team block's south lip: the pairs' station lip (same height, line and outward normal)
     const st = stationLedge(PAIR_STATION);
-    const lip = an.ledges.find((l) => Math.abs(l.top - PAIR_TOP) < 1e-6 && Math.abs(l.a.z - STUDIO_PROPS.team.z0) < 1e-6 && l.nz < -0.99);
+    const lip = an.ledges.find((l) => Math.abs(l.top - PAIR_TOP) < 1e-6 && Math.abs(l.a.z - CHAMBER_PROPS.team.z0) < 1e-6 && l.nz < -0.99);
     expect(lip).toBeTruthy();
     expect(lip!.canHang).toBe(true);
     expect(st.nz).toBeCloseTo(lip!.nz, 9);
     expect(Math.min(lip!.a.x, lip!.b.x)).toBeCloseTo(Math.min(st.a.x, st.b.x), 6);
     // the ledge wall's lip at 2.4 m, hangable
-    expect(an.ledges.some((l) => Math.abs(l.top - STUDIO_PROPS.ledge.top) < 1e-6 && l.nz < -0.99 && l.canHang)).toBe(true);
+    expect(an.ledges.some((l) => Math.abs(l.top - CHAMBER_PROPS.ledge.top) < 1e-6 && l.nz < -0.99 && l.canHang)).toBe(true);
     // no lip off the vent block (a crawl duct, not a climb)
-    const v = STUDIO_PROPS.vent;
+    const v = CHAMBER_PROPS.vent;
     expect(an.ledges.some((l) => l.a.x > v.x0 - 0.01 && l.a.x < v.x1 + 0.01 && l.a.z > v.z0 - 0.01 && l.a.z < v.z1 + 0.01)).toBe(false);
   });
 });
 
-describe('anim studio 2: the G2b test pieces leave the old room as it was', () => {
-  /** (G2b) Every `STUDIO_PROPS` key of the Anim Studio, with its value as it was before the test pieces came (the owner's rule: the existing room keeps its place). */
+describe('Test Chamber 2: the G2b test pieces leave the old room as it was', () => {
+  /** (G2b) Every `CHAMBER_PROPS` key of the Test Chamber, with its value as it was before the test pieces came (the owner's rule: the existing room keeps its place). */
   const OLD = {
     team: { x0: 11, x1: 17, z0: 25, z1: 28, top: 4.4 },
     ledge: { x0: 2, x1: 6, z0: 25, z1: 28, top: 2.4 },
@@ -461,18 +461,18 @@ describe('anim studio 2: the G2b test pieces leave the old room as it was', () =
     rappel: { x: 16.3, z: 25, top: 4.4 },
   };
 
-  it('every old STUDIO_PROPS key keeps its value; the room is still 28 m, the middle 14', async () => {
-    const { STUDIO_MID } = await import('../src/anim/studioProps');
-    for (const [k, v] of Object.entries(OLD)) expect((STUDIO_PROPS as Record<string, unknown>)[k], k).toEqual(v);
-    expect(STUDIO_SIZE).toBe(28);
-    expect(STUDIO_MID).toBe(14);
+  it('every old CHAMBER_PROPS key keeps its value; the room is still 28 m, the middle 14', async () => {
+    const { CHAMBER_MID } = await import('../src/anim/chamberProps');
+    for (const [k, v] of Object.entries(OLD)) expect((CHAMBER_PROPS as Record<string, unknown>)[k], k).toEqual(v);
+    expect(CHAMBER_SIZE).toBe(28);
+    expect(CHAMBER_MID).toBe(14);
   });
 
   it('the old room is still built: the 7 lamps (two more come after them), the two spawns, the grid, the team block box, the door and window walls', async () => {
     const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { studio } = await import('../src/world/maps/studio');
+    const { chamber } = await import('../src/world/maps/chamber');
     const b = new LevelBuilder();
-    const lay = studio.build(b, 0);
+    const lay = chamber.build(b, 0);
     // (G2c) the annex adds L0 and L1 after them: the old seven keep their ids
     expect(b.lights.lights.length).toBe(9);
     expect(b.lights.lights.slice(0, 7).map((l) => [l.x, l.z])).toEqual([[11, 17], [16.5, 10.5], [17.5, 16.5], [14, 23], [5, 14], [23, 14], [14, 5]]);
@@ -485,11 +485,11 @@ describe('anim studio 2: the G2b test pieces leave the old room as it was', () =
 
   it('no solid box stands in the animation lane (x 8-26, z 18-24) or on a loop\'s walk-in', async () => {
     const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { studio } = await import('../src/world/maps/studio');
+    const { chamber } = await import('../src/world/maps/chamber');
     const b = new LevelBuilder();
-    studio.build(b, 0);
+    chamber.build(b, 0);
     // a box stands in the room (not the floor, the perimeter or the ceiling) when it rises over the floor
-    const solid = b.boxes.filter((x) => x.collide && x.c[1] + x.s[1] / 2 > 0.05 && x.c[1] - x.s[1] / 2 < 7.9 && x.c[0] > 0 && x.c[0] < STUDIO_SIZE && x.c[2] > 0 && x.c[2] < STUDIO_SIZE);
+    const solid = b.boxes.filter((x) => x.collide && x.c[1] + x.s[1] / 2 > 0.05 && x.c[1] - x.s[1] / 2 < 7.9 && x.c[0] > 0 && x.c[0] < CHAMBER_SIZE && x.c[2] > 0 && x.c[2] < CHAMBER_SIZE);
     expect(solid.length).toBeGreaterThan(20);
     const hits = (x0: number, x1: number, z0: number, z1: number, yLo: number, yHi: number): number =>
       solid.filter((x) => Math.abs(x.yaw) < 1e-9 && x.c[0] - x.s[0] / 2 < x1 && x.c[0] + x.s[0] / 2 > x0 && x.c[2] - x.s[2] / 2 < z1 && x.c[2] + x.s[2] / 2 > z0 && x.c[1] - x.s[1] / 2 < yHi && x.c[1] + x.s[1] / 2 > yLo).length;
@@ -505,7 +505,7 @@ describe('anim studio 2: the G2b test pieces leave the old room as it was', () =
 
   it('the new pieces are the engine\'s sizes: step rows, the tunnel, the slopes, the fence, block B, the fin gap, the zip, the booth', async () => {
     const { MOVEMENT } = await import('../src/config/movement');
-    const P = STUDIO_PROPS;
+    const P = CHAMBER_PROPS;
     const [r0, r1, r2] = P.steps.rows;
     expect(r0.h).toBeLessThanOrEqual(MOVEMENT.maxStep);
     expect(r1.h).toBeGreaterThan(MOVEMENT.maxStep);

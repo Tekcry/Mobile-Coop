@@ -4,7 +4,7 @@
 import { launch, frames, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber' });
 let failed = false;
 
 // page helpers: stepping with a held stick / buttons, measuring contacts on every rendered (120 Hz) frame

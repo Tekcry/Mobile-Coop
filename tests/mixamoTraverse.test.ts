@@ -1,22 +1,22 @@
 /**
  * (mixamo-retarget I2) The Mixamo traversal captures on Wren (`src/anim/mixamo.ts`, the graph's `mixamoTrav`):
- * - off (the flag's default, no Studio pick): every slot hand-made and the graph bit-identical to a graph that never saw
- *   the switch, after the flag or a Studio pick was on and is cleared again; a guard's graph identical with the flag on;
+ * - off (the flag's default, no Chamber pick): every slot hand-made and the graph bit-identical to a graph that never saw
+ *   the switch, after the flag or a Chamber pick was on and is cleared again; a guard's graph identical with the flag on;
  * - on: Wren's graph picks the capture of each slot `MIXAMO_ON` lets play (hanging idle, the shimmy by the pendulum's
  *   side, ladder, vent crawl, the lip climb-up to the crouch then the free-hang stand-up end, the ladder top-out; one
  *   kept off plays its hand-made clip); a team or drainpipe climb-up, a pipe hang on the move and a guard keep the
  *   hand-made clips; `playing.trav` names the capture;
  * - headless on Wren's rig driven as attachController drives it (AttachGrips on a lip / ladder): the palms stay on their
  *   grips (rig.gripError) and the soles on their plants as well as on the hand-made clips (bible 5.12.2 #2, within 1 cm);
- * - the Studio's pick (`trav:<loop>/<slug>`) plays that capture with the flag off, and clears.
+ * - the Chamber's pick (`trav:<loop>/<slug>`) plays that capture with the flag off, and clears.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { MIXAMO, MIXAMO_ON, MIXAMO_TRAV, mixamoStudioEntry, setMixamo, setMixamoStudio, WREN_TRAV } from '../src/anim/mixamo';
+import { MIXAMO, MIXAMO_ON, MIXAMO_TRAV, mixamoChamberEntry, setMixamo, setMixamoChamber, WREN_TRAV } from '../src/anim/mixamo';
 import { AnimGraph, defaultInput, type AnimInput, type TraverseKind } from '../src/anim/animGraph';
 import { CLIMB, CLIMB_UP, CLIMB_UP_CROUCH_K, CLIMB_UP_TEAM, CRAWL, HANG } from '../src/anim/clips/traverse';
 import { proportions } from '../src/player/proportions';
 import { flags, onOffFlag } from '../src/core/flags';
-import { STUDIO_ENTRIES } from '../src/anim/studio';
+import { CHAMBER_ENTRIES } from '../src/anim/chamber';
 import type { RigPose } from '../src/player/characterRig';
 import type { Ladder, Ledge } from '../src/world/anchors';
 import type { Pose } from '../src/anim/pose';
@@ -32,7 +32,7 @@ const allOn = (): void => {
 afterEach(() => {
   Object.assign(MIXAMO_ON, ON0);
   setMixamo(false);
-  setMixamoStudio('');
+  setMixamoChamber('');
 });
 
 const DT = 1 / 60;
@@ -128,42 +128,42 @@ describe('mixamo I2: the switch and the resolved Wren table', () => {
     expect(WREN_TRAV.hangIdle).toBeNull();
   });
 
-  it('the Studio pick: a capture loop plays its capture with the flag off, any other entry clears it', () => {
-    const ids = STUDIO_ENTRIES.filter((e) => e.kind === 'trav' && /^trav:[^/]+\//.test(e.id)).map((e) => e.id);
+  it('the Chamber pick: a capture loop plays its capture with the flag off, any other entry clears it', () => {
+    const ids = CHAMBER_ENTRIES.filter((e) => e.kind === 'trav' && /^trav:[^/]+\//.test(e.id)).map((e) => e.id);
     expect(ids.length).toBe(Object.keys(MIXAMO_TRAV).length);
     for (const id of ids) {
       const slug = id.split('/')[1]!;
-      mixamoStudioEntry(id);
-      expect(MIXAMO.studio, id).toBe(slug);
+      mixamoChamberEntry(id);
+      expect(MIXAMO.chamber, id).toBe(slug);
       const r = MIXAMO_TRAV[slug]!;
       expect(WREN_TRAV[r.slot], id).toBe(r.clip);
       // only its slot (the free-hang climb is a whole climb-up: its crouch part too)
       const filled = Object.entries(WREN_TRAV).filter(([k, v]) => k !== 'any' && k !== 'hold' && k !== 'stand' && v !== null).map(([k]) => k).sort();
       expect(filled, id).toEqual(slug === 'freehang_climb' ? ['climbUpCrouch', 'climbUpStand'] : [r.slot]);
     }
-    mixamoStudioEntry('trav:ledge');
-    expect(MIXAMO.studio).toBe('');
+    mixamoChamberEntry('trav:ledge');
+    expect(MIXAMO.chamber).toBe('');
     expect(WREN_TRAV.any).toBe(false);
-    mixamoStudioEntry('trav:ledge/hanging_idle');
-    mixamoStudioEntry('');
+    mixamoChamberEntry('trav:ledge/hanging_idle');
+    mixamoChamberEntry('');
     expect(WREN_TRAV.any).toBe(false);
   });
 
   it('the capture loops say what they play (no "until I2" text) and each shimmy goes its own way', () => {
-    for (const e of STUDIO_ENTRIES.filter((x) => x.kind === 'trav' && x.id.includes('/'))) {
+    for (const e of CHAMBER_ENTRIES.filter((x) => x.kind === 'trav' && x.id.includes('/'))) {
       expect(e.trav!.tune, e.id).toMatch(/this capture plays/);
       expect(e.trav!.tune, e.id).toMatch(/\?mixamo=1/);
       // one MIXAMO_ON keeps out of matches says so
       expect(/stays hand-made/.test(e.trav!.tune), e.id).toBe(!MIXAMO_ON[e.id.split('/')[1]!]);
     }
-    const sideOf = (id: string): number => STUDIO_ENTRIES.find((e) => e.id === id)!.trav!.steps.reduce((s, st) => s + (st.x ?? 0) * st.dur, 0);
+    const sideOf = (id: string): number => CHAMBER_ENTRIES.find((e) => e.id === id)!.trav!.steps.reduce((s, st) => s + (st.x ?? 0) * st.dur, 0);
     expect(sideOf('trav:ledge/braced_hang_shimmy_left')).toBeLessThan(0);
     expect(sideOf('trav:ledge/braced_hang_shimmy_right')).toBeGreaterThan(0);
   });
 });
 
 describe('mixamo I2: the graph', () => {
-  it('off: bit-identical to a graph that never saw the switch, after the flag and a Studio pick were on and cleared', () => {
+  it('off: bit-identical to a graph that never saw the switch, after the flag and a Chamber pick were on and cleared', () => {
     const base = runGraph(true);
     expect(new Set(base.trav)).toEqual(new Set(['hang', 'climbUp', '', 'climb', 'crawl', CLIMB_UP_TEAM.name]));
     setMixamo(true);
@@ -171,9 +171,9 @@ describe('mixamo I2: the graph', () => {
     expect(differ(base.pose, on.pose)).toBeGreaterThan(0);
     setMixamo(false);
     expect(differ(base.pose, runGraph(true).pose)).toBe(0);
-    setMixamoStudio('freehang_climb');
+    setMixamoChamber('freehang_climb');
     expect(differ(base.pose, runGraph(true).pose)).toBeGreaterThan(0);
-    setMixamoStudio('');
+    setMixamoChamber('');
     expect(differ(base.pose, runGraph(true).pose)).toBe(0);
   });
 
@@ -583,7 +583,7 @@ describe('mixamo I2: hands and feet on the anchors (headless, Wren rig)', () => 
       expect(mix.frames, st).toBeGreaterThan(0);
       expect(mix.hand, `${st} palms`).toBeLessThanOrEqual(Math.max(0.01, hand.hand + 0.002));
       // (I2b) the ladder's sole measure is the rig's climb foot cap on both clips (I2-REPORT "Known gaps"), not contact: the
-      // capture reads 38 cm vs 32 (Michael 2026-10-26: worse numbers are tuned in the Studio); capped for a visible break
+      // capture reads 38 cm vs 32 (Michael 2026-10-26: worse numbers are tuned in the Chamber); capped for a visible break
       if (st === 'ladder') expect(mix.foot, `${st} soles`).toBeLessThanOrEqual(hand.foot + 0.1);
       else expect(mix.foot, `${st} soles`).toBeLessThanOrEqual(Math.max(0.01, hand.foot + 0.002));
       // the switch from the hang's / ladder's clip to the exit's (a capture to the hand-made clip, or the reverse) steps no

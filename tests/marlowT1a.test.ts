@@ -1,5 +1,5 @@
 // (marlow-bays slice T1a) The Keys tab's new fields (item 17), the Mirror box (item 18), the key timeline and the
-// studio's key requests (items 15-16), the aim stances and the gun pick (item 19), the shared rows' own rows and their
+// chamber's key requests (items 15-16), the aim stances and the gun pick (item 19), the shared rows' own rows and their
 // migration (COVERAGE gap 3), the drawn set's edit channel (gap 4), the right stick's flicks and the plain names.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -20,7 +20,7 @@ import { TUNE_EXPORT_MAGIC, tuneExport, tuneGet, tuneImport, tuneLoad, tuneReset
 import { JOINT_ROWS, jointsGet } from '../src/anim/tuneJoints';
 import { JOINT_GROUP_IDS, tuneV2Frame, tuneV2JointRow } from '../src/anim/tuneV2Sections';
 import { presetFile, presetParse } from '../src/anim/tuneHistory';
-import { STUDIO, STUDIO_ENTRIES, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioReset, studioWeaponFor } from '../src/anim/studio';
+import { CHAMBER, CHAMBER_ENTRIES, chamberEntry, chamberInput, chamberKeyInfo, chamberKeyPhase, chamberReset, chamberWeaponFor } from '../src/anim/chamber';
 import { tuneBake, bakeCatalogue } from '../src/anim/tuneBake';
 import { BAKE_KEYS_DIR } from '../src/anim/tuneBakeTable';
 import { bodyCarry, loopGroups, plainGroupWord, plainLabel } from '../src/ui/tunerLayout';
@@ -50,7 +50,7 @@ function sweep(clipName: string): number[] {
 afterEach(() => {
   tuneResetAll();
   tuneKeysSync();
-  studioReset();
+  chamberReset();
 });
 
 /** A key file as written before T1a (no head, shoulder, twists): a literal, mirrored, two keys. */
@@ -290,7 +290,7 @@ describe('T1a item 18: the Mirror box', () => {
   });
 });
 
-describe('T1a item 15: the key timeline and the studio key requests', () => {
+describe('T1a item 15: the key timeline and the chamber key requests', () => {
   it('a mirrored clip has twice its keys; key 2 of sneak mirrors onto 6; the step walks the keys in phase order', () => {
     // (anim-bake-1022) on sneak (own keys evenly spaced, 0 / 0.125 / 0.25 / 0.375): it ran on jog until Michael's
     // 2026-10-22 tune retimed jog's key 3 to 0.1458, so a step from 0.2 no longer lands on jog's key 3
@@ -309,17 +309,17 @@ describe('T1a item 15: the key timeline and the studio key requests', () => {
     expect(keyNearest(sneak, 0.62)).toBe(5);
   });
 
-  it('studio requests: a key by index or the next one, NaN with nothing to do; the readout fields', () => {
-    expect(studioKeyPhase('walk', 0, 5, 0)).toBeCloseTo(0.625, 9);
-    expect(studioKeyPhase('walk', 0.625, -1, 1)).toBeCloseTo(0.75, 9);
-    expect(Number.isNaN(studioKeyPhase('walk', 0.3, -1, 0))).toBe(true);
-    expect(Number.isNaN(studioKeyPhase('no_clip', 0.3, 1, 0))).toBe(true);
+  it('chamber requests: a key by index or the next one, NaN with nothing to do; the readout fields', () => {
+    expect(chamberKeyPhase('walk', 0, 5, 0)).toBeCloseTo(0.625, 9);
+    expect(chamberKeyPhase('walk', 0.625, -1, 1)).toBeCloseTo(0.75, 9);
+    expect(Number.isNaN(chamberKeyPhase('walk', 0.3, -1, 0))).toBe(true);
+    expect(Number.isNaN(chamberKeyPhase('no_clip', 0.3, 1, 0))).toBe(true);
     const o = { keys: 0, key: -1, onKey: false };
-    studioKeyInfo('walk', 0.625, o);
+    chamberKeyInfo('walk', 0.625, o);
     expect(o).toEqual({ keys: 8, key: 5, onKey: true });
-    studioKeyInfo('walk', 0.6, o);
+    chamberKeyInfo('walk', 0.6, o);
     expect(o.onKey).toBe(false);
-    studioKeyInfo('', 0.6, o);
+    chamberKeyInfo('', 0.6, o);
     expect(o).toEqual({ keys: 0, key: -1, onKey: false });
   });
 
@@ -330,18 +330,18 @@ describe('T1a item 15: the key timeline and the studio key requests', () => {
 
 describe('T1a item 19: the aim stances and the gun pick', () => {
   it('aim standing, crouch aim standing and crouch aim moving are loops; armed loops take the picked gun', () => {
-    for (const id of ['state:aimStill', 'state:crouchAim', 'state:crouchAimFwd']) expect(STUDIO_ENTRIES.some((e) => e.id === id), id).toBe(true);
+    for (const id of ['state:aimStill', 'state:crouchAim', 'state:crouchAimFwd']) expect(CHAMBER_ENTRIES.some((e) => e.id === id), id).toBe(true);
     const out = { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false };
-    studioInput(studioEntry('state:crouchAim'), false, out, true);
+    chamberInput(chamberEntry('state:crouchAim'), false, out, true);
     expect(out).toMatchObject({ ads: true, crouch: true, drawn: true, x: 0, y: 0 });
-    studioInput(studioEntry('state:crouchAimFwd'), false, out, true);
+    chamberInput(chamberEntry('state:crouchAimFwd'), false, out, true);
     expect(out.ads && out.crouch && out.y > 0).toBe(true);
-    expect(studioWeaponFor(studioEntry('state:aimStill'), 'pistol')).toBe('pistol');
-    expect(studioWeaponFor(studioEntry('keyed:ready_stance'), 'rifle')).toBe('rifle');
-    expect(studioWeaponFor(studioEntry('state:walk'), 'pistol')).toBe('');
-    STUDIO.weapon = 'pistol';
-    studioReset();
-    expect(STUDIO.weapon).toBe('pistol'); // kept across studio visits
+    expect(chamberWeaponFor(chamberEntry('state:aimStill'), 'pistol')).toBe('pistol');
+    expect(chamberWeaponFor(chamberEntry('keyed:ready_stance'), 'rifle')).toBe('rifle');
+    expect(chamberWeaponFor(chamberEntry('state:walk'), 'pistol')).toBe('');
+    CHAMBER.weapon = 'pistol';
+    chamberReset();
+    expect(CHAMBER.weapon).toBe('pistol'); // kept across chamber visits
     expect(loopGroups('state:aimStill').body).toBe('aimStill');
     expect(loopGroups('state:crouchAimFwd').body).toBe('aimCrouchMove');
   });

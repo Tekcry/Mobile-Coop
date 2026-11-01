@@ -3,7 +3,7 @@
 import { launch, frames, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio&mode=test' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber&mode=test' });
 let failed = false;
 /** (havok-stall) Math.random's seed for the ladder chases. */
 const LADDER_SEED = 7919;

@@ -1,8 +1,8 @@
 /**
  * (tuner-clarity S1, BRIEF A3) What the local player's body is playing now, read live from the animation graph: the
- * motion-capture, hand-keyed and graph-code shares of the body, the move the capture plays and the Anim Studio's clip.
+ * motion-capture, hand-keyed and graph-code shares of the body, the move the capture plays and the Test Chamber's clip.
  * The graph writes its own `AnimGraph.playing` at the end of each `update`; `tuneEnd` (the local player's tuning window)
- * copies it into `NOW_PLAYING`, which the tuner panel and the Anim Studio read (display only: nothing in the game reads
+ * copies it into `NOW_PLAYING`, which the tuner panel and the Test Chamber read (display only: nothing in the game reads
  * it back). The plain words live here (A2's one table, with `src/ui/tunerReach.ts`'s): "motion capture", "hand-made".
  * Pure and Babylon-free; the per-frame parts (`copyPlaying`, `nowPlayingKey`) allocate nothing.
  */
@@ -13,7 +13,7 @@ import type { BodyGroup } from './tune';
 import { mocapSourceTag, mocapSourceTagWord } from './mocapSources';
 
 /** The move ids `GraphPlaying.move` holds (small ints): the speed set's clips, the one-shot slots, the crouched sneak
- *  capture, the aimed strafe capture and the studio's clip. */
+ *  capture, the aimed strafe capture and the chamber's clip. */
 export const MOVE_IDS = {
   walk: 0,
   jog: 1,
@@ -84,7 +84,7 @@ const OFF_NOTE = ' (motion capture off)';
  * One graph's playing state, written once a frame (numbers and one reference): `mocap` the motion-capture share of the
  * body (the standing holstered gait and slots, the crouched sneak capture, the aimed strafe capture), `keyed` the
  * hand-keyed clips' share, `code` the graph code's (procedural) share; the three sum to 1. `move` the move the capture
- * plays (a `MOVE_IDS` value; with no capture share the holstered speed set's nearer clip), `clip` the Anim Studio's
+ * plays (a `MOVE_IDS` value; with no capture share the holstered speed set's nearer clip), `clip` the Test Chamber's
  * loop clip while its drive plays one (else null). (mixamo-retarget M5) `trav` the traversal channel clip the graph
  * plays (`TRAVERSE_CLIP`: a hand-made clip, or with I2 a Mixamo capture; null when no traversal plays): part of the graph
  * code's share; a capture's line names it by its source row (`mocapSources.ts`).
@@ -176,9 +176,9 @@ function clipTag(c: { readonly name: string } | null): number {
 
 /**
  * One integer for what the line shows: the capture share in 10 % steps, the move, the body state (`bodyIdx`, a
- * `BODY_GROUPS` index; -1 none), the switch (More > Panel "Mocap locomotion"), the clip (the studio clip, else
+ * `BODY_GROUPS` index; -1 none), the switch (More > Panel "Mocap locomotion"), the clip (the chamber clip, else
  * (mixamo-retarget M5) the traversal clip, with a bit saying which: the line reads the traversal clip only without a
- * studio clip) and the source of the capture the line names (`mocapSources.ts`: CMU or Mixamo). Under 2^28: a small
+ * chamber clip) and the source of the capture the line names (`mocapSources.ts`: CMU or Mixamo). Under 2^28: a small
  * integer, never a boxed double. Equal keys give equal `nowPlayingText`; the panel rebuilds its text only when the key
  * changes. No allocation.
  */
@@ -190,7 +190,7 @@ export function nowPlayingKey(np: Readonly<GraphPlaying>, bodyIdx: number, switc
   return tenths(np.mocap) | (mv << 4) | (b << 8) | ((switchOn ? 1 : 0) << 14) | (tag << 15) | (trav << 25) | (shownSourceTag(np) << 26);
 }
 
-/** The source tag of the capture the line names: the studio clip's, else a traversal capture's, else the move's. */
+/** The source tag of the capture the line names: the chamber clip's, else a traversal capture's, else the move's. */
 function shownSourceTag(np: Readonly<GraphPlaying>): number {
   if (np.clip !== null) return tagOf(np.clip);
   const t = tagOf(np.trav);
@@ -226,7 +226,7 @@ export function bodyWord(body: BodyGroup | ''): string {
  * - no capture: "Now playing: hand-made crouch walk" (the body state's word), "... (motion capture off)" with the switch
  *   off;
  * - a mix: "Now playing: mix, 70% motion-capture (CMU) walk, 30% hand-made";
- * - the Anim Studio's clip: "Now playing: hand-made walk clip", "Now playing: motion-capture (CMU) walk clip";
+ * - the Test Chamber's clip: "Now playing: hand-made walk clip", "Now playing: motion-capture (CMU) walk clip";
  * - a traversal capture (I2): "Now playing: motion-capture (Mixamo) hang" (the body state's word, else the clip's); a
  *   hand-made traversal clip reads as before (the hand-made line).
  * Built only on a key change (`nowPlayingKey`).
@@ -252,7 +252,7 @@ export function nowPlayingText(np: Readonly<GraphPlaying>, body: BodyGroup | '',
 const SOURCE_WORD: Readonly<Record<string, string>> = { hand: 'Hand-made', cmu: 'CMU', mixamo: 'Mixamo' };
 
 /**
- * (Toggle) The player line with the Animation source in use (Options > Gameplay, or the Anim Studio's switch):
+ * (Toggle) The player line with the Animation source in use (Options > Gameplay, or the Test Chamber's switch):
  * "Now playing: motion-capture (CMU) walk (animation source: CMU)". Built only on a key or source change.
  */
 export function nowPlayingSourceText(line: string, source: string): string {

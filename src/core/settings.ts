@@ -108,7 +108,7 @@ export interface Settings {
     /** (mixamo-retarget Toggle) The Animation source (`src/anim/animSource.ts`): hand-made, CMU (today's game, the
      *  default) or Mixamo on top of CMU. A look choice on this machine only (a co-op partner drawn here follows it). */
     animSource: 'hand' | 'cmu' | 'mixamo';
-    /** (F45) The player picked the Animation source (Options or the Anim Studio). Until then the game plays Mixamo
+    /** (F45) The player picked the Animation source (Options or the Test Chamber). Until then the game plays Mixamo
      *  (`settingAnimSource`, on in every build since one-game, 2026-11-01). */
     animSourceSet: boolean };
   /** Accessibility and HUD. */

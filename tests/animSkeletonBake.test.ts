@@ -12,7 +12,7 @@ import { parseGlb } from '../src/operators/lab/glb';
 import { OperatorPoser, poserSetup, RIG_JOINTS, TRS } from '../src/operators/runtime/pose';
 import type { CharacterRig } from '../src/player/characterRig';
 import type { TransformNode } from '../src/core/babylon';
-import type { StudioDrive } from '../src/anim/studioDrive';
+import type { ChamberDrive } from '../src/anim/chamberDrive';
 
 type V = [number, number, number];
 interface LegCheck { kn: V; an: V; toe: V; toeTip: V }
@@ -55,7 +55,7 @@ describe('anim-skeleton S3b: the skeleton_test clip (pure)', () => {
 });
 
 describe('anim-skeleton S3b: the bake frames on the rig', () => {
-  type Built = { rig: CharacterRig; drive: StudioDrive };
+  type Built = { rig: CharacterRig; drive: ChamberDrive };
 
   async function setup(): Promise<{ make: (name: string, clip: KeyedClip, frame: number) => Built; run: (b: Built[], n: number) => void; dispose: () => void }> {
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
@@ -63,7 +63,7 @@ describe('anim-skeleton S3b: the bake frames on the rig', () => {
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { defaultLook } = await import('../src/cosmetics/avatarLook');
     const { operatorRig } = await import('../src/operators/runtime/playerFigure');
-    const { newStudioDrive } = await import('../src/anim/studioDrive');
+    const { newChamberDrive } = await import('../src/anim/chamberDrive');
     const scene = new Scene(new NullEngine());
     const lib = new PartLibrary(scene);
     const made: { dispose(): void }[] = [];
@@ -72,7 +72,7 @@ describe('anim-skeleton S3b: the bake frames on the rig', () => {
       make: (name, clip, frame) => {
         const o = operatorRig(scene, (s, h, n) => lib.instance(s, h, n), defaultLook(), name);
         made.push(o.figure, o.rig);
-        const drive = newStudioDrive();
+        const drive = newChamberDrive();
         drive.clip = clip;
         drive.held = true;
         drive.phase = frame / 48;

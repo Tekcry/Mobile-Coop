@@ -233,7 +233,7 @@ const BG_IK = 3;
  * (anim-joints J1, A2) Every Wren rig reads the tables, not only the local player in its active row: each frame a few
  * more rows are copied registry -> table (J2, with the move and action rows: 3 Joints rows, 12 Hands & feet + Weapon
  * rows, 3 IK rows; every row within about 0.4 s; a few hundred keyed reads, setters only on a real difference), so the
- * partner and the studio puppets in another state see a panel edit too. No allocation.
+ * partner and the chamber puppets in another state see a panel edit too. No allocation.
  */
 function syncBackground(): void {
   for (let n = 0; n < BG_JOINTS; n++) {

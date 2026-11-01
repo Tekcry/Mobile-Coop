@@ -1,10 +1,10 @@
 // (clean-up G1) e2e-coop part `chamber` (run-e2e: `e2e-coop:chamber`; PART_SCRIPT, its own script): two players share the Test
-// Chamber (map `studio`) from the co-op lobby, two pages over `?net=local`.
+// Chamber (map `chamber`) from the co-op lobby, two pages over `?net=local`.
 // Lobby: the host's Mode row offers Test Chamber after Campaign; picking it sets the room to the `test` mode (G2a; it was Free
-// Roam) on `studio`, the Map row reads Test Chamber and is locked, the partner's lobby shows the same. Start: both pages load the
-// `studio` map in `test` mode with a net session (the host runs `TestMode`: nav, enemy manager, `g.mode.id === 'test'`; the
+// Roam) on `chamber`, the Map row reads Test Chamber and is locked, the partner's lobby shows the same. Start: both pages load the
+// `chamber` map in `test` mode with a net session (the host runs `TestMode`: nav, enemy manager, `g.mode.id === 'test'`; the
 // client has the mirrored items and no mode), the host stands on the map's first spawn and the client on the second
-// (2 m apart), the single-player studio stage (`__studioStage`) is off on both, each sees the other. The animation tuner
+// (2 m apart), the single-player chamber stage (`__chamberStage`) is off on both, each sees the other. The animation tuner
 // opens there (it opens in the Test Chamber only) for the local player with its co-op time lock, and the partner stays in
 // sync while it is open.
 // (clean-up G2c, decision N17) The room has three passive practice guards (grunts; two side by side with their backs to the spawns, one
@@ -33,10 +33,10 @@ try {
     const r = [...document.querySelectorAll('.lobby-opts .row')].find((x) => x.querySelector('.row-label')?.textContent === 'Mode');
     r.querySelectorAll('.choice-arrow')[1].click();
   });
-  await until(A, () => window.__coop.session.map === 'studio' && window.__coop.session.mode === 'test', null, 8000, 'the host picks the Test Chamber');
+  await until(A, () => window.__coop.session.map === 'chamber' && window.__coop.session.mode === 'test', null, 8000, 'the host picks the Test Chamber');
   assert((await rowText(A, 'Mode')) === 'Test Chamber', `the host's Mode row reads Test Chamber (${await rowText(A, 'Mode')})`);
   assert((await rowText(A, 'Map')) === 'Test Chamber' && (await rowLocked(A, 'Map')), 'the host\'s Map row reads Test Chamber, locked');
-  await until(B, () => window.__coop.session.map === 'studio' && window.__coop.session.mode === 'test', null, 8000, 'the partner hears the pick');
+  await until(B, () => window.__coop.session.map === 'chamber' && window.__coop.session.mode === 'test', null, 8000, 'the partner hears the pick');
   await until(B, () => [...document.querySelectorAll('.lobby-opts .row')].some((x) => x.querySelector('.row-label')?.textContent === 'Mode' && x.querySelector('.locked-val')?.textContent === 'Test Chamber'), null, 8000, 'the partner\'s Mode row');
   assert((await rowText(B, 'Map')) === 'Test Chamber', `the partner's Map row reads Test Chamber (${await rowText(B, 'Map')})`);
   // the choice goes back and forth: Campaign again, then the chamber (the map list never swallows the dev map)
@@ -44,18 +44,18 @@ try {
     const r = [...document.querySelectorAll('.lobby-opts .row')].find((x) => x.querySelector('.row-label')?.textContent === 'Mode');
     r.querySelectorAll('.choice-arrow')[0].click();
   });
-  await until(A, () => window.__coop.session.mode === 'course' && window.__coop.session.map !== 'studio', null, 8000, 'the host goes back to the Campaign');
+  await until(A, () => window.__coop.session.mode === 'course' && window.__coop.session.map !== 'chamber', null, 8000, 'the host goes back to the Campaign');
   await A.evaluate(() => {
     const r = [...document.querySelectorAll('.lobby-opts .row')].find((x) => x.querySelector('.row-label')?.textContent === 'Mode');
     r.querySelectorAll('.choice-arrow')[1].click();
   });
-  await until(A, () => window.__coop.session.map === 'studio' && window.__coop.session.mode === 'test', null, 8000, 'the host picks the Test Chamber again');
+  await until(A, () => window.__coop.session.map === 'chamber' && window.__coop.session.mode === 'test', null, 8000, 'the host picks the Test Chamber again');
 
   // ---- the match ----
   await B.evaluate(() => window.__coop.session.setReady(true));
   await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
   await A.evaluate(() => window.__coop.session.startMatch());
-  for (const P of pages) await until(P, () => window.__app.current?.opts?.map?.id === 'studio' && window.__app.current.opts.mode === 'test' && !!window.__app.current.net && !window.__app.current.isEnded, null, LOAD_MS, 'the Test Chamber match on both pages');
+  for (const P of pages) await until(P, () => window.__app.current?.opts?.map?.id === 'chamber' && window.__app.current.opts.mode === 'test' && !!window.__app.current.net && !window.__app.current.isEnded, null, LOAD_MS, 'the Test Chamber match on both pages');
   await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state), null, 15000, 'the partner\'s state reaches the host');
   const host = await A.evaluate(() => { const g = window.__app.current; return { mode: g.mode?.id ?? null, nav: !!g.nav, em: !!g.enemyMgr, ammo: g.weapons.infiniteAmmo, cap: g.net.reviveClock.cap }; });
   assert(host.mode === 'test' && host.nav && host.em && host.ammo, `the host runs the test mode (${JSON.stringify(host)})`);
@@ -74,8 +74,8 @@ try {
   console.log(`  host at (${a.x.toFixed(2)}, ${a.z.toFixed(2)}), client at (${b.x.toFixed(2)}, ${b.z.toFixed(2)})`);
   assert(Math.hypot(a.x - 14, a.z - 14) < 0.6, `the host spawns at the first spot (${a.x.toFixed(2)}, ${a.z.toFixed(2)})`);
   assert(Math.hypot(b.x - 16, b.z - 14) < 0.6, `the client spawns at the second spot, 2 m beside (${b.x.toFixed(2)}, ${b.z.toFixed(2)})`);
-  const stage = await Promise.all(pages.map((P) => P.evaluate(() => ({ stage: !!window.__studioStage, open: window.__app.debug.animTune.isOpen, can: window.__app.debug.animTune.canOpen }))));
-  assert(stage.every((s) => !s.stage), `no studio stage on either page (${JSON.stringify(stage)})`);
+  const stage = await Promise.all(pages.map((P) => P.evaluate(() => ({ stage: !!window.__chamberStage, open: window.__app.debug.animTune.isOpen, can: window.__app.debug.animTune.canOpen }))));
+  assert(stage.every((s) => !s.stage), `no chamber stage on either page (${JSON.stringify(stage)})`);
   assert(stage.every((s) => s.can && !s.open), `the tuner may open in the room and starts shut (${JSON.stringify(stage)})`);
   // (G2a) the figures are placed on the first frames after the load: read again until they stand beside the partner (a read
   // the instant the match loaded saw the rig at its origin once)
@@ -132,9 +132,9 @@ try {
   assert(true, 'a player off the spot: he is back at once');
   // ---- the tuner in the room: local, with the co-op time lock; the partner stays in sync ----
   await A.evaluate(() => window.__app.debug.animTune.show());
-  const t = await A.evaluate(() => ({ open: window.__app.debug.animTune.isOpen, shown: !document.querySelector('.anim-tune').hidden, coop: window.__app.debug.animTune.coop(), studio: !!document.querySelector('.studio-play') && !document.querySelector('.studio-play').closest('[hidden]') }));
+  const t = await A.evaluate(() => ({ open: window.__app.debug.animTune.isOpen, shown: !document.querySelector('.anim-tune').hidden, coop: window.__app.debug.animTune.coop(), chamber: !!document.querySelector('.chamber-play') && !document.querySelector('.chamber-play').closest('[hidden]') }));
   assert(t.open && t.shown && t.coop, `the tuner opens for the host in the room, co-op locked (${JSON.stringify(t)})`);
-  assert(!t.studio, 'the loop player is not in the panel in a room');
+  assert(!t.chamber, 'the loop player is not in the panel in a room');
   // the client walks forward; the host's copy of it follows
   const x0 = b.x;
   await B.evaluate(() => window.__app.input.setMode?.('keyboard'));

@@ -48,7 +48,7 @@ async function menu() {
 async function match() {
   // (clean-up G2c) the Test Chamber in the test mode with its five squad guards (was the Warehouse in Clear)
   console.log('\n-- match (Test Chamber)');
-  const { browser, page, errors } = await launch({ url, params: 'autostart=studio&mode=test&guards=1' });
+  const { browser, page, errors } = await launch({ url, params: 'autostart=chamber&mode=test&guards=1' });
   let ok = true;
   try {
     await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 });

@@ -1,10 +1,10 @@
 /**
- * (anim-studio-2) The Anim Studio's co-op pairs (pure, Babylon-free; a dev aid): both roles of a team move posed on one
+ * (anim-studio-2) The Test Chamber's co-op pairs (pure, Babylon-free; a dev aid): both roles of a team move posed on one
  * clock, without the network. Each pair is a loop (approach, the move with the game's own timing and paths, a hold,
  * a short pause): `pairPose(move, t, ...)` writes both roles at the same `t`, so the two rigs can never drift.
  *
  * The paths and timings are the game's (`game/teamMoves.ts`: `boostPath`, `relayPath`, `relaySlot`, `throwArc`,
- * `hangRootY`, `ropeTopY`; `TEAM` in `config/movement.ts`; the lip's hang pose `hangPoint`), so what the studio shows is
+ * `hangRootY`, `ropeTopY`; `TEAM` in `config/movement.ts`; the lip's hang pose `hangPoint`), so what the chamber shows is
  * what a co-op session plays; each role's state name is the team controller's, so the move sections
  * (`moveTune.ts`) select the same group (and contact window) as in real play.
  *
@@ -19,7 +19,7 @@ import { hangPoint, HANG, makeLedge, type Ledge } from '../world/anchors';
 import type { TraverseKind } from './animGraph';
 import { teamContactK, teamGroup, teamRoleGroup, type TeamMoveId } from './moveTune';
 import { clearTeamPoseIn, newTeamPoseIn, ropeGripWorld, type TeamPoseIn, type TeamPoseMove } from './clips/team';
-import { PAIR_TOP } from './studioProps';
+import { PAIR_TOP } from './chamberProps';
 
 /** A team-move station: the block face (`x`, `z` its foot's middle; `yaw` the outward normal). */
 export interface PairStation {
@@ -421,7 +421,7 @@ export function pairPose(move: TeamMoveId, t: number, st: PairStation, h: number
         const ax0 = x0.x;
         const az0 = x0.z;
         const to = world(st, -0.45, 0.8);
-        // (team-climb) the game's eased path (ropeTopPath; from still: the studio climb may wait at the top)
+        // (team-climb) the game's eased path (ropeTopPath; from still: the chamber climb may wait at the top)
         const { rise, across } = ropeTopPath(kk, 0, ropeTopShares);
         a.x = ax0 + (to.x - ax0) * across;
         a.y = ty + (top - ty) * rise;
@@ -455,7 +455,7 @@ export function pairPose(move: TeamMoveId, t: number, st: PairStation, h: number
     }
   }
   a.group = teamRoleGroup(a.state);
-  // (the downed partner's group shows in the studio only: in a session your downed body is drawn by your partner's game)
+  // (the downed partner's group shows in the chamber only: in a session your downed body is drawn by your partner's game)
   b.group = b.state === 'downed' ? teamGroup('revive', 'b') : teamRoleGroup(b.state);
   a.k = a.group !== '' ? teamContactK(a.state, pt, TEAM) : 0;
 }

@@ -11,10 +11,10 @@ export type TunerMouseMode = 'drag' | 'game';
 /** The toggle key (KeyboardEvent.code): reserved like F3 (the overlay) in keyBindings RESERVED, so no bind takes it. */
 export const TUNER_MOUSE_KEY = 'F4';
 
-/** (marlow-bays item 13) The Anim Studio's 'Loop on the spot' key while the panel is open (the pad: L3); reserved too. */
+/** (marlow-bays item 13) The Test Chamber's 'Loop on the spot' key while the panel is open (the pad: L3); reserved too. */
 export const TUNER_SPOT_KEY = 'F8';
 
-/** (marlow-bays T1a, item 16) The Anim Studio's playback bar keys while the panel is open (reserved too): play / pause,
+/** (marlow-bays T1a, item 16) The Test Chamber's playback bar keys while the panel is open (reserved too): play / pause,
  *  one key back, one key forward (the pad: the right stick up, left, right). */
 export const TUNER_PLAY_KEY = 'F9';
 export const TUNER_KEY_BACK = 'F1';
