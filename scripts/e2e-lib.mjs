@@ -194,10 +194,8 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   // (G2c, N17) the Test Chamber's practice guards stand in the main menu start and the co-op lobby start; tests that do not
   // ask for them (`practice=1`) get none, so every suite's room is as it always was
   const g = /(^|&)practice=/.test(g1) || /[?&]practice=/.test(url) ? g1 : `${g1}&practice=0`;
-  // 3.5: the parked modes and the economy are behind ?legacy=1 (`npm run e2e:legacy` sets LEGACY=1; a suite can name `legacy=1` itself)
-  const q0 = process.env.LEGACY === '1' && !/(^|&)legacy=/.test(g) && !/[?&]legacy=/.test(url) ? `${g}&legacy=1` : g;
   // (locomotion step 20b, D11) E2E_NETSIM=typical: the ?net=local pages run the transport's network simulator
-  const q1 = NETSIM && /(^|&)net=local/.test(q0) && !/(^|&)netsim=/.test(q0) ? `${q0}&netsim=${encodeURIComponent(NETSIM)}` : q0;
+  const q1 = NETSIM && /(^|&)net=local/.test(g) && !/(^|&)netsim=/.test(g) ? `${g}&netsim=${encodeURIComponent(NETSIM)}` : g;
   // (map-ready S2) E2E_PARAMS (optional, e.g. `mapready=1`): appended to every page's query, so a laptop alone run can
   // turn a flag on for suites that do not set it; a key the suite already names keeps the suite's value
   const q = (process.env.E2E_PARAMS ?? '').split('&').filter((kv) => kv && !new RegExp(`(^|&)${kv.split('=')[0]}=`).test(q1) && !new RegExp(`[?&]${kv.split('=')[0]}=`).test(url)).reduce((a, kv) => `${a}&${kv}`, q1);

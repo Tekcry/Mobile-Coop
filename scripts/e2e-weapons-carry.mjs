@@ -1,4 +1,4 @@
-// Weapon carry on Free Roam (the CT kit, G76: the rifle and the suppressed pistol): every carried weapon visible in its
+// Weapon carry in the Test Chamber's sandbox mode (the CT kit, G76: the rifle and the suppressed pistol): every carried weapon visible in its
 // own slot (the rifle centred on the back, the pistol on the right thigh), long guns on the back within 10 deg of their
 // slot's axis (the side slots vertical, muzzle up; (CT prototype G2, AUDIT-AIM row 3) the centre gun slung DIAGONALLY,
 // stock at the right shoulder blade, muzzle down to the left hip, as CT 053525 / 053709) in every stance and gait, nothing clipping (weapon vs weapon, weapon vs
@@ -92,7 +92,7 @@ await G(install);
 
 try {
   let r;
-  // every weapon of the arsenal: the Free Roam kit, then the same two in the other order (the pistol in hand first)
+  // every weapon of the arsenal: the sandbox kit, then the same two in the other order (the pistol in hand first)
   const checkLoadout = async (label, n) => {
     console.log('slots');
     r = await G(() => {
@@ -246,7 +246,7 @@ try {
   };
   // (the 2.x gaits: gear 4 = the 2.8 m/s jog; a crouch walk near 1 m/s grazes the thigh pistol with the right elbow pad,
   // as on 3.1 - an open issue in docs/ct-movement-progress.md)
-  await checkLoadout('Free Roam', 2);
+  await checkLoadout('sandbox kit', 2);
   // (load-latent-ui2) the match loads below take up to 120 s (shaders compile on the loading screen), as elsewhere
   for (const lo of ['pistolSd,rifle']) {
     console.log(`loadout ${lo}`);

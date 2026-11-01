@@ -16,8 +16,7 @@ import TIMES from './e2e-times.json' with { type: 'json' };
 
 // The runner's lists (scripts/run-e2e.mjs imports them): LEGACY = parked content, run by `npm run e2e:legacy` and
 // REPORT ONLY in a quick / affected run; GPU = visual read-backs, `--gpu` only (no visual result from SwiftShader).
-// e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section
-export const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
+export const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-modes', 'e2e-enemies', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
 // e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow)
 export const GPU = ['e2e-darkness', 'e2e-parity', 'e2e-desktop:3', 'e2e-coop-gpu'];
 
@@ -28,7 +27,7 @@ export const AUDIO = ['e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
  * The suites an affected run takes as a gate (`run-e2e.mjs --affected`, through affectedPick): `suites` without the GPU-only, LEGACY and AUDIO suites, whole or as a part
  * (docs/systems/testing-tools.md: GPU suites never, legacy and audio REPORT ONLY). A request's suites run by name, where
  * nothing is REPORT ONLY, so left in they ran and gated affected-e2e (audit 2026-10-25: PR #400's request named
- * e2e-coop-gpu, e2e-darkness, e2e-bunker, ...). A part list entry (e2e-desktop:3, e2e-wall:flanker) drops only that part
+ * e2e-coop-gpu, e2e-darkness, e2e-bunker, ...). A part list entry (e2e-desktop:3) drops only that part
  * token; the whole suite stays (its named run expands to the non-GPU parts). `affectedReportSuites` is the other half.
  */
 export function affectedGateSuites(suites) {
@@ -91,7 +90,6 @@ export const QUICK_COVERS = {
   'src/core/': ['e2e-offline', ...CORE],
   'src/input/': ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-menus'],
   'src/ui/hud/ratingCard': ['e2e-section-rating'],
-  'src/ui/screens/missionsScreen': ['e2e-sectorops', 'e2e-menus', 'e2e-pad', 'e2e-park'],
   'src/ui/': ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
   // the training course (T1b): its own suite on top of co-op
   'src/game/course/': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
@@ -174,7 +172,6 @@ export const WIDE_COVERS = {
   'src/input/': ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-menus'],
   // (section-rating) the rating card: only its suite shows it
   'src/ui/hud/ratingCard': ['e2e-section-rating'],
-  'src/ui/screens/missionsScreen': ['e2e-sectorops', 'e2e-menus', 'e2e-pad', 'e2e-park'],
   'src/ui/': ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
   // the training course (T1b): its own suite on top of co-op
   'src/game/course/': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
@@ -188,10 +185,6 @@ export const WIDE_COVERS = {
   'src/game/sectors': ['e2e-sectorops'],
   // (clean-up G2a) the Test Chamber's test mode: its suite, and the co-op rooms that run it (revives, the lobby's Test Chamber)
   'src/game/modes/testMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-testmode', 'e2e-coop'],
-  'src/game/modes/clearMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-clear'],
-  'src/game/modes/missionMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-modes'],
-  'src/game/modes/infiltrationMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-missions'],
-  'src/game/missions.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-missions'],
   'src/game/': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops'],
   'src/physics/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-ct'],
   // the camera files (CAM): the camera bounds suite on top of what their folders run
@@ -209,7 +202,6 @@ export const WIDE_COVERS = {
   'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-levels', 'e2e-tactics', 'e2e-takedown', 'e2e-enemies', 'e2e-weapons-carry', 'e2e-coop', 'e2e-sectorops'],
   'src/world/maps/kestrel': ['e2e-kestrel'],
   'src/world/maps/courselab.ts': ['e2e-course'],
-  'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse', 'e2e-section-rating'],
   // (marlow-final 0d) the Marlow Yard set parts, facility and greybox helpers: e2e-ctcourse, and e2e-section-rating (rates A2-A8)
   'src/world/maps/ctcourseSets/': ['e2e-ctcourse', 'e2e-section-rating'],
@@ -220,8 +212,6 @@ export const WIDE_COVERS = {
   'src/world/bakedLamps': lightSuites(),
   'src/world/ambientGrid': lightSuites(),
   'src/world/darkCurve': lightSuites(),
-  // (clean-up G2a) Proving Grounds lists its dummies in the layout: the combat suite and the test-mode smoke build them
-  'src/world/maps/provingGrounds.ts': ['e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse', 'e2e-combat', 'e2e-testmode'],
   'src/world/': ['e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/voxel/': lightSuites([]),
   'src/vfx/': ['e2e-desktop'],
@@ -270,7 +260,6 @@ export const DIRECT_COVERS = {
   'src/config/': CORE,
   'src/input/': ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-menus'],
   'src/ui/hud/ratingCard': ['e2e-section-rating'],
-  'src/ui/screens/missionsScreen': ['e2e-sectorops', 'e2e-menus'],
   'src/ui/': ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
   // src/game: the game suites; course suites only for the course, Sector Ops only for sectors and modes
   'src/game/course/': [...GAME, 'e2e-course', 'e2e-ctcourse'],
@@ -278,11 +267,7 @@ export const DIRECT_COVERS = {
   'src/game/modes/sectorMode.ts': [...GAME, 'e2e-sectorops', 'e2e-section-rating'],
   // (clean-up G2a) the Test Chamber's test mode: its suite, and the co-op rooms that run it (revives, the lobby's Test Chamber)
   'src/game/modes/testMode.ts': [...GAME, 'e2e-testmode', 'e2e-coop'],
-  'src/game/modes/clearMode.ts': [...GAME, 'e2e-sectorops', 'e2e-clear'],
-  'src/game/modes/missionMode.ts': [...GAME, 'e2e-sectorops', 'e2e-modes'],
-  'src/game/modes/infiltrationMode.ts': [...GAME, 'e2e-sectorops', 'e2e-missions'],
   'src/game/modes/': [...GAME, 'e2e-sectorops'],
-  'src/game/missions.ts': [...GAME, 'e2e-missions'],
   'src/game/sectors': [...GAME, 'e2e-sectorops'],
   // (mission-framework GB6) the mission framework and the co-op kit: the Tallow Wharf mission runs (e2e-sectorops:wharf-*)
   'src/game/mission/': [...GAME, 'e2e-sectorops', 'e2e-section-rating'],
@@ -329,16 +314,12 @@ export const DIRECT_COVERS = {
   'src/world/maps/ctcourseGreybox.ts': ['e2e-ctcourse'],
   // (mission-framework GB6) Tallow Wharf: its missions run in e2e-sectorops (wharf-tgc / wharf-tkl)
   'src/world/maps/tallowWharf': ['e2e-sectorops', 'e2e-levels', 'e2e-anchors'],
-  // the Warehouse map itself: its routes suite (legacy) and the usual world suites
-  'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
   // the lamp files: the bake suite, the desktop renderer and the GPU light read-backs (e2e-darkness, e2e-parity; dropped outside --gpu)
   'src/world/light': LIGHT,
   'src/world/lamp': LIGHT,
   'src/world/bakedLamps': LIGHT,
   'src/world/ambientGrid': LIGHT,
   'src/world/darkCurve': LIGHT,
-  // (clean-up G2a) Proving Grounds lists its dummies in the layout: the combat suite and the test-mode smoke build them
-  'src/world/maps/provingGrounds.ts': ['e2e-levels', 'e2e-anchors', 'e2e-combat', 'e2e-testmode'],
   'src/world/': ['e2e-levels', 'e2e-anchors'],
   'src/voxel/': LIGHT,
   'src/vfx/': ['e2e-desktop'],

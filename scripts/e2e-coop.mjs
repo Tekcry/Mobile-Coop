@@ -14,9 +14,9 @@
 // (clean-up G2d, decision N18) The matches are co-op Test Chamber matches (map `chamber`, test mode: the host runs the guards'
 // systems, no objective, guards only when the test spawns them; positions: docs/plan/TEST-CHAMBER-SPEC.md section 3 and
 // section 9). They were Infiltration matches on the Warehouse. Dropped (restorable from git history): the guard-ai S9 block
-// (stage gear, a bark, caution, a shield-led team, a deflect), the joint interrogation, the Infiltration objectives check and
-// the character-shadow meter block. Left on their own maps: the Free Roam objective line (Proving Grounds, test mode has none)
-// and the Marlow Yard course restart.
+// (stage gear, a bark, caution, a shield-led team, a deflect), the joint interrogation, the Infiltration objectives check,
+// the character-shadow meter block and (clean-up H) the Free Roam objective line. Left on their own map: the Marlow Yard
+// course restart.
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
 import { until as untilNet, waitSim, waitHostSim, setSimPages, LOAD_MS } from './e2e-net-lib.mjs';
@@ -1933,12 +1933,6 @@ try {
   // (co-op test fix) no third player: co-op is two players (G2); the door peek is checked on the host
   // (locomotion step 13) a client's door crack is host-authoritative: it shows on the host (the snapshot's dcr), and its
   // close clears it
-  console.log('Free Roam: the objective reaches the client (Proving Grounds: the test mode has no objective)');
-  await startMode('sandbox', 'proving');
-  // (coop-fix) Free Roam sets its objective before the host's HUD hook: the hook's seed carries it to the client
-  await until(B, () => /Free roam/.test(window.__app.current.hud.objectiveText), null, 10000, 'the Free Roam objective on the client');
-  assert(true, 'the client shows the Free Roam objective');
-  await toLobby();
   console.log('door peek: a client crack shows on the host; close clears it');
   await startMode(...MISSION);
   const dpos = await GB(() => {

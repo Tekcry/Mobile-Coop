@@ -1,10 +1,9 @@
-// Enemy archetypes on the Test Chamber (G2b: the test mode; its guards' rules are the Clear ones; the Perfectionist part is the Warehouse's, H deletes it): heavy (plates, weak back / face plate, no frontal
+// Enemy archetypes on the Test Chamber (G2b: the test mode; its guards' rules are the stealth ones): heavy (plates, weak back / face plate, no frontal
 // choke), enforcer (shield stops frontal rounds, no frontal grab, pushes forward), sniper (laser, glint refuses a
 // mark, relocates after its shots), runner (draws, fires bursts, never strikes, presses in), dog (smells a hidden
 // crouched operator in the dark, no takedown (G348), gas knocks it out),
 // drone operator (its recon drone spots and alerts; shot down; EMP drops it), officer (buffs squadmates, runs the
-// alarm first), squad radio checks (a silent member is searched for), callouts, and Perfectionist
-// (difficulty autostart). `node scripts/e2e-enemies.mjs [url] [--only=name]`
+// alarm first), squad radio checks (a silent member is searched for) and callouts. `node scripts/e2e-enemies.mjs [url] [--only=name]`
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -410,20 +409,6 @@ await run('autostart=chamber&mode=test', [
         return { lines: g.hud.barks.shown.slice(), shown: over.length, over };
       });
       assert(r.shown >= 1, `an alerted guard calls it out over his head (${r.over.join(' / ')})`);
-    },
-  ],
-]);
-
-await run('autostart=warehouse&mode=clear&difficulty=perfectionist', [
-  [
-    'perfectionist',
-    async (G) => {
-      const r = await G(() => {
-        const t = window.__t;
-        const g = window.__app.current;
-        return { def: g.difficultyDef.label };
-      });
-      assert(r.def === 'Perfectionist', `autostart takes the difficulty (${r.def})`);
     },
   ],
 ]);

@@ -4,7 +4,7 @@
 // 10 s after the reveal (programs, lamp landings, atlas uploads, materials, pop-ins, frame intervals), the bake source,
 // the bake's ms and the heap. GPU numbers only with `E2E_GPU=1` (software GL otherwise: never quote it).
 // Usage (repo root, a built dist/ served on E2E_PORT, default 4189):
-//   node scripts/map-ready-measure.mjs [--out <file.json>] [--gated] [--maps ctcourse,warehouse]
+//   node scripts/map-ready-measure.mjs [--out <file.json>] [--gated] [--maps ctcourse,chamber]
 //     [--runs cold] [--compile-order serial]
 // (map-ready S14) `--runs cold`: only each map's cold run. `--compile-order serial`: the gate's S2 compile order
 // (`compileorder=serial`; default parallel, cut A). After each run's after-window the script waits for the compile log
@@ -42,7 +42,7 @@ const LOAD_TIMEOUT = 300000;
 
 const ALL = [
   { map: 'ctcourse', mode: 'course', params: 'autostart=ctcourse&mode=course&course=solo' },
-  { map: 'warehouse', mode: 'clear', params: 'autostart=warehouse&mode=clear' },
+  { map: 'chamber', mode: 'test', params: 'autostart=chamber&mode=test' },
 ];
 const pick = arg('--maps', null)?.split(',');
 const MAPS = pick ? ALL.filter((m) => pick.includes(m.map)) : ALL;
