@@ -8,7 +8,6 @@ import type { Ballistics, RayHit } from './ballistics';
 import { spreadDir } from './ballistics';
 import type { Grenades } from './grenades';
 import type { Vfx } from '../vfx/vfx';
-import type { PartPattern } from '../world/partLibrary';
 import { classWeight } from './weaponCarry';
 import { GRENADE, WEAPONS, modelExtents, type WeaponDef, type WeaponId } from './weaponDefs';
 import { assignCarrySlots, type CarrySlot } from './carrySlots';
@@ -26,7 +25,7 @@ const modelLength = (d: WeaponDef): number => {
   const e = modelExtents(d);
   return e.z1 - e.z0;
 };
-import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
+import { WeaponModel, DEFAULT_WEAPON_COLORS } from './weaponModel';
 import { AIM_IN_PRIMARY, AIM_IN_SIDEARM, DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, HOLSTER_TIME_MOVE, holsterTimeFor, type DrawPhase } from './drawState';
 import { DRAW_BEAT, DRAW_CUR, drawClass, liftStart } from '../anim/drawMotion';
 import { drawTuneApply } from './drawTune';
@@ -40,8 +39,6 @@ import { HandSwitch } from '../player/handSwitch';
 export interface LoadoutEntry {
   id: WeaponId;
   mods?: StatMods;
-  colors?: WeaponColors;
-  pattern?: PartPattern;
   /** Attachment ids (visible on the model; their stat mods come in `mods`). */
   attachments?: string[];
 }
@@ -170,7 +167,7 @@ export class PlayerWeapons {
   events: CombatEvents = {};
   /** Every hitscan ray (origin -> where it stopped): lights can be shot out along it. */
   onRay: ((from: Vector3, to: Vector3) => void) | null = null;
-  /** Shots/hits per weapon for accuracy + mastery. */
+  /** Shots/hits per weapon for accuracy. */
   readonly tally = new Map<WeaponId, { shots: number; hits: number; kills: number; heads: number }>();
   private tmpO = new Vector3();
   private tmpD = new Vector3();
@@ -240,7 +237,7 @@ export class PlayerWeapons {
       const e = loadout[i]!;
       const def = defs[i]!;
       const stats = computeStats(def, e.mods);
-      const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern, { mesh: true, caster: (m) => world.addShadowCaster(m) });
+      const model = new WeaponModel(world.scene, world.parts, def, DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, undefined, { mesh: true, caster: (m) => world.addShadowCaster(m) });
       for (const m of model.renderMeshes) world.addShadowCaster(m);
       model.setVisible(false);
       this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope'), sd: sdStart(def.id) });

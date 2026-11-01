@@ -87,7 +87,7 @@ export async function runIdentity(only?: readonly string[]): Promise<IdentityFix
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene } = await import('../../src/core/babylon');
   const { PartLibrary } = await import('../../src/world/partLibrary');
-  const { defaultLook } = await import('../../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../../src/player/avatarLook');
   const { operatorRig, partnerFigureFrame } = await import('../../src/operators/runtime/playerFigure');
   const { readRig, rigNodes } = await import('../../src/operators/runtime/figure');
   const { OperatorPoser, poserSetup, RIG_JOINTS, TRS } = await import('../../src/operators/runtime/pose');

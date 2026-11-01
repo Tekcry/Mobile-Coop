@@ -241,7 +241,7 @@ describe('tuneJoints on the real rig', () => {
     const { Scene } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const names = ['hips', 'spine', 'torso', 'neck', 'headNode', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'toeL', 'toeR'] as const;
     const run = (window: boolean): number[][] => {
       vi.spyOn(Math, 'random').mockReturnValue(0.25); // the idle clock's random start (animGraph idleT)
@@ -291,7 +291,7 @@ describe('tuneJoints on the real rig', () => {
     const { Scene } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const names = ['hips', 'spine', 'torso', 'neck', 'headNode', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'toeL', 'toeR'] as const;
     const SWITCH = 60;
     const run = (): number[][][] => {

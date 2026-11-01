@@ -1,7 +1,6 @@
 import { EventBus } from '../core/events';
 import { flags } from '../core/flags';
 import type { WeatherChoice } from '../world/mapDef';
-import type { AvatarLook } from '../cosmetics/avatarLook';
 import { capacity, parseMessage, PROTOCOL_VERSION, sectorMissionId, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
 import type { Transport } from './transport';
 import type { WeaponId } from '../weapons/weaponDefs';
@@ -18,8 +17,6 @@ export const CAMPAIGN_ROOM = CAMPAIGN_PLAYERS;
 
 export interface LocalProfile {
   name: string;
-  tag: PlayerInfo['tag'];
-  look: AvatarLook;
   loadout: WeaponId[];
 }
 
@@ -174,7 +171,7 @@ export class NetSession {
   /** Our hello; the rejoin token only in the one sent to the host (`withTok`): a broadcast would hand it to anyone in
    *  the room. */
   private hello(withTok = false): Msg {
-    return { t: 'hello', v: PROTOCOL_VERSION, name: this.me.name, tag: this.me.tag, look: this.me.look, loadout: this.me.loadout, tok: withTok ? this.tok : '' };
+    return { t: 'hello', v: PROTOCOL_VERSION, name: this.me.name, loadout: this.me.loadout, tok: withTok ? this.tok : '' };
   }
 
   /** Send to everyone, or to one player id (a rejoined player's current connection). */
@@ -234,7 +231,7 @@ export class NetSession {
         return;
       }
       const prev = this.players.get(pid);
-      this.players.set(pid, { id: pid, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false, away: false });
+      this.players.set(pid, { id: pid, name: msg.name, loadout: msg.loadout, ready: prev?.ready ?? false, host: false, away: false });
       if (msg.tok) this.tokOf.set(pid, msg.tok);
       this.awayAt.delete(pid);
       this.broadcastLobby();
@@ -282,7 +279,7 @@ export class NetSession {
       // keep our own entry authoritative locally
       const mine = this.players.get(this.selfId)!;
       this.players.clear();
-      for (const p of msg.players) this.players.set(p.id, p.id === this.selfId ? { ...p, ...{ name: mine.name, tag: mine.tag, look: mine.look, loadout: mine.loadout } } : p);
+      for (const p of msg.players) this.players.set(p.id, p.id === this.selfId ? { ...p, ...{ name: mine.name, loadout: mine.loadout } } : p);
       if (!this.players.has(this.selfId)) this.players.set(this.selfId, mine);
       this.mode = msg.mode;
       this.map = msg.map;

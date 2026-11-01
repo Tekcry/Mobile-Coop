@@ -358,7 +358,7 @@ async function reach(state: State): Promise<Reach> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene } = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
-  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../src/player/avatarLook');
   const { operatorRig, PLAYER_HEIGHT } = await import('../src/operators/runtime/playerFigure');
   const { AttachGrips } = await import('../src/player/attachGrips');
   const { ATTACH, attachPose, GAMEPLAY_HEIGHT } = await import('../src/player/attach');
@@ -494,7 +494,7 @@ async function crawlJoints(): Promise<{ pos: number[]; step: number; pop: number
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene } = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
-  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../src/player/avatarLook');
   const { operatorRig } = await import('../src/operators/runtime/playerFigure');
   const scene = new Scene(new NullEngine());
   const lib = new PartLibrary(scene);

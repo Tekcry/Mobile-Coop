@@ -26,13 +26,12 @@ import { forgetModel, loadModel, operatorBytes, type OperatorFigure } from '../o
 import { loadMenuLods, MIN_LODS, operatorRig } from '../operators/runtime/playerFigure';
 import { warmGuardFiles } from '../operators/guards/guardAssets';
 import { wrenManifest } from '../operators/runtime/assets';
-import { avatarFactory } from '../cosmetics/avatarFactory';
-import type { AvatarLook } from '../cosmetics/avatarLook';
-import { WeaponModel } from '../weapons/weaponModel';
+import { avatarFactory } from '../player/avatarFactory';
+import { defaultLook } from '../player/avatarLook';
+import { WeaponModel, DEFAULT_WEAPON_COLORS } from '../weapons/weaponModel';
 import { WEAPON_IDS, WEAPONS, type WeaponId } from '../weapons/weaponDefs';
 import { carryKind, type CarrySlot } from '../weapons/carrySlots';
-import { withAttachments } from '../progression/attachments';
-import { camoById } from '../cosmetics/catalog';
+import { withAttachments } from '../weapons/attachments';
 import { GRAPHICS_PRESETS, qualityLevel, type QualityLevel } from '../core/quality';
 import { PostStack } from '../vfx/postStack';
 import { SurfaceAtlas } from './surfaceAtlas';
@@ -423,10 +422,10 @@ export class MenuState implements AppState {
     this.shown = '';
   }
 
-  /** (Re)build the preview operator: the look (suit applied by the caller) holding a weapon with its attachments
-   *  and camo. Live previews call it on every change; an unchanged request is free. */
-  setAvatar(look: AvatarLook, weapon: WeaponId = 'rifle', camo = 'factory', attachments: readonly string[] = []): void {
-    const key = JSON.stringify([look, weapon, camo, attachments]);
+  /** (Re)build the preview operator: Wren (one fixed look, stage I) holding a weapon with its attachments. An unchanged
+   *  request is free. */
+  setAvatar(weapon: WeaponId = 'rifle', attachments: readonly string[] = []): void {
+    const key = JSON.stringify([weapon, attachments]);
     if (key === this.shown && this.rig) return;
     this.shown = key;
     this.weapon?.dispose();
@@ -434,7 +433,7 @@ export class MenuState implements AppState {
     this.figure?.dispose();
     this.rig?.dispose();
     // the operator is Wren (operators 11e, D31 / G123)
-    const op = operatorRig(this.scene, avatarFactory(this.parts, look, 'preview-part'), look, 'preview');
+    const op = operatorRig(this.scene, avatarFactory(this.parts, 'preview-part'), defaultLook(), 'preview');
     this.rig = op.rig;
     const fig = (this.figure = op.figure);
     fig.setVision('night', 1);
@@ -452,13 +451,12 @@ export class MenuState implements AppState {
       if (this.figure === fig) this.closeUpFailed = true;
     });
     this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
-    const c = camoById(camo);
     this.weaponId = weapon;
-    this.weapon = new WeaponModel(this.scene, this.parts, withAttachments(WEAPONS[weapon], attachments), c.colors, this.rig.weaponPivot, c.pattern, { mesh: true });
+    this.weapon = new WeaponModel(this.scene, this.parts, withAttachments(WEAPONS[weapon], attachments), DEFAULT_WEAPON_COLORS, this.rig.weaponPivot, undefined, { mesh: true });
     this.weapon.hold(this.rig);
     // (menu-notes slice 3) the other weapon, the Blender mesh too: both are seen in the main menu's void
     this.sidearmId = WEAPON_IDS.find((id) => id !== weapon) ?? weapon;
-    this.sidearm = new WeaponModel(this.scene, this.parts, WEAPONS[this.sidearmId], c.colors, this.rig.weaponPivot, c.pattern, { mesh: true });
+    this.sidearm = new WeaponModel(this.scene, this.parts, WEAPONS[this.sidearmId], DEFAULT_WEAPON_COLORS, this.rig.weaponPivot, undefined, { mesh: true });
     this.sidearm.setVisible(false);
     this.holdMode = '';
     this.visBits = -1;

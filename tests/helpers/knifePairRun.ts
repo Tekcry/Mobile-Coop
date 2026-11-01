@@ -67,7 +67,7 @@ export async function runRow(row: number, override: RowOverride | null = null, v
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene } = await import('../../src/core/babylon');
   const { PartLibrary } = await import('../../src/world/partLibrary');
-  const { defaultLook } = await import('../../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../../src/player/avatarLook');
   const { operatorRig } = await import('../../src/operators/runtime/playerFigure');
   const { ENEMIES } = await import('../../src/ai/enemyDefs');
   const { buildEnemyRig } = await import('../../src/ai/enemyRig');
@@ -261,7 +261,7 @@ export async function knifeRigs(): Promise<{ ar: CharacterRig; vr: CharacterRig;
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene } = await import('../../src/core/babylon');
   const { PartLibrary } = await import('../../src/world/partLibrary');
-  const { defaultLook } = await import('../../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../../src/player/avatarLook');
   const { operatorRig } = await import('../../src/operators/runtime/playerFigure');
   const { ENEMIES } = await import('../../src/ai/enemyDefs');
   const { buildEnemyRig } = await import('../../src/ai/enemyRig');

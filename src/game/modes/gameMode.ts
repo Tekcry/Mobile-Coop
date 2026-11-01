@@ -9,7 +9,7 @@ import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
 import type { KitKind } from '../teamMoves';
 
 /** `course` is the training course (the campaign's Marlow Yard); `sector` is Sector Ops; `test` is the Test Chamber's
- *  guards-and-revives mode (`TestMode`: practice, no progression); `sandbox` is the guard-free walk of a dev map (the
+ *  guards-and-revives mode (`TestMode`: practice); `sandbox` is the guard-free walk of a dev map (the
  *  Kestrel editor's walk test, `?autostart=seclab&mode=sandbox`; no menu offers it). */
 export type ModeId = 'sandbox' | 'course' | 'sector' | 'test';
 

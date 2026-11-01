@@ -12,7 +12,8 @@ import type { CharacterRig, RigPose } from '../player/characterRig';
 import { newTeamPoseIn, teamPoseOfWire, TeamPoser } from '../anim/clips/team'; // (anim-n4b, track A)
 import type { OperatorFigure } from '../operators/runtime/figure';
 import { loadPlayLods, operatorRig, partnerFigureFrame } from '../operators/runtime/playerFigure';
-import { avatarFactory } from '../cosmetics/avatarFactory';
+import { avatarFactory } from '../player/avatarFactory';
+import { defaultLook } from '../player/avatarLook';
 import { WeaponModel, DEFAULT_WEAPON_COLORS } from '../weapons/weaponModel';
 import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
 import { assignCarrySlots } from '../weapons/carrySlots';
@@ -223,7 +224,7 @@ export class RemoteAvatar {
     readonly info: PlayerInfo,
   ) {
     // (operators 11e, G123: "Both play as Wren") the partner is Wren too, posed from MoveState as before
-    const op = operatorRig(world.scene, avatarFactory(world.parts, info.look, 'remote-part'), info.look, `remote-${info.id}`, (m) => world.addShadowCaster(m));
+    const op = operatorRig(world.scene, avatarFactory(world.parts, 'remote-part'), defaultLook(), `remote-${info.id}`, (m) => world.addShadowCaster(m));
     this.rig = op.rig;
     this.figure = op.figure;
     this.rig.carrier = true;

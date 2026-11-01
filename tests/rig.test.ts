@@ -189,7 +189,7 @@ describe('open-left weapon hand (D9, dormant until step 12b)', () => {
     const { Scene, TransformNode, Vector3, Quaternion } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig, EDGE_HAND_TIME } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const scene = new Scene(new NullEngine());
     const lib = new PartLibrary(scene);
     const rig = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());
@@ -241,7 +241,7 @@ describe('open-side weapon at wall edges (step 12b, D9 / D10)', () => {
     const { Scene, TransformNode, Vector3, Quaternion } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig, WRIST_TRIGGER, WRIST_SUPPORT } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const scene = new Scene(new NullEngine());
     const lib = new PartLibrary(scene);
     const rig = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());

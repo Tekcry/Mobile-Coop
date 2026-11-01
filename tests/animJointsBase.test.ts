@@ -312,7 +312,7 @@ async function runRigs(spec: readonly { wren: boolean; speed: number }[]): Promi
   const { Scene } = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
   const { CharacterRig } = await import('../src/player/characterRig');
-  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../src/player/avatarLook');
   vi.spyOn(Math, 'random').mockReturnValue(0.25);
   const scene = new Scene(new NullEngine());
   const lib = new PartLibrary(scene);

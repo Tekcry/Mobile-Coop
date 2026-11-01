@@ -1,6 +1,6 @@
 import { Vector3, type Scene } from '../core/babylon';
 import { CharacterRig, type RigPose } from '../player/characterRig';
-import { defaultLook } from '../cosmetics/avatarLook';
+import { defaultLook } from '../player/avatarLook';
 import { emptyMotionInput, MotionDriver } from '../anim/motion';
 import { ENEMY_MOTION } from '../config/movement';
 import { hyp2 } from '../core/mathx';

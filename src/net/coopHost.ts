@@ -86,7 +86,7 @@ const MAX_REWIND = 0.6;
 const INTERP_DELAY = HOST_INTERP_DELAY;
 /** Items and door states are re-sent at least this often (s), else only when they change. */
 const ITEMS_EVERY = 2;
-/** Seconds to revive a downed team-mate (HQ medic training divides it). */
+/** Seconds to revive a downed team-mate. */
 const REVIVE_TIME = 2.5;
 /** Shot noise radius (m) like the local player's (`GameState` SHOT_NOISE); suppressed shots only raise suspicion. */
 const SHOT_NOISE = 28;
