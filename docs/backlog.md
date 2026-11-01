@@ -68,6 +68,17 @@ Format: `N. Item - destination - status`.
     look-swipe then a tap on the pause button (`.touch-pause`, a DOM button in `#ui-root`, its own `touch-action` not
     set) needs two taps. If it does: act on `pointerdown` / `pointerup` instead of `click`, or give the button
     `touch-action: none`. Destination: unscheduled.
+32. **Playthrough bugs (Michael + partner, full co-op run, 2026-11-01).** Each tagged to the phase that fixes it
+    (`docs/plan/MASTER-PLAN-PROMPT.md` section 7).
+    - Internet co-op fails: room not listed, room code failed, browser-to-browser and over VPN. Phase 0 (co-op fix job, Appendix B).
+    - Guards know where you are even when hidden; you cannot break away and hide. Phase 3 (guard perception).
+    - Too dark without night vision, too bright with it. Phase 3 (light readability, night vision toned down).
+    - Players can climb out of levels. Phase 3 (level bounds).
+    - Grenade does not work. Phase 4 (gear, D9).
+    - Sticky cam view cannot be reopened after closing. Phase 4 (gear, D9).
+    - Downed partner is not obvious. Phase 4 (revive, partner state readouts).
+    - Objectives confusing, easy to get lost or separated. Phase 4 (compass bar) and Phase 5 (objective chain).
+    - Marlow Yard's last section too short and poorly designed. Phase 6 (prologue rebuild).
 
 ## Flaky e2e suites
 
