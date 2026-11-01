@@ -31,7 +31,7 @@ Michael: "Aiming camera doesn't follow body when crouching, it just stays at sta
 Michael: "crouch idle should kneel down like CT instead of standing on both legs, character looks like a gorilla."
 - Crouch idle (not moving): one knee down (CT's kneel), the other foot planted, upper body upright and compact, weapon
   close. Crouch walking keeps a crouch gait but blends out of the kneel cleanly when moving starts and back in after a
-  short stop. Aiming from the kneel stays a kneel. References: the CT footage docs under `docs/archive/locomotion/research/`
+  short stop. Aiming from the kneel stays a kneel. References: the CT footage docs under `docs/research/ct-movement/`
   and `docs/ct-research/` (crouch / kneel entries), P1 posture shots.
 
 ## F4 Corner lean and camera slide

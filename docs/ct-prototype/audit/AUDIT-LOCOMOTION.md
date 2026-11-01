@@ -1,7 +1,7 @@
 # Audit: locomotion (2026-10-20)
 
 Covered: every locomotion state we have (idle standing / crouched, kneel, creep, walk, brisk, jog, run, sneak, crouch walk / run, tense sneak near guards, back walk, strafes, starts, stops, turns and spins, bank, roll, stance change, drop landing, stairs).
-Clips: 105509, 105624, 105718, 105949, 110038, 110117, 110341, 110522, 112331 (new); 050259, 050330, 050649, 050827, 051339 (old, re-checked). Old measurements in `docs/archive/locomotion/research/ct-measure-*.md` reused only where re-checked here. Frames: `pc/ct-work/frames/locomotion/`.
+Clips: 105509, 105624, 105718, 105949, 110038, 110117, 110341, 110522, 112331 (new); 050259, 050330, 050649, 050827, 051339 (old, re-checked). Old measurements in `docs/research/ct-movement/ct-measure-*.md` reused only where re-checked here. Frames: `pc/ct-work/frames/locomotion/`.
 Pass 2 (2026-10-20 01:00): every former "estimate" row re-checked; rows 21-38 added. Row numbers 1-20 are unchanged.
 Gear check method (pass 2): the HUD noise meter read per frame (22 pips, x 1860 + 22.3 i, y 1452) in the old NV clips gives a gear signature (silent walk, 2-3 pips fast walk / jog, 8-9 run; crouched 0 / 5 / 9). Normal-vision clips read unreliably and were not used.
 Michael 00:55 also named: knee hold at the wall, grabs, holds, knock-outs: those belong to the walls and combat audits; only the sneak near guards is here (row 26).

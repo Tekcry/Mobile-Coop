@@ -10,7 +10,7 @@ Brief: `F-BRIEF.md`. Source: `WALK-2026-10-19.md`. Prototype pass: every number 
   `cam.shoulder`). A hard landing's brief lowering keeps the draw wanted, so it keeps the side.
 - Slice A's saved default shoulder is gone: every mission starts on the right; `gameplay.defaultShoulder` is no longer
   read or written (the field stays, unused: no settings shape change for it).
-- Back to wall (CT): drawing to aim takes you off the wall (`docs/archive/locomotion/research/ct-walls-doors.md`, CT-CONTROLS; our wall core
+- Back to wall (CT): drawing to aim takes you off the wall (`docs/research/ct-movement/ct-walls-doors.md`, CT-CONTROLS; our wall core
   already leaves on aim), so there is no "on the wall and aiming" case. The wall never sets the shoulder now; slice A's
   camera-frame wall side (`cam.wallSide`) is removed. The edge view is F4's slide instead.
 - Files: `src/player/shoulderCamera.ts`, `src/player/player.ts`, `src/game/gameState.ts`. Tests: `tests/cameraRigid.test.ts`

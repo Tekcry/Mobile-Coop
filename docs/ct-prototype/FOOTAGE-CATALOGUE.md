@@ -5,11 +5,11 @@ them, replicate it with original code. This file is the catalogue step; the audi
 
 - Clips: `pc/ct-work/clip_13570_*` (Steam recordings, gitignored), converted to `pc/ct-work/clips/<clip>.mp4` by
   `scripts/ct-ref/convert-clips.sh` (HEVC 2420x1668, ~60 fps). 64 clips from 2026-10-17 (62 catalogued in
-  `docs/archive/locomotion/research/ct-footage-catalogue.md`) and 26 new from 2026-10-19 (16 min).
+  `docs/research/ct-movement/ct-footage-catalogue.md`) and 26 new from 2026-10-19 (16 min).
 - Sheets: `scripts/ct-ref/sheets.sh` (6 x 4 tiles, clip seconds burned in): new clips at 2 fps in `pc/ct-work/sheets/`
   (12 s a sheet), old clips at 1 fps in `pc/ct-work/sheets-old/` (24 s a sheet). Read from small tiles: times are +-0.5 s
   (new) / +-1 s (old); frame-step the mp4 before measuring.
-- Codes: `docs/archive/locomotion/CT-SHOTLIST.md` (A1-L1). New codes per group: N1-N4 (group 1), N2-1.. (group 2), N3-1.. (group
+- Codes: `docs/research/ct-movement/CT-SHOTLIST.md` (A1-L1). New codes per group: N1-N4 (group 1), N2-1.. (group 2), N3-1.. (group
   3), O1-1.., O2-1.., O3-1.. (moves the old catalogue missed).
 - Built by six reading agents (one per group of clips), assembled unedited; where they disagree, the footage wins.
 
@@ -223,7 +223,7 @@ Not covered in these 9 clips: A1, A5, B3, B4, C3 to C6, G (back to wall: none se
 
 Built from the 2 fps contact sheets (`pc/ct-work/sheets/clip_13570_20261019_<HHMMSS>-NN.jpg`, 12 s per sheet). All 34 sheets of the 9 clips were readable. Times are clip seconds read off half-second tiles, so edges are +-0.5 s: frame-step the clip before measuring. Durations from `convert.log`. Clip files: `pc/ct-work/clips/clip_13570_20261019_<HHMMSS>.mp4`.
 
-Shot codes are from `docs/archive/locomotion/CT-SHOTLIST.md`. Moves not in the list use new codes `N2-1`, `N2-2`, ... (this catalogue only):
+Shot codes are from `docs/research/ct-movement/CT-SHOTLIST.md`. Moves not in the list use new codes `N2-1`, `N2-2`, ... (this catalogue only):
 
 | new code | name |
 | --- | --- |
@@ -490,7 +490,7 @@ General notes:
 
 
 Source: 8 clips, `pc/ct-work/clips/clip_13570_20261019_HHMMSS.mp4`; contact sheets `pc/ct-work/sheets/<clip>-NN.jpg` (6x4 tiles, 2 tiles per second, 12 s per sheet). Times below are the burned-in clip seconds, so edges are +-0.5 s; frame-step before measuring.
-Codes are from `docs/archive/locomotion/CT-SHOTLIST.md`. New codes use the prefix N3-n and are defined in the summary. Every sheet of every clip was read; none were unreadable and no file was missing. Small HUD text (menu rows) is read off 320 px tiles, so some rows are marked uncertain.
+Codes are from `docs/research/ct-movement/CT-SHOTLIST.md`. New codes use the prefix N3-n and are defined in the summary. Every sheet of every clip was read; none were unreadable and no file was missing. Small HUD text (menu rows) is read off 320 px tiles, so some rows are marked uncertain.
 
 General notes:
 - All clips are PC CT in night vision (green) unless stated. Wide fisheye look, HUD on, normal follow camera or hand-orbited.
@@ -887,7 +887,7 @@ Duration source: convert.log. HUD weapon text is not named here.
 ## Old clips, group 2
 
 
-Method: every sheet in `pc/ct-work/sheets-old/` read tile by tile (1 fps, 6 x 4 tiles; a tile at time t shows the frame at t s). Durations from `convert.log`. Catalogue = `docs/archive/locomotion/research/ct-footage-catalogue.md`. All times are +-1 s unless a clip is under 5 s. "Frame-step" = confirm in the mp4 before measuring.
+Method: every sheet in `pc/ct-work/sheets-old/` read tile by tile (1 fps, 6 x 4 tiles; a tile at time t shows the frame at t s). Durations from `convert.log`. Catalogue = `docs/research/ct-movement/ct-footage-catalogue.md`. All times are +-1 s unless a clip is under 5 s. "Frame-step" = confirm in the mp4 before measuring.
 Confidence tags: (sure) read clearly off the tile; (likely) reading of small figures; (check) ambiguous at 1 fps.
 No sheet exists for 051747 (0.033 s clip, 2 frames), so it could not be checked against a sheet.
 The catalogue's "view" column is mostly right. Two recurring things it never states: (a) the HUD box bottom right has a noise/light bar that fills when the hero runs (e.g. 052502 at 1-2 s); (b) when the hero stands at a door frame or wall end facing the camera, his goggle lights show lit green (051917 at 21-27, 052021 at 4 and 14, 052059 at 10-11 and 15).
@@ -1085,7 +1085,7 @@ The catalogue's "view" column is mostly right. Two recurring things it never sta
 ## Old clips, group 3
 
 
-Source: `docs/archive/locomotion/research/ct-footage-catalogue.md` against the 1 fps sheets in `pc/ct-work/sheets-old/`. Every sheet of every clip was read. Times are the burned-in clip seconds (tile N = frame at N.0 s), so an edge is still +-1 s. "Unsure" marks a reading that needs a frame-step. Clip names are HHMMSS. Every clip in this batch has at least one catalogue row.
+Source: `docs/research/ct-movement/ct-footage-catalogue.md` against the 1 fps sheets in `pc/ct-work/sheets-old/`. Every sheet of every clip was read. Times are the burned-in clip seconds (tile N = frame at N.0 s), so an edge is still +-1 s. "Unsure" marks a reading that needs a frame-step. Clip names are HHMMSS. Every clip in this batch has at least one catalogue row.
 
 HUD notes that apply to all clips: the bottom-right panel shows a noise/visibility bar that fills with dots when the hero runs, crouch-runs, jumps or fires (seen 054021 0-3, 053816 2-5, 053849 9-12, 054237 11-13, 054502 1-2, 054802 1). The weapon line reads rifle in the hotel and courtyard clips, launcher in every alley clip (054702 onward), so "weapon away" at idle holds for those too.
 

@@ -2,7 +2,7 @@
 
 Read-only research, 2026-10-18. Michael's note: "Hips and legs seem to follow the body to prevent clipping or awkward stances when walking in circles or turning etc based off ct footage. Must review before making changes."
 
-Sources: docs/archive/locomotion/research/ct-measure-turns.md (MT), ct-footage-catalogue.md (CAT), ct-measure-speeds-stops-posture.md (MS), ct-locomotion.md (LOC), docs/archive/locomotion/PROTOTYPE-PLAN.md P1 step 4. Clip ids are `HHMMSS` of `clip_13570_20261017_*.mp4`.
+Sources: docs/research/ct-movement/ct-measure-turns.md (MT), ct-footage-catalogue.md (CAT), ct-measure-speeds-stops-posture.md (MS), ct-locomotion.md (LOC), docs/archive/locomotion/PROTOTYPE-PLAN.md P1 step 4. Clip ids are `HHMMSS` of `clip_13570_20261017_*.mp4`.
 
 ## 1. What the footage docs say
 

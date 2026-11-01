@@ -7,7 +7,8 @@ Michael tunes movement himself as needed; movement slices and movement research 
 tune-until-sign-off). CT movement references are ignored (G210: "the ct movement is
 getting worse. Can you ignore CT movement references."): analogue speed from the stick, LT held aims, three weapon
 states, RT tap knocks out / hold kills, traversal auto-holsters (docs/archive/anim-rework/BRIEF.md). History of how the
-code got here: docs/archive/ct-movement.md, docs/archive/locomotion/ and the git log.
+code got here: `docs/research/ct-movement/` (the CT movement research and `ct-movement.md`), docs/archive/locomotion/
+and the git log.
 
 ## Decided direction
 - Built (CT prototype F1a): G17, the shoulder swap only while aiming (`player/player.ts`); G18, back-to-wall on L3

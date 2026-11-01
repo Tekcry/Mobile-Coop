@@ -48,7 +48,7 @@ the old `warehouseOps` stays selectable, frozen, G390), Fallow (`bunker`, parked
 | `docs/operators/` | The operators run: Wren and Moth, the offline art pipeline (`scripts/operators/`), its decisions D1 onward (G75) | Operator art and Wren in-game work |
 | `docs/menu-ui/` | The Arkham Knight style menu plan (G77) | The menu job |
 | `docs/audio/`, `docs/music/`, `docs/audio-credits.md` | Foley, weapon audio and music logs and plans; CC0 credits | Sound and music work |
-| `docs/research/` | Night vision and lamp research; `mission-audit/` the level design craft research (multi-step co-op missions, pathways without visual cues) | Vision and light work, mission and level design |
+| `docs/research/` | Night vision and lamp research; `mission-audit/` the level design craft research (multi-step co-op missions, pathways without visual cues); `ct-movement/` the Chaos Theory movement research (`CT-RESEARCH.md`, `CT-SHOTLIST.md`, footage catalogue and measurements) | Vision and light work, mission and level design, movement |
 | `docs/backlog.md` | Playtest feedback and bugs (new ideas from Michael go to the ROADMAP Inbox) | Adding feedback |
 | `TESTING.md` | The short desktop checklist and the release checklist | Ending a job |
 | `docs/systems/testing-tools.md` | Every e2e suite, flakes and quarantine, helper scripts, debug overlay | Running or writing tests, judging a failure |

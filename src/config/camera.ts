@@ -2,7 +2,7 @@ import { MOVEMENT } from './movement';
 
 /**
  * Third-person camera framing (tunable), Chaos Theory style (CT prototype A2.1; numbers from
- * `docs/archive/locomotion/research/ct-measure-camera.md`, every one a starting value, G10). The camera is rigid: it sits at a fixed
+ * `docs/research/ct-movement/ct-measure-camera.md`, every one a starting value, G10). The camera is rigid: it sits at a fixed
  * offset from the head, behind and a little to the right, aimed at the head, so the head sits near screen centre and the
  * legs are partly out of frame. It moves only by right stick / mouse. Aiming moves it in to just over the firing shoulder
  * with no FOV change (G29; only a marksman scope zooms).
