@@ -44,8 +44,7 @@ the old `warehouseOps` stays selectable, frozen, G390), Fallow (`bunker`, parked
 | `docs/level-validator/` | The level-graph schema and an example graph (`scripts/level-validate.mjs`) | Map graphs, validator runs |
 | `docs/templates/` | BRIEF, PLAN, sign-off, walk card and map spec templates | Starting a job or a walk card |
 | `docs/ct-prototype/`, `docs/marlow-final/` | Marlow Yard, the co-op training course (`CTCOURSE-SPEC.md`), its slices and playtests | Marlow Yard work |
-| `docs/sector-redesign/` | Sector Ops Saltmarsh Park: spec, slices, lighting | Sector Ops work |
-| `docs/coop4/` | Sector Ops up to 4 players | Co-op player count work |
+| `docs/sector-redesign/graph/` | Sector Ops Saltmarsh Park level graphs, kept only because tests read them (Sector Ops is being removed) | Never |
 | `docs/ct-research/` | The CT co-op research (G124-G160) | CT behaviour questions |
 | `docs/operators/` | The operators run: Wren and Moth, the offline art pipeline (`scripts/operators/`), its decisions D1 onward (G75) | Operator art and Wren in-game work |
 | `docs/menu-ui/` | The Arkham Knight style menu plan (G77) | The menu job |

@@ -58,7 +58,7 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
 The detail art of Saltmarsh Park (`campusOps`, Sector Ops) is a shared, instanced prop and material kit drawn over the
 level-builder boxes. Gameplay never reads it: collision, cover, ledges, nav, perception, the light bake and the meter use
 only the boxes. `?gfx=min`, a GLB that fails to load, or `buildCampus(b, { dress: false })` show the plain greybox.
-Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-redesign/checks/art-kit-build.md`,
+Plan and rules: docs/sector-redesign/briefs/ART-PLAN.md; builds: docs/sector-redesign/checks/art-kit-build.md,
 `art-join.md`.
 
 - **Generated, not drawn.** Headless Blender scripts in the repo (`scripts/campus-props/`: `lib.py`, `kit.py`,

@@ -212,7 +212,7 @@ behind a VPN adapter).
   intruders (coop4)': the local player plus up to 3 test-only stand-in refs (`t.fakes`): a calm guard with 4 in view
   casts <= 9 rays a think and sees all 4 in turn, 4 own slots / LKPs, the alarm's reinforcements split (the raiser's
   first), a team shares one hunt and is ticked on its own LKP, a leaver's slot kept for his rejoin, a new id takes a gone
-  slot; a 2-player control (today's rules). The 3-4 browser asserts: `docs/coop4/briefs/AI6-E2E-SPEC.md`
+  slot; a 2-player control (today's rules). The 3-4 browser asserts: docs/coop4/briefs/AI6-E2E-SPEC.md
 - `e2e-guard-carry` Warehouse Infiltration (High): a calm holstered grunt and officer (S21 carry) and then drawing ones
   are drawn: body among the active meshes, material ready, GPU-skinned effect (no CPU-skinning fallback), no effect
   compile error; then figures on, a forced figure compile timeout: the merged body stands in. Run with `E2E_GPU=1`
