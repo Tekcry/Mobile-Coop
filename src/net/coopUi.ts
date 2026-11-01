@@ -427,13 +427,14 @@ function lobbyModes(current: NetMode): typeof MODE_OPTS {
   return cur && !shown.includes(cur) ? [...shown, cur] : shown;
 }
 /**
- * (G1) The Test Chamber in the lobby: Free Roam on the dev map `studio` (not in `MAPS`), shown as its own Mode choice.
- * Nothing new on the wire: the room's mode is `sandbox` and its map id `studio`; both players spawn in the chamber (the
- * map's two spawns) and its single-player stage (loop player, puppets) stays off in a room.
+ * (G1) The Test Chamber in the lobby: the dev map `studio` (not in `MAPS`), shown as its own Mode choice. (G2a) The room's
+ * mode is `test` (`TestMode`: guards by test, revives) and its map id `studio`; both players spawn in the chamber (the
+ * map's two spawns) and its single-player stage (loop player, puppets) stays off in a room. A room set to Free Roam on
+ * `studio` (a test or a dev tab) still reads as the Test Chamber.
  */
 const CHAMBER = 'chamber';
 const CHAMBER_LABEL = 'Test Chamber';
-const isChamber = (mode: string, map: string): boolean => mode === 'sandbox' && map === STUDIO_MAP_ID;
+const isChamber = (mode: string, map: string): boolean => (mode === 'test' || mode === 'sandbox') && map === STUDIO_MAP_ID;
 /** The Mode row's choices: the lobby's modes and the Test Chamber (the mode set already, when it is one, is listed once). */
 function lobbyModeChoices(mode: NetMode, map: string): { value: NetMode | typeof CHAMBER; label: string }[] {
   return [...lobbyModes(isChamber(mode, map) ? 'course' : mode), { value: CHAMBER, label: CHAMBER_LABEL }];
@@ -613,7 +614,7 @@ class LobbyScreen extends MenuScreen {
           // leaves its map and mission
           return [
             choice('Mode', lobbyModeChoices(s.mode, s.map), () => (chamber ? CHAMBER : entry ? 'course' : s.mode), (v) => {
-              if (v === CHAMBER) return set('sandbox', STUDIO_MAP_ID, s.difficulty, '', '');
+              if (v === CHAMBER) return set('test', STUDIO_MAP_ID, s.difficulty, '', '');
               if (entry?.mode === 'sector' && v !== 'sector' && v !== 'course') return set(v, lobbyMaps(v)[0]?.id ?? s.map, s.difficulty, v === 'infiltration' ? MISSIONS[0]!.id : '', '');
               if (entry?.mode === 'sector') return v === 'course' ? set('course', CAMPAIGN_MAP, s.difficulty, '', '') : set('sector', lobbyMaps('sector')[0]?.id ?? s.map, s.difficulty, '', '');
               set(v, MAPS.find((m) => m.id === s.map)?.modes.includes(v) ? s.map : (lobbyMaps(v)[0]?.id ?? s.map), s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '');

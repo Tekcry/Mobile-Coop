@@ -8,8 +8,14 @@ import type { SlotPoint } from '../spawnSlots';
 import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
 import type { KitKind } from '../teamMoves';
 
-/** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`; `sector` is Sector Ops. */
-export type ModeId = 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector';
+/** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`; `sector` is Sector Ops; `test` is the Test
+ *  Chamber's guards-and-revives mode (`TestMode`: practice, no progression). */
+export type ModeId = 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector' | 'test';
+
+/** (G2a) The practice modes: a test map with nothing saved (no lifetime stats, challenges or rewards; the sandbox loadout). */
+export function practiceMode(mode: ModeId): boolean {
+  return mode === 'sandbox' || mode === 'test';
+}
 
 export interface SessionStats {
   mode: ModeId;

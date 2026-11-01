@@ -1,4 +1,4 @@
-import type { SessionStats } from '../game/modes/gameMode';
+import { practiceMode, type SessionStats } from '../game/modes/gameMode';
 import { DIFFICULTY, type DifficultyPreset } from '../ai/archetypes';
 import { ENEMIES, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 
@@ -23,7 +23,7 @@ export interface SessionRewards {
 export function computeRewards(s: SessionStats, difficulty: DifficultyPreset): SessionRewards {
   const lines: RewardLine[] = [];
   const nn = (v: number): number => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
-  if (s.mode === 'sandbox') return { lines: [], xp: 0, credits: 0 };
+  if (practiceMode(s.mode)) return { lines: [], xp: 0, credits: 0 };
   const kinds = ENEMY_KINDS;
   let kxp = 0;
   let kcr = 0;
