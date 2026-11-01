@@ -506,6 +506,8 @@ export class AnimTunePanel {
   coop: (() => boolean) | null = null;
   /** (tuner-ui) Whether the pause menu is open (set by the app): the menus get the pad meanwhile. */
   menuPaused: (() => boolean) | null = null;
+  /** (G1) Whether the tuner may open here (set by the app: the Test Chamber only, `tunerGate.ts`); unset = never. */
+  allowed: (() => boolean) | null = null;
   private coopOn = false;
   /** (fix round) When the pad was last polled (ms): the free view's pad input clears once it goes stale. */
   private lastPoll = 0;
@@ -2764,8 +2766,24 @@ export class AnimTunePanel {
     this.wasStudio = STUDIO.active;
   }
 
-  /** Open (F3 > Anim, Pause or Settings): stays open over play until closed. */
+  /** (G1) The tuner may open here (the Test Chamber only; the pause and Settings rows ask this to list themselves). */
+  get canOpen(): boolean {
+    return this.allowed?.() ?? false;
+  }
+
+  /** (G1) A new game state is in: a panel left open where it may not be goes away. */
+  recheck(): void {
+    if (this.open && !this.canOpen) this.hide();
+  }
+
+  /** Open (F3 > Anim, Pause or Settings): stays open over play until closed. Nothing happens off the Test Chamber (G1). */
   show(): void {
+    if (this.canOpen) this.reveal();
+  }
+
+  /** (G1) Open without asking `allowed`: only the studio stage, which exists on the Test Chamber alone and opens as it loads
+   *  (before the app's state is set, so the map is not readable yet). */
+  reveal(): void {
     this.open = true;
     this.studioLeft();
     // (fix round) the co-op lock is read live (a fold or a close never leaves it stale)

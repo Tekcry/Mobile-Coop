@@ -48,8 +48,7 @@ import { KNIFE_KILL_IDS, KNIFE_KILLS } from '../game/knifeKill'; // (piano-knife
 import { travCycle, travEntry, TRAV_ENTRIES, type TravEntry, type TravStep } from './studioTraversal';
 import { MOCAP_SOURCE_NAMES, MOCAP_SOURCE_WORD, mocapSource, type MocapSource } from './mocapSources';
 
-/** The studio map's id (`world/maps/studio.ts`; `?autostart=studio`). */
-export const STUDIO_MAP_ID = 'studio';
+export { STUDIO_MAP_ID } from './studioMapId';
 /** The studio's speed range (the loop's time scale; above 1x only inside the studio). */
 export const STUDIO_SPEED = { min: 0.1, max: 2, step: 0.05 } as const;
 /** The circle the moving loops walk (m), and the turntable's rates (deg / s). */

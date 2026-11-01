@@ -382,8 +382,8 @@ try {
   await key('Escape');
   assert((await top()) === 'main-menu', 'Esc: Settings back to the main menu');
   const menuKeys = await G(() => [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(','));
-  // (anim-studio) the developer row Anim Studio (dev) last
-  assert(menuKeys === 'coop,loadout,settings,feedback,anim-studio', `the main menu is Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (${menuKeys})`);
+  // (anim-studio) the developer row Test Chamber last
+  assert(menuKeys === 'coop,loadout,settings,feedback,anim-studio', `the main menu is Co-op, Loadout, Settings, Feedback, Test Chamber (${menuKeys})`);
   // (marlow-bays R1) no rejoin row without a room; a room left in the last 10 minutes shows "Rejoin <code>" after Co-op
   const rj = await G(() => {
     sessionStorage.setItem('ns-rejoin', JSON.stringify({ code: 'ABCDE', role: 'client', at: Date.now(), mode: 'course', map: 'ctcourse', difficulty: 'normal', mission: '', weather: 'clear', bay: 2 }));
@@ -440,10 +440,19 @@ try {
     const keys = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
     // (menu-notes A2) no separate Controls item: controls live in Settings > Controls
     // (anim-tuner pass 3) the dev row "Animation tuner (dev)" before Quit (Up from Resume still wraps to Quit)
-    // (batch-23) no Anim Studio row in the pause menu: the studio opens from the main menu only
+    // (batch-23) no Test Chamber row in the pause menu: it opens from the main menu (and the co-op lobby) only
+    // (G1) and no Animation tuner row outside the Test Chamber: this is a normal match, the tuner opens in the studio only
     // (hud-guidance B5, R12) Notes right after Objectives
-    assert(keys === 'resume,objectives,notes,settings,report-feedback,anim-tuner,quit', `pause items (${keys})`);
-    assert(!keys.includes('anim-studio') && keys.includes('anim-tuner'), `the pause menu has Animation tuner (dev) and no Anim Studio row (${keys})`);
+    assert(keys === 'resume,objectives,notes,settings,report-feedback,quit', `pause items (${keys})`);
+    assert(!keys.includes('anim-studio') && !keys.includes('anim-tuner'), `the pause menu has no Test Chamber row and, off the Test Chamber, no Animation tuner row (${keys})`);
+    // (G1) F3 > Anim, Settings > Developer and show() do nothing off the Test Chamber (smoke covers the main menu)
+    const gate = await GM(() => {
+      const t = window.__app.debug.animTune;
+      t.show();
+      t.toggle();
+      return { open: t.isOpen, can: t.canOpen, shown: !document.querySelector('.anim-tune').hidden };
+    });
+    assert(!gate.open && !gate.can && !gate.shown, `the tuner does not open off the Test Chamber (${JSON.stringify(gate)})`);
     await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
     await frames(P, 3);
     const objs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));
@@ -488,6 +497,11 @@ try {
     // keeps, X resets; B from a slider goes back to the picker; Y opens the menu, B closes it; RT switches the state; RB
     // reaches Keys; the left stick does not reach the game; View hands the pad to the game (running) and back (held);
     // Menu (Start) closes and the game runs
+    // (G1) this section tests the tuner's own pad map, not where it may open: the gate's answer is overridden (put back below)
+    await GM(() => {
+      window.__gateWas = window.__app.debug.animTune.allowed;
+      window.__app.debug.animTune.allowed = () => true;
+    });
     await GM(() => window.__app.current.pause());
     await frames(P, 4);
     await GM(() => window.__app.nav.focus(document.querySelector('.pause-screen [data-key="anim-tuner"]')));
@@ -677,6 +691,7 @@ try {
     await GM(() => window.__animTune.marker(false));
     assert(mk1.n === 0 && mk1.el, `tuner: the barrel marker makes no scene meshes and draws on its overlay (${mk1.n} marker meshes, overlay ${mk1.el})`);
     await GM(() => window.__app.debug.animTune.hide());
+    await GM(() => (window.__app.debug.animTune.allowed = window.__gateWas));
     await frames(P, 2);
     // (LR16a, one light model) Pause > Settings > Gameplay: no Lamp falloff row, no `lampFalloff` setting or match mode
     await GM(() => window.__app.current.pause());

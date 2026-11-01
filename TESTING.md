@@ -333,14 +333,14 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
 - [ ] The wall medkit station on Proving Grounds (Free Roam): hurt, then hold to heal +40; it shows spent; at full
   health it is refused ("Health full"). No other way heals.
 - [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).
-- [ ] Animation tuner: open it from Pause > Animation tuner (dev) (the match resumes with the panel open), Settings >
-  Graphics > Animation tuner (dev) or F3 > Anim; on a phone the panel folds to its header (_ / +), scrolls, drags by
+- [ ] Animation tuner (G1: it opens in the Test Chamber only; main menu > Test Chamber): open it from Pause > Animation tuner (dev)
+  (the match resumes with the panel open), Settings > Graphics > Animation tuner (dev) or F3 > Anim (the stage opens it too); on a phone the panel folds to its header (_ / +), scrolls, drags by
   thumb and closes with x, and Share / Copy shares, copies or shows the JSON. Walk: "arm swing amplitude", "stance knee
   flex" and "trunk / shoulder counter-rotation" sit at the top. Walk with the pad and drag "foot width / track" - the
   feet move apart live and the crab readout (F3, top left) changes; the picker follows walk / jog / crouch / wall / ladder; reload the page and the value
   is kept; Export downloads `anim-tune-<date>.json`; Reset group puts it back. Saved values stay applied with F3 closed:
   press Reset all before judging the game's own defaults.
-- [ ] Animation tuner by pad (tuner-ui map, glyph strip at the bottom of the panel, never over a row): Pause >
+- [ ] Animation tuner by pad (tuner-ui map, glyph strip at the bottom of the panel, never over a row; in the Test Chamber): Pause >
   Animation tuner (dev) with A: the Body tab, "Pad: tuner · paused", the game holds still. LB / RB cycle the tabs (View
   ... Co-op, Settings, wrapping). Every value shows in a light box without touching it. On "State" A opens a list you can
   see; the D-pad moves, B backs out, A picks and the outline steps on to the sliders. A on a slider turns the outline
@@ -348,7 +348,7 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   slider goes back to the State list; Y opens the menu (B closes it). View: "Pad: game", walk; View again: the game holds
   still, move a slider and the still pose changes. Hold R3: the untuned animation. Menu closes the panel. Settings >
   Size: Small / Medium / Large; the panel fits a 1080p screen and a phone in landscape. Labels are plain ("Foot width").
-- [ ] Pause and the tuner: open the pause menu with the tuner open (and in the Anim Studio with a walk loop playing):
+- [ ] Pause and the tuner: open the pause menu with the tuner open (and in the Test Chamber with a walk loop playing):
   she does not move behind the menu, the pad drives the menu. View tab: Side - the camera holds her side as she turns
   and walks; Unlock frees it.
 - [ ] Free view: tools "free view" orbit - the right stick circles Wren, the triggers zoom, the left stick walks her;
@@ -370,29 +370,33 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   rifle / aim pistol / wall / peek / climb / vent / hold; each slider shows "today: ..." in grey. In the yard move
   "distance behind" - the camera moves back live and glides; walk into a wall and it still pulls in (never through);
   Reset group puts it back; Export lists the `cam.` values.
-- [ ] Base table (anim-joints J1): in the Anim Studio on a state loop, turn an elbow in Joints (and a hand offset in Hands &
+- [ ] Base table (anim-joints J1): in the Test Chamber on a state loop, turn an elbow in Joints (and a hand offset in Hands &
   feet), Export, run `node scripts/anim-tune-bake.mjs <export>` (rows "baked (base table)", `src/anim/animBase.ts`
   changes), rebuild, reset those sliders: the pose looks the same. In a co-op pair loop (and with a partner) role B /
   the partner shows the same tune; the guard in a hold pair does not.
-- [ ] Move rows (anim-joints J2): in the Anim Studio pick "traversal: vault the low wall", then in Body > Joints pick
+- [ ] Move rows (anim-joints J2): in the Test Chamber pick "traversal: vault the low wall", then in Body > Joints pick
   the state `Trav` > `Vault` (a studio loop turns follow off); turn her right elbow there: it shows during the vault
   only and is gone when she walks on. In the leg-up pair, `Team` > `Boost` > `B` moves role B only.
 - [ ] Reload row (anim-joints J2): in play (follow on), reload; the Joints picker shows `Reload` while the reload plays;
   a left elbow edit there shows during each reload and not between them.
-- [ ] Gear offsets (anim-gear): in the Anim Studio open the Gear tab, pick `holster`, slide x (and z) until the pistol
+- [ ] Gear offsets (anim-gear): in the Test Chamber open the Gear tab, pick `holster`, slide x (and z) until the pistol
   sits out of the thigh, no clipping; pick `holster` > `crouch`, crouch: it moves on as she crouches and back as she
   stands; draw and holster the pistol: the hand goes to the moved holster. Export, run
   `node scripts/anim-tune-bake.mjs <export>` (rows "baked (base table)", `src/anim/animBase.ts` gets a `gear` key),
   rebuild, reset the Gear sliders: the same look. With a partner (or role B of a pair loop) the partner's sling socket
   and gear take the same rows; a guard does not.
-- [ ] Goggles (anim-goggle): in the Anim Studio (or a match, the tuner open) turn night vision on (the goggles come
+- [ ] Goggles (anim-goggle): in the Test Chamber (or a match, the tuner open) turn night vision on (the goggles come
   down over her eyes), open the
   Gear tab, pick `goggles`, slide y / z and pitch until the worn goggle sits off the brow and clear of the face, no
   clipping; pick `goggles` > `crouch`, crouch: it follows. Vision off: the stowed goggle does not move (no stowed
   socket yet). Zoom out to LOD1 / LOD2: only the lens moves there (the housing is fused into the head), a known limit.
   Bake and reset as above: the same look; a guard never takes it (the partner and the studio puppets carry it but show the stowed goggle).
-- [ ] Pause menu: Animation Tuner (DEV) only; Anim Studio from the main menu.
-- [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (not from the Pause menu): a dark stage with a floor
+- [ ] Pause menu (G1): in a normal match it lists Resume, Objectives, Notes, Settings, Report feedback and Quit - no Animation tuner row; in the Test Chamber the Animation tuner (dev) row is there. F3 > Anim, Settings > Developer and the pad do not open the tuner outside the Test Chamber.
+- [ ] Test Chamber in co-op (G1): on two pages (or two devices) Main menu > Co-op > Host; the Mode row offers Campaign and Test Chamber
+  (the Map row then reads Test Chamber, locked); pick Test Chamber, the partner joins by the code and readies, the host starts: both
+  players stand in the Test Chamber about 2 m apart and see each other walk. The loop player and the guard puppet are not there
+  (single player only); the animation tuner opens (Pause > Animation tuner) for your own Wren and the game speed stays 1x.
+- [ ] Test Chamber (anim-studio): Main menu > Test Chamber (not from the Pause menu): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
   trails), and the Body tab shows Walk; Pause, "Key ▶" / "◀ Key" and the time slider move one key / any point; speed 2x;
@@ -402,7 +406,7 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   guard puts a figure at the hold spot. Move a
   slider, Ctrl+Z (or Y menu > Undo) puts it back, Ctrl+Y redoes; Store A, change, Store B, A/B flips; Save a preset,
   Reset all, Load brings it back. Quit to the menu: normal speed, no studio left.
-- [ ] Anim Studio pairs and traversal (anim-studio-2): in the studio pick "pair: leg-up": two Wrens at the team block
+- [ ] Test Chamber pairs and traversal (anim-studio-2): in the studio pick "pair: leg-up": two Wrens at the team block
   (north), B crouched with cupped hands, A walks in, is tossed up and hangs on the lip; Pause, "key >" moves both; the
   panel follows "Co-op: leg-up" (LT / RT: role A / B / contact). Move "A climber" body up: only A moves; a contact
   slider moves A only while the foot is in the hands. Try the relay, throw, hang-down (head first over the edge), rope
@@ -410,19 +414,19 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   choke on one clock. "traversal: ladder up and over the top": Wren walks to the ladder, climbs it, tops out, resets and
   goes again; the same for the vault, ledge, drainpipe, pipe, hang bar, vent, window, door, rappel and wall loops.
   Pick "state: idle": she is back in the middle.
-- [ ] Anim Studio motion capture (mixamo-retarget M5): the Loop list has a "Motion capture (CMU): ..." group (walk, jog,
+- [ ] Test Chamber motion capture (mixamo-retarget M5): the Loop list has a "Motion capture (CMU): ..." group (walk, jog,
   run, sprint, start, stop, turns, sneak, strafes; Mixamo ones as "Motion capture (Mixamo): ..." once they land, the
   climbing ones on their props: picking one plays that capture there, flag or not; in a match the climbing
   captures play with `?mixamo=1`). Pick "Motion capture (CMU): walk": the Now playing
   line says "motion-capture (CMU) walk clip"; turn a knee in Joints (walk) or move a foot in Hands & feet: the capture
   follows; Arm swing is greyed (hand-made only) and changes nothing on it, as in the game. Walking in a match: "Now
   playing: motion-capture (CMU) walk". On a ledge, Body > foot reach rows are greyed ("Does nothing in this move").
-- [ ] (mixamo-retarget I9) Anim Studio, Set "Mixamo": the batch 2 packs are listed ("Motion capture (Mixamo): rifle walk forward",
+- [ ] (mixamo-retarget I9) Test Chamber, Set "Mixamo": the batch 2 packs are listed ("Motion capture (Mixamo): rifle walk forward",
   pistol, shooter, aa ...); each plays on Wren and moves with its tuner rows.
 - [ ] Animation source (mixamo-retarget Toggle): Settings > Gameplay > Animation source. CMU (default) is the game as
   before; Hand-made: the walk / jog / run are the keyed clips (Now playing "hand-made ... (animation source: Hand-made)");
   Mixamo: hang on a ledge and shimmy, then top out a ladder: the Mixamo captures ("motion-capture (Mixamo) hang").
-  Restart: the choice is kept. In the Anim Studio the same switch sits over the Loop list, with Set (All / Hand-made /
+  Restart: the choice is kept. In the Test Chamber the same switch sits over the Loop list, with Set (All / Hand-made /
   CMU / Mixamo) showing only that set's loops. `?anim=hand|cmu|mixamo` sets it for one page.
 - [ ] (F45) /preview/ with no pick yet: Settings > Gameplay > Animation source shows Mixamo and a ledge hang plays the
   Mixamo capture; pick CMU, restart: CMU is kept. The live game with no pick: CMU.
@@ -454,25 +458,25 @@ Main menu > Co-op > Host a room > Start (Marlow Yard), pad first, then keyboard 
   X draws / holsters, T / Q swap, Z knocks out, G gadget, Tab wheel, N goggles, middle mouse pings, V shoulder swap;
   Esc or P pauses and Resume re-captures.
 - [ ] Settings > Mouse & Keyboard: rebind a key, a conflict warns, Esc cancels a capture.
-- [ ] (marlow-bays slice T) Animation tuner (Pause > Animation tuner, or the Anim Studio): the cursor stays free; drag
+- [ ] (marlow-bays slice T) Animation tuner (Pause > Animation tuner, or the Test Chamber): the cursor stays free; drag
   the scene with the left button to turn the camera, the wheel zooms, sliders and lists click; no shot fires. F4 (or the
   header "Mouse:" button) gives the normal mouse look and back; Esc in the game camera returns to drag view, no pause.
   Closing the tuner, a click captures the mouse again as in play.
 - [ ] Click a slider row: it gets a yellow bar, the "▶" line names it, and a yellow ring sits on that joint / bone (the
   weapon for a gun row, both feet for Stepping), clear on a light wall and in a dark corner; other tabs move it.
-- [ ] Anim Studio: tick "Keyed" on walk: the keyed walk plays; clear it: the procedural walk. Pick "Run" in the Body
+- [ ] Test Chamber: tick "Keyed" on walk: the keyed walk plays; clear it: the procedural walk. Pick "Run" in the Body
   tab's Joints state list: the run plays, the tab stays. "On the spot" (header, F8, pad L3) on: she runs in place; off:
   she runs the circle. She is well lit as she moves; "Stage light" (View tab) dims and brightens her.
-- [ ] (marlow-bays item 23) Anim Studio, Keys tab: pick Jog, Key 2, press "Later ▶" three times: the readout says
+- [ ] (marlow-bays item 23) Test Chamber, Keys tab: pick Jog, Key 2, press "Later ▶" three times: the readout says
   "moved +3 (baked at 6)", the jog plays with that pose later in the stride; "◀ Earlier" stops at the key before it;
   Key 1's buttons are off (fixed). Ctrl+Z three times: back as baked. Export, then `node scripts/anim-tune-bake.mjs
   <export> --dry-run --only keys`: the row reads "baked (key JSON; rebake the clip)", target "jog.json key 1 phase".
-- [ ] (marlow-bays item 25) Anim Studio, Keys tab: pick Jog, Key 2, press "+ Add key": the readout says "jog - key 3 of
+- [ ] (marlow-bays item 25) Test Chamber, Keys tab: pick Jog, Key 2, press "+ Add key": the readout says "jog - key 3 of
   10 (mirror of 8) (added), frame 6", the pose does not jump; bend the left elbow: it shows there (and on the right arm
   half a cycle on). "Delete key": 8 keys again. Delete Key 3 (an original): the jog blends over it; Key 1's Delete is
   off; Ctrl+Z brings the key back. Pad: the D-pad reaches both buttons, A presses. Export and bake `--dry-run --only
   keys`: "baked (key added to the key JSON ...)" / "baked (key removed ...)", the meta regenerated.
-- [ ] (marlow-bays T1a) Anim Studio, Keys tab: pick Jog, then Key 2: the jog stops on that key and the readout says
+- [ ] (marlow-bays T1a) Test Chamber, Keys tab: pick Jog, then Key 2: the jog stops on that key and the readout says
   "jog - key 2 of 8 (mirror of 6)"; "Key ▶", F2 and the pad's right stick right step on (the Key list follows), F1 /
   stick left step back. Click "Right forearm twist": the forearm is ringed; drag it: the forearm turns about itself.
 - [ ] Keys tab: with Mirror on, bend the left elbow on key 2: step to key 6, the right elbow is bent too. Untick Mirror,
@@ -486,7 +490,7 @@ Main menu > Co-op > Host a room > Start (Marlow Yard), pad first, then keyboard 
 - [ ] (anim-bake-1022) After a bake merges, open the tuner with your old save: the info line says how many values are
   now built in and that your other changes are kept; the baked sliders sit at their defaults, the rest as tuned, and she
   looks as before the merge. Reload: nothing resets again. Y menu > Reset baked gives the line again.
-- [ ] (marlow-bays T2) Anim Studio at 1920 x 1080: the tuner sits on the right in the menus' look (their font, green
+- [ ] (marlow-bays T2) Test Chamber at 1920 x 1080: the tuner sits on the right in the menus' look (their font, green
   focus bar), readable without leaning in; she stands in the middle of the space left of it, never under it; no health,
   compass, objective or ammo on screen. She reads clearly lit (suit detail and face visible, not washed out).
 - [ ] Body tab: click her right elbow on the figure: "Showing: Right elbow" and only its sliders; click it again: every
@@ -498,8 +502,7 @@ Main menu > Co-op > Host a room > Start (Marlow Yard), pad first, then keyboard 
 - [ ] The status line in the studio: walk with Rifle picked reads "Walk · Rifle holstered"; Low ready "Low ready · Rifle
   drawn".
 - [ ] Sizes S, M and L (Settings) and a 1280 x 720 window: the panel stays usable (tabs wrap, rows readable) and does
-  not cover her. Outside the studio (Pause > Animation tuner) the panel overlays play with no dock; in co-op the same
-  (no dock, the HUD stays).
+  not cover her. In a co-op Test Chamber room (Co-op > host > Mode: Test Chamber; the stage is off) the panel overlays play with no dock and the HUD stays.
 
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows

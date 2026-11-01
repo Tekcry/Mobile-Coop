@@ -403,9 +403,10 @@ export class SettingsScreen extends MenuScreen {
       desc(button(`Sustained (${BENCH.sustained / 60} min)`, () => app.benchmark?.('sustained'), { class: 'subtle', key: 'bench-sustained' }), 'The first minute against the last: a laptop slowing down once hot.'),
       // (anim-tuner pass 2) the animation tuner without F3 (pad, phone)
       grp('Developer'),
-      desc(button('Animation tuner (dev)', () => app.debug.animTune.show(), { class: 'subtle', key: 'anim-tuner' }), 'Opens the animation slider panel over the game (top right). It stays open in a match until you close it with its x.'),
-      // (anim-studio) the Anim Studio stage (single player: not offered in a co-op session)
-      ...(app.studio && !app.debug.animTune.coop?.() ? [desc(button('Anim Studio (dev)', () => app.studio?.(), { class: 'subtle', key: 'anim-studio' }), 'A plain stage with Wren: the loop player, the animation tuner, viewing aids and snapshots. Leaves a match in progress.')] : []),
+      // (G1) the tuner row is listed in the Test Chamber only
+      ...(app.debug.animTune.canOpen ? [desc(button('Animation tuner (dev)', () => app.debug.animTune.show(), { class: 'subtle', key: 'anim-tuner' }), 'Opens the animation slider panel over the game (top right). It stays open in a match until you close it with its x.')] : []),
+      // (anim-studio) the Test Chamber stage on its own (single player: not offered in a co-op session)
+      ...(app.studio && !app.debug.animTune.coop?.() ? [desc(button('Test Chamber', () => app.studio?.(), { class: 'subtle', key: 'anim-studio' }), 'A plain stage with Wren to test everything: the loop player, the animation tuner, viewing aids and snapshots. Leaves a match in progress. Two players can share it from Co-op.')] : []),
     );
     return panel;
   }

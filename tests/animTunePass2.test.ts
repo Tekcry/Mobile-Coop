@@ -196,7 +196,8 @@ describe('fix round: gameplay reads the game view, wherever it is placed', () =>
   it('the panel reads co-op live before any freeze, step, speed or View change', async () => {
     const fs = await import('node:fs');
     const src = fs.readFileSync('src/ui/animTunePanel.ts', 'utf8');
-    for (const head of ['  show(): void {', '  private onPadToggled(): void {', '  private setTimeScale(v: number): void {', '  setFrozen(on: boolean, auto = false): void {', '  private stepFrame(): void {', '  frame(nowMs: number): void {']) {
+    // (G1) `show()` asks the gate and calls `reveal()`, which holds the body
+    for (const head of ['  reveal(): void {', '  private onPadToggled(): void {', '  private setTimeScale(v: number): void {', '  setFrozen(on: boolean, auto = false): void {', '  private stepFrame(): void {', '  frame(nowMs: number): void {']) {
       const i = src.indexOf(head);
       expect(i).toBeGreaterThan(0);
       expect(src.slice(i, i + 400)).toMatch(/refreshCoop\(\)/);

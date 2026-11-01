@@ -56,6 +56,7 @@ export class DebugOverlay {
   private readonly crabBuf = new Float64Array(30);
   /** (anim-tuner) The animation tuner (the Anim button): its own panel top right, clear of the crab readout. */
   readonly animTune = new AnimTunePanel();
+  private readonly animBtn: HTMLButtonElement;
   private readonly crabNow: CrabNow = { kneeSep: 0, trackL: 0, trackR: 0, bowL: 0, bowR: 0, wingL: 0, wingR: 0, hipWidth: 0 };
   /** The worst of each since the last paint (track: planted frames only, kept until a foot plants again). */
   private crab = { n: 0, kneeMin: 0, kneeMax: 0, trackL: 0, trackR: 0, planted: 0, bowL: 0, bowR: 0, wingL: 0, wingR: 0, speed: 0, crouched: false, ads: false };
@@ -96,6 +97,11 @@ export class DebugOverlay {
       b.addEventListener('click', () => fn(b));
       return b;
     };
+    // (G1) the Anim button is listed in the Test Chamber only (`animTune.canOpen`, read each frame while the overlay shows)
+    this.animBtn = btn('Anim', (b) => {
+      b.classList.toggle('on', this.animTune.toggle());
+    });
+    this.animBtn.hidden = true;
     this.tools.append(
       btn('Skeleton', (b) => {
         this.skeleton = !this.skeleton;
@@ -106,9 +112,7 @@ export class DebugOverlay {
         this.tune.hidden = !this.tune.hidden;
         b.classList.toggle('on', !this.tune.hidden);
       }),
-      btn('Anim', (b) => {
-        b.classList.toggle('on', this.animTune.toggle());
-      }),
+      this.animBtn,
       // slow motion for reviewing blends: 1x -> 0.5x -> 0.25x -> 1x
       btn('1x', (b) => {
         const next = this.loop.timeScale === 1 ? 0.5 : this.loop.timeScale === 0.5 ? 0.25 : 1;
@@ -356,6 +360,7 @@ export class DebugOverlay {
     // (anim-tuner pass 2) the tuner panel runs with or without the overlay (opened from the pause menu)
     this.animTune.frame(now);
     if (!this.visible) return;
+    this.animBtn.hidden = !this.animTune.canOpen;
     if (this.skeleton && !this.compact) this.drawSkeleton();
     if (!this.compact) this.sampleCrab();
     for (const t of this.traces.values()) {
