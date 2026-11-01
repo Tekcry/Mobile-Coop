@@ -70,4 +70,33 @@ export const STUDIO_PROPS = {
     /** The inside, clear floor. */
     inner: { x0: 25.3, x1: 28, z0: 25.3, z1: 27.5 },
   },
+
+  // (G2c, `docs/plan/TEST-CHAMBER-SPEC.md` 1.4) The dark side room off the east wall: x 28.3-36.3, z 0-28, ceiling 8, ambient 0.12.
+  annex: {
+    x0: 28.3, x1: 36.3, z0: 0, z1: 28,
+    /** The wall between the main room and the annex (the old east wall: its main-room face stays at x 28). */
+    divider: { x: 28.15, thick: 0.3 },
+    /** The annex door (hinge at z0, the leaf runs along +z, swings into the annex) and its lintel. */
+    door: { z0: 19.4, z1: 20.6, h: 2.1 },
+    /** Partition A (z 14.15): the hall to the north, the store, aisle and dark bay to the south; its door at the east end. */
+    partA: { z: 14.15, door: { x0: 34.8, x1: 36.0 } },
+    /** The store (x 28.3-32.3, z 8.3-14) and aisle (x 32.6-36.3, z 8.3-14): a wall at z 8.15 and one at x 32.45 with a doorway. */
+    storeWall: { z: 8.15, x1: 32.6 },
+    aisleWall: { x: 32.45, z0: 8.3, z1: 14.0, door: { z0: 8.6, z1: 9.8 } },
+    /** L0 (the hall lamp on the switch, group 1) and L1 (the store strip, group 2). */
+    lamp0: { x: 32.3, y: 5, z: 23.5, radius: 7, intensity: 1 },
+    lamp1: { x: 29.4, y: 3.2, z: 12.2, radius: 3, intensity: 0.8 },
+    /** The ambient of the whole annex. */
+    ambient: 0.12,
+    /** Free-standing high cover in the hall (x 34.35-34.85, z 20-22.5) and the dumpster in the dark bay. */
+    h1: { x: 34.6, z: 21.25, len: 2.5 },
+    dumpster: { x: 30.3, z: 7.25, w: 1.9, h: 1.2, d: 1.0 },
+  },
+  /** The passive practice guards (G2c, decision N17): outside the open, lit middle (the 2 m circle at (14, 14), the anim lane
+   *  x 8-26 z 18-24, the loop walk-ins). Two side by side with their backs to the spawns (yaw 0 = facing +z), one facing them. */
+  practice: [
+    { x: 12.75, z: 16.75, yaw: 0 },
+    { x: 15.25, z: 16.75, yaw: 0 },
+    { x: 19.75, z: 16.25, yaw: -2.0 },
+  ],
 } as const;

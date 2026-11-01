@@ -1,7 +1,7 @@
 import type { Vector3 } from '../core/babylon';
 import type { LevelBuilder } from './levelBuilder';
 import type { PropKind } from './props';
-import type { RoomDef } from './rooms';
+import type { RoomDef, SquadSlot } from './rooms';
 import type { Surface } from './surfaces';
 import type { SecurityData } from '../security/data';
 import type { LaserDef } from '../game/jammer';
@@ -75,6 +75,9 @@ export interface MapLayout {
   dummies?: { pos: Vector3; yaw: number; strafe?: number }[];
   /** Tagged rooms (HUD room tag, Clear mode, enemies holding rooms). */
   rooms?: RoomDef[];
+  /** (G2c) Practice guards (the Test Chamber): passive guards placed by `TestMode` when the match starts with `opts.practice`;
+   *  one taken down comes back at his spot after `PRACTICE_RESPAWN_S`, once nobody stands there. Not part of any room squad. */
+  practice?: SquadSlot[];
   /** Light switches on walls (facing `yaw`): each turns a lamp circuit (`group`) on / off. */
   switches?: { pos: Vector3; yaw: number; group: number; section?: number }[];
   /** (sector-redesign E4, EW8) Breaker / timed isolator boards on walls (facing `yaw`): each cuts its circuits
