@@ -433,9 +433,9 @@ describe('validator-port S7b: the long-throw exception (A27)', () => {
   });
 
   it('the same ids on another meta.map ERR: not listed', () => {
-    const r = dims(throwGraph('campusOps', 'w2-pawn-loft', 'w2-reading-room', 4.9, LONG));
+    const r = dims(throwGraph('warehouse', 'w2-pawn-loft', 'w2-reading-room', 4.9, LONG));
     expect(throwErrs(r)).toEqual([
-      "link w2-pawn-loft -> w2-reading-room (team_throw): not an approved long-throw spot (campusOps:w2-pawn-loft>w2-reading-room is not in the scale sheet's Long throw row)",
+      "link w2-pawn-loft -> w2-reading-room (team_throw): not an approved long-throw spot (warehouse:w2-pawn-loft>w2-reading-room is not in the scale sheet's Long throw row)",
     ]);
   });
 

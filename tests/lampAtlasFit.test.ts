@@ -1,18 +1,13 @@
 /**
  * lr-tex3d: the baked lamps' visibility atlas stays within the GPU's 3D texture size (`fitLampAtlas`). Under LR13's
- * 1.6x reach campusOps packed to 1023 x 90 x 2428 at the old 1024 width: past 2048 the upload failed
+ * 1.6x reach a large Sector Ops map packed to 1023 x 90 x 2428 at the old 1024 width: past 2048 the upload failed
  * ("texImage3D: width, height or depth out of range") and every baked lamp read 0 on screen while the light field still
  * lit the floor. A map that fits keeps the old layout texel for texel (Classic unchanged); the rest widen, then page
  * along y, every cell copied exactly (light parity). `docs/sector-redesign/checks/lr-tex3d-fix.md`.
  */
 import { describe, expect, it } from 'vitest';
-import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, lampBox, packLampAtlas, type LampAtlas, type LampResult } from '../src/voxel/lampBake';
+import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, packLampAtlas, type LampAtlas, type LampResult } from '../src/voxel/lampBake';
 import { max3DTextureSize } from '../src/core/babylon';
-import { LevelBuilder } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
-import { dressingOn } from '../src/world/detailPass';
-import { canonicalLightSet } from '../src/voxel/lightShapes';
-import { bakedLights } from '../src/world/lightBake';
 
 /** Boxes (`BOX_STRIDE`) of the given cell sizes, origin 0. */
 function boxes(sizes: readonly [number, number, number][]): Float32Array {
@@ -95,30 +90,6 @@ describe('fitLampAtlas (lr-tex3d size rule)', () => {
     const a = fitLampAtlas(boxes([[200, 200, 200], [200, 200, 200]]), 256);
     expect(a.fits).toBe(false);
   });
-});
-
-describe('campusOps atlas (photometric reach, the one light model since LR16a)', () => {
-  const campusBoxes = (): Float32Array => {
-    const b = new LevelBuilder();
-    campusOps.build(b, 0);
-    const set = canonicalLightSet(b.boxes, b.cylinders, campusOps.id, dressingOn(campusOps));
-    const baked = bakedLights(b.lights);
-    const n = baked.ids.length;
-    const out = new Float32Array(n * BOX_STRIDE);
-    const o = [0, 0, 0, 0, 0, 0];
-    for (let i = 0; i < n; i++) out.set(lampBox(baked.lights, i, set.lo, set.hi, o), i * BOX_STRIDE);
-    return out;
-  };
-
-  it('passed 2048 deep at the old width and fits now', () => {
-    const ph = campusBoxes();
-    // the bug: 1023 x 90 x 2428 at 1024 wide
-    expect(packLampAtlas(ph).dims[2]).toBeGreaterThan(2048);
-    const fp = fitLampAtlas(ph, 2048);
-    expect(fp.fits).toBe(true);
-    for (const d of fp.dims) expect(d).toBeLessThanOrEqual(2048);
-    expect(tilesOk(ph, fp)).toBe(true);
-  }, 60_000);
 });
 
 describe('max3DTextureSize', () => {

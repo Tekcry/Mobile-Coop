@@ -1,5 +1,5 @@
 /**
- * (map-ready S4) The campus lamps shipped pre-built (`world/shippedBake.ts`, `scripts/prebake/`; brief
+ * (map-ready S4) The shipped lamps pre-built (`world/shippedBake.ts`, `scripts/prebake/`; brief
  * `docs/map-ready/briefs/S4.md`).
  * - Keys (A16): the match seed leaves the lamp and moon keys (the same bytes for every seed); a moved lamp is a new key;
  *   the prebake computes the game's own key (`lampKeyOf`, imported, never a copy).
@@ -24,13 +24,13 @@ import type * as LampJobs from '../src/voxel/lampJobs';
 import { SectionBaker } from '../src/voxel/sectionJobs';
 import { lampSectionMasks, type SectionBakeDef } from '../src/world/sectionBake';
 import { joinShipped, packLamps, readShippedLamps, unpackLamps, type ShippedFile, type ShippedManifest } from '../src/world/shippedBake';
-import { buildCampus } from '../scripts/prebake/plan';
+import { buildMap } from '../scripts/prebake/plan';
 import { shippedBakes } from '../scripts/prebake/emit';
 import { bakedLights, bakeLevelLight, lampKeyOf, moonKeyOf } from '../src/world/lightBake';
 
 // (the cache write is spied; everything else in lampJobs is the real module)
 vi.mock('../src/voxel/lampJobs', async (orig) => ({ ...(await orig<typeof LampJobs>()), saveLamps: vi.fn(async () => undefined) }));
-import { campusOps } from '../src/world/maps/campusOps';
+import { tallowWharf } from '../src/world/maps/tallowWharf';
 import { buildMapLights } from '../src/world/mapLights';
 import { dressingOn } from '../src/world/detailPass';
 
@@ -49,12 +49,12 @@ function room() {
   return { b, set };
 }
 
-/** campusOps' fixed lights as `World.create` builds them for `seed` (no Babylon: `prepare` is the light set's part). */
-function campusKey(seed: number): string {
+/** Tallow Wharf's fixed lights as `World.create` builds them for `seed` (no Babylon: `prepare` is the light set's part). */
+function wharfKey(seed: number): string {
   const b = new LevelBuilder();
-  buildMapLights(b, campusOps, seed);
-  const { light } = b.prepare('campusOps', { dressing: dressingOn(campusOps) });
-  return lampKeyOf('campusOps', light.hash, bakedLights(b.lights).lights);
+  buildMapLights(b, tallowWharf, seed);
+  const { light } = b.prepare('tallowWharf', { dressing: dressingOn(tallowWharf) });
+  return lampKeyOf('tallowWharf', light.hash, bakedLights(b.lights).lights);
 }
 
 describe('shipped bake: keys (A16)', () => {
@@ -93,9 +93,9 @@ describe('shipped bake: keys (A16)', () => {
     expect(r.source).toBe('none');
   }, 60_000);
 
-  it('campusOps: a co-op match (any seed) and a solo restart (seed + 1) share the shipped lamp key', () => {
-    expect(campusKey(2)).toBe(campusKey(1));
-    expect(campusKey(987654)).toBe(campusKey(1));
+  it('tallowWharf: a co-op match (any seed) and a solo restart (seed + 1) share the lamp key', () => {
+    expect(wharfKey(2)).toBe(wharfKey(1));
+    expect(wharfKey(987654)).toBe(wharfKey(1));
   }, 120_000);
 });
 
@@ -104,7 +104,7 @@ describe('shipped bake: the prebake uses the game key', () => {
     const src = readFileSync(new URL('../scripts/prebake/plan.ts', import.meta.url), 'utf8');
     expect(src).toMatch(/import \{[^}]*\blampKeyOf\b[^}]*\} from '\.\.\/\.\.\/src\/world\/lightBake';/);
     expect(src).not.toMatch(/function lampKeyOf|lamps:\$\{/);
-    expect(buildCampus().key).toBe(campusKey(1));
+    expect(buildMap(tallowWharf).key).toBe(wharfKey(1));
   }, 120_000);
 });
 
@@ -317,11 +317,11 @@ describe('shipped bake: the build emits the prebake (scripts/prebake/emit.ts)', 
       expect(shippedBakes().apply).toBe('build');
       expect(run(root)).toEqual([]);
       mkdirSync(join(root, '.prebake-cache', 'h1'), { recursive: true });
-      writeFileSync(join(root, '.prebake-cache', 'h1', 'campusOps.json'), '{"key":"k"}');
-      writeFileSync(join(root, '.prebake-cache', 'h1', 'campusOps-h1-s0.bin.gz'), new Uint8Array([0x1f, 0x8b, 1]));
-      writeFileSync(join(root, '.prebake-cache', 'current.json'), JSON.stringify({ h: 'h1', files: ['campusOps.json', 'campusOps-h1-s0.bin.gz'] }));
+      writeFileSync(join(root, '.prebake-cache', 'h1', 'tallowWharf.json'), '{"key":"k"}');
+      writeFileSync(join(root, '.prebake-cache', 'h1', 'tallowWharf-h1-s0.bin.gz'), new Uint8Array([0x1f, 0x8b, 1]));
+      writeFileSync(join(root, '.prebake-cache', 'current.json'), JSON.stringify({ h: 'h1', files: ['tallowWharf.json', 'tallowWharf-h1-s0.bin.gz'] }));
       const out = run(root);
-      expect(out.map((f) => f.fileName)).toEqual(['bakes/campusOps.json', 'bakes/campusOps-h1-s0.bin.gz']);
+      expect(out.map((f) => f.fileName)).toEqual(['bakes/tallowWharf.json', 'bakes/tallowWharf-h1-s0.bin.gz']);
       expect(Array.from(out[1]!.source)).toEqual([0x1f, 0x8b, 1]);
     } finally {
       rmSync(root, { recursive: true, force: true });

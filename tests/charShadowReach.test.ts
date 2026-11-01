@@ -53,14 +53,14 @@ describe('(LR16-P F2) charShadowReach', () => {
   });
 });
 
-describe('(LR16-P F2) campusOps', () => {
+describe('(LR16-P F2) tallowWharf', () => {
   it('the slots draw over a smaller plan area on the perf map', async () => {
     const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { campusOps } = await import('../src/world/maps/campusOps');
+    const { tallowWharf } = await import('../src/world/maps/tallowWharf');
     const { bakedLights } = await import('../src/world/lightBake');
     const { LAMP_STRIDE } = await import('../src/voxel/lampBake');
     const b = new LevelBuilder();
-    campusOps.build(b, 0);
+    tallowWharf.build(b, 0);
     const baked = bakedLights(b.lights);
     let sum = 0;
     let none = 0;
@@ -76,7 +76,7 @@ describe('(LR16-P F2) campusOps', () => {
       sum += (s * s) / (R * R);
     }
     const mean = sum / (baked.ids.length - zero);
-    console.info(`campusOps: ${baked.ids.length} lamps, plan area per slot x ${mean.toFixed(2)} (minLevel ${CHAR_SHADOW.minLevel}), ${none} never reach it, ${zero} with no reach`);
+    console.info(`tallowWharf: ${baked.ids.length} lamps, plan area per slot x ${mean.toFixed(2)} (minLevel ${CHAR_SHADOW.minLevel}), ${none} never reach it, ${zero} with no reach`);
     expect(mean).toBeLessThan(0.85);
   }, 60_000);
 });

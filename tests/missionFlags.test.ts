@@ -13,8 +13,8 @@ import { SHUTTER_MOVE } from '../src/game/kit/shutter';
 import { PULL_SUB } from '../src/game/teamMoves';
 import { TeamController } from '../src/game/teamController';
 import { COOP_LIP } from '../src/world/maps/ctcourseGreybox';
-import { CAMPUS_SECTORS } from '../src/world/maps/campusSectors';
-import { CAMPUS_MISSION_TEST } from '../src/world/maps/campusMissionTest';
+import { WHARF_SECTORS } from '../src/world/maps/tallowWharfSectors';
+import { THREE_GREY_COATS } from '../src/world/maps/tallowWharfMissions';
 
 const saved = { missions: flags.missions, coopKit: flags.coopKit, mission: flags.mission };
 afterEach(() => {
@@ -37,19 +37,19 @@ describe('flags (FLG): both default off', () => {
 
 describe('missions gate: missionParam (FLG)', () => {
   it('off: ?mission= is ignored, so a Sector Ops run binds no mission and starts at section 1 (as master)', () => {
-    flags.mission = CAMPUS_MISSION_TEST.id;
+    flags.mission = THREE_GREY_COATS.id;
     flags.missions = false;
     expect(missionParam()).toBeNull();
-    expect(missionStartSector(CAMPUS_SECTORS, [CAMPUS_MISSION_TEST], missionParam())?.id).toBe(CAMPUS_SECTORS[0]!.id);
-    const g = { world: { map: { missions: [CAMPUS_MISSION_TEST], sectors: CAMPUS_SECTORS } } };
+    expect(missionStartSector(WHARF_SECTORS, [THREE_GREY_COATS], missionParam())?.id).toBe(WHARF_SECTORS[0]!.id);
+    const g = { world: { map: { missions: [THREE_GREY_COATS], sectors: WHARF_SECTORS } } };
     expect(bindSectorMission(g as never, {} as never, [], () => {}, () => {})).toBeNull();
   });
 
   it('on: ?mission=<id> picks the map\'s mission', () => {
-    flags.mission = CAMPUS_MISSION_TEST.id;
+    flags.mission = THREE_GREY_COATS.id;
     flags.missions = true;
-    expect(missionParam()).toBe(CAMPUS_MISSION_TEST.id);
-    expect(pickMission([CAMPUS_MISSION_TEST], missionParam())).toBe(CAMPUS_MISSION_TEST);
+    expect(missionParam()).toBe(THREE_GREY_COATS.id);
+    expect(pickMission([THREE_GREY_COATS], missionParam())).toBe(THREE_GREY_COATS);
   });
 });
 

@@ -13,7 +13,6 @@ import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { ENEMIES } from '../src/ai/enemyDefs';
-import { PACE } from '../src/ai/response';
 import { runtimeNav } from './helpers/runtimeNav';
 
 // (guard-ai play A, docs/guard-ai/PLAY-PASS.md P1-1, P2-1, P2-2) Guards get home. After a search the calm walk to his
@@ -194,64 +193,6 @@ describe('the lure walk back is capped (posts.ts)', () => {
     }
     expect(l.phase).toBe(LURE.face);
     expect(t).toBeLessThan(POST.lureWalkMax + 0.5);
-  });
-});
-
-describe('Saltmarsh Park S1 (campusV2): guards get back to their posts after a search (P1-1)', () => {
-  // Each start: no clear line home and no path within goTo's A* budget (3000 expansions), a path with a large one.
-  // Before the fix: the 34-38 m gate starts already got home (the straight fallback slid round); the two "stuck" starts
-  // pressed a wall for good (the gate officer at (16.6, -33.5), the badge-door officer at (10.5, -29.5)).
-  const cases: { guard: number; role: string; at: readonly [number, number]; within: number; note: string; far?: boolean }[] = [
-    { guard: 0, role: 'gate', at: [50, -76], within: 60, note: 'beyond the gatehouse, east' },
-    { guard: 0, role: 'gate', at: [-18, -60], within: 60, note: 'beyond the gatehouse, west' },
-    { guard: 0, role: 'gate', at: [20, -32], within: 90, note: 'north of the fence (was stuck)' },
-    { guard: 4, role: 'posted', at: [12, -19], within: 120, note: 'east of C1 (was stuck)' },
-    // (check FIX 2) on S1 v2-c the worst start near the gate (~77000 expansions, past the old 60000 cap); on the older
-    // layout only the walk home is checked (`far`: the start conditions above are not asserted)
-    { guard: 0, role: 'gate', at: [60, -36], within: 60, note: 'north-east, the longest plan (v2-c)', far: true },
-  ];
-
-  it('the gate officer ~35 m out beyond the gatehouse within 60 s; the stuck starts get home too', async () => {
-    vi.resetModules();
-    const { flags } = await import('../src/core/flags');
-    (flags as { campusV2: readonly number[] }).campusV2 = [1];
-    const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { campusOps } = await import('../src/world/maps/campusOps');
-    const b = new LevelBuilder();
-    const lay = campusOps.build(b, 0);
-    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, campusOps.navLayers ?? 3, lay.navSeeds ?? []);
-    for (const c of cases) {
-      const g = campusOps.sectors![0]!.guards[c.guard]!;
-      expect(g.role).toBe(c.role);
-      const post: [number, number] = [g.x, g.z];
-      const homeY = nav.heightAt(g.x, g.z, 0);
-      const at = c.at;
-      const d = hyp2(at[0] - post[0], at[1] - post[1]);
-      expect(d).toBeGreaterThan(30);
-      if (!c.far) {
-        expect(nav.lineClear([at[0], at[1]], post)).toBe(false);
-        expect(nav.findPath([at[0], at[1]], post, 3000)).toBeNull();
-        expect(nav.findPath([at[0], at[1]], post, 60000)).not.toBeNull();
-      }
-      // (train 132 fix) S1 v2-c rebuilt the gatehouse round the gate post: from the east the only way in is round the
-      // site (~250 m). The limit is `within` or the walk of the shortest path at his calm pace with a 1.5 margin,
-      // whichever is longer: the case proves he never presses a wall, not that the map is compact
-      const way = nav.findPath([at[0], at[1]], post, 200000);
-      expect(way).not.toBeNull();
-      let len = 0;
-      let px = at[0];
-      let pz = at[1];
-      for (const w of way!) {
-        len += hyp2(w[0] - px, w[1] - pz);
-        px = w[0];
-        pz = w[1];
-      }
-      const lim = Math.max(c.within, (1.5 * len) / (ENEMIES.officer.walkSpeed * PACE.patrol));
-      const e = await calmGuard(nav, [at[0], at[1], nav.heightAt(at[0], at[1], 0)], post, homeY);
-      const t = runCalm(e, lim, () => hyp2(e.pos.x - post[0], e.pos.z - post[1]) < PATROL.arrive * 1.5);
-      console.info(`guard ${c.guard} from (${at[0]}, ${at[1]}) ${d.toFixed(1)} m out (path ${len.toFixed(0)} m), ${c.note}: home in ${t.toFixed(1)} s (limit ${lim.toFixed(0)} s)`);
-      expect(t).toBeLessThan(lim);
-    }
   });
 });
 

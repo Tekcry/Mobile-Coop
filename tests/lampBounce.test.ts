@@ -139,7 +139,7 @@ describe('(LR16-1) one-bounce fill: the bake', () => {
   // (LR16-POLISH F) a crate (0.6 x 1.2 x 4 m) in the dark room, `g` m short of the shared wall, the lit room past it, the
   // wall swept over its 1 m cell: the gap between the crate and the wall reads no light from the lit room. Before: 0.2 m gap
   // up to 0.167 (5 positions over 0.03), 0.3 m gap up to 0.640 (12; at 4 the crate's hull holds the cell centre and the
-  // read crossed past the hull into the lit room, warehouseOps (0.2, 1.5, 11.75)). Left: <= 0.039 at two 0.2 m positions
+  // read crossed past the hull into the lit room, in the Warehouse (0.2, 1.5, 11.75)). Left: <= 0.039 at two 0.2 m positions
   // where the hull of crate and wall is one run and the centre sits on the wall's far face (its value the lit room's).
   it('(LR16-POLISH F) a crate and a wall: the gap between them takes nothing from the lit room past the wall', () => {
     const rows: string[] = [];

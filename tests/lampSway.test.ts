@@ -11,8 +11,6 @@ import { applyMapFlicker } from '../src/world/lampFlicker';
 import { contribution, LightRegistry, type LightDef } from '../src/world/lights';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import { ctcourse } from '../src/world/maps/ctcourse';
-import { campusOps } from '../src/world/maps/campusOps';
-import { warehouseOps } from '../src/world/maps/warehouseOps';
 import { warehouse } from '../src/world/maps/warehouse';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet, CANON_MIN_THICK } from '../src/voxel/lightShapes';
@@ -331,7 +329,7 @@ describe('ctcourse table', () => {
     expect(hidden.length).toBe(2 * s!.n);
     for (const h of hidden) expect(Math.min(...h.s)).toBeLessThan(CANON_MIN_THICK);
     expect(canonicalLightSet(b.boxes, b.cylinders, 'ctcourse', dressingOn(ctcourse)).hash).toBe(before);
-    for (const [id, m] of [['campusOps', campusOps], ['warehouseOps', warehouseOps], ['warehouse', warehouse]] as const) {
+    for (const [id, m] of [['warehouse', warehouse]] as const) {
       const o = new LevelBuilder();
       m.build(o, 0);
       const v = o.boxes.map((x) => x.visible);

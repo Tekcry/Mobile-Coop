@@ -10,7 +10,6 @@ import { MOVEMENT } from '../../src/config/movement';
 import { getMap } from '../../src/world/maps';
 import { isListedMap } from '../../src/world/maps/listed';
 import { buildShell, tallowWharf } from '../../src/world/maps/tallowWharf';
-import { campusOps } from '../../src/world/maps/campusOps';
 import { W1 } from '../../src/world/maps/tallowWharfW1';
 import { W2 } from '../../src/world/maps/tallowWharfW2';
 import { W3 } from '../../src/world/maps/tallowWharfW3';
@@ -122,10 +121,10 @@ describe('tallowWharf: the map', () => {
 });
 
 describe('tallowWharf: the night floor and the medkits (J8 G0)', () => {
-  it('the theme\'s sun, ambient and light level are the campus\'s (the night floor sits in the ambient zone, not the theme)', () => {
-    expect(tallowWharf.theme.sunIntensity).toBe(campusOps.theme.sunIntensity);
-    expect(tallowWharf.theme.ambient).toBe(campusOps.theme.ambient);
-    expect(tallowWharf.theme.lightLevel).toBe(campusOps.theme.lightLevel);
+  it('the theme\'s sun, ambient and light level are the night-lit yard\'s (the night floor sits in the ambient zone, not the theme)', () => {
+    expect(tallowWharf.theme.sunIntensity).toBe(0.16);
+    expect(tallowWharf.theme.ambient).toBe(0.3);
+    expect(tallowWharf.theme.lightLevel).toBe(0.3);
   });
 
   it('the map-wide standby fill reads 0.14 at every section box\'s centre and on the canal steps (a cut circuit reads dark)', () => {

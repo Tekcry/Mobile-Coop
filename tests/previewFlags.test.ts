@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CAMPUS_V2_ON, KIT_BUILT, KIT_MOVES_ON, PREVIEW_ON, darkFlag, flags, readCampusV2, readCoopKit, readKitMoves } from '../src/core/flags';
+import { KIT_BUILT, KIT_MOVES_ON, PREVIEW_ON, darkFlag, flags, readCoopKit, readKitMoves } from '../src/core/flags';
 
 describe('darkFlag', () => {
   it('off by default outside /preview/: only "1" turns it on', () => {
@@ -23,21 +23,6 @@ describe('darkFlag', () => {
   });
 });
 
-describe('readCampusV2 with the preview default', () => {
-  it('outside /preview/ the default is CAMPUS_V2_ON (same reference)', () => {
-    expect(readCampusV2(null)).toBe(CAMPUS_V2_ON);
-    expect(readCampusV2(null, false)).toBe(CAMPUS_V2_ON);
-  });
-
-  it('in /preview/ the default is every section; a URL list still wins', () => {
-    expect(readCampusV2(null, true)).toEqual([1, 2, 3, 4, 5]);
-    expect(readCampusV2('bad', true)).toEqual([1, 2, 3, 4, 5]);
-    expect(readCampusV2('0', true)).toEqual([]);
-    expect(readCampusV2('3,1', true)).toEqual([1, 3]);
-    expect(readCampusV2('1,2,3,4,5', false)).toEqual([1, 2, 3, 4, 5]);
-  });
-});
-
 describe('live defaults under tests (no preview constants)', () => {
   it('PREVIEW_ON is false and the five feature flags keep their off defaults', () => {
     expect(PREVIEW_ON).toBe(false);
@@ -50,7 +35,6 @@ describe('live defaults under tests (no preview constants)', () => {
     expect(flags.guardPairs).toBe(false);
     expect(flags.lookouts).toBe(false);
     expect(flags.dogRelease).toBe(false);
-    expect(flags.campusV2).toEqual(CAMPUS_V2_ON);
     // (context-prompts S2) dark until Michael's walk
     expect(flags.contextPrompts).toBe(false);
   });
@@ -130,7 +114,6 @@ describe('source guard', () => {
     expect(body).toMatch(/guardPairs: darkFlag\(params\.get\('guardpairs'\), PREVIEW_ON\)/);
     expect(body).toMatch(/lookouts: darkFlag\(params\.get\('lookouts'\), PREVIEW_ON\)/);
     expect(body).toMatch(/dogRelease: darkFlag\(params\.get\('dogrelease'\), PREVIEW_ON\)/);
-    expect(body).toMatch(/campusV2: readCampusV2\(params\.get\('campusv2'\), PREVIEW_ON\)/);
     expect(body).toMatch(/contextPrompts: darkFlag\(params\.get\('ctxprompts'\), PREVIEW_ON\)/);
   });
 

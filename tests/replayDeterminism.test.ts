@@ -8,8 +8,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PatrolWalker, type PatrolRoute } from '../src/ai/patrol';
 import { sightRate, stepMeter, seenAt } from '../src/ai/perception';
-import { CAMPUS_SECTORS } from '../src/world/maps/campusSectors';
-import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
+import { WHARF_SECTORS } from '../src/world/maps/tallowWharfSectors';
 import type { SectorDef } from '../src/game/sectors';
 import type { SquadSlot } from '../src/world/rooms';
 
@@ -105,8 +104,7 @@ function maxDiff(a: number[], b: number[]): number {
 }
 
 const SETS: [string, SectorDef[]][] = [
-  ['campus', CAMPUS_SECTORS],
-  ['warehouse', WAREHOUSE_SECTORS],
+  ['wharf', WHARF_SECTORS],
 ];
 
 afterEach(() => vi.restoreAllMocks());
@@ -135,7 +133,7 @@ describe('replay determinism: patrol walkers and detections', () => {
   }
 
   it('the comparison discriminates: a shifted route gives a different trace', () => {
-    const g = CAMPUS_SECTORS[0]!.guards.find((e) => e.route && e.route.length > 0)!;
+    const g = WHARF_SECTORS[0]!.guards.find((e) => e.route && e.route.length > 0)!;
     const a = walk(g, 0);
     const slow = walk({ ...g, route: g.route!.map((p) => [p[0] + 1, p[1]] as [number, number]) }, 0);
     expect(maxDiff(a, slow)).toBeGreaterThan(1e-3);

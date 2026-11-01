@@ -13,14 +13,14 @@ describe('rating record', () => {
     const r = sanitiseRatingRecord({
       v: 9,
       maps: {
-        warehouseOps: { s1: { marks: 255, synced: 3.7 }, s2: { marks: -1, synced: 'x' }, 'bad id!': { marks: 1 }, s3: 'no', s4: { marks: NaN, synced: 1e9 } },
+        tallowWharf: { s1: { marks: 255, synced: 3.7 }, s2: { marks: -1, synced: 'x' }, 'bad id!': { marks: 1 }, s3: 'no', s4: { marks: NaN, synced: 1e9 } },
         'bad!': { s1: { marks: 1, synced: 0 } },
         other: 5,
       },
     });
     expect(r).toEqual({
       v: 1,
-      maps: { warehouseOps: { s1: { marks: 15, synced: 3 }, s2: { marks: 0, synced: 0 }, s4: { marks: 0, synced: 1e4 } } },
+      maps: { tallowWharf: { s1: { marks: 15, synced: 3 }, s2: { marks: 0, synced: 0 }, s4: { marks: 0, synced: 1e4 } } },
     });
   });
 

@@ -4,7 +4,6 @@ import { addTorchSlots, TORCH } from '../src/world/torches';
 import { PHOTO } from '../src/world/lampMath';
 import { VOL_BEAM_GAIN, VOL_LAMP_COS, volBeam, writeVolLight } from '../src/vfx/volLights';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
 import { ctcourse } from '../src/world/maps/ctcourse';
 import { warehouse } from '../src/world/maps/warehouse';
 
@@ -80,25 +79,6 @@ describe('volumetric pass per-light values (vol-cone-fix)', () => {
     expect(p[3]).toBeCloseTo(7.5 * PHOTO.reach, 5); // (LR16a) the reach: radius x PHOTO.reach
     expect(d[3]).toBeCloseTo(Math.cos(0.7), 5);
     expect(c[0]).toBeCloseTo(0.85 * 0.9 * VOL_BEAM_GAIN, 5);
-  });
-
-  it('(fog triage) Saltmarsh Park: no fixed light beams; every one hazes under its shade (<= 3.2 m, cone >= the lamp cone, gain 1)', () => {
-    expect(campusOps.theme.lampBeams).toBe(false);
-    const b = new LevelBuilder();
-    campusOps.build(b, 0);
-    const fixed = b.lights.lights.filter((l) => l.kind !== 'flashlight');
-    // the 76 glowing-box cone fittings took the torch beam on 4.95.0 (up to 14 m, half angles to 69 deg, gain 1.6)
-    expect(fixed.filter((l) => volBeam(l)).length).toBeGreaterThan(50);
-    for (const [k, l] of fixed.entries()) {
-      const s = k % 4;
-      writeVolLight(l, s, pos, dir, col, campusOps.theme.lampBeams);
-      expect(volBeam(l, false)).toBe(false);
-      expect(pos[s * 4 + 3]).toBeLessThanOrEqual(3.2 + 1e-6);
-      expect(dir[s * 4 + 3]).toBeGreaterThanOrEqual(VOL_LAMP_COS - 1e-6);
-      expect(col[s * 4]).toBeCloseTo(l.color[0] * l.intensity * l.flicker, 5);
-    }
-    // a torch still beams there
-    expect(volBeam({ kind: 'flashlight', cone: makeCone(0, -1, 0, 0.3), fixture: null }, false)).toBe(true);
   });
 
   it('(fog triage) the base Warehouse keeps lampBeams (default) and its floods still beam', () => {

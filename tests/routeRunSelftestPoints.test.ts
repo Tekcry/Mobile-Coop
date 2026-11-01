@@ -11,7 +11,6 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs tool script without types
 import { addPast, stepsForPath } from '../scripts/route-run.mjs';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
 import { ctcourse } from '../src/world/maps/ctcourse';
 import type { MapDef } from '../src/world/mapDef';
 import { LockedDoorNav } from '../src/ai/lockedDoors';
@@ -44,8 +43,8 @@ function mapNav(def: MapDef): { nav: NavGrid; cast: ReturnType<typeof downCast> 
   new LockedDoorNav(nav, doors).sync();
   return { nav, cast: downCast(b) };
 }
-// (J13 R4c) the course selftest runs on Marlow Yard
-const MAPS: Record<string, () => { nav: NavGrid; cast: ReturnType<typeof downCast> }> = { campusOps: () => mapNav(campusOps), ctcourse: () => mapNav(ctcourse) };
+// (J13 R4c) the course selftest runs on Marlow Yard. (Clean-up F) The Saltmarsh Park fixtures are checked as fixtures only: their map is gone.
+const MAPS: Record<string, () => { nav: NavGrid; cast: ReturnType<typeof downCast> }> = { ctcourse: () => mapNav(ctcourse) };
 const built = new Map<string, ReturnType<typeof mapNav>>();
 const mapOf = (id: string) => {
   if (!built.has(id)) built.set(id, MAPS[id]!());
@@ -76,7 +75,7 @@ function selftestPointProblems(fx: Obj, map = true): string[] {
     const at = fx.points?.links?.[i]?.at ?? l.at;
     if (DOOR_KINDS.has(l.kind) && Array.isArray(at)) doors.push(at as P3);
   });
-  const m = map ? mapOf(fx.meta.map) : null;
+  const m = map && MAPS[fx.meta.map] ? mapOf(fx.meta.map) : null;
   const seen = new Set<number>();
   for (const r of fx.expect.runs) {
     const steps = addPast(stepsForPath([fx], fx.points, r.path, metrics.rules.split_speed_mps), fx.points);
@@ -121,9 +120,9 @@ function selftestPointProblems(fx: Obj, map = true): string[] {
 }
 
 describe('route-run selftest fixtures: the walk point before each link step (F29 guard)', () => {
-  it('finds the selftest fixtures, each on a map this test builds', () => {
+  it('finds the selftest fixtures', () => {
     expect(FIXTURES).toContain('selftest-steps.graph.json');
-    for (const f of FIXTURES) expect(Object.keys(MAPS), f).toContain(JSON.parse(readFileSync(new URL(f, DIR), 'utf8')).meta.map);
+    expect(FIXTURES).toContain('selftest-course.graph.json');
   });
 
   for (const f of FIXTURES) {
@@ -132,7 +131,7 @@ describe('route-run selftest fixtures: the walk point before each link step (F29
     });
   }
 
-  it('catches a point on a space edge, in a doorway and over a hole (the old steps fixture: ladder 12, drop 19)', () => {
+  it('catches a point on a space edge and in a doorway (the old steps fixture: ladder 12)', () => {
     const fx = JSON.parse(readFileSync(new URL('selftest-steps.graph.json', DIR), 'utf8'));
     // the R1 edge points the fixture had: the dock door E12 and the canopy hatch's centre
     fx.points.links[12].at = [-33, 0, -40];
@@ -141,9 +140,6 @@ describe('route-run selftest fixtures: the walk point before each link step (F29
     const of = (i: number) => p.filter((s) => s.startsWith(`link ${i} `));
     expect(of(12).some((s) => s.includes('not 0.25 m inside s1-dyard'))).toBe(true);
     expect(of(12).some((s) => s.includes('in a doorway'))).toBe(true);
-    expect(of(12).some((s) => s.includes('no walkable nav cell'))).toBe(true);
-    expect(of(19).some((s) => s.includes('the floor under it is at 0.00'))).toBe(true);
-    expect(of(19).some((s) => s.includes('no walkable nav cell'))).toBe(true);
   });
 
   it("lets a stand-in point (atFrom 'stub') pass only where its run expects a stop (the course fixture's drop 6)", () => {

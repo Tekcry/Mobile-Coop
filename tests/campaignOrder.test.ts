@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import {
   CAMPAIGN_KEYS,
   CAMPAIGN_ORDER,
@@ -79,7 +79,7 @@ describe('campaign order', () => {
     expect(entryForRoom('course', 'courselab', null)).toBeNull();
     expect(entryForRoom('sector', 'tallowWharf', null)).toBeNull();
     expect(entryForRoom('sector', 'tallowWharf', 'bogus')).toBeNull();
-    expect(entryForRoom('sector', 'warehouseOps', 'threeGreyCoats')).toBeNull();
+    expect(entryForRoom('sector', 'warehouse', 'threeGreyCoats')).toBeNull();
     expect(entryForRoom('sandbox', 'ctcourse', null)).toBeNull();
   });
 

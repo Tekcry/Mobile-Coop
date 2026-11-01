@@ -9,7 +9,6 @@ import { validateSecurity, type CameraDevice } from '../src/security/data';
 import { SecuritySystem, cameraSight, type SecurityEvent, type SecurityHost } from '../src/security/securitySystem';
 import { deskCamMode, DESK_LOOP, DESK_OFF } from '../src/game/sectorDesks';
 import { cameraOff } from '../src/game/course/securityRoom';
-import { CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import type { PlayerRef } from '../src/ai/enemy';
 
 const base: CameraDevice = { id: 'c', kind: 'camera', level: 'ground', at: [0, 0], y: 2.8, facing: 0, aim: 6, reason: 't' };
@@ -117,23 +116,5 @@ describe('(E8) thermal cameras', () => {
 
   it('the flags pass security validation', () => {
     expect(validateSecurity({ devices: [armoured, { ...thermal, bulletproof: true, id: 'both' }] })).toEqual([]);
-  });
-});
-
-describe('(E8, A95 / A96) the campus armour ramp', () => {
-  const cams = CAMPUS_SECURITY.devices.filter((d) => d.kind === 'camera');
-  it('S1-S2 cameras are shootable; S3 cam-view is bulletproof and cam-dock is not', () => {
-    for (const c of cams) if (c.section === undefined || c.section < 2) expect(c.bulletproof, c.id).toBeFalsy();
-    expect(cams.find((c) => c.id === 'cam-view')!.bulletproof).toBe(true);
-    expect(cams.find((c) => c.id === 'cam-dock')!.bulletproof).toBeFalsy();
-    for (const c of cams) if (c.section === undefined || c.section < 4) expect(c.thermal, c.id).toBeFalsy();
-  });
-  it('S4 and S5 cameras are all bulletproof; the S5 cameras are all thermal (3 + 3, 13 on the map)', () => {
-    const late = cams.filter((c) => c.section !== undefined && c.section >= 3);
-    expect(late.filter((c) => c.section === 3).length).toBe(3);
-    expect(late.filter((c) => c.section === 4).length).toBe(3);
-    for (const c of late) expect(c.bulletproof, c.id).toBe(true);
-    for (const c of late.filter((q) => q.section === 4)) expect(c.thermal, c.id).toBe(true);
-    expect(cams.length).toBe(13);
   });
 });

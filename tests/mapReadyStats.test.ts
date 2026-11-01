@@ -10,7 +10,7 @@ const sample = (programs = 0, landings = 0, tileUploads = 0, materials = 0, popI
 
 describe('MapReadyStats', () => {
   it('steps and the reveal are ms from the load start; the record starts unrevealed', () => {
-    const s = new MapReadyStats('campusOps', 'sector', false, 1000);
+    const s = new MapReadyStats('tallowWharf', 'sector', false, 1000);
     expect(s.record.revealMs).toBe(-1);
     expect(s.record.released).toBe(false);
     expect(s.record.after.done).toBe(false);
@@ -21,13 +21,13 @@ describe('MapReadyStats', () => {
     expect(s.record.revealMs).toBe(7400);
     expect(s.record.released).toBe(true);
     expect(s.record.heapMb).toBe(512);
-    expect(s.record.map).toBe('campusOps');
+    expect(s.record.map).toBe('tallowWharf');
     expect(s.record.mode).toBe('sector');
     expect(s.record.gated).toBe(false);
   });
 
   it('the window takes the deltas of the cumulative samples from the reveal to 10 s after', () => {
-    const s = new MapReadyStats('campusOps', 'sector', false, 0, 10);
+    const s = new MapReadyStats('tallowWharf', 'sector', false, 0, 10);
     s.reveal(1000, sample(40, 5, 2, 100, 1), -1);
     expect(s.record.loadPrograms).toBe(30);
     s.frame(1016, sample(41, 6, 2, 100, 1));
@@ -81,7 +81,7 @@ describe('MapReadyStats', () => {
   it('the load counters are deltas from the record\'s start to the reveal', () => {
     loadCounters.texReused += 3;
     loadCounters.filesFetched += 1;
-    const s = new MapReadyStats('campusOps', 'sector', false, 0);
+    const s = new MapReadyStats('tallowWharf', 'sector', false, 0);
     loadCounters.texReused += 2;
     loadCounters.texDecoded += 5;
     loadCounters.filesReused += 4;
@@ -95,16 +95,16 @@ describe('MapReadyStats', () => {
   });
 
   it('setBake and summary(): the map, the reveal seconds, the window and the bake source', () => {
-    const s = new MapReadyStats('campusOps', 'sector', false, 0);
+    const s = new MapReadyStats('tallowWharf', 'sector', false, 0);
     s.setBake('cache', 1234);
     expect(s.record.bakeSource).toBe('cache');
     expect(s.record.bakeMs).toBe(1234);
-    expect(s.summary()).toContain('campusOps');
+    expect(s.summary()).toContain('tallowWharf');
     s.reveal(8400, sample(40), -1);
-    expect(s.summary()).toContain('campusOps reveal 8.4 s');
+    expect(s.summary()).toContain('tallowWharf reveal 8.4 s');
     s.frame(8418, sample(40, 3, 0, 0, 0));
     s.frame(8400 + AFTER_WINDOW_MS, sample(40, 3, 0, 0, 0));
-    expect(s.summary()).toBe('campusOps reveal 8.4 s, after 10 s: 0 programs, 3 landings, 0 pop-ins, p95 9982 ms, bake cache');
+    expect(s.summary()).toBe('tallowWharf reveal 8.4 s, after 10 s: 0 programs, 3 landings, 0 pop-ins, p95 9982 ms, bake cache');
   });
 });
 

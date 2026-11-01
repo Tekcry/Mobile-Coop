@@ -4,8 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { SECTOR } from '../src/game/sectors';
 import type { SectorDef } from '../src/game/sectors';
 import type { SectorStageAction } from '../src/game/sectorStage';
-import { CAMPUS_SECTORS } from '../src/world/maps/campusSectors';
-import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
+import { WHARF_SECTORS } from '../src/world/maps/tallowWharfSectors';
 
 const TIME_KEY = /time(out|limit|r)|countdown|deadline|expire|closeAfter|closesAt/i;
 
@@ -18,8 +17,7 @@ const ALLOW: readonly { path: string; reason: string }[] = [
 ];
 
 const SETS: readonly [string, readonly SectorDef[]][] = [
-  ['CAMPUS_SECTORS', CAMPUS_SECTORS],
-  ['WAREHOUSE_SECTORS', WAREHOUSE_SECTORS],
+  ['WHARF_SECTORS', WHARF_SECTORS],
 ];
 
 function timeKeys(node: unknown, path: string, out: string[]): void {

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { AirlockDef, BayDef, CourseDef, CourseLayout } from '../src/game/course/courseDef';
 import { CourseState } from '../src/game/course/courseState';
 import { CONSOLE_DONE, CONSOLE_GUARD_UP, cameraOff, consoleErrors, consoleFor, consoleRefusal, type SecurityConsole } from '../src/game/course/securityRoom';
-import { WAREHOUSE_OPS_SECURITY } from '../src/world/maps/warehouseSectors';
 
 const CON: SecurityConsole = { id: 'sw-con', guard: 'sec-guard', flag: 'cams-off' };
 
@@ -97,11 +96,6 @@ describe('securityRoom', () => {
     away.bays[0]!.squad = [];
     away.bays[1]!.squad = ['sec-guard'];
     expect(consoleErrors(layout(away), CAMS).join('|')).toMatch(/not in the squad of bay 'B1'/);
-  });
-
-  it('Sector Ops has no console-switchable camera (Michael: not in Sector Ops)', () => {
-    expect(WAREHOUSE_OPS_SECURITY.devices.length).toBeGreaterThan(0);
-    for (const d of WAREHOUSE_OPS_SECURITY.devices) expect(d.offFlag).toBeUndefined();
   });
 
   it('CourseState: the console pickup sets the flag; a bay restart clears it and returns the guard slot', () => {

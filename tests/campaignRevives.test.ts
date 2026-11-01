@@ -9,7 +9,9 @@ import { REVIVE_WINDOW, ReviveClock } from '../src/game/reviveClock';
 import { CAMPAIGN } from '../src/game/mission/campaign';
 import { SECTOR } from '../src/game/sectors';
 import { THREE_GREY_COATS, TWO_KEY_LEDGER, WHARF_MISSIONS } from '../src/world/maps/tallowWharfMissions';
-import { CAMPUS_MISSION_TEST } from '../src/world/maps/campusMissionTest';
+
+/** A plain (non-campaign) Sector Ops mission: the campaign mission's data with mode off the campaign. */
+const PLAIN_MISSION = { ...THREE_GREY_COATS, id: 'plainTestMission', mode: 'sector' } as unknown as typeof THREE_GREY_COATS;
 
 const PRESETS: readonly DifficultyPreset[] = ['rookie', 'normal', 'realistic', 'perfectionist'];
 
@@ -41,7 +43,7 @@ describe('campaign revives (mission-rules R5, G126)', () => {
     PRESETS.forEach((p, i) => {
       expect(SECTOR.syringes[p]).toBe(want[i]);
       expect(host('sector', p, undefined, '').reviveClock.cap).toBe(want[i]);
-      expect(host('sector', p, [CAMPUS_MISSION_TEST], CAMPUS_MISSION_TEST.id).reviveClock.cap).toBe(want[i]);
+      expect(host('sector', p, [PLAIN_MISSION], PLAIN_MISSION.id).reviveClock.cap).toBe(want[i]);
       expect(host('sector', p, WHARF_MISSIONS, 'noSuchMission').reviveClock.cap).toBe(want[i]);
     });
   });
@@ -66,7 +68,7 @@ describe('campaign revives (mission-rules R5, G126)', () => {
   });
 
   it('addSyringes still tops up Sector Ops; the course keeps its 2 (master J14 F1, conformance M3)', () => {
-    const s = host('sector', 'realistic', [CAMPUS_MISSION_TEST], CAMPUS_MISSION_TEST.id);
+    const s = host('sector', 'realistic', [PLAIN_MISSION], PLAIN_MISSION.id);
     s.addSyringes(2);
     expect(s.reviveClock.cap).toBe(3);
     const n = host('sector', 'normal', undefined, '');

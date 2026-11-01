@@ -1280,7 +1280,7 @@ describe('the room map', () => {
     expect(resumeMap('ctcourseReplan', true)).toBe('ctcourseReplan');
     expect(resumeMap('ctcourse', true)).toBe('ctcourseReplan');
     expect(resumeMap('ctcourse', false)).toBe('ctcourse');
-    expect(resumeMap('warehouseOps', false)).toBe('warehouseOps');
+    expect(resumeMap('warehouse', false)).toBe('warehouse');
   });
 });
 

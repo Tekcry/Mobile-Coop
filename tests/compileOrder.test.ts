@@ -71,7 +71,7 @@ describe('compileGroupsDue: serial (S2 order)', () => {
 describe('compileOrderOf', () => {
   it('?compileorder=serial is serial; anything else is parallel', () => {
     expect(compileOrderOf('?compileorder=serial')).toBe('serial');
-    expect(compileOrderOf('?autostart=campusOps&compileorder=serial&gfx=epic')).toBe('serial');
+    expect(compileOrderOf('?autostart=tallowWharf&compileorder=serial&gfx=epic')).toBe('serial');
     expect(compileOrderOf('?compileorder=x')).toBe('parallel');
     expect(compileOrderOf('?compileorder=parallel')).toBe('parallel');
     expect(compileOrderOf('')).toBe('parallel');

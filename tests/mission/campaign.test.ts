@@ -17,7 +17,6 @@ import { REVIVES_PER_MISSION } from '../../src/game/reviveClock';
 import { SECTOR_REINFORCE_KIND } from '../../src/game/sectors';
 import type { EnemyKind } from '../../src/ai/enemyDefs';
 import { MAX_ENEMIES } from '../../src/net/protocol';
-import { CAMPUS_MISSION_TEST } from '../../src/world/maps/campusMissionTest';
 import { THREE_GREY_COATS, TWO_KEY_LEDGER, WHARF_MISSIONS } from '../../src/world/maps/tallowWharfMissions';
 
 // (mission-rules R2) the campaign profile: cap 32 (G359), revives 2 (G126), no shield lead (Q12), no grants (Q19),
@@ -40,6 +39,20 @@ function teamOp(): MissionDef {
   };
 }
 
+/** A plain Sector Ops mission (not a campaign one): one rule, a reach and an extract step. */
+const SECTOR_TEST_MISSION: MissionDef = {
+  id: 'sectorTest',
+  mode: 'sector',
+  players: [1, 2],
+  sections: ['S1', 'S2'],
+  briefing: ['A plain Sector Ops mission.'],
+  steps: [
+    { id: 'dl', section: 'S1', team: 'all', kind: 'reach', text: 'reach the console' },
+    { id: 'out', section: 'S2', team: 'all', kind: 'extract', after: ['dl'], text: 'Out' },
+  ],
+  rules: [{ kind: 'noKills', scope: 'mission', text: 'No kills' }],
+};
+
 const idx = (d: MissionDef, id: string): number => d.steps.findIndex((s) => s.id === id);
 
 describe('campaign profile', () => {
@@ -53,12 +66,12 @@ describe('campaign profile', () => {
 
   it('campaign mission and campaign map', () => {
     expect(isCampaignMission(THREE_GREY_COATS)).toBe(true);
-    expect(isCampaignMission(CAMPUS_MISSION_TEST)).toBe(false);
+    expect(isCampaignMission(SECTOR_TEST_MISSION)).toBe(false);
     expect(isCampaignMission(null)).toBe(false);
     expect(isCampaignMission(undefined)).toBe(false);
     expect(isCampaignMap(WHARF_MISSIONS)).toBe(true);
-    expect(isCampaignMap([CAMPUS_MISSION_TEST])).toBe(false);
-    expect(isCampaignMap([THREE_GREY_COATS, CAMPUS_MISSION_TEST])).toBe(false);
+    expect(isCampaignMap([SECTOR_TEST_MISSION])).toBe(false);
+    expect(isCampaignMap([THREE_GREY_COATS, SECTOR_TEST_MISSION])).toBe(false);
     expect(isCampaignMap([])).toBe(false);
     expect(isCampaignMap(undefined)).toBe(false);
   });
@@ -72,26 +85,26 @@ describe('campaign profile', () => {
     // no id, an unknown id: a campaign map never runs as plain Sector Ops
     expect(campaignStartBlock(WHARF_MISSIONS, null, 2)).toBe(CAMPAIGN_PICK_MISSION);
     expect(campaignStartBlock(WHARF_MISSIONS, 'nope', 2)).toBe(CAMPAIGN_PICK_MISSION);
-    expect(campaignStartBlock(WHARF_MISSIONS, CAMPUS_MISSION_TEST.id, 2)).toBe(CAMPAIGN_PICK_MISSION);
+    expect(campaignStartBlock(WHARF_MISSIONS, SECTOR_TEST_MISSION.id, 2)).toBe(CAMPAIGN_PICK_MISSION);
     expect(CAMPAIGN_PICK_MISSION).toBe('Pick a campaign mission');
     // a Sector Ops map (with or without a sector mission): never blocked here, any player count
     for (const n of [1, 2, 3, 4]) {
-      expect(campaignStartBlock([CAMPUS_MISSION_TEST], CAMPUS_MISSION_TEST.id, n)).toBeNull();
-      expect(campaignStartBlock([CAMPUS_MISSION_TEST], null, n)).toBeNull();
+      expect(campaignStartBlock([SECTOR_TEST_MISSION], SECTOR_TEST_MISSION.id, n)).toBeNull();
+      expect(campaignStartBlock([SECTOR_TEST_MISSION], null, n)).toBeNull();
       expect(campaignStartBlock(undefined, null, n)).toBeNull();
       expect(campaignStartBlock([], 'x', n)).toBeNull();
     }
     // a campaign mission on a mixed map is still gated
-    const mixed = [THREE_GREY_COATS, CAMPUS_MISSION_TEST];
+    const mixed = [THREE_GREY_COATS, SECTOR_TEST_MISSION];
     expect(campaignStartBlock(mixed, tgc, 1)).toBe(CAMPAIGN_TWO_PLAYERS);
     expect(campaignStartBlock(mixed, tgc, 2)).toBeNull();
-    expect(campaignStartBlock(mixed, CAMPUS_MISSION_TEST.id, 1)).toBeNull();
+    expect(campaignStartBlock(mixed, SECTOR_TEST_MISSION.id, 1)).toBeNull();
   });
 
   it('the revive cap: 2 on a campaign mission at every difficulty, the syringes otherwise', () => {
     for (const s of [3, 2, 1, 1]) {
       expect(campaignReviveCap(THREE_GREY_COATS, s)).toBe(2);
-      expect(campaignReviveCap(CAMPUS_MISSION_TEST, s)).toBe(s);
+      expect(campaignReviveCap(SECTOR_TEST_MISSION, s)).toBe(s);
       expect(campaignReviveCap(null, s)).toBe(s);
     }
   });

@@ -383,7 +383,7 @@ describe('light fixtures', () => {
   it('(walk 4.72 S2) a round that lands on a street lamp pole just under its head breaks it; not lower, nor through a wall', async () => {
     const { lightOnRay, LAMP_MOUNT_REACH } = await import('../src/world/lights');
     const r = new LightRegistry();
-    // Saltmarsh Park's car-park lamp: a 6 m pillar (radius 0.15) with the head (0.6 x 0.1 x 0.3) centred on its top
+    // A car-park lamp: a 6 m pillar (radius 0.15) with the head (0.6 x 0.1 x 0.3) centred on its top
     const l = r.add({ x: 9, y: 6, z: -66, destructible: true, fixture: { sx: 0.6, sy: 0.1, sz: 0.3, oy: 0 } });
     // the client's real round (e2e probe, 4.72 build): from the muzzle, landing on the pole 0.16 m under the padded head
     expect(lightOnRay(r, 11.74, 1.56, -65.93, 9.15, 5.73, -65.99)).toBe(l.id);

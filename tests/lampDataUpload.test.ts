@@ -15,7 +15,7 @@ import type { CharShadowLink } from '../src/world/charShadows';
 import { bakedLights } from '../src/world/lightBake';
 import { DOORS_PER_LAMP_ACCURATE, type FieldDoor } from '../src/world/lightField';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
+import { tallowWharf } from '../src/world/maps/tallowWharf';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
 import { dressingOn } from '../src/world/detailPass';
 
@@ -170,19 +170,19 @@ describe('(LR16-P F1) BakedLamps uploads the dynamic rows only', () => {
   });
 });
 
-describe('(LR16-P F1) campusOps', () => {
+describe('(LR16-P F1) tallowWharf', () => {
   it('the per-frame upload is at most 64 KB', async () => {
     const { lampDataLayout, lampDataRows } = await import('../src/world/bakedLamps');
     const b = new LevelBuilder();
-    campusOps.build(b, 0);
-    const set = canonicalLightSet(b.boxes, b.cylinders, campusOps.id, dressingOn(campusOps));
+    tallowWharf.build(b, 0);
+    const set = canonicalLightSet(b.boxes, b.cylinders, tallowWharf.id, dressingOn(tallowWharf));
     const baked = bakedLights(b.lights);
     const grid = lampGrid(baked.lights, set.lo, set.hi);
     const lay = lampDataLayout(grid.cols, grid.rows, baked.ids.length, b.anchors.doors.length, DOORS_PER_LAMP_ACCURATE);
     const { rows } = lampDataRows(lay.lampBase, lay.w, lay.h);
     const bytes = rows * lay.w * 16;
     const whole = lay.h * lay.w * 16;
-    console.info(`campusOps lamp data ${lay.w} x ${lay.h}: whole ${(whole / 1024).toFixed(0)} KB, per frame ${rows} rows ${(bytes / 1024).toFixed(1)} KB`);
+    console.info(`tallowWharf lamp data ${lay.w} x ${lay.h}: whole ${(whole / 1024).toFixed(0)} KB, per frame ${rows} rows ${(bytes / 1024).toFixed(1)} KB`);
     expect(bytes).toBeLessThanOrEqual(64 * 1024);
     expect(bytes).toBeLessThan(whole / 4);
   }, 60_000);

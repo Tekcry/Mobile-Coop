@@ -6,7 +6,6 @@ import { SectionStartState, type ResetDoor, type ResetDoors } from '../src/game/
 import { SECTOR, SECTOR_REINFORCE_KIND, checkSectors, type SectorDef } from '../src/game/sectors';
 import { STAGE_DOOR_CLEAR, STAGE_MAX, SectorStageRun, addDoorClosure, checkStageActions, doorFinder, doorwayClear, reinforceSlot, type SectorStageAction } from '../src/game/sectorStage';
 import { DOOR } from '../src/world/doors';
-import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 
 /** (sector-redesign E5, EW9) Alarm-stage extras: lights to full, lockdown doors, the response route, restart undo. */
 
@@ -343,25 +342,5 @@ describe('stage actions in the run', () => {
     expect(on(reg, 0) && on(reg, 1)).toBe(true);
     expect(doors.list[0]!.anchor.locked).toBe(false);
   });
-});
 
-describe('Warehouse Ops (no stage actions) is unchanged', () => {
-  it('has none, passes the check, and its reinforcements come in at its reinforce points as before', () => {
-    expect(WAREHOUSE_SECTORS.every((s) => !s.stageActions)).toBe(true);
-    expect(checkStageActions(WAREHOUSE_SECTORS)).toEqual([]);
-    const { run } = rig(WAREHOUSE_SECTORS as SectorDef[]);
-    for (let i = 0; i < WAREHOUSE_SECTORS.length; i++) expect(run.raise(i, 0, 3)).toEqual({ lights: 0, doors: 0, dogs: false });
-    expect(run.lockedCount()).toBe(0);
-    expect(run.release()).toBe(0);
-    WAREHOUSE_SECTORS.forEach((s) => {
-      let k = 0;
-      for (let stage = 1; stage <= SECTOR.alarmMax; stage++) {
-        for (let i = 0; i < s.perStage; i++) {
-          const at = s.reinforce[k % s.reinforce.length]!;
-          // the slice 0 slot (A47): a grunt at the next reinforce point, every other one 1.3 m over
-          expect(reinforceSlot(s, stage, i, k++, SECTOR_REINFORCE_KIND)).toEqual({ kind: 'grunt', x: at[0] + (i % 2) * 1.3, z: at[1], yaw: 0 });
-        }
-      }
-    });
-  });
 });

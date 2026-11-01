@@ -206,7 +206,7 @@ describe('stage gear (item 4, A37)', () => {
 });
 
 describe('response team (item 3, A38)', () => {
-  it("(guard-rules S1, A4) no `shieldTeams` (S1-S3, warehouseOps, the campaign): the team is armed guards only", () => {
+  it("(guard-rules S1, A4) no `shieldTeams` (Sector Ops maps, the campaign): the team is armed guards only", () => {
     const { m, em, load } = sector([def('s1', 0, true, { perStage: 3 })]);
     load(0);
     m.onAlarm();

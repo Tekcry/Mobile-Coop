@@ -19,7 +19,7 @@ const kitAllowed = (k: GuardKindDef): Set<string> => new Set([
 const OPEN = ['grunt', 'runner', 'sniper', 'droneOp', 'officer'] as const;
 
 const KINDS = ['grunt', 'runner', 'heavy', 'sniper', 'enforcer', 'droneOp', 'officer'] as const;
-const MAPS = ['ctcourse', 'campusOps', 'tallowWharf'] as const;
+const MAPS = ['ctcourse', 'tallowWharf'] as const;
 const SEEDS: number[] = [];
 for (let i = 0; i < 128; i++) SEEDS.push(i);
 
@@ -40,7 +40,7 @@ describe('guardVariant: contract', () => {
     for (const k of KINDS) expect(Object.keys(enemies)).toContain(k);
   });
 
-  it('is deterministic (128 seeds x 7 kinds x 3 maps)', () => {
+  it('is deterministic (128 seeds x 7 kinds x 2 maps)', () => {
     for (const kind of KINDS) {
       for (const map of MAPS) {
         for (const seed of SEEDS) {
@@ -162,7 +162,7 @@ describe('guardVariant: distribution', () => {
       let differ = 0;
       for (const seed of SEEDS) {
         const a = look(seed, kind, 'ctcourse');
-        const b = look(seed, kind, 'campusOps');
+        const b = look(seed, kind, 'tallowWharf');
         if (JSON.stringify(a) !== JSON.stringify(b)) differ++;
       }
       expect(differ, kind).toBeGreaterThan(64);
@@ -410,7 +410,7 @@ describe('applyGear', () => {
   it('A14: an armoured or helmeted grunt keeps his face (no balaclava)', () => {
     for (const kind of ['grunt', 'runner', 'sniper', 'droneOp', 'officer']) {
       for (const seed of SEEDS) {
-        const v = look(seed, kind, 'campusOps');
+        const v = look(seed, kind, 'tallowWharf');
         const p = pieces(v, true, true, false, kind);
         expect(hasPiece(p, 'balaclava')).toBe(false);
         expect(hasPiece(p, v.head)).toBe(true);

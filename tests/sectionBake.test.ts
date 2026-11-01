@@ -117,9 +117,8 @@ function expectSame(a: LightField, b: LightField, pts: [number, number, number][
 }
 
 describe('section bake: membership and plan (pure)', () => {
-  it('only campusOps bakes per section; the others (and the fullbright id) keep the full bake', () => {
-    expect(sectionBakeFor('campusOps')).not.toBeNull();
-    for (const id of ['ctcourse', 'warehouseOps', 'provingGrounds', 'campusOps:fullbright', 'toString', '__proto__']) expect(sectionBakeFor(id)).toBeNull();
+  it('no map bakes per section today (Saltmarsh Park left in clean-up F); every id keeps the full bake', () => {
+    for (const id of ['ctcourse', 'tallowWharf', 'provingGrounds', 'tallowWharf:fullbright', 'toString', '__proto__']) expect(sectionBakeFor(id)).toBeNull();
   });
 
   it('a lamp counts for every section its influence touches: the border and doorway lamps count for two', () => {
