@@ -1,4 +1,6 @@
-// 3.6 Phase 1 Step 4b: darkness is dark (bible 1.10 L5 / L7). On the Warehouse, a matte 50% grey card is placed at points whose
+﻿// 3.6 Phase 1 Step 4b: darkness is dark (bible 1.10 L5 / L7). (clean-up G2c) On the Test Chamber: the 0.12 card is found in its dark
+// side room (the annex's dark bay and aisle), the 0.70 card in the lit main room; the thermal door check has one grunt in the dark
+// bay. A matte 50% grey card is placed at points whose
 // static gameplay level is about 0.12 and 0.70, facing the strongest light there, with the camera 0.8 m in front of it; the final
 // pixels (after tone mapping, grade and post) are read back as display luminance and checked against the night-vision targets
 // (Epic, night vision on), then the turning check and the thermal checks. (J11 A13) The night-vision-off grey cards moved to
@@ -9,7 +11,7 @@ import { findCards, measure, pinLights, readRgb, unpinLights } from './parity-li
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const LOOKS = [
-  { name: 'epic', params: 'autostart=warehouse&mode=clear&gfx=epic' },
+  { name: 'epic', params: 'autostart=studio&mode=test&gfx=epic' },
 ].filter((l) => !process.env.LOOK || process.env.LOOK === l.name);
 // (`darkCurve.ts` VISION_TARGETS)
 const NV = [
@@ -89,41 +91,50 @@ async function thermalChecks(page, look) {
     const g = window.__app.current;
     return { ghosts: g.doorGhosts?.count ?? -1, kind: g.post.visionKind, open: g.world.doors.list[i]?.open };
   }, i);
+  // (G2c) a door whose empty leaf reads dark enough: the lit main room's leaf is a brighter blue, so the silhouette's margin over it
+  // is smaller (37,36,159 vs 49,46,121 at the studio door); the annex doors (dark side) read as the Warehouse's did. Each door that
+  // shows the silhouette is read, the first with the dim blue margin is the one checked (the last read stands if none has it)
   let hit = null;
-  for (const c of cands) {
+  let chest = null;
+  let ghost = null;
+  let none = null;
+  let st0 = null;
+  for (const c of cands.slice().sort((a, b) => b.mx - a.mx)) {
     const n = await place(c, true);
     assert(n > 0, `${look.name}: a live guard for the thermal door check`);
     await frames(page, 30);
     const st = await state(c.i);
-    if (st.ghosts === 1) {
-      hit = c;
-      break;
-    }
+    if (st.ghosts !== 1) continue;
+    // read at the guard's chest as projected on screen (the figure lies on his camera rays), not the screen centre (the
+    // camera's pivot sits at head height, off to the shoulder side); the same pixels with him gone
+    const ch = await page.evaluate(() => {
+      const g = window.__app.current;
+      const e = (g.enemyMgr?.enemies ?? []).find((x) => x.alive && !x.def.quadruped);
+      const r = e.bodyRig;
+      const h = r.hips.getAbsolutePosition();
+      const n = r.neck.getAbsolutePosition();
+      const V = h.constructor;
+      const cam = g.player.cam.camera;
+      const eng = g.scene.getEngine();
+      const w = eng.getRenderWidth();
+      const ht = eng.getRenderHeight();
+      const M = cam.getTransformationMatrix();
+      const s = V.Project(new V((h.x + n.x) / 2, (h.y + n.y) / 2, (h.z + n.z) / 2), M.constructor.Identity(), M, cam.viewport.toGlobal(w, ht));
+      const rect = eng.getRenderingCanvas().getBoundingClientRect();
+      return { x: rect.left + (s.x / w) * rect.width, y: rect.top + (s.y / ht) * rect.height };
+    });
+    const gh = await readRgb(page, 12, ch);
+    await place(c, false);
+    await frames(page, 30);
+    const nn = await readRgb(page, 12, ch);
+    hit = c;
+    chest = ch;
+    ghost = gh;
+    none = nn;
+    st0 = await state(c.i);
+    if (gh[2] - nn[2] > 40 && gh[0] < 70 && gh[1] < 110) break;
   }
   assert(hit, `${look.name}: thermal shows a guard behind a shut door as a silhouette at one of ${cands.length} doors (G102)`);
-  // read at the guard's chest as projected on screen (the figure lies on his camera rays), not the screen centre (the
-  // camera's pivot sits at head height, off to the shoulder side); the same pixels with him gone
-  const chest = await page.evaluate(() => {
-    const g = window.__app.current;
-    const e = (g.enemyMgr?.enemies ?? []).find((x) => x.alive && !x.def.quadruped);
-    const r = e.bodyRig;
-    const h = r.hips.getAbsolutePosition();
-    const n = r.neck.getAbsolutePosition();
-    const V = h.constructor;
-    const cam = g.player.cam.camera;
-    const eng = g.scene.getEngine();
-    const w = eng.getRenderWidth();
-    const ht = eng.getRenderHeight();
-    const M = cam.getTransformationMatrix();
-    const s = V.Project(new V((h.x + n.x) / 2, (h.y + n.y) / 2, (h.z + n.z) / 2), M.constructor.Identity(), M, cam.viewport.toGlobal(w, ht));
-    const rect = eng.getRenderingCanvas().getBoundingClientRect();
-    return { x: rect.left + (s.x / w) * rect.width, y: rect.top + (s.y / ht) * rect.height };
-  });
-  const ghost = await readRgb(page, 12, chest);
-  await place(hit, false);
-  await frames(page, 30);
-  const none = await readRgb(page, 12, chest);
-  const st0 = await state(hit.i);
   console.log(`  ${look.name} thermal at door ${hit.i}: silhouette rgb ${ghost}, guard gone rgb ${none} at chest px ${Math.round(chest.x)},${Math.round(chest.y)} (ghosts ${st0.ghosts})`);
   assert(st0.ghosts === 0, `${look.name}: no silhouette with the guard gone (${JSON.stringify(st0)})`);
   // dim blue, low on the ramp (CT): blue well over the empty door's, not the warm green / yellow of a body in the open
@@ -161,7 +172,11 @@ for (const look of LOOKS) {
     assert(info.lamps, `${look.name}: the baked lamps (and the darkness curve) are on (${JSON.stringify(info)})`);
     // (A7) every moving light held still for the search and the reads; one card each for the 0.12 and 0.70 rows, whole bounds
     await pinLights(page);
-    const probes = await findCards(page, { rows: NV.map((v) => v.level), perRow: 1 });
+    // (G2c) the 0.12 row in the dark side room (the zone's fill: x 29.5 and up, clear of the divider's ambient grid edge), the 0.70 row in the main room
+    const probes = [
+      ...(await findCards(page, { rect: [29.5, 0.5, 35.8, 13.5], rows: [NV[0].level], perRow: 1 })),
+      ...(await findCards(page, { rect: [1, 1, 27, 27], rows: [NV[1].level], perRow: 1 })),
+    ];
     await page.evaluate((off) => {
       const g = window.__app.current;
       g.photoFreeze(true);
@@ -218,6 +233,13 @@ for (const look of LOOKS) {
     });
     assert(mv.bloom.runs >= mv.n - 2 && mv.bloom.glow && mv.bloom.scale > 0, `${look.name}: night vision's bloom runs every frame (${JSON.stringify(mv.bloom)})`);
     assert(mv.night > 0.5 && mv.moved >= mv.n - 1, `${look.name}: turning in night vision, every frame reads as moving (${JSON.stringify(mv)})`);
+    // (G2c) the thermal door check needs a guard: one grunt in the dark bay (test mode places none)
+    const spawned = await page.evaluate(() => {
+      const g = window.__app.current;
+      const V = g.player.position.constructor;
+      return !!g.enemyMgr?.spawn('grunt', new V(34, 0, 4), false, 0);
+    });
+    assert(spawned, `${look.name}: one grunt spawned in the dark bay`);
     await thermalChecks(page, look);
     // (the hardware driver warns about a program a disposed probe's material had in flight: Babylon polls it once more; e2e-desktop filters it too)
     const bad = errors.filter((e) => !/favicon|net::ERR|WebSocket|webrtc|glGetProgramiv: Program object expected/i.test(e));

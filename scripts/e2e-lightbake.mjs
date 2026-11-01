@@ -1,4 +1,5 @@
-// 3.6 Phase 1 Step 1: the canonical light bake is the same on every preset. The Warehouse under `?gfx=min`,
+// 3.6 Phase 1 Step 1: the canonical light bake is the same on every preset. (clean-up G2c) On the Test Chamber (test mode with
+// its five squad guards: the guards-alerted shader check needs guards): the Test Chamber under `?gfx=min`,
 // `?gfx=low` and `?gfx=epic` bakes the same shapes and gives the same lamp / moon / ambient bytes (cache keys
 // and a content hash), and every config baked something; Epic draws the baked lamps.
 // smooth-world / voxel-retire: Epic draws the bake through the lamp plugin on every PBR material; Ray traced runs screen space reflections.
@@ -15,7 +16,7 @@ const infos = [];
 // one browser per config, side by side: each has its own profile, so every config bakes cold (a shared cache would make the later
 // configs read the first one's bytes and the comparison below prove nothing)
 await Promise.all(CONFIGS.map(async ([name, q], k) => {
-  const { browser, page, errors } = await launch({ url, params: `${q}&autostart=warehouse&mode=clear`, viewport: { width: 640, height: 360 } });
+  const { browser, page, errors } = await launch({ url, params: `${q}&autostart=studio&mode=test&guards=1`, viewport: { width: 640, height: 360 } });
   try {
     await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 240000 });
     // (materials made after the load get the lamp plugin on the next frame)
@@ -149,7 +150,7 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
   await browser.close();
 }));
 try {
-  assert(infos.filter(Boolean).length === CONFIGS.length, 'every config booted the Warehouse');
+  assert(infos.filter(Boolean).length === CONFIGS.length, 'every config booted the Test Chamber');
   const ref = infos[0][1];
   assert(ref.lights > 0 && ref.lampBytes > 0 && ref.moonCells > 0 && !!ref.hash, `the bake is not empty (${ref.lights} lamps, ${ref.lampBytes} bytes, ${ref.moonCells} moon cells)`);
   for (const [name, i] of infos) {
