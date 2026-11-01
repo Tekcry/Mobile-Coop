@@ -59,7 +59,7 @@ export { EffectRenderer, EffectWrapper } from '@babylonjs/core/Materials/effectR
 export { ProceduralTexture } from '@babylonjs/core/Materials/Textures/Procedurals/proceduralTexture';
 export { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 export { ReflectionProbe } from '@babylonjs/core/Probes/reflectionProbe';
-export type { SubMesh } from '@babylonjs/core/Meshes/subMesh';
+export { SubMesh } from '@babylonjs/core/Meshes/subMesh';
 export type { UniformBuffer } from '@babylonjs/core/Materials/uniformBuffer';
 export { Mesh } from '@babylonjs/core/Meshes/mesh';
 export { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
