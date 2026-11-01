@@ -173,16 +173,20 @@ export class PauseScreen extends MenuScreen {
       item('Settings', () => this.manager.push(new SettingsScreen(app)), 'Controls, gameplay, graphics, audio and accessibility.', 'settings'),
       item('Report feedback', () => this.manager.push(new FeedbackFormScreen(app, null)), 'Write a note about this moment. It is saved with the map and position.', 'report-feedback'),
       // (anim-tuner pass 2-3) the animation tuner without F3 (pad, phone): opens the panel and resumes, so you can move and
-      // tune; before Quit, so Up from Resume still wraps to Quit
-      item(
-        'Animation tuner (dev)',
-        () => {
-          app.debug.animTune.show();
-          this.resume();
-        },
-        'Developer tool: sliders for the animation, live while you move. Opens over the game; close it with its x.',
-        'anim-tuner',
-      ),
+      // tune; before Quit, so Up from Resume still wraps to Quit. (G1) Listed in the Test Chamber only.
+      ...(app.debug.animTune.canOpen
+        ? [
+            item(
+              'Animation tuner (dev)',
+              () => {
+                app.debug.animTune.show();
+                this.resume();
+              },
+              'Developer tool: sliders for the animation, live while you move. Opens over the game; close it with its x.',
+              'anim-tuner',
+            ),
+          ]
+        : []),
     );
     list.append(
       item(

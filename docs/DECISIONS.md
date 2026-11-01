@@ -1757,7 +1757,9 @@ each other or doors; holstered in calm areas. Marlow Yard: a checkpoint restart 
 cameras, doors); the S3 hallway camera bulletproof. Lighting "not realistic": lights spread like real fittings
 (measure and propose). (Extends G239.)
 
-**G313. Anim Studio only from the main menu.** Michael (2026-10-23 ~14:00): "remove anim studio from in game menu, only
+**G313. Anim Studio only from the main menu.** (Tuner part superseded 2026-11-01, clean-up G1,
+`docs/plan/CLEANUP-PLAN-2026-11-01.md`: the Anim Studio is now the Test Chamber and the animation tuner opens there
+only, never in a normal match.) Michael (2026-10-23 ~14:00): "remove anim studio from in game menu, only
 accessible via main menu. animation tuner in game menu as is".
 
 **G314. Realistic lamp falloff: try it first; a shadow parity audit.** Michael (2026-10-23 ~14:35, native multiple

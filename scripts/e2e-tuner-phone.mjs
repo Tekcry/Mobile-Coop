@@ -1,4 +1,4 @@
-// (marlow-bays item 26, the M21 exception: the animation tuner and Anim Studio on a phone; the game stays desktop only)
+// (marlow-bays item 26, the M21 exception: the animation tuner and Test Chamber on a phone; the game stays desktop only)
 // The tuner on a phone, logic only (software GL; no visual result is claimed). Three pages:
 // 1. Landscape 844 x 390 with touch (Playwright `hasTouch`, `isMobile`): the side drawer is chosen and the canvas gives
 //    up its width (she stands in the free area); every visible touch target (tabs, buttons, sliders, steppers, the

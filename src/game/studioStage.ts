@@ -202,7 +202,7 @@ export class StudioStage {
     // (marlow-bays item 29) the studio leaves the F3 debug readout as it is, off by default on every device (it covered
     // her); F3 and the tuner's More > Debug readout turn it on
     if (!d.animTune.isOpen) {
-      d.animTune.show();
+      d.animTune.reveal();
       this.openedPanel = true;
     }
   }

@@ -1,4 +1,4 @@
-// (anim-studio) The Anim Studio: `?autostart=studio` boots the stage with the tuner panel docked and its Studio section;
+// (anim-studio) The Test Chamber (was the Anim Studio): `?autostart=studio` boots the stage with the tuner panel docked and its Studio section;
 // the loop player plays a keyed clip in place, paused a key step moves the phase by one key (1 / frames) and the drive
 // is on Wren's graph; mirror reaches the drive; a moving state walks the circle; the game speed goes to 2x inside the
 // studio; a slider change undoes; a preset saves to the tuner's IndexedDB store and loads back; the pause menu has no
@@ -1419,7 +1419,7 @@ try {
   }));
   assert(!after.st.active && after.st.entry === 'state:idle' && !after.st.turntable && !after.st.mirror && after.ts === 1 && after.free === 'off', `leaving: time scale 1, no studio state (${JSON.stringify({ active: after.st.active, entry: after.st.entry, ts: after.ts, free: after.free })})`);
   assert(after.panel && after.overlay, 'leaving: the panel the studio opened and its overlay are closed');
-  assert(after.row, 'the main menu has the Anim Studio (dev) row');
+  assert(after.row, 'the main menu has the Test Chamber row');
   const bad = errors.filter((e) => !/WebGL|GPU stall|swiftshader|favicon|GL Driver/i.test(e));
   assert(bad.length === 0, `no console errors (${bad.slice(0, 2).join(' | ')})`);
 } catch (e) {

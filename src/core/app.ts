@@ -30,6 +30,7 @@ import { controlsMigrationNotes, setAuto, settingAnimSource } from './settings';
 import { flags, PREVIEW_ON } from './flags';
 import { ANIM_SOURCE, applyAnimSource } from '../anim/animSource'; // (mixamo-retarget Toggle)
 import { kept as keptParts, type KeptParts } from './keptParts';
+import { animTuneAllowed } from '../ui/tunerGate';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -78,7 +79,7 @@ export class App {
   bootHold = false;
   /** Settings > Graphics > Run benchmark (set by main); a session goes on to its next run in a new match. */
   benchmark: ((kind?: BenchKind | BenchSession) => void) | null = null;
-  /** (anim-studio) Main menu > Anim Studio (dev): start the studio stage (set by main; batch-23: not on the pause menu). */
+  /** (anim-studio) Main menu > Test Chamber (dev): start the studio stage (set by main; batch-23: not on the pause menu). */
   studio: (() => void) | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {
@@ -96,6 +97,8 @@ export class App {
     this.input.gamepad.padHook = (pad, now, dt) => tune.padPoll(pad, now, dt);
     // (tuner-camera pass 2) a co-op session turns the tuner's time controls off (local only, never on the wire)
     tune.coop = () => !!(this.state as { net?: unknown } | null)?.net;
+    // (G1) the tuner opens in the Test Chamber (the `studio` map) only: the match's map decides, a menu has none
+    tune.allowed = () => animTuneAllowed((this.state as { opts?: { map?: { id?: string } } } | null)?.opts?.map?.id);
     // (tuner-ui) the pause menu open: the menus get the pad, the tuner waits
     tune.menuPaused = () => !!(this.state as { menuPaused?: boolean } | null)?.menuPaused;
     // (marlow-bays item 9) the tuner's mouse mode: drag view frees the pointer; a capture lost in its game camera goes
@@ -394,6 +397,7 @@ export class App {
     if (!prev) return;
     prev.exit();
     this.state = null;
+    this.debug.animTune.recheck();
     this.loop.detach();
     this.quality.setTarget(null);
     this.debug.setScene(null);
@@ -412,6 +416,7 @@ export class App {
     const prev = this.state;
     prev?.exit();
     this.state = next;
+    this.debug.animTune.recheck();
     next.enter();
     this.loop.attach(next.scene, this.hooks(next));
     const qt = next as Partial<QualityTarget>;

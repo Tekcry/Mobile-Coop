@@ -13,7 +13,7 @@ desktop only, G395; `input/touchLook.ts` pure, wired in
   sensitivity and invert). Camera only: a touch never moves, fires or aims, and never changes the input mode (the hint
   glyphs stay). Not while the tuner has the pointer (its own touch camera).
 - An on-screen pause button (`.touch-pause`, top centre) shows in play only while the last input was a touch (body
-  class `touch-play`; a mouse press, a key or the pad hides it); a tap pauses. Hidden in the Anim Studio.
+  class `touch-play`; a mouse press, a key or the pad hides it); a tap pauses. Hidden in the Test Chamber.
 
 ## Decided direction
 - Built (CT prototype F1a): G18, back-to-wall on L3, and G17, the shoulder swap only while aiming (binding table). G96's

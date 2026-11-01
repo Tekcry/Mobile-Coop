@@ -18,9 +18,9 @@ import { studio } from './studio';
  */
 export const MAPS: MapDef[] = [warehouse, provingGrounds, kestrel, seclab, ctcourse, ctcourseReplan, tallowWharf, courselab];
 
-/** (anim-studio) Dev scenes that are not levels: never listed, never in a menu or a co-op lobby, not in `MAPS` (the map
- *  checks and the level design standard bind playable maps); reached by `getMap` (`?autostart=studio`, the Anim Studio
- *  entries). */
+/** (anim-studio) Dev scenes that are not levels: never in a map list, not in `MAPS` (the map checks and the level design
+ *  standard bind playable maps); reached by `getMap` (`?autostart=studio`, the main menu's Test Chamber row, and the co-op
+ *  lobby's Test Chamber mode, which hosts `studio` in Free Roam: a map id is all the wire carries). */
 export const DEV_MAPS: readonly MapDef[] = [studio];
 
 export function getMap(id: string): MapDef {

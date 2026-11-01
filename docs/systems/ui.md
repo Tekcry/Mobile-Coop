@@ -160,7 +160,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     a row of a state that is not playing keeps its tag and its edit raises the warning, `rowNow`). Camera and gear rows
     get none. Words and colour, never colour alone. Each part has a note summing up its rows (`reachSummary`). A Body
     slider the capture ignores is kept and tagged "Hand-made" (hover: `HAND_MADE_ONLY_NOTE`), not hidden.
-  - Now playing: one line under the tab bar (`.anim-tune-playing`, full text in `title`) and in the Anim Studio's Loop
+  - Now playing: one line under the tab bar (`.anim-tune-playing`, full text in `title`) and in the Test Chamber's Loop
     player (`.studio-playing`). Read live from the graph (`anim/nowPlaying.ts`, `AnimGraph.playing` copied by
     `tune.ts` `tuneEnd`), not from the settings. Examples: "Now playing: motion-capture walk", "hand-made crouch walk
     (motion capture off)", "mix, 70% motion-capture walk, 30% hand-made".
@@ -194,7 +194,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     body, the camera); with no row picked in the shown part, the part as a whole. The scene marker is drawn on the
     barrel marker's 2D overlay (always on top; yellow ring and bone line with a black edge, the target's name); a dev
     visual, nothing reads it but the hook. Hooks: `__animTune.mouse()`, `mouseMode(m)`, `select(key)`, `selected()`.
-  - Keyed (Anim Studio, next to the Loop list; `tunerLayout.loopKeyed` / `loopKeyedPick`): ticked plays the state's
+  - Keyed (Test Chamber, next to the Loop list; `tunerLayout.loopKeyed` / `loopKeyedPick`): ticked plays the state's
     keyed clip (`state:walk` -> `keyed:walk`), cleared the procedural state; greyed where the loop has no other form.
     `__studio.keyed(on)`, `keyedState()`.
   - In the studio a state picked in any tab's state list (or LT / RT) plays that state's loop (`tunerLayout.loopForGroup`;
@@ -394,7 +394,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   (`tunerLayout.GUARD_LOOP_GAIT` from `stepGaitIndex`: the run at 3.2 m/s steps in the jog gait). `tuneGuardFrame` (player.ts) copies the rows in once a
   frame. Deltas on the generated guard base table `anim/animBaseGuard.ts` (BAKE.md). Saves, exports, imports, presets
   and undo carry them through the registry (additive group ids; old records load with the guard rows at identity).
-  Anim Studio: Who = Guard (or a `guard:<loop>` pick) plays the guard puppet (`studioStage` `makePuppet`: a grunt from
+  Test Chamber: Who = Guard (or a `guard:<loop>` pick) plays the guard puppet (`studioStage` `makePuppet`: a grunt from
   `buildEnemyRig`, its gun, no AI) where Wren stands (she is hidden; the camera, the highlight via the panel's rig
   getter, the view aids and pause / speed work on it): loops idle, patrol walk, alert walk, run, aim, crouched aim,
   wall cover (`anim/studio.ts` `GuardLoop`), moving ones on the spot (`shiftWorld` treadmill); the guard sections
@@ -445,7 +445,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     mode the same in `--warn`; the selected row a gold edge. Size S / M / L is 16 / 19 / 22 px at 1080 p (Medium the
     default; `tunerScale`: the screen height scales it, never under 11 px), the width at most a third of the screen
     (`font * 25`). Values bold white (changed: amber); reset is ↺ (the unit keeps ×).
-  - Docked: fixed to the right edge, full height (`top` / `bottom` 0; folded: the header only). In the Anim Studio the
+  - Docked: fixed to the right edge, full height (`top` / `bottom` 0; folded: the header only). In the Test Chamber the
     canvas gives up the panel's width (`body.tt-docked`, `--tt-dock-w`, one `engine.resize()` per change;
     `syncDock`), so she stands in the middle of the free area; not folded, not outside the studio, not in co-op. The
     studio hides the game HUD (`body.tt-studio`: `.hud`, `.hud-world`, the mouse capture hint; `syncStudioHud`, run
@@ -477,7 +477,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     dock width), `clickAt(x, y)`, `reveal(key)`, `pin(key)`, `quick()`.
 - (tuner-ui, the layout before T2; the older bullets below are history where they differ) The animation tuner panel
   (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, tests `tests/tunerLayout.test.ts`):
-  - Tabs (LB / RB, a click): View (the Loop player in the Anim Studio, the camera: free view, Front / Side / Back / Top
+  - Tabs (LB / RB, a click): View (the Loop player in the Test Chamber, the camera: free view, Front / Side / Back / Top
     snaps that hold, Unlock, fly demo, hide HUD; time: Pause / Step, game speed), Body (parts Body, Joints, Limb reach,
     Climb and vault), Hands & feet, Weapon (Gun hold, Gun in hand), Stepping (Stepping, Speed), Weight, Camera, Keys,
     Co-op (one part per team move), any later registered section as its own tab, Settings (size, pause game while
@@ -501,7 +501,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   - (fix round) A State picked by hand on the Body part carries to Joints, Limb reach, Hands & feet, Gun in hand, the
     gun hold where it maps, Stepping and Weight (`bodyCarry`, the panel's `carryBody`); a pick in any other section
     stays local.
-  - Anim Studio: a loop pick calls `applyLoop` (`loopGroups`: body, joint, ik, hand / weapon state, step, weight, keys,
+  - Test Chamber: a loop pick calls `applyLoop` (`loopGroups`: body, joint, ik, hand / weapon state, step, weight, keys,
     team role A, climb move; follow off). "Loop on the spot" (`STUDIO.spot`, default on; off = `rootMotion`): a moving
     state's stick runs with no camera turn and `StudioStage.afterStep` moves her back by what she moved each fixed step
     (`PlayerController.shift`, `CharacterRig.shiftWorld` / `FootPlanner.shift`: the feet slide back, no teleport).
@@ -551,9 +551,16 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   no text box has the keys; the Y menu), Store A / Store B / A/B (the values shown stay in the slot shown), presets (a
   picker, a name box, Save / Load / Delete (A twice); key `presets` in the tuner's IndexedDB store). Hooks on
   `window.__animTune` (`undo`, `redo`, `settle`, `abStore`, `abToggle`, `presetSave` / `Load` / `Delete`, `presets`).
-- (anim-studio) Anim Studio (dev): Main menu row `anim-studio` (last) and Pause row `anim-studio` (before Quit; not in a
-  co-op session, not inside the studio) start the `studio` dev scene (`world/maps/studio.ts`, in `DEV_MAPS`, not `MAPS`;
-  `?autostart=studio`, Free Roam) through `App.studio` (set in `main.ts`). `game/studioStage.ts` opens the tuner panel
+- (anim-studio; G1: the Anim Studio is now the Test Chamber, the map id stays `studio`) Main menu row `anim-studio` (last,
+  "Test Chamber") and Settings > Developer (not in a co-op session) start the `studio` dev scene alone (`world/maps/studio.ts`,
+  in `DEV_MAPS`, not `MAPS`; `?autostart=studio`, Free Roam) through `App.studio` (set in `main.ts`); the co-op lobby's
+  Mode row has a Test Chamber choice (mode `sandbox` on map `studio`, nothing new on the wire: `coopUi.ts` `CHAMBER`) so two
+  players share it, each on one of the map's two spawns. In a co-op room the stage below is off (`GameState.create` builds
+  it for a single player match only); the tuner stays, local only, with its co-op time lock. **The animation tuner opens
+  in the Test Chamber only** (G1): `AnimTunePanel.show()` asks `allowed` (`ui/tunerGate.ts` `animTuneAllowed`, the
+  match's map id; set in `App`), so the pause and Settings rows, F3 > Anim, the pad and a phone launching it all
+  do nothing elsewhere and the rows are not listed; `setState` / `releaseState` close a panel left open off the chamber.
+  `game/studioStage.ts` opens the tuner panel
   and the debug overlay (the crab readout), plays the loop player (`anim/studio.ts`: the list, the switches `STUDIO`, the
   phase maths, the synthesised input; `anim/studioDrive.ts`: a keyed clip on one rig's graph, `AnimGraph.drive`, with the
   treadmill feet after the planner) and keeps an optional guard figure. The panel's Studio section is

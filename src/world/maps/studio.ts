@@ -4,8 +4,10 @@ import type { LevelBuilder } from '../levelBuilder';
 import { STUDIO_MID as C, STUDIO_PROPS as P, STUDIO_SIZE as SIZE } from '../../anim/studioProps';
 
 /**
- * (anim-studio) The Anim Studio stage: a dev scene, not a level (it is not in `MAPS`, no menu lists it, no mode
- * supports it; `getMap('studio')` finds it in `DEV_MAPS`, `?autostart=studio` boots it in Free Roam). The level design
+ * (anim-studio) The Test Chamber (was the Anim Studio; the map id stays `studio`): a dev scene, not a level (it is not in
+ * `MAPS`, no map list shows it, no mode supports it; `getMap('studio')` finds it in `DEV_MAPS`, `?autostart=studio` boots
+ * it in Free Roam, the main menu's Test Chamber row starts it alone and the co-op lobby's Test Chamber mode hosts it for
+ * two: the studio stage and its loop player run in the single player match only). The level design
  * standard (`docs/level-design.md`) binds playable maps; this is a plain room to look at the animation in, like the old
  * menu void: a dark floor with a 1 m grid (visual only: thin boxes that never collide), dark walls all round as the
  * backdrop, a warm key lamp front left, a cool rim lamp behind and a soft fill. Wren stands in the middle facing +z.
@@ -19,8 +21,8 @@ import { STUDIO_MID as C, STUDIO_PROPS as P, STUDIO_SIZE as SIZE } from '../../a
  */
 export const studio: MapDef = {
   id: 'studio',
-  name: 'Anim Studio',
-  description: 'Developer stage for the animation tuner and loop player.',
+  name: 'Test Chamber',
+  description: 'A plain room to test everything: the animation tuner, the loop player and the traversal props. One or two players.',
   modes: [],
   // no dressing (nothing on the walls): a plain stage
   detail: false,
@@ -124,7 +126,11 @@ export const studio: MapDef = {
     b.light({ kind: 'lamp', x: SIZE - 5, y: 6, z: C, radius: 11, intensity: 0.6, color: [1, 0.96, 0.9] });
     b.light({ kind: 'lamp', x: C, y: 6, z: 5, radius: 11, intensity: 0.6, color: [1, 0.96, 0.9] });
     return {
-      playerSpawns: [{ pos: new Vector3(C, 0, C), yaw: 0 }],
+      // (G1) the partner's slot in a co-op room: 2 m east of the first, clear of the props (all round the walls)
+      playerSpawns: [
+        { pos: new Vector3(C, 0, C), yaw: 0 },
+        { pos: new Vector3(C + 2, 0, C), yaw: 0 },
+      ],
       enemySpawns: [],
       props: [],
       objectives: [],
