@@ -1,5 +1,5 @@
 // (mixamo-retarget I9 fix round, BATCH2-PLAN I8) Batch 2's Mixamo captures load lazily: off the entry chunk until the
-// Anim Studio opens, then all 114 (piano-knife S2: + the 6 piano scene clips) join the loop list's motion-capture group
+// Anim Studio opens, then all 113 (piano-knife S2: with the 5 knife kill clips; the intro's breathing idle went with the piano scene) join the loop list's motion-capture group
 // in table order.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -28,12 +28,12 @@ describe('mixamo-retarget I9 fix round: lazy batch 2 captures', () => {
     // a batch 2 game slot and a Studio-only one: not loaded yet
     expect(captureClip('mocap_rifle_walk_forward')).toBeNull();
     expect(captureClip('mocap_aa_idle')).toBeNull();
-    // (piano-knife S2) a piano scene clip: lazy too
+    // (piano-knife S2) a knife kill clip: lazy too
     expect(captureClip('mocap_stabbing')).toBeNull();
     expect(studioEntry('keyed:mocap_aa_idle').id).toBe('off');
   });
 
-  it('after the lazy fill: all 114 rows in the motion-capture group, in table order, the eager entries kept', async () => {
+  it('after the lazy fill: all 113 rows in the motion-capture group, in table order, the eager entries kept', async () => {
     const before = STUDIO_ENTRIES.length;
     const walking = studioEntry('keyed:mocap_walking');
     const p = loadStudioCaptures();
@@ -41,9 +41,9 @@ describe('mixamo-retarget I9 fix round: lazy batch 2 captures', () => {
     await p;
     expect(studioCapturesLoaded()).toBe(true);
     const { LAZY_CAPTURE_FILES } = await import('../src/anim/studioCapturesLazy');
-    expect(LAZY_CAPTURE_FILES.length).toBe(114);
+    expect(LAZY_CAPTURE_FILES.length).toBe(113);
     expect(LAZY_CAPTURE_FILES.filter((f) => f.includes('/studio/')).length).toBe(84);
-    expect(LAZY_CAPTURE_FILES.filter((f) => f.includes('/piano/')).length).toBe(6);
+    expect(LAZY_CAPTURE_FILES.filter((f) => f.includes('/knife/')).length).toBe(5);
     expect(captureClip('mocap_stabbing')).not.toBeNull();
     for (const f of LAZY_CAPTURE_FILES) {
       const name = nameOf(f);
@@ -52,7 +52,7 @@ describe('mixamo-retarget I9 fix round: lazy batch 2 captures', () => {
       expect(e.clip).toBe(captureClip(name));
       expect(e.label.startsWith('motion capture (Mixamo): ')).toBe(true);
     }
-    expect(STUDIO_ENTRIES.length).toBe(before + 114);
+    expect(STUDIO_ENTRIES.length).toBe(before + 113);
     expect(studioEntry('keyed:mocap_walking')).toBe(walking);
     // every keyed Mixamo row of mocapSources.ts now has its loop, the group in the table's order and contiguous
     const caps = STUDIO_ENTRIES.filter((e) => e.label.startsWith('motion capture'));
@@ -79,7 +79,7 @@ describe('mixamo-retarget I9 fix round: lazy batch 2 captures', () => {
 
   it('the eager and lazy sets split clips/mixamo; no game code names a lazy module', async () => {
     const { LAZY_CAPTURE_FILES } = await import('../src/anim/studioCapturesLazy');
-    const all = [...tsIn(DIR).map((f) => `./clips/mixamo/${f}`), ...['studio', 'piano'].flatMap((d) => tsIn(`${DIR}/${d}`).map((f) => `./clips/mixamo/${d}/${f}`))].sort();
+    const all = [...tsIn(DIR).map((f) => `./clips/mixamo/${f}`), ...['studio', 'knife'].flatMap((d) => tsIn(`${DIR}/${d}`).map((f) => `./clips/mixamo/${d}/${f}`))].sort();
     expect([...EAGER_MIXAMO_FILES, ...LAZY_CAPTURE_FILES].sort()).toEqual(all);
     expect(EAGER_MIXAMO_FILES.filter((f) => LAZY_CAPTURE_FILES.includes(f))).toEqual([]);
     // a static import of a lazy module would pull it back into the entry chunk (piano-knife S2: a dynamic `import('...')`,

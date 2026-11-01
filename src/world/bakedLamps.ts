@@ -165,9 +165,6 @@ export class BakedLamps implements CharShadowLamps {
     return this.standard;
   }
   readonly moonLight: number;
-  /** (piano SO5) The lightning flash's gameplay level this step (`World.setFlash`, the light field's own value): added
-   *  to the curve's moon term (`lampDark.y`), through the same baked sky visibility. 0 without lightning. */
-  skyFlash = 0;
   /** Step 4b, rendering only: the night-vision gain (1 off; `GameState` eases it) and the curve's shape (the look's
    *  set; tests may tune it). Gameplay never reads either. */
   visionGain = 1;
@@ -246,10 +243,9 @@ export class BakedLamps implements CharShadowLamps {
   lampLit(i: number): boolean {
     const o = (this.lampBase + i * LAMP_TEXELS + 1) * 4;
     if (this.buf[o]! + this.buf[o + 1]! + this.buf[o + 2]! > 0) return true;
-    // (LR16-5) a stuttering tube at an off step is still lit: it keeps its character shadow slot ((piano SO5b) a lightning
-    // opening's light between strikes does not)
+    // (LR16-5) a stuttering tube at an off step is still lit: it keeps its character shadow slot
     const l = this.reg.lights[this.order[i]!];
-    return !!l && this.fade[i]! > 0 && l.flicker < 1 && !l.flash && l.on && !l.destroyed && l.intensity > 0;
+    return !!l && this.fade[i]! > 0 && l.flicker < 1 && l.on && !l.destroyed && l.intensity > 0;
   }
   /** Characters' capsules each frame (foot + head points, radius): GameState's. */
   capsules: ((a: Float32Array, b: Float32Array, max: number) => number) | null = null;
@@ -1528,9 +1524,8 @@ export class LampPlugin extends MaterialPluginBase {
     ubo.updateFloat4('lampMore', l.doorBase, m && l.moonTex ? 1 : 0, f && l.fillTex ? 1 : 0, LEVEL_TO_RENDER);
     // (Step 4b) the darkness curve: night-vision gain, the moon's level; the look's curve. (nv-pass slice 1) Under the
     // goggles the curve's floor rises (`visionDark`) and the non-voxel fill is capped (z: how far night vision is on)
-    // (piano SO5) the moon term carries the lightning flash too (the light field sums them the same way)
     // (char-shadow-meter S4) w: the character shadows on the curve's lamp term (`charLevel`)
-    ubo.updateFloat4('lampDark', l.visionGain, l.moonLight + l.skyFlash, visionAmount(l.visionGain), l.charLevel ? 1 : 0);
+    ubo.updateFloat4('lampDark', l.visionGain, l.moonLight, visionAmount(l.visionGain), l.charLevel ? 1 : 0);
     const d = visionDark(l.dark, l.visionGain, l.darkNow);
     ubo.updateFloat4('lampDarkP', d.centre, d.steep, d.floor, d.top);
     // (nv-illuminator) the goggles' IR illuminator (picture only)

@@ -1,4 +1,4 @@
-// (piano SO1) `LightRegistry.mainsOff`: the piano scene's EMP blackout in the one lighting system. Every electric light
+// (piano SO1) `LightRegistry.mainsOff`: the mains cut for good in the one lighting system (built for the removed piano scene's EMP). Every electric light
 // goes dark for good in order of distance over 0.8 s; torches and window lights stay; nothing turns a cut lamp back on;
 // the client gets it in the `lamps` snapshot; the light field (meter, guard sight) drops with it; the step allocates nothing.
 import { describe, expect, it } from 'vitest';

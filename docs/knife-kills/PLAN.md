@@ -1,5 +1,5 @@
 # piano-knife: plan
-Owner: Night Shift | Player Build. Status: current. Planner: Opus. Base: master 1b58989ed. Fix round 1 applied
+Owner: Night Shift | Player Build. Status: history (the piano scene was removed in cleanup stage E; the knife kills are every map's lethal takedown, `docs/systems/takedowns.md`). Planner: Opus. Base: master 1b58989ed. Fix round 1 applied
 (plan check `piano-knife-PLAN-CHECK.md`, Campaign answers ~20:20, Michael's paired-kill words ~19:45).
 
 Knife kill animations (co-op, quiet, paired, this scene only) and the intro pose (empty pistol, breathing, back to the
@@ -165,7 +165,7 @@ Files (Player Build; files of other owners get one-line hooks only):
 - New: `src/game/knifeKill.ts` (S1 writes; afterwards S2 only edits it, S3 reads), `src/game/knifePair.ts` (S1, S3),
   `src/anim/killDrive.ts`, `tests/knifeKill.test.ts`, `tests/killDrive.test.ts`, `tests/knifePair.test.ts`,
   `tests/knifeTakedown.test.ts` (S1), `tests/knifeWire.test.ts` (S3), `tests/introPose.test.ts` (S4b),
-  `scripts/mocap/knifePairs.mjs` (S2), `src/anim/clips/mixamo/piano/*.ts` (S2, generated), `docs/piano-knife/*`.
+  `scripts/mocap/knifePairs.mjs` (S2), `src/anim/clips/mixamo/piano/*.ts` (S2, generated), `docs/knife-kills/*` (was `docs/piano-knife/`).
 - Edited: `src/game/takedownController.ts`, `src/game/gameState.ts` (menu rows :1518-1525 and the strike start
   :2191-2192, S1), `src/ai/enemy.ts`
   (`knifeVictim` beside `beginTakedown`; Guard AI told), `src/anim/animGraph.ts` (the `kill` field and one hook line),

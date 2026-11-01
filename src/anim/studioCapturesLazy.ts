@@ -1,8 +1,8 @@
 /**
  * (mixamo-retarget I9 fix round, BATCH2-PLAN I8) The Mixamo captures no game code names, loaded as ONE lazy chunk off
  * the entry chunk: batch 2's 24 game-slot modules in `clips/mixamo/` (I10 / I13 wire them; until then only the Anim
- * Studio plays them), every Anim Studio only module in `clips/mixamo/studio/` and (piano-knife S2) the piano scene's
- * clips in `clips/mixamo/piano/` (the game loads those only through `knifeKill.ts` `loadKnifeClips`; the eager glob
+ * Studio plays them), every Anim Studio only module in `clips/mixamo/studio/` and (piano-knife S2) the knife kills'
+ * clips in `clips/mixamo/knife/` (the game loads those only through `knifeKill.ts` `loadKnifeClips`; the eager glob
  * `./clips/mixamo/*.ts` does not reach subfolders, so they stay off the entry chunk). `studio.ts` reaches this module only
  * through one dynamic `import()` (`loadStudioCaptures`), when the Anim Studio opens; its own eager glob leaves out the
  * same file names (the patterns there are this list negated; `tests/studioCapturesLazy.test.ts` pins that the two sets
@@ -17,7 +17,7 @@ const MODS = import.meta.glob(
     './clips/mixamo/stand_cover_to_look.ts',
     './clips/mixamo/crouch_look_around_corner.ts',
     './clips/mixamo/studio/*.ts',
-    './clips/mixamo/piano/*.ts',
+    './clips/mixamo/knife/*.ts',
   ],
   { eager: true },
 );

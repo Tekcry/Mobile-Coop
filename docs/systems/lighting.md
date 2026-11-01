@@ -88,7 +88,7 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   EMP and shots move the base, the jam only its flicker; at the end of the jam the lamp takes its base as it is then (a
   group switched off or EMPed during the jam stays off). `baseOn` / `groupBaseOn` leave the jam out: the course's mains
   gates read them, so a jam never counts as the group switched off.
-- (piano SO1) `LightRegistry.mainsOff(x, y, z, over = 0.8)`: the mains cut for good. Every electric light (not shot) goes
+- (piano SO1; its scene caller is gone, the call is kept) `LightRegistry.mainsOff(x, y, z, over = 0.8)`: the mains cut for good. Every electric light (not shot) goes
   dark nearest first, the farthest at `over` s (the per-step `update` runs the ripple, no allocation); torches and
   `window` lights stay. No switch, jam end, EMP outage end, `restore` or `resetTo` (a section restart) turns one back on,
   and `breaker.ts` `darkState` reads it as `DARK_NONE` (no reset walk). The client gets it in the `lamps` snapshot.
@@ -172,7 +172,7 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 ## Per-section lamp bake (section-bake; Saltmarsh Park only)
 Decided, not built yet (G405): the campus lamp bakes ship pre-built with the game instead of baking on the player's PC
 (the map-ready job; `docs/systems/performance.md` "Near-instant loads"). The pre-built maps are
-`world/shippedBake.ts` `SHIPPED_BAKE_MAPS` (campusOps, thornbeckMill; piano SO2): `scripts/prebake.mjs` bakes each into
+`world/shippedBake.ts` `SHIPPED_BAKE_MAPS` (campusOps; a list since piano SO2): `scripts/prebake.mjs` bakes each into
 its own `.prebake-cache/<h>/` folder and the game reads `bakes/<map>.json` for each; a map with no section split ships
 one file.
 Brief and decisions SB1-SB14: docs/sector-redesign/briefs/SECTION-BAKE.md; build report

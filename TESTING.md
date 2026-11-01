@@ -98,7 +98,6 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
   it raises the joiner's light meter as it raises the host's.
-- [ ] Storm mill hunt (guard-ai mill-hunt, `?piano=1&millhunt=1`): after the EMP every guard searches (weapon up, torch on) and never calms; they walk slowly room by room towards you, never more than 2 in a room; get seen and he fights, break contact and he searches on; a checkpoint restart starts the hunt again. `?millhunt=0`: the calm sweep as before.
 - [ ] Search after combat (guard-ai S25): get seen, break contact and crouch in a dark corner or behind cover a few
   metres from where you were seen: the first searcher comes to it and looks into it. Hide farther, in light or behind
   a wall: they search the near dark spots first; a body or a device search still walks its ring.
@@ -484,8 +483,8 @@ Main menu > Sector Ops > Saltmarsh Park > Start, pad first, then keyboard (E is 
   a downed partner revives; a team move is named on the partner ("Take the leg-up"); offering a leg-up beside a switch,
   A still uses the switch; beside the partner's held guard, A is the team takedown and Y bluffs when he knows
   something. A client's "hold Bash" is a plain open through the host, as today.
-- [ ] Main menu > Piano Escape, after the EMP: on a guard, `[A] Knife takedown` and `[RT] Knife takedown` show; A
-  (tap or hold) or the attack button holstered is the knife kill; no grab.
+- [ ] Knife kills (any map): faced on a guard, A hold Kill plays the paired knife kill (the knife in hand, both bodies
+  move together, quiet); A tap still knocks out, from behind A still grabs, RT holstered is still the palm strike.
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.

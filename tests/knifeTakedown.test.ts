@@ -1,8 +1,9 @@
-// (piano-knife S1) The takedown controller with the knife switch (BRIEF A1, A2, A5, A6, A14) on a fake game (as
-// `tests/hangDownTakedown.test.ts`): off, behind / corner / front run exactly today's events and noise; on, one press is
-// a lethal knife kill (no grab, 1.2 m, `knife: true`, the victim dead, the drives played), with the -1 path for a
-// victim without `knifeVictim` and for clips not yet loaded; damage before the stab aborts, after it finishes; at the
-// end the knife is away and both drives are off.
+// (piano-knife S1; knife-kills) The takedown controller's paired knife kill on a fake game (as
+// `tests/hangDownTakedown.test.ts`): on every map the lethal start (`start(true)`, a lethal-only offer) on a guard on two
+// legs from a kind with a row is the knife kill (1.2 m, `knife: true`, the victim dead, the drives played); the knockout,
+// the grab and the kinds without a row are today's; a victim without `knifeVictim` and clips not yet loaded fall back to
+// the classic lethal move; damage before the stab aborts, after it finishes; at the end the knife is away and both drives
+// are off. No scene-only rules (no forced lethal, no grab suppression, no knife on an alert guard who knows).
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import { TAKEDOWN, type TakedownKind, type TakedownPlan } from '../src/game/takedown';
@@ -20,6 +21,8 @@ interface Victim extends TakedownVictim {
   lastClip: unknown;
   lastPh: number;
   lastBuckle: number;
+  /** `beginTakedown`'s choke argument, and whether the controller's knife kill was already on at that call. */
+  chokes: boolean[];
 }
 
 function victim(yaw: number, withKnife: boolean): Victim {
@@ -34,13 +37,15 @@ function victim(yaw: number, withKnife: boolean): Victim {
     lastClip: undefined,
     lastPh: -1,
     lastBuckle: 0,
+    chokes: [],
     def: { quadruped: false, kind: 'grunt' } as unknown as TakedownVictim['def'],
     alerted: false,
     level: 'unaware' as TakedownVictim['level'],
     bodyRig: { emote: null } as unknown as TakedownVictim['bodyRig'],
     taken: false,
-    beginTakedown() {
+    beginTakedown(choke: boolean) {
       this.taken = true;
+      this.chokes.push(choke);
     },
     holdAt(x: number, y: number, z: number, yy: number) {
       this.pos.set(x, y, z);
@@ -118,9 +123,9 @@ function stage(v: Victim): Stage {
 }
 
 /** An offer of `kind` on `v` (the plan as the geometry gives it: the attacker steps to the standoff behind / in front). */
-function offer(s: Stage, v: Victim, kind: TakedownKind): void {
+function offer(s: Stage, v: Victim, kind: TakedownKind, lethalOnly = false): void {
   const plan: TakedownPlan = { kind, alignX: 0, alignY: 0, alignZ: 0.8 - TAKEDOWN.standoff, faceYaw: 0, approach: TAKEDOWN.approach, arc: 0, strike: TAKEDOWN.strike, victimTo: null };
-  s.td.offer = { e: v, plan, lethalOnly: false };
+  s.td.offer = { e: v, plan, lethalOnly };
 }
 
 /** Steps until the attacker is free (the move and its tail), at most `max`. */
@@ -140,46 +145,57 @@ beforeAll(async () => {
   expect(knifeClipsReady()).toBe(true);
 });
 
-describe('piano-knife S1: switch off = today', () => {
+describe('knife-kills: the knockout stays today', () => {
   for (const kind of KINDS) {
-    it(`${kind}: the knockout row and the lethal move, today's events and noise, no knife`, () => {
-      for (const lethal of [false, true]) {
-        const v = victim(kind === 'front' ? Math.PI : 0, true);
-        const s = stage(v);
-        offer(s, v, kind);
-        s.td.start(lethal);
-        expect(s.td.active?.grab).toBeNull();
-        runOut(s);
-        expect(s.ev.map((e) => [e.phase, e.lethal, e.kind])).toEqual([
-          ['start', lethal, kind],
-          ['done', lethal, kind],
-        ]);
-        for (const e of s.ev) expect('knife' in e).toBe(false);
-        expect(s.hears).toEqual([lethal ? 3 : 1.2]);
-        expect(lethal ? v.killed : v.ko).toBe(true);
-        expect(s.knife.shows).toBe(0);
-        expect(v.calls).toBe(0);
-        expect(s.graph.kill).toBeNull();
-        expect(s.td.done.byKind[kind]).toBe(1);
-      }
-    });
-  }
-});
-
-describe('piano-knife S1: switch on = the paired knife kill', () => {
-  for (const kind of KINDS) {
-    it(`${kind}: one press, no grab, lethal at 1.2 m, knife: true, the victim dead, knife away and drives off at the end`, () => {
+    it(`${kind}: start(false) is the knockout, today's events and noise, no knife`, () => {
       const v = victim(kind === 'front' ? Math.PI : 0, true);
       const s = stage(v);
-      s.td.setKnifeScene(true);
       offer(s, v, kind);
-      s.td.start();
+      s.td.start(false);
+      expect(s.td.active?.grab).toBeNull();
+      expect(s.td.kr).toBe(-1);
+      runOut(s);
+      expect(s.ev.map((e) => [e.phase, e.lethal, e.kind])).toEqual([
+        ['start', false, kind],
+        ['done', false, kind],
+      ]);
+      for (const e of s.ev) expect('knife' in e).toBe(false);
+      expect(s.hears).toEqual([1.2]);
+      expect(v.ko).toBe(true);
+      expect(s.knife.shows).toBe(0);
+      expect(v.calls).toBe(0);
+      expect(s.graph.kill).toBeNull();
+      expect(s.td.done.byKind[kind]).toBe(1);
+    });
+  }
+
+  it('from behind with no choice made: the grab (no knife), as today', () => {
+    const v = victim(0, true);
+    const s = stage(v);
+    offer(s, v, 'behind');
+    s.td.start();
+    expect(s.td.active?.grab).not.toBeNull();
+    expect(s.td.active?.lethal).toBe(false);
+    expect(s.td.kr).toBe(-1);
+    expect(s.knife.shows).toBe(0);
+  });
+});
+
+describe('knife-kills: the lethal takedown is the paired knife kill', () => {
+  for (const kind of KINDS) {
+    it(`${kind}: start(true), lethal at 1.2 m, knife: true, the victim dead, knife away and drives off at the end`, () => {
+      const v = victim(kind === 'front' ? Math.PI : 0, true);
+      const s = stage(v);
+      offer(s, v, kind);
+      s.td.start(true);
       const a = s.td.active!;
       expect(a.grab).toBeNull();
       expect(a.lethal).toBe(true);
       expect(a.decided).toBe(true);
       expect(s.td.kr).toBe(kind === 'behind' ? 0 : kind === 'corner' ? 2 : 3);
       expect(s.knife.shown).toBe(true);
+      // the lethal struggle (never a choke)
+      expect(v.chokes).toEqual([false]);
       let drove = false;
       let melee = false;
       let buckled = 0;
@@ -207,6 +223,8 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
         ['start', true, kind, true],
         ['done', true, kind, true],
       ]);
+      // a kill (the rating counts `done.lethal`), by kind `knife`
+      expect(s.td.done.lethal).toBe(1);
       expect(s.td.done.byKind.knife).toBe(1);
       // the tail: the attacker held, no offer, the knife still in hand, then free
       expect(s.knife.shown).toBe(true);
@@ -225,12 +243,36 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
     });
   }
 
+  it('the knife kill is on before the victim is seized (a co-op puppet tells the host at `beginTakedown`)', () => {
+    const v = victim(0, true);
+    const s = stage(v);
+    let onAtSeize: boolean | null = null;
+    const begin = v.beginTakedown.bind(v);
+    v.beginTakedown = (choke: boolean, delay?: number) => {
+      onAtSeize = s.td.knifeOn;
+      begin(choke, delay);
+    };
+    offer(s, v, 'behind');
+    s.td.start(true);
+    expect(onAtSeize).toBe(true);
+  });
+
+  it('a lethal-only offer started with no choice: the knife kill; forced non-lethal: no knife', () => {
+    for (const lethal of [undefined, false] as const) {
+      const v = victim(Math.PI, true);
+      const s = stage(v);
+      offer(s, v, 'front', true);
+      s.td.start(lethal);
+      expect(s.td.kr, String(lethal)).toBe(lethal === undefined ? 3 : -1);
+      expect(s.knife.shown).toBe(lethal === undefined);
+    }
+  });
+
   it('the move runs to limp from the clip start (A15 timing): the kill at approach + limp x seconds', () => {
     const v = victim(0, true);
     const s = stage(v);
-    s.td.setKnifeScene(true);
     offer(s, v, 'behind');
-    s.td.start();
+    s.td.start(true);
     let n = 0;
     while (s.td.active && n < 600) {
       s.td.fixedUpdate(DT, false, false);
@@ -240,43 +282,40 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
     expect(n * DT).toBeCloseTo(TAKEDOWN.approach + R.limp * R.seconds, 1);
   });
 
-  it('a victim without knifeVictim: the -1 path (lethal, knife shown, then away)', () => {
-    const v = victim(0, false);
-    const s = stage(v);
-    s.td.setKnifeScene(true);
-    offer(s, v, 'behind');
-    s.td.start();
-    expect(s.td.kr).toBe(-1);
-    expect(s.td.active?.grab).toBeNull();
-    expect(s.td.active?.lethal).toBe(true);
-    expect(s.knife.shown).toBe(true);
-    runOut(s);
-    expect(v.killed).toBe(true);
-    // (S2, S1 checker polish) every piano kill is quiet: the -1 path at the knife's radius too
-    expect(s.hears).toEqual([KNIFE.noise]);
-    expect(s.ev.map((e) => [e.phase, e.lethal, e.knife])).toEqual([
-      ['start', true, true],
-      ['done', true, true],
-    ]);
-    expect(s.knife.shown).toBe(false);
-    expect(s.graph.kill).toBeNull();
+  it('no row: a victim without knifeVictim, a kind without a row, a dog: the classic lethal move, no knife', () => {
+    const cases: [Victim, TakedownKind][] = [[victim(0, false), 'behind'], [victim(0, true), 'drop'], [victim(0, true), 'below']];
+    const dog = victim(0, true);
+    (dog as { def: unknown }).def = { quadruped: true, kind: 'dog' };
+    cases.push([dog, 'behind']);
+    for (const [v, kind] of cases) {
+      const s = stage(v);
+      offer(s, v, kind);
+      s.td.start(true);
+      expect(s.td.kr, kind).toBe(-1);
+      expect(s.td.active?.lethal).toBe(true);
+      expect(s.knife.shows).toBe(0);
+      runOut(s);
+      expect(v.killed, kind).toBe(true);
+      expect(s.hears).toEqual([3]);
+      expect('knife' in s.ev[0]!).toBe(false);
+      expect(s.graph.kill).toBeNull();
+    }
   });
 
-  it('switch on before the clips resolve: the -1 path', async () => {
+  it('before the clips resolve: the classic lethal move', async () => {
     resetKnifeClipsForTest();
     try {
       const v = victim(0, true);
       const s = stage(v);
-      s.td.setKnifeScene(true);
       expect(knifeClipsReady()).toBe(false);
       offer(s, v, 'behind');
-      s.td.start();
+      s.td.start(true);
       expect(s.td.kr).toBe(-1);
-      expect(s.knife.shown).toBe(true);
+      expect(s.knife.shows).toBe(0);
       runOut(s);
       expect(v.killed).toBe(true);
       expect(v.calls).toBe(0);
-      expect(s.knife.shown).toBe(false);
+      expect(s.hears).toEqual([3]);
     } finally {
       await loadKnifeClips();
     }
@@ -290,9 +329,8 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
     {
       const v = victim(0, true);
       const s = stage(v);
-      s.td.setKnifeScene(true);
       offer(s, v, 'behind');
-      s.td.start();
+      s.td.start(true);
       for (let n = 0; n < contactSteps - 10; n++) s.td.fixedUpdate(DT, false, false);
       expect(s.td.active).not.toBeNull();
       s.hp.hp -= 10;
@@ -315,9 +353,8 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
     {
       const v = victim(0, true);
       const s = stage(v);
-      s.td.setKnifeScene(true);
       offer(s, v, 'behind');
-      s.td.start();
+      s.td.start(true);
       for (let n = 0; n < contactSteps + 5; n++) s.td.fixedUpdate(DT, false, false);
       expect(s.td.active).not.toBeNull();
       expect(v.alive).toBe(true);
@@ -330,29 +367,6 @@ describe('piano-knife S1: switch on = the paired knife kill', () => {
       expect(s.knife.shown).toBe(false);
       expect(s.graph.kill).toBeNull();
     }
-  });
-
-  it('the switch off again restores today; a quadruped is never a knife kill', () => {
-    const v = victim(0, true);
-    const s = stage(v);
-    s.td.setKnifeScene(true);
-    s.td.setKnifeScene(false);
-    offer(s, v, 'behind');
-    s.td.start(true);
-    runOut(s);
-    expect(s.hears).toEqual([3]);
-    expect(s.knife.shows).toBe(0);
-    expect('knife' in s.ev[0]!).toBe(false);
-    const d = victim(0, true);
-    (d as { def: unknown }).def = { quadruped: true, kind: 'dog' };
-    const s2 = stage(d);
-    s2.td.setKnifeScene(true);
-    offer(s2, d, 'behind');
-    s2.td.start(true);
-    expect(s2.td.kr).toBe(-1);
-    expect(s2.knife.shows).toBe(0);
-    runOut(s2);
-    expect('knife' in s2.ev[0]!).toBe(false);
   });
 });
 
@@ -370,9 +384,8 @@ describe('piano-knife S3: the side kill', () => {
       const v = victim(yaw, true);
       const s = stage(v);
       (s.controller as unknown as { crouched: boolean }).crouched = crouched;
-      s.td.setKnifeScene(true);
       offer(s, v, 'side');
-      s.td.start();
+      s.td.start(true);
       expect(s.td.kr, `yaw ${yaw}`).toBe(row);
       expect((s.td as unknown as { kFromYaw: number }).kFromYaw).toBe(yaw);
     }
@@ -382,9 +395,8 @@ describe('piano-knife S3: the side kill', () => {
     for (const yaw0 of [0, 0.4, 1.2, Math.PI / 2, 2, -1.4, -Math.PI / 2, Math.PI]) {
       const v = victim(yaw0, true);
       const s = stage(v);
-      s.td.setKnifeScene(true);
       offer(s, v, 'side');
-      s.td.start();
+      s.td.start(true);
       let turn = 0;
       for (let n = 0; n < 600 && s.td.active; n++) {
         s.td.fixedUpdate(DT, false, false);
@@ -402,9 +414,8 @@ describe('piano-knife S3: busy through the tail at the gates', () => {
     const { TeamController } = await import('../src/game/teamController');
     const v = victim(0, true);
     const s = stage(v);
-    s.td.setKnifeScene(true);
     offer(s, v, 'behind');
-    s.td.start();
+    s.td.start(true);
     for (let n = 0; n < 600 && s.td.active; n++) s.td.fixedUpdate(DT, false, false);
     expect(s.td.active).toBeNull();
     expect(s.td.busy).toBe(true);
@@ -416,24 +427,14 @@ describe('piano-knife S3: busy through the tail at the gates', () => {
   });
 });
 
-describe('knife-when-spotted (Michael walk 2026-10-27 ~09:40 "knife kill should still work when spotted")', () => {
-  /** The offer the scan finds on `v` after a few steps (none: null). */
-  function scanned(s: Stage): unknown {
+describe('knife-kills: no knife-when-spotted', () => {
+  it('a guard who has seen her and is alert is not on offer (today, the scene rule is gone)', () => {
+    const v = victim(0, true);
+    (v as { alerted: boolean }).alerted = true;
+    (v as { level: string }).level = 'alert';
+    const s = stage(v);
+    (s.g as unknown as { spottedLocal: boolean }).spottedLocal = true;
     for (let n = 0; n < 10; n++) s.td.fixedUpdate(DT, false, false);
-    return s.td.offer;
-  }
-
-  it('a guard who has seen her and is alert: on offer with the knife switch on, not with it off (today)', () => {
-    for (const knifeOn of [true, false]) {
-      const v = victim(0, true);
-      (v as { alerted: boolean }).alerted = true;
-      (v as { level: string }).level = 'alert';
-      const s = stage(v);
-      (s.g as unknown as { spottedLocal: boolean }).spottedLocal = true;
-      s.td.setKnifeScene(knifeOn);
-      const o = scanned(s);
-      if (knifeOn) expect(o, 'knife scene: offered').not.toBeNull();
-      else expect(o, 'switch off: today, no surprise takedown on an alert guard who knows').toBeNull();
-    }
+    expect(s.td.offer).toBeNull();
   });
 });

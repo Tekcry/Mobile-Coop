@@ -51,8 +51,7 @@ import { DualClock } from '../game/dualTakedown';
 import { assistHolder } from './assistTakedown';
 import type { TakedownVictim } from '../game/takedownController';
 import { stationHeal } from '../game/medkit';
-import { REVIVES_PER_MISSION, ReviveClock } from '../game/reviveClock';
-import { isPianoScene } from '../game/pianoScene';
+import { ReviveClock } from '../game/reviveClock';
 import { campaignReviveCap, isCampaignMission } from '../game/mission/campaign';
 import type { MissionDef } from '../game/mission/missionDef';
 import { pickMission } from '../game/mission/sectorMission';
@@ -171,7 +170,7 @@ export class CoopHost implements NetAttachment {
   /** Revive points on downed players (co-op). */
   private revives = new Map<string, Interactable>();
   /** Enemies seized by a client's takedown: enemy id -> client id and seconds held; (hostage-gait) the hold point feed. */
-  private seized = new Map<string, { by: string; t: number; hostage?: boolean; hang?: HangSpot } & HoldFeed>();
+  private seized = new Map<string, { by: string; t: number; hostage?: boolean; hang?: HangSpot; knife?: boolean } & HoldFeed>();
   /** (coop-walk-fixes P6) A client's team takedown under way on a partner's hostage: client id -> enemy id. */
   private assists = new Map<string, string>();
   /** (joint-interrogation, G148) Live bluffs: bluffer id -> the guard and the host time it started. Stale entries go at
@@ -243,8 +242,6 @@ export class CoopHost implements NetAttachment {
     // G126) a campaign mission: 2 at every difficulty. `g.world.map` is set: the world is built before `attach`.
     // (campaign-mode CM3) a Continue keeps its revives used (`campaignResume` is set only with `flags.campaign`)
     this.campaign = matchRevives(this.reviveClock, mode, g.opts.difficulty, g.world.map.missions, s.sectorMission, g.opts.campaignResume);
-    // (piano-escape S4) a scene map on the Sector Ops runtime keeps the campaign cap (`REVIVES_PER_MISSION`, PLAN "Downed")
-    if (mode === 'sector' && isPianoScene(g.world.map)) this.reviveClock.cap = REVIVES_PER_MISSION;
     this.lampTx = mode === 'sector' ? new LampSender() : null;
     this.lampShots = hostLampShots(mode);
     this.soloRemotes = g.remotePlayers;
@@ -962,10 +959,9 @@ export class CoopHost implements NetAttachment {
       if (m.ph === 'start') deny();
       return;
     }
-    // (piano-knife S3, PLAN-CHECK-3 item 4) the host's knife switch decides: a knife start only while it is on; with it on
-    // no other takedown start (assist included; a bluff is speech, never a seize)
-    const kOn = this.g.takedown.knife;
-    if (m.ph === 'start' && (m.kind === 'knife' ? !kOn : kOn && m.kind !== 'bluff')) {
+    // (knife-kills) a knife start is a lethal start (the client's lethal takedown with a row), else refused
+    const knife = m.kind === 'knife';
+    if (m.ph === 'start' && knife && !m.lethal) {
       deny();
       return;
     }
@@ -983,15 +979,14 @@ export class CoopHost implements NetAttachment {
     const held = this.seized.get(e.id);
     if (m.ph === 'start') {
       // (G348) never a dog, whatever the client offered
-      // (knife-when-spotted) with the knife switch on a spotted client still takes an alert guard in reach
-      if (!r.alive || e.def.quadruped || (held && held.by !== r.id) || (!held && e.taken) || (r.ref.spotted && e.level === 'alert' && !kOn) || hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z) > TD_REACH) {
+      if (!r.alive || e.def.quadruped || (held && held.by !== r.id) || (!held && e.taken) || (r.ref.spotted && e.level === 'alert') || hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z) > TD_REACH) {
         deny();
         return;
       }
       // (G7) the struggle from the client's contact (derived from where it stands: no wire data)
-      // (piano-knife S3) with the knife switch on: the lethal struggle (a knife kill is never a choke)
-      e.beginTakedown(kOn ? false : !m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
-      this.seized.set(e.id, { by: r.id, t: 0, ...holdFeed() });
+      e.beginTakedown(!m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
+      // (knife-kills) a knife kill's seize remembers it: its `done` is quiet (the knife's radius)
+      this.seized.set(e.id, { by: r.id, t: 0, ...(knife ? { knife: true } : {}), ...holdFeed() });
       // (joint-flake-3 check) a td 'start' resets interPh: a read aborted mid-way (the td 'abort' ends the seize before
       // a seized step sees the hold go) never counts as ended on this new hold's first step (`interrogationEnded`)
       this.interPh.delete(e.id);
@@ -1008,11 +1003,11 @@ export class CoopHost implements NetAttachment {
     e.bodyRig.emote = null;
     const dir = new Vector3(e.pos.x - r.feet.x, 0, e.pos.z - r.feet.z).normalize();
     const hit = { amount: 9999, point: e.pos.clone(), dir, part: 'body' as const, kind: 'melee' as const, attackerTeam: 'player' as const, attackerId: r.id, sourcePos: r.feet.clone(), impulse: 1 };
-    // (piano-knife S3) no knockout while the knife switch is on; every piano kill quiet (A5: the knife's radius)
-    const lethal = m.lethal || kOn;
-    if (lethal) e.applyDamage(hit);
+    // (piano-knife S3, A5) a knife kill is lethal and quiet (the knife's radius)
+    const kn = held.knife === true;
+    if (m.lethal || kn) e.applyDamage(hit);
     else e.knockOut(hit);
-    this.g.enemyMgr?.hear(r.feet, kOn ? KNIFE.noise : m.lethal ? 3 : 1.2, 'noise', null, r.ref.id);
+    this.g.enemyMgr?.hear(r.feet, kn ? KNIFE.noise : m.lethal ? 3 : 1.2, 'noise', null, r.ref.id);
     this.takedownDone(r.id);
     this.g.mode?.onRemoteTakedown?.(r.id, m.kind ?? '');
   }
@@ -1182,8 +1177,6 @@ export class CoopHost implements NetAttachment {
 
   /** (throw-ko) The thrown player `by` (feet at `at`) came down on `e`: knocked out through the game's own path. */
   private throwKnockOut(by: string, e: Enemy, at: { readonly x: number; readonly y: number; readonly z: number }): void {
-    // (piano-knife S3, A10: "only knife kills") no throw knockout while the knife switch is on
-    if (this.g.takedown.knife) return;
     const src = new Vector3(at.x, at.y, at.z);
     const dir = new Vector3(e.pos.x - at.x, 0, e.pos.z - at.z);
     if (dir.lengthSquared() > 1e-6) dir.normalize();
@@ -1408,14 +1401,6 @@ export class CoopHost implements NetAttachment {
     const alive = self ? this.g.player.alive : r!.alive;
     const mode = self ? 'ground' : (r!.state?.mv?.m ?? 'ground');
     const active = !self && this.strikes.has(by);
-    // (piano-knife S3, PLAN-CHECK-3 item 3) no RT strike while the knife switch is on (Michael: "Palm strike knockout
-    // disabled, only knife kills"): refused as busy (an existing reason), no `strikes` entry, so it never knocks out
-    if (kind === 'strike' && this.g.takedown.knife) {
-      this.commitLast.set(by, now);
-      this.s.send({ t: 'cdeny', a: by, id, kind, reason: 'busy' });
-      if (self) this.g.strike.denied(id, 'busy');
-      return;
-    }
     const why = checkCommitted({
       kind,
       alive,

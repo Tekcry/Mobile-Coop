@@ -61,6 +61,7 @@ the old `warehouseOps` stays selectable, frozen, G390).
 | `docs/systems/lighting.md` | Light registry, baked lamps, lamp volume | Light work |
 | `docs/systems/ai.md` | Perception, alert states, archetypes, nav grid, mode hooks | AI work |
 | `docs/systems/takedowns.md` | Takedowns, grab, palm strike | Takedown work |
+| `docs/knife-kills/` | The paired knife kills' decisions and slices (built as piano-knife for the removed piano scene; now every map's lethal takedown) | Knife kill work |
 | `docs/systems/gadgets.md` | Gadgets, wheel, remote views | Gadget work |
 | `docs/systems/modes-and-progression.md` | Infiltration, Hunter, arsenal / suit / HQ, cosmetics (parked) | Mission framework |
 | `docs/systems/saves.md` | Progression maths, save schema, migrations | Any save change |

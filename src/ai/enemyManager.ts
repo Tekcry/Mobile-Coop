@@ -53,10 +53,6 @@ import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_P
 import { PairMeet, PAIRS, pickMeet, postedDef, type MeetPick, type PairGuard } from './pairs';
 // (guard-rules S6) posted pairs and the walking-together check, read at load time only (`buildPair`)
 import { flags } from '../core/flags';
-// (guard-ai mill-hunt H3) the storm mill's hunt board (`flags.millHunt`, a section with `hunt`)
-import { HuntBoard } from './millHunt';
-import type { HuntDef } from '../game/sectors';
-import type { MapDef } from '../world/mapDef';
 // (guard-ai S14) section alert: missed check-ins and loud shots
 import { MISSING, SHOTS } from './gear';
 // (guard-ai S17, Michael's walk of 4.72 G1) a tripped device is an incident at the device, never the player
@@ -65,7 +61,7 @@ import { MODE_DEVICE } from './incidents';
 // (guard-ai S19, walk 4.72 G3) guards hurry to a dead body the radio reported
 import { MODE_HELP } from './incidents';
 import { URGENT } from './gear';
-import { SEARCH_BLACKOUT, urgentKind } from './response';
+import { urgentKind } from './response';
 import { ALERT_MISSING, ALERT_SHOTS, AlertCallLog, SectionCounters, unitOf, type SectionCounts } from './sectionAlert';
 // (guard-ai S20) doors on the walker's way
 import { DoorGate } from './doorGate';
@@ -87,8 +83,6 @@ export interface TalkPair {
   readonly pm: PairMeet;
   readonly sa: number;
   readonly sb: number;
-  /** (guard-ai piano GA6b, F1) A scene sweep pair's missing-partner watch only (no meetings, no lines). */
-  readonly watchOnly?: boolean;
 }
 
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
@@ -149,10 +143,6 @@ const PLAN_MOVE = 1;
 const PLAN_COVER = 1024;
 const PLAN_LATTICE = 2 * Math.floor(SEARCH_AREA.max / SEARCH_AREA.lattice) + 1;
 const PLAN_CAND = PLAN_COVER + PLAN_LATTICE * PLAN_LATTICE;
-
-/** (guard-ai mill-hunt H3) The hunt's first targets are each line's phase-0 room stop nearest this: W1, the intro wall
- *  (the scene's blackout search point, `pianoScene.ts` `SEARCH_X` / `SEARCH_Z`; mill-hunt PLAN "Order"). */
-export const MILL_HUNT_W1: readonly [number, number] = [5.5, 5.25];
 
 /** Owns enemies, the shared chase flow field, cover reservations, bodies (ragdolls), alarms and flashlights. */
 export class EnemyManager {
@@ -356,35 +346,6 @@ export class EnemyManager {
    * gunfire sends everyone in reach to combat (the old rule).
    */
   coordinated = true;
-  /**
-   * (piano escape GA1) The scene's blackout (set by the scene after its EMP, `flags.pianoEscape` only): every guard
-   * who carries a torch has it on in every state (`Enemy.torchWanted`). Off: the torch rule as built.
-   * (guard-ai piano GA6b) And the slow methodical sweep (`sceneSweep.ts`). Every set to true (the EMP, each restart)
-   * restarts the sweep clock at 0, clears the talking pairs and puts every placed guard on his sweep (`sweepify`); while
-   * true a guard placed is swept instead of paired (a sweep pair gets the missing-partner watch only, F1) and a partner
-   * follows a glimpse (`glimpseFollow`). Set false (N4): every guard off his sweep, the watch-only pairs gone.
-   */
-  get sceneDark(): boolean {
-    return this.darkOn;
-  }
-  set sceneDark(on: boolean) {
-    if (on) this.sceneDarkOn();
-    else if (this.darkOn) this.sceneDarkOff();
-    this.darkOn = on;
-  }
-  private darkOn = false;
-  /** (GA6b) The scene's sweep clock (s since the last `sceneDark = true`; ticks in `update` while dark). */
-  sweepClock = 0;
-  /** (GA6b, GA7) Per slot, the last `riseN` the glimpse follow saw (sized at section load, `placeSlot`). */
-  private followSeen = new Int32Array(32);
-  /**
-   * (guard-ai mill-hunt H3) The storm mill's hunt (`src/ai/millHunt.ts`; BRIEF A1-A16): built empty at every
-   * `sceneDark = true` when `flags.millHunt` is on and the live section has a `hunt` (else null: GA6's sweep and GA7's
-   * glimpse follow as built, A13). Every guard goes on it (`Enemy.mhStart`: searching for good), every guard placed or
-   * woken in the dark is admitted (`mhAdmit`), and it ticks with the incident board (0.2 s, `mhTick`: the goals are read
-   * from its arrays, no callback). `sceneDark = false` drops it.
-   */
-  millHunt: HuntBoard<Enemy> | null = null;
   /** (guard-ai S1) The map's noisy things (machinery, generators, vents): they mask sounds for guards near them. */
   private noisy: readonly NoisySource[] = [];
   /** (guard-ai S5) The map's own noisy things (`MapLayout.guardAi.noisy`); Sector Ops swaps in a section's
@@ -732,7 +693,6 @@ export class EnemyManager {
       },
       stealth: () => this.stealth,
       coordinated: () => this.coordinated,
-      sceneDark: () => this.sceneDark,
       // (guard-ai-j16 G3, plan check 1 item 1) getters, never values: G4a / G4b set the fields after construction
       chars: () => this.chars,
       cues: () => this.cues,
@@ -1345,34 +1305,6 @@ export class EnemyManager {
   }
 
   /**
-   * (piano escape GA3) The scene blackout's one reaction: each of `guards` (the scene's G1-G4, just spawned on the intro
-   * actors' spots) starts the search round (x, z) at once (`SEARCH_BLACKOUT`: rings out to ~6 m, the plain search's
-   * length), no radio, no board; when it ends each goes back to his fixed round as built. The rest keep their posts and
-   * rounds. Not hot (once, at the EMP). Returns how many started.
-   */
-  blackoutSearch(guards: readonly Enemy[], x: number, z: number): number {
-    let n = 0;
-    for (let i = 0; i < guards.length; i++) {
-      const e = guards[i]!;
-      if (!e.alive || e.alerted || e.taken) continue;
-      e.searchAt(x, z, null, SEARCH_BLACKOUT);
-      n++;
-    }
-    return n;
-  }
-
-  /** (piano escape GA3, check B) `blackoutSearch` by the live section's slot indices (its guard list order: the plan's
-   *  `mill:0`-`mill:3` are slots 0-3); an empty slot is skipped. Not hot. Returns how many started. */
-  blackoutSearchSlots(slots: readonly number[], x: number, z: number): number {
-    const list: Enemy[] = [];
-    for (let i = 0; i < slots.length; i++) {
-      const e = this.slotGuard[slots[i]!];
-      if (e) list.push(e);
-    }
-    return this.blackoutSearch(list, x, z);
-  }
-
-  /**
    * Lights went out at a point (a lamp shot out, a wall switch, a circuit cut; every lights-out path comes here).
    * (x, y, z): the fixture (or the switch: where guards walk to); `lightId` the lamp that went (registry id) or
    * `group` the circuit (-1 none: the point itself is the fixture).
@@ -1387,8 +1319,6 @@ export class EnemyManager {
    * 14 m look).
    */
   lightsOut(x: number, z: number, y = Number.NaN, lightId = -1, group = -1): void {
-    // (piano escape GA3) in a scene blackout the scene's one reaction (`blackoutSearch`) is the only one: no incident
-    if (this.sceneDark) return;
     if (!this.coordinated) {
       this.lightsOutOld(x, z, y);
       return;
@@ -1939,8 +1869,6 @@ export class EnemyManager {
     this.enemies.push(e);
     this.removeBody(b);
     e.searchAt(e.pos.x, e.pos.z, null);
-    // (guard-ai mill-hunt H3) woken in the hunt: back on it (admitted at the next board tick)
-    if (this.millHunt) e.mhStart();
     if (by) this.woke(by, e);
     this.onRevived?.(e, b);
   }
@@ -1960,9 +1888,6 @@ export class EnemyManager {
   private swapSlot(old: Enemy, e: Enemy): void {
     const k = e.slotIdx;
     if (k >= 0 && k < this.slotGuard.length && this.slotGuard[k] === old) this.slotGuard[k] = e;
-    // (GA6b) his sweep partner's skip follows him; the glimpse follow starts from his own rise count
-    if (old.sweepMate && old.sweepMate.sweepMate === old) old.sweepMate.sweepMate = e;
-    if (this.darkOn && k >= 0 && k < this.followSeen.length) this.followSeen[k] = e.riseN;
     const list = this.enemies;
     for (let i = 0; i < list.length; i++) {
       const d = list[i]!;
@@ -2380,8 +2305,6 @@ export class EnemyManager {
     if (inList) {
       if (slots !== this.tagSlots) {
         if (this.tagSquad.length < slots.length) this.tagSquad = new Int32Array(slots.length);
-        // (GA6b, GA7) the glimpse follow's buffer, at section load
-        if (this.followSeen.length < slots.length) this.followSeen = new Int32Array(slots.length);
         slotSquads(slots, e.section, this.tagSquad);
         this.tagSlots = slots;
         // (guard-ai S10) a new section's list: its own pairs (nobody left standing in an old pair's hold)
@@ -2413,184 +2336,8 @@ export class EnemyManager {
         if (d.dog && d.handlerSlot === index && d.handler === null) this.bindDog(d, e);
       }
     }
-    // (guard-ai S10) the second of a talking pair placed: the pair is built; (GA6b) in the scene's dark: his sweep, a
-    // sweep pair's watch only (no meetings, no lines)
-    // (guard-ai mill-hunt H3) the hunt on: on it and admitted (the spawn after the dark, a late spawn), never swept
-    if (this.darkOn && this.millHunt) {
-      e.mhStart();
-      if (e.mhOn) this.mhAdmit(this.millHunt, e);
-    } else if (this.darkOn) this.sweepify(e, inList ? index : -1);
-    else if (inList) this.buildPair(e, index);
-  }
-
-  /** (GA6b) `sceneDark = true` (every set: the EMP, each restart): the clock from 0, no talking pairs, everyone swept. */
-  private sceneDarkOn(): void {
-    this.darkOn = true;
-    this.sweepClock = 0;
-    for (let k = 0; k < this.pairs.length; k++) {
-      const p = this.pairs[k]!;
-      const a = this.guardAtSlot(p.sa);
-      const b = this.guardAtSlot(p.sb);
-      if (a) a.pairFace = Number.NaN;
-      if (b) b.pairFace = Number.NaN;
-    }
-    this.pairs.length = 0;
-    const list = this.enemies;
-    // (guard-ai mill-hunt H3) the hunt on: no sweep; the board built empty, every guard on the hunt and admitted
-    this.millHunt = this.huntBoard();
-    const hb = this.millHunt;
-    if (hb) {
-      for (let i = 0; i < list.length; i++) {
-        const e = list[i]!;
-        e.mhStart();
-        if (e.mhOn) this.mhAdmit(hb, e);
-      }
-      return;
-    }
-    for (let i = 0; i < list.length; i++) {
-      const e = list[i]!;
-      const k = e.slotIdx;
-      this.sweepify(e, k >= 0 && k < this.slotGuard.length && this.slotGuard[k] === e ? k : -1);
-    }
-  }
-
-  /**
-   * (guard-ai mill-hunt H3) A new, empty hunt board for the live section (`flags.millHunt` on and the section's `hunt`;
-   * the radio net's section is the live one), its first targets nearest W1 (`MILL_HUNT_W1`); null: no hunt. Load time
-   * (the EMP, a restart, a clear while dark): the only allocation.
-   */
-  private huntBoard(): HuntBoard<Enemy> | null {
-    if (!flags.millHunt) return null;
-    const def: HuntDef | undefined = (this.world.map as MapDef | undefined)?.sectors?.[this.radioNet.section]?.hunt;
-    if (!def) return null;
-    return new HuntBoard<Enemy>(def, null, MILL_HUNT_W1[0], MILL_HUNT_W1[1]);
-  }
-
-  /**
-   * (mill-hunt H3) Admit e and cache his board index (`Enemy.mhIdx`): looked up only when the cached one is not his (his
-   * first admit, a new board, a woken guard taking his slot's old index). No allocation.
-   */
-  private mhAdmit(hb: HuntBoard<Enemy>, e: Enemy): void {
-    if (!hb.admit(e)) return;
-    const i = e.mhIdx;
-    if (i < 0 || hb.member(i) !== e) e.mhIdx = hb.memberIndex(e);
-  }
-
-  /**
-   * (guard-ai mill-hunt H3) The hunt at the board tick (replaces GA7's glimpse follow, A10 / A13): a hunt guard found
-   * calm (woken, let go, an investigation over) is back on it at once (A1: never calm); every hunt guard searching is
-   * admitted (a no-op once he is on: this re-admits a guard whose fight ended, PLAN check 2 item 2; a woken guard takes
-   * his slot's index or a freed one, the board's re-pair); then the board ticks, and each hunt guard on it gets his goal
-   * from its arrays (`gx` / `gz` / `gface` / `gspeed` at his `mhIdx`). A fighter, a downed or a held guard leaves the
-   * board on its own. No allocation.
-   */
-  private mhTick(hb: HuntBoard<Enemy>): void {
-    const list = this.enemies;
-    for (let i = 0; i < list.length; i++) {
-      const e = list[i]!;
-      if (!e.mhOn || !e.alive || e.taken) continue;
-      const lv = e.level;
-      if (lv === 'unaware' || lv === 'cooldown') e.mhStart();
-      if (e.level === 'searching') this.mhAdmit(hb, e);
-    }
-    hb.tick(0.2);
-    for (let k = 0; k < list.length; k++) {
-      const e = list[k]!;
-      const i = e.mhIdx;
-      if (!e.mhOn || i < 0 || !hb.mOn[i] || hb.member(i) !== e) continue;
-      e.mhPt[0] = hb.gx[i]!;
-      e.mhPt[1] = hb.gz[i]!;
-      e.mhFace = hb.gface[i]!;
-      e.mhSpeed = hb.gspeed[i]!;
-    }
-  }
-
-  /** (GA6b, N4) `sceneDark = false`: every guard off his sweep (his route rules, rejoined as built), the watch-only pairs
-   *  and the follow buffer cleared. */
-  private sceneDarkOff(): void {
-    const list = this.enemies;
-    for (let i = 0; i < list.length; i++) list[i]!.stopSweep();
-    // (guard-ai mill-hunt H3) and off the hunt (their searches then end as built)
-    for (let i = 0; i < list.length; i++) list[i]!.mhStop();
-    this.millHunt = null;
-    for (let k = this.pairs.length - 1; k >= 0; k--) if (this.pairs[k]!.watchOnly) this.pairs.splice(k, 1);
-    this.followSeen.fill(0);
-  }
-
-  /** (GA6b) His sweep partner: the slot his `pair` tag names, or a placed guard whose tag names him (as `buildPair`). */
-  private sweepPartner(e: Enemy, index: number): Enemy | null {
-    const sg = this.slotGuard;
-    let j = e.pairSlot !== index ? e.pairSlot : -1;
-    if (j < 0 || j >= sg.length || !sg[j])
-      for (let k = 0; k < sg.length; k++) {
-        const o = sg[k];
-        if (k !== index && o && o.pairSlot === index) {
-          j = k;
-          break;
-        }
-      }
-    const o = j >= 0 && j < sg.length ? (sg[j] ?? null) : null;
-    return o && o !== e && !o.dog ? o : null;
-  }
-
-  /**
-   * (GA6b) Put `e` (slot `index`, -1 none) on his scene sweep at the sweep clock: the lower slot of a sweep pair pans left
-   * first (+1), his partner right first (-1); both get the partner and the side (N5: the second may be placed late);
-   * the pair gets the missing-partner watch (F1: a `PairMeet` whose window never opens, `watch` on; GA6-A10: on the
-   * scene whatever `flags.guardPairs` says). A dog heels his handler: not swept. Load time / the EMP only.
-   */
-  private sweepify(e: Enemy, index: number): void {
-    if (e.dog) return;
-    const m = index >= 0 ? this.sweepPartner(e, index) : null;
-    const j = m ? m.slotIdx : -1;
-    const side = m && j < index ? -1 : 1;
-    e.sweepMate = m;
-    e.startSweep(this.sweepClock, side);
-    if (index >= 0 && index < this.followSeen.length) this.followSeen[index] = e.riseN;
-    if (!m) return;
-    m.sweepMate = e;
-    if (m.sweepSide !== -side || !m.sweeping) m.startSweep(this.sweepClock, -side);
-    const lo = Math.min(index, j);
-    const hi = Math.max(index, j);
-    for (let k = 0; k < this.pairs.length; k++) {
-      const p = this.pairs[k]!;
-      if (p.sa === lo && p.sb === hi) {
-        this.pairs.splice(k, 1);
-        break;
-      }
-    }
-    const A = index === lo ? e : m;
-    const B = index === lo ? m : e;
-    const pa = A.postPoint;
-    const pb = B.postPoint;
-    const pm = new PairMeet({ id: e.section * 100 + lo, period: 1, t0: 0, open: 0, close: 0, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]], watch: true });
-    this.pairs.push({ pm, sa: lo, sb: hi, watchOnly: true });
-  }
-
-  /**
-   * (GA6b, GA7: a player seen in a flash) At the board tick while dark: a guard whose rise (`riseN`) moved on sight
-   * (`RISE_SIGHT`) and who is suspicious or investigating sends his sweep partner, if the partner is calm, up and within
-   * `PAIRS.togetherR` (walking with him), to the same spot (`Enemy.followGlimpse`). No allocation.
-   */
-  private glimpseFollow(): void {
-    const sg = this.slotGuard;
-    const seen = this.followSeen;
-    const n = sg.length < seen.length ? sg.length : seen.length;
-    for (let k = 0; k < n; k++) {
-      const e = sg[k];
-      if (!e) continue;
-      const r = e.riseN;
-      if (r === seen[k]) continue;
-      seen[k] = r;
-      const m = e.sweepMate;
-      if (!m || e.riseCause !== RISE_SIGHT || !e.alive || e.taken) continue;
-      const lv = e.level;
-      if (lv !== 'suspicious' && lv !== 'investigating') continue;
-      const ml = m.level;
-      if (!m.alive || m.taken || (ml !== 'unaware' && ml !== 'cooldown')) continue;
-      if (hyp2(m.pos.x - e.pos.x, m.pos.z - e.pos.z) > PAIRS.togetherR) continue;
-      m.followGlimpse(e.stimX, e.stimZ);
-    }
+    // (guard-ai S10) the second of a talking pair placed: the pair is built
+    if (inList) this.buildPair(e, index);
   }
 
   /** (guard-rules S7, A9) The post a slot gives: a lookout's (flag on) is a high-security copy, so `Enemy.secure`, the
@@ -2710,16 +2457,15 @@ export class EnemyManager {
     return '';
   }
 
-  /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). (GA6 fix round, check A FIX 1) A sweep pair's
-   *  watch (`sweep`): calm = walking his sweep (`Enemy.sweepCalm`; cooldown and caution count). No allocation. */
-  private fillPair(g: PairGuard, e: Enemy | null, sweep: boolean): void {
+  /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). No allocation. */
+  private fillPair(g: PairGuard, e: Enemy | null): void {
     if (!e || !e.alive || e.taken) {
       g.present = false;
       g.calm = false;
       return;
     }
     g.present = true;
-    g.calm = sweep ? e.sweepCalm : e.pairCalm;
+    g.calm = e.pairCalm;
     g.x = e.pos.x;
     g.z = e.pos.z;
     const p = e.routePoint(this.pairTmp);
@@ -2741,9 +2487,8 @@ export class EnemyManager {
       const pm = p.pm;
       const A = this.guardAtSlot(p.sa);
       const B = this.guardAtSlot(p.sb);
-      const sw = p.watchOnly === true;
-      this.fillPair(pm.a, A, sw);
-      this.fillPair(pm.b, B, sw);
+      this.fillPair(pm.a, A);
+      this.fillPair(pm.b, B);
       if ((pm.state === 'waiting' || pm.state === 'meeting') && ((pm.a.present && A!.disturbed) || (pm.b.present && B!.disturbed))) pm.interrupt();
       pm.step(dt);
       const meet = pm.state === 'meeting';
@@ -4172,7 +3917,6 @@ export class EnemyManager {
     this.longPlanFree = true;
     // (check FIX 1) the sliced long plan's idle count is in frames
     this.nav.sliceTick();
-    if (this.darkOn) this.sweepClock += dt;
     this.sightT += dt;
     this.intruders.step(dt);
     // (guard-ai S20) the door gate, built once (the door list is fixed for the map)
@@ -4232,16 +3976,10 @@ export class EnemyManager {
       if (this.boardT <= 0) {
         this.boardT += 0.2;
         if (this.boardT <= 0) this.boardT = 0.2;
-        // (mill-hunt H3, check A polish 4) the hunt first: a calm hunt guard is searching again before the incident
-        // board picks (it never sends a searching guard)
-        const hb = this.darkOn ? this.millHunt : null;
-        if (hb) this.mhTick(hb);
         this.boardStep(0.2);
         // (guard-ai S4) timed caution counts down with the board; every guard's caution follows the table
         this.awareness.tick(0.2);
         this.syncCaution();
-        // (GA6b, GA7) a sweep partner follows a glimpse; (guard-ai mill-hunt H3, fold-in 10) the hunt instead (above)
-        if (this.darkOn && !hb) this.glimpseFollow();
       }
       // (guard-ai S3) the section radio net at 10 Hz: calls complete, receivers hear them staggered
       this.netT -= dt;
@@ -4458,10 +4196,6 @@ export class EnemyManager {
     this.pairs.length = 0;
     this.pairSkips.length = 0;
     this.pairT = 0;
-    // (GA6 fix round, check B Polish 2) the sweep clock from 0 (`darkOn` kept: the scene's own setter turns it off)
-    this.sweepClock = 0;
-    // (guard-ai mill-hunt H3) and an empty hunt board (every member is gone; the next `sceneDark = true` builds it anew)
-    if (this.millHunt) this.millHunt = this.huntBoard();
     // (guard-rules S7) and the lookouts
     this.lookoutN = 0;
     this.lookRise.fill(0);

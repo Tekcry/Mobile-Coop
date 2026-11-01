@@ -21,8 +21,8 @@ import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
 import type { AnimSource } from '../anim/animSource';
 
-/** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 83;
+/** The wire version. Only this line holds it; tests read it. Bump it in the PR that changes the wire (history: CHANGELOG, docs/systems/coop.md). */
+export const PROTOCOL_VERSION = 84;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -329,7 +329,7 @@ export type Msg =
    *  the host checks the gap has a closed trap and the client is in reach, opens it, and its snapshots' `trp` carry it. */
   | { t: 'panel'; g: number }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. `kind`: a course kind on `done`,
-   *  `'assist'`, `'bluff'`, and (piano-knife S3) `'knife'` on every phase of a knife kill (the client's switch on). */
+   *  `'assist'`, `'bluff'`, and (knife-kills) `'knife'` on the start of a knife kill (a lethal start only). */
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
    *  grip at `gy`), or ends the human ladder. */
@@ -724,14 +724,8 @@ function sectorExtra(raw: Record<string, unknown>): Partial<SectorNetExtra> {
   // (mission NET) the running mission (`missionWire.ts`; malformed: dropped)
   const ms = parseMissionWire(raw.ms);
   if (ms) out.ms = ms;
-  // (piano-escape S4, inside the train's protocol) the scene's EMP press on the host's sim clock; malformed: dropped
-  const ep = num(raw.ep, 0, EP_MAX);
-  if (ep !== null) out.ep = ep;
   return out;
 }
-
-/** (piano-escape S4) The `sector` message's `ep` (the EMP press, host sim seconds): 0..this (about 115 days). */
-export const EP_MAX = 1e7;
 
 /** (34) Rating counts on the wire: whole numbers 0..RT_COUNT (synced takedowns, grant parts). */
 export const RT_COUNT = 99;

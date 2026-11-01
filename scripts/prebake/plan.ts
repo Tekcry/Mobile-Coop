@@ -1,6 +1,6 @@
-// (map-ready S4) The prebake's shared part: each shipped map (`SHIPPED_BAKE_MAPS`: campusOps, and from piano SO2
-// thornbeckMill) built in Node the way `World.create` builds its light set (the shared `buildMapLights` in
-// `world/mapLights.ts`: the builder, the flicker pass, the lightning openings' flash lights, the sway pass; then
+// (map-ready S4) The prebake's shared part: each shipped map (`SHIPPED_BAKE_MAPS`: campusOps; piano SO2 made it a list)
+// built in Node the way `World.create` builds its light set (the shared `buildMapLights` in
+// `world/mapLights.ts`: the builder, the flicker pass, the sway pass; then
 // `prepare`: the light set ignores `detail`), its fixed lights and the game's own lamp key
 // (`lampKeyOf`, never a copy), the cache folder (one `<h>` folder per map), the shard bake. Run through vitest
 // (`vitest.prebake.config.ts`: TS in Node, no new package) by `scripts/prebake.mjs`; see its header.
@@ -10,7 +10,6 @@ import { fileURLToPath } from 'node:url';
 import { LevelBuilder } from '../../src/world/levelBuilder';
 import type { MapDef } from '../../src/world/mapDef';
 import { campusOps } from '../../src/world/maps/campusOps';
-import { thornbeckMill } from '../../src/world/maps/thornbeckMill';
 import { buildMapLights } from '../../src/world/mapLights';
 import { dressingOn } from '../../src/world/detailPass';
 import { bakedLights, lampKeyOf } from '../../src/world/lightBake';
@@ -28,7 +27,7 @@ export const SHARDS = 8;
 export const VARIANT: 'live' | 'preview' = PREVIEW_ON ? 'preview' : 'live';
 
 /** The map definitions the prebake can build, by id. */
-const MAP_DEFS: Readonly<Record<string, MapDef>> = { campusOps, thornbeckMill };
+const MAP_DEFS: Readonly<Record<string, MapDef>> = { campusOps };
 
 /** The maps the prebake bakes, in `SHIPPED_BAKE_MAPS` order (the game reads `bakes/<id>.json` for exactly these). */
 export const PREBAKE_MAPS: readonly MapDef[] = SHIPPED_BAKE_MAPS.map((id) => {

@@ -324,13 +324,10 @@ export interface MovePose {
   leftHand: boolean;
   /** (doorPeek parity) Still, the feet settle on the stance spots (`RigPose.settleFeet`): the door peek. */
   settle: boolean;
-  /** (piano-knife S4b) The piano intro pose (WALL_SUB.intro 32): both hands on the low-ready gun, the captured breath, the
-   *  slide locked back. */
-  intro: boolean;
 }
 
 export function emptyMovePose(): MovePose {
-  return { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false, leftHand: false, settle: false, intro: false };
+  return { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false, leftHand: false, settle: false };
 }
 
 /**
@@ -349,15 +346,12 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
   out.tumble = 0;
   out.drawn = mv.dw !== 0;
   out.settle = false;
-  out.intro = false;
   // (pose-parity) the left-shoulder aim off the wall is the player flag `PF.aimLeft` (every mode), read by the remote
   out.leftHand = false;
   switch (mv.m) {
     case 'wall':
       // (step 11) the flat-back stance, facing along the slide (WALL_SUB.faceRight = 2)
       out.wall = true;
-      // (piano-knife S4b) the piano intro pose (WALL_SUB.intro 32)
-      out.intro = (mv.sub & 32) !== 0;
       // (F4) at an edge the side is the open side (edgeL 4 = the body's left), as the owner's `wallFacing`
       out.wallSide = mv.sub & 4 ? -1 : mv.sub & 8 ? 1 : mv.sub & 2 ? 1 : -1;
       // (step 12, A3) at an edge: the head-first peek (WALL_SUB.peek 16); the edge at b (edgeL 4) is the body's left
@@ -367,8 +361,8 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
         // (G6) the owner's `rigLean` (WALL.peekLean, AUDIT-WALLS row 9)
         out.lean = side * WALL.peekLean * pe;
       }
-      // (step 12b, D9) the open-left weapon hand (only with the left edge bit); (piano-knife S4b) or the mirror intro
-      out.leftHand = (mv.sub & 128) !== 0 && (mv.sub & (4 | 32)) !== 0;
+      // (step 12b, D9) the open-left weapon hand (only with the left edge bit)
+      out.leftHand = (mv.sub & 128) !== 0 && (mv.sub & 4) !== 0;
       return out;
     case 'doorPeek':
       // (step 13) the ground stance at the frame; the hand on the handle is a reach the remote sets from the door

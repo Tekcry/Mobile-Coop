@@ -216,7 +216,7 @@ the per-target action table (which button does what on each target): PLAN sectio
   peek" here and in the code, frees D-pad up / down and the mouse wheel, and deletes the old menu.
 - Co-op: no wire change; each player computes their own prompts and Y rule; actions run through today's calls.
 - Tests: `tests/contextPrompts.test.ts`, `tests/contextJump.test.ts`, `tests/contextProviders.test.ts`,
-  `tests/promptLayout.test.ts`; `?ctxprompts=1` steps in e2e-takedown, e2e-stealth-ai, e2e-pad, e2e-coop, e2e-piano.
+  `tests/promptLayout.test.ts`; `?ctxprompts=1` steps in e2e-takedown, e2e-stealth-ai, e2e-pad, e2e-coop.
 
 ### Remapping and hold / toggle (step 18, D7; local only, D8)
 - The table above is the default layout. Pad: `Settings.pad: PadBinds` (`input/padBinds.ts`, `PAD_BINDS`: 12 verbs (A3: ids renamed so an old save's binds are ignored and the CT defaults apply; anim-rework S1 removed the two speed verbs), at

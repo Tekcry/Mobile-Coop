@@ -1,12 +1,10 @@
-// (piano SO2 + SO5b merge) A map's light set, built in the one order the game and the prebake share: the map's own
-// build, its flicker (`applyMapFlicker`), the lightning openings' flash lights (`addOpeningLights`), then the sway
-// pendants (`applyMapSway`, before the build: the hangers it claims never mesh). `World.create` and the prebake
-// (`scripts/prebake/plan.ts` `buildMap`) both call it, so the prebake's lamp key is always the game's. No Babylon: the
-// prebake runs it in Node.
+// (piano SO2) A map's light set, built in the one order the game and the prebake share: the map's own build, its
+// flicker (`applyMapFlicker`), then the sway pendants (`applyMapSway`, before the build: the hangers it claims never
+// mesh). `World.create` and the prebake (`scripts/prebake/plan.ts` `buildMap`) both call it, so the prebake's lamp key is
+// always the game's. No Babylon: the prebake runs it in Node.
 import type { LevelBuilder } from './levelBuilder';
 import type { MapDef, MapLayout } from './mapDef';
 import { applyMapFlicker } from './lampFlicker';
-import { addOpeningLights } from './lightning';
 import { applyMapSway } from './lampSway';
 
 /** Build `map` into `b` and add its light passes in the game's order; returns the map's layout. */
@@ -14,8 +12,6 @@ export function buildMapLights(b: LevelBuilder, map: MapDef, seed: number): MapL
   const layout = map.build(b, seed);
   // (LR16-5) the map's flicker seed and its stutter tube (fires enrolled themselves)
   applyMapFlicker(b.lights, map.id, seed);
-  // (piano SO5b) one baked flash light per lightning opening (none without `lightning.openings`)
-  addOpeningLights(b.lights, map.lightning);
   // (LR16-5b) Marlow Yard's swinging pendants
   applyMapSway(b, map.id);
   return layout;

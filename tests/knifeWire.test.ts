@@ -1,8 +1,10 @@
-// (piano-knife S3) Co-op knife kills: the wire (the knife takedown sub bits, `localMoveState`, `tdOut`), the host's gate
-// (a knife start only with its switch on, no knockout, RT strike or throw knockout while it is on), the client's puppet
-// as the knife victim (pinned, cleared on every end), the double (two ordinary knife kills inside `DUAL_WINDOW`, the
-// bodies apart) and the remote pair's parity on headless rigs (G400: "players must look exact in everyones games").
+// (piano-knife S3; knife-kills) Co-op knife kills on every map: the wire (the knife takedown sub bits, `localMoveState`,
+// `tdOut`), the host's gate (a knife start is a lethal start; its done a quiet kill; no strike, throw or knockout
+// refused for it), the client's puppet as the knife victim (pinned, cleared on every end), the double (two ordinary knife
+// kills inside `DUAL_WINDOW`, the bodies apart) and the remote pair's parity on headless rigs (G400: "players must look
+// exact in everyones games").
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { Vector3 } from '../src/core/babylon';
 import { killWarp, TAKEDOWN_BLOW } from '../src/anim/strikeBody';
 import { emptyMovePose, emptyMoveState, knifeRowOfSub, knifeSub, KNIFE_ROW_NONE, packMoveState, poseFromMoveState, sanitizeMoveState, TAKEDOWN_SUB_BLOW, TAKEDOWN_SUB_KNIFE, type MoveState } from '../src/player/moveState';
@@ -169,9 +171,9 @@ function enemy(id = 'e1'): FakeEnemy {
   return { id, alive: true, taken: false, ko: false, level: 'unaware', yaw: 0, pos: new Vector3(0, 0, 0), def: { kind: 'grunt', quadruped: false }, bodyRig: { emote: null }, beginTakedown: vi.fn(), releaseTakedown: vi.fn(), applyDamage: vi.fn(), knockOut: vi.fn() };
 }
 
-/** The `tests/dogTakedown.test.ts` harness (`Object.create(CoopHost.prototype)`), with the knife switch and what the
- *  done path, the strike check, the throw and the dual clock read. */
-function host(knife: boolean) {
+/** The `tests/dogTakedown.test.ts` harness (`Object.create(CoopHost.prototype)`), with what the done path, the strike
+ *  check, the throw and the dual clock read. */
+function host() {
   const h = Object.create(CoopHost.prototype) as CoopHost;
   const e = enemy();
   const hears: number[] = [];
@@ -179,7 +181,7 @@ function host(knife: boolean) {
   const sent: Record<string, unknown>[] = [];
   const g = {
     enemyMgr: { enemies: [e], hear: (_p: unknown, r: number) => void hears.push(r) },
-    takedown: { knife },
+    takedown: {},
     strike: { denied: vi.fn(), accepted: vi.fn() },
     hud: { banner: vi.fn() },
     style: { record: vi.fn() },
@@ -208,19 +210,11 @@ function host(knife: boolean) {
   return { h, e, r, g, hears, queue, sent, td, seized };
 }
 
-describe('piano-knife S3: the host gates a client\'s takedown on its own knife switch', () => {
+describe('knife-kills: the host takes a client\'s knife kill on any map', () => {
   const denied = [{ e: 'tdDenied', player: 'C', enemy: 'e1' }];
 
-  it('switch off: a knife start is denied, nothing seized', () => {
-    const s = host(false);
-    s.td({ ph: 'start', lethal: true, kind: 'knife' });
-    expect(s.queue).toEqual(denied);
-    expect(s.seized.size).toBe(0);
-    expect(s.e.beginTakedown).not.toHaveBeenCalled();
-  });
-
-  it('switch on: a knife start seizes him in the lethal struggle', () => {
-    const s = host(true);
+  it('a lethal knife start seizes him in the lethal struggle', () => {
+    const s = host();
     s.td({ ph: 'start', lethal: true, kind: 'knife' });
     expect(s.queue).toEqual([]);
     expect(s.seized.has('e1')).toBe(true);
@@ -228,34 +222,46 @@ describe('piano-knife S3: the host gates a client\'s takedown on its own knife s
     expect(s.e.beginTakedown.mock.calls[0]![0]).toBe(false);
   });
 
-  it('switch on: a start with no kind, or an assist, is denied', () => {
-    for (const kind of [undefined, 'assist']) {
-      const s = host(true);
-      s.td(kind ? { ph: 'start', lethal: false, kind } : { ph: 'start', lethal: false });
-      expect(s.queue).toEqual(denied);
+  it('a non-lethal knife start is denied, nothing seized', () => {
+    const s = host();
+    s.td({ ph: 'start', lethal: false, kind: 'knife' });
+    expect(s.queue).toEqual(denied);
+    expect(s.seized.size).toBe(0);
+    expect(s.e.beginTakedown).not.toHaveBeenCalled();
+  });
+
+  it('a spotted client and an alert guard: denied, knife or not (no knife-when-spotted)', () => {
+    for (const kind of ['knife', undefined]) {
+      const s = host();
+      s.r.ref.spotted = true;
+      s.e.level = 'alert';
+      s.td(kind ? { ph: 'start', lethal: true, kind } : { ph: 'start', lethal: true });
+      expect(s.queue, String(kind)).toEqual(denied);
       expect(s.seized.size).toBe(0);
-      expect(s.e.beginTakedown).not.toHaveBeenCalled();
     }
   });
 
-  it('switch on: done is a kill (never a knockout) at the knife radius', () => {
-    const s = host(true);
+  it('done is a kill at the knife radius; the done carries the course kind to the mode', () => {
+    const s = host();
+    const onRemote = vi.fn();
+    (s.g as unknown as { mode: unknown }).mode = { onRemoteTakedown: onRemote };
     s.td({ ph: 'start', lethal: true, kind: 'knife' });
-    s.td({ ph: 'done', lethal: false, kind: 'knife' });
+    s.td({ ph: 'done', lethal: true, kind: 'behind' });
     expect(s.e.applyDamage).toHaveBeenCalledTimes(1);
     expect(s.e.knockOut).not.toHaveBeenCalled();
     expect(s.hears).toEqual([KNIFE.noise]);
     expect(KNIFE.noise).toBe(1.2);
+    expect(onRemote).toHaveBeenCalledWith('C', 'behind');
   });
 
-  it('switch off: today (lethal 3 m, non-lethal a knockout at 1.2 m)', () => {
-    const a = host(false);
+  it('no knife: today (lethal 3 m, non-lethal a knockout at 1.2 m)', () => {
+    const a = host();
     a.td({ ph: 'start', lethal: true });
     a.td({ ph: 'done', lethal: true });
     expect(a.e.applyDamage).toHaveBeenCalledTimes(1);
     expect(a.hears).toEqual([3]);
     expect(a.e.beginTakedown.mock.calls[0]![0]).toBe(false);
-    const b = host(false);
+    const b = host();
     b.td({ ph: 'start', lethal: false });
     b.td({ ph: 'done', lethal: false });
     expect(b.e.knockOut).toHaveBeenCalledTimes(1);
@@ -289,35 +295,20 @@ describe('piano-knife S3: the host holds a client\'s knife victim on the drawn p
   });
 });
 
-describe('piano-knife S3: no RT strike and no throw knockout while the host\'s switch is on', () => {
-  const strike = (knife: boolean) => {
-    const s = host(knife);
+describe('knife-kills: the RT strike and the throw knockout as today', () => {
+  it('a client\'s strike starts (cstart, a strikes entry)', () => {
+    const s = host();
     s.e.pos.set(0, 0, -0.2);
     (s.h as unknown as { onCommitted(by: string, kind: string, id: number, target: string): void }).onCommitted('C', 'strike', 5, 'e1');
-    return s;
-  };
-
-  it('switch on: a client\'s strike is refused busy, no strikes entry, nobody hit', () => {
-    const s = strike(true);
-    expect(s.sent).toEqual([{ t: 'cdeny', a: 'C', id: 5, kind: 'strike', reason: 'busy' }]);
-    expect((s.h as unknown as { strikes: Map<string, unknown> }).strikes.size).toBe(0);
-    expect(s.e.knockOut).not.toHaveBeenCalled();
-    expect(s.e.applyDamage).not.toHaveBeenCalled();
-  });
-
-  it('switch off: the strike starts as today (cstart, a strikes entry)', () => {
-    const s = strike(false);
     expect(s.sent.length).toBe(1);
     expect(s.sent[0]).toMatchObject({ t: 'cstart', kind: 'strike', a: 'C', id: 5, target: 'e1' });
     expect((s.h as unknown as { strikes: Map<string, unknown> }).strikes.size).toBe(1);
   });
 
-  it('throwKnockOut knocks nobody out with the switch on (today with it off)', () => {
-    for (const knife of [true, false]) {
-      const s = host(knife);
-      (s.h as unknown as { throwKnockOut(by: string, e: unknown, at: unknown): void }).throwKnockOut('C', s.e, { x: 0, y: 0, z: 0.3 });
-      expect(s.e.knockOut).toHaveBeenCalledTimes(knife ? 0 : 1);
-    }
+  it('throwKnockOut knocks him out', () => {
+    const s = host();
+    (s.h as unknown as { throwKnockOut(by: string, e: unknown, at: unknown): void }).throwKnockOut('C', s.e, { x: 0, y: 0, z: 0.3 });
+    expect(s.e.knockOut).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -351,14 +342,14 @@ describe('piano-knife S3: the double', () => {
       [1.0, 1],
       [1.6, 0],
     ] as const) {
-      const s = host(true);
+      const s = host();
       const hp = s.h as unknown as { time: number; duals: number; takedownDone(by: string): void };
       // the host's own knife kill's `done` (its `takedown` event: `takedownDone(selfId)`)
       hp.time = 10;
       hp.takedownDone('H');
       s.td({ ph: 'start', lethal: true, kind: 'knife' });
       hp.time = 10 + gap;
-      s.td({ ph: 'done', lethal: true, kind: 'knife' });
+      s.td({ ph: 'done', lethal: true, kind: 'behind' });
       expect(hp.duals).toBe(dual);
     }
   });
@@ -366,12 +357,19 @@ describe('piano-knife S3: the double', () => {
 
 // ---- 5. tdOut ----
 
-describe('piano-knife S3: tdOut', () => {
-  it('switch on: kind knife on start, done and abort', () => {
-    for (const ph of ['start', 'done', 'abort'] as const) expect(tdOut('e1', ph, true, true, 'behind')).toEqual({ t: 'td', target: 'e1', ph, lethal: true, kind: 'knife' });
+describe('knife-kills: tdOut', () => {
+  it('a knife kill: kind knife on start only; done the course kind, abort no kind', () => {
+    expect(tdOut('e1', 'start', true, true, 'behind')).toEqual({ t: 'td', target: 'e1', ph: 'start', lethal: true, kind: 'knife' });
+    expect(tdOut('e1', 'done', true, true, 'behind')).toEqual({ t: 'td', target: 'e1', ph: 'done', lethal: true, kind: 'behind' });
+    expect(tdOut('e1', 'abort', false, true, 'behind')).toEqual({ t: 'td', target: 'e1', ph: 'abort', lethal: false });
   });
 
-  it("switch off: today's messages (no kind, except done with a course kind)", () => {
+  it('the client tags from `takedown.knifeOn` (set before the puppet seizes)', () => {
+    const src = readFileSync('src/net/coopClient.ts', 'utf8');
+    expect(src).toContain('tdOut(np.id, ph, lethal, g.takedown.knifeOn, this.tdKind)');
+  });
+
+  it("no knife: today's messages (no kind, except done with a course kind)", () => {
     expect(tdOut('e1', 'start', false, false, 'behind')).toEqual({ t: 'td', target: 'e1', ph: 'start', lethal: false });
     expect(tdOut('e1', 'abort', false, false, 'behind')).toEqual({ t: 'td', target: 'e1', ph: 'abort', lethal: false });
     expect(tdOut('e1', 'done', true, false, 'behind')).toEqual({ t: 'td', target: 'e1', ph: 'done', lethal: true, kind: 'behind' });

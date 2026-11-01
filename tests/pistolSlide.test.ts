@@ -1,5 +1,5 @@
 // (piano-knife S4a) The empty pistol: the slide is a mesh of its own in pistolSd.glb and WeaponModel.slideLock moves it
-// back SLIDE_LOCK_BACK along the bore (render only). Nothing calls slideLock until S4b's introPose.
+// back SLIDE_LOCK_BACK along the bore (render only). Nothing calls slideLock since the piano intro pose was removed.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { TRI_BUDGET } from '../src/weapons/weaponMeshData';

@@ -53,14 +53,14 @@ describe('held guard (G5, Michael 08:10 / 08:20 / 08:25)', () => {
   });
 });
 
-// (piano-knife S1, BRIEF A2) with the piano scene's knife switch on there is no grab row: the takedown row (`'ko'`,
-// TD_LABEL) is the one-press knife kill (`TakedownController.start` forces it); off, today's grab from behind
-describe('takedown row with the knife switch (piano-knife S1)', () => {
-  it('switch on: no grab row for any kind; off: the grab from behind on a guard on two legs', async () => {
+// (piano-knife S1, BRIEF A2; knife-kills) the menu's takedown row: the grab from behind on a guard on two legs (the
+// knife kill is the lethal start, never a replacement for the grab), else the takedown row (`'ko'`, TD_LABEL)
+describe('takedown row', () => {
+  it('the grab from behind on a guard on two legs; the takedown row otherwise and on a dog', async () => {
     const { takedownRow } = await import('../src/game/knifeKill');
-    expect(takedownRow('behind', false, false)).toBe('grab');
-    expect(takedownRow('hangDown', false, false)).toBe('grab');
-    expect(takedownRow('front', false, false)).toBe('ko');
-    for (const k of ['behind', 'hangDown', 'front', 'corner', 'side', 'overCover'] as const) expect(takedownRow(k, false, true), k).toBe('ko');
+    expect(takedownRow('behind', false)).toBe('grab');
+    expect(takedownRow('hangDown', false)).toBe('grab');
+    expect(takedownRow('behind', true)).toBe('ko');
+    for (const k of ['front', 'corner', 'side', 'overCover'] as const) expect(takedownRow(k, false), k).toBe('ko');
   });
 });

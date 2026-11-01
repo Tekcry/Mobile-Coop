@@ -103,9 +103,6 @@ describe('validateGuardAi', () => {
     expect(has(validateGuardAi(n({ section: 3 }), []), /noisy n: section 3 does not exist/)).toBe(true);
     expect(validateGuardAi(n({ db: 0, radius: 1 }), [])).toEqual([]);
     expect(validateGuardAi(n({ db: 30, radius: 20 }), [])).toEqual([]);
-    // (piano escape GA7) an infinite radius is map-wide (rain on the roof): valid, with no bounds check; the db range holds
-    expect(validateGuardAi(n({ radius: Number.POSITIVE_INFINITY, x: 0, z: 0 }), [], { bounds })).toEqual([]);
-    expect(has(validateGuardAi(n({ radius: Number.POSITIVE_INFINITY, db: 31 }), []), /db 31 outside/)).toBe(true);
     expect(has(validateGuardAi(n({ radius: Number.NaN }), []), /radius NaN outside/)).toBe(true);
     const dup: GuardAiLayout = { noisy: [{ id: 'g', x: 1, z: 1, radius: 2, db: 3 }, { id: 'g', x: 2, z: 2, radius: 2, db: 3 }] };
     expect(has(validateGuardAi(dup, []), /noisy g: duplicate id/)).toBe(true);

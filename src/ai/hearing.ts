@@ -79,13 +79,6 @@ export function ambientDb(src: readonly NoisySource[], x: number, z: number, y?:
   return best;
 }
 
-/** (piano escape GA7) Rain on the roof: a noisy source over the whole map (infinite radius, so `ambientDb` gives `db`
- *  at every listener; 6 dB halves every guard's hearing reach). Scene data puts it in the section's `noisy` list; no
- *  rule changes, every masked sound stays explainable. Not hot (built once with the map). */
-export function mapWideNoise(id: string, db: number, label = 'rain'): NoisySource {
-  return { id, x: 0, z: 0, radius: Number.POSITIVE_INFINITY, db, label };
-}
-
 /** Effective reach (m) of a noise of `reach` after `walls` walls and `ambient` dB of masking at the listener. */
 export function effectiveReach(reach: number, walls: number, ambient: number): number {
   const loss = walls * HEARING.wallDb + ambient;

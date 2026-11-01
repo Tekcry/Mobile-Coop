@@ -4,14 +4,14 @@
  * (`CtxHost`, implemented once by `GameState`), and give each target its rows per button. Pure and Babylon-free, so the
  * tests run it on a fake host. Dark behind `flags.contextPrompts` (with the flag off nothing here is called).
  *
- * The rows (PLAN 2; S3: inventory rows 1-8, 12, 15-23, 25-26 and 28-33; S5: 10-11 hanging, 13 the bluff, 14 the knife,
- * 24 carrying, 27 the revive and 42-43 a team move or offer under way):
+ * The rows (PLAN 2; S3: inventory rows 1-8, 12, 15-23, 25-26 and 28-33; S5: 10-11 hanging, 13 the bluff, 24 carrying,
+ * 27 the revive and 42-43 a team move or offer under way):
  * - the held guard: A tap Interrogate (only with information); RT tap Knock out / hold Kill and LT Shield (labels: their
  *   own systems run them, A4, A16);
- * - the takedown on offer: from behind A tap Grab (A5); faced A tap Knock out (or the kind's own name), A hold Kill (A6);
- *   lethal-only A hold Kill; hanging head-first A tap Grab, RT Choke / Neck snap (row 10); the knife scene A Knife
- *   takedown, tap or hold, and RT Knife takedown (A19, row 14); the partner's hostage A tap Team takedown (A17), and
- *   with joint information Y tap Bluff for the player beside the hold (A23, row 13);
+ * - the takedown on offer: from behind A tap Grab (A5); faced A tap Knock out (or the kind's own name), A hold Kill (A6;
+ *   knife-kills: the paired knife kill where the kind has a row); lethal-only A hold Kill; hanging head-first A tap Grab,
+ *   RT Choke / Neck snap (row 10); the partner's hostage A tap Team takedown (A17), and with joint information Y tap
+ *   Bluff for the player beside the hold (A23, row 13);
  * - the closed door faced: A tap Open, A hold Bash; Y tap Peek (only when the peek is on offer), Y hold Optic cable
  *   (A7); a sliding door A tap Open only; an open door (its own item) A tap Close;
  * - else the optic gap in reach: A tap Open trap (a closed panel covers it), Y tap Optic cable (A8);
@@ -87,8 +87,6 @@ export interface CtxHost {
   /** (S5, rows 42-43) A team move or offer is under way, not hanging (`team.active && !team.hangActs`): only the
    *  takedown on offer and the item in reach are candidates. */
   teamMove(): boolean;
-  /** The knife scene's switch (`takedown.knife`). */
-  knife(): boolean;
   /** RT is the strike or the held guard's finisher now (holstered or holding, not aiming): its row shows. */
   rtFree(): boolean;
   /** The closed, unlocked door faced in reach (`doorMenuCandidate`), else -1. */
@@ -118,7 +116,6 @@ export const CTX_OPT = {
   grab: 'grab',
   ko: 'ko',
   kill: 'kill',
-  knife: 'knife',
   interrogate: 'interrogate',
   open: 'open',
   stealth: 'stealth',
@@ -231,14 +228,10 @@ export function fillContextPrompts(cp: ContextPrompts, h: CtxHost): void {
       tapRow(c, CTX_A, CTX_OPT.ko, CTX_TD_TAP.assist);
       // (row 13, A17, A23) the bluff: a Y tap under the Y rule, for the player beside the hold
       if (h.joint()) tapRow(c, CTX_Y, CTX_OPT.bluff, 'Bluff');
-    } else if (h.knife() && !quad) {
-      // (A19) tap or hold: the knife kill (`start` forces it); the holstered attack press too
-      tapRow(c, CTX_A, CTX_OPT.knife, 'Knife takedown');
-      labelRow(c, CTX_RT, 'Knife takedown', '');
     } else if (o.lethalOnly) {
       pairRow(c, CTX_A, '', '', CTX_OPT.kill, 'Kill');
       if (rt) labelRow(c, CTX_RT, '', 'Kill');
-    } else if (takedownRow(k, quad, false) === 'grab') {
+    } else if (takedownRow(k, quad) === 'grab') {
       tapRow(c, CTX_A, CTX_OPT.grab, 'Grab');
       if (rt) labelRow(c, CTX_RT, k === 'hangDown' ? 'Choke' : 'Knock out', k === 'hangDown' ? 'Neck snap' : 'Kill');
     } else {

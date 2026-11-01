@@ -316,11 +316,6 @@ Still standing:
   0.17 s; slice F had 0.55 s both ways; faster needs e2e-wall's 6 cm per-frame cap revisited).
 - Open-side hand: peeking at a left edge puts the weapon in the left hand (`wallLeftHand`, `WALL_SUB.leftHand`,
   `CharacterRig.openLeft`). The lean-out aim and the SWAT turn no longer exist (Decided direction above).
-- Piano intro pose (piano-knife S4b): `GameState.introPose(on, variant)` (`game/introPose.ts`) puts the operator's back
-  on the nearest high face within reach, the pistol at low ready in both hands (no wall tuck or hang), slide locked
-  back, one breath of the captured Breathing Idle every 4 s on the trunk (`anim/introBreath.ts`, tuner section "Intro
-  pose"), the hero LOD; off: normal wall cover, holstered, slide forward. Remotes from `WALL_SUB.intro` (32; mirror:
-  `leftHand`).
 - Remote yaw: the host's copy of a wall body eases toward the face normal plus the side-on offset at the owner's
   `wallTurnRate` (the side from WALL_SUB: `wallSideFromSub`), and steps toward the edge with the peek bit as the owner.
 - Aiming at a wall (G6, AUDIT-WALLS row 12, 051917 @ 10.9-12.3): one ray from the shoulder along the aim (`player/wallBlock.ts`

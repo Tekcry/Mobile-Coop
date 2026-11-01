@@ -1,6 +1,6 @@
 // (map-ready S4, fix (2)) The shipped maps' lamps baked at build time (`npm run build` runs this first; brief
 // docs/map-ready/briefs/S4.md, BRIEF A15; piano SO2: every map in `SHIPPED_BAKE_MAPS`, src/world/shippedBake.ts:
-// campusOps and thornbeckMill). Never committed: the files go to `.prebake-cache/` (gitignored; CI keeps it with
+// campusOps). Never committed: the files go to `.prebake-cache/` (gitignored; CI keeps it with
 // actions/cache) and the build emits them as `bakes/*` (scripts/prebake/emit.ts).
 //   PREBAKE=0 node scripts/prebake.mjs     -> "prebake skipped" (and `current.json` removed): the build ships no bake,
 //                                             the PC bakes as today

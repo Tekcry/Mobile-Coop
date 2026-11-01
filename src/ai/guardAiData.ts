@@ -287,11 +287,9 @@ export function validateGuardAi(layout: GuardAiLayout, slots: readonly GuardSlot
     if (noisyIds.has(n.id)) errs.push(`noisy ${n.id}: duplicate id`);
     noisyIds.add(n.id);
     if (!(n.db >= NOISY_LIMITS.dbMin && n.db <= NOISY_LIMITS.dbMax)) errs.push(`noisy ${n.id}: db ${n.db} outside ${NOISY_LIMITS.dbMin}..${NOISY_LIMITS.dbMax}`);
-    // (piano escape GA7, check B) an infinite radius is map-wide (`mapWideNoise`, rain on the roof): no range or bounds check
-    const wide = n.radius === Number.POSITIVE_INFINITY;
-    if (!wide && !(n.radius >= NOISY_LIMITS.radiusMin && n.radius <= NOISY_LIMITS.radiusMax)) errs.push(`noisy ${n.id}: radius ${n.radius} outside ${NOISY_LIMITS.radiusMin}..${NOISY_LIMITS.radiusMax}`);
+    if (!(n.radius >= NOISY_LIMITS.radiusMin && n.radius <= NOISY_LIMITS.radiusMax)) errs.push(`noisy ${n.id}: radius ${n.radius} outside ${NOISY_LIMITS.radiusMin}..${NOISY_LIMITS.radiusMax}`);
     if (!finite(n.x) || !finite(n.z)) errs.push(`noisy ${n.id}: position is not finite`);
-    else if (bounds && !wide && !inRect(bounds, n.x, n.z)) errs.push(`noisy ${n.id}: outside the map bounds`);
+    else if (bounds && !inRect(bounds, n.x, n.z)) errs.push(`noisy ${n.id}: outside the map bounds`);
     if (n.section !== undefined && !sectionOk(n.section)) errs.push(`noisy ${n.id}: section ${n.section} does not exist`);
   }
 

@@ -425,8 +425,8 @@ describe('piano-knife S1: a knife run allocates nothing per step', () => {
     gm.player.rig.graph = { kill: null };
     s.td.fixedUpdate(DT, false, false);
     expect(s.td.offer?.plan.kind).toBe('behind');
-    s.td.setKnifeScene(true);
-    s.td.start();
+    // (knife-kills) the lethal start is the knife kill
+    s.td.start(true);
     expect(s.td.kr).toBe(0);
     const td = s.td;
     const act = td.active!;

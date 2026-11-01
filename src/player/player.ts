@@ -34,8 +34,6 @@ import { TEAM_POSE_LOCAL, TeamPoser } from '../anim/clips/team'; // (anim-n4b, t
 export interface PlayerPose {
   /** Back to a wall (set by back-to-wall, step 11). */
   wall: boolean;
-  /** (piano-knife S4b) The piano intro pose (set by back-to-wall from WallCore.intro). */
-  intro: boolean;
   /** Wall side in the character's frame (-1 left, 1 right): the slide's facing (step 11). */
   wallSide: number;
   /** (step 11) The wall's outward normal and tangent (a -> b) and the body line's distance from the face (m). */
@@ -157,7 +155,7 @@ export class Player {
   /** (G6) Seconds on the wall this time (the settled side-on turn rate). */
   private wallT = 0;
   private wallHandPt: Vector3 | null = null;
-  readonly pose: PlayerPose = { wall: false, intro: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, headCap: NaN, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, bend: 0, bendDrop: 0, sway: 0, freeGait: false };
+  readonly pose: PlayerPose = { wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, headCap: NaN, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, bend: 0, bendDrop: 0, sway: 0, freeGait: false };
   /** Context flags for the ready position (set by the corner systems each step). */
   context = { doorway: false };
   /** Called when landing from a fall (speed in m/s). */
@@ -473,7 +471,6 @@ export class Player {
     rp.swapTo = this.swapTo;
     rp.grenade = this.grenadeT;
     rp.wall = cp.wall;
-    rp.intro = cp.intro;
     rp.settleFeet = cp.settle === true;
     rp.wallSide = cp.wallSide;
     rp.wallNx = cp.wallNx;

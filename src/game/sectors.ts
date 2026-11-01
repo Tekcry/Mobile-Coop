@@ -18,16 +18,7 @@ import type { MissionWire } from './mission/missionWire';
  * so a ghost run (no kills, never spotted) is always possible (M3). No lives (M7): co-op revives with syringes; both
  * down, or solo, restarts the section at its checkpoint. Pure: the mode (`modes/sectorMode.ts`) puts it in the world.
  */
-export type SectorObjectiveKind = 'hack' | 'grab' | 'download' | 'clear';
-
-/**
- * (piano-escape) The `clear` objective: done when every guard of the section is down (dead or knocked out) and none is
- * still pending. It has no interactable and no site (`x`, `y`, `z` are unused). `pending`: guards waiting to spawn;
- * `living`: guards up and about (a woken one counts again). Pure; the mode feeds it.
- */
-export function clearDone(pending: number, living: number): boolean {
-  return pending === 0 && living === 0;
-}
+export type SectorObjectiveKind = 'hack' | 'grab' | 'download';
 
 export interface SectorObjective {
   kind: SectorObjectiveKind;
@@ -75,37 +66,6 @@ export interface ConnectorDef extends SectorZone {
 /** A route waypoint: [x, z] on the ground, or [x, z, y] on a raised floor (rack tops, the deck). */
 export type RoutePt = readonly [number, number] | readonly [number, number, number];
 
-/**
- * (guard-ai mill-hunt H1) A scene hunt (the storm mill, `flags.millHunt`): per floor, one fixed line of stops through its
- * rooms that the guards search in a fixed, readable order (`phases`), closing in on the players (docs/guard-ai/mill-hunt).
- */
-export interface HuntRoom {
-  id: string;
-  /** x0, z0, x1, z1 */
-  box: readonly [number, number, number, number];
-}
-export interface HuntStop {
-  /** The leader's / solo's spot. */
-  pt: RoutePt;
-  /** The partner's spot, 1.0-1.5 m from `pt`. */
-  pt2: RoutePt;
-  /** A `HuntRoom` id of this line; a room's stops are consecutive in the line. */
-  room: string;
-  /** Yaws (rad, 0 = +z, grows to +x), left to right: corners, cover backs, doorways (2-4). */
-  aims: readonly number[];
-}
-/** One floor's line: stops in walking order (adjacent stops 2.5-4.5 m apart). */
-export interface HuntLine {
-  id: string;
-  floorY: number;
-  rooms: readonly HuntRoom[];
-  stops: readonly HuntStop[];
-}
-/** The lines, and the search order: one row per phase, a room id per line (in `lines` order). */
-export interface HuntDef {
-  lines: readonly HuntLine[];
-  phases: readonly (readonly string[])[];
-}
 
 /**
  * A named way through a section (M8): waypoints from the start (or checkpoint) to the objective (`pts[obj]`) and on to
@@ -186,8 +146,6 @@ export interface SectorDef {
   dogs?: number;
   /** The ways to the objective and on to the exit (M8: at least 2). */
   routes: SectorRoute[];
-  /** (guard-ai mill-hunt) The scene hunt's lines and search order; none = no hunt. */
-  hunt?: HuntDef;
   /** (sector-fixes-r RT) Team doors: doors bolted from one side (the course's B2 rule); none when absent. */
   bolts?: readonly SectorBolt[];
   /**
@@ -1027,9 +985,6 @@ export interface SectorNetExtra {
   rh?: number[];
   /** (mission-framework EN2) The running mission (`packMission`); none without one. NET puts it on the wire. */
   ms?: MissionWire;
-  /** (piano-escape S4) The piano scene's EMP press on the host's sim clock (s): the client ends its intro on it, and it is
-   *  the lightning's t0 and the music's switch there. Absent before the press and off the scene. */
-  ep?: number;
 }
 
 /**

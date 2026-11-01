@@ -66,15 +66,15 @@ const PLAN_KINDS: Record<string, string> = {
       + 'shooter_jump_backward shooter_walking_to_dying aa_stand_to_cover aa_stand_to_cover_2 aa_cover_to_stand aa_cover_to_stand_2 aa_jumping_up aa_run_to_stop stand_cover_to_look aa_left_turn aa_right_turn',
     turn: 'rifle_turn_90_left rifle_turn_90_right rifle_crouching_turn_90_left rifle_crouching_turn_90_right',
   }).flatMap(([k, v]) => v.split(' ').map((slug) => [slug, k]))),
-  // (piano-knife S2) the piano scene's clips (`place` piano, `clips/mixamo/piano/`, loaded lazily)
-  stabbing: 'timed', standing_melee_attack_downward: 'timed', falling_forward_death: 'timed', dying: 'timed', falling_back_death: 'timed', breathing_idle: 'loop',
+  // (piano-knife S2) the knife kills' clips (`place` knife, `clips/mixamo/knife/`, loaded lazily)
+  stabbing: 'timed', standing_melee_attack_downward: 'timed', falling_forward_death: 'timed', dying: 'timed', falling_back_death: 'timed',
 };
 /** (I9) The batch 2 clips with a game slot (BATCH2-PLAN "(1)"; wired by I10 / I13): their modules are `place` game. */
 const GAME_B2 = new Set(('pistol_idle pistol_walk pistol_run pistol_walk_backward pistol_strafe pistol_strafe_2 rifle_idle rifle_idle_aiming rifle_walk_forward rifle_run_forward rifle_sprint_forward rifle_walk_backward '
   + 'rifle_walk_left rifle_walk_right rifle_walk_crouching_forward rifle_turn_90_left rifle_turn_90_right rifle_crouching_turn_90_left rifle_crouching_turn_90_right aa_left_cover_sneak aa_right_cover_sneak '
   + 'crouch_look_around_corner cover_idle stand_cover_to_look').split(' '));
-/** (piano-knife S2) The piano scene's clips: `place` piano. */
-const PIANO = new Set(['stabbing', 'standing_melee_attack_downward', 'falling_forward_death', 'dying', 'falling_back_death', 'breathing_idle']);
+/** (piano-knife S2) The knife kills' clips: `place` knife. */
+const KNIFE = new Set(['stabbing', 'standing_melee_attack_downward', 'falling_forward_death', 'dying', 'falling_back_death']);
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 const bad = (slug: string, patch: Record<string, unknown>): unknown => {
@@ -116,7 +116,7 @@ describe('mixamoEmit: recipes', () => {
     expect(() => E.validateRecipes(bad('pistol_strafe', { gait: 'strafe' }))).toThrow(/travel auto gait names its forward band/);
     expect(() => E.validateRecipes(bad('rifle_walk_backward', { gait: 'strafe' }))).toThrow(/sideways gait/);
     expect(() => E.validateRecipes(bad('cross_punch', { mirror: 'yes' }))).toThrow(/mirror must be a boolean/);
-    expect(() => E.validateRecipes(bad('cross_punch', { place: 'menu' }))).toThrow(/place from game \/ studio \/ piano/);
+    expect(() => E.validateRecipes(bad('cross_punch', { place: 'menu' }))).toThrow(/place from game \/ studio \/ knife/);
     expect(() => E.validateRecipes(bad('rifle_idle', { title: 'Pro Rifle Pack: idle' }))).toThrow(/title "Pro Rifle Pack: idle" != "idle"/);
     expect(() => E.validateRecipes(bad('rifle_idle', { file: 'pack-sword/idle.fbx' }))).toThrow(/no site name|slugs to sword_idle/);
   });
@@ -132,12 +132,12 @@ describe('mixamoEmit: recipes', () => {
     expect(E.rowTitle(by('kneel_down'))).toBe('Kneel Down');
     expect(E.modulePath(by('aa_idle'), 'D').replace(/\\/g, '/')).toBe('D/studio/aa_idle.ts');
     expect(E.modulePath(by('rifle_idle'), 'D').replace(/\\/g, '/')).toBe('D/rifle_idle.ts');
-    // (piano-knife S2) a piano scene clip sits in `piano/`
-    expect(E.modulePath(by('stabbing'), 'D').replace(/\\/g, '/')).toBe('D/piano/stabbing.ts');
+    // (piano-knife S2) a knife kill clip sits in `knife/`
+    expect(E.modulePath(by('stabbing'), 'D').replace(/\\/g, '/')).toBe('D/knife/stabbing.ts');
     // batch 2: a pack file, a place named or a game slot; the rest of batch 2 is Anim Studio only (piano-knife S2: the
-    // piano scene's clips are place piano)
-    for (const r of rs) if (r.pack || RECIPES.clips[r.slug]!.place || GAME_B2.has(r.slug)) expect(r.place, r.slug).toBe(GAME_B2.has(r.slug) ? 'game' : PIANO.has(r.slug) ? 'piano' : 'studio');
-    for (const slug of PIANO) expect(by(slug).place, slug).toBe('piano');
+    // knife kills' clips are place knife)
+    for (const r of rs) if (r.pack || RECIPES.clips[r.slug]!.place || GAME_B2.has(r.slug)) expect(r.place, r.slug).toBe(GAME_B2.has(r.slug) ? 'game' : KNIFE.has(r.slug) ? 'knife' : 'studio');
+    for (const slug of KNIFE) expect(by(slug).place, slug).toBe('knife');
   });
 });
 
@@ -300,8 +300,8 @@ const MODULES = {
   ...import.meta.glob('../src/anim/clips/mixamo/*.ts', { eager: true }),
   // (I9) the Anim Studio only clips
   ...import.meta.glob('../src/anim/clips/mixamo/studio/*.ts', { eager: true }),
-  // (piano-knife S2) the piano scene's clips
-  ...import.meta.glob('../src/anim/clips/mixamo/piano/*.ts', { eager: true }),
+  // (piano-knife S2) the knife kills' clips
+  ...import.meta.glob('../src/anim/clips/mixamo/knife/*.ts', { eager: true }),
 } as Record<string, Record<string, unknown>>;
 const keyedMods = Object.entries(MODULES).filter(([p]) => !/\/trav_[^/]+$/.test(p));
 
@@ -317,7 +317,7 @@ describe('mixamoEmit: the committed keyed modules', () => {
       const first = readFileSync(p.replace(/^\.\.\//, ''), 'utf8').split('\n')[0]!;
       // (I7) the folder follows the recipe's place
       expect(p.includes('/mixamo/studio/'), slug).toBe(RECIPES.clips[slug]!.place === 'studio');
-      expect(p.includes('/mixamo/piano/'), slug).toBe(RECIPES.clips[slug]!.place === 'piano');
+      expect(p.includes('/mixamo/knife/'), slug).toBe(RECIPES.clips[slug]!.place === 'knife');
       expect(first).toMatch(/GENERATED.*Do not edit/);
       const row = MOCAP_SOURCES[clip.name]!;
       expect(row.source).toBe('mixamo');

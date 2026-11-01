@@ -18,24 +18,21 @@ const src = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), 'utf8
 
 /** The non-lethal objective kinds (G127): take something, copy something, break into something. */
 const SECTOR_KINDS = ['hack', 'grab', 'download'];
-/** (piano-escape) Michael's one named exception (ROADMAP Decided 2026-10-26 ~19:28): kills in the piano scene only; G127 stays everywhere else. */
-const SCENE_ONLY_KIND = 'clear';
 
 describe('T H4: Sector Ops objectives are non-lethal', () => {
-  it("SectorObjectiveKind is 'hack' | 'grab' | 'download', plus the piano scene's 'clear' (src/game/sectors.ts)", () => {
+  it("SectorObjectiveKind is 'hack' | 'grab' | 'download' (src/game/sectors.ts)", () => {
     const m = /export type SectorObjectiveKind = ([^;]+);/.exec(src('src/game/sectors.ts'));
     expect(m, 'SectorObjectiveKind declaration').not.toBeNull();
     const kinds = m![1]!.split('|').map((k) => k.trim().replace(/^'|'$/g, ''));
-    expect(kinds).toEqual([...SECTOR_KINDS, SCENE_ONLY_KIND]);
+    expect(kinds).toEqual(SECTOR_KINDS);
   });
 
-  it("every sector objective of every map in MAPS is one of them; 'clear' only on a piano scene map", () => {
+  it('every sector objective of every map in MAPS is one of them', () => {
     const withSectors = MAPS.filter((m) => m.sectors?.length);
     expect(withSectors.length).toBeGreaterThan(0);
     for (const m of withSectors) {
       for (const s of m.sectors!) {
-        if (s.objective.kind === SCENE_ONLY_KIND) expect(m.scene, `${m.id} ${s.id}: clear outside the piano scene`).toBe('piano');
-        else expect(SECTOR_KINDS, `${m.id} ${s.id}`).toContain(s.objective.kind);
+        expect(SECTOR_KINDS, `${m.id} ${s.id}`).toContain(s.objective.kind);
       }
     }
   });

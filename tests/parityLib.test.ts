@@ -3,7 +3,6 @@
 import { describe, expect, it } from 'vitest';
 import { DARK_TARGETS } from '../src/world/darkCurve';
 import { CAMPUS_BAKE } from '../src/world/maps/campusBake';
-import { FLICKER_FLASH } from '../src/world/lampFlicker';
 // @ts-expect-error plain .mjs script without types
 import * as P from '../scripts/parity-lib.mjs';
 
@@ -17,9 +16,6 @@ describe('parity-lib copies the game\'s constants', () => {
       expect(c.s).toBe(`S${k + 1}`);
       expect(c.rect).toEqual([...CAMPUS_BAKE.regions[k]![0]!]);
     });
-  });
-  it('FLICKER_FLASH equals lampFlicker\'s', () => {
-    expect(P.FLICKER_FLASH).toBe(FLICKER_FLASH);
   });
 });
 

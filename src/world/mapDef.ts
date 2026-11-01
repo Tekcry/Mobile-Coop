@@ -17,7 +17,6 @@ import type { GuardAiLayout } from '../ai/guardAiData';
 import type { CamSize, CamSpace } from './camSpaces';
 import type { KitLayout } from './kit/facilityKit';
 import type { PropPlacement as FacilityPropPlacement } from './props/facilityProps';
-import type { LightningData } from './lightning';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -142,11 +141,6 @@ export interface MapDef {
   build(b: LevelBuilder, seed: number): MapLayout;
   /** 3.0: weather the Play screen / lobby offers on this map (none: the theme's own). */
   weathers?: readonly WeatherChoice[];
-  /**
-   * (piano-escape) A test scene on the Sector Ops runtime (`game/pianoScene.ts`): the run writes no star, record or
-   * rating and ends on a fade out to the menu, not the results screen. Absent: an ordinary map.
-   */
-  scene?: 'piano';
   /** Walkable surfaces the nav grid keeps per column (default 3). Maps that stack more storeys raise it. */
   navLayers?: number;
   /**
@@ -162,11 +156,6 @@ export interface MapDef {
   /** (piano SO3) Of those, how many get a shadow map (default all); the rest light with the beam's reach cut, the
    *  light field matching (`LightDef.beamCut`). */
   torchShadows?: number;
-  /**
-   * (piano SO5) A storm's lightning: fixed strikes on the scene clock (`world/lightning.ts`), let in through the moon's
-   * baked sky visibility (windows, gaps). The meter, guards and the picture read one level per sim step. Absent: none.
-   */
-  lightning?: LightningData;
   /** (mission-framework GB5) True: registered in `MAPS` (so `?autostart=<id>` and `getMap` find it) but off every menu and co-op lobby list. */
   unlisted?: boolean;
   /** (FLG) True: a mission map; `?autostart=<id>` boots it only with `flags.missions` on (`mapBootAllowed`). A co-op
