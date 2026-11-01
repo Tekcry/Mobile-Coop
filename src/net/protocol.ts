@@ -22,7 +22,7 @@ import type { MotionState } from '../anim/motion';
 import type { AnimSource } from '../anim/animSource';
 
 /** The wire version. Only this line holds it; tests read it. Bump it in the PR that changes the wire (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 88;
+export const PROTOCOL_VERSION = 89;
 /** Room cap on the wire: two players in every mode (`COOP_MAX`, `COURSE_MAX`). */
 export const MAX_PLAYERS = 2;
 export const COOP_MAX = 2;
@@ -33,15 +33,15 @@ export const MAX_ITEMS = 128;
 export const MAX_DOORS = 256;
 const WORLD = 400;
 
-/** Co-op: free roam, Hunter (`clear`), Infiltration, the training course (the campaign), Sector Ops. */
 /** Gadgets whose effect crosses the net. */
 export type NetGadget = 'gas' | 'flash' | 'emp' | 'noise';
 export const NET_GADGETS: readonly NetGadget[] = ['gas', 'flash', 'emp', 'noise'];
 /** (mission NET) The gadgets whose use reaches the host only as a `gused` (no effect message: a frag goes as `blast`). */
 export type UseOnlyGadget = Exclude<GadgetId, NetGadget>;
 export const USE_ONLY_GADGETS: readonly UseOnlyGadget[] = ['frag', 'mine', 'stickyCam'];
-export type NetMode = 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector' | 'test';
-export const NET_MODES: readonly NetMode[] = ['sandbox', 'clear', 'infiltration', 'course', 'sector', 'test'];
+/** Co-op: the training course (the campaign), Sector Ops, the Test Chamber (`test`). */
+export type NetMode = 'course' | 'sector' | 'test';
+export const NET_MODES: readonly NetMode[] = ['course', 'sector', 'test'];
 /** The training course and Sector Ops take two players (P1 host, P2 client; G2). */
 export const COURSE_MAX = 2;
 /** Players a mode takes. */
@@ -310,7 +310,7 @@ export type Msg =
    *  the partner's lobby shows the entry and its briefing. The client's start mission still comes only from `start.sm`. */
   | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice; sm?: string }
   | { t: 'ready'; ready: boolean }
-  /** `mission`: Infiltration's. (mission-framework NET3) `sm`: Sector Ops' mission (`MissionDef.id`, the host's
+  /** `mission`: retired (Infiltration's; always ''). (mission-framework NET3) `sm`: Sector Ops' mission (`MissionDef.id`, the host's
    *  `?mission=`; absent / '': none), so a client starts in the mission's start section and follows the host's. */
   | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number; sm?: string }
   | { t: 'pstate'; s: PlayerState }
@@ -648,7 +648,7 @@ function endStats(v: unknown): EndStats | null {
 }
 
 const MODES = NET_MODES;
-/** Mission ids are plain slugs ('' = none). */
+/** The retired `mission` field (Infiltration's): a plain slug, '' = none (always '' now). */
 const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
 /** (NET3) A Sector Ops mission id (`MissionDef.id`: camelCase, as `MISSION_WIRE.idMax`); anything else is '' (none). */
 export const sectorMissionId = (v: unknown): string => (typeof v === 'string' && /^[A-Za-z0-9_-]{0,64}$/.test(v) ? v : '');

@@ -28,7 +28,7 @@ export interface StartInfo {
   map: string;
   seed: number;
   difficulty: Difficulty;
-  /** Infiltration: the mission ('' otherwise). */
+  /** The retired Infiltration mission field (always ''). */
   mission: string;
   weather: WeatherChoice;
   /** Course mode: the bay to start at (1-based, D20). (campaign-mode CM3) Sector Ops with `flags.campaign`: the section
@@ -90,7 +90,7 @@ export class NetSession {
   readonly events = new EventBus<SessionEvents>();
   readonly players = new Map<string, PlayerInfo>();
   hostId: string | null;
-  /** A new room's mode: the campaign, Marlow Yard in Course mode (sector-ops slice 3; `?legacy=1` hosts switch to the parked Hunter). */
+  /** A new room's mode: the campaign, Marlow Yard in Course mode (sector-ops slice 3). */
   mode: NetMode = 'course';
   map = roomMap('ctcourse');
   difficulty: Difficulty = 'normal';
@@ -394,14 +394,14 @@ export class NetSession {
     else this.toHost({ t: 'ready', ready });
   }
 
-  setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission, weather = this.weather, sm = this.sectorMission): void {
+  setSettings(mode: NetMode, map: string, difficulty: Difficulty, _mission = '', weather = this.weather, sm = this.sectorMission): void {
     if (!this.isHost) return;
     // (campaign-mode CM3, PLAN 3.4) the lobby's campaign pick sets Sector Ops' mission, only with `flags.campaign` and
     // `flags.missions` (as the constructor's URL path); flags off: the session's mission as before
     const pick = flags.campaign && flags.missions ? sectorMissionId(sm) : this.sectorMission;
     // (PR E fix) another mode, map or mission is a new match, not the one the auto start resumes (a block it lifts, such
     // as a switch off the campaign, would otherwise start it alone at once); (CM3) so is another campaign pick
-    if (mode !== this.mode || map !== this.map || (mode === 'infiltration' ? mission : '') !== this.mission || pick !== this.sectorMission) this.cancelAutoStart();
+    if (mode !== this.mode || map !== this.map || pick !== this.sectorMission) this.cancelAutoStart();
     // (CM3) a Continue and a resumed section belong to the match they were set for
     if (mode !== this.mode || roomMap(map) !== this.map || pick !== this.sectorMission || difficulty !== this.difficulty) {
       this.campaignResume = null;
@@ -412,7 +412,6 @@ export class NetSession {
     // (J14 R1) the lobby's Marlow Yard pick opens the re-planned yard with the flag on
     this.map = roomMap(map);
     this.difficulty = difficulty;
-    this.mission = mode === 'infiltration' ? mission : '';
     this.weather = weather;
     this.broadcastLobby();
   }

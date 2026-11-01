@@ -138,7 +138,7 @@ export function sanitizeSave(raw: unknown, openLoadout = false): SaveData {
   const lo = isObj(raw.loadout) ? raw.loadout : {};
   let primary: WeaponId = isWeapon(lo.primary) ? lo.primary : 'pistolSd';
   let secondary: WeaponId = isWeapon(lo.secondary) ? lo.secondary : 'rifle';
-  // (3.5: with `openLoadout` - the campaign, `core/legacy.ts` - any known weapon may be chosen; nothing is unlocked)
+  // (3.5: with `openLoadout` - the campaign - any known weapon may be chosen; nothing is unlocked)
   const has = (id: string): boolean => openLoadout || unlocks.includes(id);
   if (!has(`weapon:${primary}`)) primary = 'pistolSd';
   if (!has(`weapon:${secondary}`) || secondary === primary) secondary = primary === 'rifle' ? 'pistolSd' : 'rifle';

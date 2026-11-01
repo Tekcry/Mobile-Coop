@@ -5,8 +5,8 @@ import { CHAMBER_MID as C, CHAMBER_PROPS as P, CHAMBER_SIZE as SIZE } from '../.
 
 /**
  * (anim-studio) The Test Chamber (was the Anim Studio; the map id was `studio` until the Test Chamber rename, now `chamber`): a dev scene, not a level (it is not in
- * `MAPS`, no map list shows it; its `modes` (Free Roam, and (G2a) `test`: guards by test, revives) are for the URL boot
- * and the room; `getMap('chamber')` finds it in `DEV_MAPS`, `?autostart=chamber` boots it in Free Roam (`&mode=test` in the
+ * `MAPS`, no map list shows it; its `modes` (`sandbox`, and (G2a) `test`: guards by test, revives) are for the URL boot
+ * and the room; `getMap('chamber')` finds it in `DEV_MAPS`, `?autostart=chamber` boots it in `sandbox` (`&mode=test` in the
  * test mode), the main menu's Test Chamber row starts it alone and the co-op lobby's Test Chamber mode hosts it for
  * two in `test`: the chamber stage and its loop player run in the single player match only). The level design
  * standard (`docs/level-design.md`) binds playable maps; this is a plain room to look at the animation in, like the old

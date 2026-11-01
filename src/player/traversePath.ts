@@ -1,6 +1,6 @@
 /**
  * Feet path of a committed traversal (pure): step up, vault, mantle, roll, hop, drop. The local player plays it
- * (`TraversalController`); a co-op / PvP remote replays the same path from the move's start (`MoveCommit`,
+ * (`TraversalController`); a co-op remote replays the same path from the move's start (`MoveCommit`,
  * 3.2.0 phase 1), so it never lags or cuts corners through the obstacle.
  */
 export interface PathPoint {

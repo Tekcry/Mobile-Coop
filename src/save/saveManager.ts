@@ -51,7 +51,7 @@ export class SaveManager {
    * in-memory profile but nothing is written, so the stored data is never overwritten.
    */
   readOnly = false;
-  /** 3.5: the campaign lets any weapon be chosen (`core/legacy.ts` `campaignUnlocked`); set before `load`. */
+  /** 3.5: the campaign lets any weapon be chosen (main.ts sets it true); set before `load`. */
   openLoadout = false;
 
   get(): SaveData {

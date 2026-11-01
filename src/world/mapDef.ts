@@ -136,7 +136,7 @@ export interface MapDef {
   description: string;
   theme: MapTheme;
   /** Modes this map supports. */
-  modes: ('mission' | 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector' | 'test')[];
+  modes: ('sandbox' | 'course' | 'sector' | 'test')[];
   /** Sector Ops (feature/sector-ops): the sectors in play order (maps that run the `sector` mode). */
   sectors?: readonly SectorDef[];
   /** (mission-framework EN2, A7) Missions over the sectors, picked by `?mission=<id>`; none picked: Sector Ops as before. */

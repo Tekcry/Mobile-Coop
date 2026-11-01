@@ -1,5 +1,5 @@
 /**
- * The local player's movement state (3.2.0 phase 1) for the co-op / PvP wire: which mode the body is in (free, wall,
+ * The local player's movement state (3.2.0 phase 1) for the co-op wire: which mode the body is in (free, wall,
  * attached, a committed move, a takedown) and the few numbers a remote needs to pose it with the same code
  * (`poseFromMoveState`, `AttachGrips`, `traversePath`). Built every fixed step a net session runs.
  */
