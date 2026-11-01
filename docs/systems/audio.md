@@ -55,8 +55,6 @@ Design authority: docs/DECISIONS.md (G58-G67), then docs/design-bible.md (Sectio
     `src/audio/score/orch/pieces.ts`.
 - **Test page:** `/music-test.html` on the dev server. It holds the audition stems (git-ignored, rebuilt by the same
   command), layer sliders, and the in-game state test.
-- **Old V3 lab:** `?musiclab=1` (`audio/music/musicLab.ts`) and its committed stems (`src/assets/music/sketches/`) stay
-  (G65: music folders kept as they are); `e2e-music` tests it.
 
 ## Movement foley (2026-10-16)
 Real CC0 recordings for the player's own movement (Michael chose recordings over synthesis, 2026-10-16). Sources and
@@ -88,8 +86,6 @@ licences: `docs/audio-credits.md`. Purely cosmetic: guards hear the noise model 
   during a committed move are skipped except on a step-up). Plants within 0.15 s after a landing are part of it.
   Cover glides (noise `silent`) play at 0.4, shuffles on the spot at 0.5. Until the sprite is decoded (or if decoding
   fails) the old synthesised `Sfx.footstep` plays instead.
-- **Foley lab** (`?foleylab=1`, `audio/foley/foleyLab.ts`): every surface and gait as a looping walk, the landings and
-  moves on buttons, and "Old synth" for an A/B against the previous steps.
 - Decided, not built yet: one run sound for every running speed, the walk / run switch reset to the CT speeds and the
   `sprint` gait removed (G62; `RUN_FROM` 2.1 m/s today); your own steps play very softly when guards cannot hear them (built, playtest 2: the own-step volume follows the noise
   radius, `stepVolume`, 0.07 silent to 0.42 at the loudest run),
@@ -144,8 +140,5 @@ stat), which nothing here reads or changes.
   (`PF.quiet`; `stats.remoteSd`). One per round: `RemoteAvatar` plays a round per step of the partner's
   `PlayerState.sc` (`net/remoteShots.ts`), no longer every fire interval while `PF.firing` (0.2 s) is set, which
   played a single shot twice.
-- **Weapon lab** (`?weaponlab=1`, `audio/weapons/weaponLab.ts`): the two CT kit guns; single, three-round burst or a second of
-  automatic fire at the gun's rate; suppressed; the player or a guard at 6, 18 or 40 m; reloads, dry fire, brass on
-  each floor, a running footstep for level; "Old synth" for an A/B.
 - Not covered yet: bullet impacts and ricochets (still the synth `impact`), the weapon swap and grenade throw (synth),
   bullet flybys past the player, guards' reloads, indoor and outdoor reverb tails by room.
