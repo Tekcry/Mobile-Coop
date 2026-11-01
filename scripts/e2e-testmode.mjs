@@ -143,8 +143,8 @@ try {
   });
 
   console.log('studio, test mode with ?guards=1');
-  // (one-game) `mapready=0`: with the load gate on, the five annex guards placed at the match start throw a render error in the first frames (about half the boots; none with the gate off, none with the three practice guards); the gate and its guards are not G2c's
-  await boot('autostart=studio&mode=test&guards=1&mapready=0', async (page, G) => {
+  // (0b) with the load gate on (the default): the five annex guards placed at the match start once threw a render error in the first frames (`reading 'world'`; fixed in `GameState.gateCompile`)
+  await boot('autostart=studio&mode=test&guards=1', async (page, G) => {
     await frames(page, 2);
     const s = await G(() => { const g = window.__app.current; return { mode: g.mode?.id, alive: g.enemyMgr?.alive }; });
     assert(s.mode === 'test' && s.alive === 5, `?guards=1 places the map's room squads: five guards in the annex (${s.mode}, ${s.alive} guards)`);

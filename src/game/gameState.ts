@@ -1,6 +1,6 @@
 import { landingRumble } from '../config/rumble';
 import type { App, AppState } from '../core/app';
-import { type AbstractMesh, Color3, type Effect, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
+import { type AbstractMesh, Color3, type Effect, type FreeCamera, InstancedMesh, type Material, PhysicsRaycastResult, SubMesh, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
 import { World } from '../world/world';
 import { disposeSectionBakersSince, sectionBakerMark } from '../voxel/sectionJobs';
 import { flags } from '../core/flags';
@@ -3079,17 +3079,44 @@ export class GameState implements AppState {
     return GameState.gateCompileMeshes(this.scene.meshes.slice());
   }
 
-  /** (map-ready S2) `forceCompilationAsync` for each mesh's material (with instances when it draws them); resolves when
-   *  all have settled (a shader error never holds the next group). */
+  /** (map-ready S2) Compile each mesh's material (with instances when it draws them); resolves when all have settled (a
+   *  shader error never holds the next group). */
   private static gateCompileMeshes(ms: Iterable<AbstractMesh>): Promise<unknown> {
     const out: Promise<void>[] = [];
     for (const m of ms) {
       const mat = m.material;
       if (!mat || !m.subMeshes?.length || m instanceof InstancedMesh || m.isDisposed()) continue;
       const inst = m.hasThinInstances || ((m as { instances?: readonly unknown[] }).instances?.length ?? 0) > 0;
-      out.push(mat.forceCompilationAsync(m, { useInstances: inst }).catch(() => undefined));
+      out.push(GameState.gateCompile(mat, m, inst));
     }
     return Promise.all(out);
+  }
+
+  /**
+   * (0b load crash) Babylon's `forceCompilation` without its hot-swap switch. `forceCompilation` turns the material's
+   * `allowShaderHotSwapping` off until its compile settles; the gate renders frames meanwhile, and a shared frozen
+   * material (the guard parts') whose real sub-mesh asked for a new shader then took it unfinished: its sub-mesh kept the
+   * "was ready" mark, so the next frame's frozen shortcut bound that shader (`reading 'world'` in `bindForSubMesh`) and
+   * the render died. The same poll on a sub-mesh of its own (never drawn), the material left as it is.
+   */
+  private static gateCompile(mat: Material, m: AbstractMesh, inst: boolean): Promise<void> {
+    return new Promise((resolve) => {
+      const sub = mat._storeEffectOnSubMeshes ? new SubMesh(0, 0, 0, 0, 0, m, undefined, false, false) : null;
+      if (sub?.materialDefines) sub.materialDefines._renderId = -1;
+      const check = (): void => {
+        if (m.isDisposed() || !mat.getScene()?.getEngine()) return resolve();
+        try {
+          if (sub ? mat.isReadyForSubMesh(m, sub, inst) : mat.isReady(m, inst)) return resolve();
+          // (a shader that failed with no fallback left: settled, as `forceCompilation` reports it)
+          const e = sub?.effect;
+          if (e && e.getCompilationError() && e.allFallbacksProcessed()) return resolve();
+        } catch {
+          return resolve();
+        }
+        setTimeout(check, 16);
+      };
+      check();
+    });
   }
 
   /** (map-ready S2) For the cap's log line. */
