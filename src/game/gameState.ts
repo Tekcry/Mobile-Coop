@@ -985,7 +985,8 @@ export class GameState implements AppState {
       this.weapons.infiniteAmmo = true;
       // (G2a) training targets from the map's layout (a map with none: the map alone, no guards)
       const dummies = world.layout.dummies;
-      if (dummies) for (const dm of dummies) this.dummies.push(new TrainingDummy(this.scene, world, this.registry, dm.pos.clone(), dm.yaw, dm.strafe ?? 0));
+      // (G2b) not on the animation stage: they would stand in the loop player's room
+      if (dummies && !opts.stage) for (const dm of dummies) this.dummies.push(new TrainingDummy(this.scene, world, this.registry, dm.pos.clone(), dm.yaw, dm.strafe ?? 0));
       if (sandbox) this.hud.setObjective(dummies?.length ? 'Free roam - try every weapon' : 'Free roam - explore with every weapon');
     }
 

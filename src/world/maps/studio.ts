@@ -19,6 +19,11 @@ import { STUDIO_MID as C, STUDIO_PROPS as P, STUDIO_SIZE as SIZE } from '../../a
  * number), so the game's own probes, attach states and moves play on them: the co-op team block (the pairs' 4.4 m lip and
  * a rappel point), a wall with a 2.4 m ledge, a low wall to vault, a platform with a ladder and a drainpipe (its south
  * face the back-to-wall wall), a horizontal pipe, a hang bar, a vent duct, a window and a door.
+ *
+ * (G2b, `docs/plan/TEST-CHAMBER-SPEC.md`) The test bed: pieces for the movement, traversal and combat suites in the same
+ * room and colours (a step row, a crouch tunnel, 35 and 55 degree stairs / ramp, a fence, hang block B, a split fin,
+ * a zipline, a rappel booth with a glazed window and a roof vent, crates, barrels, two training dummies). The animation
+ * stage (loop player, tuner) is opt-in: the main menu row or `?stage=1`; the plain `?autostart=studio` is the normal game.
  */
 export const studio: MapDef = {
   id: 'studio',
@@ -118,6 +123,69 @@ export const studio: MapDef = {
     b.box(d.hinge + d.w / 2, (d.h + d.wallH) / 2, d.z, d.w, d.wallH - d.h, 0.3, WALL);
     b.door(d.hinge, 0, d.z, d.w, Math.PI / 2, { swing: 1, height: d.h });
 
+    // (G2b) the test pieces (spec 1.3): plain greybox in the room's own colours, clear of the animation lane (x 8-26, z 18-24)
+    // and the loop walk-ins. A step row (south wall): 0.42 walks up, 0.6 is the step move, 0.9 a mantle
+    const sp = P.steps;
+    for (let i = 0; i < sp.rows.length; i++) b.block(sp.rows[i]!.x, sp.z, sp.w, sp.rows[i]!.h, sp.d, i === 2 ? PROP_DARK : PROP);
+    // a crouch tunnel (west wall): a side wall and a roof 1.4 m up (the perimeter is its west side)
+    const tn = P.tunnel;
+    const tl = tn.z1 - tn.z0;
+    b.block(tn.x1 - tn.wallW / 2, (tn.z0 + tn.z1) / 2, tn.wallW, tn.under, tl, PROP_DARK);
+    b.block((tn.x0 + tn.x1) / 2, (tn.z0 + tn.z1) / 2, tn.x1 - tn.x0, tn.roof, tl, PROP, tn.under);
+    // 35 degree stairs and a 55 degree ramp (a ramp over 50 degrees is a wall to walk)
+    const st = P.stairs;
+    b.stairs(st.x, st.z, st.w, st.len, st.rise, st.steps, PROP, 0);
+    const r5 = P.ramp55;
+    b.ramp(r5.x, r5.z, r5.w, r5.len, r5.rise, PROP_DARK, 0);
+    // a 2.6 m chain-link fence (the climb case)
+    const fn = P.fence;
+    b.fence(fn.x0, fn.z, fn.x1, fn.z, fn.h);
+    // hang block B beside the ledge wall (jump-across, corner wrap) and a split fin beside the team block (a 1.65 m gap)
+    const bb = P.blockB;
+    b.block((bb.x0 + bb.x1) / 2, (bb.z0 + bb.z1) / 2, bb.x1 - bb.x0, bb.top, bb.z1 - bb.z0, PROP);
+    const fi = P.fin;
+    b.box((fi.x0 + fi.x1) / 2, fi.top / 2, (fi.z0 + fi.z1) / 2, fi.x1 - fi.x0, fi.top, fi.z1 - fi.z0, PROP_DARK);
+    // a zipline from the ledge wall's top (a post and a bar carry the high end)
+    const zp = P.zip;
+    b.pillar(zp.x, zp.post.z, 0.06, zp.post.h, METAL, zp.post.y);
+    b.box(zp.x, zp.a.y + 0.05, zp.a.z + 0.2, 0.05, 0.05, 0.3, METAL, 0, 0, false);
+    b.zipline({ x: zp.x, y: zp.a.y, z: zp.a.z }, { x: zp.x, y: zp.b.y, z: zp.b.z });
+
+    // the rappel booth (north east corner; decision N10): walls with a glazed window, a roof with a vent hole, a rope over
+    // the window and a duct over the hole. The team block above stays exactly as it was.
+    const bo = P.booth;
+    const booth0 = b.boxes.length;
+    b.box(25.45, 2.1, 25.15, 0.9, 4.2, 0.3, PROP);
+    b.box(27.55, 2.1, 25.15, 0.9, 4.2, 0.3, PROP);
+    b.box(bo.window.x, bo.window.sill / 2, 25.15, bo.window.w, bo.window.sill, 0.3, PROP);
+    b.box(bo.window.x, 3.2, 25.15, bo.window.w, 2.0, 0.3, PROP);
+    b.box(25.15, 2.1, 26.5, 0.3, 4.2, 3.0, PROP);
+    b.box(26.65, 2.1, 27.75, 2.7, 4.2, 0.5, PROP);
+    b.mark(booth0, { noLedge: true });
+    // the roof slab, top 4.4, round the vent hole
+    b.box(26.5, 4.3, 25.65, 3.0, 0.2, 1.3, PROP);
+    b.box(26.5, 4.3, 27.55, 3.0, 0.2, 0.9, PROP);
+    b.box(25.25, 4.3, 26.7, 0.5, 0.2, 0.8, PROP);
+    b.box(27.15, 4.3, 26.7, 1.7, 0.2, 0.8, PROP);
+    b.noLedge(25.9, 26.7, 0.7);
+    b.windowAt(bo.window.x, bo.window.sill + bo.window.h / 2, 25.15, bo.window.w, bo.window.h, 0, { sill: bo.window.sill, open: false, breakable: true });
+    b.rappel(bo.rope.x, bo.rope.top, bo.rope.z, Math.PI, bo.rope.top);
+    // the roof duct over the hole: a ceiling vent, drop into the booth
+    const duct1 = b.boxes.length;
+    b.box(26.1, 4.95, 26.15, 1.6, 1.1, 0.1, METAL);
+    b.box(26.1, 4.95, 27.25, 1.6, 1.1, 0.1, METAL);
+    b.box(26.1, 5.55, 26.7, 1.6, 0.1, 1.2, METAL);
+    b.box(25.3, 4.95, 26.7, 0.1, 1.1, 1.0, METAL);
+    b.mark(duct1, { noLedge: true });
+    b.duct(
+      [
+        { x: 26.65, y: 4.4, z: 26.7 },
+        { x: 25.9, y: 4.4, z: 26.7 },
+      ],
+      { pos: { x: 26.9, y: 4.95, z: 26.7 }, nx: 1, ny: 0, nz: 0, where: 'wall' },
+      { pos: { x: 25.9, y: 4.2, z: 26.7 }, nx: 0, ny: -1, nz: 0, where: 'ceiling' },
+    );
+
     // key (warm, front left, high), rim (cool, behind right), fill (soft, front right), and a lamp over each prop side
     b.light({ kind: 'lamp', x: C - 3, y: 6, z: C + 3, radius: 14, intensity: 1, color: [1, 0.93, 0.82] });
     b.light({ kind: 'lamp', x: C + 2.5, y: 5.5, z: C - 3.5, radius: 12, intensity: 0.8, color: [0.75, 0.85, 1] });
@@ -132,10 +200,39 @@ export const studio: MapDef = {
         { pos: new Vector3(C, 0, C), yaw: 0 },
         { pos: new Vector3(C + 2, 0, C), yaw: 0 },
       ],
-      enemySpawns: [],
-      props: [],
+      // (G2b) e2e-tactics' five grunts: all in the open room, 9-21 m from its player at (2.7, 17)
+      enemySpawns: [new Vector3(12, 0, 22), new Vector3(18, 0, 22.5), new Vector3(24, 0, 22), new Vector3(19.5, 0, 11), new Vector3(23, 0, 6.5)],
+      // (G2b) the push test (a crate, a small crate and a barrel off the lane) and two explosive barrels for the chain shot
+      props: [
+        { kind: 'smallCrate', pos: new Vector3(10, 0, 16.8) },
+        { kind: 'crate', pos: new Vector3(11, 0, 16.4) },
+        { kind: 'barrel', pos: new Vector3(9, 0, 16.4) },
+        { kind: 'explosiveBarrel', pos: new Vector3(26.9, 0, 11.3) },
+        { kind: 'explosiveBarrel', pos: new Vector3(25.7, 0, 11.3) },
+      ],
+      // (G2b) two training targets, one still and one strafing; the stage has none (it would stand in the loop player's room)
+      dummies: [
+        { pos: new Vector3(8, 0, 12.5), yaw: Math.PI / 2 },
+        { pos: new Vector3(8, 0, 15), yaw: Math.PI / 2, strafe: 2.5 },
+      ],
       objectives: [],
       pickups: [],
+      // (G2b) the ledge wall's top is reached only by a climb, so the nav keeps it walkable (takedown "below", hang-down)
+      navSeeds: [new Vector3(4, 2.4, 26.5)],
+      // (G2b) the booth and the tunnel frame tight
+      camSpaces: [
+        { box: [P.booth.inner.x0, P.booth.inner.z0, P.booth.inner.x1, P.booth.inner.z1], size: 'tight' },
+        { box: [P.tunnel.x0, P.tunnel.z0, 2.5, P.tunnel.z1], y: [0, P.tunnel.under], size: 'tight' },
+      ],
+      debugPoints: [
+        { group: 'moves', id: 'steps', label: 'Step row', pos: new Vector3(3, 0, 2.2), yaw: Math.PI },
+        { group: 'moves', id: 'tunnel', label: 'Crouch tunnel', pos: new Vector3(1.2, 0, 15.6), yaw: Math.PI },
+        { group: 'moves', id: 'split', label: 'Split fin', pos: new Vector3(17.8, 0, 24.5), yaw: 0 },
+        { group: 'moves', id: 'fence', label: 'Fence', pos: new Vector3(7.5, 0, 5.8), yaw: 0 },
+        { group: 'moves', id: 'zip', label: 'Zipline top', pos: new Vector3(5.3, 2.42, 27.5), yaw: Math.PI },
+        { group: 'moves', id: 'booth-rope', label: 'Booth rope', pos: new Vector3(26.5, 4.45, 25.4), yaw: Math.PI },
+        { group: 'moves', id: 'booth-vent', label: 'Booth roof vent', pos: new Vector3(27.5, 4.42, 26.7), yaw: -Math.PI / 2 },
+      ],
       camSize: 'open',
     };
   },

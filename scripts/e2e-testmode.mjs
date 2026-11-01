@@ -48,7 +48,7 @@ try {
     assert(s.nav && s.em && s.ints, `the guards' systems are up: nav ${s.nav}, enemy manager ${s.em}, interactables ${s.ints}`);
     assert(s.stealth === true && s.coordinated === true, `stealth rules and the coordinated hearing (${s.stealth} / ${s.coordinated})`);
     assert(s.ammo === true, 'infinite ammo');
-    assert(s.alive === 0 && s.pending === 0 && s.dummies === 0, `nothing queued, no guards, no dummies on the empty chamber (alive ${s.alive}, pending ${s.pending}, dummies ${s.dummies})`);
+    assert(s.alive === 0 && s.pending === 0 && s.dummies === 2, `nothing queued, no guards, the chamber's two dummies (G2b) (alive ${s.alive}, pending ${s.pending}, dummies ${s.dummies})`);
     assert(s.lives === Infinity || s.lives === null, `no lose flow (lives ${s.lives})`);
 
     // a guard the test spawns walks its route: (6, 8) to (22, 8) and back, 16 m a leg
@@ -106,7 +106,7 @@ try {
   await boot('autostart=studio&mode=test&guards=1', async (page, G) => {
     await frames(page, 2);
     const s = await G(() => { const g = window.__app.current; return { mode: g.mode?.id, alive: g.enemyMgr?.alive }; });
-    assert(s.mode === 'test' && s.alive === 0, `?guards=1 is accepted; it populates the map's room squads, and the chamber has none yet (${s.mode}, ${s.alive} guards)`);
+    assert(s.mode === 'test' && s.alive === 0, `?guards=1 is accepted; it populates the map's room squads, and the chamber has none (${s.mode}, ${s.alive} guards)`);
   });
 
   console.log('studio, free roam (unchanged)');
@@ -117,8 +117,22 @@ try {
       return { mode: g.opts.mode, modeObj: g.mode, nav: !!g.nav, em: !!g.enemyMgr, ammo: g.weapons.infiniteAmmo, dummies: g.dummies.length, obj: g.hud.objectiveText };
     });
     assert(s.mode === 'sandbox' && s.modeObj === null && !s.nav && !s.em, `free roam on the chamber has no mode, nav or guards (${s.mode}, ${s.modeObj}, ${s.nav}, ${s.em})`);
-    assert(s.ammo === true && s.dummies === 0, `infinite ammo, no dummies (${s.ammo}, ${s.dummies})`);
-    assert(/explore with every weapon/.test(s.obj ?? ''), `the plain free roam objective (${s.obj})`);
+    assert(s.ammo === true && s.dummies === 2, `infinite ammo, the chamber's two dummies (G2b) (${s.ammo}, ${s.dummies})`);
+    assert(/try every weapon/.test(s.obj ?? ''), `the free roam objective for a map with targets (${s.obj})`);
+  });
+
+  console.log('studio, the animation stage (?stage=1)');
+  await boot('autostart=studio&stage=1&mode=sandbox', async (page, G) => {
+    await frames(page, 2);
+    const s = await G(() => { const g = window.__app.current; return { stage: !!g.studio, dummies: g.dummies.length, entry: window.__studioStage ? 'hook' : '' }; });
+    assert(s.stage && s.dummies === 0, `the stage starts with ?stage=1 and has no dummies in its room (stage ${s.stage}, dummies ${s.dummies})`);
+  });
+
+  console.log('studio, free roam has no stage');
+  await boot('autostart=studio&mode=sandbox', async (page, G) => {
+    await frames(page, 2);
+    const s = await G(() => { const g = window.__app.current; return { stage: !!g.studio, hook: !!window.__studioStage }; });
+    assert(!s.stage && !s.hook, `plain autostart=studio is the normal game: no animation stage (${s.stage}, ${s.hook})`);
   });
 
   console.log('proving grounds, test mode');

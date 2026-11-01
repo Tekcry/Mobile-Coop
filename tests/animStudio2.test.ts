@@ -414,10 +414,20 @@ describe('anim studio 2: the studio map is real level geometry', () => {
     expect(an.ladders.length).toBe(1);
     expect(an.pipesV.length).toBe(1);
     expect(an.pipesH.length).toBe(2);
-    expect(an.ducts.length).toBe(1);
-    expect(an.windows.length).toBe(1);
+    // (G2b) the floor duct, window and team rope plus the booth's roof duct, glazed window and rope; a zipline and a fence
+    expect(an.ducts.length).toBe(2);
+    expect(an.windows.length).toBe(2);
     expect(an.doors.length).toBe(1);
-    expect(an.rappels.length).toBe(1);
+    expect(an.rappels.length).toBe(2);
+    expect(an.ziplines.length).toBe(1);
+    expect(an.fences.length).toBe(1);
+    // the old ones keep their place in each list (the loops and the suites read index 0)
+    expect(an.windows[0]!.open).toBe(true);
+    expect(an.windows[1]!.open).toBe(false);
+    expect(an.windows[1]!.breakable).toBe(true);
+    expect(an.ducts[0]!.exit.where).toBe('wall');
+    expect(an.ducts[1]!.exit.where).toBe('ceiling');
+    expect(an.rappels[0]!.top.x).toBe(STUDIO_PROPS.rappel.x);
     // the team block's south lip: the pairs' station lip (same height, line and outward normal)
     const st = stationLedge(PAIR_STATION);
     const lip = an.ledges.find((l) => Math.abs(l.top - PAIR_TOP) < 1e-6 && Math.abs(l.a.z - STUDIO_PROPS.team.z0) < 1e-6 && l.nz < -0.99);
@@ -430,5 +440,90 @@ describe('anim studio 2: the studio map is real level geometry', () => {
     // no lip off the vent block (a crawl duct, not a climb)
     const v = STUDIO_PROPS.vent;
     expect(an.ledges.some((l) => l.a.x > v.x0 - 0.01 && l.a.x < v.x1 + 0.01 && l.a.z > v.z0 - 0.01 && l.a.z < v.z1 + 0.01)).toBe(false);
+  });
+});
+
+describe('anim studio 2: the G2b test pieces leave the old room as it was', () => {
+  /** (G2b) Every `STUDIO_PROPS` key of the Anim Studio, with its value as it was before the test pieces came (the owner's rule: the existing room keeps its place). */
+  const OLD = {
+    team: { x0: 11, x1: 17, z0: 25, z1: 28, top: 4.4 },
+    ledge: { x0: 2, x1: 6, z0: 25, z1: 28, top: 2.4 },
+    lowWall: { x: 4, z0: 15, z1: 19, h: 1.0, thick: 0.3 },
+    platform: { x0: 0, x1: 3, z0: 8, z1: 11, top: 3.0 },
+    ladder: { x: 3.05, z: 9.0, width: 0.5 },
+    pipeV: { x: 3.1, z: 10.4 },
+    pipeH: { x: 25.5, z0: 4, z1: 9, y: 2.5 },
+    bar: { x0: 21, x1: 23.5, z: 25.5, y: 2.3 },
+    vent: { x0: 21, x1: 25, z0: 12, z1: 16, z: 14, w: 1.0, h: 1.1, top: 2.0 },
+    window: { x: 18, z: 4, w: 1.2, h: 1.2, sill: 0.9, wall0: 15, wall1: 21, wallH: 3 },
+    door: { hinge: 9.4, z: 4, w: 1.2, h: 2.1, wall0: 7, wall1: 13, wallH: 3 },
+    rappel: { x: 16.3, z: 25, top: 4.4 },
+  };
+
+  it('every old STUDIO_PROPS key keeps its value; the room is still 28 m, the middle 14', async () => {
+    const { STUDIO_MID } = await import('../src/anim/studioProps');
+    for (const [k, v] of Object.entries(OLD)) expect((STUDIO_PROPS as Record<string, unknown>)[k], k).toEqual(v);
+    expect(STUDIO_SIZE).toBe(28);
+    expect(STUDIO_MID).toBe(14);
+  });
+
+  it('the old room is still built: the 7 lamps, the two spawns, the grid, the team block box, the door and window walls', async () => {
+    const { LevelBuilder } = await import('../src/world/levelBuilder');
+    const { studio } = await import('../src/world/maps/studio');
+    const b = new LevelBuilder();
+    const lay = studio.build(b, 0);
+    expect(b.lights.lights.length).toBe(7);
+    expect(lay.playerSpawns.map((s) => [s.pos.x, s.pos.z])).toEqual([[14, 14], [16, 14]]);
+    const has = (cx: number, cy: number, cz: number, sx: number, sy: number, sz: number): boolean => b.boxes.some((x) => [cx, cy, cz, sx, sy, sz].every((v, i) => Math.abs((i < 3 ? x.c[i]! : x.s[i - 3]!) - v) < 1e-6));
+    expect(has(14, 2.2, 26.5, 6, 4.4, 3)).toBe(true);
+    expect(has(4, 1.2, 26.5, 4, 2.4, 3)).toBe(true);
+    expect(has(18, 0.45, 4, 1.2, 0.9, 0.3)).toBe(true);
+  });
+
+  it('no solid box stands in the animation lane (x 8-26, z 18-24) or on a loop\'s walk-in', async () => {
+    const { LevelBuilder } = await import('../src/world/levelBuilder');
+    const { studio } = await import('../src/world/maps/studio');
+    const b = new LevelBuilder();
+    studio.build(b, 0);
+    // a box stands in the room (not the floor, the perimeter or the ceiling) when it rises over the floor
+    const solid = b.boxes.filter((x) => x.collide && x.c[1] + x.s[1] / 2 > 0.05 && x.c[1] - x.s[1] / 2 < 7.9 && x.c[0] > 0 && x.c[0] < STUDIO_SIZE && x.c[2] > 0 && x.c[2] < STUDIO_SIZE);
+    expect(solid.length).toBeGreaterThan(20);
+    const hits = (x0: number, x1: number, z0: number, z1: number, yLo: number, yHi: number): number =>
+      solid.filter((x) => Math.abs(x.yaw) < 1e-9 && x.c[0] - x.s[0] / 2 < x1 && x.c[0] + x.s[0] / 2 > x0 && x.c[2] - x.s[2] / 2 < z1 && x.c[2] + x.s[2] / 2 > z0 && x.c[1] - x.s[1] / 2 < yHi && x.c[1] + x.s[1] / 2 > yLo).length;
+    expect(hits(8, 26, 18, 24, 0.05, 7.9)).toBe(0);
+    // each loop walks `walk` m from its start along its yaw: 0.35 m each side of that line stays clear (at body height)
+    for (const t of TRAV_ENTRIES) {
+      const ex = t.start.x + Math.sin(t.start.yaw) * t.walk;
+      const ez = t.start.z + Math.cos(t.start.yaw) * t.walk;
+      const n = hits(Math.min(t.start.x, ex) - 0.35, Math.max(t.start.x, ex) + 0.35, Math.min(t.start.z, ez) - 0.35, Math.max(t.start.z, ez) + 0.35, t.start.y + 0.15, t.start.y + 1.5);
+      expect(n, `${t.id} walk-in`).toBe(0);
+    }
+  });
+
+  it('the new pieces are the engine\'s sizes: step rows, the tunnel, the slopes, the fence, block B, the fin gap, the zip, the booth', async () => {
+    const { MOVEMENT } = await import('../src/config/movement');
+    const P = STUDIO_PROPS;
+    const [r0, r1, r2] = P.steps.rows;
+    expect(r0.h).toBeLessThanOrEqual(MOVEMENT.maxStep);
+    expect(r1.h).toBeGreaterThan(MOVEMENT.maxStep);
+    expect(r1.h).toBeLessThanOrEqual(0.65);
+    expect(r2.h).toBeGreaterThan(0.65);
+    expect(P.tunnel.under).toBeGreaterThan(MOVEMENT.crouchHeight);
+    expect(P.tunnel.under).toBeLessThan(MOVEMENT.standHeight);
+    const deg = (rise: number, len: number): number => (Math.atan2(rise, len) * 180) / Math.PI;
+    expect(deg(P.stairs.rise, P.stairs.len)).toBeLessThan(50);
+    expect(deg(P.ramp55.rise, P.ramp55.len)).toBeGreaterThan(50);
+    expect(P.fence.x1 - P.fence.x0).toBeGreaterThanOrEqual(2.5);
+    expect(P.blockB.top).toBeGreaterThanOrEqual(LEDGE.minDrop);
+    expect(P.blockB.top).toBeLessThanOrEqual(REACH.grabMax);
+    expect(P.blockB.z0).toBe(P.ledge.z0);
+    const gap = P.fin.x0 - P.team.x1;
+    expect(gap).toBeGreaterThanOrEqual(1.2);
+    expect(gap).toBeLessThanOrEqual(1.95);
+    expect(inBoostBand(P.fin.top)).toBe(true);
+    expect(P.zip.a.y - P.zip.b.y).toBeGreaterThan(1.5);
+    expect(P.booth.top).toBe(PAIR_TOP);
+    expect(P.booth.window.sill).toBeGreaterThan(0.3);
+    expect(P.booth.rope.x).toBe(P.booth.window.x);
   });
 });

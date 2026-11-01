@@ -51,4 +51,22 @@ describe('Test Chamber: the map', () => {
       expect(crowded).toBe(false);
     }
   });
-});
+
+  it('(G2b) has five enemy spawns, two dummies and the props clear of every solid box, a nav seed on the ledge wall and tight cam spaces for the booth and the tunnel', () => {
+    const b = new LevelBuilder();
+    const lay = studio.build(b, 0);
+    expect(lay.enemySpawns).toHaveLength(5);
+    expect(lay.dummies).toHaveLength(2);
+    expect(lay.dummies![1]!.strafe).toBeGreaterThan(0);
+    expect(lay.props.map((p) => p.kind)).toEqual(['smallCrate', 'crate', 'barrel', 'explosiveBarrel', 'explosiveBarrel']);
+    // (a sloped slab's footprint is shorter than its length: its true footprint is the 2.5 m run, so the slopes are left out here)
+    const solid = b.boxes.filter((x) => x.collide && x.pitch === 0 && x.c[1] + x.s[1] / 2 > 0.3 && x.c[1] - x.s[1] / 2 < 2);
+    const inside = (px: number, pz: number, m: number): boolean => solid.some((x) => Math.abs(px - x.c[0]) < x.s[0] / 2 + m && Math.abs(pz - x.c[2]) < x.s[2] / 2 + m);
+    for (const e of lay.enemySpawns) expect(inside(e.x, e.z, 0.5), `enemy spawn ${e.x}, ${e.z}`).toBe(false);
+    for (const d of lay.dummies!) expect(inside(d.pos.x, d.pos.z, 0.5), `dummy ${d.pos.x}, ${d.pos.z}`).toBe(false);
+    for (const p of lay.props) expect(inside(p.pos.x, p.pos.z, 0.3), `prop ${p.kind}`).toBe(false);
+    expect(lay.navSeeds).toHaveLength(1);
+    expect(lay.navSeeds![0]!.y).toBeCloseTo(2.4, 6);
+    expect(lay.camSpaces!.map((c) => c.size)).toEqual(['tight', 'tight']);
+    expect(lay.camSize).toBe('open');
+  });});

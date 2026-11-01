@@ -80,11 +80,12 @@ describe('G2a: the layout carries the dummies', () => {
       [-14, 0, 14, Math.PI * 0.75, 0],
     ]);
   });
-  it('Proving Grounds and the Test Chamber take the test mode as well as Free Roam; the Chamber has no dummies yet', () => {
+  it('Proving Grounds and the Test Chamber take the test mode as well as Free Roam; the Chamber has its two (G2b)', () => {
     expect(provingGrounds.modes).toEqual(['sandbox', 'test']);
     expect(studio.modes).toEqual(['sandbox', 'test']);
     expect(getMap('studio')).toBe(studio);
-    expect(studio.build(new LevelBuilder(), 0).dummies).toBeUndefined();
+    const d = studio.build(new LevelBuilder(), 0).dummies!;
+    expect(d.map((x) => [x.pos.x, x.pos.z, x.strafe ?? 0])).toEqual([[8, 12.5, 0], [8, 15, 2.5]]);
   });
 });
 
