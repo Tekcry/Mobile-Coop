@@ -93,7 +93,7 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   crouch, rappel seat), every rigid item measured against the body, the other items, the ground, a modelled sit harness
   and its draw path; `blender -b build/operators/wren/wren-leg_kit.blend --python scripts/operators/py/pose_check.py --
   build/operators/wren docs/operators/mockups/wren` (via scripts/operators/blender.mjs) writes `wren-pose-*.webp` and
-  `build/operators/wren/wren-poses.json`; with `<id>-game-poses.json` present (operators:sheet `--only gamePoses`) it
+  `build/operators/wren/wren-poses.json`; with `<id>-game-poses.json` present (written by the removed operator-sheet.mjs) it
   also measures the game's own crouch and sneak.
 - `npm run operators:ktx2 [wren]` (step 11, D26, A79; the last stage of `operators:lods`): KTX-Software `toktx`
   (C:/Program Files/KTX-Software/bin, or `KTX_BIN`) encodes every LOD's PNG set to KTX2 (UASTC q2 + Zstd 18, mips;
@@ -101,13 +101,8 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   level 0 in `textures/<lod>/ktx2-decoded/` for the Lab), repacks every GLB with `KHR_texture_basisu` (no WebP / PNG
   left) and refreshes the Lab copies; costs into report.json `ktx2` and README.md. `operators:check` FAILs a LOD file
   with any other texture format (`ktx2`).
-- `npm run operators` - the dev-only Operator Lab (`operators.html`, `src/operators/lab/`, `vite.operators.config.ts`): builds
-  into `build/operators-lab/` and serves at `http://127.0.0.1:4189/operators.html` (E2E_PORT). Never in `dist/`.
-- `npm run operators:sheet [wren|moth] [--only turnaround,closeups,menu,context,compare,lods,wire,colourblind] [--no-build]`
-  (`scripts/operator-sheet.mjs`, run with `E2E_GPU=1 E2E_PORT=4189`) - the contact sheets, into `docs/operators/mockups/<id>/`.
-  `--only gamePoses` (no sheet) writes `build/operators/<id>/<id>-game-poses.json`: the game rig's crouch and sneak
-  (labData POSES through the Lab's retarget) as the operator's posed skeleton; pose_check.py then adds the poses
-  `gameCrouch` / `gameSneak` (step 11b fix round 1).
+- The Operator Lab page (`operators.html`) and its contact-sheet script (`operator-sheet.mjs`) are removed; pose_check.py's
+  optional `gameCrouch` / `gameSneak` poses (from `<id>-game-poses.json`, which that script wrote) are skipped.
 
 Stages still to come (PLAN.md): Moth; Babylon's KTX2 transcoder files in vendor/ktx2/ (A79, OPEN); the game integration (step 18).
 

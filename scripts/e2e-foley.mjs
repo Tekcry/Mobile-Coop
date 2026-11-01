@@ -83,35 +83,5 @@ try {
   failed = true;
 }
 await browser.close();
-
-// the foley lab (`?foleylab=1`): Walk loops steps on every surface; the moves play
-if (!failed) {
-  const lab = await launch({ url, params: 'foleylab=1' });
-  try {
-    const p = lab.page;
-    await p.waitForSelector('.foley-lab', { timeout: 90000 });
-    const click = (text) => p.locator('.foley-lab .btn').filter({ hasText: new RegExp(`^${text}`) }).first().click();
-    await click('Walk');
-    await p.waitForFunction(() => window.__app.foley.stats.loaded, null, { timeout: 30000 });
-    for (const surf of ['Metal', 'Grate', 'Wood', 'Gravel', 'Carpet', 'Concrete']) {
-      const n0 = await p.evaluate(() => window.__app.foley.stats.steps);
-      await click(surf);
-      await p.waitForFunction((n) => window.__app.foley.stats.steps >= n + 2, n0, { timeout: 10000 });
-    }
-    assert(true, 'the lab walks on every surface');
-    const m0 = await p.evaluate(() => window.__app.foley.stats.moves + window.__app.foley.stats.landings);
-    for (const b of ['Vault', 'Roll', 'Heavy landing']) {
-      await click(b);
-      await p.waitForTimeout(300);
-    }
-    const m1 = await p.evaluate(() => window.__app.foley.stats.moves + window.__app.foley.stats.landings);
-    assert(m1 - m0 === 3, `the lab plays a vault, a roll and a heavy landing (${m1 - m0})`);
-    assert(lab.errors.length === 0, `lab: no console errors${lab.errors.length ? ': ' + lab.errors.join(' | ') : ''}`);
-  } catch (e) {
-    console.error(e);
-    failed = true;
-  }
-  await lab.browser.close();
-}
 if (failed || process.exitCode) process.exit(1);
 console.log('\nfoley e2e passed');

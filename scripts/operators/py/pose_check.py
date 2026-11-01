@@ -5,7 +5,7 @@ modelled sit harness and rope (rappel; Wren wears none, LAYOUT.md note 3), and i
 plus the hand room). Clay renders (Cycles on the GPU), red = interference, amber = tight.
 Usage: blender -b --python scripts/operators/py/pose_check.py -- <build dir> <dest dir> [norender] (opens <build>/wren-leg_kit.blend)
 Writes <dest>/wren-pose-{rest,prone,climb,crouch,rappel,gameCrouch,gameSneak}.webp and <build>/wren-poses.json; the
-game poses come from <build>/wren-game-poses.json (npm run operators:sheet -- wren --only gamePoses, fix round 1).
+game poses come from <build>/wren-game-poses.json (optional, fix round 1; the script that wrote it is removed).
 From the D28 scratch pass (concepts/D28/LAYOUT.md, layout.py): the block-in placement is replaced by the built items."""
 import sys, os, json, math
 sys.dont_write_bytecode = True
@@ -457,8 +457,8 @@ def pose_rappel():
     set_frame('elR', (-0.12, 0.42, -0.90), (0, -1, 0))
 
 
-# Step 11b fix round 1 (item 4): the game rig's own crouch and sneak (the Lab's labData POSES through retarget.ts:
-# `npm run operators:sheet -- wren --only gamePoses` writes <build>/wren-game-poses.json, per node its bind and posed
+# Step 11b fix round 1 (item 4): the game rig's own crouch and sneak (optional: the removed Operator Lab's sheet script
+# wrote <build>/wren-game-poses.json, per node its bind and posed
 # world position / rotation in the game frame). Each bone's pose: the same world delta about its bind head.
 GAME_POSES = json.load(open(os.path.join(BUILD, 'wren-game-poses.json'))) if os.path.exists(
     os.path.join(BUILD, 'wren-game-poses.json')) else None
@@ -506,7 +506,7 @@ POSES = [('rest', None), ('prone', pose_prone), ('climb', pose_climb), ('crouch'
 if GAME_POSES is not None:
     POSES += [('gameCrouch', pose_game('crouch')), ('gameSneak', pose_game('sneak'))]
 else:
-    print('POSE CHECK: no wren-game-poses.json (npm run operators:sheet -- wren --only gamePoses): game poses skipped', flush=True)
+    print('POSE CHECK: no wren-game-poses.json: game poses skipped', flush=True)
 PNAME = {'gameCrouch': "the game's crouch (CharacterRig crouch 1, labData POSES)",
          'gameSneak': "the game's sneak (crouch 0.6, walking, labData POSES)",
          'prone': 'prone crawl, left knee drawn up', 'climb': 'rope / ladder climb, left knee to hip height',

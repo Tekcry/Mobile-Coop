@@ -60,7 +60,7 @@ This page lists the suites and how they are picked.
 - The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
   on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, `e2e-bunker` (these four get `LEGACY=1`, so
   `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
-  `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-music`, `e2e-score`, `e2e-foley`,
+  `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-score`, `e2e-foley`,
   `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-parity` (parts 1-4), `e2e-desktop:3`, `e2e-coop-gpu`. REPORT: `anim-audit`
   (never fails a run; quick picks it for `src/anim`, `src/player`, `src/net`).
 - Flaky and quarantined suites: "Flakes and quarantine" below.
@@ -397,18 +397,15 @@ behind a VPN adapter).
   the camera and to the four near-plane corners hits nothing: hugging both walls of the longest corridor and turning on
   each shoulder, every stair, crouched along level U (a 1.5 m test box while level U is not built), the open yard
   framing within 2% of the pre-CAM values
-- `e2e-music` (AUDIO) the old V3 sketch picker (`?musiclab=1`): the picker comes first, each sketch loads its three stems, the
-  ladder moves the stem gains, every decoded loop joins without a seam, the playback cost, no console errors
 - `e2e-score` (AUDIO) the V4 score: after the first click the menu theme plays and fades from full into a match; in a Warehouse
   match the mission tracks decode in the background, Calm is silent, a suspicious guard gives Cautious, an alerted one
   Alert (with Evasion alongside)
 - `e2e-weapon-audio` (AUDIO) on Proving: the sprite decodes with a small alignment shift; automatic fire plays one shot per
   round with brass and stays under 24 voices; a suppressed rifle plays its suppressed bank and guards hear it less; a
-  reload, a dry click and a shot 20 m away play, (coop-walk-fixes P7) a partner's suppressed pistol round plays suppressed; the weapon lab (`?weaponlab=1`) fires the two kit guns, an automatic
-  run, a suppressed guard shot at 18 m, both reloads, brass and dry fire
+  reload, a dry click and a shot 20 m away play, (coop-walk-fixes P7) a partner's suppressed pistol round plays suppressed
 - `e2e-foley` (AUDIO) on Proving: the sprite decodes; one foley step per real foot plant at a walk and a sprint (the walk
   check reads 3 or 4 plants against >= 4 at the step-22 speed: parked, not fixed), silence standing still, a drop
-  plays a landing, the guards' footstep noise unchanged; the foley lab (`?foleylab=1`) walks every surface
+  plays a landing, the guards' footstep noise unchanged
 - Also LEGACY (`npm run e2e:legacy`): `e2e-progression` (Loadout by controller, upgrades, rewards, IndexedDB,
   export / import), `e2e-cosmetics` (Loadout
   appearance by controller, live / locked previews, the Tag page, camo, in-game look), `e2e-clear` (Hunter on the

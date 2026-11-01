@@ -22,7 +22,7 @@ export const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bun
 export const GPU = ['e2e-darkness', 'e2e-parity', 'e2e-desktop:3', 'e2e-coop-gpu'];
 
 // REPORT ONLY too: the audio suites (moved here from scripts/run-e2e.mjs; S2 switches its import).
-export const AUDIO = ['e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
+export const AUDIO = ['e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
 
 /**
  * The suites an affected run takes as a gate (`run-e2e.mjs --affected`, through affectedPick): `suites` without the GPU-only, LEGACY and AUDIO suites, whole or as a part
@@ -133,7 +133,7 @@ export const QUICK_COVERS = {
   'src/save/sectorRecord': ['e2e-sectorops', 'e2e-menus'],
   'src/save/': ['e2e-park', 'e2e-offline', 'e2e-feedback'],
   'src/feedback/': ['e2e-feedback'],
-  'src/audio/': ['e2e-foley', 'e2e-music', 'e2e-score', 'e2e-weapon-audio'],
+  'src/audio/': ['e2e-foley', 'e2e-score', 'e2e-weapon-audio'],
   'src/pwa/': ['e2e-offline'],
   'src/config/': CORE,
 };
@@ -245,7 +245,7 @@ export const WIDE_COVERS = {
   // the save shape (schema, migrations, db, saveManager, courseRecord): the co-op group carries it in the session
   'src/save/': ['e2e-park', 'e2e-offline', 'e2e-feedback', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
   'src/feedback/': ['e2e-feedback'],
-  'src/audio/': ['e2e-foley', 'e2e-music', 'e2e-score', 'e2e-weapon-audio'],
+  'src/audio/': ['e2e-foley', 'e2e-score', 'e2e-weapon-audio'],
   'src/pwa/': ['e2e-offline'],
   'src/config/': CORE,
 };
@@ -371,7 +371,7 @@ export const DIRECT_COVERS = {
   'src/progression/': ['e2e-park', 'e2e-progression'],
   'src/cosmetics/': ['e2e-park', 'e2e-cosmetics'],
   'src/feedback/': ['e2e-feedback'],
-  'src/audio/': ['e2e-foley', 'e2e-music', 'e2e-score', 'e2e-weapon-audio'],
+  'src/audio/': ['e2e-foley', 'e2e-score', 'e2e-weapon-audio'],
   'src/pwa/': ['e2e-offline'],
 };
 

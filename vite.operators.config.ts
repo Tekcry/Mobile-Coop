@@ -1,17 +1,12 @@
-// `npm run operators`: the dev-only Operator Lab (operators.html), built into build/operators-lab/ (never dist/) and served
-// with the pipeline's build/operators/ folder at /__operators. A production-style build, not the dev server: Babylon loads its
-// shaders through dynamic imports that only a bundled build resolves. The game build (vite.config.ts) builds index.html only;
-// `npm run build` output is checked for the Lab.
-// (guard-models G4s) guards.html, the guard variety sheet's page, is the second entry. Its bake out dir is served at
-// /__guards from GUARD_SHEET_IN (`GUARD_SHEET_IN=<dir> npm run operators`, or scripts/operators/guard-sheet.mjs, which also
-// sets GUARD_SHEET_ONLY=1: that page alone, built into build/guards-lab/, so the Lab's build is left untouched; with neither variable set the Lab builds its single operators.html entry).
+// (guard-models G4s) guards.html, the guard variety sheet's page (dev-only, never dist/), built by
+// scripts/operators/guard-sheet.mjs into build/guards-lab/ and served with the bake out dir at /__guards from
+// GUARD_SHEET_IN. A production-style build, not the dev server: Babylon loads its shaders through dynamic imports that
+// only a bundled build resolves. The game build (vite.config.ts) builds index.html only.
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig, type Connect } from 'vite';
 
-const root = path.resolve(import.meta.dirname, 'build', 'operators');
 const port = Number(process.env.E2E_PORT ?? 4189);
-const guardsOnly = process.env.GUARD_SHEET_ONLY === '1';
 const guardsRoot = process.env.GUARD_SHEET_IN ? path.resolve(process.env.GUARD_SHEET_IN) : '';
 const page = (f: string): string => path.resolve(import.meta.dirname, f);
 
@@ -36,17 +31,17 @@ export default defineConfig({
     __PREVIEW_ID__: JSON.stringify(''),
   },
   build: {
-    outDir: guardsOnly ? 'build/guards-lab' : 'build/operators-lab',
+    outDir: 'build/guards-lab',
     emptyOutDir: true,
     target: 'es2022',
     sourcemap: false,
     chunkSizeWarningLimit: 8192,
-    rollupOptions: { input: guardsOnly ? { guards: page('guards.html') } : guardsRoot ? { operators: page('operators.html'), guards: page('guards.html') } : page('operators.html') },
+    rollupOptions: { input: { guards: page('guards.html') } },
   },
-  preview: { host: '127.0.0.1', port, strictPort: true, open: guardsOnly ? false : '/operators.html' },
+  preview: { host: '127.0.0.1', port, strictPort: true, open: false },
   plugins: [
     {
-      // some game modules reach src/pwa; the Lab has no service worker, so the PWA virtual module is an empty stub
+      // some game modules reach src/pwa; the sheet has no service worker, so the PWA virtual module is an empty stub
       name: 'operators-pwa-stub',
       resolveId: (id) => (id === 'virtual:pwa-register' ? 'virtual:operators-pwa-stub' : null),
       load: (id) => (id === 'virtual:operators-pwa-stub' ? 'export const registerSW = () => () => {};' : null),
@@ -54,7 +49,6 @@ export default defineConfig({
     {
       name: 'operators-build-files',
       configurePreviewServer: (server) => {
-        server.middlewares.use('/__operators', serveDir(root));
         if (guardsRoot) server.middlewares.use('/__guards', serveDir(guardsRoot));
       },
     },
