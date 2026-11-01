@@ -193,7 +193,6 @@ export interface StutterTube {
  * one (this branch's base; it drops out at the master merge). Never in A2 / A4 / A6 / A8 (PR #257 owns those sets).
  */
 export const STUTTER_TUBES: Readonly<Record<string, readonly StutterTube[]>> = {
-  warehouse: [{ x: 9, y: 5.05, z: -9, why: 'Service corridor strip (the corridor between the fire walls), over the corridor patrol' }],
   ctcourse: [
     { x: 81.6, y: 3.8, z: 57.4, why: "A7 data hall: the south aisle's rack-row strip, on the technician's loop between R0 and R1" },
     { x: 19, y: 3.05, z: 7, why: 'Pre-marlow-final layout: airlock 1 lamp (dropped at the master merge)' },
