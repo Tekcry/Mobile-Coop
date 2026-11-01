@@ -296,9 +296,6 @@ export class TakedownController {
     return this.active !== null;
   }
 
-  /** Suit gloves: takedowns take this much of the time. */
-  handsMul = 1;
-
   /** Start the offered takedown now; `lethal` forces the choice (else tap / hold decides). */
   start(lethal?: boolean): void {
     const o = this.offer;
@@ -522,7 +519,7 @@ export class TakedownController {
     const a = this.active!;
     const { e, plan } = a;
     const c = g.player.controller;
-    a.t += dt / this.handsMul;
+    a.t += dt;
     if (!g.player.alive || !e.alive) {
       if (!e.alive) this.grabs.lost++;
       this.abort();
@@ -572,7 +569,7 @@ export class TakedownController {
     this.bend = CQ.holdBend;
     this.sway = sw;
     if (gr.strikeT >= 0) {
-      gr.strikeT += dt / this.handsMul;
+      gr.strikeT += dt;
       if (a.lethal) {
         // (anim-n4d, M1) the arc's contact on the kill (`killWarp`); the wire keeps the raw phase (`grabWire`)
         g.player.pose.melee = killWarp(Math.min(1, gr.strikeT / GRAB.killTime), GRAB_KILL_BLOW);
@@ -675,7 +672,7 @@ export class TakedownController {
     const g = this.g;
     const a = this.active!;
     const { e, plan } = a;
-    a.t += dt / this.handsMul;
+    a.t += dt;
     if (!g.player.alive || !e.alive) {
       if (!e.alive) this.grabs.lost++;
       this.abort();
@@ -711,7 +708,7 @@ export class TakedownController {
     }
     gr.holdT += dt;
     if (gr.strikeT >= 0) {
-      gr.strikeT += dt / this.handsMul;
+      gr.strikeT += dt;
       if (a.lethal) {
         // the neck snap
         e.holdAt(at.x, at.y, at.z, plan.faceYaw);
@@ -786,7 +783,7 @@ export class TakedownController {
       return;
     }
     const { e, plan } = a;
-    a.t += dt / this.handsMul;
+    a.t += dt;
     const assist = plan.kind === 'assist';
     // tap or hold: let go before `lethalHold` = non-lethal, still held then = lethal
     if (!a.decided) {
@@ -852,7 +849,7 @@ export class TakedownController {
     const a = this.active!;
     const { e, plan } = a;
     const R = KNIFE_KILLS[this.kr]!;
-    a.t += dt / this.handsMul;
+    a.t += dt;
     const contactT = R.contact * R.seconds;
     if (g.target.health.hp < a.hp - 0.5 || !g.player.alive || !e.alive) {
       if (this.kt >= contactT && g.player.alive && e.alive) this.finish();

@@ -487,7 +487,7 @@ try {
   await until(B, () => !!document.querySelector('.results-screen'), null, 15000, 'client results');
   const res = await GB(() => ({ kills: window.__app.current.stats.kills, title: document.querySelector('.results-title')?.textContent, rewards: !!document.querySelector('.results-screen .rewards, .results-screen .rewards-panel') }));
   assert(res.title === 'DEFEAT' && res.kills >= 1, `client results from host stats (${JSON.stringify(res)})`);
-  assert(!res.rewards, 'no rewards panel: the economy is parked (legacy off)');
+  assert(!res.rewards, 'no rewards panel on the results');
 
   console.log('back to lobby');
   await A.click('.results-screen .btn:has-text("Play again")');

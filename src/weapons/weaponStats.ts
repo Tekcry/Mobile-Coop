@@ -1,24 +1,5 @@
 import type { WeaponDef } from './weaponDefs';
 
-/** Upgrade tracks from the progression upgrade tree (levels 0..MAX_UPGRADE). */
-export interface WeaponUpgrades {
-  damage: number;
-  magazine: number;
-  recoil: number;
-  reload: number;
-}
-
-export const MAX_UPGRADE = 5;
-export const NO_UPGRADES: WeaponUpgrades = { damage: 0, magazine: 0, recoil: 0, reload: 0 };
-
-/** Per-level effect of each track. */
-export const UPGRADE_EFFECT = {
-  damage: 0.06,
-  magazine: 0.1,
-  recoil: 0.08,
-  reload: 0.07,
-} as const;
-
 /** Multiplicative modifiers from attachments (all 1 = none). */
 export interface StatMods {
   damage: number;
@@ -47,21 +28,14 @@ export interface EffectiveStats {
   spreadAds: number;
 }
 
-const clampLvl = (n: number): number => Math.max(0, Math.min(MAX_UPGRADE, Math.floor(n || 0)));
-
-/** Base stats with upgrades applied. Pure and deterministic (tested). */
-export function computeStats(def: WeaponDef, up: WeaponUpgrades = NO_UPGRADES, mods: StatMods = NO_MODS): EffectiveStats {
-  const d = clampLvl(up.damage);
-  const m = clampLvl(up.magazine);
-  const r = clampLvl(up.recoil);
-  const l = clampLvl(up.reload);
-  const magBonus = m === 0 ? 0 : Math.max(m, Math.round(def.magSize * UPGRADE_EFFECT.magazine * m));
+/** Base stats with the attachments' modifiers applied. Pure and deterministic (tested). */
+export function computeStats(def: WeaponDef, mods: StatMods = NO_MODS): EffectiveStats {
   return {
-    damage: def.damage * (1 + UPGRADE_EFFECT.damage * d) * mods.damage,
-    magSize: Math.max(1, Math.round((def.magSize + magBonus) * mods.magSize)),
-    reloadTime: def.reloadTime * (1 - UPGRADE_EFFECT.reload * l) * mods.reload,
-    recoilPitch: def.recoilPitch * (1 - UPGRADE_EFFECT.recoil * r) * mods.recoil,
-    recoilYaw: def.recoilYaw * (1 - UPGRADE_EFFECT.recoil * r) * mods.recoil,
+    damage: def.damage * mods.damage,
+    magSize: Math.max(1, Math.round(def.magSize * mods.magSize)),
+    reloadTime: def.reloadTime * mods.reload,
+    recoilPitch: def.recoilPitch * mods.recoil,
+    recoilYaw: def.recoilYaw * mods.recoil,
     fireInterval: 60 / def.rpm,
     spreadHip: def.spreadHip * mods.spreadHip,
     spreadAds: def.spreadAds * mods.spreadAds,

@@ -1,5 +1,5 @@
 import type { WeaponId } from '../weapons/weaponDefs';
-import { attachmentById } from '../progression/attachments';
+import { attachmentById } from '../weapons/attachments';
 import raw from './weapons.json';
 
 /**

@@ -13,7 +13,7 @@ import type { KitKind } from '../teamMoves';
  *  Kestrel editor's walk test, `?autostart=seclab&mode=sandbox`; no menu offers it). */
 export type ModeId = 'sandbox' | 'course' | 'sector' | 'test';
 
-/** (G2a) The practice modes: a test map with nothing saved (no lifetime stats, challenges or rewards; the sandbox loadout). */
+/** (G2a) The practice modes: a test map (no results kept; the sandbox loadout). */
 export function practiceMode(mode: ModeId): boolean {
   return mode === 'sandbox' || mode === 'test';
 }
@@ -31,17 +31,11 @@ export interface SessionStats {
   shots: number;
   hits: number;
   damageTaken: number;
-  /** Kills per weapon (mastery). */
-  weaponKills: Record<string, number>;
   detections: number;
   knockouts: number;
-  /** Challenge inputs: takedowns by kind, gadget knock-outs / kills, alarms raised. */
-  takedownsByKind?: Record<string, number>;
-  gadgetKos?: number;
-  alarms?: number;
   /** Training course: the results panel (T1c). */
   course?: CourseSummary;
-  /** (campus-greybox A28) A `?sectorStart=N` run (or its co-op client's): nothing goes to the save (no progression). */
+  /** (campus-greybox A28) A `?sectorStart=N` run (or its co-op client's): nothing goes to the save. */
   practice?: boolean;
 }
 
@@ -59,7 +53,6 @@ export function emptyStats(mode: ModeId, mapId: string): SessionStats {
     shots: 0,
     hits: 0,
     damageTaken: 0,
-    weaponKills: {},
     detections: 0,
     knockouts: 0,
   };

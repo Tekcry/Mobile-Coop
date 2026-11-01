@@ -3,7 +3,7 @@ import { LoadoutSnapshot, type AmmoSlot } from '../src/weapons/loadoutSnapshot';
 import { EnemyManager } from '../src/ai/enemyManager';
 import { DIFFICULTY, ARCHETYPE } from '../src/ai/archetypes';
 import { GameMusic } from '../src/audio/score/game/gameMusic';
-import { loadoutEntries } from '../src/progression/profile';
+import { loadoutEntries } from '../src/weapons/loadout';
 import { defaultSave } from '../src/save/schema';
 import { computeStats } from '../src/weapons/weaponStats';
 import { WEAPONS } from '../src/weapons/weaponDefs';
@@ -155,15 +155,15 @@ describe('the music after a checkpoint restart', () => {
 });
 
 describe('the Sector Ops kit (A2)', () => {
-  it('issues the campaign rifle suppressed in Sector Ops, as in Infiltration', () => {
+  it('issues the campaign rifle suppressed in Sector Ops', () => {
     const s = defaultSave();
     s.loadout = { primary: 'pistolSd', secondary: 'rifle' };
     const kit = loadoutEntries(s, 'sector', true);
     const rifle = kit.find((e) => e.id === 'rifle')!;
     expect(rifle.attachments).toContain('suppressor');
-    expect(computeStats(WEAPONS.rifle, s.weapons.rifle.upgrades, rifle.mods).noise).toBeLessThanOrEqual(0.6);
-    expect(computeStats(WEAPONS.pistolSd, s.weapons.pistolSd.upgrades, kit.find((e) => e.id === 'pistolSd')!.mods).noise).toBeLessThanOrEqual(0.6);
-    // ?legacy=1 (no campaign): the save as is
+    expect(computeStats(WEAPONS.rifle, rifle.mods).noise).toBeLessThanOrEqual(0.6);
+    expect(computeStats(WEAPONS.pistolSd, kit.find((e) => e.id === 'pistolSd')!.mods).noise).toBeLessThanOrEqual(0.6);
+    // no campaign: the save as is
     expect(loadoutEntries(s, 'sector', false).find((e) => e.id === 'rifle')!.attachments).toEqual([]);
   });
 });

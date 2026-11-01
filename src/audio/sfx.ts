@@ -274,10 +274,6 @@ export class Sfx {
     this.tone('sfx', 0.18, 0, 'sawtooth', 277, 270, 0.8, 0, 0.05);
   }
 
-  levelUp(): void {
-    [523, 659, 784, 1047].forEach((f, i) => this.tone('ui', 0.25, 0, 'square', f, f, 0.14, i * 0.08));
-  }
-
   uiMove(): void {
     if (!this.a.allow('ui-move', 0.03)) return;
     this.tone('ui', 0.08, 0, 'sine', 1400, 1350, 0.03);

@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import type { RigPose } from '../src/player/characterRig';
 import { emptyShotPose, shotOrigin, type P3, type ShotPose } from '../src/weapons/shotOrigin';
 import { WEAPONS } from '../src/weapons/weaponDefs';
-import { withAttachments } from '../src/progression/attachments';
+import { withAttachments } from '../src/weapons/attachments';
 import { checkShot, SHOT_UNDER } from '../src/net/validate';
 import { LAMP_SHOT_ORIGIN } from '../src/net/lampSync';
 import { emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody } from '../src/player/playerVolumes';
@@ -130,7 +130,7 @@ async function wrenRig(weapon: 'rifle' | 'pistolSd') {
   const { Scene, Vector3 } = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
   const { CharacterRig } = await import('../src/player/characterRig');
-  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../src/player/avatarLook');
   const { WeaponModel, DEFAULT_WEAPON_COLORS } = await import('../src/weapons/weaponModel');
   const { WREN_HANDS, WREN_HOLSTER, WREN_BACK_MOUNT } = await import('../src/operators/handFrame');
   const scene = new Scene(new NullEngine());

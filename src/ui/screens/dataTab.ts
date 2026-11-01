@@ -50,14 +50,14 @@ export function dataTab(app: App, screen: SettingsScreen): TabDef {
         button('Import save file', () => file.click(), { desc: 'Loads a save file. Your current profile is backed up first.' }),
         file,
         h('div', { class: 'grp', text: 'Danger zone' }),
-        button('Reset all progress', () =>
+        button('Reset profile', () =>
             screen.manager.push(
-              new Dialog('Reset progress?', 'XP, credits, unlocks, upgrades and cosmetics go back to the start. A backup is kept on this device.', [
+              new Dialog('Reset profile?', 'Your name and gear go back to the defaults. Settings and mission records stay. A backup is kept on this device.', [
                 { label: 'Cancel', safe: true, action: () => {} },
-                { label: 'Reset', primary: true, action: () => void app.save.reset().then(() => app.toasts.show('Progress reset', 'warn')) },
+                { label: 'Reset', primary: true, action: () => void app.save.reset().then(() => app.toasts.show('Profile reset', 'warn')) },
               ]),
             ),
-          { class: 'subtle', desc: 'Starts your progress over. A backup is kept on this device.' }),
+          { class: 'subtle', desc: 'Puts your name and gear back to the defaults. A backup is kept on this device.' }),
       );
     },
   };

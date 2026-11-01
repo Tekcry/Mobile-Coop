@@ -186,7 +186,6 @@ export interface DifficultyDef {
   damage: number;
   accuracy: number;
   hp: number;
-  reward: number;
   /** Sight / smell meter rates. */
   perception: number;
   /** Reaction delays (radio call-in, first shot settle, alarm panel raise). */
@@ -204,10 +203,10 @@ export interface DifficultyDef {
 export type HelmetRule = 'stage' | 'always' | 'locked';
 
 export const DIFFICULTY: Record<DifficultyPreset, DifficultyDef> = {
-  rookie: { label: 'Rookie', damage: 0.6, accuracy: 0.7, hp: 0.85, reward: 0.8, perception: 0.7, reaction: 1.35, helmets: 'stage' },
-  normal: { label: 'Normal', damage: 1, accuracy: 1, hp: 1, reward: 1, perception: 1, reaction: 1, helmets: 'stage' },
-  realistic: { label: 'Realistic', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.35, perception: 1.3, reaction: 0.8, helmets: 'always' },
-  perfectionist: { label: 'Perfectionist', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.6, perception: 1.5, reaction: 0.7, helmets: 'locked' },
+  rookie: { label: 'Rookie', damage: 0.6, accuracy: 0.7, hp: 0.85, perception: 0.7, reaction: 1.35, helmets: 'stage' },
+  normal: { label: 'Normal', damage: 1, accuracy: 1, hp: 1, perception: 1, reaction: 1, helmets: 'stage' },
+  realistic: { label: 'Realistic', damage: 1.6, accuracy: 1.3, hp: 1.15, perception: 1.3, reaction: 0.8, helmets: 'always' },
+  perfectionist: { label: 'Perfectionist', damage: 1.6, accuracy: 1.3, hp: 1.15, perception: 1.5, reaction: 0.7, helmets: 'locked' },
 };
 
 /** A stored / received difficulty, including the 1.x names (easy / hard); the old 'custom' (G106) reads as Normal. */
