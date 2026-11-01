@@ -162,7 +162,8 @@ try {
     try {
       await page.waitForSelector('.main-menu [data-key="anim-studio"]', { timeout: 90000 });
       await page.click('.main-menu [data-key="anim-studio"]');
-      await page.waitForFunction(() => window.__app.current?.player && window.__app.current.opts?.map?.id === 'studio', null, { timeout: 180000 });
+      // (one-game) map-ready is on by default: the sim is held until its load gate releases it (__mapReady.released)
+      await page.waitForFunction(() => window.__app.current?.player && window.__app.current.opts?.map?.id === 'studio' && window.__mapReady?.released, null, { timeout: 180000 });
       await frames(page, 3);
       const G = (f, a) => page.evaluate(f, a);
       const s = await G(() => { const g = window.__app.current; return { mode: g.opts.mode, modeId: g.mode?.id ?? null, stage: !!g.studio, hook: !!window.__studioStage, dummies: g.dummies.length, alive: g.enemyMgr?.alive, practice: g.opts.practice }; });

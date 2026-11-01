@@ -1,4 +1,4 @@
-// (clean-up G2c) On the Test Chamber in the test mode (was the Warehouse Infiltration): the spot is (11, 21) in the lit main room, the
+// (clean-up G2c) Both pages boot `mapready=0`: the forced faults need the body shaders to compile after the match starts, and the load gate (on by\n// default since one-game) compiles them behind the boot screen first, so the fault landed on the wrong effects (a late timeout broke the officer pass).\n// On the Test Chamber in the test mode (was the Warehouse Infiltration): the spot is (11, 21) in the lit main room, the
 // camera park (25, 1.8) behind the window wall; --spot=x,z as before.
 // (guard-ai carry fix) Calm guards are drawn. On 4.77.0 (Warehouse Infiltration, stealth rules, GPU, gfx=high) a guard in
 // the S21 holstered carry showed only his slung rifle / holstered pistol: the merged smooth body's PBR effect
@@ -34,7 +34,7 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const spotArg = process.argv.find((a) => a.startsWith('--spot='))?.slice(7).split(',').map(Number) ?? [11, 21];
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio&mode=test&guards=1&gfx=high&guardmodels=0', viewport: { width: 960, height: 720 } });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio&mode=test&guards=1&gfx=high&guardmodels=0&mapready=0', viewport: { width: 960, height: 720 } });
 const G = (f, a) => page.evaluate(f, a);
 const CALM_SEC = 16.5;
 /** Rendering time a body may take to be ready after the one-block stall (a compile that never finishes is recompiled after 90 s, bodyEffectRecovery STUCK_MS; the loop ends as soon as the body is ready). */
@@ -469,7 +469,7 @@ await browser.close();
 // S1 body must stand in while the figure's shader is not ready, the figure's effect must be recompiled by the body
 // watchdog ("guard figure ... recompiling"), and the figure must take over again, GPU skinned, the merged body off.
 {
-  const fig = await launch({ url, params: 'autostart=studio&mode=test&guards=1&gfx=high&guardmodels=1', viewport: { width: 960, height: 720 } });
+  const fig = await launch({ url, params: 'autostart=studio&mode=test&guards=1&gfx=high&guardmodels=1&mapready=0', viewport: { width: 960, height: 720 } });
   const G2 = (f, a) => fig.page.evaluate(f, a);
   const err2 = fig.errors;
   try {
