@@ -111,13 +111,16 @@ try {
   const status = await G(() => document.getElementById('boot-status')?.textContent ?? '');
   assert(!/Failed/.test(status), `boots offline (${status})`);
   assert(await G(() => !!document.querySelector('.main-menu')), 'main menu offline');
-  await page.goto(url + '?autostart=warehouse&mode=mission&gfx=min');
+  // (clean-up G2c) the guard match is the Test Chamber's test mode with its five squad guards (was the Warehouse mission); the
+  // Infiltration match below stays on the Warehouse (the Infiltration mode goes in stage H)
+  await page.goto(url + '?autostart=studio&mode=test&guards=1&gfx=min');
   await booted();
   // (load-latent-ui2) the match loads (shaders compile on the loading screen): 120 s, as the other match loads
   await page.waitForFunction(() => window.__app?.current?.enemyMgr, null, { timeout: 120000 });
   await G(() => window.__app.loop.stepHeadless(8));
   const alive = await G(() => window.__app.current.enemyMgr.alive);
   assert(alive > 0, `a match runs offline (${alive} enemies)`);
+  assert((await G(() => window.__app.current.hud['objective'].textContent)) === '', 'the test mode has no objective');
   // (A109) the player's body is Wren, loaded from the cache with no network (LOD2 = bit 1 << 3)
   // (load-latent-ui2) 120 s here and for the Infiltration player: the KTX2 transcode runs on the main thread, slow on a
   // loaded CPU

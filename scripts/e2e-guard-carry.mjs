@@ -1,3 +1,5 @@
+// (clean-up G2c) Both pages boot `mapready=0`: the forced faults need the body shaders to compile after the match starts, and the load gate (on by\n// default since one-game) compiles them behind the boot screen first, so the fault landed on the wrong effects (a late timeout broke the officer pass).\n// On the Test Chamber in the test mode (was the Warehouse Infiltration): the spot is (11, 21) in the lit main room, the
+// camera park (25, 1.8) behind the window wall; --spot=x,z as before.
 // (guard-ai carry fix) Calm guards are drawn. On 4.77.0 (Warehouse Infiltration, stealth rules, GPU, gfx=high) a guard in
 // the S21 holstered carry showed only his slung rifle / holstered pistol: the merged smooth body's PBR effect
 // (`partSkinMat`, GPU skinned) failed to compile ("Unable to compile effect", attributes ... vox ppos pnrm, LIGHTCOUNT 5,
@@ -31,8 +33,8 @@
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
-const spotArg = process.argv.find((a) => a.startsWith('--spot='))?.slice(7).split(',').map(Number) ?? [0, -2.5];
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=infiltration&gfx=high&guardmodels=0', viewport: { width: 960, height: 720 } });
+const spotArg = process.argv.find((a) => a.startsWith('--spot='))?.slice(7).split(',').map(Number) ?? [11, 21];
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio&mode=test&guards=1&gfx=high&guardmodels=0&mapready=0', viewport: { width: 960, height: 720 } });
 const G = (f, a) => page.evaluate(f, a);
 const CALM_SEC = 16.5;
 /** Rendering time a body may take to be ready after the one-block stall (a compile that never finishes is recompiled after 90 s, bodyEffectRecovery STUCK_MS; the loop ends as soon as the body is ready). */
@@ -147,7 +149,7 @@ const SETUP = ({ spot: spotIn, define, faultMs }) => {
       if (walk(x, z)) spot = [x, z];
     }
   }
-  const FAR = [-22, -24];
+  const FAR = [25, 1.8];
   const defOf = (defs, re) => {
     const out = [];
     for (const m of defs.matchAll(re)) out.push(m[1] ? `${m[0].replace('#define ', '')}` : m[0]);
@@ -327,7 +329,7 @@ let failed = false;
 try {
   await frames(page, 10);
   const setup = await G(SETUP, { spot: spotArg, define: 'SMOOTHBODY', faultMs: 1000 });
-  assert(setup.stealth, 'Warehouse Infiltration runs the stealth rules (guards holster when calm)');
+  assert(setup.stealth, 'the Test Chamber test mode runs the stealth rules (guards holster when calm)');
   assert(!!setup.spot, `a walkable spot near ${spotArg}`);
   const [x, z] = setup.spot;
 
@@ -400,6 +402,19 @@ try {
     // (Babylon's first fallback switched the mesh to CPU skinning before the recompile; the recovery turns it back)
     for (const e of b) for (const m of e.meshes) assert(m.gpuSkin, `forced: ${m.name} GPU skinned again after the recovery (Babylon's CPU-skinning fallback undone)`);
     await G(() => window.__gc.reset());
+    // (G2c) the guard is gone: a faulted effect only his mesh held (the CPU-skinning variant) is dropped now, else the next guard's body
+    // takes it from the cache and its forced timeout lands in the next pass (the Test Chamber compiles faster than the Warehouse, so the
+    // pass ended before that effect's own timeout; on the Warehouse it had run out inside the pass)
+    await frames(page, 3);
+    await G(() => window.__gc.disarm());
+    // (G2c) and the fault's own timeouts run out: Babylon's fallback chain goes on for seconds after the recovery here (a Warehouse
+    // pass lasted 12 s, the chain's lines all inside it; the Test Chamber's lasts 4), so wait until the console is quiet for 3 s
+    for (let quiet = 0, n = errors.length, t0 = Date.now(); quiet < 2 && Date.now() - t0 < 40000; ) {
+      await page.waitForTimeout(1500);
+      await frames(page, 3);
+      quiet = errors.length === n ? quiet + 1 : 0;
+      n = errors.length;
+    }
     for (let i = e0; i < errors.length; i++) if (FAULT_LOG.test(errors[i])) forcedLog.add(i);
   }
 
@@ -454,7 +469,7 @@ await browser.close();
 // S1 body must stand in while the figure's shader is not ready, the figure's effect must be recompiled by the body
 // watchdog ("guard figure ... recompiling"), and the figure must take over again, GPU skinned, the merged body off.
 {
-  const fig = await launch({ url, params: 'autostart=warehouse&mode=infiltration&gfx=high&guardmodels=1', viewport: { width: 960, height: 720 } });
+  const fig = await launch({ url, params: 'autostart=studio&mode=test&guards=1&gfx=high&guardmodels=1&mapready=0', viewport: { width: 960, height: 720 } });
   const G2 = (f, a) => fig.page.evaluate(f, a);
   const err2 = fig.errors;
   try {

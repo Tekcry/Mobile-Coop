@@ -189,6 +189,8 @@ export interface GameOptions {
   benchmark?: BenchSession;
   /** (G2b) The Test Chamber's animation stage (loop player, tuner panel docked): only when asked (the main menu row, `?stage=1`); the plain room is the test bed. */
   stage?: boolean;
+  /** (G2c, N17) The Test Chamber's passive practice guards (`MapLayout.practice`; `TestMode` places them and brings a downed one back): the main menu start and the co-op lobby's Test Chamber start; never a plain URL boot (the tests) unless `?practice=1`. */
+  practice?: boolean;
   /** Course mode: the bay to start at (1-based, D20; the lobby's "Start at bay N"). */
   courseBay?: number;
   /** 3.0 weather (visual only; the map's `weathers`). */

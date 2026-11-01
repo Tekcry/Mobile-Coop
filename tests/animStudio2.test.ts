@@ -417,7 +417,8 @@ describe('anim studio 2: the studio map is real level geometry', () => {
     // (G2b) the floor duct, window and team rope plus the booth's roof duct, glazed window and rope; a zipline and a fence
     expect(an.ducts.length).toBe(2);
     expect(an.windows.length).toBe(2);
-    expect(an.doors.length).toBe(1);
+    // (G2c) the annex adds two: the divider's door and partition A's
+    expect(an.doors.length).toBe(3);
     expect(an.rappels.length).toBe(2);
     expect(an.ziplines.length).toBe(1);
     expect(an.fences.length).toBe(1);
@@ -467,12 +468,14 @@ describe('anim studio 2: the G2b test pieces leave the old room as it was', () =
     expect(STUDIO_MID).toBe(14);
   });
 
-  it('the old room is still built: the 7 lamps, the two spawns, the grid, the team block box, the door and window walls', async () => {
+  it('the old room is still built: the 7 lamps (two more come after them), the two spawns, the grid, the team block box, the door and window walls', async () => {
     const { LevelBuilder } = await import('../src/world/levelBuilder');
     const { studio } = await import('../src/world/maps/studio');
     const b = new LevelBuilder();
     const lay = studio.build(b, 0);
-    expect(b.lights.lights.length).toBe(7);
+    // (G2c) the annex adds L0 and L1 after them: the old seven keep their ids
+    expect(b.lights.lights.length).toBe(9);
+    expect(b.lights.lights.slice(0, 7).map((l) => [l.x, l.z])).toEqual([[11, 17], [16.5, 10.5], [17.5, 16.5], [14, 23], [5, 14], [23, 14], [14, 5]]);
     expect(lay.playerSpawns.map((s) => [s.pos.x, s.pos.z])).toEqual([[14, 14], [16, 14]]);
     const has = (cx: number, cy: number, cz: number, sx: number, sy: number, sz: number): boolean => b.boxes.some((x) => [cx, cy, cz, sx, sy, sz].every((v, i) => Math.abs((i < 3 ? x.c[i]! : x.s[i - 3]!) - v) < 1e-6));
     expect(has(14, 2.2, 26.5, 6, 4.4, 3)).toBe(true);

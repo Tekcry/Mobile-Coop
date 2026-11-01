@@ -53,15 +53,17 @@ export const studio: MapDef = {
     const PROP_DARK = '#454b53';
     const METAL = '#6d7378';
     const H = 8;
+    const A = P.annex;
     b.floor(C, C, SIZE, SIZE, FLOOR, 0, 0.4);
-    b.perimeter(0, SIZE, 0, SIZE, H, WALL);
-    b.box(C, H + 0.15, C, SIZE + 0.6, 0.3, SIZE + 0.6, WALL);
-    // the grid: 1 m lines, the centre lines brighter (visual only, never collide)
-    for (let i = 1; i < SIZE; i++) {
+    // (G2c) the walls round the main room and the annex (x 0..36.3); the ceiling spans both
+    b.perimeter(0, A.x1, 0, SIZE, H, WALL);
+    b.box(A.x1 / 2, H + 0.15, C, A.x1 + 0.6, 0.3, SIZE + 0.6, WALL);
+    // the grid: 1 m lines, the centre lines brighter (visual only, never collide); G2c: it runs on through the annex
+    for (let i = 1; i <= 35; i++) {
       const col = i === C ? AXIS : LINE;
       const w = i === C ? 0.03 : 0.015;
       b.box(i, 0.004, C, w, 0.008, SIZE - 0.4, col, 0, 0, false);
-      b.box(C, 0.004, i, SIZE - 0.4, 0.008, w, col, 0, 0, false);
+      if (i < SIZE) b.box(A.x1 / 2, 0.004, i, A.x1 - 0.4, 0.008, w, col, 0, 0, false);
     }
 
     // the co-op team block (north): its lip is generated from the box top (>= LEDGE.minDrop), a rappel point on it
@@ -189,6 +191,34 @@ export const studio: MapDef = {
     const bv = bo.vent;
     b.block((bv.x0 + bv.x1) / 2, (bv.z0 + bv.z1) / 2, bv.x1 - bv.x0, 1.0, bv.z1 - bv.z0, PROP_DARK);
 
+    // (G2c, spec 1.4) the annex: a dark side room off the east wall, in the main room's own look (dark walls, grey floor, the grid).
+    // Floors run flush under the walls (no 0.3 m hole at a doorsill), one box per area.
+    b.floor(32.15, 21, 8.3, 14, FLOOR); // hall, z 14-28 (and the annex door's sill from x 28)
+    b.floor(30.375, 11, 4.15, 6, FLOOR); // store, x 28.3-32.45
+    b.floor(34.375, 11, 3.85, 6, FLOOR); // aisle, x 32.45-36.3
+    b.floor(32.15, 4, 8.3, 8, FLOOR); // dark bay, z 0-8
+    // the divider (the old east wall: its main-room face stays at x 28) with the annex door, a lintel over it
+    b.wallZ(A.divider.x, 0, SIZE, [[A.door.z0, A.door.z1]], H, WALL, A.divider.thick);
+    b.box(A.divider.x, (A.door.h + H) / 2, (A.door.z0 + A.door.z1) / 2, A.divider.thick, H - A.door.h, A.door.z1 - A.door.z0, WALL);
+    b.door(A.divider.x, 0, A.door.z0, A.door.w, 0, { swing: 1, height: A.door.h });
+    // partition A: the hall to the north, the rest to the south; its door at the east end keeps L0 out of the dark side while shut
+    const pa = A.partA;
+    b.wallX(pa.z, A.x0, A.x1, [[pa.door.x0, pa.door.x1]], H, WALL);
+    b.box((pa.door.x0 + pa.door.x1) / 2, (A.door.h + H) / 2, pa.z, pa.door.x1 - pa.door.x0, H - A.door.h, 0.3, WALL);
+    b.door(pa.door.x0, 0, pa.z, pa.door.w, Math.PI / 2, { swing: 1, height: A.door.h });
+    // the store: a south wall, and an east wall with an open doorway to the aisle
+    b.wallX(A.storeWall.z, A.x0, A.storeWall.x1, [], H, WALL);
+    const aw = A.aisleWall;
+    b.wallZ(aw.x, aw.z0, aw.z1, [[aw.door.z0, aw.door.z1]], H, WALL);
+    b.box(aw.x, (A.door.h + H) / 2, (aw.door.z0 + aw.door.z1) / 2, 0.3, H - A.door.h, aw.door.z1 - aw.door.z0, WALL);
+    // high cover in the hall and a dumpster in the dark bay
+    b.highWall(A.h1.x, A.h1.z, A.h1.len, PROP);
+    b.block(A.dumpster.x, A.dumpster.z, A.dumpster.w, A.dumpster.h, A.dumpster.d, PROP_DARK);
+    // the annex's ambient zone and floor surfaces (its two lamps come after the main room's seven, so those keep their ids)
+    b.ambientZone(A.x0, A.x1, A.z0, A.z1, A.ambient, -1, H);
+    b.surface('carpet', A.x0, 32.3, 8.3, 14);
+    b.surface('metal', 32.6, A.x1, 8.3, 14);
+
     // key (warm, front left, high), rim (cool, behind right), fill (soft, front right), and a lamp over each prop side
     b.light({ kind: 'lamp', x: C - 3, y: 6, z: C + 3, radius: 14, intensity: 1, color: [1, 0.93, 0.82] });
     b.light({ kind: 'lamp', x: C + 2.5, y: 5.5, z: C - 3.5, radius: 12, intensity: 0.8, color: [0.75, 0.85, 1] });
@@ -197,6 +227,11 @@ export const studio: MapDef = {
     b.light({ kind: 'lamp', x: 5, y: 6, z: C, radius: 11, intensity: 0.6, color: [1, 0.96, 0.9] });
     b.light({ kind: 'lamp', x: SIZE - 5, y: 6, z: C, radius: 11, intensity: 0.6, color: [1, 0.96, 0.9] });
     b.light({ kind: 'lamp', x: C, y: 6, z: 5, radius: 11, intensity: 0.6, color: [1, 0.96, 0.9] });
+    // (G2c) the annex: L0, the hall lamp on the switch (group 1), and L1, the store strip (group 2)
+    const l0 = A.lamp0;
+    b.light({ kind: 'lamp', x: l0.x, y: l0.y, z: l0.z, radius: l0.radius, intensity: l0.intensity, color: [1, 0.96, 0.9], group: 1 });
+    const l1 = A.lamp1;
+    b.light({ kind: 'lamp', x: l1.x, y: l1.y, z: l1.z, radius: l1.radius, intensity: l1.intensity, color: [1, 0.96, 0.9], group: 2, fixture: { sx: 0.25, sy: 0.08, sz: 2.4, oy: 0.15 } });
     return {
       // (G1) the partner's slot in a co-op room: 2 m east of the first, clear of the props (all round the walls)
       playerSpawns: [
@@ -220,14 +255,52 @@ export const studio: MapDef = {
       ],
       objectives: [],
       pickups: [],
+      // (G2c) the annex's furniture: the dumpster front hides a body; the switch (on partition A's hall face) is L0's circuit;
+      // two alarm panels on the divider's main-room face; reinforcements come in at the dark bay's far corner
+      hideSpots: [{ pos: new Vector3(30.3, 0, 6.05) }],
+      switches: [{ pos: new Vector3(29.2, 0, 14.45), yaw: 0, group: 1 }],
+      alarms: [
+        { pos: new Vector3(28.45, 0, 24.5), yaw: Math.PI / 2 },
+        { pos: new Vector3(28.45, 0, 17), yaw: Math.PI / 2 },
+      ],
+      reinforce: [new Vector3(35.3, 0, 1.5)],
+      // (G2c) rooms for the guards' lights and room holds; the squads are for `populate` / `?guards=1` only (5 guards). The
+      // main room has none: the practice guards (below) are placed by the practice start, not by a room.
+      rooms: [
+        { id: 'chamber', name: 'Test Chamber', minX: 0, maxX: SIZE, minZ: 0, maxZ: SIZE },
+        {
+          id: 'hall', name: 'Hall', minX: A.x0, maxX: A.x1, minZ: 14.3, maxZ: SIZE,
+          squad: [
+            { kind: 'grunt', x: 30, z: 26, yaw: Math.PI, route: [[30, 26], [30, 17]], wait: 2 },
+            { kind: 'grunt', x: 35.5, z: 16, yaw: 0 },
+          ],
+        },
+        { id: 'store', name: 'Store', minX: A.x0, maxX: 32.3, minZ: 8.3, maxZ: 14, squad: [{ kind: 'grunt', x: 30.3, z: 11, yaw: Math.PI / 2 }] },
+        { id: 'aisle', name: 'Aisle', minX: 32.6, maxX: A.x1, minZ: 8.3, maxZ: 14 },
+        {
+          id: 'darkbay', name: 'Dark bay', minX: A.x0, maxX: A.x1, minZ: 0, maxZ: 8,
+          squad: [
+            { kind: 'grunt', x: 34, z: 4, yaw: 0, route: [[34, 4], [30, 2], [30, 5.5]], wait: 1 },
+            { kind: 'dog', x: 33, z: 2, yaw: 0 },
+          ],
+        },
+      ],
+      // (G2c) the passive practice guards (decision N17): three ordinary guards, placed by the practice start (`opts.practice`)
+      practice: P.practice.map((p) => ({ kind: 'grunt' as const, x: p.x, z: p.z, yaw: p.yaw, passive: true })),
       // (G2b) the ledge wall's top is reached only by a climb, so the nav keeps it walkable (takedown "below", hang-down)
       navSeeds: [new Vector3(4, 2.4, 26.5)],
-      // (G2b) the booth and the tunnel frame tight
+      // (G2b) the booth and the tunnel frame tight; (G2c) so do the store and the aisle
       camSpaces: [
         { box: [P.booth.inner.x0, P.booth.inner.z0, P.booth.inner.x1, P.booth.inner.z1], size: 'tight' },
         { box: [P.tunnel.x0, P.tunnel.z0, 2.5, P.tunnel.z1], y: [0, P.tunnel.under], size: 'tight' },
+        { box: [A.x0, 8.3, 32.3, 14], size: 'tight' },
+        { box: [32.6, 8.3, A.x1, 14], size: 'tight' },
       ],
       debugPoints: [
+        { group: 'annex', id: 'post', label: 'Annex hall post P', pos: new Vector3(32.3, 0, 15.5), yaw: 0 },
+        { group: 'annex', id: 'lit', label: 'Annex lit spot S', pos: new Vector3(32.3, 0, 20.5), yaw: Math.PI },
+        { group: 'annex', id: 'dark', label: 'Annex dark card', pos: new Vector3(31, 0, 3), yaw: 0 },
+        { group: 'annex', id: 'door', label: 'Annex door', pos: new Vector3(26, 0, 20), yaw: Math.PI / 2 },
         { group: 'moves', id: 'steps', label: 'Step row', pos: new Vector3(3, 0, 2.2), yaw: Math.PI },
         { group: 'moves', id: 'tunnel', label: 'Crouch tunnel', pos: new Vector3(1.2, 0, 15.6), yaw: Math.PI },
         { group: 'moves', id: 'split', label: 'Split fin', pos: new Vector3(17.8, 0, 24.5), yaw: 0 },

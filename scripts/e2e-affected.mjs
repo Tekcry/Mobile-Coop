@@ -61,8 +61,8 @@ export function touchesWire(files, paths) {
 // (process audit) CORE leaves out the input suites (the slowest); `src/input/` and `src/ui/` still pick them.
 export const CORE = ['e2e-move', 'e2e-combat', 'e2e-anim'];
 
-// (clean-up G2b) the suites that run on the Test Chamber (studio): a change to its map or its prop numbers reaches all of them
-const CHAMBER = ['e2e-move', 'e2e-traverse', 'e2e-ct', 'e2e-anchors', 'e2e-clip', 'e2e-anim', 'e2e-combat', 'e2e-wall', 'e2e-netmove', 'e2e-levels', 'e2e-stealth', 'e2e-foley', 'e2e-weapon-audio', 'e2e-weapons-carry', 'e2e-mouse', 'e2e-feedback', 'e2e-tactics', 'e2e-enemies', 'e2e-takedown', 'e2e-pad', 'e2e-testmode'];
+// (clean-up G2b, G2c) the suites that run on the Test Chamber (studio): a change to its map or its prop numbers reaches all of them
+const CHAMBER = ['e2e-move', 'e2e-traverse', 'e2e-ct', 'e2e-anchors', 'e2e-clip', 'e2e-anim', 'e2e-combat', 'e2e-wall', 'e2e-netmove', 'e2e-levels', 'e2e-stealth', 'e2e-foley', 'e2e-weapon-audio', 'e2e-weapons-carry', 'e2e-mouse', 'e2e-feedback', 'e2e-tactics', 'e2e-enemies', 'e2e-takedown', 'e2e-pad', 'e2e-testmode', 'e2e-lightbake', 'e2e-darkness', 'e2e-desktop', 'e2e-gadgets', 'e2e-guard-carry', 'e2e-score', 'e2e-offline', 'e2e-modes', 'e2e-menus'];
 
 // --quick: master's map, byte for byte (scripts/run-e2e.mjs on master before this branch). A path under `src/` not listed
 // here runs CORE. tests/e2eAffected.test.ts holds a frozen copy and checks it row by row.

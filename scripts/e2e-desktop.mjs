@@ -3,6 +3,8 @@
 // renderer booting in a match (clustered lights, shadow casters, the post stack) without console errors; 16:10,
 // 21:9 and 32:9 windows (centred menus, the HUD inset, Hor+ up to the FOV cap).
 // (voxel-retire: parts 3 and 4 run the smooth renderer; the voxel look is gone)
+// (clean-up G2c) Every part's match is on the Test Chamber (studio): the benchmark flies its rooms in the test mode (part 1), the
+// ultrawide pages stand in its plain room (2), the Epic part spawns two alerted guards in its dark bay to light their torches (3).
 import { launch, assert, frames, GPU } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -125,7 +127,7 @@ try {
   await page.keyboard.press('Escape');
   await frames(page, 3);
   // in a match: the rebound key acts
-  await page.goto(url + '?autostart=proving&gfx=min');
+  await page.goto(url + '?autostart=studio&gfx=min');
   await page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 60000 });
   await page.keyboard.down('KeyU');
   await frames(page, 2);
@@ -133,7 +135,7 @@ try {
   await page.keyboard.up('KeyU');
   assert(rel, 'the rebound key reloads in a match');
   // the benchmark: a (shortened) flight, then the result, saved as feedback
-  // (software GL renders the Warehouse at ~1 fps: a 2 s flight is ~10 frames)
+  // (software GL renders the Test Chamber at ~1 fps: a 2 s flight is ~10 frames)
   await G(() => {
     window.__bench.seconds = 2;
     window.__bench.warmup = 0.5;
@@ -141,10 +143,10 @@ try {
   });
   await page.waitForFunction(() => /average \d+ fps, 1% low \d+ fps/.test(document.querySelector('.dialog')?.textContent ?? ''), null, { timeout: 240000 });
   const bt = await G(() => ({ text: document.querySelector('.dialog').textContent, hudHidden: document.body.classList.contains('photo-mode') }));
-  assert(!bt.hudHidden, `the benchmark reports (${bt.text.match(/Warehouse[^)]*\)/)?.[0]})`);
+  assert(!bt.hudHidden, `the benchmark reports (${bt.text.match(/Test Chamber[^)]*\)/)?.[0]})`);
   // (3.1.2: saved on its own as it finishes; the report scrolls inside the dialog and has Copy text)
   const saved = await G(async () => (await window.__app.feedback.all()).find((e) => e.category === 'performance')?.text ?? '');
-  assert(/Benchmark - Warehouse/.test(saved), 'the result is saved as a performance note without a tap');
+  assert(/Benchmark - Test Chamber/.test(saved), 'the result is saved as a performance note without a tap');
   const dlg = await G(() => {
     const m = document.querySelector('.dialog-msg');
     const cs = getComputedStyle(m);
@@ -267,7 +269,7 @@ try {
     assert(Math.abs(m.cx - m.W / 2) < 2 && m.w <= m.H * (16 / 9) + 2 && m.h >= m.H - 2, `${label}: menus a centred layout (${m.w.toFixed(0)} x ${m.h.toFixed(0)} in ${m.W} x ${m.H})`);
     assert(m.item >= (m.W - m.w) / 2 - 1, `${label}: the menu sits inside it (x ${m.item.toFixed(0)})`);
     if (process.env.SHOTS) await P.screenshot({ path: `${process.env.SHOTS}/desk-${label.replace(':', 'x')}-menu.png` });
-    await P.goto(url + '?autostart=warehouse&mode=sandbox&gfx=min');
+    await P.goto(url + '?autostart=studio&mode=sandbox&gfx=min');
     // (load-latent-ui2) 120 s, as the other match loads: the shaders compile on the loading screen first
     await P.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 120000 });
     await GA(() => window.__app.settings.update((d) => { d.video.fovH = 100; d.video.maxFov = 120; }));
@@ -343,7 +345,7 @@ try {
 
   if (part(3)) {
   // the Epic renderer in a match (small window: software GL)
-  const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic', viewport: { width: 640, height: 360 } });
+  const e = await launch({ url, params: 'autostart=studio&mode=test&gfx=epic', viewport: { width: 640, height: 360 } });
   browser = e.browser;
   await e.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(e.page, 6);
@@ -466,9 +468,17 @@ try {
   // the torch shadow atlas on, no flashlight takes the rig's shadow pool (capped at 0): every torch on is drawn by the
   // baked lamps (up to the map's torch slots: TORCH_DRAW_SLOTS = 4 by default, Warehouse sets none; piano SO3
   // `MapDef.torchSlots` up to 16) and shadowed through ONE atlas sampler. Alert them and count again.
+  // (G2c) the test mode places no guards: two stand in the annex's dark bay (ambient 0.12, a head well under TORCH_DARK 0.35) and alert;
+  // they face each other 3.2 m apart and stand still, the operator between them (a character in a torch's cone is what its shadow map renders)
   await e.page.evaluate(() => {
     const g = window.__app.current;
-    for (const en of g.enemyMgr.enemies) en.alert();
+    const V = g.player.position.constructor;
+    g.player.controller.teleport(new V(32, 0, 4.6), 0);
+    for (const [x, z, yaw] of [[32, 3, 0], [32, 6.2, Math.PI]]) {
+      const en = g.enemyMgr.spawn('grunt', new V(x, 0, z), false, yaw);
+      en.alert();
+      en.update = () => en.prevPos.copyFrom(en.pos);
+    }
   });
   await frames(e.page, 240);
   tex = await texProbe();
@@ -496,7 +506,7 @@ try {
 
   if (part(4)) {
   // 3.0 phase 5: TAAU, Panini, the Ray traced setting (screen space since voxel-retire; the saved settings, changed in the match)
-  const u = await launch({ url, params: 'autostart=warehouse&gfx=user', viewport: { width: 640, height: 360 } });
+  const u = await launch({ url, params: 'autostart=studio&gfx=user', viewport: { width: 640, height: 360 } });
   browser = u.browser;
   await u.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(u.page, 3);

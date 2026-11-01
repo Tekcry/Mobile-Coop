@@ -237,6 +237,8 @@ class CoopController {
         missionId: mission?.id,
         weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
         courseBay: s.mode === 'course' ? (s.bay ?? 1) : undefined,
+        // (G2c, N17) the Test Chamber's practice guards (the host's match places them; `?practice=0` leaves them out)
+        practice: s.mode === 'test' && s.map === STUDIO_MAP_ID && flags.practice !== false,
         // (campaign-mode CM3, PLAN 3.4) Sector Ops with the campaign flag: the start's mission and section, and on the
         // host a Continue's save; flags off: none, the mode binds `?mission=` and starts as before
         ...sectorStartOpts(s),
