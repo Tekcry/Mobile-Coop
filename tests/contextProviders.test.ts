@@ -41,7 +41,6 @@ interface Fake {
   offer: CtxOfferRef | null;
   joint: boolean;
   team: boolean;
-  knife: boolean;
   rt: boolean;
   door: number;
   doors: CtxDoorRef[];
@@ -55,7 +54,7 @@ interface Fake {
 }
 
 function fake(): Fake {
-  return { feet: { x: 0, y: 0, z: 0 }, yaw: 0, aside: false, held: null, info: false, offer: null, joint: false, team: false, knife: false, rt: true, door: -1, doors: [], peek: -1, gap: -1, gaps: [], trap: false, item: null, items: [], carrying: false };
+  return { feet: { x: 0, y: 0, z: 0 }, yaw: 0, aside: false, held: null, info: false, offer: null, joint: false, team: false, rt: true, door: -1, doors: [], peek: -1, gap: -1, gaps: [], trap: false, item: null, items: [], carrying: false };
 }
 
 function host(f: Fake): CtxHost {
@@ -68,7 +67,6 @@ function host(f: Fake): CtxHost {
     offer: () => f.offer,
     joint: () => f.joint,
     teamMove: () => f.team,
-    knife: () => f.knife,
     rtFree: () => f.rt,
     doorCandidate: () => f.door,
     door: (i) => f.doors[i] ?? null,
@@ -161,21 +159,16 @@ describe('contextProviders: rows per target (PLAN 2)', () => {
     expect(rows(f)).toMatchObject({ a: 'Grab', rt: 'Choke', rtHold: 'Neck snap' });
   });
 
-  it('knife on: A Knife takedown (no grab), RT Knife takedown; a quadruped keeps its takedown', () => {
+  it('a quadruped keeps its takedown rows', () => {
     const f = fake();
-    f.knife = true;
-    f.offer = guard('behind');
-    expect(rows(f)).toMatchObject({ a: 'Knife takedown', aHold: '', rt: 'Knife takedown' });
     f.offer = guard('front', { quadruped: true });
     expect(rows(f)).toMatchObject({ a: 'Knock out', aHold: 'Kill' });
   });
 
-  it('the partner\'s hostage: A tap Team takedown (kind hostage), knife or not', () => {
+  it('the partner\'s hostage: A tap Team takedown (kind hostage)', () => {
     const f = fake();
     f.offer = guard('assist');
     expect(rows(f)).toMatchObject({ kind: 'hostage', a: 'Team takedown', aHold: '' });
-    f.knife = true;
-    expect(rows(f)).toMatchObject({ kind: 'hostage', a: 'Team takedown' });
   });
 
   it('a closed door faced: A Open / hold Bash; Y Peek / hold Optic cable; the peek not on offer: Y hold only', () => {
@@ -534,9 +527,6 @@ describe('contextProviders S5: co-op, hang-down, carry, knife, team states', () 
     expect(rows(f)).toMatchObject({ kind: 'hostage', a: 'Team takedown', y: '-' });
     f.joint = true;
     expect(rows(f)).toMatchObject({ kind: 'hostage', a: 'Team takedown', y: 'Bluff', yHold: '' });
-    // the knife scene keeps the hostage a team takedown, with the bluff (A19)
-    f.knife = true;
-    expect(rows(f)).toMatchObject({ kind: 'hostage', a: 'Team takedown', y: 'Bluff' });
   });
 
   it('the bluff: Y tap beside the hold runs it on the press and owns Y; a climb on offer or a running hold keeps Y the jump', () => {
@@ -669,17 +659,15 @@ describe('contextProviders S5: co-op, hang-down, carry, knife, team states', () 
     expect(cp.run).toMatchObject({ slot: CTX_A, opt: CTX_OPT.use, kind: 'item', hold: true });
   });
 
-  it('the knife scene (row 14): A runs the knife takedown on the press, tap or hold, on any guard on two legs; no grab', () => {
+  it('(knife-kills) no knife-only row: from behind the grab, faced A hold Kill (the paired knife kill where the kind has a row)', () => {
     const f = fake();
-    f.knife = true;
-    for (const k of ['behind', 'front', 'side', 'above'] as const) {
+    f.offer = guard('behind');
+    expect(rows(f)).toMatchObject({ kind: 'guard', a: 'Grab' });
+    for (const k of ['front', 'side', 'corner'] as const) {
       f.offer = guard(k);
-      expect(rows(f), k).toMatchObject({ kind: 'guard', a: 'Knife takedown', aHold: '', rt: 'Knife takedown' });
-      const cp = new ContextPrompts();
-      const p: Pads = { a: true, aWas: false, y: false, yWas: false };
-      expect(stepCtx(cp, host(f), emptyCtxPromptInput(), groundJs(), p), k).toBe(true);
-      expect(cp.run, k).toMatchObject({ slot: CTX_A, opt: CTX_OPT.knife, hold: false });
+      expect(rows(f), k).toMatchObject({ kind: 'guard', aHold: 'Kill' });
     }
+    expect(Object.values(CTX_OPT)).not.toContain('knife');
   });
 
   it('team and kit prompts (PLAN 6): the full line with the flag off, the short move name with it on', () => {

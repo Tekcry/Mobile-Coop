@@ -83,7 +83,7 @@ import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL, LADDER_DROP_MAX } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
 import { GRAB, type TakedownKind } from './takedown';
-import { takedownRow } from './knifeKill'; // (piano-knife S1)
+import { loadKnifeClips, takedownRow } from './knifeKill'; // (piano-knife S1)
 import { TeamController, type TeamMate } from './teamController';
 import { RopeLine } from './ropeLine';
 import type { TeamMoveKind } from './teamMoves';
@@ -616,7 +616,6 @@ export class GameState implements AppState {
       return !!o && o.plan.kind === 'assist' && hasJoint(o.e);
     },
     teamMove: () => this.team.active && !this.team.hangActs,
-    knife: () => this.takedown.knife,
     rtFree: () => !this.player.ads && !this.player.adsWanted && (this.player.stance.base === 'holstered' || this.takedown.menuReady || this.team.hangActs),
     doorCandidate: () => this.doorMenuCandidate(),
     door: (i) => this.world.doors.list[i] ?? null,
@@ -779,6 +778,9 @@ export class GameState implements AppState {
     this.post.setDepthSource(this.stack);
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
+    // (knife-kills) the paired knife kill's clips at match start on any map: dynamic imports, their own chunks, not
+    // awaited (until they are in a lethal takedown plays the classic move)
+    void loadKnifeClips();
     this.strike = new StrikeController(this);
     this.diff = resolveDifficulty(opts.difficulty ?? 'normal');
     this.team = new TeamController(this);
@@ -1659,9 +1661,8 @@ export class GameState implements AppState {
           // (joint-interrogation, G148) the partner's hostage with joint information: BLUFF lists above TEAM TAKEDOWN
           // (`assist` is only on offer in co-op: `net.partnerHolds`)
           if (o.plan.kind === 'assist' && hasJoint(o.e)) m.add(JOINT_KIND, 'bluff', -1, JOINT_BLUFF_LABEL);
-          // (piano-knife S1, A2) the knife switch: no grab, the takedown row is the knife kill (`start` forces it)
-          if (takedownRow(o.plan.kind, o.e.def.quadruped, td.knife) === 'grab') m.add(TD_KIND, 'grab', -1, 'Grab character');
-          else m.add(TD_KIND, 'ko', -1, td.knife ? 'Takedown' : TD_LABEL[o.plan.kind]);
+          if (takedownRow(o.plan.kind, o.e.def.quadruped) === 'grab') m.add(TD_KIND, 'grab', -1, 'Grab character');
+          else m.add(TD_KIND, 'ko', -1, TD_LABEL[o.plan.kind]);
         }
         const dIdx = this.doorMenuCandidate();
         if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts, isSlideDoor(this.world.doors.list[dIdx]!.anchor));
@@ -1812,7 +1813,7 @@ export class GameState implements AppState {
         if (r.opt === CTX_OPT.bluff) this.net?.jointBluff?.(o.e);
         else if (r.opt === CTX_OPT.grab) td.start();
         else if (r.opt === CTX_OPT.ko) td.start(false);
-        // the kill (A6, lethal-only) and the knife takedown (A19: `start` forces the knife)
+        // the kill (A6, lethal-only): (knife-kills) the paired knife kill where the kind has a row
         else td.start(true);
         return;
       }
@@ -1841,17 +1842,6 @@ export class GameState implements AppState {
    *  `flags.contextPrompts`: there is no list and walking stays free (A12). */
   private get ctxListOpen(): boolean {
     return !flags.contextPrompts && this.ctxMenu.state === 'active';
-  }
-
-  /** (knife-attack) The holstered attack press with the knife switch on: the knife kill on the guard on offer (the same
-   *  `start` as the context menu's TAKEDOWN row: the switch forces the knife); no guard in reach: a short cue, nothing
-   *  else (no free slash, Michael ~20:05). `aFree`: the context menu's list is not open (blocked: nothing at all). */
-  private knifeAttack(aFree: boolean): void {
-    const td = this.takedown;
-    const o = td.offer;
-    if (td.busy || this.strike.active || !aFree) return;
-    if (o) td.start(o.lethalOnly);
-    else this.hud.feedItem('Knife ready: get behind or beside a guard');
   }
 
   /** Run a context menu row (the same calls the pre-G5 press, door menu and grab menu made). */
@@ -2513,13 +2503,7 @@ export class GameState implements AppState {
     {
       const rt = this.rtTap.strike(this.weapons.drawPhase);
       const atk = ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown;
-      // (piano-knife S1, Michael ~20:05 "Palm strike knockout disabled, only knife kills") no strike with the knife switch on;
-      // (knife-attack, Michael's walk 2026-10-27 ~09:15 "pressing attack button holstered in piano map doesnt use knife")
-      // the attack press is the knife kill on a guard in reach, as the takedown row; none in reach: a cue, no free slash
-      // (checker FIX 1) free unless the menu's list is open: `aFree` is false whenever the menu has a row, and a guard on
-      // offer always adds the TAKEDOWN row
-      if (atk && this.takedown.knife) this.knifeAttack(!this.ctxListOpen);
-      this.strike.fixedUpdate(dt, atk && !this.takedown.knife, rt === 'hold');
+      this.strike.fixedUpdate(dt, atk, rt === 'hold');
     }
     // (anim-rework S1, M4) a traversal or a busy move holds the weapon state (the gun away for it, back after); holding a
     // guard locks it (X does nothing, LT is the pistol shield)
@@ -4426,7 +4410,7 @@ export class GameState implements AppState {
     else if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
-      const lbl = off.lethalOnly ? 'Lethal takedown' : this.takedown.knife ? 'Takedown' : (off.plan.kind === 'behind' || off.plan.kind === 'hangDown') && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
+      const lbl = off.lethalOnly ? 'Lethal takedown' : (off.plan.kind === 'behind' || off.plan.kind === 'hangDown') && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
       w.set('takedown', ok ? lbl : null, this.scr.x, this.scr.y);
     } else if (host && this.takedown.menuReady) {
       // (3.2.0) holding a hostage: tap knocks out, hold kills

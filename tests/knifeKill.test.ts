@@ -1,27 +1,24 @@
-// (piano-knife S1, S2) The knife kill's pure parts: the gate over every map (BRIEF A1), the row pick (A3), the rows (A15,
-// the bible's 1.0-1.5 s takedown, clips that exist), the buckle's shape and the menu row with the switch on (A2).
+// (piano-knife S1, S2; knife-kills) The knife kill's pure parts: no gate (every map's lethal takedown, the clips at match
+// start), the row pick (A3), the rows (A15, the bible's 1.0-1.5 s takedown, clips that exist), the buckle's shape and the
+// menu row.
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
-import { DEV_MAPS, MAPS } from '../src/world/maps';
-import { attackerPhase, buckleAt, KNIFE, KNIFE_KILL_IDS, KNIFE_KILLS, knifeClip, knifeClipsReady, knifeSceneOn, loadKnifeClips, PIANO_MAP_ID, PIANO_SCENE, pickKnifeKill, resetKnifeClipsForTest, takedownRow } from '../src/game/knifeKill';
+import * as knifeKill from '../src/game/knifeKill';
+import { attackerPhase, buckleAt, KNIFE, KNIFE_KILL_IDS, KNIFE_KILLS, knifeClip, knifeClipsReady, loadKnifeClips, pickKnifeKill, resetKnifeClipsForTest, takedownRow } from '../src/game/knifeKill';
 import { MOCAP_SOURCES } from '../src/anim/mocapSources';
 import type { TakedownKind } from '../src/game/takedown';
 
 const KINDS: readonly TakedownKind[] = ['behind', 'front', 'side', 'overCover', 'corner', 'above', 'below', 'window', 'drop', 'inverted', 'hangDown', 'assist'];
 
-describe('piano-knife S1: the gate', () => {
-  it('true only on a piano-scene map with the flag on and the switch live', () => {
-    const maps: { id: string; scene?: string }[] = [...MAPS, ...DEV_MAPS].map((m) => ({ id: m.id, scene: (m as { scene?: string }).scene }));
-    maps.push({ id: PIANO_MAP_ID, scene: PIANO_SCENE });
-    expect(maps.length).toBeGreaterThan(2);
-    for (const m of maps) {
-      for (const flag of [false, true]) {
-        for (const live of [false, true]) {
-          expect(knifeSceneOn(flag, m.scene, live), `${m.id} flag ${flag} live ${live}`).toBe(flag && live && m.scene === 'piano');
-        }
-      }
-    }
-    expect(knifeSceneOn(true, undefined, true)).toBe(false);
+describe('knife-kills: no gate', () => {
+  it('no scene gate or switch; the clips load at match start on any map', () => {
+    for (const gone of ['knifeSceneOn', 'PIANO_SCENE', 'PIANO_MAP_ID']) expect(gone in knifeKill, gone).toBe(false);
+    const td = fs.readFileSync('src/game/takedownController.ts', 'utf8');
+    expect(td).not.toMatch(/setKnifeScene|\bknife = false/);
+    const gs = fs.readFileSync('src/game/gameState.ts', 'utf8');
+    expect(gs).toContain('this.takedown = new TakedownController(this);');
+    expect(gs).toContain('void loadKnifeClips();');
+    expect(gs).not.toMatch(/takedown\.knife\b|knifeAttack/);
   });
 });
 
@@ -114,9 +111,10 @@ describe('piano-knife S1: the rows', () => {
     expect(buckleAt(KNIFE.buckleRise + KNIFE.buckleDecay + 0.5)).toBe(0);
   });
 
-  it('the menu row: the grab from behind with the switch off, never with it on', () => {
-    expect(takedownRow('behind', false, false)).toBe('grab');
-    expect(takedownRow('behind', true, false)).toBe('ko');
-    for (const k of KINDS) expect(takedownRow(k, false, true), k).toBe('ko');
+  it('the menu row: the grab from behind on a guard on two legs (the knife kill never replaces it)', () => {
+    expect(takedownRow('behind', false)).toBe('grab');
+    expect(takedownRow('hangDown', false)).toBe('grab');
+    expect(takedownRow('behind', true)).toBe('ko');
+    for (const k of KINDS) if (k !== 'behind' && k !== 'hangDown') expect(takedownRow(k, false), k).toBe('ko');
   });
 });

@@ -6,8 +6,6 @@ import type { Interactable } from './interactables';
 import { EMP_KNIFE_AT, EMP_LABEL, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PLAY_YAW, PianoIntro, RADIO_LINE, REVEALS, REVEAL_CLEAR_M, SKIP_SEEK } from './pianoIntro';
 import { exitZone, inZone, type SectorDef } from './sectors';
 import { hyp2 } from '../core/mathx';
-import { flags } from '../core/flags';
-import { knifeSceneOn } from './knifeKill';
 import type { IntroVariant } from '../anim/introBreath';
 import { createSceneStorm, type PianoStorm } from '../audio/sceneStorm';
 
@@ -300,7 +298,7 @@ export function pianoClientWorld(g: GameState, c: PianoClientSeam): PianoWorld {
     },
     guardWithin: () => true,
     view: (intro, onSkip) => c.view(intro, onSkip),
-    knifeScene: (on) => knifeSwitch(g, on),
+    knifeScene: knifeSwitch,
     introPose: (on, v) => void g.introPose(on, v),
     knifeReady: (on) => knifeReady(g, on),
     playLook: (yaw) => playLook(g, yaw),
@@ -320,10 +318,8 @@ export function playLook(g: { readonly player: { readonly cam: { yaw: number; pi
   g.player.cam.pitch = 0;
 }
 
-/** (S4, knife PB5) The knife switch on a match: the gate is the flag, the map's `scene` and the scene's live state. */
-export function knifeSwitch(g: { readonly takedown: { setKnifeScene(on: boolean): void }; readonly world: { readonly map: { readonly scene?: 'piano' } } }, on: boolean): void {
-  g.takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, g.world.map.scene, on));
-}
+/** (S4, knife PB5) Was the knife switch; (knife-kills) knife kills are every map's lethal takedown now: nothing to do. */
+export function knifeSwitch(): void {}
 
 /** (S2) SectorMode's side of the scene: its spawn with the exception, its slots, its spots. */
 export interface PianoModeSeam {
@@ -396,7 +392,7 @@ export function pianoWorld(g: GameState, m: PianoModeSeam): PianoWorld {
       return false;
     },
     view: (intro, onSkip) => m.view(intro, onSkip),
-    knifeScene: (on) => knifeSwitch(g, on),
+    knifeScene: knifeSwitch,
     introPose: (on, v) => void g.introPose(on, v),
     knifeReady: (on) => knifeReady(g, on),
     playLook: (yaw) => playLook(g, yaw),

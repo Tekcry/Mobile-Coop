@@ -142,7 +142,7 @@ describe('guard-rules S2: the host refuses a dog takedown', () => {
     const e = { id: 'e1', alive: true, taken: false, level: 'unaware', yaw: 0, pos: new Vector3(0, 0, 0), def: { kind: quadruped ? 'dog' : 'grunt', quadruped }, beginTakedown: vi.fn(), releaseTakedown: vi.fn() };
     const em = { enemies: [e] };
     const queue: NetEvent[] = [];
-    Object.assign(h, { g: { enemyMgr: em, takedown: { knife: false } }, queue, seized: new Map(), interPh: new Map(), tallies: new Map(), time: 0, history: new Map(), rw: newRewound(), s: { selfId: 'H' } });
+    Object.assign(h, { g: { enemyMgr: em, takedown: {} }, queue, seized: new Map(), interPh: new Map(), tallies: new Map(), time: 0, history: new Map(), rw: newRewound(), s: { selfId: 'H' } });
     const r = { id: 'C', alive: true, feet: new Vector3(0, 0, -1), ref: { spotted: false } };
     (h as unknown as { onTakedown(r: unknown, m: unknown): void }).onTakedown(r, { t: 'td', target: 'e1', ph: 'start', lethal: false });
     return { e, queue, seized: (h as unknown as { seized: Map<string, unknown> }).seized };

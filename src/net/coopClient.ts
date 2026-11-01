@@ -82,12 +82,12 @@ const SEND_HZ = 20;
 const INTERP_DELAY = CLIENT_INTERP_DELAY;
 
 /**
- * (piano-knife S3) Our takedown's message for the host: `kind` `'knife'` on every phase while our knife switch is on
- * (the host seizes a guard in the piano scene only for a knife start), else the course kind on `done` only (today's);
- * no `kind` field when it is empty (the switch off: byte-for-byte today's messages).
+ * (piano-knife S3, knife-kills) Our takedown's message for the host: `kind` `'knife'` on the start of a knife kill
+ * (`knife`: our takedown is one; the host remembers it for the kill's quiet noise), the course kind on `done` (today's,
+ * the knife kill's too); no `kind` field when it is empty.
  */
 export function tdOut(target: string, ph: 'start' | 'done' | 'abort', lethal: boolean, knife: boolean, courseKind: string): Extract<Msg, { t: 'td' }> {
-  const kind = knife ? 'knife' : ph === 'done' ? courseKind : '';
+  const kind = ph === 'start' ? (knife ? 'knife' : '') : ph === 'done' ? courseKind : '';
   return kind ? { t: 'td', target, ph, lethal, kind } : { t: 'td', target, ph, lethal };
 }
 
@@ -588,8 +588,8 @@ export class CoopClient implements NetAttachment {
         // he still has intel is the host's `in` flag (stealth-pays client intel, below)
         np.spawnInfo = infoAtSpawn(g.world.layout.course?.squads, e.x, e.z);
         // the kind of our own takedown (its 'start' event) goes with the result: the host ticks the course verb (A23)
-        // (piano-knife S3) with our knife switch on every phase says `knife` (the host's gate in the piano scene)
-        np.onTakedown = (ph, lethal) => this.s.toHost(tdOut(np.id, ph, lethal, g.takedown.knife, this.tdKind));
+        // (knife-kills) a knife kill's start says `knife` (`knifeOn` is set before the puppet's `beginTakedown`)
+        np.onTakedown = (ph, lethal) => this.s.toHost(tdOut(np.id, ph, lethal, g.takedown.knifeOn, this.tdKind));
         this.puppets.set(e.id, np);
         p = np;
       }

@@ -23,7 +23,6 @@ import {
   isPianoScene,
   LIGHTNING_OFF_T0,
   empHooks,
-  knifeSwitch,
   setPianoLeave,
   type FadeLayer,
   type PianoEmpHooks,
@@ -538,23 +537,6 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     const h = src('src/net/coopHost.ts');
     expect(h).toContain("if (mode === 'sector' && isPianoScene(g.world.map)) this.reviveClock.cap = REVIVES_PER_MISSION;");
     expect(isPianoScene(thornbeckMill)).toBe(true);
-  });
-
-  it('(S4) knifeSwitch: setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, on))', () => {
-    const was = flags.pianoEscape;
-    const set: boolean[] = [];
-    const g = (scene?: 'piano') => ({ takedown: { setKnifeScene: (on: boolean) => void set.push(on) }, world: { map: { scene } } });
-    try {
-      flags.pianoEscape = true;
-      knifeSwitch(g('piano'), true);
-      knifeSwitch(g('piano'), false);
-      knifeSwitch(g(undefined), true);
-      flags.pianoEscape = false;
-      knifeSwitch(g('piano'), true);
-    } finally {
-      flags.pianoEscape = was;
-    }
-    expect(set).toEqual([true, false, false, false]);
   });
 
   it('the framed reveals: the hoist door as the objective closes, once; a guard within 10 m stops it; none in the intro', () => {

@@ -192,25 +192,19 @@ The close strike of G42 / G155; this is the build.
 - Tests: `tests/elbowStrike.test.ts`, `tests/committedMoves.test.ts`; e2e-pad, e2e-mouse, e2e-takedown, e2e-netmove
   (`strike`, `denied`), e2e-coop; anim-audit scenario `strike`.
 
-## Knife kills (piano scene; piano-knife S1, S2, S3, `docs/piano-knife/`)
-- Gate (BRIEF A1): `knifeSceneOn(flagOn, scene, live)` in `src/game/knifeKill.ts` is true only with Campaign's
-  `pianoEscape` flag on, the map's `scene` `'piano'` and the scene switch live. Campaign's `pianoScene.ts` is the only
-  caller of `TakedownController.setKnifeScene(on)` (on: the clips start loading by dynamic import). Off (the default)
-  every takedown is exactly today's.
-- Switch on (A2; Michael ~20:05 "Palm strike knockout disabled, only knife kills"): every takedown on a guard on two
-  legs is a lethal knife kill on one press. No grab row (`takedownRow`), no tap / hold, no RT palm strike
-  (`gameState` passes no strike start). The knife (`PlayerWeapons.knife`) shows from the press until the attacker is free.
-- The attack press (knife-attack, Michael's walk 2026-10-27): holstered, RT / LMB (or Z) is the knife kill on the guard
-  on offer (`GameState.knifeAttack`, the same `start` as the takedown row); none in reach: the cue "Knife ready: get
-  behind or beside a guard", no free slash.
-- Context prompts (`contextPrompts`, dark; BRIEF A19): every guard on two legs on offer shows `[A] Knife takedown` (it
-  runs on the press, so a tap or a hold) and `[RT] Knife takedown`; no grab; the partner's hostage keeps
-  `[A] Team takedown` (`start` exempts `assist`). Y follows the Y rule as anywhere (input-and-loop.md "Context
-  prompts").
+## Knife kills (every map; piano-knife S1, S2, S3, `docs/piano-knife/`; knife-kills)
+- (knife-kills, owner decision; first built for the removed piano scene) On every map the lethal takedown on a guard on
+  two legs from a kind with a row is the paired knife kill: `TakedownController.start` with `lethal` true (the context
+  prompts' A hold Kill, a lethal-only offer's Kill, a lethal-only offer started with no choice). No gate, no switch.
+  The grab, the knockout (the takedown row, A tap), the palm strike (RT / LMB, Z) and the partner throw's knockout are
+  unchanged, and an alert guard who knows the operator is there is not on offer, as for any takedown. The knife
+  (`PlayerWeapons.knife`) shows from the press until the attacker is free.
+- The clips load at match start on any map (`loadKnifeClips` from the `GameState` constructor: dynamic imports, their
+  own chunks, not awaited). Until they are in, and on a victim without `knifeVictim`, a kind without a row (drop, below,
+  window, inverted, hang-down, ...) or a dog, the lethal takedown is the classic lethal move (blow arc, 3 m noise).
 - Rows (`KNIFE_KILLS`, wire order `behind`, `behindLow`, `corner`, `front`; `pickKnifeKill`): behind (crouched: the rise),
-  corner / overCover, front / side. Other kinds, a victim without `knifeVictim` (a co-op puppet until S3) or clips not
-  loaded yet: the -1 path (today's lethal move, knife shown). The pairs (S2, Michael's Mixamo downloads in
-  `src/anim/clips/mixamo/piano/`, loaded only from `setKnifeScene(true)`): behind `stabbing` + `falling_forward_death`,
+  corner / overCover, front / side. The pairs (S2, Michael's Mixamo downloads in
+  `src/anim/clips/mixamo/piano/`): behind `stabbing` + `falling_forward_death`,
   behindLow and front `stabbing` + `dying`, corner `standing_melee_attack_downward` + `falling_back_death`. The move is
   1.5 s (A15); the attacker clips are 2.1-2.6 s, so each row plays its clip's window (`attackerFrom` .. `attackerTo`)
   around the stab at the clip's own speed. The rows' timing, windows, `victimTo`, `standoff` and `side` are measured
@@ -227,7 +221,7 @@ The close strike of G42 / G155; this is the build.
   plays, BRIEF A16); the corner row's grip and the guard's left palm (about 17 cm) are over A16's 10 cm ceiling
   (`OVER_CEILING`, the lead's call).
 - Noise and body (A5, A6): at the row's `limp` the guard dies (`applyDamage`, the ordinary body and ragdoll), noise
-  `KNIFE.noise` 1.2 m (S2: the -1 path too, every piano kill is quiet), the `takedown` events carry `knife: true`,
+  `KNIFE.noise` 1.2 m (a kill for the rating), the `takedown` events carry `knife: true`,
   counted as `done.byKind.knife`. Damage to the
   attacker before the stab aborts (both drives and hands off, the knife away); after it the kill finishes at once. The
   attacker's clip window plays to its end and blends out before she is free (no offer meanwhile;
@@ -236,13 +230,12 @@ The close strike of G42 / G155; this is the build.
 - Side kill (S3): the row by his facing (his back more towards her: behind / behindLow, else front), the grab eased from
   his real facing (`kFromYaw = e.yaw`): at most a 90 degree turn.
 - Co-op (S3; Q39 / G400 "players must look exact in everyones games"):
-  - The host's gate (`CoopHost.onTakedown`): a client's `td` start with `kind: 'knife'` seizes only while the host's own
-    switch is on (the lethal struggle); with it on, any other start (assist included; a bluff is speech) is denied, and
-    `done` is always a kill (never a knockout) at `KNIFE.noise`. With the switch on the host also refuses every RT strike
-    (`cdeny` `busy`, no `strikes` entry) and the partner throw's knockout (`throwKnockOut`). So no guard is knocked out in
-    the scene.
-  - The wire (no new message or field): `td.kind` `'knife'` on start, done and abort from a client whose switch is on
-    (`tdOut`); MoveState `takedown` `sub` bit 2 `TAKEDOWN_SUB_KNIFE` (the knife shown) with the row in bits 4-16
+  - The host's check (`CoopHost.onTakedown`): a client's `td` start with `kind: 'knife'` must be lethal (else denied);
+    the seize is the lethal struggle and remembers the knife, so its `done` is a kill at `KNIFE.noise`. Every other
+    start, the RT strike and the throw knockout follow the ordinary rules.
+  - The wire (no new message or field): `td.kind` `'knife'` on the start of a client's knife kill (`tdOut`, from
+    `takedown.knifeOn`, which is set before the puppet's `beginTakedown` sends the start), the course kind on `done` as
+    for any takedown; MoveState `takedown` `sub` bit 2 `TAKEDOWN_SUB_KNIFE` (the knife shown) with the row in bits 4-16
     (`knifeSub` / `knifeRowOfSub`; 7 `KNIFE_ROW_NONE`: the move without a row, today's blow bit and phase), `ph` the move's
     phase over `knifeSpan` (the move and its tail), `s` the approach's progress (`localMoveState`, the tail too).
   - The remote pair (`src/net/remoteKnife.ts`, one per `RemoteAvatar`): the attacker's clip window, the knife in her hand
@@ -255,4 +248,6 @@ The close strike of G42 / G155; this is the build.
 - Tests: `tests/knifeKill.test.ts`, `tests/killDrive.test.ts`, `tests/knifePair.test.ts` (harness `tests/helpers/knifePairRun.ts`),
   `tests/knifePairFit.test.ts`, `tests/knifeTakedown.test.ts`,
   `tests/takedownAlloc.test.ts` (a knife run allocates nothing per step), `tests/grabMenu.test.ts`, `tests/knifeWire.test.ts`
-  (S3: the wire, the host's gate, the puppet, the double, remote parity).
+  (S3: the wire, the host's check, the puppet, the double, remote parity), `tests/knifeAttack.test.ts` (no scene-only
+  attack); e2e-takedown (solo: the prompts' A hold Kill is the knife kill; co-op on Proving: both peers' lethal
+  takedowns play it on both pages, a client's knockout stays one).

@@ -1,11 +1,10 @@
 /**
- * (piano-knife S1) The piano scene's paired knife kills: the gate, the rows and their clips. Pure (no Babylon import);
- * nothing allocates after the clips load.
+ * (piano-knife S1) The paired knife kills: the rows and their clips. Pure (no Babylon import); nothing allocates after
+ * the clips load.
  *
- * The gate (BRIEF A1): knife kills exist only with Campaign's `pianoEscape` flag on, the running map the piano scene's
- * (`MapDef.scene === 'piano'`) and Campaign's scene switch live. `knifeSceneOn` decides it; Campaign's `pianoScene.ts` is
- * its only caller (`takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, true))` at play start,
- * `setKnifeScene(false)` at the scene's end). Every other map and mode keeps today's takedowns.
+ * (knife-kills, owner decision; first built for the piano scene) On every map the lethal takedown on a guard on two legs
+ * from a kind with a row is the knife kill (`TakedownController.start`); the grab, the knockout and the throw knockout
+ * are unchanged. The clips load at match start (`loadKnifeClips` from `GameState`).
  *
  * A row (BRIEF A14, A15): one two-body move on one clock. The attacker's clip plays on his graph (`killDrive.ts`), the
  * victim's on the guard's, the guard's root is driven from the attacker's frame every step and frame (`knifePair.ts`),
@@ -20,20 +19,11 @@
  * `contact`, `limp`, the windows, `victimTo`, `standoff` and `side` are measured by `tests/knifePairFit.test.ts`
  * (KP_FIT=1) on 2026-10-26 (one run).
  *
- * (Michael ~20:05) "Palm strike knockout disabled, only knife kills, and no slashing, only animations with the guard":
- * no knife slash row (the plan's `KNIFE_SLASH` is dropped); the RT strike is off while the switch is on (`gameState`).
+ * (Michael ~20:05) "no slashing, only animations with the guard": no knife slash row (the plan's `KNIFE_SLASH` is
+ * dropped).
  */
 import type { KeyedClip } from '../anim/keyed';
 import { GRAB_KINDS, type TakedownKind } from './takedown';
-
-/** The piano scene's `MapDef.scene` and Campaign's map id (tests, docs). */
-export const PIANO_SCENE = 'piano';
-export const PIANO_MAP_ID = 'thornbeckMill';
-
-/** The gate: Campaign's flag, the running map's `scene` and Campaign's live scene switch. */
-export function knifeSceneOn(flagOn: boolean, scene: string | undefined, live: boolean): boolean {
-  return flagOn && live && scene === PIANO_SCENE;
-}
 
 /**
  * Timings (s), angles (rad), distances (m). `noise` the kill's radius (A5: the choke's, not the lethal strike's 3 m);
@@ -108,7 +98,7 @@ export const KNIFE_KILLS: readonly KnifeKillRow[] = [
 ];
 
 /** The row for a takedown kind (`crouched`: the attacker crouched; from behind he rises into the kill), -1 none: the
- *  kinds the piano map has no use for keep today's lethal move with the knife shown (A3). */
+ *  other kinds keep the classic lethal move. */
 export function pickKnifeKill(kind: TakedownKind, crouched: boolean): number {
   switch (kind) {
     case 'behind':
@@ -125,9 +115,9 @@ export function pickKnifeKill(kind: TakedownKind, crouched: boolean): number {
 }
 
 /** (A2) The menu's takedown row for an offer: the grab (`'grab'`) on a guard on two legs from behind, else the
- *  takedown (`'ko'`, `TD_LABEL`); with the knife switch on never the grab (`start` forces the knife kill). */
-export function takedownRow(kind: TakedownKind, quadruped: boolean, knife: boolean): 'grab' | 'ko' {
-  return !knife && GRAB_KINDS.includes(kind) && !quadruped ? 'grab' : 'ko';
+ *  takedown (`'ko'`, `TD_LABEL`). */
+export function takedownRow(kind: TakedownKind, quadruped: boolean): 'grab' | 'ko' {
+  return GRAB_KINDS.includes(kind) && !quadruped ? 'grab' : 'ko';
 }
 
 /** The grab's share (eased 0..1) `t` s into an approach of `approach` s: the grip hand reaches in, and the guard is
@@ -165,7 +155,7 @@ export function victimPhase(row: KnifeKillRow, ph: number): number {
   return row.victimFrom + p * (row.victimTo - row.victimFrom);
 }
 
-// ---- the clips (loaded once, by dynamic import, from `setKnifeScene(true)`: other modes never load them) ----
+// ---- the clips (loaded once, by dynamic import, at match start: off the entry chunk) ----
 
 const ATT: (KeyedClip | null)[] = [null, null, null, null];
 const VIC: (KeyedClip | null)[] = [null, null, null, null];
@@ -192,7 +182,7 @@ function loadClip(name: string): Promise<KeyedClip | null> {
 }
 
 /** Load every row's clips into the module table (once; a second call returns the same promise). A failed load leaves
- *  the clips unready: every kill then plays the -1 path (today's lethal move, knife shown). */
+ *  the clips unready: every lethal takedown then plays the classic lethal move. */
 export function loadKnifeClips(): Promise<void> {
   if (loading) return loading;
   loading = (async () => {

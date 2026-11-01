@@ -329,7 +329,7 @@ export type Msg =
    *  the host checks the gap has a closed trap and the client is in reach, opens it, and its snapshots' `trp` carry it. */
   | { t: 'panel'; g: number }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. `kind`: a course kind on `done`,
-   *  `'assist'`, `'bluff'`, and (piano-knife S3) `'knife'` on every phase of a knife kill (the client's switch on). */
+   *  `'assist'`, `'bluff'`, and (knife-kills) `'knife'` on the start of a knife kill (a lethal start only). */
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
    *  grip at `gy`), or ends the human ladder. */
