@@ -1,4 +1,4 @@
-// Character controller test on Proving Grounds via the fake gamepad.
+// Character controller test on the Test Chamber (G2b) via the fake gamepad.
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -13,7 +13,7 @@ const FOOT = { back: FG.HEEL_BACK, down: FG.HEEL_DOWN, ball: FG.TOE_BALL };
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 // (gear=none: the real spawn cap, 5 = none; anim-rework S1)
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving&gear=none' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio&gear=none' });
 let failed = false;
 const P = () => page.evaluate(() => { const c = window.__app.current.player.controller; return { x: c.pos.x, y: c.pos.y, z: c.pos.z, crouched: c.crouched, grounded: c.grounded }; });
 const tp = (x, y, z, yaw = 0) => page.evaluate(([x, y, z, yaw]) => { const p = window.__app.current.player; p.controller.teleport(new p.controller.pos.constructor(x, y, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; }, [x, y, z, yaw]);
@@ -75,7 +75,7 @@ try {
   const AT = [0.15, 0.45, 0.8, 0.9, 0.985];
   for (const crouched of [false, true]) {
     for (let g = 1; g <= 5; g++) {
-      await tp(-10, 0, -14, Math.PI / 2);
+      await tp(9, 0, 20, Math.PI / 2);
       await settle(0.2);
       if (crouched && !(await P()).crouched) await press(page, BTN.B);
       if (!crouched && (await P()).crouched) await press(page, BTN.B);
@@ -92,7 +92,7 @@ try {
   }
   if ((await P()).crouched) await press(page, BTN.B);
   // half stick: between the sneak and the walk (no snapping); the internal cap holds through stance changes
-  await tp(-10, 0, -14, Math.PI / 2);
+  await tp(9, 0, 20, Math.PI / 2);
   await setGear(4);
   await settle(0.2);
   const half = await speedAt(0, -0.5);
@@ -103,7 +103,7 @@ try {
   assert(keptCrouched === 4 && (await GEAR()) === 4, 'crouching and standing keep the internal cap');
   await settle(0.3);
   // not aiming the body faces where it goes: sideways runs at the full gear pace
-  await tp(-10, 0, -14, Math.PI / 2);
+  await tp(9, 0, 20, Math.PI / 2);
   await settle(0.2);
   // (load-audit) measured in game time: the stick goes down inside the same step hook (no real frames between), a 0.5 s
   // game-time warm-up (the turn and the start), then the ground path walked over the next 0.3 s of the match clock
@@ -149,7 +149,7 @@ try {
   assert(Math.abs(faced) < 0.1, `the body faces the travel direction (${faced.toFixed(2)} rad off)`);
   await settle(0.3);
   // aiming: strafe-locked, capped at 1.4 m/s, strafe x0.5 (anim-rework S3: the glide shuffle), backstep x0.75
-  await tp(0, 0, -2, 0);
+  await tp(20, 0, 21, 0);
   await settle(0.3);
   await page.evaluate(() => window.__app.input.state.set('t', 'ads', true));
   const aimStrafe = await speedAt(1, 0, 1.0);
@@ -167,7 +167,7 @@ try {
   // ball while the ball is down), as e2e-anim's foot lock and turn block do: the planner holds a planted foot's contact
   // point (HOLD_CONTACT) and the heel-first roll moves the ankle round it (0.3 rad: 2.6 cm), which the planner's foot
   // (the ankle) read as slide. Limit unchanged (2 cm); stricter than before (master's planner reads 2.6 cm here).
-  await tp(-10, 0, -14, Math.PI / 2);
+  await tp(9, 0, 20, Math.PI / 2);
   await settle(0.3);
   await page.evaluate(() => { window.__pad.axis(0, 0); window.__pad.axis(1, -1); });
   await sim(0.83);
@@ -260,7 +260,7 @@ try {
   // may straddle the hold's end (prototype: revisit with a timed window), so: held feet stay put, else they squared up (< 30 cm)
   assert(!aimHold && (held.hold ? held.moved < 0.01 : held.moved < 0.3), `after the stop the feet stay frozen while the hold lasts, then square up (hold ${held.hold}, moved ${(held.moved * 100).toFixed(2)} cm)`);
   await settle(0.3);
-  await tp(-10, 0, -14, Math.PI / 2);
+  await tp(9, 0, 20, Math.PI / 2);
   await press(page, BTN.B);
   await page.evaluate(() => { window.__pad.axis(1, -1); });
   await sim(0.6);
@@ -277,7 +277,7 @@ try {
   const slowHold = await page.evaluate(() => window.__app.current.player.controller.speed < 1e-3);
   await press(page, BTN.B);
   await setGear(5);
-  await tp(-10, 0, -14, Math.PI / 2);
+  await tp(9, 0, 20, Math.PI / 2);
   await settle(0.3);
   await page.evaluate(() => { window.__pad.axis(1, -1); });
   await sim(0.8);
@@ -287,7 +287,7 @@ try {
   assert(slowHold && sprintHold.hold, `a stop comes to rest from a crouched creep (${slowHold}) and out of a run within 0.5 s (${sprintHold.pace.toFixed(2)} m/s)`);
   if ((await P()).crouched) await press(page, BTN.B);
   // a pad stick springing back (through 0.6 / 0.25 / 0.08 over a few frames) is a release from the full pace
-  await tp(-10, 0, -14, Math.PI / 2);
+  await tp(9, 0, 20, Math.PI / 2);
   await settle(0.3);
   await page.evaluate(() => { window.__pad.axis(1, -1); });
   await sim(0.8);
@@ -313,7 +313,7 @@ try {
   await settle(0.3);
 
   // forward roll (G32): crouch HELD standing at speed 5 while moving; ~2.3 m in 0.75 s, comes up crouched, a little noise
-  await tp(-10, 0, -14, Math.PI / 2);
+  await tp(9, 0, 20, Math.PI / 2);
   await setGear(5);
   await settle(0.3);
   await page.evaluate(() => { window.__pad.axis(0, 0); window.__pad.axis(1, -1); });
@@ -348,7 +348,7 @@ try {
   await settle(0.3);
   await press(page, BTN.B);
   // at gear 3 crouch is just a crouch
-  await tp(-10, 0, -14, Math.PI / 2);
+  await tp(9, 0, 20, Math.PI / 2);
   await setGear(3);
   await settle(0.2);
   await page.evaluate(() => { window.__pad.axis(1, -1); });
@@ -364,14 +364,14 @@ try {
   await settle();
 
   // crouched set (open ground along z=-14)
-  await tp(-10, 0, -14, Math.PI / 2);
+  await tp(9, 0, 20, Math.PI / 2);
   await settle(0.3);
   await press(page, BTN.B);
   await settle();
   // (CT prototype M1: no sprint) the top speed standing is the run: 4.0 m/s (G1 4.5, anim-rework S2 M6 4.0), standing, and it stops within 0.6 s of the release
   await press(page, BTN.B);
   await settle();
-  await tp(0, 0, -14, Math.PI / 2);
+  await tp(9, 0, 20, Math.PI / 2);
   await setGear(5);
   await page.evaluate(() => { window.__pad.axis(1, -1); });
   await sim(0.6);
@@ -389,7 +389,7 @@ try {
   await settle();
 
   // no free jump: jump in the open does nothing
-  await tp(0, 0, -2, 0);
+  await tp(20, 0, 21, 0);
   await settle(0.3);
   await page.evaluate(() => window.__pad.set(0, 1));
   let maxY = 0;
@@ -425,50 +425,49 @@ try {
     const q = await P();
     assert(hint === expectKind && kinds.has(expectKind) && check(q), `${label} (hint ${hint}, at ${q.x.toFixed(2)},${q.y.toFixed(2)},${q.z.toFixed(2)})`);
   };
-  await traverse(-3.8, 0, -6, -Math.PI / 2, 'jump at low cover vaults over it', 'vault', (q) => q.x < -5.4 && q.y < 0.1);
-  await traverse(-19.9, 0, -1.2, -Math.PI / 2, 'jump at a 0.9 m block climbs onto it', 'mantle', (q) => q.y > 0.85);
-  await traverse(-19.9, 0, -4.4, -Math.PI / 2, 'jump at a 0.6 m block steps up', 'step', (q) => q.y > 0.55);
-  await traverse(0, 2.62, 18.4, 0, 'jump at a ledge drops down', 'drop', (q) => q.y < 0.3 && q.z > 19.3);
+  // (G2b) the Test Chamber's pieces (spec 1.3): the low wall (x 4), the step row (z 0-1.2, blocks 0.42 / 0.6 / 0.9 at x 1 / 3 / 5),
+  // the ledge wall (top 2.4)
+  await traverse(5.2, 0, 17, -Math.PI / 2, 'jump at low cover vaults over it', 'vault', (q) => q.x < 3.6 && q.y < 0.1);
+  await traverse(5.0, 0, 2.2, Math.PI, 'jump at a 0.9 m block climbs onto it', 'mantle', (q) => q.y > 0.85);
+  await traverse(3.0, 0, 2.2, Math.PI, 'jump at a 0.6 m block steps up', 'step', (q) => q.y > 0.55);
+  await traverse(4, 2.42, 25.6, Math.PI, 'jump at a ledge drops down', 'drop', (q) => q.y < 0.3 && q.z < 24.7);
 
-  // step test row at x=-22, blocks at z=-14 (0.15) .. step z+3.2 each; approach from +x side moving -x
-  const stepCase = async (z, h, expectUp) => {
-    await tp(-19.5, 0, z, -Math.PI / 2);
+  // step test row at z 0.6: blocks at x=1 (0.42) and x=3 (0.6); approach from z 2.5 walking -z
+  const stepCase = async (x, h, expectUp) => {
+    await tp(x, 0, 2.5, Math.PI);
     await settle(0.3);
     const peak = await hold(0, -1, 3.2);
     const up = peak > h - 0.05;
     assert(up === expectUp, `step ${h} m: ${expectUp ? 'climbed' : 'blocked'} (peak y=${peak.toFixed(2)})`);
   };
-  await stepCase(-14, 0.15, true);
-  await stepCase(-10.8, 0.3, true);
-  await stepCase(-7.6, 0.42, true);
-  await stepCase(-4.4, 0.6, false);
+  await stepCase(1.0, 0.42, true);
+  await stepCase(3.0, 0.6, false);
 
-  // slopes at x=21 rising toward +z; ramps centred z=-12, -6, 0 with len 5
-  const slopeCase = async (zc, deg, expectUp) => {
-    await tp(21, 0, zc - 3.6, 0);
+  // slopes rising toward +z from z 5.3: the 35 degree stairs (x 18) and the 55 degree ramp (x 20.2), both 2.5 m long
+  const slopeCase = async (x, deg, expectUp) => {
+    await tp(x, 0, 5.3, 0);
     await settle(0.3);
     const peak = await hold(0, -1, 6.5);
-    const top = Math.tan((deg * Math.PI) / 180) * 5;
+    const top = Math.tan((deg * Math.PI) / 180) * 2.5;
     const ok = expectUp ? peak > Math.min(top, 6) * 0.6 : peak < 1.2;
     assert(ok, `${deg}° slope: ${expectUp ? 'walkable' : 'too steep'} (peak y=${peak.toFixed(2)})`);
   };
-  await slopeCase(4, 20, true);
-  await slopeCase(12, 35, true);
-  await slopeCase(20, 55, false);
+  await slopeCase(18, 35, true);
+  await slopeCase(20.2, 55, false);
 
-  // stairs onto platform: stairs at x=8.2,z=16 descending toward +x (yaw -90 means rising toward -x)
-  await tp(13, 0, 16, -Math.PI / 2);
+  // stairs: walked to the top (1.75 m, less the 0.15 m nosing)
+  await tp(18, 0, 5.3, 0);
   await settle(0.3);
-  const sp = await hold(0, -1, 10.5);
-  assert(sp > 2.45, `stairs reach platform (peak y=${sp.toFixed(2)})`);
+  const sp = await hold(0, -1, 6.5);
+  assert(sp > 1.6, `stairs reach their top (peak y=${sp.toFixed(2)})`);
 
-  // crouch tunnel (roof at 1.4): walk in crouched, cannot stand inside
-  await tp(-10.75, 0, -26, 0);
+  // crouch tunnel (roof at 1.4, z 11.5-14.5, the platform stands south of it): enter from the north, crouched, cannot stand inside
+  await tp(1.2, 0, 15.6, Math.PI);
   await settle(0.3);
   await press(page, BTN.B);
-  await hold(0, -0.5, 3.0);
+  await hold(0, -0.5, 2.0);
   const pt = await P();
-  assert(pt.z > -24.5 && pt.z < -19.5, `crouch-walks into tunnel (z=${pt.z.toFixed(2)})`);
+  assert(pt.z > 11.5 && pt.z < 14.5, `crouch-walks into tunnel (z=${pt.z.toFixed(2)})`);
   await press(page, BTN.B);
   await settle(0.3);
   assert((await P()).crouched, 'stays crouched under the roof');

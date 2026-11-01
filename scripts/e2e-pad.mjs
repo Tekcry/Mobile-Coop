@@ -17,9 +17,9 @@ const q = (sel) => page.evaluate((s) => !!document.querySelector(s), sel);
 const settings = () => page.evaluate(() => window.__app.settings.get());
 let failed = false;
 
-/** (locomotion step 10) A Hunter match on the Warehouse (guards), the loop stepped by hand, a strike harness. */
+/** (locomotion step 10; G2b) A Test Chamber match in the test mode (guards), the loop stepped by hand, a strike harness. */
 async function strikePage(launch, url) {
-  const S = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+  const S = await launch({ url, params: 'autostart=studio&mode=test' });
   await S.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
   return S;
 }
@@ -35,10 +35,10 @@ const STRIKE_HARNESS = () => {
     setup(kind, alerted, yaw) {
       em.clear();
       g.strike.reset();
-      g.player.controller.teleport(new V(2, 0, -1.9), 0);
+      g.player.controller.teleport(new V(20, 0, 19.1), 0);
       g.player.cam.yaw = 0;
       g.player.cam.pitch = 0;
-      const e = kind ? em.spawn(kind, new V(2, 0, -1), alerted, yaw) : null;
+      const e = kind ? em.spawn(kind, new V(20, 0, 20), alerted, yaw) : null;
       if (e) e['stagger'] = 99;
       a.loop.stepHeadless(0.3, 120);
       if (e) e.yaw = yaw;
@@ -57,7 +57,7 @@ const STRIKE_HARNESS = () => {
     },
   };
 };
-// (locomotion step 11) back to a wall on Proving: find a free high face, stand 0.5 m out facing it (manual loop)
+// (locomotion step 11) back to a wall on the Test Chamber: find a free high face, stand 0.5 m out facing it (manual loop)
 const WALL_HARNESS = () => {
   const a = window.__app;
   const g = a.current;
@@ -69,6 +69,10 @@ const WALL_HARNESS = () => {
   for (let i = 0; i < segs.length && seg < 0; i++) {
     const s = segs[i];
     if (s.low || Math.abs(s.y) > 0.3 || s.len < 4 || s.len > 14) continue;
+    // (G2b) a face on the perimeter (the team block's north face is its wall's inside) has no floor in front of it: the stand point is in the room
+    const mx = s.ax + s.tx * s.len / 2 + s.nx * 0.75;
+    const mz = s.az + s.tz * s.len / 2 + s.nz * 0.75;
+    if (mx < 1 || mx > 27 || mz < 1 || mz > 27) continue;
     let ok = true;
     for (let k = 0.5; k < s.len && ok; k += 0.5) {
       const x = s.ax + s.tx * k + s.nx * 0.45;
@@ -539,7 +543,7 @@ try {
         // (each from the same spot, facing open floor: 0.5 s of travel)
         const V0 = g.player.position.constructor;
         const at = (v) => {
-          c.teleport(new V0(2, 0, -1.9), 0);
+          c.teleport(new V0(20, 0, 19.1), 0);
           g.player.cam.yaw = 0;
           P.axis(1, -v);
           k.step(30);
@@ -595,7 +599,7 @@ try {
         P.effects.length = 0;
         const V = g.player.position.constructor;
         const l0 = c.landings;
-        c.teleport(new V(2, 2.0, -1.9), 0);
+        c.teleport(new V(20, 2.0, 19.1), 0);
         k.until(() => c.landings > l0, 3);
         k.step(10);
         out.land = fx();
@@ -695,7 +699,7 @@ try {
   }
   console.log('vent by pad (vent-kick M1: the pad matches the keyboard): Y held then A held unscrews, a Y tap kicks');
   {
-    const V = await launch({ url, params: 'autostart=proving' });
+    const V = await launch({ url, params: 'autostart=studio' });
     try {
       await V.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
       const r = await V.page.evaluate(() => {
@@ -709,10 +713,10 @@ try {
           for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
         };
         const key = `grate:${g.world.level.anchors.ducts[0].id}:entry`;
-        // the Proving duct mouth (e2e-traverse's spot), facing the grate
+        // the floor duct's mouth (ducts[0], e2e-traverse's spot), facing the grate
         const atVent = () => {
           const c = g.player.controller;
-          c.teleport(new c.pos.constructor(21.75, 3.2, -5), Math.PI / 2);
+          c.teleport(new c.pos.constructor(20.4, 0.05, 14), Math.PI / 2);
           c.clearCrouchToggle();
           g.player.cam.yaw = Math.PI / 2;
           g.player.cam.pitch = 0;
@@ -930,7 +934,7 @@ try {
       assert(ov.o && ['5', '4'].includes(ov.n) && ovGone && !v.cap && v.screen && JSON.stringify((await pad()).draw) === '[11]', `Start cancels the capture; the overlay showed the 5 s countdown (5 or 4 on a slow frame) (${JSON.stringify({ ...v, ov, ovGone, polled: prS.polled })})`);
       // play: the new button draws, X does not (settings persist through IndexedDB to a new page)
       await P.waitForTimeout(600);
-      const Q = await openPage(R.ctx, url, 'autostart=proving');
+      const Q = await openPage(R.ctx, url, 'autostart=studio');
       try {
         await Q.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
         const r = await Q.page.evaluate(() => {

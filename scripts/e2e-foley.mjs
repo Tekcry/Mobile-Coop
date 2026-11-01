@@ -1,10 +1,10 @@
 // Movement foley (CC0 sprite): the sprite decodes and lines up, walking plays one step per real foot plant (not a
 // timer), a sprint plants faster than a walk, a drop plays a landing, and the footstep noise guards hear is unchanged
-// (the foley is cosmetic). Proving Grounds, fake gamepad, headless audio.
+// (the foley is cosmetic). Test Chamber (anim lane x 9 to 21 at z 20), fake gamepad, headless audio.
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving&gear=none' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio&gear=none' });
 let failed = false;
 const G = (f, a) => page.evaluate(f, a);
 const tp = (x, y, z, yaw = 0) => G(([x, y, z, yaw]) => { const p = window.__app.current.player; p.controller.teleport(new p.controller.pos.constructor(x, y, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; }, [x, y, z, yaw]);
@@ -44,10 +44,11 @@ try {
   assert(st.running, 'audio running');
   assert(Math.abs(st.shift) < 0.06, `sprite alignment shift ${(st.shift * 1000).toFixed(1)} ms is small`);
 
-  // the move suite's open lane (sprint test): heading +x from (0, 0, -14)
-  await tp(0, 0, -14, Math.PI / 2);
+  // the move suite's open lane (sprint test): heading +x from (9, 0, 20)
+  await tp(9, 0, 20, Math.PI / 2);
   await walk(0, 0, 0.5);
-  // a walk (CT speed 3 = 2.0 m/s, the spawn maximum; full stick)
+  // a walk (CT speed 3 = 2.0 m/s: the gear cap is set to 3 here, `gear=none` leaves the run; full stick)
+  await G(() => window.__app.current.player.controller.gears.set(3));
   const w = await walk(0, -1, 2.5);
   console.log(`  walk: ${w.plants} plants, ${w.steps} foley steps, speed ${w.speed.toFixed(2)}, noise ${w.noise.toFixed(2)} m`);
   assert(w.plants >= 4, `walking plants feet (${w.plants})`);
@@ -57,13 +58,14 @@ try {
   const still = await walk(0, 0, 1.5);
   assert(still.steps === 0, `standing still is silent (${still.steps})`);
   // (CT prototype M1: no sprint) the top speed, 4.2 m/s: maximum gear 5, full stick
-  await tp(0, 0, -14, Math.PI / 2);
+  await tp(9, 0, 20, Math.PI / 2);
   await walk(0, 0, 0.5);
   await G(() => window.__app.current.player.controller.gears.set(5));
   const s = await walk(0, -1, 2.5);
   await G(() => window.__app.current.player.controller.gears.set(3));
   console.log(`  sprint: ${s.plants} plants, ${s.steps} foley steps, speed ${s.speed.toFixed(2)}, noise ${s.noise.toFixed(2)} m`);
-  assert(s.plants > w.plants && s.speed > 4, `a sprint (${s.speed.toFixed(1)} m/s) plants faster than a walk (${s.plants} > ${w.plants})`);
+  // (G2b) the gait cadence is the same walking and running now (about 3.2 plants a second in both), so a run is a longer stride, not more plants
+  assert(s.plants >= w.plants && s.speed > 3.6 && s.speed / s.plants > w.speed / w.plants, `a sprint (${s.speed.toFixed(1)} m/s) plants at least as often as a walk and strides further (${s.plants} / ${w.plants} plants)`);
   assert(Math.abs(s.steps - s.plants) <= 1, `one foley step per sprint plant (${s.steps} / ${s.plants})`);
   // noise rises with the speed (G40)
   assert(s.noise > w.noise, `noise rises with speed: run ${s.noise.toFixed(1)} m, walk ${w.noise.toFixed(1)} m`);

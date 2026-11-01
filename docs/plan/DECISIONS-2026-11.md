@@ -57,3 +57,9 @@ build).
 **N9. Mark the old rules, vision and decisions as replaced now** (native multiple choice), not only at the Phase 1
 rewrite: this file, the "history" status on `docs/RULES.md` and `docs/VISION.md`, the freeze note on
 `docs/DECISIONS.md` and the new read-first list and authority order in `CLAUDE.md`.
+
+**N10. The rope-window and roof-vent tests get a new small booth** (native multiple choice): a separate 3 x 3 m block,
+4.4 m tall, with a glazed window under its own rope and a ceiling vent from its roof. The existing team block stays
+exactly as it is. Declined: hollowing out the team block. Layout: `docs/plan/TEST-CHAMBER-SPEC.md`.
+
+**N11. The Test Chamber may be rearranged.** Michael: "I want to keep the rooms look but I don't mind if you move things around, so long as there is sufficient room in the middle like it currently is to test animations, which also has clear lighting. You can change lighting elsewhere as needed." Props may move; the open, clearly lit middle for animation tests stays; lighting outside the middle may change.

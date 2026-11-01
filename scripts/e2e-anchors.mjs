@@ -5,11 +5,11 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
-// (process audit, 2026-10-19) Proving only: the Warehouse (Hunter) is parked, and Marlow Yard
+// (G2b) the Test Chamber (studio, plain: no animation stage) is the map: the Warehouse (Hunter) is parked, and Marlow Yard
 // (`ctcourse`) places no anchors yet (its walls are team moves and generated lips). Add `ctcourse` when it places one;
 // `--only=warehouse` still runs the parked map by hand.
 const PARKED = { warehouse: ['warehouse', 'clear'] };
-const MAPS = [['proving', 'sandbox'], ...(PARKED[only] ? [PARKED[only]] : [])];
+const MAPS = [['studio', 'sandbox'], ...(PARKED[only] ? [PARKED[only]] : [])];
 // anchors.ts REACH.zip: a zipline's high end is grabbed within this (plan) of it
 const ZIP_REACH = 1.3;
 let failed = false;
@@ -183,11 +183,14 @@ for (const [map, mode] of MAPS) {
       }
       const lips = L.ledges.filter((l) => l.canHang).length;
       const climbable = L.ledges.filter((l) => l.canHang && l.canClimbUp).length;
-      return { out, lips, climbable, placed: L.all.length - L.ledges.length };
+      const tops = [...new Set(L.ledges.filter((l) => l.canHang).map((l) => Math.round(l.top * 100) / 100))];
+      return { out, lips, climbable, tops, placed: L.all.length - L.ledges.length };
     }, ZIP_REACH);
     console.log(`${map}: ${res.placed} placed anchors, ${res.lips} hangable lips (${res.climbable} with room to climb up)`);
     for (const r of res.out) assert(r.ok, `${map}: ${r.name} (${r.why})`);
-    assert(res.lips > 10, `${map}: lips to hang from (${res.lips})`);
+    assert(res.lips >= 6, `${map}: lips to hang from (${res.lips})`);
+    // (G2b) the Test Chamber's three lip heights: the team block and fin 4.4, the ledge wall and block B 2.4, the platform 3.0
+    if (map === 'studio') for (const t of [4.4, 2.4, 3]) assert(res.tops.includes(t), `studio: a hangable lip at ${t} m (lips at ${res.tops.join(', ')})`);
     const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
     assert(real.length === 0, `${map}: no console errors (${real.join(' | ')})`);
   } catch (e) {

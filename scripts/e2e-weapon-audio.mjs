@@ -1,11 +1,11 @@
 // Weapon sounds (CC0 sprite): the sprite decodes and lines up; the rifle's automatic fire plays one shot per round
 // with its brass, the choke keeps the voice count low; a suppressed gun plays its suppressed bank; reload, dry fire and
-// a guard's or teammate's shot play; the noise guards hear is unchanged (the sounds are cosmetic). Proving Grounds,
+// a guard's or teammate's shot play; the noise guards hear is unchanged (the sounds are cosmetic). Test Chamber,
 // fake gamepad, headless audio.
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
 let failed = false;
 const G = (f, a) => page.evaluate(f, a);
 /** Run `s` s of game time holding pad buttons; returns the loudest noise radius and the most voices seen. */

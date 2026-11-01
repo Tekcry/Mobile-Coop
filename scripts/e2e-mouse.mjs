@@ -5,7 +5,7 @@
 import { launch, openPage, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
 let failed = false;
 
 const st = () =>
@@ -301,7 +301,7 @@ try {
       await click(slot('crouch:0'));
       await P.keyboard.press('KeyU');
       await P.waitForTimeout(800);
-      const Q = await openPage(R.ctx, url, 'autostart=proving');
+      const Q = await openPage(R.ctx, url, 'autostart=studio');
       try {
         await Q.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
         await Q.page.evaluate(() => {

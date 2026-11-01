@@ -1,4 +1,4 @@
-// Animation / camera quality bars for the stealth operative, measured in the running game (Proving
+// Animation / camera quality bars for the stealth operative, measured in the running game (the Test Chamber, G2b: the animation lane x 8-26, z 19; Proving
 // Grounds, headless stepping): responsiveness (3.2.0 Chaos Theory: visible within one frame, 95% speed within
 // 0.08 s, a stop on the release step with a 0.12 s pose blend, no planted pivots, 720 deg/s travel turns, aim
 // turn rate), stance and aim transitions, weapon clip timings, foot locking (< 1 cm) in
@@ -24,7 +24,7 @@ const FOOT = { back: FG.HEEL_BACK, down: FG.HEEL_DOWN, ball: FG.TOE_BALL };
 const url = process.argv[2] ?? 'http://localhost:4173/';
 // (mocap-trial M1) E2E_MOCAP=0 / 1 forces the mocap locomotion switch for the page (`?mocap=`); unset: the stored setting
 const mocapParam = process.env.E2E_MOCAP === '0' || process.env.E2E_MOCAP === '1' ? `&mocap=${process.env.E2E_MOCAP}` : '';
-const { browser, page, errors } = await launch({ url, params: `autostart=proving${mocapParam}` });
+const { browser, page, errors } = await launch({ url, params: `autostart=studio${mocapParam}` });
 const G = (f, a) => page.evaluate(f, a);
 let failed = false;
 const within = (v, lo, hi) => v >= lo && v <= hi;
@@ -117,7 +117,7 @@ try {
   const first = await G(() => {
     const t = window.__t;
     const p = window.__app.current.player;
-    t.tp(8, -14, -Math.PI / 2);
+    t.tp(26, 19, -Math.PI / 2);
     t.run(0.5, {});
     const pose0 = Float32Array.from(p.rig.graph.pose);
     t.frame({ y: 1 });
@@ -135,7 +135,7 @@ try {
       const a = window.__app;
       const c = a.current.player.controller;
       c.gears.set(gear);
-      t.tp(8, -14, -Math.PI / 2);
+      t.tp(26, 19, -Math.PI / 2);
       const r = t.run(0.6, inp, (s) => [s, c.motion.speed]);
       c.gears.set(4);
       // (of the pace it settles at: the weapon's handling scales the gear's cap a little)
@@ -153,7 +153,7 @@ try {
     const t = window.__t;
     const p = window.__app.current.player;
     const c = p.controller;
-    t.tp(8, -14, -Math.PI / 2);
+    t.tp(26, 19, -Math.PI / 2);
     t.run(1.0, { y: 1 });
     let plants = 0;
     let prevL = p.rig.planner.L.contact;
@@ -175,7 +175,7 @@ try {
   const pivot = await G(() => {
     const t = window.__t;
     const c = window.__app.current.player.controller;
-    t.tp(8, -14, -Math.PI / 2);
+    t.tp(26, 19, -Math.PI / 2);
     t.run(1.0, { y: 1 });
     let pt = 0;
     const r = t.run(1.0, { y: -1 }, () => {
@@ -190,7 +190,7 @@ try {
     const t = window.__t;
     const c = window.__app.current.player.controller;
     const rate = (inp) => {
-      t.tp(8, -14, -Math.PI / 2);
+      t.tp(26, 19, -Math.PI / 2);
       t.run(1.0, inp);
       let max = 0;
       let minSpeed = 99;
@@ -220,7 +220,7 @@ try {
     const jog = rate({ y: 1 });
     const sprint = rate({ y: 1 });
     // aim turn: hold ADS, swing the view 90 degrees
-    t.tp(8, -14, -Math.PI / 2);
+    t.tp(26, 19, -Math.PI / 2);
     t.run(0.5, { ads: true });
     const p = window.__app.current.player;
     p.cam.yaw += Math.PI / 2;
@@ -244,7 +244,7 @@ try {
   const stance = await G(() => {
     const t = window.__t;
     const p = window.__app.current.player;
-    t.tp(8, -14, -Math.PI / 2);
+    t.tp(26, 19, -Math.PI / 2);
     const down = t.run(0.6, { taps: { 1: 'crouch' } }, (s) => [s, p.controller.crouchBlend]);
     t.run(0.6, {});
     const up = t.run(0.6, { taps: { 1: 'crouch' } }, (s) => [s, p.controller.crouchBlend]);
@@ -286,7 +286,7 @@ try {
     const t = window.__t;
     const g = window.__app.current;
     const w = g.weapons;
-    t.tp(8, -14, -Math.PI / 2);
+    t.tp(26, 19, -Math.PI / 2);
     // (step 09) reload and swap run drawn (aim held: holstered unless aiming); the grenade from holstered
     const dur = (flag, tap, prep, ads = true) => {
       if (ads) t.run(0.6, { ads });
@@ -322,7 +322,7 @@ try {
     const r = g.player.rig;
     const j = window.__tuneV2.J.elbowL;
     window.__animBase.setJoint('reload', 'elbowL', [0, 35, 0]);
-    t.tp(8, -14, -Math.PI / 2);
+    t.tp(26, 19, -Math.PI / 2);
     t.run(0.6, { ads: true });
     w.current.mag = Math.max(1, w.current.mag - 5);
     const c = r.tuneSt.joints.cur;
@@ -362,7 +362,7 @@ try {
     const rec = await G(([inp, mode, F]) => {
       const t = window.__t;
       const p = window.__app.current.player;
-      t.tp(12, -14, -Math.PI / 2);
+      t.tp(22, 19, -Math.PI / 2);
       if (mode === 'crouch') p.controller['crouchToggled'] = true;
       t.run(1.0, inp);
       const keep = { ...inp, taps: undefined };
@@ -401,7 +401,7 @@ try {
 
   // ---------------------------------------------------------------- turn feet (anim-natural N1)
   // The foot planner's turn rules (footPlanner FOOT_TURN_STEP / TURN_PIVOT / LAND_TURN / HOLD_CONTACT; harness
-  // tests/footTurnHarness.ts): holstered on Proving, jog (gear 4) and run (gear 5) 90 / 180 deg direction changes, a jog
+  // tests/footTurnHarness.ts): holstered in the Chamber, jog (gear 4) and run (gear 5) 90 / 180 deg direction changes, a jog
   // stick sweep, a crouched 90, the turn round from a standstill and an aimed turn on the spot. Asserted: each contact
   // point moves < 1 cm (FOOT_SLIDE) over the frames it is down in any plant (metrics.ts contactSlide: the heel while down,
   // the ball while down), a planted foot lifts within 30 deg of the body (no wind-up), the feet never cross (>= 5 cm side
@@ -422,7 +422,7 @@ try {
         const rig = p.rig;
         p.stance.holster();
         t.run(0.4, {});
-        t.tp(12, -14, -Math.PI / 2);
+        t.tp(22, 19, -Math.PI / 2);
         c.gears.set(plan.gear ?? 4);
         c['crouchToggled'] = !!plan.crouch;
         rig.planner.L.init = rig.planner.R.init = false;
@@ -546,7 +546,7 @@ try {
           p.cam.adsZoom = W.current.stats.adsZoom;
         }
       }
-      t.tp(12, -14, -Math.PI / 2);
+      t.tp(22, 19, -Math.PI / 2);
       if (gear) c.gears.set(gear);
       c['crouchToggled'] = !!crouch;
       // (anim-rework S2) the holstered gaits and sub-states measure holstered (the aim checks above leave the gun at low
@@ -785,7 +785,7 @@ try {
   }
   {
     // (anim-rework S5) back to a wall, holstered (the wall keyed set, wallKeyed.ts): idle, slide both ways and the edge
-    // peek, standing and crouched, on a free high wall on Proving. Asserted: the knees within the stance's range, knees
+    // peek, standing and crouched, on a free high wall of the Test Chamber (the team block's south face). Asserted: the knees within the stance's range, knees
     // over the toes (<= 3 cm), the feet never cross; the track against WALL_TRACK (the idle's hip width, the side step's
     // lead foot: S5-KEYS) and the planted slide / elbows report-only. CRAB_JSON prints the rows.
     // (S5 round 2) a wall slide is a side step: the slide rows read against the glide strafe's side-step ranges
@@ -814,6 +814,10 @@ try {
         for (let i = 0; i < segs.length && seg < 0; i++) {
           const s = segs[i];
           if (s.low || Math.abs(s.y) > 0.3 || s.len < 4 || s.len > 14) continue;
+          // (G2b) a face of the room: the outside of a block that touches the perimeter has nothing to stand on
+          const mx = s.ax + s.tx * s.len / 2 + s.nx * 0.75;
+          const mz = s.az + s.tz * s.len / 2 + s.nz * 0.75;
+          if (mx < 0.5 || mx > 27.5 || mz < 0.5 || mz > 27.5) continue;
           let ok = true;
           for (const k of [0.5, s.len / 2, s.len - 0.5]) {
             const x = s.ax + s.tx * k + s.nx * 0.45;
@@ -822,7 +826,7 @@ try {
           }
           if (ok) seg = i;
         }
-        if (seg < 0) return { err: 'no free high wall on Proving' };
+        if (seg < 0) return { err: 'no free high wall in the Test Chamber' };
         const s = segs[seg];
         const enter = (k) => {
           // off the wall from the previous row first: a teleport keeps the wall state, so the cover tap below would
@@ -997,7 +1001,7 @@ try {
           const j = W.slots.findIndex((q) => q.def.class === weapon);
           if (j >= 0) W.index = j;
         }
-        t.tp(12, -14, -Math.PI / 2);
+        t.tp(22, 19, -Math.PI / 2);
         p.stance.base = 'lowReady';
         t.run(1.8, aim ? { ads: true } : {});
         let down = 0;
@@ -1106,7 +1110,7 @@ try {
       const c = p.controller;
       const rig = p.rig;
       p.stance.holster();
-      t.tp(12, -14, -Math.PI / 2);
+      t.tp(22, 19, -Math.PI / 2);
       rig.planner.L.init = rig.planner.R.init = false;
       c['crouchToggled'] = true;
       t.run(1.8, {}); // (anim-natural N3) the 1.0 s holster and the 0.4 s release first
@@ -1216,7 +1220,7 @@ try {
         return 0;
       };
       const seq = (name, setup, segs) => {
-        t.tp(12, -14, -Math.PI / 2);
+        t.tp(22, 19, -Math.PI / 2);
         rig.planner.L.init = rig.planner.R.init = false;
         setup();
         prev = vel = null;
@@ -1299,7 +1303,7 @@ try {
         if (mode === 'hol') p.stance.holster();
         else if (p.stance.base !== 'lowReady' || W.drawPhase !== 2) p.stance.base = 'lowReady';
         t.run(0.6, mode === 'hol' ? {} : { draw: true });
-        t.tp(12, -14, -Math.PI / 2);
+        t.tp(22, 19, -Math.PI / 2);
         rig.planner.L.init = rig.planner.R.init = false;
         c.gears.set(gear);
         c['crouchToggled'] = crouch;
@@ -1385,7 +1389,7 @@ try {
     const swapped = w.current.def.id;
     if (swapped !== 'rifle') t.run(1.5, { ads: true, taps: { 1: 'swapNext' } });
     t.run(1.0, {});
-    t.tp(8, -14, -Math.PI / 2);
+    t.tp(26, 19, -Math.PI / 2);
     const limited0 = rig.limited;
     let maxStep = 0;
     // KNOWN ISSUE (consolidation, docs/backlog.md): the draw from holstered (rifle from the back slot, pistol from the
@@ -1480,7 +1484,7 @@ try {
     const p = a.current.player;
     const cm = p.cam;
     const C = cm.camera;
-    t.tp(8, -14, -Math.PI / 2);
+    t.tp(26, 19, -Math.PI / 2);
     let drift = 0;
     t.run(3, {}, () => {
       const dy = C.rotation.y - cm.viewYaw;
@@ -1534,7 +1538,7 @@ try {
     t.run(1.0, {});
     // look through the right stick (30 ms smoothing): full right for 1 s, then release, at 120 Hz, in
     // the open (after the sprint above the boom could be pulled in by a wall as it swings round)
-    t.tp(8, -14, -Math.PI / 2);
+    t.tp(26, 19, -Math.PI / 2);
     let prevF = null;
     let prevW = null;
     let maxW = 0;
@@ -1585,11 +1589,11 @@ try {
     const g = window.__app.current;
     const p = g.player;
     const go = (hz) => {
-      t.tp(8, -14, -Math.PI / 2);
+      t.tp(26, 19, -Math.PI / 2);
       // every run from the same gait clock (else the lead foot is whatever the previous run left)
       p.controller.motion.phase = 0;
       p.controller['prevPhase'] = 0;
-      t.tp(8, -14, -Math.PI / 2);
+      t.tp(26, 19, -Math.PI / 2);
       t.run(1.0, { y: 1 }, null, hz);
       p.cam.yaw = -Math.PI / 2 + 0.6;
       t.run(1.0, { y: 0.6 }, null, hz);

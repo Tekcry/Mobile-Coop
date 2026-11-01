@@ -7,7 +7,7 @@
 import { launch, frames, assert as hard } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
 const G = (f, a) => page.evaluate(f, a);
 let failed = false;
 const assert = (cond, msg) => {
@@ -98,7 +98,7 @@ try {
     r = await G(() => {
       const w = window.__app.current.weapons;
       const s = window.__w;
-      s.tp(8, -14, -Math.PI / 2);
+      s.tp(20, 21, -Math.PI / 2);
       const rig = window.__app.current.player.rig;
       return {
         n: w.slots.length,
@@ -126,7 +126,7 @@ try {
     for (const [name, inp] of stances) {
       r = await G((inp) => {
         const s = window.__w;
-        s.tp(8, -14, -Math.PI / 2);
+        s.tp(20, 21, -Math.PI / 2);
         let worst = 0;
         let minUp = 1;
         let clips = [];
@@ -157,7 +157,7 @@ try {
       const V = g.player.position.constructor;
       const out = [];
       for (let i = 0; i < g.weapons.slots.length; i++) {
-        s.tp(8, -14, -Math.PI / 2);
+        s.tp(20, 21, -Math.PI / 2);
         // swap to weapon i, then aim
         let guard = 0;
         while (g.weapons.index !== i && guard++ < 6) s.run(1.1, { taps: { 1: 'swapNext' } });
@@ -192,7 +192,7 @@ try {
       const g = window.__app.current;
       const rig = g.player.rig;
       const w = g.weapons;
-      s.tp(8, -14, -Math.PI / 2);
+      s.tp(20, 21, -Math.PI / 2);
       // (step 09) swaps from the hands: aim (drawn) through the whole section
       const st = window.__app.input.state;
       // (anim-natural N3) the LT sling draw is 1.5 s (rifle) / 1.2 s (pistol) now: wait for it to finish
@@ -250,13 +250,13 @@ try {
   // (load-latent-ui2) the match loads below take up to 120 s (shaders compile on the loading screen), as elsewhere
   for (const lo of ['pistolSd,rifle']) {
     console.log(`loadout ${lo}`);
-    await page.goto(`${url}?autostart=proving&loadout=${lo}&gfx=min&gear=4`);
+    await page.goto(`${url}?autostart=studio&loadout=${lo}&gfx=min&gear=4`);
     await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 120000 });
     await frames(page, 10);
     await G(install);
     await checkLoadout(lo, lo.split(',').length);
   }
-  await page.goto(`${url}?autostart=proving&gfx=min&gear=4`);
+  await page.goto(`${url}?autostart=studio&gfx=min&gear=4`);
   await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 120000 });
   await G(install);
 
@@ -300,7 +300,7 @@ try {
     r = await G((inp) => {
       const s = window.__w;
       const p = window.__app.current.player;
-      s.tp(8, -14, -Math.PI / 2);
+      s.tp(20, 21, -Math.PI / 2);
       let worst = 0;
       s.run(1.4, { ...inp, each: () => (worst = Math.max(worst, ...s.backAngles().map((b) => b.deg))) });
       const clips = s.clips();

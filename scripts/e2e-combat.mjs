@@ -1,9 +1,9 @@
-// Combat test on Proving Grounds (sandbox, the CT kit: rifle and suppressed pistol): hitscan, headshots, kills, reload, swap,
+// Combat test on the Test Chamber (G2b; sandbox, the CT kit: rifle and suppressed pistol): hitscan, headshots, kills, reload, swap,
 // grenades, explosive barrel chain, player damage and respawn.
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
 let failed = false;
 const G = (fn, arg) => page.evaluate(fn, arg);
 /** Run simulation for `s` seconds of game time while holding pad buttons/axes. */
@@ -41,11 +41,11 @@ try {
   const w0 = await G(() => window.__app.current.weapons.current.def.id);
   assert(w0 === 'rifle', `sandbox starts with rifle (${w0})`);
 
-  // dummy[0] stands at (-4, 0, 8)
+  // dummy[0] stands at (8, 0, 12.5), still; dummy[1] at (8, 0, 15) strafes
   const dummyHp = () => G(() => window.__app.current.dummies[0].health.hp);
-  await G(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(-4.6, 0, 0), 0); });
+  await G(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(16.6, 0, 12.5), -Math.PI / 2); });
   await sim(0.3);
-  await aimAt(-4, 1.1, 8);
+  await aimAt(8, 1.1, 12.5);
   await frames(page, 3);
   console.log('    aim probe:', await G(() => { const g = window.__app.current; const c = g.player.cam; const o = c.camera.position; const h = g.ballistics.ray(o, o.add(c.forward.scale(40)), 0xffff); return `${h.target?.id ?? 'none'} at ${h.distance.toFixed(1)}  yaw=${c.yaw.toFixed(3)} cam=${o.x.toFixed(2)},${o.z.toFixed(2)}`; }));
   const mag0 = await G(() => window.__app.current.weapons.current.mag);
@@ -63,7 +63,7 @@ try {
   assert(await G(() => window.__app.current.dummies[0].alive), 'dummy respawns');
 
   // headshot: aim at head height
-  await aimAt(-4, 1.68, 8);
+  await aimAt(8, 1.68, 12.5);
   await G(() => window.__app.input.state.tap('swapPrev')); /* (F1a: no pad button for previous; LB tap is next) */ // swap prev -> the suppressed pistol (semi)
   await sim(1.1);
   assert((await G(() => window.__app.current.weapons.current.def.id)) === 'pistolSd', 'LB swaps to previous weapon');
@@ -96,22 +96,22 @@ try {
   assert((await G(() => window.__app.current.weapons.current.mag)) === 15, 'reload refills magazine');
 
 
-  // grenade near dummy[1] at (3, 0, 10) via d-pad right (3.2.0; was up); the preset may have picked another gadget
+  // grenade near dummy[1] (strafing about (8, 0, 15)) via d-pad right (3.2.0; was up); the preset may have picked another gadget
   const g0 = await G(() => {
     window.__app.current.weapons.gadgets.select('frag');
     return window.__app.current.weapons.grenades;
   });
-  await aimAt(3, 2.5, 10);
+  await aimAt(8, 2.5, 15);
   await press(page, BTN.RIGHT);
   assert((await G(() => window.__app.current.weapons.grenades)) === g0 - 1, 'd-pad right throws a grenade');
   await sim(2.8);
-  // explosive barrel chain: shoot barrel at (-3, 0, -9); other barrel at (3, 0, -9) is 6 m away
+  // explosive barrel chain: shoot the barrel at (26.9, 0, 11.3); the other at (25.7, 0, 11.3) is 1.2 m away
   const barrels0 = await G(() => window.__app.current.world.props.props.filter((p) => p.kind === 'explosiveBarrel' && p.alive).length);
-  await G(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(-3, 0, -3), Math.PI); });
+  await G(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(26.9, 0, 16.6), Math.PI); });
   await sim(0.3);
   await G(() => window.__app.input.state.tap('swapNext')); // pistol -> rifle
   await sim(1.3);
-  const bp = await G(() => { const p = window.__app.current.world.props.props.filter((q) => q.kind === 'explosiveBarrel' && q.alive).sort((a, b) => Math.hypot(a.node.position.x + 3, a.node.position.z + 9) - Math.hypot(b.node.position.x + 3, b.node.position.z + 9))[0]; return [p.node.position.x, p.node.position.y, p.node.position.z]; });
+  const bp = await G(() => { const p = window.__app.current.world.props.props.filter((q) => q.kind === 'explosiveBarrel' && q.alive).sort((a, b) => Math.hypot(a.node.position.x - 26.9, a.node.position.z - 11.3) - Math.hypot(b.node.position.x - 26.9, b.node.position.z - 11.3))[0]; return [p.node.position.x, p.node.position.y, p.node.position.z]; });
   await aimAt(bp[0], bp[1], bp[2]);
   await sim(1.2, [[BTN.RT, 1]]);
   console.log('    barrel shot:', await G(() => { const g = window.__app.current; const l = g.weapons.lastShot; const f = (v) => `${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)}`; return `${g.weapons.current.def.id} ${l.target} origin ${f(l.origin)} aim ${f(l.aim)} hit ${f(l.hit)} hp=${g.world.props.props.filter((q) => q.kind === 'explosiveBarrel').map((q) => q.hp.toFixed(0) + '@' + f(q.node.position)).join(' ')}`; }), JSON.stringify(bp));

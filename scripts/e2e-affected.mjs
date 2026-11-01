@@ -61,6 +61,9 @@ export function touchesWire(files, paths) {
 // (process audit) CORE leaves out the input suites (the slowest); `src/input/` and `src/ui/` still pick them.
 export const CORE = ['e2e-move', 'e2e-combat', 'e2e-anim'];
 
+// (clean-up G2b) the suites that run on the Test Chamber (studio): a change to its map or its prop numbers reaches all of them
+const CHAMBER = ['e2e-move', 'e2e-traverse', 'e2e-ct', 'e2e-anchors', 'e2e-clip', 'e2e-anim', 'e2e-combat', 'e2e-wall', 'e2e-netmove', 'e2e-levels', 'e2e-stealth', 'e2e-foley', 'e2e-weapon-audio', 'e2e-weapons-carry', 'e2e-mouse', 'e2e-feedback', 'e2e-tactics', 'e2e-enemies', 'e2e-takedown', 'e2e-pad', 'e2e-testmode'];
+
 // --quick: master's map, byte for byte (scripts/run-e2e.mjs on master before this branch). A path under `src/` not listed
 // here runs CORE. tests/e2eAffected.test.ts holds a frozen copy and checks it row by row.
 export const QUICK_COVERS = {
@@ -147,6 +150,7 @@ const lightSuites = (extra = ['e2e-levels', 'e2e-ctcourse']) => ['e2e-lightbake'
 //  - src/player, src/anim -> the animation and movement suites (anim, clip, takedown, move, ...)
 export const WIDE_COVERS = {
   // (anim-studio) the studio, its drive and the tuner's snapshots: their own suite on top of what their folders run
+  'src/anim/studioProps': [...CHAMBER, 'e2e-studio'],
   'src/anim/studio': ['e2e-studio', 'anim-audit', 'e2e-anim'],
   'src/anim/tuneHistory': ['e2e-studio'],
   // (anim-studio-2) the co-op role / traversal move sections: live on the local player (the team moves, traversal)
@@ -154,7 +158,7 @@ export const WIDE_COVERS = {
   'src/game/studioStage': ['e2e-studio', 'e2e-tuner-phone'],
   // (marlow-bays item 26) the free view's touch orbit, pinch and pan
   'src/player/freeView': ['e2e-tuner-phone', 'e2e-studio', 'anim-audit', 'e2e-anim', 'e2e-move'],
-  'src/world/maps/studio.ts': ['e2e-studio', 'e2e-testmode'],
+  'src/world/maps/studio.ts': ['e2e-studio', ...CHAMBER],
   'src/save/animTuneStore': ['e2e-studio', 'e2e-menus'],
   'src/ui/studio': ['e2e-studio'],
   'src/ui/tuneSnapshots': ['e2e-studio', 'e2e-menus'],
@@ -247,12 +251,13 @@ const LIGHT = ['e2e-lightbake', 'e2e-desktop', 'e2e-darkness', 'e2e-parity'];
 export const COOP = ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse'];
 export const DIRECT_COVERS = {
   // the studio and tuner files: their own suites (the tuner / Anim Studio test tier), not their folder's
+  'src/anim/studioProps': [...CHAMBER, 'e2e-studio'],
   'src/anim/studio': ['e2e-studio', 'e2e-anim'],
   'src/anim/tuneHistory': ['e2e-studio'],
   'src/anim/moveTune': ['e2e-studio', 'e2e-anim'],
   'src/game/studioStage': ['e2e-studio', 'e2e-tuner-phone'],
   'src/player/freeView': ['e2e-studio', 'e2e-tuner-phone'],
-  'src/world/maps/studio.ts': ['e2e-studio', 'e2e-testmode'],
+  'src/world/maps/studio.ts': ['e2e-studio', ...CHAMBER],
   'src/save/animTuneStore': ['e2e-studio', 'e2e-menus'],
   'src/ui/studio': ['e2e-studio'],
   'src/ui/tuneSnapshots': ['e2e-studio', 'e2e-menus'],

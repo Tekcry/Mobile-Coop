@@ -6,7 +6,7 @@
 import { launch, frames, assert as hard } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
 const G = (f, a) => page.evaluate(f, a);
 let failed = false;
 const assert = (cond, msg) => {
@@ -123,7 +123,7 @@ const resetTotal = () => G(() => (window.__s.look.total = 0));
 try {
   console.log('camera: free orbit, never stuck');
   // standing still: a full 360 at 6 rad/s, and the body stays put
-  await G(() => window.__s.tp(0, -14, Math.PI / 2));
+  await G(() => window.__s.tp(9, 20, Math.PI / 2));
   await frames(page, 20);
   await resetTotal();
   let r = await lookFor(1700, 6);
@@ -139,12 +139,12 @@ try {
   await G(() => window.__app.input.state.tap('crouch'));
   await frames(page, 30);
   // moving
-  await G(() => window.__s.tp(0, -14, Math.PI / 2));
+  await G(() => window.__s.tp(9, 20, Math.PI / 2));
   await resetTotal();
   r = await lookFor(1300, 6, { y: 1 });
   assert(Math.abs(r.turned) >= r.real * 0.97, `moving: full 360 look (${f2(r.turned)} of ${f2(r.real)} rad)`);
   // after a run (G31: sprint and its dash spring are gone; the tap('dash') is dropped)
-  await G(() => window.__s.tp(0, -18, Math.PI / 2));
+  await G(() => window.__s.tp(9, 20, Math.PI / 2));
   await G(() => {
     window.__s.move(0, 1);
   });
@@ -167,7 +167,7 @@ try {
   await G(() => (window.__app.current.player.cam.pitch = 0));
 
   // aiming: the view still orbits freely (the body follows the aim at its own capped rate)
-  await G(() => window.__s.tp(0, -14, Math.PI / 2));
+  await G(() => window.__s.tp(9, 20, Math.PI / 2));
   await G(() => window.__app.input.state.set('stealth-ads', 'ads', true));
   await forSim(400);
   await resetTotal();

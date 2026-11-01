@@ -29,7 +29,7 @@ const EMU_NOTE = /Max number of touches exceeded/;
 const real = (errors) => errors.filter((e) => !EMU_NOTE.test(e));
 
 async function boot(viewport, context) {
-  const r = await launch({ url, params: 'autostart=studio', viewport, context });
+  const r = await launch({ url, params: 'autostart=studio&stage=1', viewport, context });
   await r.page.waitForFunction(() => !!window.__app?.current?.player && !!window.__studio?.state().active && !!window.__animTune, null, { timeout: 120000 });
   await frames(r.page, 10);
   return r;

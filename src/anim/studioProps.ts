@@ -39,4 +39,35 @@ export const STUDIO_PROPS = {
   door: { hinge: 9.4, z: 4, w: 1.2, h: 2.1, wall0: 7, wall1: 13, wallH: 3 },
   /** A rappel point on the team block's lip (its east end), the rope down its face. */
   rappel: { x: 16.3, z: 25, top: PAIR_TOP },
+
+  // (G2b, `docs/plan/TEST-CHAMBER-SPEC.md` 1.3) The test pieces added to the room; every key above keeps its value.
+  /** A step row (south wall, 1.2 x 1.2 m blocks): 0.42 walks up (`maxStep`), 0.6 is the step move, 0.9 a mantle. Approach from z 2.5 facing -z. */
+  steps: { z: 0.6, w: 1.2, d: 1.2, rows: [{ x: 1.0, h: 0.42 }, { x: 3.0, h: 0.6 }, { x: 5.0, h: 0.9 }] },
+  /** A crouch tunnel (west wall, the perimeter is its west side): a 1.4 m underside between crouch (1.15) and stand (1.75) height. */
+  tunnel: { x0: 0, x1: 3, z0: 11.5, z1: 14.5, under: 1.4, roof: 0.3, wallW: 0.5 },
+  /** 35 degree stairs (rise 1.75 over 2.5, to +z) and a 55 degree ramp (rise 3.57 over 2.5): walkable under 50, too steep over. */
+  stairs: { x: 18.0, z: 8.75, w: 2.0, len: 2.5, rise: 1.75, steps: 6 },
+  ramp55: { x: 20.2, z: 8.75, w: 1.6, len: 2.5, rise: 3.57 },
+  /** A chain-link fence (2.6 m: the climb case) along x. */
+  fence: { x0: 6.0, x1: 9.0, z: 6.5, h: 2.6 },
+  /** Hang block B (north west): lip 2.4, its south face in line with the ledge wall's (jump-across); its east corner wraps. */
+  blockB: { x0: 7.5, x1: 9.5, z0: 25, z1: 27, top: 2.4 },
+  /** The split fin: a 0.3 m wall, 1.65 m east of the team block's east face (a split gap of 1.2-1.95 m, both 4.4 m tall). */
+  fin: { x0: 18.65, x1: 18.95, z0: 25, z1: 28, top: PAIR_TOP },
+  /** A zipline from the ledge wall's top down to the floor (the high end 1.9 m over the 2.4 m deck). */
+  zip: { x: 5.3, a: { y: 4.3, z: 25.4 }, b: { y: 2.3, z: 19.0 }, post: { z: 25.7, h: 2.0, y: 2.4 } },
+  /** The rappel booth (north east corner, x 25-28, z 25-28, top 4.4; its east side is the east wall): a glazed window
+   *  under its own rope, a roof with a vent hole and a duct over it. */
+  booth: {
+    x0: 25, x1: 28, z0: 25, z1: 28, top: PAIR_TOP, wallH: 4.2, thick: 0.3,
+    /** The glazed window in the south wall (sill 1.0 over the floor, 1.2 x 1.2 m). */
+    window: { x: 26.5, w: 1.2, h: 1.2, sill: 1.0 },
+    /** The rope on the roof edge, directly over the window. */
+    rope: { x: 26.5, z: 25, top: PAIR_TOP },
+    /** The roof vent hole (x 25.5-26.3, z 26.3-27.1), the duct over it and the stand point on the roof. */
+    vent: { x0: 25.5, x1: 26.3, z0: 26.3, z1: 27.1 },
+    stand: { x: 27.5, z: 26.7 },
+    /** The inside, clear floor. */
+    inner: { x0: 25.3, x1: 28, z0: 25.3, z1: 27.5 },
+  },
 } as const;

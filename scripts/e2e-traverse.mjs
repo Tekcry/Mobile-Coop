@@ -1,10 +1,10 @@
-// Attached traversal on the Proving Grounds course (north east): ladder (bottom / top entry, climb, slide, step
+// Attached traversal on the Test Chamber (G2b: platform, ledge wall + block B, pipe, zipline, booth, duct): ladder (bottom / top entry, climb, slide, step
 // off), drainpipe to a lip, ledge grab / shimmy / corners / jump across / climb up / lower in / drop, horizontal
 // pipe; hands and feet locked on contacts (< 1 cm while gripping); speed bands; pad + keyboard reach the verbs.
 import { launch, frames, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
 let failed = false;
 
 // page helpers: stepping with a held stick / buttons, measuring contacts on every rendered (120 Hz) frame
@@ -150,7 +150,7 @@ try {
   await run(0.5);
 
   // --- ladder from the bottom: prompt, attach, climb at 1.7 rungs/s with locked hands and feet, step off the top
-  await tp(25.2, 0, 11, Math.PI / 2);
+  await tp(3.8, 0, 9, -Math.PI / 2);
   await run(0.4);
   let i = await I();
   assert(i.hint === 'ladder:bottom' && i.prompt === 'Climb', `ladder offered from the bottom (${i.hint}, prompt "${i.prompt}")`);
@@ -178,7 +178,7 @@ try {
   await runOff(8, 0, 1);
   await run(0.5);
   i = await I();
-  assert(!i.attached && i.y > 3.5, `steps off at the top onto the tower (y ${f2(i.y)})`);
+  assert(!i.attached && i.y > 2.9, `steps off at the top onto the platform (y ${f2(i.y)})`);
   // (G4, CT 112102 21.2-22.0) over the top she ends crouched
   assert(await page.evaluate(() => window.__tr.st().player.controller.crouched), 'the ladder top-out ends crouched');
   await page.evaluate(() => window.__tr.st().player.controller.clearCrouchToggle());
@@ -192,21 +192,21 @@ try {
   await run(0.8);
 
   // --- ladder from the top: turn round and step on, climb down, step off at the bottom
-  await tp(26.7, 3.6, 11, -Math.PI / 2);
+  await tp(2.35, 3.0, 9, Math.PI / 2);
   await run(0.4);
   i = await I();
   assert(i.hint === 'ladder:top', `ladder offered from the top (${i.hint})`);
   await tap(BTN.Y);
   await run(0.8);
   i = await I();
-  assert(i.attached && i.kind === 'ladder' && Math.abs(Math.sin(i.yaw) - 1) < 0.1, 'stepped on from the top, turned to face the ladder');
+  assert(i.attached && i.kind === 'ladder' && Math.abs(Math.sin(i.yaw) + 1) < 0.1, 'stepped on from the top, turned to face the ladder');
   await runOff(12, 0, -1);
   await run(0.5);
   i = await I();
   assert(!i.attached && i.y < 0.2, `stepped off at the bottom (y ${f2(i.y)})`);
 
   // --- slide: climb a little, drop slides to the bottom fast ((G4) above LADDER_DROP_MAX 1.2 m: below it B lets go)
-  await tp(25.2, 0, 11, Math.PI / 2);
+  await tp(3.8, 0, 9, -Math.PI / 2);
   await run(0.3);
   await tap(BTN.Y);
   await run(3.2, 0, 1);
@@ -219,7 +219,7 @@ try {
   i = await I();
   assert(!i.attached && i.y < 0.2, 'slid to the bottom and stepped off');
   // (G4, CT 112102 7.5-8.03) low on the ladder B lets go and drops
-  await tp(25.2, 0, 11, Math.PI / 2);
+  await tp(3.8, 0, 9, -Math.PI / 2);
   await run(0.3);
   await tap(BTN.Y);
   await run(1.0, 0, 1);
@@ -231,7 +231,7 @@ try {
   assert(!i.attached && i.grounded && i.y < 0.2, 'let go of the ladder near its foot, landed');
 
   // --- drainpipe: climb, onto the lip at the top, climb up
-  await tp(27.8, 0, 8.95, 0);
+  await tp(3.55, 0, 10.4, -Math.PI / 2);
   await run(0.4);
   i = await I();
   assert(i.hint === 'pipeV:side', `drainpipe offered (${i.hint})`);
@@ -249,32 +249,35 @@ try {
   await tap(BTN.Y);
   await run(1.6);
   i = await I();
-  assert(!i.attached && i.y > 3.5 && i.grounded, `climbed straight up off the pipe onto the tower (y ${f2(i.y)})`);
-  // sideways at the top: onto the lip beside the pipe (camera facing the wall: stick right = +x)
-  await tp(27.8, 0, 8.95, 0);
+  assert(!i.attached && i.y > 2.9 && i.grounded, `climbed straight up off the pipe onto the platform (y ${f2(i.y)})`);
+  // sideways at the top: onto the lip beside the pipe (camera facing -x: stick right = +z; the lip runs z 8-11, the pipe is at z 10.4)
+  await tp(3.55, 0, 10.4, -Math.PI / 2);
   await run(0.4);
   await tap(BTN.Y);
   await run(3.4, 0, 1);
-  await run(0.6, 1, 0);
-  i = await I();
-  assert(i.attached && i.kind === 'ledge' && i.nz < -0.9 && i.x > 27.9, `sideways at the top steps onto the lip (${i.kind}, x ${f2(i.x)})`);
-  // shimmying back past the pipe swings onto it, carrying on swings off it onto the lip beyond
+ await run(0.6, 1, 0);
+ i = await I();
+  assert(i.attached && i.kind === 'ledge' && i.z > 10.45, `sideways at the top steps onto the lip (the east lip is 0.6 m beside the pipe, so it carries round the corner: ${i.kind}, z ${f2(i.z)})`);
+  // shimmying back past the pipe (round the corner onto the east face, then -z) swings onto it, carrying on swings off it beyond
   let seenPipe = false;
-  for (let k = 0; k < 16; k++) {
-    await run(0.15, -1, 0);
+  for (let k = 0; k < 40; k++) {
+    const here = await I();
+    // the lip runs along z on the east face (stick sideways, the camera faces -x) and along x on the north face (stick back = +x)
+    if (here.kind === 'ledge' && here.nz > 0.9) await run(0.15, 0, -1);
+    else await run(0.15, -1, 0);
     const q = await page.evaluate(() => window.__tr.st().traversal.attachCtl.m.anchor?.kind);
     if (q === 'pipeV') seenPipe = true;
   }
   i = await I();
-  assert(seenPipe && i.kind === 'ledge' && i.x < 27.6, `shimmying past the pipe climbs onto it and back off beyond (pipe ${seenPipe}, x ${f2(i.x)})`);
+  assert(seenPipe && i.attached && i.z < 10.3, `shimmying past the pipe climbs onto it and carries on beyond (pipe ${seenPipe}, ${i.kind}, z ${f2(i.z)})`);
   // (ct-prototype D2b) drop off until free: at the slower shimmy the walk back can end mid-transfer, where a drop waits
   for (let k = 0; k < 4 && (await I()).attached; k++) {
     await tap(BTN.B);
     await run(1.2);
   }
 
-  // --- ledge from below: grab, shimmy at the table speed (ATTACH.ledge, ~0.7 m/s) with locked hands, corner, jump across, climb up
-  await tp(25.45, 0, 16, Math.PI / 2);
+  // --- ledge from below (the ledge wall, top 2.4): grab, shimmy at the table speed (ATTACH.ledge, ~0.7 m/s) with locked hands, jump across to block B, corner, climb up
+  await tp(4, 0, 24.4, 0);
   await run(0.4);
   i = await I();
   assert(i.hint === 'ledge:below' && i.prompt === 'Grab', `ledge offered from below (${i.hint}, "${i.prompt}")`);
@@ -283,41 +286,41 @@ try {
   i = await I();
   assert(i.attached && i.kind === 'ledge' && i.cam === 'hang' && i.trav === 'hang', 'grabbed the lip: hang pose and framing');
   assert(i.dropPrompt === 'Drop', 'drop offered while hanging');
-  const z0 = (await I()).z;
-  // camera looks +x: stick left is +z
-  r = await run(0.8, -1, 0);
+  const x0 = (await I()).x;
+  // camera looks +z: stick right is +x
+  r = await run(0.8, 1, 0);
   i = await I();
-  const sh = Math.abs(i.z - z0) / 0.8;
+  const sh = Math.abs(i.x - x0) / 0.8;
   // (ct-prototype D2b) the band from the game's table (0.71-1.08 x, the old 0.85-1.3 at 1.2 m/s)
   assert(sh > i.spd * 0.71 && sh < i.spd * 1.08, `shimmies at ~${f2(i.spd)} m/s (${f2(sh)})`);
   contacts(r, 'shimmy');
-  // jump across: hanging near the end, the stick towards the next block shows the target, Y jumps
-  const blockB = i.id;
-  // (ct-prototype D2b) the walks along the lip were timed for 1.2 m/s: the same distances at the table speed
-  const ks = 1.2 / i.spd;
-  await run(0.3 * ks, -0.7, 0);
-  i = await I();
-  r = await run(0.25 * ks, -1, 0);
+  // jump across: hanging near the east end, the stick towards block B (x 7.5-9.5) shows the target, Y jumps
+  const wallLip = i.id;
+  for (let k = 0; k < 12 && (await I()).jump < 0; k++) await run(0.25, 1, 0);
   i = await I();
   assert(i.jump >= 0 && i.jumpPrompt === 'Jump', `jump target marked under the stick ("${i.jumpPrompt}")`);
-  await page.evaluate(() => { window.__pad.axis(0, -1); });
+  await page.evaluate(() => { window.__pad.axis(0, 1); });
   await tap(BTN.Y);
-  r = await run(1.0, -1, 0);
+  r = await run(1.0, 1, 0);
   i = await I();
-  assert(i.attached && i.kind === 'ledge' && i.id !== blockB && i.z > 18.9, `jumped across to the next block (z ${f2(i.z)})`);
-  // corner: shimmy on round the outside corner onto the north face
-  r = await run(3 * ks, -1, 0);
-  i = await I();
-  assert(i.attached && i.kind === 'ledge' && i.nz > 0.9, `wrapped round the outside corner (normal ${f2(i.nx)}, ${f2(i.nz)})`);
+  assert(i.attached && i.kind === 'ledge' && i.id !== wallLip && i.x > 7.0, `jumped across to block B (x ${f2(i.x)}, face ${f2(i.nx)}, ${f2(i.nz)})`);
+  // corner: the jump lands on block B's west face; shimmy on round the south corner and along the south face, then round the outside corner (x 9.5) onto the east face
+  for (let k = 0; k < 40 && !(i.attached && i.kind === 'ledge' && i.nx > 0.9); k++) {
+    // the camera looks +z: along the west face is stick back / forward, along the south face stick right
+    r = i.nx < -0.9 ? await run(0.3, 0, -1) : await run(0.3, 1, 0);
+    i = await I();
+  }
+  assert(i.attached && i.kind === 'ledge' && i.nx > 0.9, `wrapped round the outside corner (normal ${f2(i.nx)}, ${f2(i.nz)})`);
+  await run(0.5);
   await tap(BTN.Y);
   await run(1.6);
   i = await I();
-  assert(!i.attached && Math.abs(i.y - 2.3) < 0.1 && i.grounded, `climbed up on top (y ${f2(i.y)})`);
+  assert(!i.attached && Math.abs(i.y - 2.4) < 0.1 && i.grounded, `climbed up on top (y ${f2(i.y)})`);
   // (G4, CT 110522 / 110616) the stick released, the climb-up ends crouched on top
   assert(await page.evaluate(() => window.__tr.st().player.controller.crouched), 'the climb-up ends crouched (stick released)');
 
   // --- lower into a hang from above: hold drop at the edge; then drop to the ground
-  await tp(26.45, 2.3, 16, -Math.PI / 2);
+  await tp(4, 2.42, 25.45, Math.PI);
   await run(0.4);
   i = await I();
   // prototype: revisit - dropPrompt "Hang" reads empty here since F1a/B2 (possible prompt regression, see T1-TESTS.md); the hint is the check
@@ -331,18 +334,18 @@ try {
   i = await I();
   assert(!i.attached && i.y < 0.1 && i.grounded, 'drop lets go to the ground');
 
-  // --- horizontal pipe: grab from below, hand over hand, drop
-  await tp(25.5, 0, 23.1, 0);
-  await page.evaluate(() => { window.__tr.st().player.cam.yaw = Math.PI / 2; });
+  // --- horizontal pipe (x 25.5, z 4-9, along z): grab from below, hand over hand, drop
+  await tp(25.5, 0, 6.5, Math.PI / 2);
+  await page.evaluate(() => { window.__tr.st().player.cam.yaw = 0; });
   await run(0.4);
   i = await I();
   assert(i.hint === 'pipeH:below', `pipe offered from below (${i.hint})`);
   await tap(BTN.Y);
   await run(0.5);
-  const x0 = (await I()).x;
+  const z0 = (await I()).z;
   r = await run(1.2, 0, 1);
   i = await I();
-  assert(i.kind === 'pipeH' && (i.x - x0) / 1.2 > 0.7, `hand over hand along the pipe (${f2((i.x - x0) / 1.2)} m/s)`);
+  assert(i.kind === 'pipeH' && (i.z - z0) / 1.2 > 0.7, `hand over hand along the pipe (${f2((i.z - z0) / 1.2)} m/s)`);
   contacts(r, 'pipe');
   await tap(BTN.B);
   await run(1);
@@ -351,7 +354,7 @@ try {
 
   // --- landings: soft under 2.5 m, a roll that keeps going from 2.5-4.5 m, a heavy landing beyond (loud)
   const fall = async (y) => {
-    await tp(24, y, 4, 0);
+    await tp(20, y, 21, 0);
     const seen = await page.evaluate(() => {
       const st = window.__tr.st();
       let roll = false;
@@ -368,16 +371,16 @@ try {
   let L = await fall(1.6);
   assert(L.landing === 'soft' && !L.roll, `a 1.6 m fall is a soft landing (${L.landing})`);
   L = await fall(3.4);
-  assert(L.landing === 'roll' && L.roll && L.z > 4.6, `a 3.4 m fall rolls out of it, moving on (${L.landing}, z ${f2(L.z)})`);
+  assert(L.landing === 'roll' && L.roll && L.z > 21.6, `a 3.4 m fall rolls out of it, moving on (${L.landing}, z ${f2(L.z)})`);
   L = await fall(5.5);
   assert(L.landing === 'heavy' && !L.roll && L.maxNoise >= 10, `a 5.5 m fall is a heavy, loud landing (${L.landing}, noise ${L.maxNoise})`);
-  await tp(24, 5.5, 4, 0);
+  await tp(20, 5.5, 21, 0);
   await page.evaluate(() => { window.__app.loop.stepHeadless(4 / 60, 120); for (let i = 0; i < 80 && !window.__tr.st().player.controller.grounded; i++) window.__app.loop.stepHeadless(1 / 60, 120); window.__app.loop.stepHeadless(2 / 60, 120); });
   i = await I();
   assert(i.landT > 0.4, `heavy landing recovery (${f2(i.landT)} s left)`);
 
   // --- falling past a lip: Y in the window grabs it
-  await tp(27, 5.2, 9.0, 0);
+  await tp(1.5, 4.6, 7.4, 0);
   const grabbed = await page.evaluate(() => {
     const st = window.__tr.st();
     for (let i = 0; i < 60; i++) {
@@ -394,11 +397,11 @@ try {
   await tap(BTN.B);
   await run(1);
 
-  // --- zipline off the tower: attach at the high end, speed builds, fly off the end and land
-  await tp(26.5, 3.6, 10.2, Math.PI);
+  // --- zipline off the ledge wall: attach at the high end, speed builds, fly off the end and land
+  await tp(5.3, 2.42, 26.4, Math.PI);
   await run(0.4);
   i = await I();
-  assert(i.hint === 'zipline:side' && i.prompt === 'Zipline', `zipline offered on the tower (${i.hint}, "${i.prompt}")`);
+  assert(i.hint === 'zipline:side' && i.prompt === 'Zipline', `zipline offered on the ledge wall (${i.hint}, "${i.prompt}")`);
   await tap(BTN.Y);
   let vmax = 0;
   for (let k = 0; k < 16; k++) {
@@ -410,32 +413,32 @@ try {
   await run(1.5);
   i = await I();
   assert(vmax > 4 && vmax <= 6.01, `zipline speed builds to ${f2(vmax)} m/s (<= 6)`);
-  assert(!i.attached && i.grounded && i.z < 3 && i.y < 0.2, `off the end of the cable and landed (z ${f2(i.z)})`);
+  assert(!i.attached && i.grounded && i.z < 20.5 && i.y < 0.2, `off the end of the cable and landed (z ${f2(i.z)})`);
 
   // --- windows: vault through an open one; a glazed one shatters (loud) as you go through
-  await tp(26, 0, -9.2, 0);
+  await tp(18, 0, 2.8, 0);
   await run(0.4);
   i = await I();
   assert(i.vault === 'Vault', `open window offers a vault ("${i.vault}")`);
   await tap(BTN.Y);
   await run(1.2);
   i = await I();
-  assert(i.z > -7.6 && i.grounded, `vaulted in through the window (z ${f2(i.z)})`);
-  await tp(25, 0, -3.1, 0);
+  assert(i.z > 4.4 && i.grounded, `vaulted in through the window (z ${f2(i.z)})`);
+  await tp(26.5, 0, 24.0, 0);
   await run(0.4);
   await tap(BTN.Y);
   const glass = await page.evaluate(() => { const st = window.__tr.st(); let n = 0; for (let k = 0; k < 40; k++) { window.__app.loop.stepHeadless(1 / 60, 120); n = Math.max(n, st.noise); } return { open: st.world.breakables.isOpen(`glass:${st.world.level.anchors.windows.find((w) => !w.open).id}`), n }; });
   await run(0.8);
   i = await I();
   assert(glass.open && glass.n >= 15, `the glazed window shatters, loud (noise ${glass.n})`);
-  assert(i.z > -1.6, `broke through and out (z ${f2(i.z)})`);
+  assert(i.z > 25.4, `broke through into the booth (z ${f2(i.z)})`);
 
-  // --- duct: unscrew the grate quietly (hold Y), crawl through, drop into the shed through the ceiling vent
-  await tp(21.75, 3.2, -5, Math.PI / 2);
+  // --- floor duct (ducts[0]): unscrew the grate quietly (hold Y), crawl through and out the far grate
+  await tp(20.4, 0, 14, Math.PI / 2);
   await run(0.4);
   i = await I();
   assert(i.hint === 'duct:side' && i.vault === 'Kick vent', `vent offered at the duct mouth (${i.hint}, "${i.vault}")`);
-  const unscrew = await page.evaluate(() => {
+  const unscrewVent = () => page.evaluate(() => {
     const st = window.__tr.st();
     // (A3 / F1a) Y (jump) starts the vent, A (interact) held unscrews it
     window.__pad.set(3, 1);
@@ -454,6 +457,7 @@ try {
     window.__app.loop.stepHeadless(0.6, 120);
     return { mid, noise, att: st.traversal.attachCtl.active, kind: st.traversal.attachCtl.m.anchor?.kind };
   });
+  const unscrew = await unscrewVent();
   assert(unscrew.mid > 0.3 && unscrew.mid < 0.9, `holding A (after the Y start) unscrews the grate (${f2(unscrew.mid)} at 1 s)`);
   assert(unscrew.att && unscrew.kind === 'duct' && unscrew.noise < 3, `crawled in quietly (noise ${unscrew.noise})`);
   i = await I();
@@ -470,8 +474,8 @@ try {
       const from = p.position.clone();
       from.y += 0.45;
       const h = st.ballistics.ray(from, cp.clone(), 1);
-      // inside the crawlspace's 1 x 1.1 m section (the duct floor is at 3.2, its roof at 4.3)
-      if (h.hit || cp.y < 3.2 || cp.y > 4.3 || Math.abs(cp.z + 5) > 0.5) worst++;
+      // inside the crawlspace's 1 x 1.1 m section (the duct floor is at 0, its roof at 1.1)
+      if (h.hit || cp.y < 0 || cp.y > 1.1 || Math.abs(cp.z - 14) > 0.5) worst++;
     }
     p.cam.yaw = Math.PI / 2;
     return worst;
@@ -482,7 +486,7 @@ try {
     for (const sl of window.__tr.st().weapons.slots) for (const m of sl.model.node.getChildMeshes()) { m.computeWorldMatrix(true); y = Math.max(y, m.getBoundingInfo().boundingBox.maximumWorld.y); }
     return y;
   });
-  assert(gunTop < 4.28, `duct: the guns on the back stay under the roof (top ${f2(gunTop)} < 4.28)`);
+  assert(gunTop < 1.08, `duct: the guns on the back stay under the roof (top ${f2(gunTop)} < 1.08)`);
   const d0 = i.x;
   r = await run(1, 0, 1);
   i = await I();
@@ -494,14 +498,36 @@ try {
     rolled ||= st.roll;
     if (!st.a) break;
   }
-  await page.evaluate(() => { for (let k = 0; k < 90; k++) { window.__app.loop.stepHeadless(1 / 60, 120); if (window.__tr.st().traversal.kind === 'roll') window.__rolled = true; } });
-  rolled ||= await page.evaluate(() => !!window.__rolled);
+  await run(1.0);
   i = await I();
-  assert(!i.attached && i.y < 0.2 && i.x > 26.5 && i.x < 29 && i.z > -8 && i.z < -2, `dropped through the ceiling vent into the shed (${f2(i.x)}, ${f2(i.y)}, ${f2(i.z)})`);
-  assert(rolled || i.landing === 'roll', `the 3.2 m drop rolls (${i.landing})`);
+  assert(!i.attached && i.y < 0.2 && i.x > 24.9 && i.x < 27.5 && Math.abs(i.z - 14) < 1.5, `crawled out of the far grate onto the floor (${f2(i.x)}, ${f2(i.y)}, ${f2(i.z)})`);
+
+  // --- ceiling vent: the booth's roof duct (ducts[1]): from the roof, unscrew, crawl to the vent, drop through it onto the block (a 3.4 m drop, the roll band)
+  await tp(27.5, 4.42, 26.7, -Math.PI / 2);
+  await run(0.4);
+  i = await I();
+  assert(i.hint === 'duct:side', `roof vent offered at the duct mouth (${i.hint}, "${i.vault}")`);
+  // the landing the vent drop registers (the booth is 0.6 m deep past the vent, so the roll itself has no room to play)
+  await page.evaluate(() => {
+    const c = window.__tr.st().player.controller;
+    const reg = c.registerLanding.bind(c);
+    window.__regs = [];
+    c.registerLanding = (f, vx, vz) => { window.__regs.push(f); return reg(f, vx, vz); };
+  });
+  const unscrew2 = await unscrewVent();
+  assert(unscrew2.att && unscrew2.kind === 'duct', `the roof duct: unscrewed and crawled in (${unscrew2.att}, ${unscrew2.kind})`);
+  for (let k = 0; k < 30; k++) {
+    await run(0.25, 0, 1);
+    if (!(await page.evaluate(() => window.__tr.st().traversal.attachCtl.active))) break;
+  }
+  await run(1.0);
+  i = await I();
+  assert(!i.attached && i.y > 0.9 && i.y < 1.2 && i.x > 25.3 && i.x < 28 && i.z > 25.3 && i.z < 27.5, `dropped through the ceiling vent onto the block in the booth (${f2(i.x)}, ${f2(i.y)}, ${f2(i.z)})`);
+  const regs = await page.evaluate(() => window.__regs);
+  assert(regs.length === 1 && regs[0] >= 2.5 && regs[0] <= 4.5, `the vent drop registers a roll-band landing (${regs.map(f2).join(', ')} m; the roof is 4.4 m, the block 1.0 m)`);
 
   // --- keyboard: E attaches (ladder), C lets go of a ledge
-  await tp(25.2, 0, 11, Math.PI / 2);
+  await tp(3.8, 0, 9, -Math.PI / 2);
   await run(0.4);
   await page.keyboard.down('Space');
   await page.evaluate(() => window.__app.loop.stepHeadless(3 / 60, 120));
@@ -514,7 +540,7 @@ try {
   // --- keyboard at a ledge, live loop: the prompt shows the grab, E does it, C lets go (was the touch buttons, 3.2.0)
   // a keyboard player: no pad
   await page.evaluate(() => { window.__pad.disconnect(); });
-  await tp(25.45, 0, 16, Math.PI / 2);
+  await tp(4, 0, 24.4, 0);
   await page.evaluate(() => window.__app.loop.stepHeadless(0.4, 120));
   await page.evaluate(() => { window.__app.loop.manual = false; });
   await frames(page, 6);
@@ -561,7 +587,7 @@ try {
   const grateOpen = () => page.evaluate(() => window.__tr.st().world.breakables.isOpen(`grate:${window.__tr.st().world.level.anchors.ducts[0].id}:entry`));
   await freshMatch();
   await page.evaluate(() => window.__pad.connect());
-  await tp(21.75, 3.2, -5, Math.PI / 2);
+  await tp(20.4, 0, 14, Math.PI / 2);
   await run(0.4);
   // keyboard: Space starts the vent and E held unscrews it (progress shows); letting go early stops it, no kick
   await page.evaluate(() => { window.__app.loop.manual = false; window.__pad.disconnect(); });
@@ -590,7 +616,7 @@ try {
   // (vent-kick) the keyboard section leaves the grate closed now (asserted above), so #22's fresh match before the kick
   // is gone
   await page.evaluate(() => { window.__app.loop.manual = true; window.__pad.connect(); });
-  await tp(21.75, 3.2, -5, Math.PI / 2);
+  await tp(20.4, 0, 14, Math.PI / 2);
   await run(0.4);
   assert(!(await grateOpen()), 'the grate is closed before the kick');
   const kick = await page.evaluate(() => {

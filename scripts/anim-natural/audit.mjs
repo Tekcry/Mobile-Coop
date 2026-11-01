@@ -575,7 +575,7 @@ const FIND_PEEKDOOR = () => {
 
 // ---- studio group ----
 async function runStudio() {
-  const { browser, page, errors } = await launch({ url: URL0, params: 'autostart=studio&gfx=high', viewport: { width: 1200, height: 900 } });
+  const { browser, page, errors } = await launch({ url: URL0, params: 'autostart=studio&stage=1&gfx=high', viewport: { width: 1200, height: 900 } });
   try {
     await page.waitForFunction(() => !!window.__app?.current?.player && !!window.__studio?.state().active, null, { timeout: 300000 });
     if ((await waitOperator(page)) < 0) throw new Error('Wren LOD0 never reached the screen');
