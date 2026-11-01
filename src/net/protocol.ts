@@ -22,7 +22,7 @@ import type { MotionState } from '../anim/motion';
 import type { AnimSource } from '../anim/animSource';
 
 /** The wire version. Only this line holds it; tests read it. Bump it in the PR that changes the wire (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 86;
+export const PROTOCOL_VERSION = 87;
 /** Room cap on the wire: two players in every mode (`COOP_MAX`, `COURSE_MAX`). */
 export const MAX_PLAYERS = 2;
 export const COOP_MAX = 2;
@@ -40,8 +40,8 @@ export const NET_GADGETS: readonly NetGadget[] = ['gas', 'flash', 'emp', 'noise'
 /** (mission NET) The gadgets whose use reaches the host only as a `gused` (no effect message: a frag goes as `blast`). */
 export type UseOnlyGadget = Exclude<GadgetId, NetGadget>;
 export const USE_ONLY_GADGETS: readonly UseOnlyGadget[] = ['frag', 'mine', 'stickyCam'];
-export type NetMode = 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector';
-export const NET_MODES: readonly NetMode[] = ['sandbox', 'clear', 'infiltration', 'course', 'sector'];
+export type NetMode = 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector' | 'test';
+export const NET_MODES: readonly NetMode[] = ['sandbox', 'clear', 'infiltration', 'course', 'sector', 'test'];
 /** The training course and Sector Ops take two players (P1 host, P2 client; G2). */
 export const COURSE_MAX = 2;
 /** Players a mode takes. */
