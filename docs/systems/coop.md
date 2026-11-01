@@ -375,7 +375,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   `liftOffTarget`). The partner's avatar does the same with no wire change: its own lip search from the shown feet,
   the top-out from the feet past the rope's top and the wire phase (`ropeSeenStep`).
 - (coop-kit A1, R34) The rope descent: with the `descent` id in `flags.kitMoves` (`?kitmoves=descent`; every built id on
-  /preview/, none live) a partner standing beside the holder (its floor within 0.4 m, `TEAM.ropeReach` 2.0 m across)
+  by default; `?kitmoves=0` none) a partner standing beside the holder (its floor within 0.4 m, `TEAM.ropeReach` 2.0 m across)
   is offered "Co-op: rappel down the rope" and asks for the same `tmove` `rope` at the same rope point; the host tells
   the two apart by height (`ropeFromTop`) and accepts the top only when its own `kitMoves` has `descent`. Same `tstart`,
   same pair, same ends. The climber goes over the edge (`ropeOver`, `TEAM.ropeOver` 1.3 s: the top-out's path backwards,

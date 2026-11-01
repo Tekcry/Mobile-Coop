@@ -6,7 +6,7 @@
      low-risk tail instead of going over. Each item names its look video or shot so he can judge before he plays.
      His verdicts go in the Result column; an accepted item switches its flag on, a rejected one becomes a fix slice. -->
 
-Build: `/preview/` at <version> (check the version on the title screen). Time: ~<n> min. Co-op: <solo / 2 players needed>.
+Build: the main link at <version> (check the version on the title screen). Time: ~<n> min. Co-op: <solo / 2 players needed>.
 
 ## Items (ranked by risk)
 | # | Risk | Feature (PR) | Menu path | What to look for | Look video / shot | Accept when | Result |

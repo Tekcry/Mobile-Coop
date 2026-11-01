@@ -9,9 +9,13 @@
  * OFF, whose pelvis reads up to 2.9 cm there as the ramp stops).
  */
 import { afterEach, describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { setMocapLocomotion } from '../src/anim/mocap';
 import type { RigPose } from '../src/player/characterRig';
 import { driveRig, plantSlide, pops, type J, type Plan, type Rec } from './helpers/mocapMeasure';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 afterEach(() => setMocapLocomotion(false));
 

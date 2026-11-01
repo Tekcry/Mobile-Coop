@@ -4,7 +4,7 @@
  * restart (out / down) as a full reset, route-runs' hooks (`restarts`, `lastRetry`, `retryOff`) on host and client
  * through the wire, `?course=station:<n>`, the room map and the built yard left as it was.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import { validateCourse, type BayDef, type CourseDef, type CourseKnownIds, type CourseLayout } from '../src/game/course/courseDef';
 import { CourseState, kitMoveOn as kitMoveOnState, REFUSE_KIT_HELD } from '../src/game/course/courseState';
@@ -796,6 +796,10 @@ describe('stand-in gates (fix 7, lead decision b)', () => {
     { kind: 'lever', id: 'g-walk', switchId: 'sw5', doorId: 'D5' },
   ];
   const plank = (): CourseDef => def({ gates }, [station(1), station(2, { kit: 'plankBridge', standIn: 'g-walk', gates: ['g-s2', 'g-walk'] })]);
+  // (one-game) every kit move is on by default now; the stand-in is what a station shows while its kit move is off
+  const kit0 = flags.kitMoves;
+  beforeEach(() => void (flags.kitMoves = new Set()));
+  afterEach(() => void (flags.kitMoves = kit0));
   it('the stand-in opens as its station goes live (no kit move is playable yet) and stays open through its retry', () => {
     const r = rig(plank(), { doors: ['D5'] });
     const d5 = r.doors[0]!;

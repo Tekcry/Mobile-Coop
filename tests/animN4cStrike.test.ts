@@ -3,12 +3,16 @@
 // pure layer's shape and the tuner section. (anim-n4c M1, "Faster arm") The strike plays the arc warped onto the hit
 // (strikeWarp): the contact frame against STRIKE.hitAt, the hips still first, back to rest, the largest per-frame steps.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import type { RigPose } from '../src/player/characterRig';
 import { STRIKE_ARC_CONTACT, STRIKE_ARM_LAG, STRIKE_BODY, STRIKE_HIT_PH, STRIKE_SECTION, newStrikeBody, strikeBodyAt, strikeWarp, arcWarp, STRIKE_CONTACT_T, STRIKE_FOLLOW, STRIKE_SETTLE, strikeArcAt, killWarp, KILL_TAIL_END, TAKEDOWN_BLOW, GRAB_KILL_BLOW } from '../src/anim/strikeBody';
 import { STRIKE, STRIKE_DUR, STRIKE_WHIFF_DUR, strikePhase, strikeStage } from '../src/game/elbowStrike';
 import { meleeHandW, meleeSweep } from '../src/anim/animGraph';
 import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 import { TUNE_FLAGS } from '../src/anim/tuneRegistry';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 const DT = 1 / 60;
 const DEG = 180 / Math.PI;

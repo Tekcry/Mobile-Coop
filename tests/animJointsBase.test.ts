@@ -5,6 +5,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, write
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import type { Quaternion } from '../src/core/babylon';
 import '../src/anim/tune';
 import '../src/anim/tuneV2Sections';
@@ -18,6 +19,9 @@ import { ANIM_BASE, type AnimBaseData } from '../src/anim/animBase';
 import { J, JOINTS, JOINT_ROWS, JOINTS_CUR, eulerQuat, jointsAnyLive, jointsEffective, jointsLoad, type JointAxis } from '../src/anim/tuneJoints';
 import { HAND_PARAMS, HAND_WEAPONS, HANDS_CUR, handsAnyLive, handsEffective, handsLoad, IK_LIMBS, ikEffective, type IkLimb } from '../src/anim/tuneHands';
 import { animBaseLoad } from '../src/anim/tuneJointsRig';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 const ROOT = path.join(__dirname, '..');
 const real = (p: string): string => readFileSync(path.join(ROOT, p), 'utf8');

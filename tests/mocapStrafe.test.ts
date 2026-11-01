@@ -9,6 +9,7 @@
  * carrier's gait clock only (`mside`); the switch never reaches a non-carrier (guard) rig.
  */
 import { describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { HAND_KEYED_SET, MOCAP_SET, mocapSideStep, setMocapLocomotion } from '../src/anim/mocap';
 import { stepLength } from '../src/anim/motion';
 import { plantSlide, type Rec } from './helpers/mocapMeasure';
@@ -20,6 +21,9 @@ import { CRAB } from '../src/anim/audit/limits';
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { proportions } from '../src/player/proportions';
 import { bytesPerCall, HEAP_NUMBER, inputs } from './helpers/allocPerCall';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 /** Bytes a frame of heap-average jitter tolerated in the allocation compare (well under one boxed double). */
 const ALLOC_NOISE = 1;

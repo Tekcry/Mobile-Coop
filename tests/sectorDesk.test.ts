@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { flags } from '../src/core/flags';
 import type { Vector3 } from '../src/core/babylon';
 import { CONN_LOAD, CONN_UNLOCK_FAR, checkSectors, type SectorDef } from '../src/game/sectors';
 import {
@@ -34,6 +35,18 @@ import { SectorMode } from '../src/game/modes/sectorMode';
 import type { GameState } from '../src/game/gameState';
 import type { Interactable } from '../src/game/interactables';
 import { bytesPerCall, HEAP_NUMBER, sink } from './helpers/allocPerCall';
+
+// (one-game) flags default on now; the stub game has no `opts`, so this file runs Sector Ops as before: `?missions=0&campaign=0`
+const missions0 = flags.missions;
+const campaign0 = flags.campaign;
+beforeAll(() => {
+  flags.missions = false;
+  flags.campaign = false;
+});
+afterAll(() => {
+  flags.missions = missions0;
+  flags.campaign = campaign0;
+});
 
 /**
  * (sector-redesign E6, EW10, EG13) Security desks in Sector Ops: a console loops its section's cameras for a window or

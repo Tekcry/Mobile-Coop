@@ -409,7 +409,8 @@ try {
   // renderer no longer shares the CPU with the match page's (which ran at about 1.5 frames a second beside it on the
   // desktop, 2.5-4 alone; the suite then ran past the runner's 600 s limit inside the tuner-camera block)
   await page.goto('about:blank');
-  const M = await launch({ url, params: 'autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot' });
+  // (one-game) `mapready=0` for this boot: map-ready crashes the render on the Warehouse and Proving Grounds (goes when stage H deletes those maps)
+  const M = await launch({ url, params: 'autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot&mapready=0' });
   try {
     const P = M.page;
     const GM = (f, a) => P.evaluate(f, a);
@@ -757,7 +758,8 @@ try {
     await P.waitForFunction(() => (window.__app.screens.top?.el.classList[1] ?? '(none)') === 'main-menu', null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep)
     assert((await ttop()) === 'main-menu', `a tap on the Back legend returns to the main menu (${await ttop()})`);
     // in play
-    await P.goto(`${url}?autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot`);
+    // (one-game) `mapready=0` for this boot: map-ready crashes the render on the Warehouse and Proving Grounds (goes when stage H deletes those maps)
+    await P.goto(`${url}?autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot&mapready=0`);
     await P.waitForFunction(() => window.__app.current?.player && window.__app.current.simulating, null, { timeout: 120000 });
     await frames(P, 30);
     const shown = () => GT(() => getComputedStyle(document.querySelector('.touch-pause')).display !== 'none');

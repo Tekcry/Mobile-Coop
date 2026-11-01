@@ -53,4 +53,5 @@ the conflict.
   (G182), and menu taps and touch look in play stay (G395); the Kestrel editor keeps its phone launcher with no new work
   (G15). Removed and parked systems (bible Section 6) get no new work; nothing is drawn as voxels. Story is text radio
   and subtitles, every line written so it can be voiced later (G82).
-- Unfinished work ships dark behind its flag in `src/core/flags.ts` (`/preview/`: RULES "Walk pacing", G416).
+- Unfinished work sits behind its flag in `src/core/flags.ts`, default on; `?flag=0` turns it off (Michael 2026-11-01).
+  There is one build (the `/preview/`, `/ct/` and `/kestrel/` slots are retired); stage J removes the old flags.

@@ -30,6 +30,9 @@ import { driveRig, plantSlide, pops, POP_DEG, type Plan, type Rec } from './help
 import { runIdentity, type IdentityFixture } from './helpers/animSkeletonIdentity';
 import { bytesPerCall, HEAP_NUMBER } from './helpers/allocPerCall';
 
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
+
 /** MIXAMO_ON as shipped (a test that forces a row puts it back). */
 const ON0 = { ...MIXAMO_ON };
 /** (I6) The locomotion rows off: these tests isolate the I1 idle and crouched walk (I6's are tests/mixamoLoco.test.ts). */

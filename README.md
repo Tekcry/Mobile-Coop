@@ -60,18 +60,16 @@ Setup once: push to GitHub, then **Settings > Pages > Build and deployment > Sou
 the deploy job fails with a 404). The build uses `VITE_BASE=/<repository>/` so assets and the service worker resolve
 under that path; for a site served from `/`, set `VITE_BASE: /` in the workflow.
 
-### Branches and slots
+### Branches and the site
 
-Work flows one way: `ct-movement` (working branch), then `dev`, then `master` (live). Nothing is committed directly
-to `dev` or `master`; Michael does the merges. The site carries all three:
+One game, one build: `master` is the live game and the only base. Every job works on its own branch cut from master and
+ends in one PR to master. The site is the game at one address:
 
-- live: `https://<user>.github.io/<repository>/` (`master`)
-- preview: `https://<user>.github.io/<repository>/preview/` (`dev`; the menu shows PREVIEW)
-- ct preview: `https://<user>.github.io/<repository>/ct/` (`ct-movement`; PREVIEW CT)
-- kestrel preview: `https://<user>.github.io/<repository>/kestrel/?autostart=kestrel&mode=sandbox` (`feature/kestrel`; PREVIEW KESTREL)
+- `https://<user>.github.io/<repository>/` (`master`). Every feature flag is on by default; `?<flag>=0` switches one off for testing.
+- `/preview/`, `/ct/` and `/kestrel/` are retired: each is a small page that forwards to the game above, keeping the `?query`.
 
-Each preview keeps its own save (IndexedDB `shoulder-strike-preview`, `shoulder-strike-ct`), so a new build never
-overwrites the live save. Details: [docs/systems/deploy.md](docs/systems/deploy.md).
+The old previews kept their own browser saves (`shoulder-strike-preview`, `shoulder-strike-ct`); the game reads only
+`shoulder-strike`, so nothing from a preview shows here. Details: [docs/systems/deploy.md](docs/systems/deploy.md).
 
 Updates install automatically: the service worker precaches each new build and switches on the next launch. Saves
 live in IndexedDB on each device and survive updates (Settings > Data exports and imports a save file).

@@ -12,7 +12,13 @@ type V3 = { x: number; y: number; z: number };
 const kit0 = flags.kitMoves;
 const withDescent = new Set(['descent']);
 const none = new Set<string>();
-afterAll(() => void (flags.kitMoves = kit0));
+// (one-game) the context prompts are on by default now; this file pins the older hold-A list texts: `?ctxprompts=0`
+const ctx0 = flags.contextPrompts;
+beforeAll(() => void (flags.contextPrompts = false));
+afterAll(() => {
+  flags.kitMoves = kit0;
+  flags.contextPrompts = ctx0;
+});
 
 const side = (o: Partial<TeamSide> = {}): TeamSide => ({ id: 'a', x: 0, y: 0, z: 0, mode: 'ground', alive: true, ...o });
 /** `b` holds the rope on a 4.4 m wall top (brace + rope bit); `a` stands beside them on the top; the rope point 0.55 m out. */

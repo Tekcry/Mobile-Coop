@@ -13,10 +13,14 @@
  * `AFP_REPORT=1` prints the table (docs/anim-fix-pass/AF1-REPORT.md).
  */
 import { afterAll, describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { setMocapLocomotion } from '../src/anim/mocap';
 import type { Rec } from './helpers/mocapMeasure';
 import { contactSlideWorst, ownershipFlips, passingGap, plantedTrack } from './helpers/afpMeasure';
 import { ctRun, flickPlan, type Target } from './helpers/mocapPlayer';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 const DT = 1 / 60;
 const WARM = 2;

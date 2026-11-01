@@ -8,7 +8,8 @@
  * failed squad slot no longer drops the rest of the squad, and Sector Ops' `fill` drops a slot with no nav cell instead
  * of stalling every pending guard behind it (it still waits at the live cap).
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { flags } from '../src/core/flags';
 import { hyp2 } from '../src/core/mathx';
 import { runtimeNav } from './helpers/runtimeNav';
 import { closeDoors, slotFaults } from './helpers/guardSlotChecks';
@@ -16,6 +17,18 @@ import { CourseMode } from '../src/game/modes/courseMode';
 import { SectorMode } from '../src/game/modes/sectorMode';
 import type { CourseLayout } from '../src/game/course/courseDef';
 import type { GameState } from '../src/game/gameState';
+
+// (one-game) flags default on now; the stub game has no `opts`, so this file runs Sector Ops as before: `?missions=0&campaign=0`
+const missions0 = flags.missions;
+const campaign0 = flags.campaign;
+beforeAll(() => {
+  flags.missions = false;
+  flags.campaign = false;
+});
+afterAll(() => {
+  flags.missions = missions0;
+  flags.campaign = campaign0;
+});
 
 describe('guard play pass: every guard spawns and walks his route', () => {
   it('Marlow Yard re-plan (ctcourseReplan): every bay squad slot', { timeout: 300_000 }, async () => {

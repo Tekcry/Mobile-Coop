@@ -8,6 +8,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import {
   ARM_SPEED_MAX,
   BODY_MOTION,
@@ -29,6 +30,9 @@ import { BODY_GROUPS } from '../src/anim/tune';
 import { measureMotion, measureStudioArms, measureTurns, withBodyMotionOff, withKeyMotionOff, withTrunkMotionOff, type MotionMetrics } from './helpers/bodyMotionMeasure';
 import { runIdentity, type IdentityFixture } from './helpers/animSkeletonIdentity';
 import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 const OFF_FIXTURE = 'tests/fixtures/anim-skeleton-identity-motion-off.json';
 const CAPTURE = process.env.ANIM_SKELETON_CAPTURE === '1';

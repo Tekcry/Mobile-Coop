@@ -16,7 +16,11 @@
  */
 import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { runScenario, setupEnv, sweepScenarios, TRAV_PHASED, type PEnv, type PSc } from './helpers/playerBodyHarness';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 const PRINT = process.env.PLAYER_BODY_PRINT === '1';
 const MOCAP = process.env.PLAYER_BODY_MOCAP !== '0';

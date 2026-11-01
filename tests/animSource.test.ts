@@ -186,15 +186,15 @@ describe('the Now playing line names the source', () => {
   });
 });
 
-describe('F45: /preview/ plays Mixamo until the player picks a source', () => {
-  it('not picked: Mixamo on /preview/, the default (CMU) on the live game', () => {
+describe('F45: the game plays Mixamo until the player picks a source (one-game: every build)', () => {
+  it('not picked: Mixamo when the default is on (what the game passes), the stored default (CMU) when off', () => {
     const g = defaultSettings().gameplay;
     expect(g.animSourceSet).toBe(false);
     expect(settingAnimSource(g, true)).toBe('mixamo');
     expect(settingAnimSource(g, false)).toBe(ANIM_SOURCE_DEFAULT);
   });
 
-  it('picked: the pick wins on both builds (CMU picked on /preview/ stays CMU)', () => {
+  it('picked: the pick wins with the default on or off (CMU picked stays CMU)', () => {
     for (const s of ANIM_SOURCES) {
       const g = { animSource: s, animSourceSet: true };
       expect(settingAnimSource(g, true), s).toBe(s);
@@ -212,7 +212,7 @@ describe('F45: /preview/ plays Mixamo until the player picks a source', () => {
     for (const s of ['hand', 'mixamo'] as const) expect(sanitizeSettings({ gameplay: { animSource: s } }).gameplay.animSourceSet, s).toBe(true);
   });
 
-  it('applied on /preview/ with no pick, the Mixamo switch is on', () => {
+  it('applied with the default on and no pick, the Mixamo switch is on', () => {
     const r = applyAnimSource({ setting: settingAnimSource(defaultSettings().gameplay, true) });
     expect(r.mixamo).toBe(true);
     expect(MIXAMO.on).toBe(true);

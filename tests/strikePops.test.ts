@@ -27,6 +27,9 @@ import { TakedownController, type TakedownVictim } from '../src/game/takedownCon
 import { StrikeController } from '../src/game/strikeController';
 import type { GameState } from '../src/game/gameState';
 
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
+
 const DT = 1 / 60;
 const DEG = 180 / Math.PI;
 const ss = (t: number): number => t * t * (3 - 2 * t);

@@ -8,7 +8,7 @@
  * and objective lines. The built A5 is `tests/ctcourse/a5Substation.test.ts` (unchanged); the tick is `a5Ticks.test.ts`.
  */
 import { readFileSync } from 'node:fs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { ENEMIES } from '../../../src/ai/enemyDefs';
 import { NavGrid, type NavBlocker } from '../../../src/ai/navGrid';
 import { seenAt, sightRate, EYE_STAND, PERCEPTION } from '../../../src/ai/perception';
@@ -101,6 +101,14 @@ import { flags } from '../../../src/core/flags';
 import { checkSetPart, HOLD_H, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../../src/world/maps/ctcourseSets/types';
 import { GAL_FLOOR, GAL_TOP } from '../../../src/world/maps/ctcourseSets/facility';
 import { lastTimeAtOrOver, LEAP_APEX, MANTLE, SOLO_TOP_SPEED } from '../../helpers/soloJumpReach';
+
+// (one-game) every kit move is on by default now; the stations here are pinned with none on (the stand-ins, whose texts are
+// chosen as the part builds below), as before: `?kitmoves=0`
+const kitMoves0 = flags.kitMoves;
+flags.kitMoves = new Set<string>();
+afterAll(() => {
+  flags.kitMoves = kitMoves0;
+});
 
 const b = new LevelBuilder();
 const built = buildCtcourse(b, { replan: true });

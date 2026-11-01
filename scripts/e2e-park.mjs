@@ -80,10 +80,10 @@ try {
     return { mode0, map0, seen, maps };
   });
   // (sector-ops slice 3) co-op is the campaign: Marlow Yard in Course mode by default; no Sector Ops map is listed
-  assert(lob.mode0 === 'course' && lob.map0 === 'ctcourse', `a new room starts on the campaign, Marlow Yard (${lob.mode0}, ${lob.map0})`);
+  assert(lob.mode0 === 'course' && lob.map0 === 'ctcourseReplan', `a new room starts on the campaign, Marlow Yard, the re-planned yard (marlowreplan is on by default) (${lob.mode0}, ${lob.map0})`);
   // (clean-up G1) plus the Test Chamber: Free Roam on the dev map `studio` (e2e-coop:chamber starts it)
   assert(JSON.stringify(lob.seen) === JSON.stringify(['Campaign', 'Test Chamber']), `the lobby lists Campaign and the Test Chamber only (${lob.seen})`);
-  assert(lob.maps['Campaign'] === 'ctcourse' && lob.maps['Test Chamber'] === 'studio', `the Test Chamber is the studio map, the Campaign Marlow Yard (${JSON.stringify(lob.maps)})`);
+  assert(lob.maps['Campaign'] === 'ctcourseReplan' && lob.maps['Test Chamber'] === 'studio', `the Test Chamber is the studio map, the Campaign Marlow Yard (${JSON.stringify(lob.maps)})`);
 
   // saves are untouched by parking: the export keeps its internal magic and an exported file imports (what e2e-progression
   // checked, now that it is a legacy suite), the campaign's loadout choice included

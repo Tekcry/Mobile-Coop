@@ -1,12 +1,12 @@
-// (preview-flags, Michael 2026-10-26 ~13:55 "All on in preview") Every dark feature flag defaults on in the /preview/
-// build only; the live game, the named slots, dev and these tests keep today's defaults.
+// (preview-flags, Michael 2026-10-26 ~13:55 "All on in preview"; one-game, Michael 2026-11-01) Every feature flag that was
+// on only in the /preview/ build defaults on in every build (the live game and these tests too); `=0` turns one off.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { KIT_BUILT, KIT_MOVES_ON, PREVIEW_ON, darkFlag, flags, readCoopKit, readKitMoves } from '../src/core/flags';
 
 describe('darkFlag', () => {
-  it('off by default outside /preview/: only "1" turns it on', () => {
+  it('off by default when the default is false: only "1" turns it on', () => {
     expect(darkFlag(null, false)).toBe(false);
     expect(darkFlag('', false)).toBe(false);
     expect(darkFlag('x', false)).toBe(false);
@@ -14,7 +14,7 @@ describe('darkFlag', () => {
     expect(darkFlag('1', false)).toBe(true);
   });
 
-  it('on by default in /preview/: only "0" turns it off', () => {
+  it('on by default when the default is true (what the game passes): only "0" turns it off', () => {
     expect(darkFlag(null, true)).toBe(true);
     expect(darkFlag('', true)).toBe(true);
     expect(darkFlag('x', true)).toBe(true);
@@ -23,27 +23,27 @@ describe('darkFlag', () => {
   });
 });
 
-describe('live defaults under tests (no preview constants)', () => {
-  it('PREVIEW_ON is false and the five feature flags keep their off defaults', () => {
-    expect(PREVIEW_ON).toBe(false);
-    // (gm-flip, Michael 2026-10-26 ~23:55 "Just switch them on") the guard models are on everywhere, not a dark flag
+describe('defaults under tests (no URL, no preview constants): all on (one-game)', () => {
+  it('PREVIEW_ON is true and every feature flag defaults on', () => {
+    expect(PREVIEW_ON).toBe(true);
+    // (gm-flip, Michael 2026-10-26 ~23:55 "Just switch them on") the guard models are on everywhere
     expect(flags.guardModels).toBe(true);
-    expect(flags.charShadowLight).toBe(false);
-    expect(flags.mapReady).toBe(false);
-    expect(flags.marlowReplan).toBe(false);
-    // (guard-rules F0) the three guard flags (PR3) keep their off defaults too
-    expect(flags.guardPairs).toBe(false);
-    expect(flags.lookouts).toBe(false);
-    expect(flags.dogRelease).toBe(false);
-    // (context-prompts S2) dark until Michael's walk
-    expect(flags.contextPrompts).toBe(false);
+    expect(flags.charShadowLight).toBe(true);
+    expect(flags.mapReady).toBe(true);
+    expect(flags.marlowReplan).toBe(true);
+    expect(flags.guardPairs).toBe(true);
+    expect(flags.lookouts).toBe(true);
+    expect(flags.dogRelease).toBe(true);
+    expect(flags.contextPrompts).toBe(true);
+    expect(flags.missions).toBe(true);
+    expect(flags.campaign).toBe(true);
   });
 });
 
 describe('(coop-kit A1) kitMoves: the kit list flag', () => {
   const ids = (s: ReadonlySet<string>): string[] => [...s].sort();
 
-  it('absent: every built id on /preview/, the live list (none) elsewhere', () => {
+  it('absent: every built id when the default is on (the game), the off list (none) when it is off', () => {
     expect(ids(readKitMoves(null, true))).toEqual([...KIT_BUILT].sort());
     expect(ids(readKitMoves(null, false))).toEqual([...KIT_MOVES_ON].sort());
     expect(ids(readKitMoves(null, false))).toEqual([]);
@@ -88,15 +88,15 @@ describe('(coop-kit A1) kitMoves: the kit list flag', () => {
     for (const v of [null, '', 'x', '0', '1']) for (const p of [true, false]) expect(readCoopKit(v, readKitMoves(null, p, v))).toBe(darkFlag(v, p));
   });
 
-  it('under tests (no preview constants): none on, coopKit off; both plain writable fields', () => {
-    expect(flags.kitMoves.size).toBe(0);
-    expect(flags.coopKit).toBe(false);
+  it('under tests (no URL): every built id on, coopKit on (one-game); both plain writable fields', () => {
+    expect([...flags.kitMoves].sort()).toEqual([...KIT_BUILT].sort());
+    expect(flags.coopKit).toBe(true);
     const k0 = flags.kitMoves;
     const c0 = flags.coopKit;
     flags.kitMoves = new Set(['descent']);
-    flags.coopKit = true;
+    flags.coopKit = false;
     expect(flags.kitMoves.has('descent')).toBe(true);
-    expect(flags.coopKit).toBe(true);
+    expect(flags.coopKit).toBe(false);
     flags.kitMoves = k0;
     flags.coopKit = c0;
   });
@@ -106,7 +106,11 @@ describe('source guard', () => {
   const src = readFileSync(resolve(__dirname, '../src/core/flags.ts'), 'utf8');
   const body = src.slice(src.indexOf('export const flags'));
 
-  it('the five feature flags read through the preview default', () => {
+  it('PREVIEW_ON is the constant true (one build, one set of defaults)', () => {
+    expect(src).toMatch(/export const PREVIEW_ON = true;/);
+  });
+
+  it('the feature flags read through the default (PREVIEW_ON, true)', () => {
     expect(body).toMatch(/guardModels: params\.get\('guardmodels'\) !== '0'/);
     expect(body).toMatch(/charShadowLight: darkFlag\(params\.get\('charlight'\), PREVIEW_ON\)/);
     expect(body).toMatch(/mapReady: darkFlag\(params\.get\('mapready'\), PREVIEW_ON\)/);
@@ -117,15 +121,16 @@ describe('source guard', () => {
     expect(body).toMatch(/contextPrompts: darkFlag\(params\.get\('ctxprompts'\), PREVIEW_ON\)/);
   });
 
-  it('the mission-framework flags read through the preview default (mission-c2-rules)', () => {
+  it('the mission-framework flags read through the default (mission-c2-rules)', () => {
     expect(body).toMatch(/missions: darkFlag\(params\.get\('missions'\), PREVIEW_ON\)/);
-    // (coop-kit A1) `coopKit` loads from the kit list (which reads the preview default); it stays a plain field
+    expect(body).toMatch(/campaign: darkFlag\(params\.get\('campaign'\), PREVIEW_ON\)/);
+    // (coop-kit A1) `coopKit` loads from the kit list (which reads the default); it stays a plain field
     expect(body).toMatch(/coopKit: readCoopKit\(params\.get\('coopkit'\), kitMovesAtLoad\)/);
     expect(src).toMatch(/kitMovesAtLoad = readKitMoves\(params\.get\('kitmoves'\), PREVIEW_ON, params\.get\('coopkit'\)\)/);
     expect(body).toMatch(/kitMoves: kitMovesAtLoad/);
   });
 
-  it('mixamo: the URL stays its own switch; /preview/ turns the captures on when the URL names none', () => {
+  it('mixamo: the URL stays its own switch; the captures are on when the URL names none', () => {
     expect(body).toMatch(/mixamo: onOffFlag\(params\.get\('mixamo'\)\)/);
     const mixamo = readFileSync(resolve(__dirname, '../src/anim/mixamo.ts'), 'utf8');
     expect(mixamo).toContain('setMixamo(flags.mixamo ?? PREVIEW_ON)');

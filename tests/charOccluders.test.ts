@@ -321,11 +321,11 @@ describe('no graphics state (CLAUDE.md: gameplay never reads graphics state; PLA
   });
 });
 
-describe('the flag (BRIEF A9: dark until Michael\'s walk)', () => {
-  it('flags.charShadowLight is false without ?charlight=1 and true with it', async () => {
+describe('the flag (BRIEF A9; on by default since one-game, 2026-11-01)', () => {
+  it('flags.charShadowLight is true without a parameter, false with ?charlight=0, true with ?charlight=1', async () => {
     vi.resetModules();
     vi.stubGlobal('location', { search: '' });
-    expect((await import('../src/core/flags')).flags.charShadowLight).toBe(false);
+    expect((await import('../src/core/flags')).flags.charShadowLight).toBe(true);
     vi.resetModules();
     vi.stubGlobal('location', { search: '?charlight=0' });
     expect((await import('../src/core/flags')).flags.charShadowLight).toBe(false);

@@ -198,7 +198,8 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   // (map-ready S2) E2E_PARAMS (optional, e.g. `mapready=1`): appended to every page's query, so a laptop alone run can
   // turn a flag on for suites that do not set it; a key the suite already names keeps the suite's value
   const q = (process.env.E2E_PARAMS ?? '').split('&').filter((kv) => kv && !new RegExp(`(^|&)${kv.split('=')[0]}=`).test(q1) && !new RegExp(`[?&]${kv.split('=')[0]}=`).test(url)).reduce((a, kv) => `${a}&${kv}`, q1);
-  const mapReadyPage = /(^|&)mapready=1(&|$)/.test(q) || /[?&]mapready=1(&|$)/.test(url);
+  // (one-game) the flag is on by default now: the wait applies unless the page says `mapready=0`
+  const mapReadyPage = !(/(^|&)mapready=0(&|$)/.test(q) || /[?&]mapready=0(&|$)/.test(url));
   await timed('boot', async () => {
   await page.goto(url + (url.includes('?') ? '&' : '?') + q);
   await page.waitForFunction(

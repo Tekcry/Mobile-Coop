@@ -180,7 +180,7 @@ export const JOINTS = ['wristL', 'wristR', 'ankleL', 'ankleR', 'headNode'];
  * `launchOpts` goes to e2e-lib `launch` (e.g. `args`).
  */
 export async function hostAndJoin(url, n = 2, launchOpts = {}) {
-  const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local', viewport: NET_VIEWPORT, ...launchOpts });
+  const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local&ctxprompts=0', viewport: NET_VIEWPORT, ...launchOpts });
   const pages = [A];
   const errors = [eA];
   await A.click('.main-menu .btn:has-text("Co-op")');
@@ -188,7 +188,7 @@ export async function hostAndJoin(url, n = 2, launchOpts = {}) {
   await until(A, () => !!document.querySelector('.lobby-screen') && !!window.__coop, null, 15000, 'host lobby');
   const code = await A.evaluate(() => window.__coop.session.code);
   for (let i = 1; i < n; i++) {
-    const { page, errors: e } = await openPage(ctx, url, 'net=local');
+    const { page, errors: e } = await openPage(ctx, url, 'net=local&ctxprompts=0');
     await page.click('.main-menu .btn:has-text("Co-op")');
     await page.click('.btn:has-text("Join with code")');
     await page.keyboard.type(code.toLowerCase());
