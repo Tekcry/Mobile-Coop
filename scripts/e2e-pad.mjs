@@ -773,10 +773,10 @@ try {
   }
   console.log('context prompts (context-prompts S4): the cluster on a door, the pad glyph, the hold ring, the key label');
   {
-    const C = await launch({ url, params: 'autostart=warehouse&mode=clear&ctxprompts=1' });
+    const C = await launch({ url, params: 'autostart=studio&mode=test&ctxprompts=1' });
     try {
       await C.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
-      // the door spot of e2e-stealth-ai's `doors` scenario, facing the closed door, the pad the last device
+      // (G2c) the Test Chamber's annex door (hinge (28.15, 19.4), the leaf along +z): 0.8 m west of it facing it, the pad the last device
       await C.page.evaluate(() => {
         const a = window.__app;
         const g = a.current;
@@ -822,9 +822,9 @@ try {
             };
           },
         };
-        const d = g.world.doors.nearest(-0.95, 12, 0.5);
+        const d = g.world.doors.nearest(28.15, 20, 0.5);
         g.world.doors.close(d, () => false);
-        window.__cp.tp(-0.95, 11.2, 0);
+        window.__cp.tp(27.35, 20, Math.PI / 2);
         P.set(8, 1);
         window.__cp.step(2);
         P.set(8, 0);
@@ -871,7 +871,7 @@ try {
       });
       assert(!away0.opening, `the door's open move ends (${JSON.stringify(away0)})`);
       await C.page.evaluate(() => {
-        window.__cp.tp(-0.95, 7, Math.PI);
+        window.__cp.tp(24, 20, -Math.PI / 2);
         window.__cp.step(30);
       });
       const away = await C.page.evaluate(() => window.__cp.read());

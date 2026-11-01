@@ -409,10 +409,13 @@ try {
   // renderer no longer shares the CPU with the match page's (which ran at about 1.5 frames a second beside it on the
   // desktop, 2.5-4 alone; the suite then ran past the runner's 600 s limit inside the tuner-camera block)
   await page.goto('about:blank');
-  // (one-game) `mapready=0` for this boot: map-ready crashes the render on the Warehouse and Proving Grounds (goes when stage H deletes those maps)
-  const M = await launch({ url, params: 'autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot&mapready=0' });
+  // (clean-up G2c) the pause menu is checked on the Test Chamber's test mode (was the Warehouse mission): its items, the notes, the
+  // quit confirm, Start, the controller drop; the Objectives screen of a mission match on the Marlow Yard course (below), and the
+  // pause row of the animation tuner with the stage on
+  console.log('pause on the Test Chamber (G2c)');
+  const S = await launch({ url, params: 'autostart=studio&mode=test' });
   try {
-    const P = M.page;
+    const P = S.page;
     const GM = (f, a) => P.evaluate(f, a);
     const mtop = () => GM(() => window.__app.screens.top?.el.classList[1] ?? '(none)');
     const mkey = (k) => GM(() => window.__app.nav.focused?.dataset.key ?? '(none)');
@@ -440,24 +443,19 @@ try {
     await GM(() => document.querySelector('.pause-screen .ps-room').remove());
     const keys = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
     // (menu-notes A2) no separate Controls item: controls live in Settings > Controls
-    // (anim-tuner pass 3) the dev row "Animation tuner (dev)" before Quit (Up from Resume still wraps to Quit)
     // (batch-23) no Test Chamber row in the pause menu: it opens from the main menu (and the co-op lobby) only
-    // (G1) and no Animation tuner row outside the Test Chamber: this is a normal match, the tuner opens in the studio only
+    // (G2c) the plain Test Chamber (no animation stage) lists no Animation tuner row either: the tuner opens here (F3 > Anim, Settings)
+    // but the pause row needs the stage (below)
     // (hud-guidance B5, R12) Notes right after Objectives
     assert(keys === 'resume,objectives,notes,settings,report-feedback,quit', `pause items (${keys})`);
-    assert(!keys.includes('anim-studio') && !keys.includes('anim-tuner'), `the pause menu has no Test Chamber row and, off the Test Chamber, no Animation tuner row (${keys})`);
-    // (G1) F3 > Anim, Settings > Developer and show() do nothing off the Test Chamber (smoke covers the main menu)
-    const gate = await GM(() => {
-      const t = window.__app.debug.animTune;
-      t.show();
-      t.toggle();
-      return { open: t.isOpen, can: t.canOpen, shown: !document.querySelector('.anim-tune').hidden };
-    });
-    assert(!gate.open && !gate.can && !gate.shown, `the tuner does not open off the Test Chamber (${JSON.stringify(gate)})`);
+    assert(!keys.includes('anim-studio') && !keys.includes('anim-tuner'), `the pause menu has no Test Chamber row and, with the stage off, no Animation tuner row (${keys})`);
+    const gate0 = await GM(() => ({ can: window.__app.debug.animTune.canOpen, row: window.__app.debug.animTune.pauseRow }));
+    assert(gate0.can && !gate0.row, `the tuner may open on the Test Chamber but its pause row waits for the stage (${JSON.stringify(gate0)})`);
+    // (G2c) the test mode has no objectives: the screen says so (the Marlow Yard course's own is below)
     await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
     await frames(P, 3);
     const objs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));
-    assert((await mtop()) === 'objectives-screen' && objs.length >= 2 && objs.some((t) => /Current/.test(t)), `Objectives lists the mission with a current one (${objs.length})`);
+    assert((await mtop()) === 'objectives-screen' && objs.length === 1 && /No objectives/.test(objs[0]), `Objectives on the test mode: "No objectives" (${objs.join(' | ')})`);
     await GM(() => document.querySelector('.objectives-screen [data-legend="back"]').click());
     await frames(P, 3);
     assert((await mtop()) === 'pause-screen' && (await mkey()) === 'objectives', 'Back from Objectives returns with focus kept');
@@ -491,6 +489,74 @@ try {
     assert(!(await GM(() => !!document.querySelector('.pause-screen .ps-notice:not([hidden])'))), 'a reconnect clears the line');
     await GM(() => window.__app.screens.top.resume());
     await frames(P, 4);
+  } finally {
+    await S.browser.close();
+  }
+  // (G2c) the animation stage on: the pause menu lists the tuner row before Quit
+  const SS = await launch({ url, params: 'autostart=studio&stage=1' });
+  try {
+    const P = SS.page;
+    const GM = (f, a) => P.evaluate(f, a);
+    await P.waitForFunction(() => window.__app.current?.player && window.__app.current.studio, null, { timeout: 90000 });
+    await frames(P, 30);
+    await GM(() => window.__app.current.pause());
+    await frames(P, 4);
+    const sk = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
+    assert(sk === 'resume,objectives,notes,settings,report-feedback,anim-tuner,quit', `pause items with the animation stage on (${sk})`);
+  } finally {
+    await SS.browser.close();
+  }
+  // (G2c) the Marlow Yard course: its Objectives screen lists the set's objectives with a current one, and the tuner does not open
+  // outside the Test Chamber
+  const C = await launch({ url, params: 'autostart=ctcourse&mode=course' });
+  try {
+    const P = C.page;
+    const GM = (f, a) => P.evaluate(f, a);
+    const mtop = () => GM(() => window.__app.screens.top?.el.classList[1] ?? '(none)');
+    await P.waitForFunction(() => window.__app.current?.player, null, { timeout: 120000 });
+    await frames(P, 30);
+    await GM(() => window.__app.current.pause());
+    await frames(P, 4);
+    const ck = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key));
+    assert(!ck.includes('anim-studio') && !ck.includes('anim-tuner'), `the course's pause menu has no Test Chamber row and no Animation tuner row (${ck})`);
+    const gate = await GM(() => {
+      const t = window.__app.debug.animTune;
+      t.show();
+      t.toggle();
+      return { open: t.isOpen, can: t.canOpen, shown: !document.querySelector('.anim-tune').hidden };
+    });
+    assert(!gate.open && !gate.can && !gate.shown, `the tuner does not open off the Test Chamber (${JSON.stringify(gate)})`);
+    await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
+    await frames(P, 3);
+    const objs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));
+    // (the course gives the screen no objective lines: it says so; a mission's lines with a current one are checked on the mission page below)
+    assert((await mtop()) === 'objectives-screen' && objs.length >= 1, `Objectives opens on the Marlow Yard course (${objs.join(' | ')})`);
+  } finally {
+    await C.browser.close();
+  }
+  // (one-game) `mapready=0` for this boot: map-ready crashes the render on the Warehouse and Proving Grounds (goes when stage H deletes those maps)
+  const M = await launch({ url, params: 'autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot&mapready=0' });
+  try {
+    const P = M.page;
+    const GM = (f, a) => P.evaluate(f, a);
+    const mtop = () => GM(() => window.__app.screens.top?.el.classList[1] ?? '(none)');
+    const mkey = (k) => GM(() => window.__app.nav.focused?.dataset.key ?? '(none)');
+    await P.waitForFunction(() => window.__app.current?.player, null, { timeout: 90000 });
+    await frames(P, 30);
+    // (G2c) the mission's Objectives screen (a Warehouse Infiltration part, gone in stage H): the objectives with a current one
+    await GM(() => window.__app.current.pause());
+    await frames(P, 4);
+    await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
+    await frames(P, 3);
+    const mobjs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));
+    assert((await mtop()) === 'objectives-screen' && mobjs.length >= 2 && mobjs.some((t) => /Current/.test(t)), `Objectives lists the mission with a current one (${mobjs.length})`);
+    await GM(() => document.querySelector('.objectives-screen [data-legend="back"]').click());
+    await frames(P, 3);
+    await GM(() => window.__app.screens.top.resume());
+    await frames(P, 4);
+    // (the pad is the device from here: the pause section that connected it ran on the Test Chamber page above)
+    await GM(() => { window.__pad.connect(); window.__app.input.setMode('gamepad'); });
+    await frames(P, 4);
     // (tuner-ui) the tuner by pad: Pause > Animation tuner (A) takes the pad on the Body tab's first picker and the game
     // holds still (pause while tuning); every value shows without touching it, readable on dark; the hint strip sits
     // under the rows; LB / RB cycle the tabs (wrapping); A opens a drop-down list (the D-pad moves, B backs out, A picks:
@@ -502,6 +568,9 @@ try {
     await GM(() => {
       window.__gateWas = window.__app.debug.animTune.allowed;
       window.__app.debug.animTune.allowed = () => true;
+      // (G2c) and the pause row's stage gate (this match is not the Test Chamber's stage)
+      window.__stageWas = window.__app.debug.animTune.stageOn;
+      window.__app.debug.animTune.stageOn = () => true;
     });
     await GM(() => window.__app.current.pause());
     await frames(P, 4);
@@ -692,7 +761,10 @@ try {
     await GM(() => window.__animTune.marker(false));
     assert(mk1.n === 0 && mk1.el, `tuner: the barrel marker makes no scene meshes and draws on its overlay (${mk1.n} marker meshes, overlay ${mk1.el})`);
     await GM(() => window.__app.debug.animTune.hide());
-    await GM(() => (window.__app.debug.animTune.allowed = window.__gateWas));
+    await GM(() => {
+      window.__app.debug.animTune.allowed = window.__gateWas;
+      window.__app.debug.animTune.stageOn = window.__stageWas;
+    });
     await frames(P, 2);
     // (LR16a, one light model) Pause > Settings > Gameplay: no Lamp falloff row, no `lampFalloff` setting or match mode
     await GM(() => window.__app.current.pause());
