@@ -121,7 +121,7 @@ Plan and rules: docs/sector-redesign/briefs/ART-PLAN.md; builds: docs/sector-red
   one literal per field: hipTurn / hipTime, chestTurn / chestTime deg and cycles, sway / swayTime cm and cycles,
   headFollow share, headNod deg) a pelvis yaw swing, a shoulder counter swing, a pelvis lateral sway and a head nod on
   the gait phase, blended as phasors by the graph's own weights (moveW, crouch, drawn share, raise, the KEYED_GAITS /
-  KEYED_CROUCH speed shares: co-op parity). `AnimGraph.bodyMotion` writes `RigTargets.motion` after the studio drive,
+  KEYED_CROUCH speed shares: co-op parity). `AnimGraph.bodyMotion` writes `RigTargets.motion` after the chamber drive,
   gated on `wrenReady` and on foot (eased over KEYED_WALK_BAND.tau); the rig adds the sway to the pelvis before the
   feet's reach, turns the pelvis and takes it back at the spine after the keyed trunk (`motionTrunk`), and lets
   `headFollow` of the chest's yaw off the facing through the world-stabilised head (not aiming). Added only when

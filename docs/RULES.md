@@ -150,7 +150,7 @@ with an Opus plan; the orchestrator assigns it (G283).
 | Docs only (`*.md`, `docs/**`) | CI `check` (`affected-e2e` passes at once) | - |
 | An agent sub-step | `npm run typecheck:fast` + `npx vitest run <files>` | the agent's machine |
 | A PR | CI `check` + `affected-e2e`: one suite, the closest to the folders the PR touches (G421; `affectedPick` in `scripts/e2e-affected.mjs`: most changed files reached, then the most specific `DIRECT_COVERS` row, then the shorter time; `node scripts/run-e2e.mjs --affected origin/master --list` names them; `E2E_AFFECTED_MAX` / `--affected-max`, 0 = no cap). `src/net`, `src/save` and wire changes (a file `src/net/protocol.ts` imports) run exactly the co-op group `e2e-coop` + `e2e-netmove` + `e2e-ctcourse`. The train's full run catches the rest. A checker gate on top: for `src/player` or `src/game` the lead requests `e2e-coop` + `e2e-netmove` (`request.mjs`) and the checker passes only when they are green | laptop queue |
-| Tuner / Anim Studio / tests only | CI `check` + `affected-e2e` | laptop queue |
+| Tuner / Test Chamber / tests only | CI `check` + `affected-e2e` | laptop queue |
 | Tool scripts (`scripts/perf.mjs`, `.github/**`) | CI `check` (unit tests; `affected-e2e` passes at once, its text says "docs / unit only"); a live run when the lead says | - / laptop queue |
 | A train | one full `npm run e2e` on the train head | laptop queue |
 | Look or perf | `npm run e2e:gpu`, perf budgets, contact sheets, look videos; slot-alone measures right after a release | laptop 4189 (a one-off on the desktop under `heavy.lock`) |

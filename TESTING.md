@@ -375,7 +375,7 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   changes), rebuild, reset those sliders: the pose looks the same. In a co-op pair loop (and with a partner) role B /
   the partner shows the same tune; the guard in a hold pair does not.
 - [ ] Move rows (anim-joints J2): in the Test Chamber pick "traversal: vault the low wall", then in Body > Joints pick
-  the state `Trav` > `Vault` (a studio loop turns follow off); turn her right elbow there: it shows during the vault
+  the state `Trav` > `Vault` (a chamber loop turns follow off); turn her right elbow there: it shows during the vault
   only and is gone when she walks on. In the leg-up pair, `Team` > `Boost` > `B` moves role B only.
 - [ ] Reload row (anim-joints J2): in play (follow on), reload; the Joints picker shows `Reload` while the reload plays;
   a left elbow edit there shows during each reload and not between them.
@@ -390,7 +390,7 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   Gear tab, pick `goggles`, slide y / z and pitch until the worn goggle sits off the brow and clear of the face, no
   clipping; pick `goggles` > `crouch`, crouch: it follows. Vision off: the stowed goggle does not move (no stowed
   socket yet). Zoom out to LOD1 / LOD2: only the lens moves there (the housing is fused into the head), a known limit.
-  Bake and reset as above: the same look; a guard never takes it (the partner and the studio puppets carry it but show the stowed goggle).
+  Bake and reset as above: the same look; a guard never takes it (the partner and the chamber puppets carry it but show the stowed goggle).
 - [ ] Pause menu (G1): in a normal match it lists Resume, Objectives, Notes, Settings, Report feedback and Quit - no Animation tuner row; in the Test Chamber the Animation tuner (dev) row is there. F3 > Anim, Settings > Developer and the pad do not open the tuner outside the Test Chamber.
 - [ ] Test Chamber in co-op (G1): on two pages (or two devices) Main menu > Co-op > Host; the Mode row offers Campaign and Test Chamber
   (the Map row then reads Test Chamber, locked); pick Test Chamber, the partner joins by the code and readies, the host starts: both
@@ -405,8 +405,8 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   previous (blue) / next (orange) key once played; turntable circles the view; Front / Side / Back / Top lock the view;
   guard puts a figure at the hold spot. Move a
   slider, Ctrl+Z (or Y menu > Undo) puts it back, Ctrl+Y redoes; Store A, change, Store B, A/B flips; Save a preset,
-  Reset all, Load brings it back. Quit to the menu: normal speed, no studio left.
-- [ ] Test Chamber pairs and traversal (anim-studio-2): in the studio pick "pair: leg-up": two Wrens at the team block
+  Reset all, Load brings it back. Quit to the menu: normal speed, no chamber left.
+- [ ] Test Chamber pairs and traversal (anim-studio-2): in the chamber pick "pair: leg-up": two Wrens at the team block
   (north), B crouched with cupped hands, A walks in, is tossed up and hangs on the lip; Pause, "key >" moves both; the
   panel follows "Co-op: leg-up" (LT / RT: role A / B / contact). Move "A climber" body up: only A moves; a contact
   slider moves A only while the foot is in the hands. Try the relay, throw, hang-down (head first over the edge), rope
@@ -499,7 +499,7 @@ Main menu > Co-op > Host a room > Start (Marlow Yard), pad first, then keyboard 
   click the chip on another tab: it goes back to the slider. Fold and open a group by its header.
 - [ ] By pad: from the tab's first list, D-pad up reaches the chips and the part list; A on the part list, pick Left
   knee: the focus lands on its first slider. Y > Pin / unpin this slider. A on a group header folds it.
-- [ ] The status line in the studio: walk with Rifle picked reads "Walk · Rifle holstered"; Low ready "Low ready · Rifle
+- [ ] The status line in the chamber: walk with Rifle picked reads "Walk · Rifle holstered"; Low ready "Low ready · Rifle
   drawn".
 - [ ] Sizes S, M and L (Settings) and a 1280 x 720 window: the panel stays usable (tabs wrap, rows readable) and does
   not cover her. In a co-op Test Chamber room (Co-op > host > Mode: Test Chamber; the stage is off) the panel overlays play with no dock and the HUD stays.

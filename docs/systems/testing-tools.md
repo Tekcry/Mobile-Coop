@@ -44,9 +44,9 @@ This page lists the suites and how they are picked.
   only, never a timeout, signal or other code (`scripts/e2e-verdict.mjs`). Long runs use `E2E_SUITE_TIMEOUT=900`
   (e2e-desktop about 553 s, e2e-mouse about 405 s solo). `E2E_REPORT` (space or comma list) makes those suites or parts REPORT ONLY.
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
-  changed folders (`QUICK_COVERS` in `scripts/e2e-affected.mjs`, master's map unchanged, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
-  `src/game/studioStage`, `src/world/maps/studio.ts`, `src/save/animTuneStore`, `src/ui/studio*`, `tuneSnapshots`,
-  `overlayProject`, `animTune*`, `tuner*` (tunerLayout, tunerMouse, tunerTarget, tunerPhone): `e2e-studio` plus their folder's suites; `tuner*`, `animTune*`, `studioStage` and `src/player/freeView` also `e2e-tuner-phone`), `src/core/quality`, `display`, `settings`
+  changed folders (`QUICK_COVERS` in `scripts/e2e-affected.mjs`, master's map unchanged, first match wins: the chamber files (`src/anim/chamber*`, `tuneHistory`,
+  `src/game/chamberStage`, `src/world/maps/chamber.ts`, `src/save/animTuneStore`, `src/ui/chamber*`, `tuneSnapshots`,
+  `overlayProject`, `animTune*`, `tuner*` (tunerLayout, tunerMouse, tunerTarget, tunerPhone): `e2e-chamber` plus their folder's suites; `tuner*`, `animTune*`, `chamberStage` and `src/player/freeView` also `e2e-tuner-phone`), `src/core/quality`, `display`, `settings`
   and `flags` by file, the section rating files (`src/ui/hud/ratingCard`, `src/game/rating/`, `src/save/ratingRecord`; `courseMode`
   and `sectorMode` also pick `e2e-section-rating`), the Marlow Yard sets (`src/world/maps/ctcourseSets/`, `ctcourseGreybox.ts`:
   `e2e-ctcourse`), then the folders); a set step module `scripts/e2e-ctcourse/<set>.mjs` reruns `e2e-ctcourse` (`SUITE_DIRS`);
@@ -96,8 +96,8 @@ This page lists the suites and how they are picked.
   the lamp files (`src/world/light*`, `lamp*`, `bakedLamps`, `ambientGrid`, `darkCurve`) and `src/voxel` -> lightbake, desktop;
   `src/config`, `src/core` -> CORE (`e2e-move`, `e2e-combat`, `e2e-anim`); `src/weapons` -> combat, weapons-carry, stealth-ai,
   `e2e-sectorops:1` (`weapons.lastShotNoise` drives guard hearing; train 30); `src/ai` -> stealth-ai, guard-carry,
-  `e2e-sectorops:1`; `src/net`, `src/save` (the shape; the tuner store picks the studio) and `src/security/data` -> the co-op group
-  (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`); the studio and tuner files -> `e2e-studio` (and `e2e-tuner-phone` / `e2e-menus`);
+  `e2e-sectorops:1`; `src/net`, `src/save` (the shape; the tuner store picks the chamber) and `src/security/data` -> the co-op group
+  (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`); the chamber and tuner files -> `e2e-chamber` (and `e2e-tuner-phone` / `e2e-menus`);
   the section rating files (`src/ui/hud/ratingCard`, `src/game/rating/`, `src/save/ratingRecord`: a kv key, not the save shape)
   -> `e2e-section-rating`, which `courseMode` and `sectorMode` also pick; the Marlow Yard sets (`src/world/maps/ctcourseSets/`,
   `ctcourseGreybox.ts`) -> `e2e-ctcourse`; `src/player/smoothBody*` and `bodyEffectRecovery` also `e2e-guard-carry`.
@@ -204,7 +204,7 @@ behind a VPN adapter).
   outside-end stop with its edge flag, pull-away and context exits; Warehouse: two guards against a player on a wall (a
   flanker after > 4 s, a grenade after > 6 s: `e2e-wall:flanker`, LEGACY). e2e-netmove adds "wall", "wall crouch" and
   "stack"; the pad and keyboard verb tables cover the button
-- `e2e-stealth-ai` Test Chamber (`autostart=studio&mode=test`; the annex hall, store and dark bay; clean-up G2d, the core guard play only):
+- `e2e-stealth-ai` Test Chamber (`autostart=chamber&mode=test`; the annex hall, store and dark bay; clean-up G2d, the core guard play only):
   seeing (shadow vs light detection under the real lamp L0 and in the 0.12 dark bay, the arc warns first, vision modes
   do not change detection, no sight through walls, the goggles button), hearing (noise -> suspicious -> investigating, one
   guard of four sent to a noise, suppressed / loud / impact shots), search (LKP + ghost + converge + search ends, the
@@ -332,17 +332,17 @@ behind a VPN adapter).
   renderer in a match, every material within 16 textures, no `GameState` survives a release (`SHOTS=dir` saves shots)
 - `e2e-offline` service worker precache (every manifest entry), offline boot + match, backgrounding pauses, co-op offline
   state, a v1 save in IndexedDB migrated on boot with a backup
-- `e2e-testmode` (clean-up G2a; covers `src/game/modes/testMode.ts`, the studio and Proving Grounds maps): `?autostart=studio&mode=test`
+- `e2e-testmode` (clean-up G2a; covers `src/game/modes/testMode.ts`, the chamber and Proving Grounds maps): `?autostart=chamber&mode=test`
   has nav, an enemy manager, `g.mode.id === 'test'`, infinite ammo and nothing queued; a spawned grunt walks its route; a
   solo death respawns with no DEFEAT; `mode=sandbox` on the same map is unchanged; Proving Grounds in the test mode
   builds its four dummies from `MapLayout.dummies`. The co-op side (revives, the lobby's Test Chamber): `e2e-coop`
   and `e2e-coop:chamber`.
-- `e2e-studio` (anim-studio; covers `src/anim/studio*`, `src/anim/tuneHistory`, `src/game/studioStage`, `src/ui/studio*`,
-  `src/ui/tuneSnapshots`, `src/ui/animTune*`, the studio map and the tuner store): `?autostart=studio` boots the stage with
-  the tuner panel and its Studio section; a keyed clip in place on Wren's graph, paused a key step moves the phase by one
-  key and back; mirror reaches the drive; a state walks by synthesised input; 2x game speed in the studio; a slider
-  change undoes and redoes; a preset saves to the tuner's IndexedDB store and loads back; no studio row in the studio's
-  pause menu; quitting to the menu leaves time scale 1 and no studio state; the main menu row. (tuner-ui, also covers
+- `e2e-chamber` (anim-studio; covers `src/anim/chamber*`, `src/anim/tuneHistory`, `src/game/chamberStage`, `src/ui/chamber*`,
+  `src/ui/tuneSnapshots`, `src/ui/animTune*`, the chamber map and the tuner store): `?autostart=chamber` boots the stage with
+  the tuner panel and its Chamber section; a keyed clip in place on Wren's graph, paused a key step moves the phase by one
+  key and back; mirror reaches the drive; a state walks by synthesised input; 2x game speed in the chamber; a slider
+  change undoes and redoes; a preset saves to the tuner's IndexedDB store and loads back; no chamber row in the chamber's
+  pause menu; quitting to the menu leaves time scale 1 and no chamber state; the main menu row. (tuner-ui, also covers
   `src/ui/tunerLayout`) Picking a loop sets the tuner's state; a walk state on the spot keeps the root within 5 cm while
   the gait runs; a side snap holds the camera to her facing as she turns; the pause menu stops a moving loop. (e2e-menus
   has the tuner-ui pad checks: tabs by LB / RB, the drop-down, values shown and light on dark, the hint strip under the
@@ -357,7 +357,7 @@ behind a VPN adapter).
   greyed on a keyed-only clip; a state picked in the Joints part's state list plays its loop (the tab stays); on the spot
   (header button, F8) the walk holds its root under 5 cm over 2 s of live play, off she walks; the four stage lights light
   her meshes, keep their offset in the view frame (from her toward the camera, T2) as she walks, and the Stage light slider scales them. (marlow-bays T2) The
-  studio hides the game HUD (`body.tt-studio`) and the canvas ends where the docked panel starts; a click on the body
+  chamber hides the game HUD (`body.tt-chamber`) and the canvas ends where the docked panel starts; a click on the body
   map's left knee shows only knee sliders and marks the knee; a click on her head in the scene picks the head; pin and
   unpin a slider (chip, star), a moved slider heads the recent chips; the Joints rows fold in groups (a header opens and
   closes its group). (marlow-bays T1a) A
@@ -373,8 +373,8 @@ behind a VPN adapter).
   covers `src/anim/moveTune`) A co-op pair (`pair:boost`): two puppets, paused and scrubbed into the boost A is up off B's
   hands and B on the floor, both posed at one clock time, a key step moves both by one frame; a traversal loop
   (`trav:ladder`) reaches the ladder by the synthesised Y; `state:idle` puts Wren back in the middle, off the ladder
-- `e2e-tuner-phone` (marlow-bays item 26; covers `src/ui/tuner*`, `src/ui/animTune*`, `src/game/studioStage`,
-  `src/player/freeView`; about 1 minute): `?autostart=studio` on three pages. Landscape 844 x 390 and portrait 390 x 844
+- `e2e-tuner-phone` (marlow-bays item 26; covers `src/ui/tuner*`, `src/ui/animTune*`, `src/game/chamberStage`,
+  `src/player/freeView`; about 1 minute): `?autostart=chamber` on three pages. Landscape 844 x 390 and portrait 390 x 844
   with touch emulation (`hasTouch`, `isMobile`; `launch({ context })` in e2e-lib): the drawer / sheet is chosen and the
   canvas gives up its width / height; (26b) touch: the drawer about 38% wide / the sheet about 45% high, every visible
   touch target >= 34 px, 13 px text; a fake pad press (`window.__pad`) switches live to the pad density (26 px rows,

@@ -226,7 +226,7 @@ The close strike of G42 / G155; this is the build.
   attacker before the stab aborts (both drives and hands off, the knife away); after it the kill finishes at once. The
   attacker's clip window plays to its end and blends out before she is free (no offer meanwhile;
   `TakedownController.busy` stays true, so `gameState` keeps her gun stowed and traversal off until then).
-- Studio: the `pair: knife <id>` rows play Wren and a guard through the same code (`studioStage.knifeFrame`).
+- Chamber: the `pair: knife <id>` rows play Wren and a guard through the same code (`chamberStage.knifeFrame`).
 - Side kill (S3): the row by his facing (his back more towards her: behind / behindLow, else front), the grab eased from
   his real facing (`kFromYaw = e.yaw`): at most a 90 degree turn.
 - Co-op (S3; Q39 / G400 "players must look exact in everyones games"):
