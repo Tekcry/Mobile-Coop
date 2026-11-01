@@ -57,3 +57,7 @@ build).
 **N9. Mark the old rules, vision and decisions as replaced now** (native multiple choice), not only at the Phase 1
 rewrite: this file, the "history" status on `docs/RULES.md` and `docs/VISION.md`, the freeze note on
 `docs/DECISIONS.md` and the new read-first list and authority order in `CLAUDE.md`.
+
+**N10. The rope-window and roof-vent tests get a new small booth** (native multiple choice): a separate 3 x 3 m block,
+4.4 m tall, with a glazed window under its own rope and a ceiling vent from its roof. The existing team block stays
+exactly as it is. Declined: hollowing out the team block. Layout: `docs/plan/TEST-CHAMBER-SPEC.md`.
