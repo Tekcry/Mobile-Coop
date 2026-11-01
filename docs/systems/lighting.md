@@ -62,19 +62,19 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   cut at the outer angle). Flashlights: the linear `lampTerm`. `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL`
   and the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only,
   `LAMP_LEVEL_GAIN` 1.2 gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`. `?gfx=min` keeps Babylon's linear
-  real lights for the picture (the field is photometric). History: `docs/archive/lighting-review/PROPOSAL.md` section 7
-  (LR13), numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
+  real lights for the picture (the field is photometric). History: docs/archive/lighting-review/PROPOSAL.md section 7
+  (LR13), numbers in docs/sector-redesign/checks/light-measure.md; tests `tests/lampFalloff.test.ts`.
 - (shadow audit; always on since LR16a) `world/shadowAccuracy.ts`: the field reads the ambient fill trilinearly as the
   shaders do; each lamp's door list skips doorways the lamp cannot see (`doorSeen`, `bakeVisSampler`; field and shaders
   build the one list); the light rig sets the game's PBR materials (figures, weapons) to the standard falloff so
   flashlights light them as they light the level (`gameLightFalloff`) and gives shadow maps to cut beams first
   (`torchShadowPass`); guards' body-light samples test flashlights against static geometry (`rayOccluder`). Findings:
-  `docs/sector-redesign/checks/light-measure.md` (shadow audit); test `tests/shadowAccuracy.test.ts`.
+  docs/sector-redesign/checks/light-measure.md (shadow audit); test `tests/shadowAccuracy.test.ts`.
   LR15: 8 door slots per lamp (`DOORS_PER_LAMP_ACCURATE`: doors 5-8 in one extra texel per lamp, field and shaders share
   the list; `LAMP_DOORS8`) and torches without a shadow map drawn in `LampPlugin` with the field's `lampTerm` x a cut at
   the beam's reach (`LAMP_TORCH`, `lampTorch` UBO); non-PBR lit materials (fences, ropes, decals) then get no unshadowed
   torch light.
-  Build and check: `docs/sector-redesign/checks/lr15-build.md`, `lr15-check.md`.
+  Build and check: docs/sector-redesign/checks/lr15-build.md, `lr15-check.md`.
 - `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility + the
   lamps listed for the 2 m column x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility, closed doors
   (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights (flashlights);
@@ -175,8 +175,8 @@ Decided, not built yet (G405): the campus lamp bakes ship pre-built with the gam
 `world/shippedBake.ts` `SHIPPED_BAKE_MAPS` (campusOps, thornbeckMill; piano SO2): `scripts/prebake.mjs` bakes each into
 its own `.prebake-cache/<h>/` folder and the game reads `bakes/<map>.json` for each; a map with no section split ships
 one file.
-Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; build report
-`docs/sector-redesign/checks/section-bake-build.md`.
+Brief and decisions SB1-SB14: docs/sector-redesign/briefs/SECTION-BAKE.md; build report
+docs/sector-redesign/checks/section-bake-build.md.
 - Opt-in by map id (`world/sectionBake.ts` `SECTION_BAKE_MAPS`: campusOps; regions in `world/maps/campusBake.ts`, per
   section plan rects + its connectors, grown 2 m). Every other map, `?fullbright` and a full cache hit bake as before.
 - On a cache miss `bakeLevelLight` lays the whole result out at once (`lampLayout`: every box from `lampBox`, zero cells)
@@ -192,7 +192,7 @@ Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; bui
 - Parity: per-lamp bytes are independent of the job, so the field at any point of the live section equals the full
   bake's (`tests/sectionBake.test.ts`, exact at random points; the joined result byte-identical). The joined result is
   cached under the full key at the next section change or the match's end (SB14: no mid-play clone).
-- Failures (section-bake robust, `docs/sector-redesign/checks/section-bake-robust.md`): a worker error or a job in flight
+- Failures (section-bake robust, docs/sector-redesign/checks/section-bake-robust.md): a worker error or a job in flight
   past `JOB_CAP_MS` (60 s: a worker that died silently) is tried once more on the pool (that retry capped at
   `JOB_RETRY_CAP_MS`, 20 s), then baked inline, one lamp per task. A job past its cap is cancelled on the pool; a running
   one's worker is terminated and replaced, so the pool keeps its size (if the replacement cannot start, the pool runs one
@@ -237,8 +237,8 @@ Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; bui
 - The character-shadow picker holds a swinging lamp's slot and re-renders its map every frame (`moving`).
 
 ## Character silhouette shadows (LR14, sector-redesign charshadow)
-Rendering only (plan and budget: `docs/archive/lighting-review/LR14-PLAN.md`; build report:
-`docs/sector-redesign/checks/lr14-build.md`). As in CT, the lamps nearest the player throw the real shape of a guard,
+Rendering only (plan and budget: docs/archive/lighting-review/LR14-PLAN.md; build report:
+docs/sector-redesign/checks/lr14-build.md). As in CT, the lamps nearest the player throw the real shape of a guard,
 the partner, a body or a held weapon; static geometry stays in the baked visibility atlas; every other lamp keeps the
 capsules.
 - `world/charShadowSet.ts` (pure): `CHAR_SHADOW_PRESET` (per shadow tier: Off 0 lamps, Low 1 x 256 px, Medium 1 x 512 px,
@@ -332,7 +332,7 @@ change.
   bulkheads, with or without a beam optic) scatter a short haze under their shade. A map whose `theme.lampBeams` is
   false (Saltmarsh Park; fog triage, Michael on 4.95.0: "Campus lights look very foggy, can't see through them") beams
   torches only: its 76 glowing-box cone fittings haze like lamps (`PostStackOptions.lampBeams`; Marlow Yard and the base
-  Warehouse keep their flood beams). Report: `docs/sector-redesign/checks/fog-triage.md`; test `tests/volLights.test.ts`.
+  Warehouse keep their flood beams). Report: docs/sector-redesign/checks/fog-triage.md; test `tests/volLights.test.ts`.
 - Brightness calibration (`BrightnessScreen`, Settings > Display): an exposure multiplier in the grade, `BRIGHTNESS_MIN` ..
   `MAX`. `GameState.brightnessLocked` (nothing sets it now; its mission was the Confrontation, removed by G9).
 

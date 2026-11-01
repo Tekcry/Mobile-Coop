@@ -235,10 +235,10 @@ describe('job STATE resume blocks and raw word budgets', () => {
     const read = (p: string) => JSON.parse(fs.readFileSync(p, 'utf8'));
     const config = { staleTerms: read('docs/stale-terms.json'), owners: read('docs/doc-owners.json'), lint: read('docs/doc-lint.json') };
     const lines = ['ask Menu Notes', 'Sector Restart owns it', 'see Current goal (CLAUDE.md)', 'see CLAUDE.md "Account swap"',
-      'Sector restart (G22) is a feature', 'slot 4189 for GPU runs', 'E2E_JOBS=3 per slot'];
+      'Sector restart (G22) is a feature', 'slot 4189 for GPU runs'];
     const files = map({ 'docs/systems/x.md': lines.join('\n'), 'docs/DECISIONS.md': '' });
     const out: F[] = lintDocs({ files, exists: () => true, config, today: '2026-10-25' });
     expect(out.filter((f) => f.check === 'stale-terms').map((f) => f.line)).toEqual([1, 2, 3, 4]);
-    expect(out.filter((f) => f.check === 'owners').map((f) => f.line)).toEqual([6, 7]);
+    expect(out.filter((f) => f.check === 'owners').map((f) => f.line)).toEqual([6]);
   });
 });

@@ -1,7 +1,0 @@
-# Step 13 fix round 1
-1. The new Proving shed door is in the glazed north window (src/world/maps/provingGrounds.ts ~115, x 24.4-25.6, overlapping the sill 0-0.9 and head 2.1-3.0 boxes ~116-117 and windowAt ~119). Move it to the real doorway: hinge (27.0, 0, -2), width 1.2, under the lintel box(27.6, 2.6, -2) (default height 2.1 fits). Re-run e2e-traverse, e2e-pad, e2e-mouse, e2e-touch, e2e-coop, e2e-netmove, e2e-lightbake, e2e-stealth.
-2. An abandoned crack can never be closed (doorPeekEligible rejects cracked): allow a peek to start on a cracked door nobody is peeking (resume straight into peek) so it can be closed. Unit test and an e2e-pad line.
-3. Touch context button: Peek beats any interactable in reach (gameState.ts updateTouch). Offer Peek ahead of Use only when `it` is null or is that door's own `door-<id>` interactable.
-4. Verify the e2e-netmove "doorPeek" case on a serial run that reaches it (joints <= 10 cm, host leaf within 0.05 of the crack, back to ground on close).
-5. Re-run the full anim-audit --compare; if remote walledge@60 pops stay above 13, investigate; otherwise record as A39 noise in REVIEW-NOTES.
-6. Client crack prediction: ignore an un-crack from snapshot dcr for about one round trip after a local prediction (no flicker / repeated 30% sound); drop out-of-range dcr entries instead of clamping -1 to door 0 (coopClient.syncDoors, protocol.ts ~584). Unit test.

@@ -38,19 +38,17 @@ the old `warehouseOps` stays selectable, frozen, G390), Fallow (`bunker`, parked
 | `docs/DECISIONS.md` | Michael's decisions G1 onward, deferred and unanswered items | Any design or process question |
 | `docs/design-bible.md` | Pillars, systems, out-of-scope list, level and platform rules | The sections the job touches |
 | `docs/ROADMAP.md` (on origin/feature/menu) | Now, Inbox (Michael's new ideas), Waiting on Michael, Decided, Done (owned by the orchestrator) | The entries a resume block names |
-| `docs/orchestrator/` (on origin/feature/menu) | Orchestrator STATE, HANDOFF, PROMPTS (boot lines), BOOT (per-title start), archive | Starting a session, swaps |
 | `docs/story.md` | Story, setting, characters, radio and writing rules | Any in-game text, briefing or mission writing |
 | `docs/level-design.md`, `docs/templates/map-spec.md`, `docs/design/scale-sheet.md` | The map standard (engine facts in Section 12), the map spec template, the size sheet | Any map or engine-fact change |
 | `docs/level-validator/` | The level-graph schema and an example graph (`scripts/level-validate.mjs`) | Map graphs, validator runs |
 | `docs/templates/` | BRIEF, PLAN, sign-off, walk card and map spec templates | Starting a job or a walk card |
 | `docs/ct-prototype/`, `docs/marlow-final/` | Marlow Yard, the co-op training course (`CTCOURSE-SPEC.md`), its slices and playtests | Marlow Yard work |
-| `docs/sector-redesign/` | Sector Ops Saltmarsh Park: spec, slices, lighting | Sector Ops work |
-| `docs/coop4/` | Sector Ops up to 4 players | Co-op player count work |
+| `docs/sector-redesign/graph/` | Sector Ops Saltmarsh Park level graphs, kept only because tests read them (Sector Ops is being removed) | Never |
 | `docs/ct-research/` | The CT co-op research (G124-G160) | CT behaviour questions |
 | `docs/operators/` | The operators run: Wren and Moth, the offline art pipeline (`scripts/operators/`), its decisions D1 onward (G75) | Operator art and Wren in-game work |
 | `docs/menu-ui/` | The Arkham Knight style menu plan (G77) | The menu job |
 | `docs/audio/`, `docs/music/`, `docs/audio-credits.md` | Foley, weapon audio and music logs and plans; CC0 credits | Sound and music work |
-| `docs/research/` | Night vision and lamp research | Vision and light work |
+| `docs/research/` | Night vision and lamp research; `mission-audit/` the level design craft research (multi-step co-op missions, pathways without visual cues); `ct-movement/` the Chaos Theory movement research (`CT-RESEARCH.md`, `CT-SHOTLIST.md`, footage catalogue and measurements) | Vision and light work, mission and level design, movement |
 | `docs/backlog.md` | Playtest feedback and bugs (new ideas from Michael go to the ROADMAP Inbox) | Adding feedback |
 | `TESTING.md` | The short desktop checklist and the release checklist | Ending a job |
 | `docs/systems/testing-tools.md` | Every e2e suite, flakes and quarantine, helper scripts, debug overlay | Running or writing tests, judging a failure |
@@ -74,9 +72,6 @@ the old `warehouseOps` stays selectable, frozen, G390), Fallow (`bunker`, parked
 | `docs/systems/conventions.md` | Robustness rules, conventions, full module table, hot paths, project overview | Code conventions |
 | `docs/kestrel/` | The Kestrel map project and editor (paused, G53) | Kestrel work only |
 
-History (do not read unless a job names it): `docs/archive/progress.md` (history and the older follow-up backlog) and
-`docs/archive/`: every finished job's folder `docs/archive/<job>/` (for example `locomotion/` with `CT-RESEARCH.md`
-and `PROTOTYPE-PLAN.md`, `consolidation/` the 4.0.0 merge, `training/` the Fallow bunker run, `prompts/` old phase
-specs and the music spec), retired maps, the old changelog, testing and progress history, the pre-prototype CT
-movement build and the laptop queue's first plan `laptop-queue-PLAN-2026-10-23.md`. Each live job folder `docs/<job>/`
-holds that job's BRIEF, PLAN and STATE; a released job's folder moves to `docs/archive/<job>/`.
+History: docs/archive/ (every finished job's folder, retired maps, the old progress, testing and changelog history)
+was removed on 2026-11-01. Paths under it that docs still cite are in git history: `git log --all -- docs/archive/<path>`
+finds the deleting commit, then `git show <commit>^:docs/archive/<path>` prints the file.

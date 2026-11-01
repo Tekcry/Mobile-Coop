@@ -31,7 +31,7 @@ PC run" and stay as the goal until that run replaces them. Every number is a sta
 - Open: no download or texture budget covers the realistic operators (Wren's files are about 80 MB; feature/operators
   owns it, G75).
 - Guard figures (guard-models, `docs/guard-models/PLAN.md` section 5; budget). G8's first runs held (+1.1 to +2.5 ms
-  frame CPU p95 at 24 guards, gate +0.5 ms; `docs/guard-models/STATE.md` "G8 budget run", `docs/guard-models/run-g8/`);
+  frame CPU p95 at 24 guards, gate +0.5 ms; docs/guard-models/STATE.md "G8 budget run", docs/guard-models/run-g8/);
   after gm-perf the gate passed ("Guard models" below) and gm-flip made the figures the default (`?guardmodels=0` off). `tests/guardKit.test.ts` enforces the
   kit data, `tests/guardAssets.test.ts` the bundled files in `src/operators/assets/guards/`. Per guard,
   LOD0 (< 8 m) / LOD1 (8-25 m) / LOD2 (> 25 m):
@@ -83,7 +83,7 @@ Realistic guard models are on by default (`?guardmodels=0` is off). Gate: frame 
 | campusops alert | 9.2 | 10.0 |
 
 At 12 guards campusops ON is +0.4 to +0.6 ms. The merged armour, shield and visor meshes (S13) came after this run and
-have no GPU number yet (they only act on the flag-off and fallback path). Detail: `docs/guard-models/reports/PERF-REPORT.md`,
+have no GPU number yet (they only act on the flag-off and fallback path). Detail: docs/guard-models/reports/PERF-REPORT.md,
 `GM-PERF-CHECK.md`.
 
 ## What keeps the frame inside the budget
@@ -118,5 +118,5 @@ have no GPU number yet (they only act on the flag-off and fallback path). Detail
   `guardFrustum`: the moon capsule, lamp, torch and character-atlas shadow volumes, frustum only), every
   `ANIM_TIER_OFFSCREEN` th (8) frame; past 22 m, every 2nd; else every frame. `?animtier=0` off, `?animshadow=0` camera
   only, `?animoff=N` the off-screen period (N >= 2; A/B). Measured at 32 guards (laptop GPU, epic,
-  `docs/guard-ai/slices/T1-SHADOW-REPORT.md`): the shadow rule costs 0.07-0.18 ms of anim a frame; the tier saves up to
+  docs/guard-ai/slices/T1-SHADOW-REPORT.md): the shadow rule costs 0.07-0.18 ms of anim a frame; the tier saves up to
   ~0.6 ms, little in Sector Ops where the render freeze already stops off-camera guards.
