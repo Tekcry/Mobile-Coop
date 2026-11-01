@@ -39,7 +39,6 @@ try {
   const { LightRegistry } = await load('/src/world/lights.ts');
   const { MAPS } = await load('/src/world/maps/index.ts');
   const { LISTED_MAP_IDS } = await load('/src/world/maps/listed.ts');
-  const { PARKED_MAPS } = await load('/src/world/maps/parked.ts');
   const { dressingOn } = await load('/src/world/detailPass.ts');
   const { canonicalLightShapes, canonicalLightSet } = await load('/src/voxel/lightShapes.ts');
   const audit = await load('/src/world/lampAudit.ts');
@@ -71,7 +70,7 @@ try {
     return def;
   };
 
-  const pool = [...MAPS, ...PARKED_MAPS].filter((m, i, a) => a.findIndex((n) => n.id === m.id) === i);
+  const pool = MAPS;
   const wanted = [...LISTED_MAP_IDS, ...PLAN];
   const maps = [];
   const missing = [];
