@@ -178,16 +178,16 @@ try {
       await browser.close();
     }
   }
-  console.log('chamber, free roam (unchanged)');
+  console.log('chamber, sandbox mode (unchanged)');
   await boot('autostart=chamber&mode=sandbox', async (page, G) => {
     await frames(page, 2);
     const s = await G(() => {
       const g = window.__app.current;
       return { mode: g.opts.mode, modeObj: g.mode, nav: !!g.nav, em: !!g.enemyMgr, ammo: g.weapons.infiniteAmmo, dummies: g.dummies.length, obj: g.hud.objectiveText };
     });
-    assert(s.mode === 'sandbox' && s.modeObj === null && !s.nav && !s.em, `free roam on the chamber has no mode, nav or guards (${s.mode}, ${s.modeObj}, ${s.nav}, ${s.em})`);
+    assert(s.mode === 'sandbox' && s.modeObj === null && !s.nav && !s.em, `the sandbox mode on the chamber has no mode, nav or guards (${s.mode}, ${s.modeObj}, ${s.nav}, ${s.em})`);
     assert(s.ammo === true && s.dummies === 2, `infinite ammo, the chamber's two dummies (G2b) (${s.ammo}, ${s.dummies})`);
-    assert(/try every weapon/.test(s.obj ?? ''), `the free roam objective for a map with targets (${s.obj})`);
+    assert((s.obj ?? '') === '', `the sandbox mode has no objective (${s.obj})`);
   });
 
   console.log('chamber, the animation stage (?stage=1)');

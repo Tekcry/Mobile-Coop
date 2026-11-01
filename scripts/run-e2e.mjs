@@ -231,7 +231,7 @@ async function runOne(s) {
   const [script, part] = s.split(':');
   const own = PART_SCRIPT[s];
   const [ownName, ...ownArgs] = Array.isArray(own) ? own : own ? [own] : [];
-  const child = spawn(process.execPath, [`scripts/${ownName ?? script}.mjs`, url, ...ownArgs, ...(part && !own ? [`--part=${part}`] : []), ...(selective && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
+  const child = spawn(process.execPath, [`scripts/${ownName ?? script}.mjs`, url, ...ownArgs, ...(part && !own ? [`--part=${part}`] : []), ...(selective && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env });
   let log = '';
   if (!streamed) {
     child.stdout.on('data', (d) => (log += d));
