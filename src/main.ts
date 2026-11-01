@@ -27,14 +27,11 @@ import { courseSoloFlag } from './game/modes/courseMode';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
 import { LoadoutScreen } from './ui/screens/loadoutScreen';
-import { MissionsScreen, FreeRoamScreen, SectorOpsScreen } from './ui/screens/missionsScreen';
-import { starsFor, starsText } from './save/sectorRecord';
+import { MissionsScreen, FreeRoamScreen } from './ui/screens/missionsScreen';
 import { loadCampaignSave, type CampaignSave } from './save/campaignRecord';
 import { continueRowText } from './game/mission/campaignOrder';
 import { BriefingScreen } from './ui/screens/briefingScreen';
 
-/** (sector-ops M7) The Warehouse op's difficulty stars beside Sector Ops on the main menu, read each time it opens. */
-let sectorStars = starsText([false, false, false, false]);
 
 /**
  * (campaign-mode CM4, A9, plan check polish 9) The host's `campaign:save` for the main menu's "Continue campaign" (hidden
@@ -190,11 +187,6 @@ async function boot(): Promise<void> {
       app.nav.setRoot(menu.el, menu.lastFocus ?? menu.initialFocus());
     });
     void app.feedback.all().then((all) => menu.setCounter('feedback', all.length ? `${all.length}` : ''));
-    // (sector-batch, G328) the counter shows Saltmarsh Park's stars (the Sector Ops map)
-    void starsFor('campusOps').then((st) => {
-      sectorStars = starsText(st);
-      menu.setCounter('sectorops', sectorStars);
-    });
     // menu-ui MD2: the title screen once per launch (not after a match, not under automation unless `?title=1`); Back
     // on the main menu no longer returns to it (menu-notes A1). The brightness calibration follows the title on the
     // first run.
@@ -272,18 +264,7 @@ async function boot(): Promise<void> {
       });
   };
 
-  // menu-ui MD6: the flat main menu. Sector Ops (feature/sector-ops): the main menu is Sector Ops, Co-op, Loadout,
-  // Settings and Feedback; Missions, Training and Free roam stay behind `?legacy=1`.
-  MainMenuScreen.entries.push(
-    (a) => ({
-      key: 'sectorops',
-      label: 'Sector Ops',
-      order: 10,
-      counter: () => sectorStars,
-      ctx: 'Solo or co-op: Saltmarsh Park in sections, each harder than the last. Objective, then exit. Kills optional. A star for each difficulty completed; a harder clear fills the easier stars too.',
-      action: () => a.screens.push(new SectorOpsScreen(a, (o) => startGame(o))),
-    }),
-  );
+  // menu-ui MD6: the flat main menu: Co-op, Loadout, Settings and Feedback; Missions, Training and Free roam stay behind `?legacy=1`.
   if (flags.legacy) {
     MainMenuScreen.entries.push(
       (a) => ({
@@ -347,7 +328,7 @@ async function boot(): Promise<void> {
       key: 'coop',
       label: 'Co-op',
       counter: () => (navigator.onLine ? '' : 'Offline'),
-      ctx: 'Two players with a room code. The campaign starts at Marlow Yard, the training course. The host can switch to Sector Ops.',
+      ctx: 'Two players with a room code. The campaign starts at Marlow Yard, the training course.',
       order: 15,
       action: () =>
         void loadCoop()
@@ -491,7 +472,7 @@ async function boot(): Promise<void> {
   if (editorWalk) await editorWalk.loadDraft();
   // the training course over `?net=local` (dev tabs, tests): the first tab hosts the map's room, the next joins it; the
   // dev solo flag (`&course=solo`) boots it single player instead
-  // (sector-ops slice 3: Sector Ops the same way, `?net=local&autostart=warehouseOps&mode=sector`)
+  // (sector-ops slice 3: Sector Ops the same way, `?net=local&autostart=tallowWharf&mode=sector&missions=1`)
   const localMode = flags.mode === 'course' && !courseSoloFlag() ? 'course' : flags.mode === 'sector' ? 'sector' : null;
   // (FLG) a mission map (Tallow Wharf) boots by URL only with `?missions=1`; off: the menu, never plain Sector Ops
   const autostart = flags.autostart && mapBootAllowed(getMap(flags.autostart)) ? flags.autostart : null;
