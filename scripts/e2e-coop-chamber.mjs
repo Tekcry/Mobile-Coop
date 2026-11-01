@@ -73,8 +73,18 @@ try {
   const stage = await Promise.all(pages.map((P) => P.evaluate(() => ({ stage: !!window.__studioStage, open: window.__app.debug.animTune.isOpen, can: window.__app.debug.animTune.canOpen }))));
   assert(stage.every((s) => !s.stage), `no studio stage on either page (${JSON.stringify(stage)})`);
   assert(stage.every((s) => s.can && !s.open), `the tuner may open in the room and starts shut (${JSON.stringify(stage)})`);
-  const hSeen = await seen(A, 'client');
-  const cSeen = await seen(B, 'host');
+  // (G2a) the figures are placed on the first frames after the load: read again until they stand beside the partner (a read
+  // the instant the match loaded saw the rig at its origin once)
+  const settle = async (P, who, to) => {
+    let s = await seen(P, who);
+    for (let i = 0; i < 40 && !(s && Math.hypot(s.x - to.x, s.z - to.z) < 0.8); i++) {
+      await P.waitForTimeout(250);
+      s = await seen(P, who);
+    }
+    return s;
+  };
+  const hSeen = await settle(A, 'client', b);
+  const cSeen = await settle(B, 'host', a);
   assert(hSeen && Math.hypot(hSeen.x - b.x, hSeen.z - b.z) < 0.8, `the host sees the client beside it (${JSON.stringify(hSeen)})`);
   assert(cSeen && Math.hypot(cSeen.x - a.x, cSeen.z - a.z) < 0.8, `the client sees the host beside it (${JSON.stringify(cSeen)})`);
 
