@@ -1,4 +1,4 @@
-﻿import { Vector3 } from '../../core/babylon';
+import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import { STUDIO_MID as C, STUDIO_PROPS as P, STUDIO_SIZE as SIZE } from '../../anim/studioProps';
@@ -200,12 +200,12 @@ export const studio: MapDef = {
     // the divider (the old east wall: its main-room face stays at x 28) with the annex door, a lintel over it
     b.wallZ(A.divider.x, 0, SIZE, [[A.door.z0, A.door.z1]], H, WALL, A.divider.thick);
     b.box(A.divider.x, (A.door.h + H) / 2, (A.door.z0 + A.door.z1) / 2, A.divider.thick, H - A.door.h, A.door.z1 - A.door.z0, WALL);
-    b.door(A.divider.x, 0, A.door.z0, A.door.z1 - A.door.z0, 0, { swing: 1, height: A.door.h });
+    b.door(A.divider.x, 0, A.door.z0, A.door.w, 0, { swing: 1, height: A.door.h });
     // partition A: the hall to the north, the rest to the south; its door at the east end keeps L0 out of the dark side while shut
     const pa = A.partA;
     b.wallX(pa.z, A.x0, A.x1, [[pa.door.x0, pa.door.x1]], H, WALL);
     b.box((pa.door.x0 + pa.door.x1) / 2, (A.door.h + H) / 2, pa.z, pa.door.x1 - pa.door.x0, H - A.door.h, 0.3, WALL);
-    b.door(pa.door.x0, 0, pa.z, pa.door.x1 - pa.door.x0, Math.PI / 2, { swing: 1, height: A.door.h });
+    b.door(pa.door.x0, 0, pa.z, pa.door.w, Math.PI / 2, { swing: 1, height: A.door.h });
     // the store: a south wall, and an east wall with an open doorway to the aisle
     b.wallX(A.storeWall.z, A.x0, A.storeWall.x1, [], H, WALL);
     const aw = A.aisleWall;

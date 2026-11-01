@@ -77,9 +77,9 @@ export const STUDIO_PROPS = {
     /** The wall between the main room and the annex (the old east wall: its main-room face stays at x 28). */
     divider: { x: 28.15, thick: 0.3 },
     /** The annex door (hinge at z0, the leaf runs along +z, swings into the annex) and its lintel. */
-    door: { z0: 19.4, z1: 20.6, h: 2.1 },
+    door: { z0: 19.4, z1: 20.6, w: 1.2, h: 2.1 },
     /** Partition A (z 14.15): the hall to the north, the store, aisle and dark bay to the south; its door at the east end. */
-    partA: { z: 14.15, door: { x0: 34.8, x1: 36.0 } },
+    partA: { z: 14.15, door: { x0: 34.8, x1: 36.0, w: 1.2 } },
     /** The store (x 28.3-32.3, z 8.3-14) and aisle (x 32.6-36.3, z 8.3-14): a wall at z 8.15 and one at x 32.45 with a doorway. */
     storeWall: { z: 8.15, x1: 32.6 },
     aisleWall: { x: 32.45, z0: 8.3, z1: 14.0, door: { z0: 8.6, z1: 9.8 } },
