@@ -350,3 +350,14 @@ Old → new; "A:" is the assertion change and its reason.
 8. **Dummies and props spawn in the stage too** unless G2a spawns dummies in `'test'` only. Props are placed off every loop walk-in, but a physics prop can still be knocked.
 9. **e2e-tactics' noise check** and **e2e-coop hits** both had map- or mode-specific gates (the Mission uncoordinated rule; `map.id==='warehouse'`): both are rewritten, not just moved.
 10. **Unclear:** `__studio.pick('off')` validity. It is moot once G2a makes the stage opt-in, but suites must not boot `&stage=1`.
+
+## 7. G2b as built: divergences from sections 1-4 (recorded 2026-11-01)
+- **Tunnel (#2):** the entry is from the north, (1.2, 0, 15.6) facing -z. The spec's (1.2, 0, 10.9) is inside the platform (z 8-11). Crouch-walk window z 11.5-14.5 holds.
+- **Step row (#1):** the mantle and step points stand at z 2.2, not 2.5. The traversal probe reaches 1.3 m from the feet and the faces are at z 1.2. The debug point moved to match.
+- **Zipline (#8):** the high end is at the ledge wall's edge, (5.3, 4.3, 25.4), the post at z 25.7, the low end (5.3, 2.3, 19.0), the stand (5.3, 2.42, 26.4). With the high end 1.9 m back the rider's legs went through the wall.
+- **Booth roof duct (#10):** the duct shell runs west to x 25.0 (the end cap at x 25.05) so the crawling head clears it. A 0.8 x 0.8 x 1.0 m block stands under the vent hole (the fallback of risk 3). The attach controller's floor probe is 3 m deep, so a bare 4.4 m drop found no floor. The drop is 3.0 m on the block (roll band); the booth is 0.6 m deep past the vent, so the roll itself has no room, and e2e-traverse asserts the registered landing.
+- **Dummies (#12):** they stand in every match that is not the animation stage (Free Roam and the test mode), not in the test mode only. The stage is opt-in now, so the plain room is the test bed.
+- **Stage (section 3 boot changes):** `autostart=studio` starts the plain room; the stage starts from the main menu row and `?stage=1` (G2b, not G2a).
+- **Hang block B (#6):** the jump from the ledge wall's east end lands on B's west face. e2e-traverse then shimmies round the south and east corners.
+- **Drainpipe (e2e-traverse):** the east lip beside the pipe is 0.6 m on its north side, so a sideways step there carries round the corner; the shimmy past the pipe runs on to the ladder.
+- **e2e-ct fence and split:** the split feet read 1.55 m of the 1.65 m gap, the fence stops the body at z 6.16.

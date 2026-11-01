@@ -55,7 +55,7 @@ export const STUDIO_PROPS = {
   /** The split fin: a 0.3 m wall, 1.65 m east of the team block's east face (a split gap of 1.2-1.95 m, both 4.4 m tall). */
   fin: { x0: 18.65, x1: 18.95, z0: 25, z1: 28, top: PAIR_TOP },
   /** A zipline from the ledge wall's top down to the floor (the high end 1.9 m over the 2.4 m deck). */
-  zip: { x: 5.3, a: { y: 4.3, z: 26.9 }, b: { y: 2.3, z: 20.0 }, post: { z: 27.3, h: 2.0, y: 2.4 } },
+  zip: { x: 5.3, a: { y: 4.3, z: 25.4 }, b: { y: 2.3, z: 19.0 }, post: { z: 25.7, h: 2.0, y: 2.4 } },
   /** The rappel booth (north east corner, x 25-28, z 25-28, top 4.4; its east side is the east wall): a glazed window
    *  under its own rope, a roof with a vent hole and a duct over it. */
   booth: {

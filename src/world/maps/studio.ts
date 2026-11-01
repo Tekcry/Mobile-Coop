@@ -172,11 +172,12 @@ export const studio: MapDef = {
     b.rappel(bo.rope.x, bo.rope.top, bo.rope.z, Math.PI, bo.rope.top);
     // the roof duct over the hole: a ceiling vent, drop into the booth
     const duct1 = b.boxes.length;
-    b.box(26.1, 4.95, 26.15, 1.6, 1.1, 0.1, METAL);
-    b.box(26.1, 4.95, 27.25, 1.6, 1.1, 0.1, METAL);
-    b.box(26.1, 5.55, 26.7, 1.6, 0.1, 1.2, METAL);
-    b.box(25.3, 4.95, 26.7, 0.1, 1.1, 1.0, METAL);
+    b.box(25.95, 4.95, 26.15, 1.9, 1.1, 0.1, METAL);
+    b.box(25.95, 4.95, 27.25, 1.9, 1.1, 0.1, METAL);
+    b.box(25.95, 5.55, 26.7, 1.9, 0.1, 1.2, METAL);
+    b.box(25.05, 4.95, 26.7, 0.1, 1.1, 1.0, METAL);
     b.mark(duct1, { noLedge: true });
+    // a 1.0 m block under the hole (spec risk 3): the drop is then 3.4 m, a roll; the attach controller's floor probe is 3 m deep, so a bare 4.4 m drop finds no floor
     b.duct(
       [
         { x: 26.65, y: 4.4, z: 26.7 },
@@ -185,6 +186,8 @@ export const studio: MapDef = {
       { pos: { x: 26.9, y: 4.95, z: 26.7 }, nx: 1, ny: 0, nz: 0, where: 'wall' },
       { pos: { x: 25.9, y: 4.2, z: 26.7 }, nx: 0, ny: -1, nz: 0, where: 'ceiling' },
     );
+    const bv = bo.vent;
+    b.block((bv.x0 + bv.x1) / 2, (bv.z0 + bv.z1) / 2, bv.x1 - bv.x0, 1.0, bv.z1 - bv.z0, PROP_DARK);
 
     // key (warm, front left, high), rim (cool, behind right), fill (soft, front right), and a lamp over each prop side
     b.light({ kind: 'lamp', x: C - 3, y: 6, z: C + 3, radius: 14, intensity: 1, color: [1, 0.93, 0.82] });
@@ -229,7 +232,7 @@ export const studio: MapDef = {
         { group: 'moves', id: 'tunnel', label: 'Crouch tunnel', pos: new Vector3(1.2, 0, 15.6), yaw: Math.PI },
         { group: 'moves', id: 'split', label: 'Split fin', pos: new Vector3(17.8, 0, 24.5), yaw: 0 },
         { group: 'moves', id: 'fence', label: 'Fence', pos: new Vector3(7.5, 0, 5.8), yaw: 0 },
-        { group: 'moves', id: 'zip', label: 'Zipline top', pos: new Vector3(5.3, 2.42, 27.5), yaw: Math.PI },
+        { group: 'moves', id: 'zip', label: 'Zipline top', pos: new Vector3(5.3, 2.42, 26.4), yaw: Math.PI },
         { group: 'moves', id: 'booth-rope', label: 'Booth rope', pos: new Vector3(26.5, 4.45, 25.4), yaw: Math.PI },
         { group: 'moves', id: 'booth-vent', label: 'Booth roof vent', pos: new Vector3(27.5, 4.42, 26.7), yaw: -Math.PI / 2 },
       ],
