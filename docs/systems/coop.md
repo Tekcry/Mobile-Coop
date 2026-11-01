@@ -31,7 +31,9 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
   `medkit`, pickup kind `medkit`). Earlier steps: git log and docs/archive/locomotion/LOG.md. Next wire train: afp AF6 (#247), the partner's gait - `PlayerState.t` (the joiner's send clock, timed by the host through a `ClockSync`), `gph` (gait clock), `qs` / `hs` (the CT stop), `mo` / `mt` (motion state and its time), `ax` / `az` (acceleration); the partner renders 0.13 s (host) / 0.16 s (joiner) behind.
 - Caps: `MAX_PLAYERS` 4 (room cap on the wire), `MAX_ENEMIES` 32, `MAX_EVENTS` 48, `MAX_ITEMS` 128, `MAX_DOORS` 256.
-- `NetMode`: `sandbox | clear | infiltration | course | sector`; `capacity(mode)` gates joins and `startMatch`. On
+- `NetMode`: `sandbox | clear | infiltration | course | sector | test`; (G2a, protocol 87) `test` is the Test Chamber's
+  mode (`TestMode`: guards by test, revives, no progression; the lobby's "Test Chamber" mode starts map `studio` in it,
+  two players); `capacity(mode)` gates joins and `startMatch`. On
   master `course` and `sector` take `COURSE_MAX` 2 and the legacy modes `COOP_MAX` 4. The rule: Marlow Yard and the
   campaign 2 (G2), Sector Ops up to 4 (G308; coop4, PR #317, adds `SECTOR_MAX` 4). Never cap Sector Ops at 2.
 - `lobby` / `start` carry the mode, map, `mission` (Infiltration), `weather`, the host's fixed difficulty level (shown

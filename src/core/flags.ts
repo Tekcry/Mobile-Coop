@@ -4,8 +4,12 @@ export interface Flags {
   debug: boolean;
   /** Skip menus and boot straight into a map (dev convenience). */
   autostart: string | null;
-  /** Mode for autostart. `course` with `?net=local` hosts / joins a same-device co-op room (`autoLocalCourse`). */
-  mode: 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector' | null;
+  /** Mode for autostart. `course` with `?net=local` hosts / joins a same-device co-op room (`autoLocalCourse`). `test` is
+   *  the Test Chamber's guards-and-revives mode (`TestMode`). */
+  mode: 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector' | 'test' | null;
+  /** (G2a, tests) `?guards=1`: `TestMode` starts with the map's room squads in place (`TestMode.populate`); the Test Chamber
+   *  has no guards otherwise. */
+  guards: boolean;
   /** Infiltration: mission id and insertion id for autostart. */
   mission: string | null;
   insertion: string | null;
@@ -215,6 +219,12 @@ function readPhone(): boolean {
   }
 }
 
+/** `?mode=` as a mode id (Hunter is the 2.0 name for Clear, both work); an unknown value reads as none. */
+export function readMode(v: string | null): Flags['mode'] {
+  if (v === 'hunter') return 'clear';
+  return (['sandbox', 'mission', 'clear', 'infiltration', 'course', 'sector', 'test'] as const).find((m) => m === v) ?? null;
+}
+
 function readSpawn(v: string | null): Flags['spawn'] {
   const p = v?.split(',') ?? [];
   if (p.length !== 4) return null;
@@ -226,8 +236,8 @@ export const flags: Flags = {
   coop: params.get('coop') !== '0',
   debug: params.get('debug') === '1',
   autostart: params.get('autostart'),
-  // Hunter is the 2.0 name for Clear (both work)
-  mode: params.get('mode') === 'hunter' ? 'clear' : ((['sandbox', 'mission', 'clear', 'infiltration', 'course', 'sector'] as const).find((m) => m === params.get('mode')) ?? null),
+  mode: readMode(params.get('mode')),
+  guards: params.get('guards') === '1',
   mission: params.get('mission'),
   loadout: params.get('loadout')?.split(',').filter(Boolean) ?? null,
   insertion: params.get('insertion'),

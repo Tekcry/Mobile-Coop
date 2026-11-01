@@ -16,7 +16,7 @@ export const provingGrounds: MapDef = {
   id: 'proving',
   name: 'Proving Grounds',
   description: 'Training yard with ramps, stairs, cover and physics props.',
-  modes: ['sandbox'],
+  modes: ['sandbox', 'test'],
   theme: {
     sky: '#8fb8de',
     horizon: '#d5e6f2',
@@ -205,6 +205,13 @@ export const provingGrounds: MapDef = {
       pickups: [],
       // (locomotion step 15) a wall medkit station on the south perimeter wall, facing the yard
       medkitWalls: [{ pos: v(4, -29.6), yaw: 0 }],
+      // training targets on the range (the second and third strafe, the fourth faces away)
+      dummies: [
+        { pos: v(-4, 8), yaw: Math.PI },
+        { pos: v(3, 10), yaw: Math.PI, strafe: 2.5 },
+        { pos: v(0, 24), yaw: Math.PI, strafe: 4 },
+        { pos: v(-14, 14), yaw: Math.PI * 0.75 },
+      ],
       rooms: ROOMS,
     };
   },

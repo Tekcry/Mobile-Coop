@@ -5,9 +5,10 @@ import { STUDIO_MID as C, STUDIO_PROPS as P, STUDIO_SIZE as SIZE } from '../../a
 
 /**
  * (anim-studio) The Test Chamber (was the Anim Studio; the map id stays `studio`): a dev scene, not a level (it is not in
- * `MAPS`, no map list shows it, no mode supports it; `getMap('studio')` finds it in `DEV_MAPS`, `?autostart=studio` boots
- * it in Free Roam, the main menu's Test Chamber row starts it alone and the co-op lobby's Test Chamber mode hosts it for
- * two: the studio stage and its loop player run in the single player match only). The level design
+ * `MAPS`, no map list shows it; its `modes` (Free Roam, and (G2a) `test`: guards by test, revives) are for the URL boot
+ * and the room; `getMap('studio')` finds it in `DEV_MAPS`, `?autostart=studio` boots it in Free Roam (`&mode=test` in the
+ * test mode), the main menu's Test Chamber row starts it alone and the co-op lobby's Test Chamber mode hosts it for
+ * two in `test`: the studio stage and its loop player run in the single player match only). The level design
  * standard (`docs/level-design.md`) binds playable maps; this is a plain room to look at the animation in, like the old
  * menu void: a dark floor with a 1 m grid (visual only: thin boxes that never collide), dark walls all round as the
  * backdrop, a warm key lamp front left, a cool rim lamp behind and a soft fill. Wren stands in the middle facing +z.
@@ -23,7 +24,7 @@ export const studio: MapDef = {
   id: 'studio',
   name: 'Test Chamber',
   description: 'A plain room to test everything: the animation tuner, the loop player and the traversal props. One or two players.',
-  modes: [],
+  modes: ['sandbox', 'test'],
   // no dressing (nothing on the walls): a plain stage
   detail: false,
   theme: {

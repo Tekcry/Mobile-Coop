@@ -331,6 +331,11 @@ behind a VPN adapter).
   renderer in a match, every material within 16 textures, no `GameState` survives a release (`SHOTS=dir` saves shots)
 - `e2e-offline` service worker precache (every manifest entry), offline boot + match, backgrounding pauses, co-op offline
   state, a v1 save in IndexedDB migrated on boot with a backup
+- `e2e-testmode` (clean-up G2a; covers `src/game/modes/testMode.ts`, the studio and Proving Grounds maps): `?autostart=studio&mode=test`
+  has nav, an enemy manager, `g.mode.id === 'test'`, infinite ammo and nothing queued; a spawned grunt walks its route; a
+  solo death respawns with no DEFEAT; `mode=sandbox` on the same map is unchanged; Proving Grounds in the test mode
+  builds its four dummies from `MapLayout.dummies`. The co-op side (revives, the lobby's Test Chamber): `e2e-coop`
+  and `e2e-coop:chamber`.
 - `e2e-studio` (anim-studio; covers `src/anim/studio*`, `src/anim/tuneHistory`, `src/game/studioStage`, `src/ui/studio*`,
   `src/ui/tuneSnapshots`, `src/ui/animTune*`, the studio map and the tuner store): `?autostart=studio` boots the stage with
   the tuner panel and its Studio section; a keyed clip in place on Wren's graph, paused a key step moves the phase by one

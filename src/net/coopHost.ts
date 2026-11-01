@@ -276,6 +276,8 @@ export class CoopHost implements NetAttachment {
     );
     // (coop-rejoin) a course match going to one client starts at the current bay (its load lands by the checkpoint)
     if (mode === 'course') s.lateBay = () => g.mode?.resumeBay?.() ?? 1;
+    // (G2a) the Test Chamber: practice, so the revives never run out (99, not Infinity: a revives-left readout stays a number)
+    if (mode === 'test') this.reviveClock.cap = 99;
     this.hookHud();
     this.hookCombat();
     // (39, LR16-5b) every kick the host accepts (our rounds, the guards' rounds, blasts, bumps, a client's checked

@@ -65,9 +65,10 @@ import { CTX_OPT, ctxPromptStep, ctxRefOf, fillContextPrompts, type CtxHost } fr
 import { hasJoint, JOINT_BLUFF_LABEL, JOINT_KIND, type JointIntel } from './jointInterrogation';
 import { StrikeTrigger } from '../player/weaponStance';
 import { DRAW_HOLSTERED } from '../weapons/drawState';
-import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
+import { emptyStats, practiceMode, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
+import { TestMode } from './modes/testMode';
 import { roomAt } from '../world/rooms';
 import { camSpaceAt, doorPassing } from '../world/camSpaces';
 import { CAMERA } from '../config/camera';
@@ -687,7 +688,7 @@ export class GameState implements AppState {
     this.explosions = new Explosions(this.registry, world.props, this.vfx, this.ballistics);
     this.grenades = new Grenades(this.scene, world.parts, this.explosions);
     const loadout: LoadoutEntry[] =
-      opts.loadout ?? (opts.mode === 'sandbox' ? (['rifle', 'pistolSd'] as const).map((id) => ({ id })) : [{ id: 'rifle' }, { id: 'pistolSd' }]);
+      opts.loadout ?? (practiceMode(opts.mode) ? (['rifle', 'pistolSd'] as const).map((id) => ({ id })) : [{ id: 'rifle' }, { id: 'pistolSd' }]);
     this.weapons = new PlayerWeapons(world, this.player, this.ballistics, this.grenades, this.vfx, loadout, (suppressed) =>
       app.input.haptic(suppressed ? 'shotSuppressed' : 'shotLoud'),
     );
@@ -877,7 +878,9 @@ export class GameState implements AppState {
               ? new CourseMode(this)
               : opts.mode === 'sector'
                 ? new SectorMode(this)
-                : new MissionMode(this);
+                : opts.mode === 'test'
+                  ? new TestMode(this)
+                  : new MissionMode(this);
       w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
         this.eventNoise(r);
         this.enemyMgr?.hear(at, r);
@@ -968,26 +971,20 @@ export class GameState implements AppState {
         };
       }
     }
-    if (opts.mode === 'sandbox') {
+    if (practiceMode(opts.mode)) {
+      const sandbox = opts.mode === 'sandbox';
       // (locomotion step 15) free roam on a test map keeps its wall medkit stations (Proving); a co-op client mirrors
-      // the host's
-      if (!this.puppet && world.layout.medkitWalls?.length) {
+      // the host's (the test mode's items are the non-sandbox set above, medkit walls among them)
+      if (sandbox && !this.puppet && world.layout.medkitWalls?.length) {
         const w = this as { -readonly [K in keyof GameState]: GameState[K] };
         w.interactables = new Interactables(this.scene, world.parts);
         this.addMedkitWalls(w.interactables);
       }
       this.weapons.infiniteAmmo = true;
-      const d = (x: number, z: number, yaw: number, strafe = 0): void => {
-        this.dummies.push(new TrainingDummy(this.scene, world, this.registry, new Vector3(x, 0, z), yaw, strafe));
-      };
-      // training targets on the range; Free Roam on a real map is the map alone (no guards)
-      if (opts.map.id === 'proving') {
-        d(-4, 8, Math.PI, 0);
-        d(3, 10, Math.PI, 2.5);
-        d(0, 24, Math.PI, 4);
-        d(-14, 14, Math.PI * 0.75, 0);
-      }
-      this.hud.setObjective(opts.map.id === 'proving' ? 'Free roam - try every weapon' : 'Free roam - explore with every weapon');
+      // (G2a) training targets from the map's layout (a map with none: the map alone, no guards)
+      const dummies = world.layout.dummies;
+      if (dummies) for (const dm of dummies) this.dummies.push(new TrainingDummy(this.scene, world, this.registry, dm.pos.clone(), dm.yaw, dm.strafe ?? 0));
+      if (sandbox) this.hud.setObjective(dummies?.length ? 'Free roam - try every weapon' : 'Free roam - explore with every weapon');
     }
 
     const dbgPts = world.layout.debugPoints;

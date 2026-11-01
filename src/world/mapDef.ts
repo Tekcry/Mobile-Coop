@@ -70,6 +70,9 @@ export interface MapLayout {
   pickups: { pos: Vector3; kind: 'ammo' }[];
   /** Wall medkit stations (G20 / G98; test maps so far): hold to heal, single use. `yaw` faces the room. */
   medkitWalls?: { pos: Vector3; yaw: number }[];
+  /** (G2a) Training dummies (sandbox and test modes, every page: not on the wire): feet position, facing `yaw`, and
+   *  `strafe` (m, side to side; 0 stands still). */
+  dummies?: { pos: Vector3; yaw: number; strafe?: number }[];
   /** Tagged rooms (HUD room tag, Clear mode, enemies holding rooms). */
   rooms?: RoomDef[];
   /** Light switches on walls (facing `yaw`): each turns a lamp circuit (`group`) on / off. */
@@ -130,7 +133,7 @@ export interface MapDef {
   description: string;
   theme: MapTheme;
   /** Modes this map supports. */
-  modes: ('mission' | 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector')[];
+  modes: ('mission' | 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector' | 'test')[];
   /** Sector Ops (feature/sector-ops): the sectors in play order (maps that run the `sector` mode). */
   sectors?: readonly SectorDef[];
   /** (mission-framework EN2, A7) Missions over the sectors, picked by `?mission=<id>`; none picked: Sector Ops as before. */

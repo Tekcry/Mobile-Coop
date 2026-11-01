@@ -1,5 +1,5 @@
 import type { SaveData } from '../save/schema';
-import type { SessionStats } from '../game/modes/gameMode';
+import { practiceMode, type SessionStats } from '../game/modes/gameMode';
 import type { DifficultyPreset } from '../ai/archetypes';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import type { LoadoutEntry } from '../weapons/playerWeapons';
@@ -89,7 +89,7 @@ export function applySession(s: SaveData, stats: SessionStats, difficulty: Diffi
     if (m1 > m0) masteryUps.push({ weapon: w, level: m1 });
   }
   // lifetime stats
-  if (stats.mode !== 'sandbox') {
+  if (!practiceMode(stats.mode)) {
     const st = s.profile.stats;
     st.matches++;
     if (stats.won) st.wins++;
@@ -120,7 +120,7 @@ export function applySession(s: SaveData, stats: SessionStats, difficulty: Diffi
     detections: stats.detections,
     alarms: stats.alarms ?? 0,
   });
-  if (stats.mode !== 'sandbox') {
+  if (!practiceMode(stats.mode)) {
     for (const c of CHALLENGES) {
       if (s.challenges.done.includes(c.id)) continue;
       s.challenges.progress[c.id] = Math.min(1e6, (s.challenges.progress[c.id] ?? 0) + (add[c.id] ?? 0));
@@ -239,7 +239,7 @@ export function loadoutEntries(
   skin?: (w: WeaponId, camo: string) => Pick<LoadoutEntry, 'colors' | 'pattern'>,
 ): LoadoutEntry[] {
   const campaign = (mode === 'infiltration' || mode === 'sector') && campaignOpen;
-  const ids: WeaponId[] = mode === 'sandbox' ? ['rifle', 'pistolSd'] : lobbyLoadout(s, campaign);
+  const ids: WeaponId[] = practiceMode(mode) ? ['rifle', 'pistolSd'] : lobbyLoadout(s, campaign);
   return ids.map((id) => {
     const att = campaign ? campaignAttachments(id, s.weapons[id].attachments) : [...s.weapons[id].attachments];
     return { id, upgrades: s.weapons[id].upgrades, mods: combinedMods(att), attachments: att, ...(skin?.(id, s.weapons[id].camo) ?? {}) };
