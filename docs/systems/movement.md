@@ -7,7 +7,8 @@ Michael tunes movement himself as needed; movement slices and movement research 
 tune-until-sign-off). CT movement references are ignored (G210: "the ct movement is
 getting worse. Can you ignore CT movement references."): analogue speed from the stick, LT held aims, three weapon
 states, RT tap knocks out / hold kills, traversal auto-holsters (docs/archive/anim-rework/BRIEF.md). History of how the
-code got here: docs/archive/ct-movement.md, docs/archive/locomotion/ and the git log.
+code got here: `docs/research/ct-movement/` (the CT movement research and `ct-movement.md`), docs/archive/locomotion/
+and the git log.
 
 ## Decided direction
 - Built (CT prototype F1a): G17, the shoulder swap only while aiming (`player/player.ts`); G18, back-to-wall on L3
@@ -84,7 +85,7 @@ Still standing:
   outside it steps back in; only guards at alert level 'unaware' set off the tense sneak; a start's gait clock counts
   the target pace for 0.5 s (`START_CLOCK`: the first step lands at ~0.28 s); a stop draws in only a trailing swing foot,
   and a lunge wider than `STOP_CLOSE` 0.45 m closes the rear foot in once after the freeze.
-- (anim-rework S2, the real-world standard; `docs/archive/anim-rework/S2-REPORT.md`) Standing free movement: the run is
+- (anim-rework S2, the real-world standard; docs/archive/anim-rework/S2-REPORT.md) Standing free movement: the run is
   4.0 m/s (M6, was 4.5); steps are `0.3 + 0.24 v` up to `stepLenMax` 1.3 m (the walk `WALK_STEP.k` 0.2 to 2.1 m/s;
   crouched `CROUCH_STEP` 0.3 + 0.115 v, +0.35 per m/s over 1.9, cap 0.95 m): 2.4 steps/s at 1.4 m/s, 2.9 at the jog,
   3.2 at the run (was 4.7). A
@@ -107,7 +108,7 @@ Still standing:
   the closing foot comes in to `GLIDE_GAP` 9 cm (`PlannerInput.glide`; `PLANNER.minGap` 13 cm elsewhere). The feet never
   cross; enemies, holstered and low ready keep the old steps. (anim-rework S4) Crouched aiming glides too (the same side
   step, the crouched landing gap).
-- (anim-rework S4, `docs/archive/anim-rework/S4-REPORT.md`) Crouched free movement: the planner's landing gap follows
+- (anim-rework S4, docs/archive/anim-rework/S4-REPORT.md) Crouched free movement: the planner's landing gap follows
   the stance (`FREE_GAP`, as standing; the fixed 13 cm held the crouch 9-12.6 cm a foot), a planted foot steps back into
   the crouched band `CROUCH_BAND` 3.5-10 cm (the G1 band's 14 cm before; the turn scrub keeps the G1 band). A stance
   change (the crouch past half way either way) re-steps still feet into the new stance for `RESTEP.window` 1.2 s at a
@@ -133,7 +134,7 @@ Still standing:
   grounded step when it hangs more than `SETTLE.tol` over its rest gap.
 - (anim-weight) Momentum tuning: the tuner's Weight section scales the CT pace spring's start / stop times and turn caps
   and can let the stop overshoot and settle (`WEIGHT_MOVE`, read in `MotionDriver.stepCt` inside the local player's
-  `weightSim` window; identity by default; `docs/archive/anim-tuner/WEIGHT.md`).
+  `weightSim` window; identity by default; docs/archive/anim-tuner/WEIGHT.md).
 
 ## Networked movement (MoveState)
 - `player/moveState.ts` (pure; in `player/` because single player builds it and must never import `src/net`):
@@ -244,7 +245,7 @@ Still standing:
   or more: `world/camSpaces.ts` `doorPassing`) the boom pushes in to 0.8 m over 0.4 s and returns over 0.7 s once
   through or stopped (CT 110818, prototype). Decided, not removed yet (G397, "Pull-back only"): the doorway push-in
   goes; the open / tight boom stays.
-- (tuner-camera) Live camera tuning per camera state: the animation tuner's Camera section (`docs/archive/anim-tuner/CAMERA.md`);
+- (tuner-camera) Live camera tuning per camera state: the animation tuner's Camera section (docs/archive/anim-tuner/CAMERA.md);
   identity at default, the collision still applies; gameplay reads `ShoulderCamera.gamePos`.
 - Wall and low-space safety (CAM): sphere casts head -> pivot -> shoulder -> camera, up / down probes, low-space framing,
   near plane only while close (`player/shoulderCamera.ts`, `player/cameraBounds.ts`). Tight spaces: the boom pulls in

@@ -562,7 +562,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   within `BREAKER.repeatT` 60 s is the S2 `light` check at the console (bark `consoleCheck`); once that check is over the
   next guard who sees it still off turns it back on, and a dropped walk is noticed again (`CONSOLE_FAULT.retry` 3 s).
   `watchesConsole(e, x, floorY, z)` tells the game whether a guard is watching it now (the refusal). Game-side wiring
-  (CourseMode, after marlow-final): `docs/guard-ai/slices/S22.md`. Host only, no protocol change.
+  (CourseMode, after marlow-final): docs/guard-ai/slices/S22.md. Host only, no protocol change.
 - Every player is seen (guard-ai S23, A143-A145; `ai/targetPick.ts` pure: `mayBeSeen`, `pickTarget`, `TARGETS`,
   `MAX_INTRUDERS` 4): each think a guard perceives every live player (`Enemy.perceive`, per-player module scratch, no
   allocation): chest / head / hips rays, light and `sightRate` per player, a dog's smell per player; a player a calm
@@ -573,7 +573,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   target's rate (two in view do not add up). `seesIndex(i)` (player `i` of `players()` in sight, any body sample) drives
   the host's awareness arcs (`seesIndex(0)`: the host's own player); `targetDist` drives the flanker pick. Undo:
   `TARGETS.all` false (the nearest only), `TARGETS.sticky` false (best seen each think in combat). Solo: the same
-  target, rate and meter. Host only, no protocol change. Brief: `docs/guard-ai/slices/S23.md`. Tests:
+  target, rate and meter. Host only, no protocol change. Brief: docs/guard-ai/slices/S23.md. Tests:
   `targetPick.test.ts`, `coopPerception.test.ts`, e2e-coop "every player seen (guard-ai S23)".
 - Two intruders (guard-ai S24, G139, A146-A150; `ai/intruders.ts` pure: `IntruderBoard`, `INTRUDERS`): one last known
   position per player (up to `MAX_INTRUDERS`, slot by player id, stable over a rejoin): `x/y/z`, `valid`, `seenT`,
@@ -592,8 +592,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   follow the freshest (A150); the host's LKP ghost shows only the host's own slot. Undo: `INTRUDERS.split` false (one
   shared position, one group). Host only, no protocol or save change. Tests: `intruders.test.ts`,
   `twoIntruders.test.ts`, `coopPerception.test.ts` (S24 block).
-  Brief: `docs/guard-ai/slices/S24.md` on origin/feature/guard-ai.
-  Up to 4 intruders (coop4 AI1, A170 / A171, brief `docs/coop4/briefs/AI.md`): `IntruderBoard.find(id)` (a read, never
+  Brief: docs/guard-ai/slices/S24.md on origin/feature/guard-ai.
+  Up to 4 intruders (coop4 AI1, A170 / A171, brief docs/coop4/briefs/AI.md): `IntruderBoard.find(id)` (a read, never
   assigns), `leave(id)` (slot marked `gone`, kept for his rejoin: the same id takes it back, LKP kept); a new id with no
   free slot takes a gone one (idle first, else unseen longest; `reused`), only from `COOP4.from` 3 live players (1-2:
   today, -1). Every report resolves its slot through `EnemyManager.slotForId`, which releases a reused slot
@@ -622,7 +622,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   (`pointBusy`; all held: taken anyway; the #302 stall skip kept). Squad groups take cover in rotation (`rolesRR`); the
   flank trigger reads the slot's own player's cover time; `spotted` clears per player once nobody fights his slot.
   1-2 players: today. Undo `RESPONSE_N { extraPerPlayer: 0, splitAt: Infinity }`, `SWEEP4.own / dedupe`,
-  `FIGHTS4.rotate / ownCover / spotted` false. Log `docs/coop4/briefs/AI5-BUILT.md`.
+  `FIGHTS4.rotate / ownCover / spotted` false. Log docs/coop4/briefs/AI5-BUILT.md.
 - Search after combat: the probable area (guard-ai S25, M1, CT rule 9, A151-A154; `ai/searchArea.ts` pure:
   `SEARCH_AREA`, `SearchPlan`, `areaRadius`, `pointScore`, `orderByScore`). One plan per intruder slot
   (`EnemyManager.plans`). `buildPlan(slot)`, called when one of his searchers asks: due when never built, older than
@@ -642,7 +642,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   claim, done either way). Claims are freed on death / knockout (`onKilled`), despawn, leaving the search or the plan
   (`planSweep` each update, also once his response team sweeps), a forgotten slot and `clear` / `resetMemory`. Calm searches (a body, a device, a call, a
   pair, a lure) keep their ring (A152). Undo: `SEARCH_AREA.enabled` false (today's points exactly). Host only, no
-  protocol or save change. Brief: `docs/guard-ai/slices/S25.md` on origin/feature/guard-ai.
+  protocol or save change. Brief: docs/guard-ai/slices/S25.md on origin/feature/guard-ai.
   Tests: `searchArea.test.ts`, `searchAreaWiring.test.ts`.
   (S26) R grows from `locT` (seconds since seen OR located), not `seenT`: a heard step narrows the search (A157).
 - Hearing in a fight and a search (guard-ai S26, M1, CT rule 8, A155-A160; `ai/hearing.ts`: `COMBAT_HEAR`,
@@ -663,7 +663,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   plan centre resets the plan at once (claims dropped; the one exception to "never rebuild under a claim"): his
   searchers take their next point from the plan rebuilt round it (A160). Undo: `COMBAT_HEAR.enabled` false (today's
   deaf rule exactly). Host only, no protocol or save change. Tests: `combatHearing.test.ts`, `intruders.test.ts`
-  (`locT`), `searchAreaWiring.test.ts` (R from `locT`). Brief: `docs/guard-ai/slices/S26.md` on origin/feature/guard-ai.
+  (`locT`), `searchAreaWiring.test.ts` (R from `locT`). Brief: docs/guard-ai/slices/S26.md on origin/feature/guard-ai.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.
@@ -770,7 +770,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
 ## Scene sweep (storm-mill scene, guard-ai piano GA6)
 Michael 2026-10-26: "The guards must move slowly and methodically to find both players". Scene only: everything is
 gated on `EnemyManager.sceneDark` (set by the piano scene behind `flags.pianoEscape`); off the scene nothing changes.
-Plan: `docs/guard-ai/slices/PIANO-GA6-PLAN.md` (section 8 over 2-5); reports `PIANO-GA6A-REPORT.md`, `PIANO-GA6B-REPORT.md`.
+Plan: docs/guard-ai/slices/PIANO-GA6-PLAN.md (section 8 over 2-5); reports `PIANO-GA6A-REPORT.md`, `PIANO-GA6B-REPORT.md`.
 - **Plan** (`src/ai/sceneSweep.ts`, pure): a guard's route (or post) becomes a fixed timed lap at `SCENE_SWEEP.pace`
   (0.7 m/s): corners (wait 0) pass, a pan stop (wait > 0, default 3 s) holds until its `leave`; pan centre = `faces[i]`
   or the arrival heading; two points on one spot with `faces` = a face pan (posts, 8 s each way). Leg times add the
@@ -792,7 +792,7 @@ Plan: `docs/guard-ai/slices/PIANO-GA6-PLAN.md` (section 8 over 2-5); reports `PI
 - **A glimpse** (the PLAN's GA7): no new sight rule. At the board tick, a guard whose rise moved on sight and who is
   suspicious or investigating sends his calm sweep partner within `PAIRS.togetherR` (4 m) to the same spot
   (`followGlimpse`: a calm `sendTo`, incident -1, one line: `checking`).
-- **Mill hunt** (guard-ai mill-hunt, `flags.millHunt`, `docs/guard-ai/mill-hunt/`): with the flag on and the live
+- **Mill hunt** (guard-ai mill-hunt, `flags.millHunt`, docs/guard-ai/mill-hunt/): with the flag on and the live
   section's `hunt` (`SectorDef.hunt`, Thornbeck Mill), `sceneDark = true` builds the hunt board (`src/ai/millHunt.ts`,
   `EnemyManager.millHunt`) empty instead of the sweep: every guard `mhStart` (searching for good: `i.hunting`), each
   placed or woken guard admitted, the board ticked with the incident board in GA7's place (`mhTick`: a guard back from

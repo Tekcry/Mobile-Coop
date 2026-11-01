@@ -21,7 +21,7 @@ its graph sets `meta.mode` to the same value.
   systems: no new movement, co-op moves, AI behaviour, takedown kinds, interactable kinds, net messages, HUD elements,
   input bindings or mode logic.
 - Missions use the mission engine (`src/game/mission/`, `missionDef.ts`, on feature/mission-engine until it merges; the
-  mission-framework job, `docs/missions/PLAN.md`): sections, objective steps, parallel team tracks and strict rules are
+  mission-framework job, docs/missions/PLAN.md): sections, objective steps, parallel team tracks and strict rules are
   `MissionDef` data. An objective step or rule kind the engine lacks, or a co-op move the kit lacks
   (`docs/level-design.md` 11.9), is built by the mission-framework or co-op job first, never in this map job. A map that
   starts before the engine is on master asks the orchestrator.

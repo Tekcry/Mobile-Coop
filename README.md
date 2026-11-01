@@ -20,7 +20,8 @@ campaign is also playable in online co-op for 2-4 players.
   only where the licence allows commercial sale (credited in `docs/art-credits.md`, `docs/audio-credits.md`), and
   IndexedDB saves with export/import.
 - **Docs:** design authority is [docs/design-bible.md](docs/design-bible.md); the current focus is ROADMAP "Now"
-  (on origin/feature/menu); the old status log is [docs/archive/progress.md](docs/archive/progress.md).
+  (on origin/feature/menu); the old status log and finished job folders are in git history (docs/archive/ was
+  removed on 2026-11-01).
 
 ## Play
 

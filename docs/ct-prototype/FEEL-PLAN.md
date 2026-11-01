@@ -12,7 +12,7 @@ Michael signs off each area as "feels like Chaos Theory". Co-op slices C1-C7 com
 
 Sources, in authority order: Michael > `docs/DECISIONS.md` (G25-G41, G96-G103, G107, G109, G110, and G124-G160 from the
 research, merged 2026-10-18) > the bible > `docs/archive/locomotion/PROTOTYPE-PLAN.md` (P1-P4) and
-`docs/archive/locomotion/research/ct-measure-*.md` > code. Research facts in `docs/ct-research/moves-mechanics-digest.md`
+`docs/research/ct-movement/ct-measure-*.md` > code. Research facts in `docs/ct-research/moves-mechanics-digest.md`
 sections 2-3; its "findings for Michael to confirm" are not decisions.
 
 ## Step 0 - code review (done)

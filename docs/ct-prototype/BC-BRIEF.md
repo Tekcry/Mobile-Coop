@@ -34,7 +34,7 @@ Meshes, rig proportions and skinning still do not.
   PROTOCOL_VERSION.
 
 ## References
-- CT footage measurements: `docs/archive/locomotion/research/ct-measure-speeds-stops-posture.md`, `ct-measure-camera.md`,
+- CT footage measurements: `docs/research/ct-movement/ct-measure-speeds-stops-posture.md`, `ct-measure-camera.md`,
   `ct-footage-catalogue.md`, `ct-locomotion.md`; posture work P1 / P1b / P1c (`P1-POSTURE.md`, `P1B-POSTURE.md`,
   `P1C-POSTURE.md`, `docs/ct-prototype/shots/`); `docs/ct-research/moves-mechanics-digest.md`.
 - Code: `src/anim/animGraph.ts` (ready / sight / SIGHT_RAISE / PISTOL_REACH / BREATH / carriage), `src/player/characterRig.ts`

@@ -14,7 +14,7 @@ Scope: default controls of the 2005 reference game, single player and co-op. Wor
 | S2 | Steam discussion, https://steamcommunity.com/app/13570/discussions/0/1778262124947608790 (PC pad config with button-to-action names) | Community, PC |
 | S3 | PC review, https://techenclave.com/threads/splinter-cell-chaos-theory-pc-review.4838/ | Review |
 | S4 | Previews/reviews quoted in search (White button hold and scroll), https://cheatcc.com/articles/tom-clancy-s-splinter-cell-chaos-theory-review-preview-for-xbox-xb-xb-rev/ | Review |
-| L | Local footage notes, `docs/archive/locomotion/research/ct-measure-walls-doors-combat-vision.md` section 4 | Our own measurement |
+| L | Local footage notes, `docs/research/ct-movement/ct-measure-walls-doors-combat-vision.md` section 4 | Our own measurement |
 | D | `docs/ct-research/moves-mechanics-digest.md` section 3 (co-op buttons) and row G18 / G96 | Our digest |
 
 Not found: an official PC manual with the keyboard table (not on archive.org or replacementdocs in search). The PC keyboard table below is therefore thin and marked low confidence. Check the in-game Controls screen on a real copy.

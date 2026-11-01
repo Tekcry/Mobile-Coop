@@ -6,10 +6,9 @@ the debug overlay. Tick each item; note anything off in Pause > Report feedback.
 
 Items marked (CT prototype) describe today's movement as built. CT movement values are not build targets: CT movement
 references are ignored (G210) and Michael tunes movement himself (G227), so test what is built, never a CT target.
-Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-version lists:
-[docs/archive/testing-history.md](docs/archive/testing-history.md) (3.0.0 to the consolidation) and
-[docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md); per-job lists moved out on 2026-10-25 (conformance T22):
-[docs/archive/testing-job-sections.md](docs/archive/testing-job-sections.md).
+Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-version and per-job lists are in git
+history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sections.md; the archive was removed on
+2026-11-01).
 
 ## Desktop checklist
 
@@ -39,7 +38,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   pointer and pings still show.
 - [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes
   and objective read by lamp light, with dark
-  pockets between; sections 2 and 3 each offer three routes (`docs/archive/warehouse-s23/WALK.md`). Every lamp is an LED
+  pockets between; sections 2 and 3 each offer three routes (docs/archive/warehouse-s23/WALK.md). Every lamp is an LED
   fitting (sector-fixes L): a flush panel under a room ceiling, a strip on short wires under the roof, a slim bulkhead on
   a wall bracket; a room's fittings share one height on a regular grid or row (some dark, over the pockets), none stands
   on the roof or near a climbing pipe, ladder or duct (the yard drainpipe's lamp is 1 m beside it); none floats or pokes

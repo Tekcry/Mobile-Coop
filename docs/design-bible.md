@@ -880,7 +880,7 @@ out, and ragdoll hand-offs with no snap.
 `scripts/anim-audit.mjs` drives every state and transition headlessly, local and remote, and records against 5.12.2 and
 the 5.17 D2 limits: joint velocity peaks, pelvis jumps, foot and hand slide, clipping, range-of-motion violations, balance
 and action durations. Every new or changed clip passes it before it is committed. The audit inventory and its history are
-in `docs/archive/locomotion/`.
+in docs/archive/locomotion/.
 
 ### 5.13 Health and damage
 
@@ -931,7 +931,7 @@ the pair complementary kits (G134, G153).
 ### 5.15 Mission 8 finale
 
 Mission 8 has no traitor and no player-versus-player finale (G9). The finale is designed with the missions
-(`docs/story.md`). The old Confrontation design is history (`docs/archive/design-bible-history.md`, 5.15).
+(`docs/story.md`). The old Confrontation design is history (docs/archive/design-bible-history.md, 5.15).
 
 ### 5.16 Visual target
 
@@ -959,7 +959,7 @@ Mission 8 has no traitor and no player-versus-player finale (G9). The finale is 
 
 ### 5.17 Locomotion rules still in force
 
-From the locomotion run (loco D1-D8, 2026-10-13; `docs/archive/locomotion/DECISIONS.md`, history). D3, D4, D5, D6 are history;
+From the locomotion run (loco D1-D8, 2026-10-13; docs/archive/locomotion/DECISIONS.md, history). D3, D4, D5, D6 are history;
 what survives of D5 is G30 (5.3).
 
 #### D1 Controls
@@ -1021,7 +1021,7 @@ Every feature works smoothly in co-op (2 players; up to 4 in Sector Ops), to 5.9
   team-versus-team (G8, G12).
 - The traitor finale and any player-versus-player finale (G9).
 - The retired maps: the 1934 Kestrel Exchange, the Trunk Annex, Dead Line v1 and v2 (G12; designs in
-  `docs/archive/maps/`, G91).
+  docs/archive/maps/, G91).
 - Emotes and the old solo Training mode (G24, G116). Marlow Yard is the only training course (G184, G292).
 - The tri-rotor drone, custom difficulty sliders and the alarm-tolerance setting (G7, G106, G115).
 - Carried medkits and the medkit count (G98).
@@ -1051,7 +1051,7 @@ Every feature works smoothly in co-op (2 players; up to 4 in Sector Ops), to 5.9
 - The old Mission mode.
 - Credits, XP-gated unlocks, shop, suit upgrades, HQ, challenges, weapon mastery; camos, outfits, appearance editing.
 - The drone operator guard archetype (not placed in maps).
-- The Fallow bunker (map `bunker`, `docs/archive/training/`), the old co-op tutorial; Marlow Yard replaced it (G184, G292).
+- The Fallow bunker (map `bunker`, docs/archive/training/), the old co-op tutorial; Marlow Yard replaced it (G184, G292).
 - Parked maps (Embassy, Mansion, Port, Refinery, Dust Depot). The Warehouse stays selectable as the old Sector Ops map,
   frozen (G298, G390).
 
@@ -1206,7 +1206,7 @@ definition of done). In short:
 ## 10. Roadmap
 
 The live job list, ranked, with owners and gates, is `docs/ROADMAP.md` "Now" on origin/feature/menu (G90;
-`docs/archive/progress.md` is its history). This section only says where the game stands.
+docs/archive/progress.md is its history). This section only says where the game stands.
 
 1. **Done:** the CT co-op research (2026-10-18, digests in `docs/ct-research/`, G124-G160); the core-feel job, closed
    when Michael took over movement tuning (G227, replaces G150); Wren in for both players (G123).

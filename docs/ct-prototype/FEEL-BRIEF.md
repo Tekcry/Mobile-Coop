@@ -8,7 +8,7 @@ comes after.
 CT movement, camera and aim, back-to-wall and doors, palm strike and grab, goggles, on Wren (both players), to "feels
 like Chaos Theory" quality. Sources, in authority order: Michael > docs/DECISIONS.md (G25-G41, G96-G103, G107, G109,
 G110; the D answers and 2026-10-18 picks in docs/ct-research/DECISIONS-PENDING.md once PR #4 merges) > the bible >
-docs/archive/locomotion/PROTOTYPE-PLAN.md (P1-P4 with footage numbers) and docs/archive/locomotion/research/ct-measure-*.md (Michael's
+docs/archive/locomotion/PROTOTYPE-PLAN.md (P1-P4 with footage numbers) and docs/research/ct-movement/ct-measure-*.md (Michael's
 CT footage, measured) > code.
 
 ## How it runs
