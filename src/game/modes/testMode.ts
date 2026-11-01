@@ -3,6 +3,10 @@ import { flags } from '../../core/flags';
 import type { GameState } from '../gameState';
 import type { SlotPoint } from '../spawnSlots';
 import type { GameMode } from './gameMode';
+import type { Enemy, PlayerRef } from '../../ai/enemy';
+import type { SquadSlot } from '../../world/rooms';
+import { hyp2 } from '../../core/mathx';
+import { PRACTICE_RESPAWN_S, practiceDownTime, practiceDue } from './practiceGuards';
 
 /** Alive cap for `populate` (the enemy manager caps at 12; the parked modes keep a few spare). */
 const POPULATE_CAP = 9;
@@ -27,6 +31,9 @@ export class TestMode implements GameMode {
   /** Alarms raised (tests). */
   alarms = 0;
   private respawnT = -1;
+  /** (G2c) The practice guards: a spot (the layout's slot), his guard now (null: none yet) and how long he has been down. */
+  private readonly practice: { slot: SquadSlot; e: Enemy | null; down: number }[] = [];
+  private readonly refs: PlayerRef[] = [];
 
   constructor(private readonly g: GameState) {}
 
@@ -37,6 +44,63 @@ export class TestMode implements GameMode {
     em.coordinated = true;
     this.g.hud.setObjective('');
     if (flags.guards || this.g.opts.benchmark) this.populate();
+    if (this.g.opts.practice) this.startPractice();
+  }
+
+  /**
+   * (G2c, N17) Place the layout's passive practice guards (`MapLayout.practice`): calm, standing their posts, seeing and
+   * hearing nothing. A guard taken down comes back at his spot (`fixedUpdate`). Returns how many stand now.
+   */
+  startPractice(): number {
+    this.practice.length = 0;
+    for (const slot of this.g.world.layout.practice ?? []) this.practice.push({ slot, e: null, down: 0 });
+    let n = 0;
+    for (const p of this.practice) if (this.placePractice(p)) n++;
+    return n;
+  }
+
+  /** One practice guard on his spot (false: the cap or no walkable cell near it; tried again later). */
+  private placePractice(p: { slot: SquadSlot; e: Enemy | null; down: number }): boolean {
+    const em = this.g.enemyMgr;
+    if (!em) return false;
+    const s = p.slot;
+    const e = em.spawn(s.kind, new Vector3(s.x, s.y ?? Number.NaN, s.z), false, s.yaw);
+    if (!e) {
+      p.down = 0;
+      return false;
+    }
+    e.passive = true;
+    em.placeSlot(e, s);
+    p.e = e;
+    p.down = 0;
+    return true;
+  }
+
+  /** The practice guards' respawn rule (`practiceGuards.ts`): down 10 s and nobody within 2.5 m of his spot. */
+  private practiceStep(dt: number): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    for (let i = 0; i < this.practice.length; i++) {
+      const p = this.practice[i]!;
+      const e = p.e;
+      p.down = practiceDownTime(p.down, dt, !e || !e.alive);
+      if (p.down < PRACTICE_RESPAWN_S) continue;
+      // a body being carried is not ours to remove
+      let carried = false;
+      for (let k = 0; k < em.bodies.length; k++) if (e && em.bodies[k]!.enemyId === e.id && em.bodies[k]!.carried) carried = true;
+      if (carried) continue;
+      let near = Infinity;
+      const refs = this.g.playerRefsInto(this.refs);
+      for (let k = 0; k < refs.length; k++) {
+        const f = refs[k]!.feet;
+        const d = hyp2(f.x - p.slot.x, f.z - p.slot.z);
+        if (d < near) near = d;
+      }
+      if (!practiceDue(p.down, near)) continue;
+      if (e) em.despawn(e);
+      p.e = null;
+      this.placePractice(p);
+    }
   }
 
   /**
@@ -54,6 +118,8 @@ export class TestMode implements GameMode {
         if (em.alive >= max) return n;
         const e = em.spawn(slot.kind, new Vector3(slot.x, slot.y ?? Number.NaN, slot.z), false, slot.yaw);
         if (!e) return n;
+        // (G2c) a passive slot (a training guard): sees and hears nothing, as in the course
+        if (slot.passive) e.passive = true;
         e.hold = room;
         em.joinSquad(e, i);
         if (slot.route) e.setPatrol({ points: slot.route, wait: slot.wait });
@@ -64,6 +130,7 @@ export class TestMode implements GameMode {
   }
 
   fixedUpdate(dt: number): void {
+    if (this.practice.length > 0) this.practiceStep(dt);
     if (this.respawnT > 0 && (this.respawnT -= dt) <= 0) {
       this.respawnT = -1;
       this.g.reviveAll();
@@ -102,5 +169,6 @@ export class TestMode implements GameMode {
 
   dispose(): void {
     this.respawnT = -1;
+    this.practice.length = 0;
   }
 }

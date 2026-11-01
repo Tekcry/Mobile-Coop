@@ -460,7 +460,9 @@ async function boot(): Promise<void> {
     startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: s });
   };
   // (anim-studio) Main menu / Settings > Test Chamber: the studio stage in Free Roam (single player)
-  app.studio = () => startGame({ map: getMap('studio'), mode: 'sandbox', seed: 1, stage: true });
+  // (G2c, N17) in the test mode with the three passive practice guards (`?practice=0` leaves them out, the tests do): the stage
+  // and its loop player run as before, the guards stand outside the open middle
+  app.studio = () => startGame({ map: getMap('studio'), mode: 'test', seed: 1, stage: true, practice: flags.practice !== false });
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
   // tests: start a match from the menu (Free roam left the main menu with sector-ops slice 1; e2e-pad still walks it)
@@ -497,7 +499,7 @@ async function boot(): Promise<void> {
     } else {
       // infiltration: the mission picks its map
       const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === autostart) ?? MISSIONS[0]! : null;
-      startGame({ map: getMap(mission ? mission.map : autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, stage: flags.stage, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+      startGame({ map: getMap(mission ? mission.map : autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, stage: flags.stage, practice: flags.practice === true, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
     }
   }
   else goToMenu();

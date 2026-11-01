@@ -12,6 +12,9 @@ export interface Flags {
   guards: boolean;
   /** (G2b, tests) `?stage=1`: with `?autostart=studio` the animation stage (loop player, tuner panel docked) starts; without it the Test Chamber is the plain room. The main menu's Test Chamber row always starts it. */
   stage: boolean;
+  /** (G2c, N17) The Test Chamber's practice guards: `?practice=1` turns them on for a URL boot, `?practice=0` off for the main menu
+   *  row and the co-op lobby start (both start them otherwise); the tests' pages carry `practice=0` (`e2e-lib`). */
+  practice: boolean | null;
   /** Infiltration: mission id and insertion id for autostart. */
   mission: string | null;
   insertion: string | null;
@@ -236,6 +239,7 @@ export const flags: Flags = {
   mode: readMode(params.get('mode')),
   guards: params.get('guards') === '1',
   stage: params.get('stage') === '1',
+  practice: params.get('practice') === '1' ? true : params.get('practice') === '0' ? false : null,
   mission: params.get('mission'),
   loadout: params.get('loadout')?.split(',').filter(Boolean) ?? null,
   insertion: params.get('insertion'),
