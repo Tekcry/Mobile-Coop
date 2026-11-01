@@ -425,12 +425,12 @@ describe('radio net: four intruders (coop4 AI3, A173)', () => {
     return gs;
   };
 
-  it('RADIO.queue is MAX_INTRUDERS x 32 (128)', () => {
+  it('RADIO.queue is 128 (room for 4 contacts; the game now has 2 intruders at most)', () => {
     expect(RADIO.queue).toBe(128);
-    expect(RADIO.queue).toBe(MAX_INTRUDERS * 32);
+    expect(RADIO.queue).toBeGreaterThanOrEqual(MAX_INTRUDERS * 32);
   });
 
-  it('4 contacts at once in one section of 32 guards (31 receivers each): dropped 0, all 124 delivered, each receiver once per contact', () => {
+  it('every intruder calls at once in one section of 32 guards (31 receivers each): dropped 0, all delivered, each receiver once per contact', () => {
     const { net, v, s } = setup(line(32));
     for (let c = 0; c < MAX_INTRUDERS; c++) expect(net.startCall(100 + c, c, 'contact', RADIO.callIn)).toBeGreaterThan(0);
     run(net, v, s, RADIO.callIn + 0.05);

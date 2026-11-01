@@ -13,7 +13,7 @@ import type { CampaignSave } from '../save/campaignRecord';
 import type { GameOptions } from '../game/gameState';
 
 /** (mission-rules R4, G2 "2 player coop campaign only", G48 "No bot anywhere") A campaign room holds exactly two,
- *  whatever the mode's `capacity()` (coop4 takes Sector Ops to 4; a campaign room stays 2). */
+ *  whatever the mode's `capacity()` (every mode is 2 players; a campaign room is 2). */
 export const CAMPAIGN_ROOM = CAMPAIGN_PLAYERS;
 
 export interface LocalProfile {
@@ -451,7 +451,7 @@ export class NetSession {
     return missions ? campaignStartBlock(missions, this.sectorMission || null, this.players.size) : null;
   }
 
-  /** Too many players for the chosen mode (co-op takes 4) or for the campaign (2). */
+  /** Too many players for the chosen mode (co-op takes 2) or for the campaign (2). */
   get overCapacity(): boolean {
     return this.players.size > this.cap;
   }

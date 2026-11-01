@@ -24,8 +24,8 @@ import type { AnimSource } from '../anim/animSource';
 /** The wire version. Only this line holds it; tests read it. Bump it in the PR that changes the wire (history: CHANGELOG, docs/systems/coop.md). */
 export const PROTOCOL_VERSION = 84;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
-export const MAX_PLAYERS = 4;
-export const COOP_MAX = 4;
+export const MAX_PLAYERS = 2;
+export const COOP_MAX = 2;
 export const MAX_ENEMIES = 32;
 export const MAX_EVENTS = 48;
 /** Usable things (objectives, switches, doors, revives) mirrored to clients; open doors listed. */

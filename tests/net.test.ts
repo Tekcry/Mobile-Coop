@@ -434,17 +434,16 @@ describe('net session', () => {
     await host.leave();
     expect(gone).toBe(true);
   });
-  it('rooms cap at four players', () => {
+  it('rooms cap at two players', () => {
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
-    // (a new room is the two-player campaign since sector-ops; the cap of four is the parked modes')
     host.setSettings('infiltration', 'warehouse', 'normal');
-    for (const id of ['A', 'B', 'C']) new NetSession(h.make(id), 'client', 'ABCDE', prof(id));
-    const fifth = new NetSession(h.make('X'), 'client', 'ABCDE', prof('X'));
+    new NetSession(h.make('A'), 'client', 'ABCDE', prof('A'));
+    const third = new NetSession(h.make('X'), 'client', 'ABCDE', prof('X'));
     let full = false;
-    fifth.events.on('full', () => (full = true));
-    fifth.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'X', tag: {}, look: {} }, 'H');
-    expect(host.players.size).toBe(4);
+    third.events.on('full', () => (full = true));
+    third.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'X', tag: {}, look: {} }, 'H');
+    expect(host.players.size).toBe(2);
     expect(full).toBe(true);
   });
 });
