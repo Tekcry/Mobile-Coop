@@ -2,7 +2,7 @@
 // grey card at points whose field level matches a DARK_TARGETS row (0.12, 0.27, 0.40, 0.70) reads as display luminance inside the
 // row's band, and the light meter equals the field there (0.02), with every moving light held still (`pinLights`).
 // Carded: Saltmarsh Park (campusOps, each of S1-S5; v1 as it ships), ctcourse (Marlow Yard) and the Warehouse. Not carded: warehouseOps
-// (frozen, Q26), provingGrounds, kestrel, seclab / courselab, bunker (J11 BRIEF A1, A5).
+// (frozen, Q26), provingGrounds, kestrel, seclab / courselab (J11 BRIEF A1, A5).
 //   parts: 1 campusOps S1-S2, 2 campusOps S3-S5, 3 ctcourse, 4 warehouse (`--part=N`, none = all); each runs Low then Epic.
 //   lines: `<look> <id> level <l> luma <v> band <min>-<max> ok|MISS|KNOWN MISS (...)`, `<look> <id> meter <m> field <f> ok|MISS`,
 //   and per part `PARITY-SUMMARY {"part", "cards", "meter", "known", "misses", "s"}` (the walk card's "Light parity" source).

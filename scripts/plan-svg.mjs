@@ -1,7 +1,7 @@
 // Plan SVGs of a map, headless (Node, no browser): builds the map's data with its LevelBuilder (loaded through Vite's
 // SSR module loader, the same transform the unit tests use) and writes one top-down SVG per storey.
 //
-// Usage: node scripts/plan-svg.mjs [mapId]        (default: bunker)
+// Usage: node scripts/plan-svg.mjs [mapId]        (default: ctcourse)
 // Output: test-results/training/plan-<y>.svg       (one per storey floor y; never committed)
 //
 // Scale 1 m = 10 px, a 6 m grid, north (+z) up. Boxes are drawn by height over their storey floor (darker = taller)
@@ -12,7 +12,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createServer } from 'vite';
 
-const mapId = process.argv[2] ?? 'bunker';
+const mapId = process.argv[2] ?? 'ctcourse';
 const OUT = resolve('test-results/training');
 const S = 10;
 const GRID = 6;

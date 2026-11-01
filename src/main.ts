@@ -306,14 +306,6 @@ async function boot(): Promise<void> {
         ctx: 'The campaign. Pick a mission, read the briefing, choose your way in.',
         action: () => a.screens.push(new MissionsScreen(a, (o) => startGame(o))),
       }),
-      () => ({
-        key: 'training',
-        label: 'Training',
-        order: 17,
-        ctx: 'Drills on the Fallow bunker course.',
-        locked: () => 'The bunker is being rebuilt on the new moves. Training returns after the prototype.',
-        action: () => {},
-      }),
       (a) => ({
         key: 'freeroam',
         label: 'Free roam',

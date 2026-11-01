@@ -112,7 +112,7 @@ describe('gm-look-seeds: freeLook / distinctLooks', () => {
   });
 
   it('200 seeds: no throw, every seed used, none more than twice', () => {
-    const seeds = Array.from({ length: 200 }, (_, i) => posLook('bunker', i * 0.7, -i * 1.3));
+    const seeds = Array.from({ length: 200 }, (_, i) => posLook('campusOps', i * 0.7, -i * 1.3));
     const out = distinctLooks(seeds);
     expect(out).toBe(seeds); // in place
     expect(new Set(out.slice(0, 128)).size).toBe(128);

@@ -106,7 +106,7 @@ function report(rs: Row[]): string {
   L.push('1 deg across the frame, 0.1 m along it). A head (standing 1.6 m, crouched 1.05 m over the feet) is picked up where it is in');
   L.push('the frame, the lens has a clear line to it, the body stands free (on the floor of its level) and the rate is over the leak');
   L.push('(0.2 /s). Door leaves are not pieces: every door counts as open (worst case). Kestrel ships no cameras (its campus file');
-  L.push('has no devices); Fallow (`bunker`, parked) is not live.');
+  L.push('has no devices).');
   L.push('');
   L.push('Before = 4.63.1 (range 18 m unless the map sets one; the guard falloff over 25 m, so the full rate right up to the range');
   L.push('cut). After = this branch (`camRange`: own range, else 2 x aim, else 12 m, at most 14 m; falloff 1 - (d / range)^2).');

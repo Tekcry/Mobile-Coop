@@ -61,7 +61,6 @@ const MASTER_QUICK: [string, string[]][] = [
   ['src/ai/', ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-levels', 'e2e-tactics', 'e2e-takedown', 'e2e-enemies']],
   ['src/world/maps/kestrel', ['e2e-kestrel']],
   ['src/world/maps/courselab.ts', ['e2e-course']],
-  ['src/world/maps/bunker', ['e2e-course']],
   ['src/world/maps/ctcourse.ts', ['e2e-ctcourse']],
   ['src/world/maps/ctcourseSets/', ['e2e-ctcourse']],
   ['src/world/maps/ctcourseGreybox.ts', ['e2e-ctcourse']],
@@ -218,7 +217,6 @@ describe('--affected: the DIRECT tier (default)', () => {
       ['src/progression/xp.ts', 'e2e-progression'],
       ['src/cosmetics/catalogue.ts', 'e2e-cosmetics'],
       ['src/game/modes/clearMode.ts', 'e2e-clear'],
-      ['src/world/maps/bunkerDeep.ts', 'e2e-bunker'],
       ['src/game/missions.ts', 'e2e-missions'],
       ['src/game/modes/infiltrationMode.ts', 'e2e-missions'],
       ['src/game/modes/missionMode.ts', 'e2e-modes'],
@@ -287,9 +285,9 @@ describe('affected requests skip GPU and legacy suites (testing-tools: GPU never
   const gate = affectedGateSuites as (s: string[]) => string[];
   it('drops every GPU-only and LEGACY suite, whole or as a part, and keeps the rest in order', () => {
     // PR #400's affected request (2026-10-25) named these beside the required suites
-    const req = ['anim-audit', 'e2e-anchors', 'e2e-bunker', 'e2e-camera-bounds', 'e2e-coop-gpu', 'e2e-darkness', 'e2e-desktop', 'e2e-lightbake', 'e2e-security', 'smoke'];
+    const req = ['anim-audit', 'e2e-anchors', 'e2e-clear', 'e2e-camera-bounds', 'e2e-coop-gpu', 'e2e-darkness', 'e2e-desktop', 'e2e-lightbake', 'e2e-security', 'smoke'];
     expect(gate(req)).toEqual(['anim-audit', 'e2e-anchors', 'e2e-desktop', 'e2e-lightbake', 'smoke']);
-    expect(gate(['e2e-desktop:3', 'e2e-desktop:1', 'e2e-wall:flanker', 'e2e-wall', 'e2e-bunker:1'])).toEqual(['e2e-desktop:1', 'e2e-wall']);
+    expect(gate(['e2e-desktop:3', 'e2e-desktop:1', 'e2e-wall:flanker', 'e2e-wall', 'e2e-clear:1'])).toEqual(['e2e-desktop:1', 'e2e-wall']);
     for (const s of [...(LEGACY as string[]), ...(GPU as string[])]) expect(gate([s, 'smoke']), s).toEqual(['smoke']);
     expect(gate([])).toEqual([]);
   });
@@ -380,7 +378,7 @@ describe('affected-cap: the closest suites, at most the cap (the cases below use
     [['src/player/smoothBody.ts'], ['e2e-clip', 'e2e-guard-carry', 'e2e-stealth']],
     [['src/world/maps/campusS4.ts'], ['e2e-anchors', 'e2e-levels', 'e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9']],
     [['src/world/lightBake.ts'], ['e2e-desktop', 'e2e-lightbake']],
-    [['src/world/maps/bunker.ts'], ['e2e-course']],
+    [['src/world/maps/courselab.ts'], ['e2e-course']],
     [['src/save/ratingRecord.ts'], ['e2e-section-rating']],
     [['src/save/schema.ts'], group],
     [['src/net/remoteAvatar.ts'], group],
@@ -446,7 +444,7 @@ describe('affected-cap: the closest suites, at most the cap (the cases below use
   });
   it('GPU, LEGACY and AUDIO suites never take a slot', () => {
     const off = new Set([...(LEGACY as string[]), ...(GPU as string[]), 'e2e-score', 'e2e-foley', 'e2e-weapon-audio']);
-    const files = ['src/world/maps/bunker.ts', 'src/world/lightBake.ts', 'src/ai/archetypes.ts', 'src/audio/x.ts', 'src/net/remoteAvatar.ts', 'src/progression/p.ts'];
+    const files = ['src/world/maps/kestrel.ts', 'src/world/lightBake.ts', 'src/ai/archetypes.ts', 'src/audio/x.ts', 'src/net/remoteAvatar.ts', 'src/progression/p.ts'];
     for (const f of files) for (const s of pick([f])) expect(off.has(s) || off.has(s.split(':')[0] ?? s), `${f} ${s}`).toBe(false);
     expect(pick(['src/ai/archetypes.ts'])).toEqual(['e2e-guard-carry', 'e2e-sectorops:1', 'e2e-stealth-ai']);
   });

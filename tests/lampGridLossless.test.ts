@@ -1,7 +1,7 @@
 /**
  * (sector-fixes L, checker) `lampGrid` lists a cone light only in the 2 m columns its beam can reach (`lampPlanReach` /
- * `lampColumnDist`). This proves on real maps that the listing drops no light: for Marlow Yard (ctcourse), Fallow
- * (bunker), the base Warehouse and Sector Ops (warehouseOps, all three sections), the lamp light the field sums from the
+ * `lampColumnDist`). This proves on real maps that the listing drops no light: for Marlow Yard (ctcourse),
+ * the base Warehouse and Sector Ops (warehouseOps, all three sections), the lamp light the field sums from the
  * new listing equals, at every sample point, the sum over a reference listing of every light whose falloff radius
  * touches the column, uncapped (each lamp's term is exactly 0 outside its radius, so that reference holds every term).
  * It also reports where the old listing (the same radius rule, capped at `LAMP_GRID_SLOTS`) differed: only columns
@@ -12,7 +12,6 @@ import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import type { MapDef } from '../src/world/mapDef';
 import { ctcourse } from '../src/world/maps/ctcourse';
-import { bunker } from '../src/world/maps/bunker';
 import { warehouse } from '../src/world/maps/warehouse';
 import { warehouseOps } from '../src/world/maps/warehouseOps';
 import { dressingOn } from '../src/world/detailPass';
@@ -129,7 +128,7 @@ function check(map: MapDef, id: string): Result {
 }
 
 describe('(sector-fixes L) lampGrid reach listing is lossless on real maps', () => {
-  const maps: [MapDef, string][] = [[ctcourse, 'ctcourse'], [bunker, 'bunker'], [warehouse, 'warehouse'], [warehouseOps, 'warehouseOps']];
+  const maps: [MapDef, string][] = [[ctcourse, 'ctcourse'], [warehouse, 'warehouse'], [warehouseOps, 'warehouseOps']];
   for (const [map, id] of maps) {
     it(`${id}: the reach listing sums every light the radius listing does`, () => {
       const res = check(map, id);

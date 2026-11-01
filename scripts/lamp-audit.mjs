@@ -19,15 +19,13 @@ const views = !process.argv.includes('--no-views');
 const only = process.argv.find((a) => a.startsWith('--map='))?.slice(6).split(',');
 const OUT = resolve(root, 'docs/sector-redesign/checks/lr16-lamp-audit.md');
 /** The LR16 plan's map list ("Per-map lamp audit (LR16c)"): `LISTED_MAP_IDS` plus these; `*` = every id with the prefix. */
-const PLAN = ['warehouseOps', 'ctcourse*', 'bunker*', 'embassy', 'dustDepot', 'courselab'];
+const PLAN = ['warehouseOps', 'ctcourse*', 'embassy', 'dustDepot', 'courselab'];
 /** Plan names whose map id differs (the plan names the file). */
 const ALIAS = { dustDepot: 'depot' };
 /** Flags decided to stay (LR16dx, `docs/sector-redesign/checks/lr16dx-build.md`): `map:id` -> why. A re-run lists them as
  *  decided, not as moves to make; one that no longer flags shows "no longer flagged" (drop it here). */
 const DECIDED = {
   'warehouseOps:44': 'the mess panel: the mess is 1.7 m deep (z -10.65 to -8.95), so no spot is 1 m off both long walls; centred (0.85 m each side) is the realistic place',
-  'bunker:13': 'Fallow is parked behind `?legacy=1` (no new work on parked maps); the push (dz +0.58) is valid if Fallow returns',
-  'bunker:15': 'Fallow is parked behind `?legacy=1` (no new work on parked maps); the shaft is 2.29 m across, so no spot is 1 m off both walls (centred: 0.92 m)',
 };
 const log = (s) => process.stderr.write(s + '\n');
 /** The bake modules (loaded in the run, read by `bakeField`). */
@@ -43,7 +41,6 @@ try {
   const { MAPS } = await load('/src/world/maps/index.ts');
   const { LISTED_MAP_IDS } = await load('/src/world/maps/listed.ts');
   const { PARKED_MAPS } = await load('/src/world/maps/parked.ts');
-  const { bunker } = await load('/src/world/maps/bunker.ts');
   const { dressingOn } = await load('/src/world/detailPass.ts');
   const { canonicalLightShapes, canonicalLightSet } = await load('/src/voxel/lightShapes.ts');
   const audit = await load('/src/world/lampAudit.ts');
@@ -75,7 +72,7 @@ try {
     return def;
   };
 
-  const pool = [...MAPS, bunker, ...PARKED_MAPS].filter((m, i, a) => a.findIndex((n) => n.id === m.id) === i);
+  const pool = [...MAPS, ...PARKED_MAPS].filter((m, i, a) => a.findIndex((n) => n.id === m.id) === i);
   const wanted = [...LISTED_MAP_IDS, ...PLAN];
   const maps = [];
   const missing = [];

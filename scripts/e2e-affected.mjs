@@ -16,8 +16,8 @@ import TIMES from './e2e-times.json' with { type: 'json' };
 
 // The runner's lists (scripts/run-e2e.mjs imports them): LEGACY = parked content, run by `npm run e2e:legacy` and
 // REPORT ONLY in a quick / affected run; GPU = visual read-backs, `--gpu` only (no visual result from SwiftShader).
-// e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section; e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
-export const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
+// e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section
+export const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
 // e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow)
 export const GPU = ['e2e-darkness', 'e2e-parity', 'e2e-desktop:3', 'e2e-coop-gpu'];
 
@@ -117,7 +117,6 @@ export const QUICK_COVERS = {
   'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-levels', 'e2e-tactics', 'e2e-takedown', 'e2e-enemies'],
   'src/world/maps/kestrel': ['e2e-kestrel'],
   'src/world/maps/courselab.ts': ['e2e-course'],
-  'src/world/maps/bunker': ['e2e-course'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse'],
   // (marlow-final 0d) the set parts, the facility and the greybox helpers of Marlow Yard
   'src/world/maps/ctcourseSets/': ['e2e-ctcourse'],
@@ -214,7 +213,6 @@ export const WIDE_COVERS = {
   'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-levels', 'e2e-tactics', 'e2e-takedown', 'e2e-enemies', 'e2e-weapons-carry', 'e2e-coop', 'e2e-sectorops:1', 'e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9'],
   'src/world/maps/kestrel': ['e2e-kestrel'],
   'src/world/maps/courselab.ts': ['e2e-course'],
-  'src/world/maps/bunker': ['e2e-course', 'e2e-bunker'],
   'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/world/maps/campus': ['e2e-sectorops', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
@@ -333,7 +331,6 @@ export const DIRECT_COVERS = {
   // (piano-escape S2) the piano scene's map (the S1 stub; S1b's greybox): its suite and the levels suite
   'src/world/maps/thornbeckMill.ts': ['e2e-piano', 'e2e-levels'],
   'src/world/maps/courselab.ts': ['e2e-course'],
-  'src/world/maps/bunker': ['e2e-course', 'e2e-bunker'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse'],
   'src/world/maps/ctcourseSets/': ['e2e-ctcourse'],
   'src/world/maps/ctcourseGreybox.ts': ['e2e-ctcourse'],

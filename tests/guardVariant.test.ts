@@ -19,7 +19,7 @@ const kitAllowed = (k: GuardKindDef): Set<string> => new Set([
 const OPEN = ['grunt', 'runner', 'sniper', 'droneOp', 'officer'] as const;
 
 const KINDS = ['grunt', 'runner', 'heavy', 'sniper', 'enforcer', 'droneOp', 'officer'] as const;
-const MAPS = ['ctcourse', 'campusOps', 'bunker'] as const;
+const MAPS = ['ctcourse', 'campusOps', 'tallowWharf'] as const;
 const SEEDS: number[] = [];
 for (let i = 0; i < 128; i++) SEEDS.push(i);
 
