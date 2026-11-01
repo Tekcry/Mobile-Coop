@@ -20,7 +20,7 @@
 import type { KeyedClip } from '../anim/keyed';
 import { MOCAP_LAYERS, type LocoClipSet, type MocapLayers } from '../anim/mocap';
 import type { BodyField, BodyGroup } from '../anim/tune';
-import { CLIP_BODY } from '../anim/studio';
+import { CLIP_BODY } from '../anim/chamber';
 import { NO_EFFECT } from './tunerEffect';
 import { BODY_GUN, BODY_STEP, BODY_WEIGHT, plainGroupWord } from './tunerLayout';
 
@@ -281,7 +281,7 @@ export type ReachBand = 'capture' | 'handMade' | 'mid';
 
 /** What plays now, as this file needs it: the body state (null: none), the capture's share of the body (0..1, raw),
  *  its band (latched with `reachBand`: the tags and the warning read this, never the raw share), the More > Panel
- *  motion-capture switch, a gun drawn (in her hands now: the game's gun group, or a studio loop with one). */
+ *  motion-capture switch, a gun drawn (in her hands now: the game's gun group, or a chamber loop with one). */
 export interface ReachNow {
   state: BodyGroup | null;
   mocapShare: number;
@@ -488,7 +488,7 @@ export function editWarning(section: string, group: string, id: string, now: Rea
   if (!states.length) return '';
   if (!states.includes(now.state)) {
     const name = rowName(section, group, states);
-    return `You are editing ${name}; she is ${STATE_DOING[now.state]}. Pick ${name} in the Anim Studio to see it.`;
+    return `You are editing ${name}; she is ${STATE_DOING[now.state]}. Pick ${name} in the Test Chamber to see it.`;
   }
   if (now.drawn && rowHolstered(section, group)) return 'Not on screen: this row is for her with no gun out. Holster to see it.';
   if (reach !== 'keyed' || bandOf(now) !== 'capture') return '';

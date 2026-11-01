@@ -7,7 +7,7 @@ let failed = false;
 let browser;
 let errors = [];
 try {
-  ({ browser, page: globalThis.page, errors } = await launch({ url, params: 'autostart=studio' }));
+  ({ browser, page: globalThis.page, errors } = await launch({ url, params: 'autostart=chamber' }));
   const page = globalThis.page;
   const G = (f, a) => page.evaluate(f, a);
   const tp = (x, z, yaw) => G(([x, z, yaw]) => { const g = window.__app.current; const p = g.player; p.controller.teleport(new p.controller.pos.constructor(x, 0, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; }, [x, z, yaw]);
@@ -49,7 +49,7 @@ await browser?.close();
 
 // a fight: suppression, exposure and noise (alerted grunts at the chamber's five enemy spawns)
 try {
-  const l = await launch({ url, params: 'autostart=studio&mode=test' });
+  const l = await launch({ url, params: 'autostart=chamber&mode=test' });
   browser = l.browser;
   errors = errors.concat(l.errors);
   const page = l.page;

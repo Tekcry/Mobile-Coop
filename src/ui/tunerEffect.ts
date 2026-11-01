@@ -18,7 +18,7 @@
  * `__animTune.effect()` reports them).
  */
 
-/** How the state plays now: its keyed clip (the studio's Keyed box), procedural holstered, procedural with a gun.
+/** How the state plays now: its keyed clip (the chamber's Keyed box), procedural holstered, procedural with a gun.
  *  `keyedMoving`: the keyed clip off the spot (she really moves, so speed-driven sliders work); not probed, so nothing
  *  is greyed in it. (S3) `mocap`: the motion capture plays it (the switch on, holstered walk / jog / run / sneak). */
 export type EffectMode = 'keyed' | 'keyedMoving' | 'procedural' | 'armed' | 'mocap';
@@ -81,14 +81,14 @@ function dead(state: string, mode: EffectMode, key: string): boolean | null {
   return row ? row.includes(key) : null;
 }
 
-/** (S3) The one-line reasons in plain words (BRIEF A2: no "procedural" / "keyed"; "Keyed" is the Anim Studio box's name). */
+/** (S3) The one-line reasons in plain words (BRIEF A2: no "procedural" / "keyed"; "Keyed" is the Test Chamber box's name). */
 export const EFFECT_REASONS = {
   /** Motion capture plays and this slider changes the hand-made moves only. */
   handMadeOnly: 'Hand-made only: motion capture is playing (turn it off in More > Panel to see it)',
-  /** The studio's clip plays on the spot and this slider needs her really moving. */
-  movingOnly: 'Only when she really moves: untick Keyed in the Anim Studio to see it',
+  /** The chamber's clip plays on the spot and this slider needs her really moving. */
+  movingOnly: 'Only when she really moves: untick Keyed in the Test Chamber to see it',
   /** She really moves and this slider changes only the clip played on the spot. */
-  clipOnly: 'Only on the clip on the spot: tick Keyed in the Anim Studio to see it',
+  clipOnly: 'Only on the clip on the spot: tick Keyed in the Test Chamber to see it',
   /** A gun is in hand and this slider works with no gun. */
   noGunOnly: 'Only with no gun in hand',
   /** Nothing in the clip on the spot. */
@@ -99,7 +99,7 @@ export const EFFECT_REASONS = {
 
 /**
  * Why a slider changes nothing in the loop playing now ('' : it works, or nothing is known). `mode` how the state plays.
- * The reason names the way it does work ("Only on the clip on the spot: tick Keyed in the Anim Studio to see it").
+ * The reason names the way it does work ("Only on the clip on the spot: tick Keyed in the Test Chamber to see it").
  */
 export function sliderEffect(section: string, group: string, id: string, mode: EffectMode): string {
   if (!(mode === 'mocap' ? MOCAP_SECTIONS : PROBED_SECTIONS).includes(section)) return '';
@@ -116,7 +116,7 @@ export function sliderEffect(section: string, group: string, id: string, mode: E
   return mode === 'keyed' ? EFFECT_REASONS.nothingClip : EFFECT_REASONS.nothing;
 }
 
-/** The loop's mode: the studio playing one of her keyed clips (on the spot: the probed case; off it: not probed), else
+/** The loop's mode: the chamber playing one of her keyed clips (on the spot: the probed case; off it: not probed), else
  *  a gun in hand or not. (S3) `mocap`: the motion capture plays the body now (S4 passes the live share, `ReachNow`). */
 export function effectMode(keyedClip: boolean, armed: boolean, onSpot = true, mocap = false): EffectMode {
   if (keyedClip) return onSpot ? 'keyed' : 'keyedMoving';

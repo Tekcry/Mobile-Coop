@@ -1,7 +1,7 @@
 /**
  * (marlow-bays T1a, item 15) A keyed clip's keys on its cycle (pure, Babylon-free, no imports but the generated meta):
  * every key the bake poses (a mirrored clip's own keys, then its mirrored half at + 0.5), the key nearest a phase, the
- * next key back or forward from a phase (the Anim Studio's "< key" / "key >"), and the readout
+ * next key back or forward from a phase (the Test Chamber's "< key" / "key >"), and the readout
  * "jog - key 2 of 8 (mirror of 6), frame 8". Key numbers in text count from 1.
  * (marlow-bays item 25) A clip with a key added or deleted (`KEY_LIVE`): keys are addressed by key id (the original
  * keys, then the added slots and their mirrors, `tuneKeysEdit.ts`); only live keys count, step and show, numbered in

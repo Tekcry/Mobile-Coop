@@ -62,14 +62,14 @@ export const GAME = {
 
 /** Each traversal clip (PLAN "Clip map", M4 rows). */
 export const TRAV_RECIPES = [
-  { slug: 'hanging_idle', emit: 'chanLoop', family: 'hang', studio: 'trav:ledge', replaces: 'HANG (traverse.ts)', floor: 'zero' },
-  { slug: 'braced_hang_shimmy_left', emit: 'chanLoop', family: 'hang', studio: 'trav:ledge', replaces: 'the ledge shimmy to the left (HANG)', floor: 'zero' },
-  { slug: 'braced_hang_shimmy_right', emit: 'chanLoop', family: 'hang', studio: 'trav:ledge', replaces: 'the ledge shimmy to the right (HANG)', floor: 'zero' },
-  { slug: 'climbing_ladder', emit: 'chanLoop', family: 'ladder', studio: 'trav:ladder', replaces: 'CLIMB (traverse.ts)', floor: 'zero' },
-  { slug: 'crawling_hands_and_knees', emit: 'chanLoop', family: 'crawl', studio: 'trav:vent', replaces: 'CRAWL (traverse.ts)', floor: 'feet' },
-  { slug: 'freehang_climb', emit: 'chanPath', family: 'hang', end: 'stand', studio: 'trav:ledge', replaces: 'CLIMB_UP from a free hang, to standing', floor: 'zero' },
-  { slug: 'braced_hang_to_crouch', emit: 'chanPath', family: 'hang', end: 'crouch', studio: 'trav:ledge', replaces: 'CLIMB_UP to the crouch', floor: 'zero' },
-  { slug: 'climbing_ladder_to_standing', emit: 'chanPath', family: 'ladder', end: 'stand', studio: 'trav:ladder', replaces: 'the ladder top-out (CLIMB_UP over LADDER_TOPOUT_TIME)', floor: 'zero' },
+  { slug: 'hanging_idle', emit: 'chanLoop', family: 'hang', chamber: 'trav:ledge', replaces: 'HANG (traverse.ts)', floor: 'zero' },
+  { slug: 'braced_hang_shimmy_left', emit: 'chanLoop', family: 'hang', chamber: 'trav:ledge', replaces: 'the ledge shimmy to the left (HANG)', floor: 'zero' },
+  { slug: 'braced_hang_shimmy_right', emit: 'chanLoop', family: 'hang', chamber: 'trav:ledge', replaces: 'the ledge shimmy to the right (HANG)', floor: 'zero' },
+  { slug: 'climbing_ladder', emit: 'chanLoop', family: 'ladder', chamber: 'trav:ladder', replaces: 'CLIMB (traverse.ts)', floor: 'zero' },
+  { slug: 'crawling_hands_and_knees', emit: 'chanLoop', family: 'crawl', chamber: 'trav:vent', replaces: 'CRAWL (traverse.ts)', floor: 'feet' },
+  { slug: 'freehang_climb', emit: 'chanPath', family: 'hang', end: 'stand', chamber: 'trav:ledge', replaces: 'CLIMB_UP from a free hang, to standing', floor: 'zero' },
+  { slug: 'braced_hang_to_crouch', emit: 'chanPath', family: 'hang', end: 'crouch', chamber: 'trav:ledge', replaces: 'CLIMB_UP to the crouch', floor: 'zero' },
+  { slug: 'climbing_ladder_to_standing', emit: 'chanPath', family: 'ladder', end: 'stand', chamber: 'trav:ladder', replaces: 'the ladder top-out (CLIMB_UP over LADDER_TOPOUT_TIME)', floor: 'zero' },
 ];
 
 /** The channels a module keys, in pose.ts order; `ang` channels are radians. */
@@ -670,7 +670,7 @@ function maxErr(red) {
 /** The source row of one clip (one line, the marker block's format). */
 export function sourceRow(recipe, file) {
   const q = (s) => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-  return `  mocap_${recipe.slug}: { source: 'mixamo', title: ${q(titleOf(file))}, take: ${q(file)}, credit: MIXAMO_CREDIT, studio: { kind: 'trav', loop: ${q(recipe.studio)} } },`;
+  return `  mocap_${recipe.slug}: { source: 'mixamo', title: ${q(titleOf(file))}, take: ${q(file)}, credit: MIXAMO_CREDIT, chamber: { kind: 'trav', loop: ${q(recipe.chamber)} } },`;
 }
 
 /** Rewrites the `@mixamo-trav` marker block of the sources table with `rows` (the marker lines kept). */
@@ -685,7 +685,7 @@ export function writeRows(text, rows) {
 
 function docSection(recipe, file, res, red) {
   const m = maxErr(red);
-  const out = [`## ${recipe.slug}`, '', `\`${file}\` -> \`${OUT_DIR}/trav_${recipe.slug}.ts\` (\`mocap_${recipe.slug}\`), ${recipe.emit}, Studio loop \`${recipe.studio}\`; replaces ${recipe.replaces}.`, ''];
+  const out = [`## ${recipe.slug}`, '', `\`${file}\` -> \`${OUT_DIR}/trav_${recipe.slug}.ts\` (\`mocap_${recipe.slug}\`), ${recipe.emit}, Chamber loop \`${recipe.chamber}\`; replaces ${recipe.replaces}.`, ''];
   out.push(`- Keys: ${red.nKeys} over ${Object.keys(red.keys).length} channels; largest error ${m.text} (bound 1 cm, 1 deg).`);
   out.push(`- Clock: ${res.clock}.`);
   out.push(`- Events: ${Object.keys(res.events).length ? Object.entries(res.events).map(([k, v]) => `${k} at ${v}`).join(', ') : 'none'}.`);

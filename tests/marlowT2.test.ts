@@ -112,7 +112,7 @@ describe('T2: groups that fold', () => {
 });
 
 describe('T2: the status line', () => {
-  it('in the studio: the loop and the picked gun as it really is', () => {
+  it('in the chamber: the loop and the picked gun as it really is', () => {
     expect(stanceText('walk', '', { loop: 'Walk', drawn: false, weapon: 'rifle' })).toBe('Walk · Rifle holstered');
     expect(stanceText('lowReady', 'rifle.lowReady', { loop: 'Low ready', drawn: true, weapon: 'rifle' })).toBe('Low ready · Rifle drawn');
     expect(stanceText('aim', 'pistol.aim', { loop: 'Aim fwd', drawn: true, weapon: 'pistol' })).toBe('Aim fwd (aim) · Pistol drawn');

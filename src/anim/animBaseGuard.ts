@@ -5,7 +5,7 @@
  * (`docs/archive/anim-tuner/BAKE.md`); do not edit that part by hand.
  *
  * Every guard rig reads it (`CharacterRig.guardRows`, set in `buildEnemyRig`: the host's guards and the co-op client's
- * puppets alike, and the Anim Studio's guard puppet); no Wren rig ever does, and Wren's table (`animBase.ts`) never
+ * puppets alike, and the Test Chamber's guard puppet); no Wren rig ever does, and Wren's table (`animBase.ts`) never
  * reaches a guard. The tuner's guard rows are deltas on it (`tuneGuard.ts`): joint degrees add per axis (wrapped to
  * -180..180), stepping multipliers multiply, weight multipliers multiply and weight amounts add. Keyed by row id, joint
  * name and param id, never by index. Empty (every row identity) = the untuned guard, bit-identical.

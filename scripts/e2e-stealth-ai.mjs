@@ -1,4 +1,4 @@
-// Stealth AI on the Test Chamber (map `studio`, `mode=test`, the dark annex east of the main room): the core guard play. Seeing:
+// Stealth AI on the Test Chamber (map `chamber`, `mode=test`, the dark annex east of the main room): the core guard play. Seeing:
 // shadow vs light detection (the real lamp L0 and the 0.12 dark bay), the awareness arc warning before detection, vision modes
 // not changing detection, no sight through walls, the vision-mode buttons. Hearing: noise -> suspicious -> investigating, one
 // guard of several sent to a noise, shots (suppressed, loud, an impact). Search: LKP set + ghost + search that converges and
@@ -14,7 +14,7 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 let failed = false;
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio&mode=test' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber&mode=test' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);

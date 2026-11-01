@@ -68,8 +68,8 @@ export const GUARD_FOR_SECTION: Readonly<Record<string, string>> = { joint: 'gua
 export const GUARD_WEIGHT_IDS: readonly string[] = ['accelLean', 'stopLean', 'bank', 'plantDrop', 'plantTimeMul', 'chestLag', 'chestHzMul', 'chestDampMul', 'headLag', 'headHzMul', 'headDampMul', 'armLag', 'armHzMul', 'armDampMul', 'antStart', 'antTimeMul'];
 
 /**
- * The tuner's "Who": the panel's choice of whose rows it edits (Wren / Guard) and, in the Anim Studio, the guard puppet
- * whose row the guard sections follow (`rig`, null none). Panel and studio only; no rig reads `who`.
+ * The tuner's "Who": the panel's choice of whose rows it edits (Wren / Guard) and, in the Test Chamber, the guard puppet
+ * whose row the guard sections follow (`rig`, null none). Panel and chamber only; no rig reads `who`.
  */
 export const TUNE_WHO: { who: 'wren' | 'guard'; rig: unknown } = { who: 'wren', rig: null };
 
@@ -403,7 +403,7 @@ if (typeof window !== 'undefined') {
   (window as unknown as { __guardTune: unknown }).__guardTune = {
     rows: GUARD_ROWS,
     who: () => TUNE_WHO.who,
-    /** The Anim Studio's guard puppet rig (null none). */
+    /** The Test Chamber's guard puppet rig (null none). */
     puppet: () => TUNE_WHO.rig,
     jointEffective: (row: string, joint: string, axis: number) => guardJointEffective(row, J[joint as Joint] ?? -1, axis),
     stepGet: guardStepGet,

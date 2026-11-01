@@ -49,7 +49,7 @@ import { TunePadCtl } from './animTunePad';
 import { projectPoint } from './overlayProject';
 import { TuneSnapshotsUi, type PanelKit } from './tuneSnapshots';
 import { TunerKeyTools } from './tunerKeyTools';
-import { StudioPanel } from './studioPanel';
+import { ChamberPanel } from './chamberPanel';
 import { keyGroupId } from '../anim/tuneKeysFile';
 import { keyClip, keyIsLive, keyPhase, keyRank, keyReadout, keyStep } from '../anim/keyTimeline';
 import { KEY_CLIPS } from '../anim/tuneKeysMeta';
@@ -83,7 +83,7 @@ function keyPickLabel(clip: string, seg: string): string {
   const r = keyRank(c, k);
   return `Key ${(r < 0 ? k : r) + 1}${k >= keyTimeCount(c) ? ' (added)' : ''}`;
 }
-import { STUDIO, STUDIO_LIGHT, STUDIO_SPEED, studioBodyPin, studioEntry } from '../anim/studio';
+import { CHAMBER, CHAMBER_LIGHT, CHAMBER_SPEED, chamberBodyPin, chamberEntry } from '../anim/chamber';
 import { effectMode, sliderEffect, type EffectMode } from './tunerEffect';
 import type { KeyedClip } from '../anim/keyed';
 import { LOCO } from '../anim/mocap';
@@ -311,7 +311,7 @@ font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight
 .anim-tune .tt-reach-both{color:#b9c4c0;-webkit-text-fill-color:#b9c4c0}
 .anim-tune .tt-reach-off{color:#7d8a86;-webkit-text-fill-color:#7d8a86;border-style:dashed}
 .anim-tune .tt-reach-sum{margin:0 0 0.2em}
-.anim-tune .studio-slide.warn{color:var(--tt-warn);-webkit-text-fill-color:var(--tt-warn);font-weight:700}
+.anim-tune .chamber-slide.warn{color:var(--tt-warn);-webkit-text-fill-color:var(--tt-warn);font-weight:700}
 .anim-tune .anim-tune-effect{color:var(--tt-warn);font-size:0.8em;margin:0 0 0.2em}
 .anim-tune .tt-row.tt-sel{background-color:rgba(240,194,75,0.13);box-shadow:inset 3px 0 0 var(--tt-sel)}
 .anim-tune .tt-row.tt-sel .tt-name{color:var(--tt-hi);font-weight:700}
@@ -336,7 +336,7 @@ body:not(.input-gamepad) .anim-tune .tt-bump{display:none}
 .anim-tune .tt-focus .tt-name,.anim-tune label.tt-focus,.anim-tune .tt-btn.tt-focus{color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi);font-weight:700}
 .anim-tune .tt-edit{outline:none!important;background:linear-gradient(90deg,rgba(240,180,59,0.32) 0,rgba(240,180,59,0.1) 80%)!important;box-shadow:inset 3px 0 0 var(--tt-warn)!important}
 .anim-tune textarea{width:100%;height:8em}
-body.tt-studio .hud,body.tt-studio .hud-world,body.tt-studio .mouse-capture-hint{display:none!important}
+body.tt-chamber .hud,body.tt-chamber .hud-world,body.tt-chamber .mouse-capture-hint{display:none!important}
 body.tt-docked #game{width:calc(100% - var(--tt-dock-w,0px))!important;right:auto!important}
 .anim-tune .tt-handle{display:none}
 .anim-tune.tt-phone{--tt-t:30px;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:0 max(0.5em,env(safe-area-inset-right)) max(0.25em,env(safe-area-inset-bottom)) max(0.5em,env(safe-area-inset-left))}
@@ -401,7 +401,7 @@ function hint(glyphs: (PromptButton | 'DPAD' | 'VIEW' | 'R3' | 'LSTICK')[], word
 
 /**
  * (anim-tuner; tuner-ui layout pass) The animation tuner panel (F3 > Anim, Pause > Animation tuner, Settings > Graphics,
- * docked in the Anim Studio). Tabs across the top (LB / RB, or a click): View, Body, Hands & feet, Weapon, Stepping,
+ * docked in the Test Chamber). Tabs across the top (LB / RB, or a click): View, Body, Hands & feet, Weapon, Stepping,
  * Weight, Camera, Keys, Co-op, then any section a later file registers, then Settings (`tunerLayout.ts`). A tab shows
  * one thing at a time: a drop-down list for the part (when the tab holds more than one section), one for the state (and
  * one per further level of its group ids: weapon then state, clip then key), then that group's sliders, each with its
@@ -411,7 +411,7 @@ function hint(glyphs: (PromptButton | 'DPAD' | 'VIEW' | 'R3' | 'LSTICK')[], word
  *
  * Pad (`TunePadCtl`, map in `docs/archive/anim-tuner/STATE.md` "Pad map"): LB / RB tabs, D-pad rows, A open / pick / edit, B back,
  * X reset row, Y the more menu, View hands the pad to the game (or the free view) and back, Menu closes. With "Pause game
- * while tuning" on (default) the game holds still while the panel has the pad (not in the Anim Studio, where the loop
+ * while tuning" on (default) the game holds still while the panel has the pad (not in the Test Chamber, where the loop
  * player's Play / Pause rules, nor in co-op). While the pause menu is open the menus get the pad. The barrel marker is a
  * 2D overlay (no scene meshes).
  */
@@ -543,12 +543,12 @@ export class AnimTunePanel {
   mouseHost: TuneMouseHost | null = null;
   /** (mocap-trial) The game's "Mocap locomotion" setting (set by `App`; null: the box stays off and disabled). */
   mocapHost: { get(): boolean; set(on: boolean): void } | null = null;
-  /** (mixamo-retarget Toggle) The game's Animation source setting (set by `App`; null: the Studio's switch is disabled). */
+  /** (mixamo-retarget Toggle) The game's Animation source setting (set by `App`; null: the Chamber's switch is disabled). */
   animSourceHost: { get(): string; set(s: string): void } | null = null;
   private mocapBox: HTMLInputElement | null = null;
   private readonly mouseCtl = new TunerMouseCtl();
   private mouseBtn: HTMLButtonElement;
-  // --- (marlow-bays item 13) "Loop on the spot" in the header (the studio), and a loop picked from a tab's state list
+  // --- (marlow-bays item 13) "Loop on the spot" in the header (the chamber), and a loop picked from a tab's state list
   private spotBtn: HTMLButtonElement;
   private loopFromTab = false;
   // --- (marlow-bays T1a, items 15 and 18) the Keys tab: its buttons, readout, Mirror box, and the key the picker shows
@@ -580,15 +580,15 @@ export class AnimTunePanel {
   private readonly selTarget = emptyTarget();
   /** The selection marker as last drawn (overlay pixels; the test hook). */
   private readonly selMark = { shown: false, ax: 0, ay: 0, bx: 0, by: 0 };
-  // --- (anim-studio) snapshots (undo / redo, A/B, presets) and the studio section
+  // --- (anim-studio) snapshots (undo / redo, A/B, presets) and the chamber section
   private readonly snaps: TuneSnapshotsUi;
-  readonly studioUi: StudioPanel;
-  /** The game speed slider's top: 1x, 2x inside the studio. */
+  readonly chamberUi: ChamberPanel;
+  /** The game speed slider's top: 1x, 2x inside the chamber. */
   private speedMax: number = GAME_SPEED.max;
   private readonly loopOut: LoopGroups = { body: '', clip: '', team: '', trav: '', step: '', weight: '' };
   private readonly carryOut: BodyCarry = { joint: '', ik: '', handState: '', gunState: '', step: '', weight: '' };
-  /** (tuner-ui) The Anim Studio was on at the last look: leaving it turns follow back on (a loop pick turned it off). */
-  private wasStudio = false;
+  /** (tuner-ui) The Test Chamber was on at the last look: leaving it turns follow back on (a loop pick turned it off). */
+  private wasChamber = false;
   // --- (marlow-bays T2) the part last picked on her (item 29: it selects its first slider, never filters), row groups,
   // the dock
   private bodyPart: BodyPart = '';
@@ -603,10 +603,10 @@ export class AnimTunePanel {
   /** A row group opened or closed by hand (`<section>|<label>`). */
   private readonly grpOpen = new Map<string, boolean>();
   private readonly rowScratch = emptyTarget();
-  /** The width the studio's canvas gives up to the docked panel (px; 0 none). */
+  /** The width the chamber's canvas gives up to the docked panel (px; 0 none). */
   private dockW = 0;
-  /** (phase 2) The game HUD hidden: the Anim Studio is on (not in co-op). */
-  private studioHud = false;
+  /** (phase 2) The game HUD hidden: the Test Chamber is on (not in co-op). */
+  private chamberHud = false;
   /** (T2 fix round) The engine kept across scenes (the dock's resize), and a resize owed while no scene was set. */
   private engine: { resize(): void } | null = null;
   private resizePending = false;
@@ -618,10 +618,10 @@ export class AnimTunePanel {
   /** The viewport and size the layout was last made for. */
   private sizeKey = '';
   private handle: HTMLButtonElement;
-  /** The height the studio's canvas gives up to the bottom sheet (px; 0 none). */
+  /** The height the chamber's canvas gives up to the bottom sheet (px; 0 none). */
   private dockH = 0;
   private readonly gesture = new TouchGesture();
-  /** (item 29 phase 2) More's "View aids" block (the studio only). */
+  /** (item 29 phase 2) More's "View aids" block (the chamber only). */
   private aidsB!: HTMLElement;
   /** (item 29 phase 2) The header, tabs and playback bar (sticky together on a drawer / sheet). */
   private top!: HTMLDivElement;
@@ -665,7 +665,7 @@ export class AnimTunePanel {
     }
     const kit: PanelKit = { btn: (l, f, k, c) => this.mkBtn(l, f, k, c), check: (p, l, on, f, k, c) => this.mkCheck(p, l, on, f, k, c), sel: (p, l, o, f, k, c) => this.mkSel(p, l, o, f, k, c), bar: () => this.mkBar() };
     this.snaps = new TuneSnapshotsUi(kit, { rebuild: () => this.rebuildAll(), info: (t) => this.flashInfo(t) });
-    this.studioUi = new StudioPanel(kit, {
+    this.chamberUi = new ChamberPanel(kit, {
       freeze: (on) => {
         if (on !== this.frozen) this.setFrozen(on);
       },
@@ -698,12 +698,12 @@ export class AnimTunePanel {
     this.mouseBtn = this.mkBtn(TUNER_MOUSE_LABEL.drag, () => this.toggleMouse(), 'mouse', 'anim-tune-mouse');
     this.mouseBtn.title = `Mouse mode (${TUNER_MOUSE_KEY}): drag view (drag the scene to turn the camera, wheel zooms, the panel takes clicks) or game camera (mouse look; the panel ignores the mouse)`;
     delete this.mouseBtn.dataset.pad;
-    // (marlow-bays item 13) loop on the spot from every tab (the studio only; also the key and L3); (T1a, item 16) in the
+    // (marlow-bays item 13) loop on the spot from every tab (the chamber only; also the key and L3); (T1a, item 16) in the
     // playback bar docked under the tabs (it was the header's)
     this.spotBtn = this.mkBtn('On the spot: on', () => this.toggleSpot(), 'pb:spot', 'anim-tune-spot');
     this.spotBtn.title = `Loop on the spot (${TUNER_SPOT_KEY}, pad L3): a moving state runs in place, or off: she really moves`;
     this.spotBtn.hidden = true;
-    this.studioUi.bar.firstElementChild?.append(this.spotBtn);
+    this.chamberUi.bar.firstElementChild?.append(this.spotBtn);
     // (marlow-bays item 26) on a phone: the grab handle over the header (a tap collapses / expands the drawer or sheet)
     this.handle = document.createElement('button');
     this.handle.type = 'button';
@@ -742,7 +742,7 @@ export class AnimTunePanel {
     };
     body.addEventListener('pointerdown', pickFrom, true);
     body.addEventListener('focusin', pickFrom);
-    // --- View tab: the loop player (studio), the camera, time
+    // --- View tab: the loop player (chamber), the camera, time
     const view = this.tabEl('view');
     const cam = this.block(view, 'Camera');
     const cb = this.mkBar();
@@ -750,7 +750,7 @@ export class AnimTunePanel {
     for (const o of Array.from(this.freeSel.options)) o.textContent = FREE_LABEL[o.value as FreeMode];
     const sb = this.mkBar();
     for (const s of SNAPS) {
-      const b = this.mkBtn(plainWords(s), () => this.lockSnap(s), `snap:${s}`, `anim-tune-snap-${s} studio-snap-${s}`);
+      const b = this.mkBtn(plainWords(s), () => this.lockSnap(s), `snap:${s}`, `anim-tune-snap-${s} chamber-snap-${s}`);
       this.snapBtns.set(s, b);
       sb.append(b);
     }
@@ -821,9 +821,9 @@ export class AnimTunePanel {
     this.coopNote.hidden = true;
     this.coopNote.textContent = 'Co-op: game speed, pause and step are off.';
     time.append(tb, this.coopNote);
-    view.prepend(this.studioUi.el);
+    view.prepend(this.chamberUi.el);
     // --- (marlow-bays item 29) "More" under the sliders of every tab, collapsed: the panel's settings (the Settings tab
-    // is gone), undo and presets, files, the playback extras (the studio's time and speed)
+    // is gone), undo and presets, files, the playback extras (the chamber's time and speed)
     const more = (this.more = document.createElement('div'));
     more.className = 'anim-tune-more';
     this.moreHead = document.createElement('button');
@@ -839,15 +839,15 @@ export class AnimTunePanel {
     set.className = 'anim-tune-more-body anim-tune-tab-settings';
     set.hidden = true;
     more.append(this.moreHead, set);
-    // the studio's time scrub and speed (the playback bar keeps Play, the key steps, the gun and on the spot)
+    // the chamber's time scrub and speed (the playback bar keeps Play, the key steps, the gun and on the spot)
     const playB = this.block(set, 'Playback');
     playB.classList.add('anim-tune-more-play');
-    const p2 = this.studioUi.bar.children[1];
+    const p2 = this.chamberUi.bar.children[1];
     if (p2) playB.append(p2);
-    // (item 29 phase 2) the studio's view aids (skeleton, feet, ghost poses; off by default), the studio only
+    // (item 29 phase 2) the chamber's view aids (skeleton, feet, ghost poses; off by default), the chamber only
     this.aidsB = this.block(set, 'View aids');
     this.aidsB.classList.add('anim-tune-more-aids');
-    this.aidsB.append(this.studioUi.aids);
+    this.aidsB.append(this.chamberUi.aids);
     this.aidsB.hidden = true;
     const panelB = this.block(set, 'Panel');
     const pb = this.mkBar();
@@ -986,19 +986,19 @@ export class AnimTunePanel {
     window.addEventListener(
       'keydown',
       (e) => {
-        // (marlow-bays T1a, item 16) the playback bar's keys in the studio: F9 play / pause, F1 / F2 one key back / forward
+        // (marlow-bays T1a, item 16) the playback bar's keys in the chamber: F9 play / pause, F1 / F2 one key back / forward
         const barKey = e.code === TUNER_SPOT_KEY || e.code === TUNER_PLAY_KEY || e.code === TUNER_KEY_BACK || e.code === TUNER_KEY_FWD;
         if (!this.open || (e.code !== TUNER_MOUSE_KEY && !barKey)) return;
-        // the browser never sees the tuner's keys while the panel is open (F1 is Chromium's help), studio or not
+        // the browser never sees the tuner's keys while the panel is open (F1 is Chromium's help), chamber or not
         e.preventDefault();
         e.stopImmediatePropagation();
-        if (barKey && !STUDIO.active) return;
+        if (barKey && !CHAMBER.active) return;
         // a held key steps on (the key buttons repeat), the toggles do not
         if (e.repeat && e.code !== TUNER_KEY_BACK && e.code !== TUNER_KEY_FWD) return;
         if (e.code === TUNER_MOUSE_KEY) this.toggleMouse();
-        else if (e.code === TUNER_PLAY_KEY) this.studioUi.playPause();
-        else if (e.code === TUNER_KEY_BACK) this.studioUi.stepKey(-1);
-        else if (e.code === TUNER_KEY_FWD) this.studioUi.stepKey(1);
+        else if (e.code === TUNER_PLAY_KEY) this.chamberUi.playPause();
+        else if (e.code === TUNER_KEY_BACK) this.chamberUi.stepKey(-1);
+        else if (e.code === TUNER_KEY_FWD) this.chamberUi.stepKey(1);
         else this.toggleSpot();
       },
       true,
@@ -1091,7 +1091,7 @@ export class AnimTunePanel {
       },
       true,
     );
-    // (item 29) one column: the tabs, the playback bar (studio), the quick menu, the tab (its "what" row and sliders, then
+    // (item 29) one column: the tabs, the playback bar (chamber), the quick menu, the tab (its "what" row and sliders, then
     // More), the info line, the hints
     // (item 29 phase 2, the phone bug: the tabs and the playback bar scrolled away under the sticky header) the header,
     // the tabs and the playback bar are one top block: sticky as a whole on a drawer / sheet, so they always show
@@ -1106,7 +1106,7 @@ export class AnimTunePanel {
     const rowWarn = (this.rowWarnEl = document.createElement('div'));
     rowWarn.className = 'tt-warn';
     rowWarn.hidden = true;
-    top.append(head, this.tabBar, playEl, warnEl, this.studioUi.bar);
+    top.append(head, this.tabBar, playEl, warnEl, this.chamberUi.bar);
     el.append(top, menu, body, infoEl, this.hint, this.dropList);
     // a scroll that brings a row into view keeps it clear of the sticky top block
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.syncTopPad()).observe(top);
@@ -1133,7 +1133,7 @@ export class AnimTunePanel {
       this.scheduleSave();
       // (anim-studio) an undo step, and the onion skin's cached keys are stale
       this.snaps.note(performance.now());
-      STUDIO.poseVer++;
+      CHAMBER.poseVer++;
     };
     // load the saved values (skipped if a slider already moved); the undo history starts from what loaded
     void loadAnimTune().then((s) => {
@@ -1154,7 +1154,7 @@ export class AnimTunePanel {
       const o = u as { size?: unknown; pauseTuning?: unknown; stageLight?: unknown; phoneDebug?: unknown; highlight?: unknown; clarityWarn?: unknown };
       if (o.size === 'S' || o.size === 'M' || o.size === 'L') this.setSize(o.size, false);
       if (typeof o.pauseTuning === 'boolean') this.freezeBox.checked = o.pauseTuning;
-      if (typeof o.stageLight === 'number') this.studioUi.setStage(o.stageLight);
+      if (typeof o.stageLight === 'number') this.chamberUi.setStage(o.stageLight);
       // (tuner-clarity S4) absent = on
       if (typeof o.clarityWarn === 'boolean' && this.warnBox) this.warnBox.checked = o.clarityWarn;
       if (typeof o.highlight === 'boolean') {
@@ -1293,7 +1293,7 @@ export class AnimTunePanel {
       },
       whoState: () => {
         const s = this.shownSection();
-        return { who: TUNE_WHO.who, section: s?.reg.id ?? '', group: s?.group ?? '', shown: !!this.whoSel.parentElement && this.whoSel.parentElement.offsetParent !== null, note: !this.whoNote.hidden, entry: STUDIO.entry };
+        return { who: TUNE_WHO.who, section: s?.reg.id ?? '', group: s?.group ?? '', shown: !!this.whoSel.parentElement && this.whoSel.parentElement.offsetParent !== null, note: !this.whoNote.hidden, entry: CHAMBER.entry };
       },
       // (marlow-bays T2) the part filter, a click on her in the scene, row groups, pinned and recent sliders, the dock
       part: (p: BodyPart) => this.pickPart(p),
@@ -1718,7 +1718,7 @@ export class AnimTunePanel {
 
   /**
    * (item 24, track A) Who: Wren's rows or the guards'. Every tab shows that one's parts (a tab with no guard rows keeps
-   * Wren's, under a grey line); in the Anim Studio the guard puppet plays (a guard loop) or Wren again.
+   * Wren's, under a grey line); in the Test Chamber the guard puppet plays (a guard loop) or Wren again.
    */
   private setWho(w: TuneWho): void {
     if (this.whoSel.value !== w) {
@@ -1732,13 +1732,13 @@ export class AnimTunePanel {
     const t = this.tabs[this.tabIdx];
     const k = t ? this.sections.findIndex((s) => s.reg.id === this.tabPart(t)) : -1;
     if (k >= 0) this.lastSec = k;
-    if (STUDIO.active && !this.loopFromTab) {
-      const guardLoop = STUDIO.entry.startsWith('guard:');
+    if (CHAMBER.active && !this.loopFromTab) {
+      const guardLoop = CHAMBER.entry.startsWith('guard:');
       const id = w === 'guard' && !guardLoop ? 'guard:idle' : w === 'wren' && guardLoop ? 'state:idle' : '';
       if (id) {
         this.loopFromTab = true;
         try {
-          this.studioUi.play(id);
+          this.chamberUi.play(id);
         } finally {
           this.loopFromTab = false;
         }
@@ -1917,18 +1917,18 @@ export class AnimTunePanel {
     sec.group = g;
     this.rebuild(sec);
     if (sec.reg.id === 'body') this.carryBody(g);
-    // (marlow-bays item 13) in the studio a state picked here plays its loop (the tab and its part stay)
-    if (STUDIO.active) {
+    // (marlow-bays item 13) in the chamber a state picked here plays its loop (the tab and its part stay)
+    if (CHAMBER.active) {
       const sid = sec.reg.id;
       // (marlow-bays T1a, item 16) a weapon picked (Hands & feet, Gun in hand, the gun hold): every armed loop takes it
       const w = sid === 'hand' || sid === 'weapon' || sid === 'gun' ? (groupPath(g, sec.prefix)[0] ?? '') : '';
-      if (w === 'rifle' || w === 'pistol') this.studioUi.setWeapon(w);
+      if (w === 'rifle' || w === 'pistol') this.chamberUi.setWeapon(w);
       // (T1a, item 15) a clip or key picked in the Keys tab: that clip on the spot, paused on that key
       const kg = sid === 'keys' ? tuneKeysIdOf(g) : null; // (item 25) an added key too
       if (kg) {
         this.loopFromTab = this.keyPicking = true;
         try {
-          this.studioUi.showKey(kg[0], kg[1]);
+          this.chamberUi.showKey(kg[0], kg[1]);
         } finally {
           this.loopFromTab = this.keyPicking = false;
         }
@@ -1937,13 +1937,13 @@ export class AnimTunePanel {
         this.keyClipShown = kg[0];
         return;
       }
-      let id = loopForGroup(sid, g, STUDIO.entry);
+      let id = loopForGroup(sid, g, CHAMBER.entry);
       // a gun picked while a holstered loop plays: its low ready (the stance shows the gun)
-      if (!id && (w === 'rifle' || w === 'pistol') && !studioEntry(STUDIO.entry).drawn) id = 'state:lowReady';
-      if (id && studioEntry(id).id === id) {
+      if (!id && (w === 'rifle' || w === 'pistol') && !chamberEntry(CHAMBER.entry).drawn) id = 'state:lowReady';
+      if (id && chamberEntry(id).id === id) {
         this.loopFromTab = true;
         try {
-          this.studioUi.play(id);
+          this.chamberUi.play(id);
         } finally {
           this.loopFromTab = false;
         }
@@ -1954,9 +1954,9 @@ export class AnimTunePanel {
   /** (fix round) A body state onto Joints, Limb reach, Hands & feet, Gun in hand, the gun hold (where it maps), Stepping
    *  and Weight; each section keeps its other levels (the weapon) and only takes a group it has. */
   private carryBody(b: string): void {
-    // (marlow-bays T1a) the gun shown (the studio's pick, else the Hands & feet part's weapon): its own Joints row
+    // (marlow-bays T1a) the gun shown (the chamber's pick, else the Hands & feet part's weapon): its own Joints row
     const hs = this.sections.find((s) => s.reg.id === 'hand');
-    const w = STUDIO.active ? STUDIO.weapon : hs ? (groupPath(hs.group, hs.prefix)[0] ?? '') : '';
+    const w = CHAMBER.active ? CHAMBER.weapon : hs ? (groupPath(hs.group, hs.prefix)[0] ?? '') : '';
     const c = bodyCarry(b, this.carryOut, w);
     this.showGroup('joint', c.joint);
     this.showGroup('ik', c.ik);
@@ -2540,20 +2540,20 @@ export class AnimTunePanel {
   }
 
   /**
-   * (T2) In the Anim Studio the canvas gives up the docked panel's width, so she stands in the middle of the free area
-   * (the camera centres her in the canvas). Open, unfolded and in the studio only; one resize per change.
+   * (T2) In the Test Chamber the canvas gives up the docked panel's width, so she stands in the middle of the free area
+   * (the camera centres her in the canvas). Open, unfolded and in the chamber only; one resize per change.
    */
-  /** (T2 phase 2) The Anim Studio hides the game HUD (health, compass, objective, weapon and ammo); not in co-op. */
-  private syncStudioHud(): void {
-    const want = STUDIO.active && !(this.coop?.() ?? false);
-    if (want === this.studioHud) return;
-    this.studioHud = want;
-    document.body.classList.toggle('tt-studio', want);
+  /** (T2 phase 2) The Test Chamber hides the game HUD (health, compass, objective, weapon and ammo); not in co-op. */
+  private syncChamberHud(): void {
+    const want = CHAMBER.active && !(this.coop?.() ?? false);
+    if (want === this.chamberHud) return;
+    this.chamberHud = want;
+    document.body.classList.toggle('tt-chamber', want);
   }
 
   private syncDock(): void {
     // (phase 2) never over live co-op play: the canvas is the session's
-    const on = this.open && !this.folded && STUDIO.active && !this.coopOn;
+    const on = this.open && !this.folded && CHAMBER.active && !this.coopOn;
     // (marlow-bays item 26) the phone's bottom sheet: the canvas gives up its height instead (she stands above it)
     const sheet = this.layout.mode === 'sheet';
     const want = on && !sheet ? this.panelW : 0;
@@ -2565,7 +2565,7 @@ export class AnimTunePanel {
     document.body.classList.toggle('tt-docked', want > 0);
     document.documentElement.style.setProperty('--tt-dock-h', `${wantH}px`);
     document.body.classList.toggle('tt-docked-b', wantH > 0);
-    // (T2 fix round) through the kept engine: a scene released mid-change (a restart from the studio) must not leave
+    // (T2 fix round) through the kept engine: a scene released mid-change (a restart from the chamber) must not leave
     // the next match rendering at the docked width; with no engine yet the resize waits for the next scene
     const eng = this.scene?.getEngine() ?? this.engine;
     if (eng) {
@@ -2584,7 +2584,7 @@ export class AnimTunePanel {
   }
 
   /**
-   * (tuner-ui) A loop picked in the Anim Studio: every section shows the group that loop plays through (the body
+   * (tuner-ui) A loop picked in the Test Chamber: every section shows the group that loop plays through (the body
    * state, its joints, reach, hands and gun for the weapon in the picker, stepping, weight, the keyed clip's keys, the
    * co-op move's role A, the climb move), and follow goes off (an in-place clip stands, so follow would show idle). Off:
    * follow comes back on.
@@ -2698,8 +2698,8 @@ export class AnimTunePanel {
   }
 
   private saveUi(): void {
-    // (marlow-bays item 14) the Anim Studio's Stage light goes with the panel's own settings; (item 29) the highlight
-    void saveAnimTuneUi({ size: this.size, pauseTuning: this.freezeBox.checked, stageLight: STUDIO_LIGHT.scale, phoneDebug: this.phoneDebug, highlight: this.highlight, clarityWarn: this.warnBox ? this.warnBox.checked : true });
+    // (marlow-bays item 14) the Test Chamber's Stage light goes with the panel's own settings; (item 29) the highlight
+    void saveAnimTuneUi({ size: this.size, pauseTuning: this.freezeBox.checked, stageLight: CHAMBER_LIGHT.scale, phoneDebug: this.phoneDebug, highlight: this.highlight, clarityWarn: this.warnBox ? this.warnBox.checked : true });
   }
 
   /** (tuner-ui) The panel size (S / M / L) scaled to the screen (`tunerLayout.tunerScale`). */
@@ -2762,10 +2762,10 @@ export class AnimTunePanel {
     return this.open;
   }
 
-  /** (tuner-ui) Out of the Anim Studio: follow is back on. */
-  private studioLeft(): void {
-    if (this.wasStudio && !STUDIO.active) this.setFollow(true);
-    this.wasStudio = STUDIO.active;
+  /** (tuner-ui) Out of the Test Chamber: follow is back on. */
+  private chamberLeft(): void {
+    if (this.wasChamber && !CHAMBER.active) this.setFollow(true);
+    this.wasChamber = CHAMBER.active;
   }
 
   /** (G1) The tuner may open here (the Test Chamber only; the pause and Settings rows ask this to list themselves). */
@@ -2789,11 +2789,11 @@ export class AnimTunePanel {
     if (this.canOpen) this.reveal();
   }
 
-  /** (G1) Open without asking `allowed`: only the studio stage, which exists on the Test Chamber alone and opens as it loads
+  /** (G1) Open without asking `allowed`: only the chamber stage, which exists on the Test Chamber alone and opens as it loads
    *  (before the app's state is set, so the map is not readable yet). */
   reveal(): void {
     this.open = true;
-    this.studioLeft();
+    this.chamberLeft();
     // (fix round) the co-op lock is read live (a fold or a close never leaves it stale)
     this.refreshCoop();
     this.el.hidden = false;
@@ -2807,15 +2807,15 @@ export class AnimTunePanel {
       this.mocapBox.checked = this.mocapHost?.get() ?? false;
       this.mocapBox.disabled = !this.mocapHost;
     }
-    // (anim-studio) in the studio the loop player shows, and the pad starts on the loop list in the View tab
-    this.studioUi.sync();
-    if (STUDIO.active) this.setTab(this.tabs.findIndex((t) => t.id === 'view'), false);
+    // (anim-studio) in the chamber the loop player shows, and the pad starts on the loop list in the View tab
+    this.chamberUi.sync();
+    if (CHAMBER.active) this.setTab(this.tabs.findIndex((t) => t.id === 'view'), false);
     // (tuner-pad) opening takes the pad focus (once the press that opened it is released)
     this.pad.open();
     this.stickAcc = 0;
     this.syncFollow(true);
     const first = this.firstTabItem(this.padItems());
-    this.padKey = STUDIO.active ? 'st:entry' : (first?.dataset.pad ?? '');
+    this.padKey = CHAMBER.active ? 'st:entry' : (first?.dataset.pad ?? '');
     this.setPadLine();
     this.markPadFocus();
     this.syncTuneFreeze();
@@ -2863,7 +2863,7 @@ export class AnimTunePanel {
     this.markPadFocus();
     this.clearMarker();
     this.selMark.shown = false;
-    this.studioUi.panelClosed();
+    this.chamberUi.panelClosed();
     // (marlow-bays item 9) closed: play's own pointer lock again
     this.mouseCtl.setOpen(false);
     this.applyMouse();
@@ -2909,7 +2909,7 @@ export class AnimTunePanel {
       return true;
     }
     // (marlow-bays item 13) L3: loop on the spot
-    if (o.spot && STUDIO.active) this.toggleSpot();
+    if (o.spot && CHAMBER.active) this.toggleSpot();
     if (o.toggled) {
       this.clearFreeIn();
       this.onPadToggled();
@@ -2974,7 +2974,7 @@ export class AnimTunePanel {
 
   /**
    * (tuner-ui) "Pause game while tuning": the game holds still while the panel has the pad (a pad in use, the panel in
-   * the tuner mode); not in the Anim Studio (the loop player's Play / Pause rules), co-op or under the pause menu. Edge
+   * the tuner mode); not in the Test Chamber (the loop player's Play / Pause rules), co-op or under the pause menu. Edge
    * triggered: a Resume by hand meanwhile stays.
    */
   private syncTuneFreeze(): void {
@@ -2982,7 +2982,7 @@ export class AnimTunePanel {
       this.open &&
       this.pad.mode === 'tuner' &&
       this.freezeBox.checked &&
-      !STUDIO.active &&
+      !CHAMBER.active &&
       !this.coopOn &&
       !(this.menuPaused?.() ?? false) &&
       document.body.classList.contains('input-gamepad');
@@ -3029,8 +3029,8 @@ export class AnimTunePanel {
         hint(['Y'], 'more') +
         hint(['VIEW'], 'game');
       keys = 'Wheel: scroll. Arrows: move / value. Drag a slider. Right or middle drag on her: camera. Click on her: her part.';
-      // (marlow-bays T1a) the playback bar's keys in the studio
-      if (STUDIO.active) {
+      // (marlow-bays T1a) the playback bar's keys in the chamber
+      if (CHAMBER.active) {
         pad += hint([], 'L3: on the spot');
         keys += ` ${TUNER_PLAY_KEY}: play / pause. ${TUNER_KEY_BACK} / ${TUNER_KEY_FWD}: key back / forward. ${TUNER_SPOT_KEY}: on the spot.`;
       }
@@ -3042,7 +3042,7 @@ export class AnimTunePanel {
   }
 
   /** The focusable controls of the active tab (the menu's while it is open), in order, that show now: the playback bar
-   *  (the studio), the tab's "what" row and sliders, then More. */
+   *  (the chamber), the tab's "what" row and sliders, then More. */
   private padItems(): HTMLElement[] {
     const root = this.menuOpen ? this.menu : this.tabEls.get(this.tabs[this.tabIdx]?.id ?? '');
     const out: HTMLElement[] = [];
@@ -3050,7 +3050,7 @@ export class AnimTunePanel {
     const take = (p: HTMLElement): void => {
       for (const e of Array.from(p.querySelectorAll<HTMLElement>('[data-pad]'))) if (e.offsetParent !== null && !(e as HTMLButtonElement).disabled) out.push(e);
     };
-    const bar = this.studioUi.bar;
+    const bar = this.chamberUi.bar;
     if (!this.menuOpen && !bar.hidden) take(bar);
     take(root);
     if (!this.menuOpen) take(this.more);
@@ -3060,7 +3060,7 @@ export class AnimTunePanel {
   /** (T2) The first control of the tab itself (past the playback bar): a tab change's focus. */
   private firstTabItem(items: HTMLElement[]): HTMLElement | undefined {
     // (item 24, track A) the Who list heads the what-row, but the part picker keeps the first focus (Who is one D-pad up)
-    return items.find((e) => !this.studioUi.bar.contains(e) && e.dataset.pad !== 'who') ?? items[0];
+    return items.find((e) => !this.chamberUi.bar.contains(e) && e.dataset.pad !== 'who') ?? items[0];
   }
 
   /**
@@ -3543,7 +3543,7 @@ export class AnimTunePanel {
    * (tuner-clarity S4, PLAN 2(b)) The Now playing line, every frame the panel is open: one integer key from the graph's
    * `NOW_PLAYING`, the body state and the switch (no allocation); a changed key starts a hold and the text is built (the
    * one allocation) once the key has held `PLAY_HOLD_MS`. Who: Guard shows the guard's loop (hand-made always). The Anim
-   * Studio's Loop player shows the same text. The reach badges follow the live band (`syncReach`).
+   * Chamber's Loop player shows the same text. The reach badges follow the live band (`syncReach`).
    */
   private playFrame(nowMs: number): void {
     const body = TUNE_STATE.body;
@@ -3551,7 +3551,7 @@ export class AnimTunePanel {
     const guard = TUNE_WHO.who === 'guard';
     const k = guard ? -2 - idx : nowPlayingKey(NOW_PLAYING, idx, LOCO.mocap);
     // (mixamo-retarget Toggle) the player line follows the Animation source too (a module string: no allocation)
-    const ent = guard ? STUDIO.entry : ANIM_SOURCE.source;
+    const ent = guard ? CHAMBER.entry : ANIM_SOURCE.source;
     // the clip's hash in the key can collide: the clip reference itself is compared too (no allocation)
     const clip = guard ? null : NOW_PLAYING.clip;
     if (k !== this.playKey || ent !== this.playEnt || clip !== this.playClip) {
@@ -3569,9 +3569,9 @@ export class AnimTunePanel {
     this.syncReach();
   }
 
-  /** The Who: Guard line's loop: the studio's guard loop ("idle"), else the shown body state. */
+  /** The Who: Guard line's loop: the chamber's guard loop ("idle"), else the shown body state. */
   private guardLoopWord(body: string): string {
-    if (STUDIO.active && STUDIO.entry.startsWith('guard:')) return STUDIO.entry.slice(6).split('_').join(' ');
+    if (CHAMBER.active && CHAMBER.entry.startsWith('guard:')) return CHAMBER.entry.slice(6).split('_').join(' ');
     return body === '' ? 'idle' : bodyWord(body as BodyGroup);
   }
 
@@ -3579,7 +3579,7 @@ export class AnimTunePanel {
     this.playText = t;
     this.playEl.textContent = t;
     this.playEl.title = t;
-    this.studioUi.setPlaying(t);
+    this.chamberUi.setPlaying(t);
   }
 
   /**
@@ -3593,8 +3593,8 @@ export class AnimTunePanel {
     n.state = body === '' ? null : body;
     n.mocapShare = NOW_PLAYING.mocap;
     n.switchOn = LOCO.mocap;
-    // a gun in her hands: the game's gun group, or a studio loop that draws one (the same reading as `effectMode`'s `armed`; no allocation)
-    n.drawn = !!TUNE_STATE.gun || (STUDIO.active && !!studioEntry(STUDIO.entry).drawn);
+    // a gun in her hands: the game's gun group, or a chamber loop that draws one (the same reading as `effectMode`'s `armed`; no allocation)
+    n.drawn = !!TUNE_STATE.gun || (CHAMBER.active && !!chamberEntry(CHAMBER.entry).drawn);
     // the latched band (`reachBand`, hysteresis): a share hovering at a band's edge does not flip the badges; the
     // badges, the edit warning and the greyed rows' mode all read it, never the raw share
     n.band = reachBand(n.band, n.switchOn ? n.mocapShare : 0);
@@ -3606,14 +3606,14 @@ export class AnimTunePanel {
 
   /** Every frame (driven by the debug overlay whether or not it is shown). */
   frame(nowMs: number): void {
-    // (marlow-bays T2) the studio hides the game HUD, open or not
-    this.syncStudioHud();
+    // (marlow-bays T2) the chamber hides the game HUD, open or not
+    this.syncChamberHud();
     if (!this.open) return;
     // (fix round) every frame, folded or not: one property read
     this.refreshCoop();
     // (26b) the last input changed (touch / mouse <-> pad) on a phone: the layout's density follows, live (one class
     // read per frame, no allocation; the layout changes only on a change)
-    if (this.wasStudio !== STUDIO.active) this.studioLeft();
+    if (this.wasChamber !== CHAMBER.active) this.chamberLeft();
     // (fix round) the free view's pad input stops when the pad stops being polled (a disconnect)
     if (FREE_VIEW.mode !== 'off' && performance.now() - this.lastPoll > PAD_STALE_MS) this.clearFreeIn();
     this.syncFollow();
@@ -3627,8 +3627,8 @@ export class AnimTunePanel {
     }
     // (tuner-ui) pause while tuning follows the input device and the pause menu
     this.syncTuneFreeze();
-    // (anim-studio) the game speed may go to 2x inside the studio only (back to 1x at most on leaving it)
-    const mx = STUDIO.active ? STUDIO_SPEED.max : GAME_SPEED.max;
+    // (anim-studio) the game speed may go to 2x inside the chamber only (back to 1x at most on leaving it)
+    const mx = CHAMBER.active ? CHAMBER_SPEED.max : GAME_SPEED.max;
     if (mx !== this.speedMax) {
       this.speedMax = mx;
       this.speedIn.max = String(mx);
@@ -3640,34 +3640,34 @@ export class AnimTunePanel {
     }
     this.snaps.frame(nowMs);
     this.showOrbit();
-    this.studioUi.frame(nowMs, this.scene);
-    if (this.aidsB.hidden === STUDIO.active) this.aidsB.hidden = !STUDIO.active;
+    this.chamberUi.frame(nowMs, this.scene);
+    if (this.aidsB.hidden === CHAMBER.active) this.aidsB.hidden = !CHAMBER.active;
     this.keysFrame(nowMs);
     this.playFrame(nowMs);
     this.showSpot();
-    // (marlow-bays T2) the studio's canvas beside the docked panel
+    // (marlow-bays T2) the chamber's canvas beside the docked panel
     this.syncDock();
     if (!this.folded && nowMs >= this.nextDrops) {
-      // the drop-down buttons follow their selects (a value set in code: the studio, presets)
+      // the drop-down buttons follow their selects (a value set in code: the chamber, presets)
       this.nextDrops = nowMs + 250;
       for (const b of this.dropBtns) if (b.offsetParent !== null) this.refreshDrop(b);
       this.showLock();
     }
     if (!this.folded && nowMs >= this.nextInfo) {
       this.nextInfo = nowMs + 250;
-      // (marlow-bays T2) the stance really playing: in the studio the loop and the picked gun, drawn or holstered
-      const se = STUDIO.active ? studioEntry(STUDIO.entry) : null;
-      const st = se ? { loop: plainLoop(se.id, se.label), drawn: !!se.drawn || !!TUNE_STATE.gun, weapon: TUNE_STATE.gun ? (TUNE_STATE.gun.split('.')[0] ?? STUDIO.weapon) : STUDIO.weapon } : null;
+      // (marlow-bays T2) the stance really playing: in the chamber the loop and the picked gun, drawn or holstered
+      const se = CHAMBER.active ? chamberEntry(CHAMBER.entry) : null;
+      const st = se ? { loop: plainLoop(se.id, se.label), drawn: !!se.drawn || !!TUNE_STATE.gun, weapon: TUNE_STATE.gun ? (TUNE_STATE.gun.split('.')[0] ?? CHAMBER.weapon) : CHAMBER.weapon } : null;
       this.now.textContent = `Now: ${stanceText(TUNE_STATE.body, TUNE_STATE.gun, st)}${this.follow ? '' : ' · follow off'}${this.frozen ? ' · paused' : ''}`;
       if (!this.confirmAll) this.info.textContent = `${tuneChanged().length} changed`;
-      // (marlow-bays item 29) the loop playing now: one of her keyed clips (the studio), a gun in hand or not; a change
+      // (marlow-bays item 29) the loop playing now: one of her keyed clips (the chamber), a gun in hand or not; a change
       // greys the rows that do nothing in it
-      // (tuner-clarity S4) `mocap`: no studio keyed clip pins the body and the capture's latched band (`syncReach`) is 90 % or more
-      // (mixamo-retarget M5) a motion capture in the studio plays as the game plays it (the mocap share, studioDrive): the
+      // (tuner-clarity S4) `mocap`: no chamber keyed clip pins the body and the capture's latched band (`syncReach`) is 90 % or more
+      // (mixamo-retarget M5) a motion capture in the chamber plays as the game plays it (the mocap share, chamberDrive): the
       // rows the game keeps off a capture grey here too
       const capPin = !!se && se.kind === 'keyed' && se.clip !== null && mocapSource(se.clip.name) !== null;
-      const keyedPin = !capPin && !!se && se.kind === 'keyed' && studioBodyPin(se) !== '';
-      const m = effectMode(keyedPin, se ? !!se.drawn || !!TUNE_STATE.gun : !!TUNE_STATE.gun, STUDIO.spot, capPin || (!keyedPin && this.reachNow.band === 'capture'));
+      const keyedPin = !capPin && !!se && se.kind === 'keyed' && chamberBodyPin(se) !== '';
+      const m = effectMode(keyedPin, se ? !!se.drawn || !!TUNE_STATE.gun : !!TUNE_STATE.gun, CHAMBER.spot, capPin || (!keyedPin && this.reachNow.band === 'capture'));
       if (m !== this.effMode) {
         this.effMode = m;
         for (const s of this.sections) this.applyEffect(s);
@@ -3686,16 +3686,16 @@ export class AnimTunePanel {
   // (marlow-bays item 9) The mouse mode
   // ------------------------------------------------------------------------------------------
 
-  /** (marlow-bays item 13) Loop on the spot on / off (the header button, its key, L3; the studio only). */
+  /** (marlow-bays item 13) Loop on the spot on / off (the header button, its key, L3; the chamber only). */
   private toggleSpot(): void {
-    if (!STUDIO.active) return;
-    const on = this.studioUi.toggleSpot();
+    if (!CHAMBER.active) return;
+    const on = this.chamberUi.toggleSpot();
     this.showSpot();
     this.flashInfo(on ? 'Loop on the spot: a moving state runs in place' : 'Loop on the spot off: she moves');
   }
 
   /**
-   * (marlow-bays T1a, items 15 and 18) The Keys tab's block: "◀ Key" / "Key ▶" (in the studio the clip steps key by key
+   * (marlow-bays T1a, items 15 and 18) The Keys tab's block: "◀ Key" / "Key ▶" (in the chamber the clip steps key by key
    * and the picker follows), the readout ("jog - key 2 of 8 (mirror of 6), frame 4"), the Mirror box (on: an edit shows
    * on the mirror key too, the other arm half a cycle on; off: this key only) and the hint.
    */
@@ -3767,12 +3767,12 @@ export class AnimTunePanel {
         showKey: (clip, k) => {
           this.loopFromTab = this.keyPicking = true;
           try {
-            this.studioUi.showKey(clip, k);
+            this.chamberUi.showKey(clip, k);
           } finally {
             this.loopFromTab = this.keyPicking = false;
           }
         },
-        ghostReady: () => this.studioUi.overlay.compareReady(),
+        ghostReady: () => this.chamberUi.overlay.compareReady(),
         frozen: () => this.frozen,
       },
     ));
@@ -3788,7 +3788,7 @@ export class AnimTunePanel {
   /**
    * (marlow-bays item 25) "Add key": a key midway to the next one (wrapping; with Mirror on in the own half, mirrored
    * half a cycle on), its pose the one playing there, so nothing changes until it is edited. The picker and (paused)
-   * the studio go to the new key.
+   * the chamber go to the new key.
    */
   private keysAdd(): void {
     const k = this.keysTimeKey();
@@ -3820,7 +3820,7 @@ export class AnimTunePanel {
     this.flashInfo(`${k[0]}: key deleted, ${tuneKeysEditInfo(k[0], 0)?.count ?? '?'} keys a cycle (Undo brings it back)`);
   }
 
-  /** (item 25) The Keys picker (and in the studio, paused, the clip) to key id `k` of `clip`. */
+  /** (item 25) The Keys picker (and in the chamber, paused, the clip) to key id `k` of `clip`. */
   private keysGoTo(clip: string, k: number): void {
     const sec = this.sections.find((s) => s.reg.id === 'keys');
     const g = tuneKeysGroupOf(clip, k);
@@ -3828,10 +3828,10 @@ export class AnimTunePanel {
       sec.group = '';
       this.showGroup('keys', g);
     }
-    if (STUDIO.active) {
+    if (CHAMBER.active) {
       this.loopFromTab = this.keyPicking = true;
       try {
-        this.studioUi.showKey(clip, k);
+        this.chamberUi.showKey(clip, k);
       } finally {
         this.loopFromTab = this.keyPicking = false;
       }
@@ -3841,17 +3841,17 @@ export class AnimTunePanel {
     this.nextKeys = 0;
   }
 
-  /** (marlow-bays item 23) The key the timing control moves: the one the readout names (the studio's key when it stands on one). */
+  /** (marlow-bays item 23) The key the timing control moves: the one the readout names (the chamber's key when it stands on one). */
   private keysTimeKey(): [string, number] | null {
     const p = this.keysShown();
     if (!p) return null;
-    const playing = STUDIO.active && STUDIO.entry === `keyed:${p[0]}`;
-    return [p[0], playing && STUDIO.onKey && STUDIO.key >= 0 ? STUDIO.key : p[1]];
+    const playing = CHAMBER.active && CHAMBER.entry === `keyed:${p[0]}`;
+    return [p[0], playing && CHAMBER.onKey && CHAMBER.key >= 0 ? CHAMBER.key : p[1]];
   }
 
   /**
    * (marlow-bays item 23) Slide the key `delta` bake frames (+ later), clamped between its neighbours (with the Mirror
-   * box on its mirror key moves too). Paused in the studio, the clip lands on the key at its new time at once.
+   * box on its mirror key moves too). Paused in the chamber, the clip lands on the key at its new time at once.
    */
   private keysRetime(delta: number): void {
     const k = this.keysTimeKey();
@@ -3862,7 +3862,7 @@ export class AnimTunePanel {
       else if (i) this.flashInfo(`${k[0]}: key ${keyRank(keyClip(k[0])!, k[1]) + 1} is against the next key; it cannot move further`);
       return;
     }
-    if (STUDIO.active && (this.frozen || STUDIO.entry !== `keyed:${k[0]}`)) this.studioUi.showKey(k[0], k[1]);
+    if (CHAMBER.active && (this.frozen || CHAMBER.entry !== `keyed:${k[0]}`)) this.chamberUi.showKey(k[0], k[1]);
     this.nextKeys = 0;
   }
 
@@ -3872,14 +3872,14 @@ export class AnimTunePanel {
     return sec ? tuneKeysIdOf(sec.group) : null; // (item 25) [clip, key id]: an added key too
   }
 
-  /** (T1a) "◀ Key" / "Key ▶": in the studio the shown clip steps a key (it plays first if another loop does); outside it
+  /** (T1a) "◀ Key" / "Key ▶": in the chamber the shown clip steps a key (it plays first if another loop does); outside it
    *  the picker moves to the clip's previous / next key. */
   private keysStep(dir: number): void {
     const p = this.keysShown();
     if (!p) return;
-    if (STUDIO.active) {
-      if (STUDIO.entry !== `keyed:${p[0]}`) this.studioUi.showKey(p[0], p[1]);
-      this.studioUi.stepKey(dir);
+    if (CHAMBER.active) {
+      if (CHAMBER.entry !== `keyed:${p[0]}`) this.chamberUi.showKey(p[0], p[1]);
+      this.chamberUi.stepKey(dir);
       return;
     }
     const c = keyClip(p[0]);
@@ -3911,7 +3911,7 @@ export class AnimTunePanel {
   }
 
   /**
-   * (T1a, item 15) Every 100 ms with the panel open: in the studio the Keys picker follows the key the clip stands on
+   * (T1a, item 15) Every 100 ms with the panel open: in the chamber the Keys picker follows the key the clip stands on
    * (a mirrored-half key shows as the own key it mirrors while the Mirror box is on); the readout and the box follow.
    */
   private keysFrame(nowMs: number): void {
@@ -3926,33 +3926,33 @@ export class AnimTunePanel {
     }
     const n = c.phases.length;
     const mirrorOn = tuneKeysMirrorOn(p[0]);
-    const playing = STUDIO.active && STUDIO.entry === `keyed:${p[0]}`;
-    // (item 30) the compare ghost's visit to the compared key moves the studio: the picker stays
+    const playing = CHAMBER.active && CHAMBER.entry === `keyed:${p[0]}`;
+    // (item 30) the compare ghost's visit to the compared key moves the chamber: the picker stays
     if (this.keyTools?.priming) {
       this.keyTools.frame();
       return;
     }
-    if (playing && STUDIO.onKey && STUDIO.key >= 0 && (STUDIO.key !== this.keyShown || p[0] !== this.keyClipShown)) {
-      this.keyShown = STUDIO.key;
+    if (playing && CHAMBER.onKey && CHAMBER.key >= 0 && (CHAMBER.key !== this.keyShown || p[0] !== this.keyClipShown)) {
+      this.keyShown = CHAMBER.key;
       this.keyClipShown = p[0];
-      const g = tuneKeysGroupOf(p[0], STUDIO.key); // (item 25) an added key's group too
+      const g = tuneKeysGroupOf(p[0], CHAMBER.key); // (item 25) an added key's group too
       if (!this.pressing && !this.drop.open) this.showGroup('keys', g);
     }
-    const k = playing && STUDIO.key >= 0 ? STUDIO.key : p[1];
+    const k = playing && CHAMBER.key >= 0 ? CHAMBER.key : p[1];
     let t = keyReadout(c, k);
-    if (playing && !STUDIO.onKey) t = `${t} (between keys)`;
+    if (playing && !CHAMBER.onKey) t = `${t} (between keys)`;
     const T = keyTimeCount(c);
     if (c.mirror && mirrorOn && k >= n && k < T) t += `: the sliders edit key ${keyRank(c, k - n) + 1} (this key is its mirror, the arms swapped)`;
     // (item 25) an added key's mirror half a cycle on
     if (c.mirror && mirrorOn && k >= T + KEY_ADD_SLOTS) t += `: the sliders edit key ${keyRank(c, k - KEY_ADD_SLOTS) + 1} (this key is its mirror, the arms swapped)`;
-    this.keysEditShow(p[0], playing && STUDIO.onKey && STUDIO.key >= 0 ? STUDIO.key : p[1]);
+    this.keysEditShow(p[0], playing && CHAMBER.onKey && CHAMBER.key >= 0 ? CHAMBER.key : p[1]);
     if (keysClipCaptured(p[0])) t += ` ${KEYS_CAPTURED_NOTE}`; // (tuner-clarity S4)
-    if (!STUDIO.active) t += ' (open the Anim Studio to see the key)';
+    if (!CHAMBER.active) t += ' (open the Test Chamber to see the key)';
     if (this.keyReadoutEl.textContent !== t) this.keyReadoutEl.textContent = t;
     const box = this.keyMirrorBox!;
     if (box.checked !== mirrorOn) box.checked = mirrorOn;
     if (box.disabled !== !c.mirror) box.disabled = !c.mirror;
-    this.keysTimeShow(p[0], playing && STUDIO.onKey && STUDIO.key >= 0 ? STUDIO.key : p[1]);
+    this.keysTimeShow(p[0], playing && CHAMBER.onKey && CHAMBER.key >= 0 ? CHAMBER.key : p[1]);
     this.keyTools?.frame(); // (item 30)
   }
 
@@ -4002,15 +4002,15 @@ export class AnimTunePanel {
     if (el.textContent !== t) el.textContent = t;
   }
 
-  /** The header button follows the studio and the switch (cheap compares, every frame). */
+  /** The header button follows the chamber and the switch (cheap compares, every frame). */
   private showSpot(): void {
     const b = this.spotBtn;
-    const hide = !STUDIO.active;
+    const hide = !CHAMBER.active;
     if (b.hidden !== hide) b.hidden = hide;
     if (hide) return;
-    const t = STUDIO.spot ? 'On the spot: on' : 'On the spot: off';
+    const t = CHAMBER.spot ? 'On the spot: on' : 'On the spot: off';
     if (b.textContent !== t) b.textContent = t;
-    if (b.classList.contains('on') !== STUDIO.spot) b.classList.toggle('on', STUDIO.spot);
+    if (b.classList.contains('on') !== CHAMBER.spot) b.classList.toggle('on', CHAMBER.spot);
   }
 
   /** The key or the header button: drag view <-> game camera. */

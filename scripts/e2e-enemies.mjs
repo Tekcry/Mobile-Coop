@@ -78,7 +78,7 @@ const run = async (params, scenarios) => {
 // (G2b) the Test Chamber's main room: the open floor z 17-23 (the anim lane), the low wall at x 4, the door wall at z 4. The player parks at
 // (27, 1.5) where a scenario wants him out of the way; (G2c) the drone scenario parks him in the annex's dark bay (35.3, 1.5) and the
 // officer's alarm run uses the annex's panel (`alarm-0`, hall, x 28.45).
-await run('autostart=studio&mode=test', [
+await run('autostart=chamber&mode=test', [
   [
     'heavy',
     async (G) => {

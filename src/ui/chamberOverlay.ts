@@ -1,5 +1,5 @@
 import type { Scene } from '../core/babylon';
-import { STUDIO, STUDIO_RIGS, STUDIO_TARGET, studioKey, type StudioJoint, type StudioRigView } from '../anim/studio';
+import { CHAMBER, CHAMBER_RIGS, CHAMBER_TARGET, chamberKey, type ChamberJoint, type ChamberRigView } from '../anim/chamber';
 import type { KeyedClip } from '../anim/keyed';
 import { projectPoint, type OverlayCam } from './overlayProject';
 
@@ -10,12 +10,12 @@ const ONION_NEAR = 0.26;
 
 interface RigBones {
   /** The rig's joints (each once) and its bones as index pairs into them. */
-  joints: StudioJoint[];
+  joints: ChamberJoint[];
   pairs: Int16Array;
 }
 
 /**
- * (anim-studio) The studio's viewing aids as a 2D canvas over the game canvas (no scene meshes; `pointer-events: none`),
+ * (anim-studio) The chamber's viewing aids as a 2D canvas over the game canvas (no scene meshes; `pointer-events: none`),
  * drawn after the render from the rigs' joints projected through the rendered camera (`overlayProject.ts`):
  * - the skeleton of every rig on the stage (green lines);
  * - foot contacts (a filled green dot planted, an orange ring swinging) and short foot trails;
@@ -24,25 +24,25 @@ interface RigBones {
  *   onto; a tuner change, another clip, the mirror or root motion clear the cache.
  * Allocation-free per frame after the first frame of a rig.
  */
-export class StudioOverlay {
+export class ChamberOverlay {
   private canvas: HTMLCanvasElement | null = null;
   private rectAt = 0;
   private W = 0;
   private H = 0;
-  private readonly bones = new Map<StudioRigView, RigBones>();
+  private readonly bones = new Map<ChamberRigView, RigBones>();
   private readonly pa = { x: 0, y: 0, z: 0 };
   private readonly pb = { x: 0, y: 0, z: 0 };
   // trails (the drive's target rig, else Wren): per sample L xyz, R xyz
   private readonly trail = new Float32Array(TRAIL_N * 6);
   private trailN = 0;
   private trailHead = 0;
-  private trailRig: StudioRigView | null = null;
+  private trailRig: ChamberRigView | null = null;
   private trailEntry = '';
   // onion skin: per key, the joints root-local (x right, y up, z forward)
   private onion = new Float32Array(0);
   private onionOk = new Uint8Array(0);
   private onionClip: KeyedClip | null = null;
-  private onionRig: StudioRigView | null = null;
+  private onionRig: ChamberRigView | null = null;
   private onionMirror = false;
   private onionRoot = false;
   private onionVer = -1;
@@ -50,13 +50,13 @@ export class StudioOverlay {
   private cmp = new Float32Array(0);
   private cmpOk = false;
   private cmpClip: KeyedClip | null = null;
-  private cmpRig: StudioRigView | null = null;
+  private cmpRig: ChamberRigView | null = null;
   private cmpFrame = -1;
   private cmpMirror = false;
   private cmpRoot = false;
   private cmpVer = -1;
 
-  /** Every frame while the studio runs (after the render). */
+  /** Every frame while the chamber runs (after the render). */
   frame(nowMs: number, scene: Scene | null): void {
     const c = this.ensureCanvas();
     const g = c.getContext('2d');
@@ -87,16 +87,16 @@ export class StudioOverlay {
     this.recordOnion();
     this.recordCompare();
     this.recordTrail();
-    if (STUDIO.onion) this.drawOnion(g, cam);
-    if (STUDIO.compare) this.drawCompare(g, cam);
-    if (STUDIO.skeleton) for (let i = 0; i < STUDIO_RIGS.length; i++) this.drawSkeleton(g, cam, STUDIO_RIGS[i]!);
-    if (STUDIO.feet) {
+    if (CHAMBER.onion) this.drawOnion(g, cam);
+    if (CHAMBER.compare) this.drawCompare(g, cam);
+    if (CHAMBER.skeleton) for (let i = 0; i < CHAMBER_RIGS.length; i++) this.drawSkeleton(g, cam, CHAMBER_RIGS[i]!);
+    if (CHAMBER.feet) {
       this.drawTrail(g, cam);
-      for (let i = 0; i < STUDIO_RIGS.length; i++) this.drawFeet(g, cam, STUDIO_RIGS[i]!);
+      for (let i = 0; i < CHAMBER_RIGS.length; i++) this.drawFeet(g, cam, CHAMBER_RIGS[i]!);
     }
   }
 
-  /** Hidden and emptied (the studio left). */
+  /** Hidden and emptied (the chamber left). */
   clear(): void {
     const c = this.canvas;
     if (c) {
@@ -115,19 +115,19 @@ export class StudioOverlay {
 
   /** (item 30d) The compare ghost is recorded for the compared key (the panel visits the key once when it is not). */
   compareReady(): boolean {
-    return this.cmpOk && this.cmpClip === STUDIO_TARGET.clip && this.cmpRig === STUDIO_TARGET.rig && this.cmpFrame === this.compareFrame();
+    return this.cmpOk && this.cmpClip === CHAMBER_TARGET.clip && this.cmpRig === CHAMBER_TARGET.rig && this.cmpFrame === this.compareFrame();
   }
 
   /** The compared key's frame of the clip playing (-1 none). */
   private compareFrame(): number {
-    const clip = STUDIO_TARGET.clip;
-    return clip && Number.isFinite(STUDIO.comparePhase) ? studioKey(STUDIO.comparePhase, clip.frames) : -1;
+    const clip = CHAMBER_TARGET.clip;
+    return clip && Number.isFinite(CHAMBER.comparePhase) ? chamberKey(CHAMBER.comparePhase, clip.frames) : -1;
   }
 
   /** (item 30d) Record the target's joints (root-local) while she stands on the compared key's frame. */
   private recordCompare(): void {
-    const rig = STUDIO_TARGET.rig;
-    const clip = STUDIO_TARGET.clip;
+    const rig = CHAMBER_TARGET.rig;
+    const clip = CHAMBER_TARGET.clip;
     const fr = this.compareFrame();
     if (!rig || !clip || fr < 0) {
       this.cmpOk = false;
@@ -135,19 +135,19 @@ export class StudioOverlay {
     }
     const b = this.bonesOf(rig);
     const J = b.joints.length;
-    if (clip !== this.cmpClip || rig !== this.cmpRig || fr !== this.cmpFrame || STUDIO.mirror !== this.cmpMirror || STUDIO.rootMotion !== this.cmpRoot || STUDIO.compareVer !== this.cmpVer) {
+    if (clip !== this.cmpClip || rig !== this.cmpRig || fr !== this.cmpFrame || CHAMBER.mirror !== this.cmpMirror || CHAMBER.rootMotion !== this.cmpRoot || CHAMBER.compareVer !== this.cmpVer) {
       this.cmpClip = clip;
       this.cmpRig = rig;
       this.cmpFrame = fr;
-      this.cmpMirror = STUDIO.mirror;
-      this.cmpRoot = STUDIO.rootMotion;
-      this.cmpVer = STUDIO.compareVer;
+      this.cmpMirror = CHAMBER.mirror;
+      this.cmpRoot = CHAMBER.rootMotion;
+      this.cmpVer = CHAMBER.compareVer;
       this.cmpOk = false;
       if (this.cmp.length !== J * 3) this.cmp = new Float32Array(J * 3);
     }
-    const ph = STUDIO_TARGET.drive?.live ?? STUDIO.phase;
+    const ph = CHAMBER_TARGET.drive?.live ?? CHAMBER.phase;
     // (on the key itself: its phase; a key sits on the bake's 1/48 grid, not always on a clip frame)
-    let dp = Math.abs(ph - STUDIO.comparePhase) % 1;
+    let dp = Math.abs(ph - CHAMBER.comparePhase) % 1;
     if (dp > 0.5) dp = 1 - dp;
     if (dp > 1e-4) return;
     const rp = rig.root.position;
@@ -195,18 +195,18 @@ export class StudioOverlay {
     let c = this.canvas;
     if (!c) {
       c = this.canvas = document.createElement('canvas');
-      c.className = 'studio-overlay';
+      c.className = 'chamber-overlay';
       c.style.cssText = 'position:fixed;left:0;top:0;pointer-events:none;z-index:139;';
       document.body.appendChild(c);
     }
     return c;
   }
 
-  private bonesOf(rig: StudioRigView): RigBones {
+  private bonesOf(rig: ChamberRigView): RigBones {
     let b = this.bones.get(rig);
     if (b) return b;
     const list = rig.bones();
-    const joints: StudioJoint[] = [];
+    const joints: ChamberJoint[] = [];
     const pairs = new Int16Array(list.length * 2);
     list.forEach(([a, c], i) => {
       let ia = joints.indexOf(a);
@@ -231,7 +231,7 @@ export class StudioOverlay {
     g.lineTo(this.pb.x, this.pb.y);
   }
 
-  private drawSkeleton(g: CanvasRenderingContext2D, cam: OverlayCam, rig: StudioRigView): void {
+  private drawSkeleton(g: CanvasRenderingContext2D, cam: OverlayCam, rig: ChamberRigView): void {
     const b = this.bonesOf(rig);
     g.strokeStyle = 'rgba(80,255,130,0.9)';
     g.lineWidth = 2;
@@ -247,7 +247,7 @@ export class StudioOverlay {
     g.stroke();
   }
 
-  private drawFeet(g: CanvasRenderingContext2D, cam: OverlayCam, rig: StudioRigView): void {
+  private drawFeet(g: CanvasRenderingContext2D, cam: OverlayCam, rig: ChamberRigView): void {
     const near = Math.max(0.05, cam.minZ);
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? rig.planner.L : rig.planner.R;
@@ -269,10 +269,10 @@ export class StudioOverlay {
 
   /** The target rig's feet into the ring buffer (cleared on another rig or loop). */
   private recordTrail(): void {
-    const rig = STUDIO_TARGET.rig ?? STUDIO_RIGS[0] ?? null;
-    if (rig !== this.trailRig || STUDIO.entry !== this.trailEntry) {
+    const rig = CHAMBER_TARGET.rig ?? CHAMBER_RIGS[0] ?? null;
+    if (rig !== this.trailRig || CHAMBER.entry !== this.trailEntry) {
       this.trailRig = rig;
-      this.trailEntry = STUDIO.entry;
+      this.trailEntry = CHAMBER.entry;
       this.trailN = 0;
       this.trailHead = 0;
     }
@@ -315,8 +315,8 @@ export class StudioOverlay {
 
   /** Cache the target's joints (root-local) at the key nearest the shown phase, when close enough to it. */
   private recordOnion(): void {
-    const rig = STUDIO_TARGET.rig;
-    const clip = STUDIO_TARGET.clip;
+    const rig = CHAMBER_TARGET.rig;
+    const clip = CHAMBER_TARGET.clip;
     if (!rig || !clip) {
       this.onionClip = null;
       return;
@@ -324,23 +324,23 @@ export class StudioOverlay {
     const b = this.bonesOf(rig);
     const J = b.joints.length;
     const N = clip.frames;
-    if (clip !== this.onionClip || rig !== this.onionRig || STUDIO.mirror !== this.onionMirror || STUDIO.rootMotion !== this.onionRoot || STUDIO.poseVer !== this.onionVer) {
+    if (clip !== this.onionClip || rig !== this.onionRig || CHAMBER.mirror !== this.onionMirror || CHAMBER.rootMotion !== this.onionRoot || CHAMBER.poseVer !== this.onionVer) {
       this.onionClip = clip;
       this.onionRig = rig;
-      this.onionMirror = STUDIO.mirror;
-      this.onionRoot = STUDIO.rootMotion;
-      this.onionVer = STUDIO.poseVer;
+      this.onionMirror = CHAMBER.mirror;
+      this.onionRoot = CHAMBER.rootMotion;
+      this.onionVer = CHAMBER.poseVer;
       if (this.onion.length !== N * J * 3) {
         this.onion = new Float32Array(N * J * 3);
         this.onionOk = new Uint8Array(N);
       } else this.onionOk.fill(0);
     }
     // the phase the rig was posed at this frame
-    const ph = STUDIO_TARGET.drive?.live ?? STUDIO.phase;
+    const ph = CHAMBER_TARGET.drive?.live ?? CHAMBER.phase;
     const f = ph * N;
     const near = Math.abs(f - Math.round(f));
     if (near > ONION_NEAR) return;
-    const k = studioKey(ph, N);
+    const k = chamberKey(ph, N);
     const rp = rig.root.position;
     const yaw = rig.root.rotation.y;
     const c = Math.cos(yaw);
@@ -363,14 +363,14 @@ export class StudioOverlay {
     const clip = this.onionClip;
     if (!rig || !clip) return;
     const N = clip.frames;
-    const k = studioKey(STUDIO_TARGET.drive?.live ?? STUDIO.phase, N);
+    const k = chamberKey(CHAMBER_TARGET.drive?.live ?? CHAMBER.phase, N);
     const b = this.bonesOf(rig);
     g.lineWidth = 1.5;
     this.ghost(g, cam, rig, b, (k - 1 + N) % N, 'rgba(110,170,255,0.45)');
     this.ghost(g, cam, rig, b, (k + 1) % N, 'rgba(255,170,90,0.45)');
   }
 
-  private ghost(g: CanvasRenderingContext2D, cam: OverlayCam, rig: StudioRigView, b: RigBones, key: number, color: string): void {
+  private ghost(g: CanvasRenderingContext2D, cam: OverlayCam, rig: ChamberRigView, b: RigBones, key: number, color: string): void {
     if (!this.onionOk[key]) return;
     const J = b.joints.length;
     const o = this.onion;

@@ -5,8 +5,8 @@ import { CH, newPose } from '../src/anim/pose';
 import { TUNE_CUR } from '../src/anim/tune';
 import { TUNE_FLAGS } from '../src/anim/tuneRegistry';
 import { BAKE_CATALOGUE_MODULES, BAKE_RULES } from '../src/anim/tuneBakeTable';
-import { HOLD_PAIR_CYCLES, holdPairTravel, studioCq, studioEntry, type HoldTravel } from '../src/anim/studio';
-import { newStudioDrive, studioDriveTargets, treadmillFoot, type TreadOut } from '../src/anim/studioDrive';
+import { HOLD_PAIR_CYCLES, holdPairTravel, chamberCq, chamberEntry, type HoldTravel } from '../src/anim/chamber';
+import { newChamberDrive, chamberDriveTargets, treadmillFoot, type TreadOut } from '../src/anim/chamberDrive';
 import { emptyTargets } from '../src/anim/animGraph';
 
 const braceOut = (): CqBraceOut => ({ pelYaw: 0, spYaw: 0, spRoll: 0, spPitch: 0, pelX: 0 });
@@ -373,7 +373,7 @@ describe('cqGait: the hold standing still braces (anim-n4b, PASS2 rows 43-44)', 
   });
 });
 
-describe('cqGait: the studio hold clips (anim-n4b, PASS2 rows 43-44)', () => {
+describe('cqGait: the chamber hold clips (anim-n4b, PASS2 rows 43-44)', () => {
   const DEG = 180 / Math.PI;
   type Q = [number, number, number, number];
   const mul = (a: Q, b: Q): Q => [
@@ -421,17 +421,17 @@ describe('cqGait: the studio hold clips (anim-n4b, PASS2 rows 43-44)', () => {
     expect(s[0]!).toBeCloseTo(-CQ_GAIT.hold.counter * p[0]!, 1);
   });
 
-  it("the studio entries: Wren's hold clips take the layer, the guard's clips and the moves do not", () => {
-    expect(studioCq(studioEntry('pair:hold_idle'))).toBe('still');
-    expect(studioCq(studioEntry('pair:hold_back'))).toBe('walk');
-    expect(studioCq(studioEntry('keyed:hold_fwd'))).toBe('walk');
-    expect(studioCq(studioEntry('pair:hold_choke'))).toBe('none');
-    expect(studioCq(studioEntry('keyed:guard_held_stumble'))).toBe('none');
-    expect(studioCq(studioEntry('keyed:walk'))).toBe('none');
+  it("the chamber entries: Wren's hold clips take the layer, the guard's clips and the moves do not", () => {
+    expect(chamberCq(chamberEntry('pair:hold_idle'))).toBe('still');
+    expect(chamberCq(chamberEntry('pair:hold_back'))).toBe('walk');
+    expect(chamberCq(chamberEntry('keyed:hold_fwd'))).toBe('walk');
+    expect(chamberCq(chamberEntry('pair:hold_choke'))).toBe('none');
+    expect(chamberCq(chamberEntry('keyed:guard_held_stumble'))).toBe('none');
+    expect(chamberCq(chamberEntry('keyed:walk'))).toBe('none');
     // the drive applies it only when asked (a plain drive plays the keyed clip as before)
-    const e = studioEntry('pair:hold_idle');
-    const a = newStudioDrive();
-    const b = newStudioDrive();
+    const e = chamberEntry('pair:hold_idle');
+    const a = newChamberDrive();
+    const b = newChamberDrive();
     for (const d of [a, b]) {
       d.clip = e.clip;
       d.held = true;
@@ -441,14 +441,14 @@ describe('cqGait: the studio hold clips (anim-n4b, PASS2 rows 43-44)', () => {
     b.cq = 'still';
     const ta = emptyTargets();
     const tb = emptyTargets();
-    studioDriveTargets(a, ta, 0);
-    studioDriveTargets(b, tb, 0);
+    chamberDriveTargets(a, ta, 0);
+    chamberDriveTargets(b, tb, 0);
     expect(Math.abs(yawOf(tb.keyed.q) - yawOf(ta.keyed.q))).toBeGreaterThan(0.1);
   });
 
   it('a walking hold pair travels with its clip: the planted treadmill foot stays on the floor (on the spot it slid)', () => {
-    const e = studioEntry('pair:hold_back');
-    const d = newStudioDrive();
+    const e = chamberEntry('pair:hold_back');
+    const d = newChamberDrive();
     d.clip = e.clip;
     d.cycle = e.cycle;
     d.pace = e.pace;
@@ -477,7 +477,7 @@ describe('cqGait: the studio hold clips (anim-n4b, PASS2 rows 43-44)', () => {
     st.last = 0.95;
     expect(holdPairTravel(e, 0.02, st)).toBeCloseTo(e.pace * e.cycle * 0.02, 9);
     // a still pair or a team pair never travels
-    expect(holdPairTravel(studioEntry('pair:hold_idle'), 0.5, st)).toBe(0);
-    expect(holdPairTravel(studioEntry('pair:boost'), 0.5, st)).toBe(0);
+    expect(holdPairTravel(chamberEntry('pair:hold_idle'), 0.5, st)).toBe(0);
+    expect(holdPairTravel(chamberEntry('pair:boost'), 0.5, st)).toBe(0);
   });
 });

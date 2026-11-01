@@ -32,7 +32,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   `medkit`, pickup kind `medkit`). Earlier steps: git log and docs/archive/locomotion/LOG.md. Next wire train: afp AF6 (#247), the partner's gait - `PlayerState.t` (the joiner's send clock, timed by the host through a `ClockSync`), `gph` (gait clock), `qs` / `hs` (the CT stop), `mo` / `mt` (motion state and its time), `ax` / `az` (acceleration); the partner renders 0.13 s (host) / 0.16 s (joiner) behind.
 - Caps: `MAX_PLAYERS` 4 (room cap on the wire), `MAX_ENEMIES` 32, `MAX_EVENTS` 48, `MAX_ITEMS` 128, `MAX_DOORS` 256.
 - `NetMode`: `sandbox | clear | infiltration | course | sector | test`; (G2a, protocol 87) `test` is the Test Chamber's
-  mode (`TestMode`: guards by test, revives, no progression; the lobby's "Test Chamber" mode starts map `studio` in it,
+  mode (`TestMode`: guards by test, revives, no progression; the lobby's "Test Chamber" mode starts map `chamber` in it,
   two players); `capacity(mode)` gates joins and `startMatch`. On
   master `course` and `sector` take `COURSE_MAX` 2 and the legacy modes `COOP_MAX` 4. The rule: Marlow Yard and the
   campaign 2 (G2), Sector Ops up to 4 (G308; coop4, PR #317, adds `SECTOR_MAX` 4). Never cap Sector Ops at 2.
@@ -348,9 +348,9 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   B, contact) apply to the LOCAL player's own role only (`GameState` writes `MOVE_TUNE_TEAM` from `TeamController`).
   `RemoteAvatar` never reads the live values: the partner plays the BASE table (pose-parity: `moveTuneSelectBase` with its role from the wire, `teamRowOfWire`, and its posed traversal; the Body root offsets and wall gap from its own applied base, `bodyRigRoot`), i.e. the shared defaults until an export is folded into the
   code. Nothing goes on the wire; visual only (the paths, timing and capsule are the game's). The Test Chamber plays both
-  roles of each move on one clock with two local puppets (`anim/studioPairs.ts`).
+  roles of each move on one clock with two local puppets (`anim/chamberPairs.ts`).
 - (anim-n4b, track A) Team-move poses (`anim/clips/team.ts`, `TeamPoser`, one per rig: the local player, each
-  `RemoteAvatar`, the studio puppets): role B works the move on the brace clip (hands on the contact through
+  `RemoteAvatar`, the chamber puppets): role B works the move on the brace clip (hands on the contact through
   `reachL / R`: cupped at knee height for the leg-up, at the waist for the throw, round A's shins for the hang-down,
   on the rope; trunk `bend`, pelvis up through a negative `bendDrop`, a visual root turn to the runner / step back),
   and the leg-up's climber puts its lead sole on B's hands (`plantR`) with the hips held low under the path, then
@@ -400,7 +400,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   each page's kit offers run with `flags.coopKit` (pull-up, shutter) or any part 2 id on, each move only with its own
   id (`kitIdOn`). A remote poses from the bit table (`kitMoveOfSub`): role B (`brace`) the TeamPoser placeholder (or a
   KA pose file's body, `KIT_POSERS`), role A (`boost`) its placeholder traverse (`KIT_A_TRAVERSE`); tuner rows
-  `team.<move>.a` / `.b` (`KIT_TUNE_MOVES`, not studio pairs yet). Every id stays out of `KIT_BUILT` until its slice.
+  `team.<move>.a` / `.b` (`KIT_TUNE_MOVES`, not chamber pairs yet). Every id stays out of `KIT_BUILT` until its slice.
 
   | Move (slice) | Id / wire kind | Sub bit | Role b (`brace`) states | Role a (`boost`) states | Remote placeholder b / a | Done by | Marlow station |
   | --- | --- | --- | --- | --- | --- | --- | --- |

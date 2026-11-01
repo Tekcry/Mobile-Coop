@@ -32,7 +32,7 @@ console.log('boot status:', status);
 console.log('debug overlay:\n' + dbg);
 // (anim-tuner, G1) the tuner opens in the Test Chamber only: on the main menu F3 > Anim is not listed, a click on it and a
 // show() leave the panel shut; a value set through the page hook still sets the tuning table and logs the change (then
-// put back). The sliders themselves are e2e-studio's (it runs in the Test Chamber).
+// put back). The sliders themselves are e2e-chamber's (it runs in the Test Chamber).
 const tune = await page.evaluate(() => {
   // the full overlay (a settings sync may have left it hidden or as the compact banner)
   if (!document.querySelector('.debug-overlay:not([hidden]):not(.compact)')) window.__app.debug.toggle(true);

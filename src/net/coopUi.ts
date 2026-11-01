@@ -9,7 +9,7 @@ import { MenuScreen, type LegendItem } from '../ui/menuScreen';
 import { Osk } from '../ui/osk';
 import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
-import { STUDIO_MAP_ID } from '../anim/studioMapId';
+import { CHAMBER_MAP_ID } from '../anim/chamberMapId';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { MISSIONS, missionById } from '../game/missions';
 import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
@@ -238,7 +238,7 @@ class CoopController {
         weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
         courseBay: s.mode === 'course' ? (s.bay ?? 1) : undefined,
         // (G2c, N17) the Test Chamber's practice guards (the host's match places them; `?practice=0` leaves them out)
-        practice: s.mode === 'test' && s.map === STUDIO_MAP_ID && flags.practice !== false,
+        practice: s.mode === 'test' && s.map === CHAMBER_MAP_ID && flags.practice !== false,
         // (campaign-mode CM3, PLAN 3.4) Sector Ops with the campaign flag: the start's mission and section, and on the
         // host a Continue's save; flags off: none, the mode binds `?mission=` and starts as before
         ...sectorStartOpts(s),
@@ -429,21 +429,21 @@ function lobbyModes(current: NetMode): typeof MODE_OPTS {
   return cur && !shown.includes(cur) ? [...shown, cur] : shown;
 }
 /**
- * (G1) The Test Chamber in the lobby: the dev map `studio` (not in `MAPS`), shown as its own Mode choice. (G2a) The room's
- * mode is `test` (`TestMode`: guards by test, revives) and its map id `studio`; both players spawn in the chamber (the
+ * (G1) The Test Chamber in the lobby: the dev map `chamber` (not in `MAPS`), shown as its own Mode choice. (G2a) The room's
+ * mode is `test` (`TestMode`: guards by test, revives) and its map id `chamber`; both players spawn in the chamber (the
  * map's two spawns) and its single-player stage (loop player, puppets) stays off in a room. A room set to Free Roam on
- * `studio` (a test or a dev tab) still reads as the Test Chamber.
+ * `chamber` (a test or a dev tab) still reads as the Test Chamber.
  */
 const CHAMBER = 'chamber';
 const CHAMBER_LABEL = 'Test Chamber';
-const isChamber = (mode: string, map: string): boolean => (mode === 'test' || mode === 'sandbox') && map === STUDIO_MAP_ID;
+const isChamber = (mode: string, map: string): boolean => (mode === 'test' || mode === 'sandbox') && map === CHAMBER_MAP_ID;
 /** The Mode row's choices: the lobby's modes and the Test Chamber (the mode set already, when it is one, is listed once). */
 function lobbyModeChoices(mode: NetMode, map: string): { value: NetMode | typeof CHAMBER; label: string }[] {
   return [...lobbyModes(isChamber(mode, map) ? 'course' : mode), { value: CHAMBER, label: CHAMBER_LABEL }];
 }
 /** A room's mode and map as the lobby and the room list name them (a dev map is in no list: `getMap` names it). */
 const modeLabel = (mode: string, map: string): string => (isChamber(mode, map) ? CHAMBER_LABEL : (MODE_OPTS.find((m) => m.value === mode)?.label ?? mode));
-const mapLabel = (id: string): string => MAPS.find((m) => m.id === id)?.name ?? (id === STUDIO_MAP_ID ? getMap(id).name : id);
+const mapLabel = (id: string): string => MAPS.find((m) => m.id === id)?.name ?? (id === CHAMBER_MAP_ID ? getMap(id).name : id);
 /**
  * The maps the host can pick for a mode: the campaign is Marlow Yard only (the course lab with `?legacy=1`).
  * (J14 R1 fix 8) With `?marlowreplan=1` that is the re-planned yard (`roomMap`), so it is offered and named once.
@@ -616,7 +616,7 @@ class LobbyScreen extends MenuScreen {
           // leaves its map and mission
           return [
             choice('Mode', lobbyModeChoices(s.mode, s.map), () => (chamber ? CHAMBER : entry ? 'course' : s.mode), (v) => {
-              if (v === CHAMBER) return set('test', STUDIO_MAP_ID, s.difficulty, '', '');
+              if (v === CHAMBER) return set('test', CHAMBER_MAP_ID, s.difficulty, '', '');
               if (entry?.mode === 'sector' && v !== 'sector' && v !== 'course') return set(v, lobbyMaps(v)[0]?.id ?? s.map, s.difficulty, v === 'infiltration' ? MISSIONS[0]!.id : '', '');
               if (entry?.mode === 'sector') return v === 'course' ? set('course', CAMPAIGN_MAP, s.difficulty, '', '') : set('sector', lobbyMaps('sector')[0]?.id ?? s.map, s.difficulty, '', '');
               set(v, MAPS.find((m) => m.id === s.map)?.modes.includes(v) ? s.map : (lobbyMaps(v)[0]?.id ?? s.map), s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '');

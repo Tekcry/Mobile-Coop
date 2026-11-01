@@ -3,7 +3,7 @@
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber' });
 let failed = false;
 const G = (fn, arg) => page.evaluate(fn, arg);
 /** Run simulation for `s` seconds of game time while holding pad buttons/axes. */

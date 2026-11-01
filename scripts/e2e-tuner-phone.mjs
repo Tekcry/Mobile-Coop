@@ -12,7 +12,7 @@
 //    a tap during pad use keeps the pad mode (a touch never changes the input mode).
 // 2. Portrait 390 x 844 with touch: the bottom sheet (about 42% high), the canvas above it, targets >= 30 px, the
 //    readout off; a pad press changes nothing in the layout.
-// 3. Desktop 1280 x 640, no touch: the T2 dock, no phone class, no handle; the readout off in the studio (item 29).
+// 3. Desktop 1280 x 640, no touch: the T2 dock, no phone class, no handle; the readout off in the chamber (item 29).
 // 4. (item 29: the viewport size alone picks the layout) 1920 x 1080 with touch: the desktop dock (never the sheet), the
 //    one-finger orbit works there too (touch gestures in every layout), the readout off (a touch device); resized to an
 //    iPad, 1180 x 820 landscape: the dock; 820 x 1180 portrait: the bottom sheet.
@@ -29,8 +29,8 @@ const EMU_NOTE = /Max number of touches exceeded/;
 const real = (errors) => errors.filter((e) => !EMU_NOTE.test(e));
 
 async function boot(viewport, context) {
-  const r = await launch({ url, params: 'autostart=studio&stage=1', viewport, context });
-  await r.page.waitForFunction(() => !!window.__app?.current?.player && !!window.__studio?.state().active && !!window.__animTune, null, { timeout: 120000 });
+  const r = await launch({ url, params: 'autostart=chamber&stage=1', viewport, context });
+  await r.page.waitForFunction(() => !!window.__app?.current?.player && !!window.__chamber?.state().active && !!window.__animTune, null, { timeout: 120000 });
   await frames(r.page, 10);
   return r;
 }
@@ -121,7 +121,7 @@ const topBlock = (page, scroll = true) =>
       const h = document.elementFromPoint(r.left + Math.min(12, r.width / 2), r.top + r.height / 2);
       return { ok: !!h && e.contains(h), top: Math.round(r.top - pr.top) };
     };
-    const out = { st: Math.round(el.scrollTop), tab: hit('.tt-tab.active'), play: hit('.studio-play') };
+    const out = { st: Math.round(el.scrollTop), tab: hit('.tt-tab.active'), play: hit('.chamber-play') };
     if (scroll) el.scrollTop = 0;
     return out;
   }, scroll);
@@ -144,7 +144,7 @@ async function padWalk(page, b, max) {
       if (!m) return null;
       const pr = el.getBoundingClientRect();
       const r = m.getBoundingClientRect();
-      const play = el.querySelector('.studio-play')?.getBoundingClientRect();
+      const play = el.querySelector('.chamber-play')?.getBoundingClientRect();
       // shows: inside the panel's view, below the playback bar (nothing sticky over it)
       return { top: Math.round(r.top - pr.top), bottom: Math.round(r.bottom - pr.top), shows: r.bottom <= pr.bottom + 1 && (!play || r.top >= play.bottom - 1) };
     });
@@ -389,7 +389,7 @@ async function padWalk(page, b, max) {
     // T2's desktop size at 1280 x 640, Medium: font round(19 * 0.75) = 14 px, width min(1280 * 0.34, 14 * 25) = 350 px
     assert(d.mode === 'desktop' && !d.cls.includes('tt-phone') && d.font === '14px' && Math.abs(d.width - 350) < 1 && Math.abs(d.right - 1280) < 1, `desktop: the T2 layout (${d.mode}, font ${d.font}, width ${d.width.toFixed(0)})`);
     assert(d.docked && !d.dockedB && d.dockW === 350 && d.dockH === 0 && d.cRight <= 1280 - 350 + 1 && Math.abs(d.cH - d.vh) < 1, `desktop: the T2 dock beside the panel (${d.dockW} px, canvas right ${d.cRight.toFixed(0)})`);
-    assert(d.handle === 'none' && !d.overlay && !d.debugBox && !d.map, `desktop: no handle, no body map, the readout off in the studio (item 29) (handle ${d.handle}, overlay ${d.overlay})`);
+    assert(d.handle === 'none' && !d.overlay && !d.debugBox && !d.map, `desktop: no handle, no body map, the readout off in the chamber (item 29) (handle ${d.handle}, overlay ${d.overlay})`);
     assert(real(errors).length === 0, `no console errors (desktop): ${real(errors).slice(0, 3).join(' | ')}`);
   } catch (e) {
     console.error(e);

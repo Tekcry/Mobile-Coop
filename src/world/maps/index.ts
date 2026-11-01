@@ -6,7 +6,7 @@ import { courselab } from './courselab';
 import { ctcourse, ctcourseReplan } from './ctcourse';
 import { tallowWharf } from './tallowWharf';
 import { warehouse } from './warehouse';
-import { studio } from './studio';
+import { chamber } from './chamber';
 
 /**
  * The listed maps (3.0): Warehouse runs every mode; Proving Grounds is the basic test range (Free
@@ -19,9 +19,9 @@ import { studio } from './studio';
 export const MAPS: MapDef[] = [warehouse, provingGrounds, kestrel, seclab, ctcourse, ctcourseReplan, tallowWharf, courselab];
 
 /** (anim-studio) Dev scenes that are not levels: never in a map list, not in `MAPS` (the map checks and the level design
- *  standard bind playable maps); reached by `getMap` (`?autostart=studio`, the main menu's Test Chamber row, and the co-op
- *  lobby's Test Chamber mode, which hosts `studio` in Free Roam: a map id is all the wire carries). */
-export const DEV_MAPS: readonly MapDef[] = [studio];
+ *  standard bind playable maps); reached by `getMap` (`?autostart=chamber`, the main menu's Test Chamber row, and the co-op
+ *  lobby's Test Chamber mode, which hosts `chamber` in Free Roam: a map id is all the wire carries). */
+export const DEV_MAPS: readonly MapDef[] = [chamber];
 
 export function getMap(id: string): MapDef {
   return MAPS.find((m) => m.id === id) ?? DEV_MAPS.find((m) => m.id === id) ?? provingGrounds;

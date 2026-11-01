@@ -38,7 +38,7 @@ export const ATTACH_PROBE_STATES: readonly AttachProbeState[] = [
   { state: 'topOut', body: '', trav: 'trav.climbUp', speed: '' },
 ];
 
-/** The Studio traversal loop (`studioTraversal.ts`) each probe state is played in: a channel capture whose row names the
+/** The Chamber traversal loop (`chamberTraversal.ts`) each probe state is played in: a channel capture whose row names the
  *  loop is covered by these states (`tests/tunerReachProbe.test.ts` checks every row's loop is). */
 export const ATTACH_PROBE_LOOPS: Readonly<Record<string, readonly AttachProbeState['state'][]>> = {
   'trav:ledge': ['hang', 'shimmy', 'climbUp'],

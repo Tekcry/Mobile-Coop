@@ -502,7 +502,7 @@ export class FootPlanner {
 
   /**
    * (tuner-ui) Move both feet (planted spots and swing ends) by (dx, dz) in the world: the world slid under the body (the
-   * Anim Studio's treadmill holds the root on the spot and moves the feet back with it). No allocation.
+   * Test Chamber's treadmill holds the root on the spot and moves the feet back with it). No allocation.
    */
   shift(dx: number, dz: number): void {
     for (let k = 0; k < 2; k++) {

@@ -1,7 +1,7 @@
 /**
  * (mixamo-retarget Toggle, Michael 2026-10-26 00:25: "allow toggle between hand made, cmu, and mixamo") The Animation
  * source: one global look choice for Wren's clips, resolved once per change (settings load and change, the URL, the Anim
- * Studio's switch), never per frame. Pure: no DOM, no Babylon.
+ * Chamber's switch), never per frame. Pure: no DOM, no Babylon.
  * - `hand`: the hand-made clips (the CMU mocap locomotion off, the Mixamo captures off).
  * - `cmu`: the CMU mocap locomotion on, the Mixamo captures off: today's game (the default; tests/animSource.test.ts pins
  *   it byte-identical to the switch as it was).
@@ -30,7 +30,7 @@ export function parseAnimSource(v: unknown): AnimSource | null {
 
 /** What a page asks for: the setting, then the page's overrides (null: none). */
 export interface AnimSourceWant {
-  /** The stored setting (Options > Gameplay > Animation source, or the Anim Studio's switch). */
+  /** The stored setting (Options > Gameplay > Animation source, or the Test Chamber's switch). */
   setting: AnimSource;
   /** `?anim=` */
   url?: AnimSource | null;
@@ -54,7 +54,7 @@ export function resolveAnimSource(w: AnimSourceWant, out: { source: AnimSource; 
   return out;
 }
 
-/** Resolve and apply (settings load and change, the Studio switch; never per frame). Returns the resolved state. */
+/** Resolve and apply (settings load and change, the Chamber switch; never per frame). Returns the resolved state. */
 export function applyAnimSource(w: AnimSourceWant): typeof ANIM_SOURCE {
   const r = resolveAnimSource(w, ANIM_SOURCE);
   // the mocap half through its own switch (it applies only on a change); the Mixamo half rebuilds its table on a change
@@ -63,7 +63,7 @@ export function applyAnimSource(w: AnimSourceWant): typeof ANIM_SOURCE {
   return r;
 }
 
-/** The source alone, no overrides (the Anim Studio's switch, tests). */
+/** The source alone, no overrides (the Test Chamber's switch, tests). */
 export function setAnimSource(s: AnimSource): typeof ANIM_SOURCE {
   return applyAnimSource({ setting: s });
 }
@@ -72,11 +72,11 @@ export function setAnimSource(s: AnimSource): typeof ANIM_SOURCE {
 // (mixamo-retarget Source wire, G400, Michael Q39: "yes players must look exact in everyones games") Each player's own
 // Animation source rides that player's networked state (`PlayerState.an`, src/net/protocol.ts), and every screen draws
 // that player with the OWNER's choice. A graph picks its tables by its own source (`AnimGraph.animSource`):
-// - a graph no one handed a source (the local player, the Studio rig, the menu puppets, guards): the page's live tables
+// - a graph no one handed a source (the local player, the Chamber rig, the menu puppets, guards): the page's live tables
 //   (`PAGE_TABLES`: `LOCO`, `WREN_TRAV`, `WREN_KEYED`, `WREN_STANCE`, `WREN_CARRY`, `WREN_STRIKE`: the setting with this page's overrides and the
-//   Studio's pick), exactly as before the wire (the default game byte-identical);
+//   Chamber's pick), exactly as before the wire (the default game byte-identical);
 // - a remote player's graph (handed the owner's source): that source's own tables (`SOURCE_TABLES`, the source alone:
-//   no page override, no Studio pick).
+//   no page override, no Chamber pick).
 // The tables are rewritten in place once per change (the Animation source, the Mixamo switch, `MIXAMO_ON`); a graph
 // holds a reference to its table and re-picks only when its source changes (a compare a frame).
 
@@ -133,7 +133,7 @@ export function fillSourceTables(s: AnimSource, T: SourceTables): void {
   T.loco.slots = hasSlots(set);
 }
 
-/** Rewrite every source's own tables (on every Mixamo resolve: the switch, `MIXAMO_ON`, the Studio's pick). */
+/** Rewrite every source's own tables (on every Mixamo resolve: the switch, `MIXAMO_ON`, the Chamber's pick). */
 export function resolveSourceTables(): void {
   for (const s of ANIM_SOURCES) fillSourceTables(s, SOURCE_TABLES[s]);
 }

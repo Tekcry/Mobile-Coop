@@ -2,7 +2,7 @@
  * (anim-studio) Project a world point to the pixels of a 2D overlay canvas over the game canvas, through the rendered
  * camera (a FreeCamera: its position, Euler yaw / pitch and vertical FOV; the shake's roll ignored), never Babylon's
  * view matrices (which must not be read before the render: the TAA ghost rule). Shared by the tuner's barrel marker and
- * the studio's viewing aids. Pure, no allocation.
+ * the chamber's viewing aids. Pure, no allocation.
  */
 export interface OverlayCam {
   position: { x: number; y: number; z: number };

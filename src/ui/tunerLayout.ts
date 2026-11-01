@@ -3,10 +3,10 @@
  * `tests/tunerLayout.test.ts`): the tabs and which registered section sits in which, the group pickers' levels (a group
  * id split on its dots: `hand.rifle.walk` is weapon then state), plain English labels for parts, groups and sliders
  * (the ids never change: saves, exports and the bake table key on them), the drop-down list's navigation, the panel
- * size, and which tuner groups a loop of the Anim Studio uses.
+ * size, and which tuner groups a loop of the Test Chamber uses.
  */
 import { ARMED_JOINT_STATES } from '../anim/tuneRows';
-import { CAPTURE_LABEL, CLIP_BODY, STUDIO_ENTRIES } from '../anim/studio';
+import { CAPTURE_LABEL, CLIP_BODY, CHAMBER_ENTRIES } from '../anim/chamber';
 import { STEP_GAITS, stepGaitIndex } from '../anim/tuneStep';
 
 /** The fixed tabs, in order. A registered section not mapped here gets its own tab after Co-op. */
@@ -587,7 +587,7 @@ export function plainLabel(section: string, id: string, label: string): string {
   return t ? t[0]!.toUpperCase() + t.slice(1) : id;
 }
 
-/** A loop of the Anim Studio in plain words (`id` as in `STUDIO_ENTRIES`, `label` its own label). */
+/** A loop of the Test Chamber in plain words (`id` as in `CHAMBER_ENTRIES`, `label` its own label). */
 export function plainLoop(id: string, label: string): string {
   if (id === 'off') return 'Off (you move)';
   // (mixamo-retarget M5) a motion capture: its label as it is (the source in it), "Motion capture (CMU): walk"
@@ -819,7 +819,7 @@ export function bodyCarry(body: string, out: BodyCarry = { joint: '', ik: '', ha
 }
 
 /**
- * The tuner groups a loop of the Anim Studio uses (`state:<name>`, `keyed:<clip>`, `pair:<move>`, `trav:<move>`), so
+ * The tuner groups a loop of the Test Chamber uses (`state:<name>`, `keyed:<clip>`, `pair:<move>`, `trav:<move>`), so
  * picking a loop shows the sliders it plays through. Unknown or `off`: all ''.
  */
 export function loopGroups(entry: string, out: LoopGroups = { body: '', clip: '', team: '', trav: '', step: '', weight: '' }): LoopGroups {
@@ -851,7 +851,7 @@ export function loopGroups(entry: string, out: LoopGroups = { body: '', clip: ''
 }
 
 /**
- * (marlow-bays slice T, item 11) The Anim Studio's "Keyed" tick box: a procedural state and its keyed clip are one loop
+ * (marlow-bays slice T, item 11) The Test Chamber's "Keyed" tick box: a procedural state and its keyed clip are one loop
  * shown two ways. `STATE_KEYED` pairs each `state:<name>` with its `keyed:<clip>` (the loop list's own entries).
  */
 const STATE_KEYED: Readonly<Record<string, string>> = {
@@ -897,7 +897,7 @@ export function loopKeyedPick(entry: string, on: boolean): string {
 }
 
 /**
- * (marlow-bays slice T, item 13) In the Anim Studio a state picked by hand in any tab's state list plays that state's
+ * (marlow-bays slice T, item 13) In the Test Chamber a state picked by hand in any tab's state list plays that state's
  * loop: `section`'s new `group` (its last level is the state: `joint.walk`, `hand.rifle.walk`, `rifle.aim`,
  * `step.crouchRun`; the Keys tab's clip level names a keyed clip) to a loop entry, '' when it names none or the loop
  * `current` already plays that state. A keyed loop stays keyed where the state has a keyed clip (the Keyed box holds).
@@ -916,7 +916,7 @@ export function loopForGroup(section: string, group: string, current: string): s
     return id === current ? '' : id;
   }
   if (section.startsWith('team_')) {
-    // (coop-kit K0) a kit move with no Studio pair yet (the KA slices add them) picks nothing
+    // (coop-kit K0) a kit move with no Chamber pair yet (the KA slices add them) picks nothing
     const id = seg[1] && seg[0] === 'team' && PAIR_LOOPS.has(`pair:${seg[1]}`) ? `pair:${seg[1]}` : '';
     return id === current ? '' : id;
   }
@@ -946,7 +946,7 @@ export function loopForGroup(section: string, group: string, current: string): s
   return tr && tr !== current ? tr : '';
 }
 
-/** (item 24, track A) The guard puppet's loops (`studio.ts` GUARD_LOOPS) and the guard row each plays through. */
+/** (item 24, track A) The guard puppet's loops (`chamber.ts` GUARD_LOOPS) and the guard row each plays through. */
 const GUARD_LOOP_ROW: Readonly<Record<string, string>> = {
   'guard:idle': 'idle',
   'guard:patrol': 'walk',
@@ -961,11 +961,11 @@ const GUARD_LOOP_ROW: Readonly<Record<string, string>> = {
  * so the shown row is the one the puppet uses (the run at 3.2 m/s steps in the jog gait: the jog / run split is 3.5).
  */
 export const GUARD_LOOP_GAIT: Readonly<Record<string, string>> = Object.fromEntries(
-  STUDIO_ENTRIES.filter((e) => e.gloop).map((e) => [e.id, STEP_GAITS[stepGaitIndex(e.gloop!.speed > 0, e.gloop!.speed, e.gloop!.crouch ? 1 : 0)]!]),
+  CHAMBER_ENTRIES.filter((e) => e.gloop).map((e) => [e.id, STEP_GAITS[stepGaitIndex(e.gloop!.speed > 0, e.gloop!.speed, e.gloop!.crouch ? 1 : 0)]!]),
 );
 
-/** (coop-kit K0) The Studio's pair loops (`pair:<move>`), so a tuner team section only picks a loop that exists. */
-const PAIR_LOOPS: ReadonlySet<string> = new Set(STUDIO_ENTRIES.filter((e) => e.id.startsWith('pair:')).map((e) => e.id));
+/** (coop-kit K0) The Chamber's pair loops (`pair:<move>`), so a tuner team section only picks a loop that exists. */
+const PAIR_LOOPS: ReadonlySet<string> = new Set(CHAMBER_ENTRIES.filter((e) => e.id.startsWith('pair:')).map((e) => e.id));
 
 /** (item 24) The guard row a guard loop plays through ('' not a guard loop). */
 export function guardRowOfLoop(loop: string): string {
@@ -1032,21 +1032,21 @@ export function groupOpen(manual: boolean | undefined, g: GroupOpenIn): boolean 
 
 /**
  * (marlow-bays T2) The status line's stance: the body state the animation reads (`body`) and the gun as it really is.
- * In the Anim Studio (`studio`): the loop playing, and the picked gun drawn (an armed loop) or holstered; outside it the
+ * In the Test Chamber (`chamber`): the loop playing, and the picked gun drawn (an armed loop) or holstered; outside it the
  * game's gun state (`rifle.aim`), or "no gun drawn".
  */
-export function stanceText(body: string, gun: string, studio: { loop: string; drawn: boolean; weapon: string } | null): string {
+export function stanceText(body: string, gun: string, chamber: { loop: string; drawn: boolean; weapon: string } | null): string {
   const b = body ? plainWords(body) : '-';
-  if (studio) {
-    const w = plainWords(studio.weapon || 'rifle');
-    const loop = studio.loop && studio.loop.toLowerCase() !== b.toLowerCase() ? `${studio.loop} (${b.toLowerCase()})` : b;
-    return `${loop} · ${w} ${studio.drawn ? 'drawn' : 'holstered'}`;
+  if (chamber) {
+    const w = plainWords(chamber.weapon || 'rifle');
+    const loop = chamber.loop && chamber.loop.toLowerCase() !== b.toLowerCase() ? `${chamber.loop} (${b.toLowerCase()})` : b;
+    return `${loop} · ${w} ${chamber.drawn ? 'drawn' : 'holstered'}`;
   }
   return `${b} · ${gun ? plainWords(gun.replace('.', ' ')) : 'No gun drawn'}`;
 }
 
 // ------------------------------------------------------------------------------------------
-// (track C request, item 29 phase 2) The studio's foot slide line
+// (track C request, item 29 phase 2) The chamber's foot slide line
 // ------------------------------------------------------------------------------------------
 
 /** A planted foot sliding more than this (cm) in one contact shows the line amber. */

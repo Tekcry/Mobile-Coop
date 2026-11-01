@@ -6,7 +6,7 @@ import '../src/player/weightTune';
 import '../src/anim/tuneKeys';
 import '../src/anim/moveTune';
 import { TUNE_SECTIONS } from '../src/anim/tuneRegistry';
-import { STAGE_LIGHT_RANGE, STAGE_LIGHTS, STUDIO_ENTRIES, STUDIO_LIGHT, stageLightPlace, stageLightScale, stageViewYaw } from '../src/anim/studio';
+import { STAGE_LIGHT_RANGE, STAGE_LIGHTS, CHAMBER_ENTRIES, CHAMBER_LIGHT, stageLightPlace, stageLightScale, stageViewYaw } from '../src/anim/chamber';
 import { TUNER_MOUSE_KEY, TUNER_SPOT_KEY, TunerMouseCtl } from '../src/ui/tunerMouse';
 import { RIG_JOINTS, rowKeyParts, tuneTarget } from '../src/ui/tunerTarget';
 import { loopForGroup, loopKeyed, loopKeyedPick } from '../src/ui/tunerLayout';
@@ -115,7 +115,7 @@ describe('selected row target', () => {
 });
 
 describe('Keyed box', () => {
-  const ids = new Set(STUDIO_ENTRIES.map((e) => e.id));
+  const ids = new Set(CHAMBER_ENTRIES.map((e) => e.id));
 
   it('a state with a keyed clip switches both ways', () => {
     expect(loopKeyed('state:walk')).toEqual({ on: false, other: 'keyed:walk' });
@@ -138,7 +138,7 @@ describe('Keyed box', () => {
   // (piano-knife S4b) the piano intro poses are procedural too (GameState.introPose), no keyed clip
   const NO_KEYED = ['state:aimStill', 'state:crouchAim', 'state:crouchAimFwd', 'state:intro', 'state:introMirror', 'state:introCrouch'];
   it('every pairing names real loop entries and every state has its keyed clip', () => {
-    for (const e of STUDIO_ENTRIES) {
+    for (const e of CHAMBER_ENTRIES) {
       const k = loopKeyed(e.id);
       if (k.other) {
         expect(ids.has(k.other), `${e.id} -> ${k.other}`).toBe(true);
@@ -151,7 +151,7 @@ describe('Keyed box', () => {
 });
 
 describe('a state picked in a tab plays its loop (item 13)', () => {
-  const ids = new Set(STUDIO_ENTRIES.map((e) => e.id));
+  const ids = new Set(CHAMBER_ENTRIES.map((e) => e.id));
 
   it('the state level of any section names its loop', () => {
     expect(loopForGroup('joint', 'joint.walk', 'state:idle')).toBe('state:walk');
@@ -175,7 +175,7 @@ describe('a state picked in a tab plays its loop (item 13)', () => {
     expect(loopForGroup('trav', 'trav.vault', 'state:idle')).toBe('trav:vault');
     expect(loopForGroup('team_boost', 'team.boost.b', 'state:idle')).toBe('pair:boost');
     expect(loopForGroup('team_boost', 'team.boost.a', 'pair:boost')).toBe('');
-    // (mixamo-retarget M3) the carry state plays the Mixamo carry idle (its Studio row pins body 'carry')
+    // (mixamo-retarget M3) the carry state plays the Mixamo carry idle (its Chamber row pins body 'carry')
     expect(loopForGroup('body', 'carry', 'state:idle')).toBe('keyed:mocap_carry_body_idle');
   });
 
@@ -237,7 +237,7 @@ describe('stage lights (item 14)', () => {
   });
 
   it('the slider clamps; bright by default', () => {
-    expect(STUDIO_LIGHT.scale).toBe(STAGE_LIGHT_RANGE.def);
+    expect(CHAMBER_LIGHT.scale).toBe(STAGE_LIGHT_RANGE.def);
     expect(stageLightScale(5)).toBe(STAGE_LIGHT_RANGE.max);
     expect(stageLightScale(-1)).toBe(0);
     expect(stageLightScale(Number.NaN)).toBe(STAGE_LIGHT_RANGE.def);

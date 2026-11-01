@@ -2,7 +2,7 @@
  * (anim-joints J1, COVERAGE gap 1, A2 / A7) The per-rig window of the Joints, Hands & feet, IK strength and Weapon
  * tables (pure, Babylon-free). Every Wren rig (`CharacterRig.tuneRows`, set where the rig is made: `operatorRig`) owns
  * one `TuneRigState` (allocated once) and, inside its own `animate`, picks its own row from its own pose with the same
- * pick the local player's tuner uses (`selectBodyGroup` via `tuneBodyGroup`: the studio's pin on her rig, `handsWeaponOf`, the gun's own Joints row in an armed state),
+ * pick the local player's tuner uses (`selectBodyGroup` via `tuneBodyGroup`: the chamber's pin on her rig, `handsWeaponOf`, the gun's own Joints row in an armed state),
  * eases its own applied values toward the effective row (base table + tuner delta) and opens the window on them; the
  * rig hooks (`jointApply`, `HANDS_CUR`, `HANDS_GUN`, `ikStrength`, ...) then read that rig's applied state, never
  * another rig's. Non-Wren rigs (guards, the VIP, the dummy) have no state and never open a window.
@@ -75,7 +75,7 @@ export const JOINT_OF_TUNE_ROW: readonly number[] = TUNE_ROW_IDS.map((r) => JOIN
 export function tuneRigBegin(st: TuneRigState, pose: TunePoseIn & TuneMovePoseIn, rig: TuneRigPick & TuneRigIn, dt: number): void {
   const armed = rig.heldWeapon !== null && rig.heldWeapon !== undefined;
   const ledge = rig.reachL.hook === 1 || rig.reachR.hook === 1;
-  const bg = tuneBodyGroup(pose, ledge, armed, rig); // (marlow-bays item 29) the studio's pin on her rig
+  const bg = tuneBodyGroup(pose, ledge, armed, rig); // (marlow-bays item 29) the chamber's pin on her rig
   const gi = bg === null ? -1 : (BODY_INDEX[bg] ?? -1);
   const wi = WEAPON_INDEX[handsWeaponOf(rig)] ?? -1;
   st.body = bg ?? '';
@@ -87,7 +87,7 @@ export function tuneRigBegin(st: TuneRigState, pose: TunePoseIn & TuneMovePoseIn
   // (anim-gear) the gear offsets by this rig's crouch amount (nothing live: returns at once)
   gearRigUpdate(st.gear, pose.crouch);
   // (anim-bake-targets, BT-A1) the Body base of this rig's row onto TUNE_CUR (the local player's tuner values or identity)
-  // (crouch-pops, CP-A2) mid-crouch (no studio pin): the standing row blended toward the crouched row by the crouch amount
+  // (crouch-pops, CP-A2) mid-crouch (no chamber pin): the standing row blended toward the crouched row by the crouch amount
   const c = pose.crouch;
   if (c > 0 && c < 1 && !(TUNE_PIN.body !== '' && rig === TUNE_PIN.rig)) {
     pose.crouch = 0;

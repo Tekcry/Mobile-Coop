@@ -24,7 +24,7 @@ import { applyGuardBaseEntries, BAKE_GUARD_FILE, emptyGuardBase, guardBaseTarget
 import { BAKE_RULES } from '../src/anim/tuneBakeTable';
 import { buildTabs, guardLoopGroups, levelName, loopForGroup, plainGroupWord, plainLabel, plainLoop, plainSection, tabOfSection, whoSections } from '../src/ui/tunerLayout';
 import { tuneTarget } from '../src/ui/tunerTarget';
-import { STUDIO_ENTRIES, studioBodyPin, studioEntry, studioInput } from '../src/anim/studio';
+import { CHAMBER_ENTRIES, chamberBodyPin, chamberEntry, chamberInput } from '../src/anim/chamber';
 
 const ROOT = path.join(__dirname, '..');
 
@@ -334,7 +334,7 @@ describe('item 24: the bake writes the guard table', () => {
   });
 });
 
-describe('item 24: the panel and the studio (pure parts)', () => {
+describe('item 24: the panel and the chamber (pure parts)', () => {
   it('Who shows the guard sections in their tabs, Wren\'s otherwise; plain labels and targets as the mirrored section', () => {
     expect(tabOfSection('guardJoint')).toBe('body');
     expect(tabOfSection('guardStep')).toBe('stepping');
@@ -357,17 +357,17 @@ describe('item 24: the panel and the studio (pure parts)', () => {
   });
 
   it('the guard loops: on the guard puppet, no input to Wren, their rows; a guard row picked plays its loop', () => {
-    const ids = STUDIO_ENTRIES.filter((e) => e.kind === 'guard').map((e) => e.id);
+    const ids = CHAMBER_ENTRIES.filter((e) => e.kind === 'guard').map((e) => e.id);
     expect(ids).toEqual(['guard:idle', 'guard:patrol', 'guard:alert', 'guard:run', 'guard:aim', 'guard:crouchAim', 'guard:cover']);
-    const e = studioEntry('guard:patrol');
+    const e = chamberEntry('guard:patrol');
     expect(e.gloop?.speed).toBeGreaterThan(0.5);
-    expect(studioBodyPin(e)).toBe('');
-    const o = studioInput(e, false, { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false }, true);
+    expect(chamberBodyPin(e)).toBe('');
+    const o = chamberInput(e, false, { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false }, true);
     expect([o.x, o.y, o.turn, o.ads, o.crouch, o.drawn]).toEqual([0, 0, 0, false, false, false]);
     expect(plainLoop('guard:patrol', e.label)).toBe('Guard: patrol walk');
     // the run at 3.2 m/s steps in the jog gait (the planner's jog / run split is 3.5 m/s)
     expect(guardLoopGroups('guard:run')).toEqual({ joint: 'guard.joint.run', step: 'guard.step.jog', weight: 'guard.weight.run' });
-    for (const en of STUDIO_ENTRIES.filter((x) => x.gloop)) {
+    for (const en of CHAMBER_ENTRIES.filter((x) => x.gloop)) {
       const g = en.gloop!;
       expect(guardLoopGroups(en.id).step, en.id).toBe(`guard.step.${STEP_GAITS[stepGaitIndex(g.speed > 0, g.speed, g.crouch ? 1 : 0)]}`);
     }

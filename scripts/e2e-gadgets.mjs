@@ -8,7 +8,7 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 let failed = false;
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio&mode=test' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber&mode=test' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);

@@ -25,7 +25,7 @@ import { toePitch } from '../anim/toeRoll';
 import { heelLift } from '../anim/footGeom';
 import { TUNE_CUR } from '../anim/tune';
 import { HAND_SWAP, handSwapK, handSwapPh } from '../anim/handSwapPath'; // (anim-n4c; strike-pops)
-import { studioFeet } from '../anim/studioDrive';
+import { chamberFeet } from '../anim/chamberDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, HP, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
 import { tuneRigBegin, tuneRigEnd, tuneRigState, type TuneRigState } from '../anim/tuneJointsRig';
@@ -690,7 +690,7 @@ export class CharacterRig {
   /**
    * (anim-skeleton S4) Per side, cm the planted foot (its ankle) moved off the planner's solved plant during its current
    * contact (the most this contact), by the clip's FK legs or leg deltas; 0 when the foot is not planted or nothing
-   * keyed turns the leg. The studio shows it (Course Ready's line); the re-solve keeps it ~0. Written each frame, no
+   * keyed turns the leg. The chamber shows it (Course Ready's line); the re-solve keeps it ~0. Written each frame, no
    * allocation.
    */
   readonly footSlide = { l: 0, r: 0 };
@@ -1180,7 +1180,7 @@ export class CharacterRig {
   private velX = 0;
   private velZ = 0;
 
-  /** (tuner-ui) The world slid by (dx, dz) under the body (the Anim Studio's treadmill): the feet and the root's last
+  /** (tuner-ui) The world slid by (dx, dz) under the body (the Test Chamber's treadmill): the feet and the root's last
    *  place move with it, so nothing reads it as a step or a jump. No allocation. */
   shiftWorld(dx: number, dz: number): void {
     this.planner.shift(dx, dz);
@@ -2034,7 +2034,7 @@ export class CharacterRig {
       this.footPitchL = this.planner.L.pitch;
       this.footPitchR = this.planner.R.pitch;
     }
-    if (this.graph.drive) studioFeet(this.graph.drive, this.planner, rp.x, rp.y, rp.z, yaw, this.p.height / 1.75); // (anim-studio) the treadmill feet, studio only
+    if (this.graph.drive) chamberFeet(this.graph.drive, this.planner, rp.x, rp.y, rp.z, yaw, this.p.height / 1.75); // (anim-studio) the treadmill feet, chamber only
     const L = this.planner.L;
     const R = this.planner.R;
     this.graph.setSupport(L.contact && !R.contact ? -1 : R.contact && !L.contact ? 1 : 0);

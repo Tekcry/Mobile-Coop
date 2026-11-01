@@ -1,8 +1,8 @@
 /**
- * (anim-studio-2) The Anim Studio's room and traversal props (plain numbers, no imports: the map builder
- * `world/maps/studio.ts` and the studio's loops read them). Metres, x east, z north, floor 0.
+ * (anim-studio-2) The Test Chamber's room and traversal props (plain numbers, no imports: the map builder
+ * `world/maps/chamber.ts` and the chamber's loops read them). Metres, x east, z north, floor 0.
  *
- * Sizes are the engine's numbers (re-checked by `tests/animStudio2.test.ts`): a vault is at most 1.25 m high and 1.0 m
+ * Sizes are the engine's numbers (re-checked by `tests/animChamber2.test.ts`): a vault is at most 1.25 m high and 1.0 m
  * deep (`pickTraversal`); a lip hangs from 1.9 m (`LEDGE.minDrop`) and is grabbed from the floor up to 2.7 m
  * (`REACH.grabMax`); the co-op lip is in the 4.3-4.5 m band (G57, `inBoostBand`); the ladder is 0.5 m wide; the duct is the
  * Proving Grounds' 1.0 x 1.1 m crawlspace; the window is every map's 1.2 x 1.2 m at a 0.9 m sill; the door is the scale
@@ -10,13 +10,13 @@
  */
 
 /** The stage is a square room this many metres a side; Wren starts in its middle. */
-export const STUDIO_SIZE = 28;
-export const STUDIO_MID = STUDIO_SIZE / 2;
+export const CHAMBER_SIZE = 28;
+export const CHAMBER_MID = CHAMBER_SIZE / 2;
 /** The co-op team block's lip (m): inside the co-op ledge band (G57, 4.3-4.5 m). */
 export const PAIR_TOP = 4.4;
 
 /** Every prop. */
-export const STUDIO_PROPS = {
+export const CHAMBER_PROPS = {
   /** The co-op team block (north middle): its south face carries the lip the pairs use. */
   team: { x0: 11, x1: 17, z0: 25, z1: 28, top: PAIR_TOP },
   /** A wall with a ledge (north west): a jump-grab lip. */

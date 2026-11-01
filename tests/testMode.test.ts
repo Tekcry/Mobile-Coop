@@ -13,16 +13,16 @@ import { computeRewards } from '../src/progression/rewards';
 import { defaultSave } from '../src/save/schema';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { provingGrounds } from '../src/world/maps/provingGrounds';
-import { studio } from '../src/world/maps/studio';
+import { chamber } from '../src/world/maps/chamber';
 import { getMap } from '../src/world/maps';
 
 describe('G2a: the wire and the URL take mode "test"', () => {
   it('NET_MODES lists it, a room takes two players, and the lobby / start messages parse it', () => {
     expect(NET_MODES).toContain('test');
     expect(capacity('test')).toBe(COOP_MAX);
-    const lobby = { t: 'lobby', players: [], mode: 'test', map: 'studio', difficulty: 'normal', phase: 'lobby', mission: '', weather: 'clear' };
-    expect(parseMessage(lobby)).toMatchObject({ t: 'lobby', mode: 'test', map: 'studio' });
-    expect(parseMessage({ t: 'start', mode: 'test', map: 'studio', seed: 1, difficulty: 'normal' })).toMatchObject({ t: 'start', mode: 'test' });
+    const lobby = { t: 'lobby', players: [], mode: 'test', map: 'chamber', difficulty: 'normal', phase: 'lobby', mission: '', weather: 'clear' };
+    expect(parseMessage(lobby)).toMatchObject({ t: 'lobby', mode: 'test', map: 'chamber' });
+    expect(parseMessage({ t: 'start', mode: 'test', map: 'chamber', seed: 1, difficulty: 'normal' })).toMatchObject({ t: 'start', mode: 'test' });
     expect(parseMessage({ ...lobby, mode: 'tester' })).toBeNull();
   });
   it('the protocol is past the G1 number (read as a constant, never asserted exactly)', () => {
@@ -40,7 +40,7 @@ describe('G2a: the wire and the URL take mode "test"', () => {
     expect(flags.guards).toBe(false);
   });
   it('a rejoin record keeps the test mode', () => {
-    const r: RejoinRecord = { code: 'ABCDE', role: 'host', at: Date.now(), mode: 'test', map: 'studio', difficulty: 'normal', mission: '', weather: 'clear', bay: 1 };
+    const r: RejoinRecord = { code: 'ABCDE', role: 'host', at: Date.now(), mode: 'test', map: 'chamber', difficulty: 'normal', mission: '', weather: 'clear', bay: 1 };
     saveRejoin(r);
     expect(loadRejoin()?.mode).toBe('test');
     clearRejoin();
@@ -54,7 +54,7 @@ describe('G2a: practiceMode (sandbox and test save nothing)', () => {
     for (const m of ['mission', 'clear', 'infiltration', 'course', 'sector'] as const) expect(practiceMode(m)).toBe(false);
   });
   it('a test match pays nothing, counts no stats and no challenges, and issues the sandbox loadout', () => {
-    const st = emptyStats('test', 'studio');
+    const st = emptyStats('test', 'chamber');
     st.won = true;
     st.kills = 20;
     st.knockouts = 30;
@@ -83,9 +83,9 @@ describe('G2a: the layout carries the dummies', () => {
   });
   it('Proving Grounds and the Test Chamber take the test mode as well as Free Roam; the Chamber has its two (G2b)', () => {
     expect(provingGrounds.modes).toEqual(['sandbox', 'test']);
-    expect(studio.modes).toEqual(['sandbox', 'test']);
-    expect(getMap('studio')).toBe(studio);
-    const d = studio.build(new LevelBuilder(), 0).dummies!;
+    expect(chamber.modes).toEqual(['sandbox', 'test']);
+    expect(getMap('chamber')).toBe(chamber);
+    const d = chamber.build(new LevelBuilder(), 0).dummies!;
     expect(d.map((x) => [x.pos.x, x.pos.z, x.strafe ?? 0])).toEqual([[8, 12.5, 0], [8, 15, 2.5]]);
   });
 });

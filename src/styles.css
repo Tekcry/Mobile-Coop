@@ -5000,6 +5000,6 @@ body.touch-play .touch-pause {
 body.touch-play .touch-pause:active {
   background: rgba(56, 224, 140, 0.25);
 }
-body.tt-studio .touch-pause {
+body.tt-chamber .touch-pause {
   display: none !important;
 }

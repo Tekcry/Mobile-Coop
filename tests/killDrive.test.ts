@@ -67,7 +67,7 @@ describe('piano-knife S1: the kill drive', () => {
 
   /**
    * 1000 calls. The drive's own work (the buckle, the mix, the weights) allocates nothing; the clip sample it calls,
-   * `keyed.sampleKeyed` (the graph's and the Studio drive's sampler, not this slice's), leaves ~32 B per call on master
+   * `keyed.sampleKeyed` (the graph's and the Chamber drive's sampler, not this slice's), leaves ~32 B per call on master
    * already, so a call with a clip is held to that sampler's own reading (+ a heap number of noise), not to 0.
    */
   it('1000 calls allocate nothing of their own (buckle only: 0; with a clip: no more than the sampler)', async () => {

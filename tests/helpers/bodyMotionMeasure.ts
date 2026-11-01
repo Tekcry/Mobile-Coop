@@ -426,8 +426,8 @@ export async function measureTurns(hz = 60, only?: readonly string[]): Promise<R
   return out;
 }
 
-/** (CHECK-4 should-fix 2) One Anim Studio keyed loop on the player rig: per frame, both elbows and wrists (world, m). */
-export interface StudioArms {
+/** (CHECK-4 should-fix 2) One Test Chamber keyed loop on the player rig: per frame, both elbows and wrists (world, m). */
+export interface ChamberArms {
   /** Per frame: elbow L, wrist L, elbow R, wrist R (xyz each, 12 numbers a frame). */
   pts: number[];
   /** Frames the layer's gate was open (the cap would apply) and the largest arm speed cap seen (m/s). */
@@ -436,34 +436,34 @@ export interface StudioArms {
 }
 
 /**
- * Plays each studio entry (`keyed:<clip>`, in place, its own cycle) on a fresh player rig as the studio does: the graph's
+ * Plays each chamber entry (`keyed:<clip>`, in place, its own cycle) on a fresh player rig as the chamber does: the graph's
  * drive set, the rig standing (speed 0, stride 'facing': the keyed gate open, the layer's bands at the walk's).
  */
-export async function measureStudioArms(ids: readonly string[], hz = 60, secs = 6): Promise<Record<string, StudioArms>> {
+export async function measureChamberArms(ids: readonly string[], hz = 60, secs = 6): Promise<Record<string, ChamberArms>> {
   const DT = 1 / hz;
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene } = await import('../../src/core/babylon');
   const { PartLibrary } = await import('../../src/world/partLibrary');
   const { defaultLook } = await import('../../src/cosmetics/avatarLook');
   const { operatorRig } = await import('../../src/operators/runtime/playerFigure');
-  const { newStudioDrive } = await import('../../src/anim/studioDrive');
-  const { studioEntry } = await import('../../src/anim/studio');
+  const { newChamberDrive } = await import('../../src/anim/chamberDrive');
+  const { chamberEntry } = await import('../../src/anim/chamber');
   const scene = new Scene(new NullEngine());
   const lib = new PartLibrary(scene);
   const make = (a: Parameters<typeof lib.instance>[0], b: string, c?: Parameters<typeof lib.instance>[2]) => lib.instance(a, b, c);
-  const out: Record<string, StudioArms> = {};
+  const out: Record<string, ChamberArms> = {};
   const random = Math.random;
   let seed = 12345;
   Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
   try {
     for (const id of ids) {
       seed = 12345;
-      const e = studioEntry(id);
-      if (e.id !== id || !e.clip) throw new Error(`no studio keyed entry ${id}`);
+      const e = chamberEntry(id);
+      if (e.id !== id || !e.clip) throw new Error(`no chamber keyed entry ${id}`);
       const op = operatorRig(scene, make, defaultLook(), 'm');
       const rig = op.rig as CharacterRig & { carrier: boolean };
       rig.carrier = true;
-      const d = newStudioDrive();
+      const d = newChamberDrive();
       d.clip = e.clip;
       d.inPlace = true;
       d.cycle = e.cycle;
@@ -474,7 +474,7 @@ export async function measureStudioArms(ids: readonly string[], hz = 60, secs = 
       d.dirZ = e.move === 'fwd' ? 1 : e.move === 'back' ? -1 : 0;
       rig.graph.drive = d;
       const p: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, stride: 'facing', weight: 1, yawRate: 0 };
-      const r: StudioArms = { pts: [], gated: 0, armSpeedMax: 0 };
+      const r: ChamberArms = { pts: [], gated: 0, armSpeedMax: 0 };
       const N = Math.round(secs * hz);
       for (let k = 0; k < N; k++) {
         rig.animate(DT, p);

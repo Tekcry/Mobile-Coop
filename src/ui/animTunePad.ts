@@ -46,7 +46,7 @@ export interface TunePadOut {
   toggled: boolean;
   /** R3 held (the tuner has the pad): the bypass, the untuned animation and camera. */
   bypass: boolean;
-  /** (marlow-bays item 13) L3 (edge, the tuner has the pad): "Loop on the spot" on / off (the studio). */
+  /** (marlow-bays item 13) L3 (edge, the tuner has the pad): "Loop on the spot" on / off (the chamber). */
   spot: boolean;
 }
 

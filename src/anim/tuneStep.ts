@@ -7,7 +7,7 @@
  * The gaits are the ones the planner tells apart: standing still (idle stepping; (anim-natural N1) also the aimed turn
  * on the spot, stride 'velocity' under 0.3 m/s), standing walk / jog / run by pace
  * (split halfway between the `GEARS.stand` walk, jog and run speeds), crouched walk / run (halfway between the crouched
- * jog and run speeds). (item 24, track A) Wren's planners (the player, the partner, the studio puppets) read this table;
+ * jog and run speeds). (item 24, track A) Wren's planners (the player, the partner, the chamber puppets) read this table;
  * a guard's reads the guards' (`tuneGuard.ts`), any other rig's the identity table `STEP_IDENTITY_ROWS`.
  *
  * (anim-bake-all, BA-A1) Wren's rows are the base table's `sections.step` (`animBase.ts`, through the registry's

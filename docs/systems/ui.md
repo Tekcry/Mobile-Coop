@@ -161,7 +161,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     get none. Words and colour, never colour alone. Each part has a note summing up its rows (`reachSummary`). A Body
     slider the capture ignores is kept and tagged "Hand-made" (hover: `HAND_MADE_ONLY_NOTE`), not hidden.
   - Now playing: one line under the tab bar (`.anim-tune-playing`, full text in `title`) and in the Test Chamber's Loop
-    player (`.studio-playing`). Read live from the graph (`anim/nowPlaying.ts`, `AnimGraph.playing` copied by
+    player (`.chamber-playing`). Read live from the graph (`anim/nowPlaying.ts`, `AnimGraph.playing` copied by
     `tune.ts` `tuneEnd`), not from the settings. Examples: "Now playing: motion-capture walk", "hand-made crouch walk
     (motion capture off)", "mix, 70% motion-capture walk, 30% hand-made".
   - Edit warning: an edit that changes nothing on screen shows a one-line strip under the row (`.tt-warn`) and in
@@ -196,31 +196,31 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     visual, nothing reads it but the hook. Hooks: `__animTune.mouse()`, `mouseMode(m)`, `select(key)`, `selected()`.
   - Keyed (Test Chamber, next to the Loop list; `tunerLayout.loopKeyed` / `loopKeyedPick`): ticked plays the state's
     keyed clip (`state:walk` -> `keyed:walk`), cleared the procedural state; greyed where the loop has no other form.
-    `__studio.keyed(on)`, `keyedState()`.
-  - In the studio a state picked in any tab's state list (or LT / RT) plays that state's loop (`tunerLayout.loopForGroup`;
+    `__chamber.keyed(on)`, `keyedState()`.
+  - In the chamber a state picked in any tab's state list (or LT / RT) plays that state's loop (`tunerLayout.loopForGroup`;
     keyed stays keyed; the Keys tab's clip plays that clip; the tab and part stay). "Loop on the spot" from every tab:
-    the header button "On the spot: on / off" (studio only), F8 (`TUNER_SPOT_KEY`) and L3 on the pad (`TunePadOut.spot`).
-  - Stage light (studio only, rendering only): four point lights (key, fill, rim, a soft top "ambient";
-    `anim/studio.ts` `STAGE_LIGHTS`, `stageLightPlace`) follow her root, (T2) turned toward the camera (`stageViewYaw`: key and fill on the camera's side, the rim beyond her, from any view; they were in front of her facing, so the view from behind saw only the rim and the top light), made once by `StudioStage`, light
+    the header button "On the spot: on / off" (chamber only), F8 (`TUNER_SPOT_KEY`) and L3 on the pad (`TunePadOut.spot`).
+  - Stage light (chamber only, rendering only): four point lights (key, fill, rim, a soft top "ambient";
+    `anim/chamber.ts` `STAGE_LIGHTS`, `stageLightPlace`) follow her root, (T2) turned toward the camera (`stageViewYaw`: key and fill on the camera's side, the rim beyond her, from any view; they were in front of her facing, so the view from behind saw only the rim and the top light), made once by `ChamberStage`, light
     only her own meshes, never an instance or its shared part base (`includedOnlyMeshes` from `stageLightMeshes`; fix 12: a part base in the list lit every instance in the scene, the hold-pair guard went white; GPU round: a base pushed into a list later, as the anim audit's pair rows do, is dropped on the once-a-second check, `stageLightKeep`, and the materials it lit re-frozen so they recompile), re-read once a second as the LODs load; once a second her materials are
     raised to every light on her mesh, `lightSources`, unfrozen and frozen again like `LightRig.fitMaterial`, so a later
     rig fit cannot leave the stage lights out), range falloff as the game's lamps. "Stage light" slider (View tab, Loop player; 0-2,
-    default 1; `STUDIO_LIGHT.scale`, saved with the panel's `ui` settings as `stageLight`). The studio map's ambient
+    default 1; `CHAMBER_LIGHT.scale`, saved with the panel's `ui` settings as `stageLight`). The chamber map's ambient
     is 0.6 (was 0.45). (T2) Intensities at scale 1: key 2.4, fill 1.4, rim 1.5, ambient 1.5 (were 1.7, 0.9, 1.3, 0.8:
-    she read dark at 1080 p on the hardware GPU). The game's lights, light registry and light field are untouched. Hooks `__studioStage.lights()`,
-    `root()`, `__studio.stageLight(v)`.
+    she read dark at 1080 p on the hardware GPU). The game's lights, light registry and light field are untouched. Hooks `__chamberStage.lights()`,
+    `root()`, `__chamber.stageLight(v)`.
 - (marlow-bays slice T1a, items 15-19, COVERAGE gaps 3, 4) Keys, playback bar, aim stances, own rows:
-  - Playback bar (`StudioPanel.bar`, docked by the panel under the tabs, studio only, hidden folded): Play / Pause,
+  - Playback bar (`ChamberPanel.bar`, docked by the panel under the tabs, chamber only, hidden folded): Play / Pause,
     "◀ Key" / "Key ▶" (a keyed clip steps to its next key, its mirrored half included, `anim/keyTimeline.ts`
-    `keyStep`; a pair one frame), Gun (Rifle / Pistol, `STUDIO.weapon`: every armed loop swaps to it,
-    `StudioHost.weaponClass` / `switchWeapon`; kept across visits), the time scrub, the speed and "On the spot" (the
+    `keyStep`; a pair one frame), Gun (Rifle / Pistol, `CHAMBER.weapon`: every armed loop swaps to it,
+    `ChamberHost.weaponClass` / `switchWeapon`; kept across visits), the time scrub, the speed and "On the spot" (the
     header button moved here; class `anim-tune-spot` kept). The readout names the loop and, on a keyed clip, its key
     ("jog - key 2 of 8 (mirror of 6), frame 4", `keyReadout`). Keys F9 play / pause, F1 / F2 key back / forward (with
     F8 on the spot; `tunerMouse.ts`, reserved in `keyBindings` RESERVED), pad right stick left / right a key (repeats when
     held), up play / pause (`TunePadOut.key` / `play`, the tuner mode only), L3 on the spot. The bar's controls come
     first in the D-pad order on every tab (a tab change still focuses the tab's own first control).
   - Every pick plays (item 16; `tunerLayout.loopForGroup`, `AnimTunePanel.pickLevel`): a state in any tab's list, a
-    clip or key in the Keys tab (the clip on the spot, paused on that key: `StudioPanel.showKey`, `STUDIO.seekKey`), a
+    clip or key in the Keys tab (the clip on the spot, paused on that key: `ChamberPanel.showKey`, `CHAMBER.seekKey`), a
     weapon in Hands & feet / Gun in hand / the gun hold (the gun pick; a holstered loop plays the low ready), a climb
     move or climbing state (its traversal loop), a co-op role (its pair).
   - Keys tab (items 15, 18): "◀ Key" / "Key ▶" (the picker follows the key the clip stands on; on a mirrored-half key
@@ -255,8 +255,8 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   - Key tools (marlow-bays item 30; `ui/tunerKeyTools.ts`, pure parts `anim/tuneKeysTools.ts`, registry glue
     `tuneKeysWave` / `tuneKeysApply` / `tuneKeysSmooth` / `tuneKeysDiff` / `tuneKeysToolKeys` in `anim/tuneKeys.ts`),
     under the key buttons. The Compare row (always shown): "Compare" (off by default) with "Previous key" or a picked
-    key; on, the studio overlay draws a light ghost of that key's skeleton over her (`STUDIO.compare`,
-    `STUDIO.comparePhase`; recorded root-local while she stands on that key: paused, the tools visit the key once and
+    key; on, the chamber overlay draws a light ghost of that key's skeleton over her (`CHAMBER.compare`,
+    `CHAMBER.comparePhase`; recorded root-local while she stands on that key: paused, the tools visit the key once and
     come back, the picker waits) and a line "Key 2 vs key 1: Right forearm twist, palm in +12°, Chest turn -3°" (the bake's
     poses, the key file's values plus the deltas; the four largest, "+N more"). The "Key tools" fold holds one tool at
     a time: Wave (Channel: any key slider by its plain name, a newly selected Keys slider by default; Amount; Timing, a
@@ -294,7 +294,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     shoulder keys) over the solved arms (`keyedArmEdit`, by the drawn share) and the aimed trunk edits by the share the
     keyed trunk leaves (`keyedTrunkEdit`). The walk / jog / run legs under the low ready keep their trunk (their arm
     channels are cleared, `clearKeyedArms`).
-  - Hooks: `__studio.step(dir)` (a key), `showKey(clip, k)`, `weapon(w)`, `readout()`; `__animTune.pickLevel(sec, level,
+  - Hooks: `__chamber.step(dir)` (a key), `showKey(clip, k)`, `weapon(w)`, `readout()`; `__animTune.pickLevel(sec, level,
     v)`, `keys()`, `keysStep(dir)`, `keysMirror(on)`.
 - (marlow-bays item 29: tuner v3, simpler; the current tuner layout, the item 26 / 26b, T2 and tuner-ui bullets below
   are history where they differ) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerPhone.ts`,
@@ -304,17 +304,17 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     hint glyphs; the viewport size alone picks the dock, the drawer (landscape, short side <= 600 px) or the sheet
     (portrait, width <= 900 px). Body map, search, recent and pinned sliders, the Settings tab, the edit mode and 26b's
     pad density are gone.
-  - One column: the top block (header, tabs, the studio's playback bar), the tab's "what" row (Part, State / Weapon),
+  - One column: the top block (header, tabs, the chamber's playback bar), the tab's "what" row (Part, State / Weapon),
     folding slider groups, then a collapsed More (time and speed, View aids, panel settings with "Highlight on her" and
     the Debug readout, presets, files). (Phase 2) On a drawer / sheet the top block is sticky as a whole (the tabs and
     the playback bar scrolled away under the header before: Michael's 844 x 390 screenshots); the tabs and the playback
     bar are one row that scrolls sideways; a row brought into view stops under it (`scroll-padding-top`).
-  - Highlight: a 3 px dot (a hairline along a bone), off with More > "Highlight on her". (Phase 2) The studio's green
-    skeleton and foot marks start off; More > View aids (studio only) turns Skeleton, Feet and Ghost poses on.
-  - (Phase 2) Keyed clips: the studio pins a keyed clip's own state on her rig (`anim/tune.ts` `TUNE_PIN`,
-    `tuneBodyGroup`; `anim/studio.ts` `studioBodyPin`), so the Body, Joints, Limb reach, Hands & feet and Gun rows of
+  - Highlight: a 3 px dot (a hairline along a bone), off with More > "Highlight on her". (Phase 2) The chamber's green
+    skeleton and foot marks start off; More > View aids (chamber only) turns Skeleton, Feet and Ghost poses on.
+  - (Phase 2) Keyed clips: the chamber pins a keyed clip's own state on her rig (`anim/tune.ts` `TUNE_PIN`,
+    `tuneBodyGroup`; `anim/chamber.ts` `chamberBodyPin`), so the Body, Joints, Limb reach, Hands & feet and Gun rows of
     that state reach the clip (on the spot her pose had no speed and picked `idle`: every jog slider did nothing). The
-    treadmill applies Feet apart and Knee lift (`studioDrive.ts`). The Body tab greys the sliders that do nothing in the
+    treadmill applies Feet apart and Knee lift (`chamberDrive.ts`). The Body tab greys the sliders that do nothing in the
     loop playing now (keyed clip, procedural, gun in hand) with a one-line reason: data from the effect probe
     (`tests/helpers/tuneEffectProbe.ts`, table `ui/tunerEffect.ts`, the test fails when they disagree).
   - (Phase 2) Plain words: units shown as cm (metres x 100), degrees (radians), ×, frames, per m/s (display only: ids,
@@ -326,17 +326,17 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     `FREE_ORBIT`, `FreeViewCore.setOrbit` / `snapTo`); a held snap keeps its angle to her facing and the look turns that
     angle; Side pressed again swaps sides (`FreeSnap` `left`).
   - (Phase 2) A rebuild (a key stepped, picked, added or deleted; another state) keeps the panel's scroll and the
-    focused slider. The studio's playback bar has the foot slide line ("Foot slide L 0.0 cm  R 0.0 cm", amber over
+    focused slider. The chamber's playback bar has the foot slide line ("Foot slide L 0.0 cm  R 0.0 cm", amber over
     0.5 cm) from her rig's optional `footSlide` (track C), hidden while the field is absent. The pad controller runs on
     real time (`padPoll`): the left stick and the repeats worked off the game's time, which is 0 while the tuner holds
     the game.
 - (marlow-bays item 26: the tuner on a phone; Michael's written exception to M21 for the animation tuner and the Anim
-  Studio only. The game stays desktop only: no phone look, no mobile path, no new work outside these two tools.) Pure
+  Chamber only. The game stays desktop only: no phone look, no mobile path, no new work outside these two tools.) Pure
   parts `ui/tunerPhone.ts` (tests `tests/tunerPhone.test.ts`), suite `e2e-tuner-phone`:
   - Layout (`tunerPhoneLayout`): a phone is `flags.phone` (touch as the main pointer: `maxTouchPoints` and
     `pointer: coarse`) with a short side of at most 600 px; anything else keeps the T2 desktop layout exactly. Landscape:
     a side drawer on the right, full height, 38% of the width (270-400 px; height is scarce, width is not, so she keeps
-    the left); portrait: a bottom sheet, full width, 45% of the height (she keeps the top). The studio dock gives the
+    the left); portrait: a bottom sheet, full width, 45% of the height (she keeps the top). The chamber dock gives the
     canvas up beside the drawer (`--tt-dock-w`, `body.tt-docked`) or above the sheet (`--tt-dock-h`,
     `body.tt-docked-b`), so she stands in the free area. Classes `tt-phone` + `tt-drawer` / `tt-sheet`.
   - Look (26b, Michael: "Smaller buttons, more compact. Adjust smaller with controller connected also"): two densities
@@ -351,7 +351,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     the header sticky with a grab handle (`.anim-tune-handle`, "Hide panel" / "Show panel": the fold); the hint strip
     and the mouse-mode button hide. By touch the body map is drawn at 1.2 px a unit with 34 px hit circles; overlapping ones
     resolve to the nearest joint (`nearestMapPart`). The pad focus scrolls the panel only while a pad is in use.
-  - Debug readout: the studio no longer turns the F3 overlay on in the phone layout, and opening the tuner on a phone
+  - Debug readout: the chamber no longer turns the F3 overlay on in the phone layout, and opening the tuner on a phone
     sets it to the saved choice (`phoneDebug` in the tuner's `ui` store, default off). Settings > "Debug readout (F3)"
     (`.anim-tune-debugreadout`, on every layout) shows / hides it; F3 still works with a keyboard and the box follows
     (`DebugOverlay.toggle` -> `AnimTunePanel.debugShown`; the overlay sets `animTune.debugHost`).
@@ -367,7 +367,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     `fold(v)`.
 - (anim-joints J1, COVERAGE gap 1) The Joints, Hands & feet, IK strength and Weapon sliders are deltas on a generated
   base table (`anim/animBase.ts`, written by the bake: docs/archive/anim-tuner/BAKE.md) and act on every Wren rig
-  (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the studio's pair puppets), each picking
+  (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the chamber's pair puppets), each picking
   its own row from its own pose inside its `animate` (`anim/tuneJointsRig.ts`); guards and other rigs never. `tuneV2Frame`
   copies the panel's rows into the tables (the active row, plus a few background rows a frame). Hook: `__animBase`.
 - (anim-bake-targets) Every tuner slider bakes. The Body sliders without a code value are deltas on the base table's
@@ -379,7 +379,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   edit or a load) for every consumer, the bypass reads the base. Never the guard sections (their own table, below) or
   Clip speed (code rules). Hook: `__animBase.setSection(section, group, id, v)`.
 - (marlow-bays item 24, track A) Guard tuning (`anim/tuneGuard.ts`, the per-guard window `anim/tuneGuardRig.ts`; tests
-  `tests/guardTune.test.ts`, e2e-studio): a "Who" list (Wren / Guard) heads the what-row of the Body, Stepping and Weight
+  `tests/guardTune.test.ts`, e2e-chamber): a "Who" list (Wren / Guard) heads the what-row of the Body, Stepping and Weight
   tabs (`AnimTunePanel.setWho`, `tunerLayout.whoSections`). Guard shows the guard sections in place of hers: Guard
   joints `guard.joint.<row>` (Body tab), Guard stepping `guard.step.<gait>` (Stepping), Guard weight
   `guard.weight.<row>` (Weight: lean, step load, springs, the start dip; no momentum, landing, jump, gear or camera
@@ -394,10 +394,10 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   (`tunerLayout.GUARD_LOOP_GAIT` from `stepGaitIndex`: the run at 3.2 m/s steps in the jog gait). `tuneGuardFrame` (player.ts) copies the rows in once a
   frame. Deltas on the generated guard base table `anim/animBaseGuard.ts` (BAKE.md). Saves, exports, imports, presets
   and undo carry them through the registry (additive group ids; old records load with the guard rows at identity).
-  Test Chamber: Who = Guard (or a `guard:<loop>` pick) plays the guard puppet (`studioStage` `makePuppet`: a grunt from
+  Test Chamber: Who = Guard (or a `guard:<loop>` pick) plays the guard puppet (`chamberStage` `makePuppet`: a grunt from
   `buildEnemyRig`, its gun, no AI) where Wren stands (she is hidden; the camera, the highlight via the panel's rig
   getter, the view aids and pause / speed work on it): loops idle, patrol walk, alert walk, run, aim, crouched aim,
-  wall cover (`anim/studio.ts` `GuardLoop`), moving ones on the spot (`shiftWorld` treadmill); the guard sections
+  wall cover (`anim/chamber.ts` `GuardLoop`), moving ones on the spot (`shiftWorld` treadmill); the guard sections
   follow the puppet's row. Who = Wren plays her idle again. Hooks: `__animTune.who(w)`, `whoState()`, `__guardTune`.
 - (anim-bake-1022) Reset baked (`anim/tuneBakedReset.ts`): when the tuner's save loads, the sliders at a value the
   bundled bake ledger (`anim/tuneBakeLog.json`) says is now in the code reset to their defaults, once per bake (hashes in
@@ -411,7 +411,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   registry, so the panel's pickers list them (State: `trav` > `vault`, `team` > `boost` > `b`, `reload`). When they
   apply: each Wren rig picks the stance row plus up to 3 move / action rows with a weight 0..1 (`pickTuneRows`): a
   traversal row 1 while the pose is in that move; a team row 1 while the rig is in that role (`RigPose.tuneTeam`: the
-  local player from `MOVE_TUNE_TEAM`, the studio pairs from their role, the co-op partner from its move mode and sub on
+  local player from `MOVE_TUNE_TEAM`, the chamber pairs from their role, the co-op partner from its move mode and sub on
   the wire; the partner's relay climb reads as the leg-up's role A and the revive has no wire state); an action row
   the anim graph's own blend weight (`AnimGraph.rowW`: the air and slide fades, the landing envelope, the elbow strike's
   hand weight, the reload / swap overlays, the grenade hands, the flinch spring; last frame's). Composition (A5):
@@ -447,8 +447,8 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     (`font * 25`). Values bold white (changed: amber); reset is ↺ (the unit keeps ×).
   - Docked: fixed to the right edge, full height (`top` / `bottom` 0; folded: the header only). In the Test Chamber the
     canvas gives up the panel's width (`body.tt-docked`, `--tt-dock-w`, one `engine.resize()` per change;
-    `syncDock`), so she stands in the middle of the free area; not folded, not outside the studio, not in co-op. The
-    studio hides the game HUD (`body.tt-studio`: `.hud`, `.hud-world`, the mouse capture hint; `syncStudioHud`, run
+    `syncDock`), so she stands in the middle of the free area; not folded, not outside the chamber, not in co-op. The
+    chamber hides the game HUD (`body.tt-chamber`: `.hud`, `.hud-world`, the mouse capture hint; `syncChamberHud`, run
     every frame open or not, off in co-op).
   - The part strip (`.anim-tune-nav`, between the playback bar and the tab): the body map (`.anim-tune-map`, her joints
     seen from behind, her left on the left with large L / R, the gun, "whole"; tap targets 8 units, about 11 px at
@@ -470,7 +470,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     tests set them). A slider moved heads the recent list (`pushRecent`, 6); ☆ on a row (or Y menu > Pin / unpin this
     slider) pins it (`togglePin`, 12, saved in the tuner's `ui` store as `pins`); a chip goes to its slider (tab, part,
     group, follow off, its group open, selected; by pad the focus lands on it).
-  - The status line: `stanceText`: in the studio the loop playing and the gun as it is ("Walk · Rifle holstered", "Low
+  - The status line: `stanceText`: in the chamber the loop playing and the gun as it is ("Walk · Rifle holstered", "Low
     ready · Rifle drawn"); outside it the game's state ("Walk · No gun drawn").
   - A level picker with no choice hides; the Joints' second level is "Armed state".
   - Hooks added to `window.__animTune`: `part(p)`, `partState()` (part, label, shown section, its shown slider keys,
@@ -495,18 +495,18 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   - Pause: `GameState.menuPaused` (the pause menu or the results); `App` hands it to `AnimTunePanel.menuPaused`: the
     tuner gives the pad to the menus; `GameState.fixedUpdate` uses a blank input (`menuInp`) under the pause menu, the
     free view stops in co-op too. "Pause game while tuning" freezes (time scale 0) while the panel has the pad and a pad
-    is in use, outside the studio and co-op (edge triggered: a Resume by hand stays).
+    is in use, outside the chamber and co-op (edge triggered: a Resume by hand stays).
   - Camera lock: `FREE_VIEW.lock` (`FreeViewCore.lock` / `bodyYaw`): the orbit takes `freeSnap` of her facing every
     frame; the look and the turntable do not turn it; the pad stays on the panel (`TunePadCtl.setFree(on, false)`).
   - (fix round) A State picked by hand on the Body part carries to Joints, Limb reach, Hands & feet, Gun in hand, the
     gun hold where it maps, Stepping and Weight (`bodyCarry`, the panel's `carryBody`); a pick in any other section
     stays local.
   - Test Chamber: a loop pick calls `applyLoop` (`loopGroups`: body, joint, ik, hand / weapon state, step, weight, keys,
-    team role A, climb move; follow off). "Loop on the spot" (`STUDIO.spot`, default on; off = `rootMotion`): a moving
-    state's stick runs with no camera turn and `StudioStage.afterStep` moves her back by what she moved each fixed step
+    team role A, climb move; follow off). "Loop on the spot" (`CHAMBER.spot`, default on; off = `rootMotion`): a moving
+    state's stick runs with no camera turn and `ChamberStage.afterStep` moves her back by what she moved each fixed step
     (`PlayerController.shift`, `CharacterRig.shiftWorld` / `FootPlanner.shift`: the feet slide back, no teleport).
   - Hooks added to `window.__animTune`: `tabs`, `tab`, `size`, `lock`, `unlock`, `group(section)`, `pad()` gains `tab`,
-    `list`, `listIndex`, `listLength`, `hint`; `window.__studio.spot`.
+    `list`, `listIndex`, `listLength`, `hint`; `window.__chamber.spot`.
 - (anim-tuner) Anim button: `ui/animTunePanel.ts`, a plain slider panel fixed top right (the overlay and its crab readout
   stay top left), any build. Two sections: the body state (20 groups) and the gun hold (rifle / pistol x low ready /
   aim / crouched aim), each a picker that follows the local player's state while "follow" is on (`TUNE_STATE`), with
@@ -551,40 +551,40 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   no text box has the keys; the Y menu), Store A / Store B / A/B (the values shown stay in the slot shown), presets (a
   picker, a name box, Save / Load / Delete (A twice); key `presets` in the tuner's IndexedDB store). Hooks on
   `window.__animTune` (`undo`, `redo`, `settle`, `abStore`, `abToggle`, `presetSave` / `Load` / `Delete`, `presets`).
-- (anim-studio; G1: the Anim Studio is now the Test Chamber, the map id stays `studio`) Main menu row `anim-studio` (last,
-  "Test Chamber") and Settings > Developer (not in a co-op session) start the `studio` dev scene alone (`world/maps/studio.ts`,
-  in `DEV_MAPS`, not `MAPS`; `?autostart=studio`, Free Roam) through `App.studio` (set in `main.ts`); the co-op lobby's
-  Mode row has a Test Chamber choice (mode `sandbox` on map `studio`, nothing new on the wire: `coopUi.ts` `CHAMBER`) so two
+- (anim-studio; G1: the Anim Studio is now the Test Chamber; N15: its map id `studio` is now `chamber`) Main menu row `test-chamber` (last,
+  "Test Chamber") and Settings > Developer (not in a co-op session) start the `chamber` dev scene alone (`world/maps/chamber.ts`,
+  in `DEV_MAPS`, not `MAPS`; `?autostart=chamber`, Free Roam) through `App.chamber` (set in `main.ts`); the co-op lobby's
+  Mode row has a Test Chamber choice (mode `sandbox` on map `chamber`, nothing new on the wire: `coopUi.ts` `CHAMBER`) so two
   players share it, each on one of the map's two spawns. In a co-op room the stage below is off (`GameState.create` builds
   it for a single player match only); the tuner stays, local only, with its co-op time lock. **The animation tuner opens
   in the Test Chamber only** (G1): `AnimTunePanel.show()` asks `allowed` (`ui/tunerGate.ts` `animTuneAllowed`, the
   match's map id; set in `App`), so the pause and Settings rows, F3 > Anim, the pad and a phone launching it all
   do nothing elsewhere and the rows are not listed; `setState` / `releaseState` close a panel left open off the chamber.
-  `game/studioStage.ts` opens the tuner panel
-  and the debug overlay (the crab readout), plays the loop player (`anim/studio.ts`: the list, the switches `STUDIO`, the
-  phase maths, the synthesised input; `anim/studioDrive.ts`: a keyed clip on one rig's graph, `AnimGraph.drive`, with the
-  treadmill feet after the planner) and keeps an optional guard figure. The panel's Studio section is
-  `ui/studioPanel.ts` (top of the panel, shown only while `STUDIO.active`; LB / RB lands on it first); its viewing aids
-  are `ui/studioOverlay.ts` (a 2D canvas `.studio-overlay`: skeleton, feet and trails, onion skin; projection
+  `game/chamberStage.ts` opens the tuner panel
+  and the debug overlay (the crab readout), plays the loop player (`anim/chamber.ts`: the list, the switches `CHAMBER`, the
+  phase maths, the synthesised input; `anim/chamberDrive.ts`: a keyed clip on one rig's graph, `AnimGraph.drive`, with the
+  treadmill feet after the planner) and keeps an optional guard figure. The panel's Chamber section is
+  `ui/chamberPanel.ts` (top of the panel, shown only while `CHAMBER.active`; LB / RB lands on it first); its viewing aids
+  are `ui/chamberOverlay.ts` (a 2D canvas `.chamber-overlay`: skeleton, feet and trails, onion skin; projection
   `ui/overlayProject.ts`, shared with the barrel marker). The turntable and the camera snaps are `FREE_VIEW.spin` /
-  `FREE_VIEW.snap`, taken by the free view. The game speed slider reaches 2x only while the studio runs. Leaving resets
-  it all (`studioReset`). `window.__studio` is the test / console hook. Detail: docs/archive/anim-studio/REPORT.md.
-- (anim-studio-2) Pairs and traversal in the studio. The loop list adds `pair:<move>` and `trav:<move>` entries.
-  - A co-op pair (`anim/studioPairs.ts`, pure): both roles of a team move from one clock, through the game's own paths
+  `FREE_VIEW.snap`, taken by the free view. The game speed slider reaches 2x only while the chamber runs. Leaving resets
+  it all (`chamberReset`). `window.__chamber` is the test / console hook. Detail: docs/archive/anim-studio/REPORT.md.
+- (anim-studio-2) Pairs and traversal in the chamber. The loop list adds `pair:<move>` and `trav:<move>` entries.
+  - A co-op pair (`anim/chamberPairs.ts`, pure): both roles of a team move from one clock, through the game's own paths
     and timing (`game/teamMoves.ts`, `TEAM`). The stage poses two Wren puppets (`operatorRig`, local rigs, no network;
     Wren hidden, standing back as the camera's anchor) through `moveTuneSelect` / `Root` / `Begin` / `End` with each
     role's group, the same calls the local player makes in real play. Moves: leg-up, ledge relay, partner throw,
     hang-down, two-person rope (a `world.ropes` line), revive. The panel's follow shows role A's group (`MOVE_TUNE_TEAM.follow`).
   - A hold pair: Wren's hold clip and the guard's clip in place, both drives `held` to the pair's phase.
-  - A traversal loop (`anim/studioTraversal.ts`, pure `travTick`: reset, settle, walk in, act steps, reset): the
+  - A traversal loop (`anim/chamberTraversal.ts`, pure `travTick`: reset, settle, walk in, act steps, reset): the
     synthesised stick and buttons (jump, interact, drop, cover; the door's Open through `startDoorOpen`) on the props of
-    `anim/studioProps.ts`, built as level pieces and anchors in the 28 m studio room. Reset is `GameState.studioTeleport`
+    `anim/chamberProps.ts`, built as level pieces and anchors in the 28 m chamber room. Reset is `GameState.chamberTeleport`
     (out of any anchor, wall or door move, as the respawn).
   - The move sections (`anim/moveTune.ts`): `team_<move>` (groups `team.<move>.a` / `.b` / `.contact`) and `trav`
     (`trav.<kind>`). The local player's own role and pose select them (`GameState` writes `MOVE_TUNE_TEAM` from
     `TeamController.state` / `partT`, or 'revive' while holding a partner's revive); the remote avatar never reads them;
     nothing on the wire; visual only (the rig root, the pose, the grip targets). The pad strip shows "LT / RT: role A /
-    B / contact" on a co-op section. `window.__studio.pair()` is the test hook. Detail:
+    B / contact" on a co-op section. `window.__chamber.pair()` is the test hook. Detail:
     docs/archive/anim-studio/REPORT-2.md.
 
 ## Course HUD (training D45)

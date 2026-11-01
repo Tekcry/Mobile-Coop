@@ -16,7 +16,7 @@ import '../src/player/weightTune';
 import '../src/anim/moveTune';
 import { BODY_FIELDS, BODY_GROUPS, TUNABLES } from '../src/anim/tune';
 import { HAND_KEYED_SET, MOCAP_LAYERS, MOCAP_SET } from '../src/anim/mocap';
-import { CLIP_BODY } from '../src/anim/studio';
+import { CLIP_BODY } from '../src/anim/chamber';
 import { KEY_FIELDS, keyGroupId } from '../src/anim/tuneKeysFile';
 import { keyedClipByName, tuneKeysSync } from '../src/anim/tuneKeys';
 import { TUNE_SECTIONS, tuneResetAll, tuneSet } from '../src/anim/tuneRegistry';
@@ -215,8 +215,8 @@ describe('tuner clarity: the reach table', () => {
     expect(editWarning('step', 'step.walk', 'lift', cap)).toContain('Motion capture places the steps now');
     expect(editWarning('hand', 'hand.rifle.walk', 'handLFwd', cap)).toContain('gun in hand');
     // another state's row
-    expect(editWarning('body', 'jog', 'kneeOutMul', cap)).toBe('You are editing Jog; she is walking. Pick Jog in the Anim Studio to see it.');
-    expect(editWarning('step', 'step.crouchWalk', 'lift', cap)).toBe('You are editing Crouch walk; she is walking. Pick Crouch walk in the Anim Studio to see it.');
+    expect(editWarning('body', 'jog', 'kneeOutMul', cap)).toBe('You are editing Jog; she is walking. Pick Jog in the Test Chamber to see it.');
+    expect(editWarning('step', 'step.crouchWalk', 'lift', cap)).toBe('You are editing Crouch walk; she is walking. Pick Crouch walk in the Test Chamber to see it.');
     expect(editWarning('keys', keyGroupId('jog', 0), 'chest_pitch', cap)).toContain('You are editing Jog');
     // the edit shows: nothing
     expect(editWarning('joint', 'joint.walk', 'ankleL_y', cap)).toBe('');
@@ -316,8 +316,8 @@ describe('tuner clarity: the reach table', () => {
       editWarning('body', 'jog', 'kneeOutMul', now('sneak', 1)),
       editWarning('hand', 'hand.none.walk', 'footLFwd', now('walk', 1, true, true)),
     ];
-    // "Keyed" may name the Anim Studio's box; no "keyed" / "procedural" / "mocap" jargon otherwise
-    for (const s of shown) expect(s.replace(/\bKeyed in the Anim Studio\b/g, ''), s).not.toMatch(/procedural|keyed|mocap|\bIK\b|\bFK\b/i);
+    // "Keyed" may name the Test Chamber's box; no "keyed" / "procedural" / "mocap" jargon otherwise
+    for (const s of shown) expect(s.replace(/\bKeyed in the Test Chamber\b/g, ''), s).not.toMatch(/procedural|keyed|mocap|\bIK\b|\bFK\b/i);
   });
 });
 

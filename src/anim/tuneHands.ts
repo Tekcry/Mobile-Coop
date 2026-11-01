@@ -452,7 +452,7 @@ export function handsBeginRigRows(st: HandsRigState, g: number, w: number, rows:
   HANDS_CUR.on = false;
   HANDS_CUR.ikOn = false;
   if (st.gen !== loadGen) stateReset(st);
-  // (J1) dt 0 (a frozen game: the tuner's Pause, the studio's pause) = at once, as the registry's sections
+  // (J1) dt 0 (a frozen game: the tuner's Pause, the chamber's pause) = at once, as the registry's sections
   const k = dt > 0 ? 1 - Math.exp(-dt / HAND_EASE_TAU) : 1;
   // (J2) the live move rows: hands / weapon (MR / MW from 0), IK (from 4)
   let mn = 0;

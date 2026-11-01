@@ -382,7 +382,7 @@ export class PlayerController {
 
   /**
    * (tuner-ui) Move the body by (dx, dz) with no teleport: the velocity, the gait clock and the stance carry on (the Anim
-   * Studio's treadmill holds a state on the spot this way; studio only). No allocation.
+   * Chamber's treadmill holds a state on the spot this way; chamber only). No allocation.
    */
   shift(dx: number, dz: number): void {
     const c = this.cc.getPosition();

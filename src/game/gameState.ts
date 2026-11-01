@@ -153,8 +153,8 @@ import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
 import { contextPing } from '../input/conflicts';
 import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_ORBIT, FREE_SET, FREE_VIEW, FreeViewCore, orbitAngleDeg, type DemoOut, type FreeMode } from '../player/freeView';
-import { StudioStage } from './studioStage';
-import { STUDIO_MAP_ID } from '../anim/studio';
+import { ChamberStage } from './chamberStage';
+import { CHAMBER_MAP_ID } from '../anim/chamber';
 import { MOVE_TUNE_TEAM, teamContactK, teamRoleGroup } from '../anim/moveTune';
 import { TEAM_POSE_LOCAL, teamLinkFrame, teamPoseOfState } from '../anim/clips/team'; // (anim-n4b, track A)
 import { clearGripAxis } from '../player/attachGrips';
@@ -529,8 +529,8 @@ export class GameState implements AppState {
   private freeT = 0;
   private freeCrouchCd = 0;
   private readonly demoOut: DemoOut = { x: 0, y: 0, ads: false, crouch: -1 };
-  /** (anim-studio) The Anim Studio stage (the `studio` map, single player only; null elsewhere). */
-  private studio: StudioStage | null = null;
+  /** (anim-studio) The Test Chamber stage (the `chamber` map, single player only; null elsewhere). */
+  private chamber: ChamberStage | null = null;
   /** (F1b) what the held guard's menu passes through: the move and the aim / fire actions. */
   private readonly grabInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
@@ -1092,9 +1092,9 @@ export class GameState implements AppState {
     // (map-ready S14) the compile log from the same zero point (reads only, flag on or off; `window.__compileLog`)
     g.compileLogStart(readyWorld);
     if (opts.net) g.net = opts.net.attach(g);
-    // (anim-studio) the studio stage: single player only (never offered in a co-op session), and only when asked (G2b: `opts.stage`)
-    else if (opts.map.id === STUDIO_MAP_ID && opts.stage)
-      g.studio = new StudioStage({
+    // (anim-studio) the chamber stage: single player only (never offered in a co-op session), and only when asked (G2b: `opts.stage`)
+    else if (opts.map.id === CHAMBER_MAP_ID && opts.stage)
+      g.chamber = new ChamberStage({
         player: g.player,
         scene: g.scene,
         world,
@@ -1102,7 +1102,7 @@ export class GameState implements AppState {
         drawPhase: () => g.weapons.drawPhase,
         crouchToggle: () => app.settings.get().gameplay.crouchToggle,
         // (anim-studio-2) the traversal loops and the pairs' viewing spot
-        teleport: (x, y, z, yaw) => g.studioTeleport(x, y, z, yaw),
+        teleport: (x, y, z, yaw) => g.chamberTeleport(x, y, z, yaw),
         doorOpen: () => {
           const d = world.doors.list[0];
           if (d && d.target === 0) g.startDoorOpen(0, () => world.doors.open(d, 'quiet'));
@@ -1116,7 +1116,7 @@ export class GameState implements AppState {
           g.player.controller.shift(dx, dz);
           g.player.rig.shiftWorld(dx, dz);
         },
-        // (marlow-bays T1a, item 19) the studio's rifle / pistol pick
+        // (marlow-bays T1a, item 19) the chamber's rifle / pistol pick
         weaponClass: () => g.weapons.current.def.class,
         switchWeapon: (cls) => {
           const i = g.weapons.slots.findIndex((s) => s.def.class === cls);
@@ -1402,9 +1402,9 @@ export class GameState implements AppState {
     this.exited = true;
     this.padOff?.();
     this.hud.setVisible(true);
-    // (anim-studio) leaving the studio: the drives off, the guard figure gone, every studio switch reset
-    this.studio?.dispose();
-    this.studio = null;
+    // (anim-studio) leaving the chamber: the drives off, the guard figure gone, every chamber switch reset
+    this.chamber?.dispose();
+    this.chamber = null;
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
     this.post.dispose();
@@ -2259,9 +2259,9 @@ export class GameState implements AppState {
     if (!this.paused && !this.menuOpen && realIn.pressed('objective')) this.hud.showObjective();
     // (tuner-camera) the tuner's free view: the game reads its own input (the orbit's move, the fly demo loop), none of
     // the devices' buttons
-    // (anim-studio) the studio's loop player drives the game while it plays a loop
+    // (anim-studio) the chamber's loop player drives the game while it plays a loop
     // (tuner-ui) the pause menu open (co-op: the shared sim runs on): no synthesised input at all, the body stands
-    const real = this.paused || this.menuOpen ? this.menuInp : this.studio?.drives ? this.studio.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
+    const real = this.paused || this.menuOpen ? this.menuInp : this.chamber?.drives ? this.chamber.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
     this.time += dt;
     // back from down / dead (respawn, revive, co-op): the speed gear starts over
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
@@ -2482,8 +2482,8 @@ export class GameState implements AppState {
     this.suppression.update(dt);
     this.weapons.spreadMul = this.suppression.spreadMul;
     this.player.fixedUpdate(dt, inp);
-    // (tuner-ui) the studio's treadmill: a state on the spot is held where it started
-    if (this.studio && !this.paused) this.studio.afterStep();
+    // (tuner-ui) the chamber's treadmill: a state on the spot is held where it started
+    if (this.chamber && !this.paused) this.chamber.afterStep();
     // (rig-pose-fix S1) the sim body: hit volumes, perception points, the wall head sample
     this.target.sync(this.weapons.drawPhase !== DRAW_HOLSTERED);
     this.weapons.fixedUpdate(dt, inp);
@@ -3452,7 +3452,7 @@ export class GameState implements AppState {
     // (tuner-camera) the free view takes the look (and its own pad input) while it runs
     const free = this.freeFrame(dt, look);
     // (anim-studio) the loop player: its choice onto the rigs, the circle's camera turn, scrub / step, the guard figure
-    this.studio?.frame(dt, look);
+    this.chamber?.frame(dt, look);
     // (anim-studio-2) the local player's own team role for the move sections (the partner's avatar never reads them;
     // nothing goes on the wire): the team controller's state, or holding a partner's revive
     const it = this.interactTarget;
@@ -3487,10 +3487,10 @@ export class GameState implements AppState {
     this.stealth?.frameUpdate();
     this.net?.carry?.frameUpdate();
     this.takedown.frameUpdate();
-    this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxListOpen ? this.blankInp.move : this.app.input.state.move);
+    this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen ? this.menuInp.move : this.chamber?.drives ? this.chamber.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxListOpen ? this.blankInp.move : this.app.input.state.move);
     this.takedown.frameLate(); // (piano-knife S1) a knife kill's guard off the attacker's drawn root, before enemies pose
     // (anim-studio) the stage lights onto this frame's root and camera (after the player and the camera moved)
-    this.studio?.lightsFrame();
+    this.chamber?.lightsFrame();
     this.gadgets.frameUpdate(dt);
     this.optic.frameUpdate();
     this.updateGadgetHud();
@@ -3919,9 +3919,9 @@ export class GameState implements AppState {
     return (this.wallCore ??= new WallCore(segs, buildWallLinks(segs), COVER_STANDOFF));
   }
 
-  /** (anim-studio-2) The studio's loops: Wren to a spot facing `yaw`, out of any anchor, wall, door move or committed
+  /** (anim-studio-2) The chamber's loops: Wren to a spot facing `yaw`, out of any anchor, wall, door move or committed
    *  move first (as the respawn does), the camera behind her. */
-  private studioTeleport(x: number, y: number, z: number, yaw: number): void {
+  private chamberTeleport(x: number, y: number, z: number, yaw: number): void {
     const c = this.player.controller;
     c.override = null;
     this.traversal.reset();

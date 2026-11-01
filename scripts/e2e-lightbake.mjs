@@ -16,7 +16,7 @@ const infos = [];
 // one browser per config, side by side: each has its own profile, so every config bakes cold (a shared cache would make the later
 // configs read the first one's bytes and the comparison below prove nothing)
 await Promise.all(CONFIGS.map(async ([name, q], k) => {
-  const { browser, page, errors } = await launch({ url, params: `${q}&autostart=studio&mode=test&guards=1`, viewport: { width: 640, height: 360 } });
+  const { browser, page, errors } = await launch({ url, params: `${q}&autostart=chamber&mode=test&guards=1`, viewport: { width: 640, height: 360 } });
   try {
     await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 240000 });
     // (materials made after the load get the lamp plugin on the next frame)

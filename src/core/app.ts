@@ -79,8 +79,8 @@ export class App {
   bootHold = false;
   /** Settings > Graphics > Run benchmark (set by main); a session goes on to its next run in a new match. */
   benchmark: ((kind?: BenchKind | BenchSession) => void) | null = null;
-  /** (anim-studio) Main menu > Test Chamber (dev): start the studio stage (set by main; batch-23: not on the pause menu). */
-  studio: (() => void) | null = null;
+  /** (anim-studio) Main menu > Test Chamber (dev): start the chamber stage (set by main; batch-23: not on the pause menu). */
+  chamber: (() => void) | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.uiRoot = document.getElementById('ui-root')!;
@@ -97,10 +97,10 @@ export class App {
     this.input.gamepad.padHook = (pad, now, dt) => tune.padPoll(pad, now, dt);
     // (tuner-camera pass 2) a co-op session turns the tuner's time controls off (local only, never on the wire)
     tune.coop = () => !!(this.state as { net?: unknown } | null)?.net;
-    // (G1) the tuner opens in the Test Chamber (the `studio` map) only: the match's map decides, a menu has none
+    // (G1) the tuner opens in the Test Chamber (the `chamber` map) only: the match's map decides, a menu has none
     tune.allowed = () => animTuneAllowed((this.state as { opts?: { map?: { id?: string } } } | null)?.opts?.map?.id);
     // (G2c) the animation stage runs only from the main menu row and `?stage=1`: the pause menu's tuner row follows it
-    tune.stageOn = () => !!(this.state as { studio?: unknown } | null)?.studio;
+    tune.stageOn = () => !!(this.state as { chamber?: unknown } | null)?.chamber;
     // (tuner-ui) the pause menu open: the menus get the pad, the tuner waits
     tune.menuPaused = () => !!(this.state as { menuPaused?: boolean } | null)?.menuPaused;
     // (marlow-bays item 9) the tuner's mouse mode: drag view frees the pointer; a capture lost in its game camera goes
@@ -168,7 +168,7 @@ export class App {
         mocapApply();
       },
     };
-    // (mixamo-retarget Toggle) the Anim Studio's Animation source switch: the same saved setting as Options > Gameplay
+    // (mixamo-retarget Toggle) the Test Chamber's Animation source switch: the same saved setting as Options > Gameplay
     tune.animSourceHost = {
       get: () => settingAnimSource(this.settings.get().gameplay, PREVIEW_ON),
       set: (v) => {

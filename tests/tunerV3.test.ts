@@ -19,7 +19,7 @@ describe('pointerMode (item 29: a touch keeps the mode)', () => {
 // (item 29 phase 2) game touch, the keyed pin, the foot slide line, the view aids
 // ---------------------------------------------------------------------------------------------------------------
 import { lastTouchAfter, TouchLook, touchLookDelta, TOUCH_LOOK_RAD_PER_PX } from '../src/input/touchLook';
-import { CLIP_BODY, STUDIO, studioBodyPin, studioEntry, studioReset } from '../src/anim/studio';
+import { CLIP_BODY, CHAMBER, chamberBodyPin, chamberEntry, chamberReset } from '../src/anim/chamber';
 import { TUNE_PIN, tuneBodyGroup } from '../src/anim/tune';
 import { footSlideTenths, footSlideText, footSlideWarn, loopGroups } from '../src/ui/tunerLayout';
 
@@ -55,11 +55,11 @@ describe('game touch (item 29: menus + camera)', () => {
 
 describe('the keyed pin (item 29: the Body sliders reach the keyed clip)', () => {
   it('her keyed clips pin their state; procedural states, guard clips and co-op pairs do not', () => {
-    expect(studioBodyPin(studioEntry('keyed:jog'))).toBe('jog');
-    expect(studioBodyPin(studioEntry('keyed:glide_fwd'))).toBe('aim');
-    expect(studioBodyPin(studioEntry('pair:hold_idle'))).toBe('hold');
-    expect(studioBodyPin(studioEntry('state:jog'))).toBe('');
-    expect(studioBodyPin(studioEntry('keyed:guard_held_hands'))).toBe('');
+    expect(chamberBodyPin(chamberEntry('keyed:jog'))).toBe('jog');
+    expect(chamberBodyPin(chamberEntry('keyed:glide_fwd'))).toBe('aim');
+    expect(chamberBodyPin(chamberEntry('pair:hold_idle'))).toBe('hold');
+    expect(chamberBodyPin(chamberEntry('state:jog'))).toBe('');
+    expect(chamberBodyPin(chamberEntry('keyed:guard_held_hands'))).toBe('');
     // the panel and the pin agree on every clip
     for (const clip of Object.keys(CLIP_BODY)) expect(loopGroups(`keyed:${clip}`).body).toBe(CLIP_BODY[clip]);
   });
@@ -80,10 +80,10 @@ describe('the keyed pin (item 29: the Body sliders reach the keyed clip)', () =>
   });
 });
 
-describe('the studio (item 29 phase 2)', () => {
+describe('the chamber (item 29 phase 2)', () => {
   it('the view aids start off', () => {
-    studioReset();
-    expect([STUDIO.skeleton, STUDIO.feet, STUDIO.onion]).toEqual([false, false, false]);
+    chamberReset();
+    expect([CHAMBER.skeleton, CHAMBER.feet, CHAMBER.onion]).toEqual([false, false, false]);
   });
   it('the foot slide line: tenths of a cm, amber over 0.5 cm', () => {
     expect(footSlideTenths(0.04)).toBe(0);

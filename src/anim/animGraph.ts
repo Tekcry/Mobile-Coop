@@ -58,7 +58,7 @@ import { STANCE_SHOT } from './mixamo'; // (mixamo-retarget I3) Wren's stance sh
 import { CARRY_STRIKE_SHOT } from './mixamo'; // (mixamo-retarget I5) Wren's carry and strike fades (their tables: srcTab)
 import { STRIKE_ARC_CONTACT } from './strikeBody'; // (mixamo-retarget I5) the arc's contact for the strike capture
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
-import { studioDriveTargets, type StudioDrive } from './studioDrive';
+import { chamberDriveTargets, type ChamberDrive } from './chamberDrive';
 import { killDriveTargets, type KillDriveState } from './killDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
 import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, HOLD_FEET_CH, HOLD_K0, HOLD_SPAN, HOLD_FROM, HOLD_STAND, HOLD_EASE, STAND_YAW, STAND_SLOW, STAND_YAW_CH } from './mixamo'; // (mixamo-retarget I2)
@@ -589,7 +589,7 @@ export interface ReadyPose {
 }
 /**
  * (anim-bake-1022, "Wren's rows never touch guards") Wren's own rifle low ready and pistol low ready: every Wren rig
- * (`CharacterRig.tuneRows`: the player, the co-op partner, the studio puppets) reads these, every other rig (guards,
+ * (`CharacterRig.tuneRows`: the player, the co-op partner, the chamber puppets) reads these, every other rig (guards,
  * VIP, dummy) READY_POSES.low and PISTOL_READY. The tuner's gun bake targets these (`tuneBakeTable.ts`). Michael's
  * 2026-10-22 tune: low pitch / yaw / roll 0.68 / -0.22 / 0.08 -> 0.75 / -0.63 / 0.54; pistol y / z / pitch -0.05 / -0.1
  * / 0.7 -> -0.34 / 0.08 / 1.16.
@@ -727,14 +727,14 @@ export class AnimGraph {
   /** Gait clock in use (driver's, or integrated from speed). */
   phase = 0;
   readonly out = emptyTargets();
-  /** (anim-studio) The Anim Studio's loop player (`studioDrive.ts`): set on one rig's graph inside the studio only. */
-  drive: StudioDrive | null = null;
+  /** (anim-studio) The Test Chamber's loop player (`chamberDrive.ts`): set on one rig's graph inside the chamber only. */
+  drive: ChamberDrive | null = null;
   /** (piano-knife S1) A paired knife kill's clip (`killDrive.ts`): set by the takedown on the attacker's and the
    *  victim's graphs while the move plays; null otherwise. */
   kill: KillDriveState | null = null;
   /**
    * (tuner-clarity S1, BRIEF A3) What this graph plays (`nowPlaying.ts`): the motion-capture, hand-keyed and graph-code
-   * shares of the body, the captured move and the studio's clip, written at the end of each `update` (`notePlaying`).
+   * shares of the body, the captured move and the chamber's clip, written at the end of each `update` (`notePlaying`).
    * The same object every frame; display only (`tuneEnd` copies the local player's into NOW_PLAYING): nothing in the
    * graph or the game reads it back.
    */
@@ -950,7 +950,7 @@ export class AnimGraph {
   /** (mt2-guardgate) This frame's switch for this rig (its source's `loco.mocap && i.mocapOk`), its clip set (`loco.set`, or the hand-keyed
    *  set off) and slots (`loco.slots`, or none off): every mocap read in the graph goes through these. */
   private mOn = false;
-  /** (afp CI fix) The anim-fix-pass rows apply this frame: a Wren rig (`wrenReady`: the player, the partner, the studio and
+  /** (afp CI fix) The anim-fix-pass rows apply this frame: a Wren rig (`wrenReady`: the player, the partner, the chamber and
    *  menu puppets) or a carrier (`i.mocapOk`; a bare graph). The crouch carriage and step line (AF3) and the crouched gun
    *  (AF4b) are Wren's: guards and every other rig keep theirs (mt2-guardgate; guardPoseGolden "never re-capture"). */
   private afRig = true;
@@ -2122,10 +2122,10 @@ export class AnimGraph {
     o.readyShoulder.x = p.shoulderHalf;
     o.readyShoulder.y = p.y.shoulder + this.readyFy * fw * k;
     o.readyShoulder.z = -0.01 + this.readyFz * fw * k;
-    if (this.drive !== null) studioDriveTargets(this.drive, o, dt); // (anim-studio) the loop player's clip; null outside the studio
+    if (this.drive !== null) chamberDriveTargets(this.drive, o, dt); // (anim-studio) the loop player's clip; null outside the chamber
     if (this.kill !== null) killDriveTargets(this.kill, o); // (piano-knife S1) the knife kill's clip; null outside one
     this.bodyMotion(i, o, dt);
-    this.notePlaying(o); // (tuner-clarity S1) after the studio drive; display only
+    this.notePlaying(o); // (tuner-clarity S1) after the chamber drive; display only
     return o;
   }
 
@@ -2134,7 +2134,7 @@ export class AnimGraph {
    * slots (`keyMocap`), the crouched sneak capture (`mcK`) and the aimed strafe capture (`keyStrafe` of the keyed share);
    * the rest of the keyed share is hand-keyed, the rest of the body graph code. The move: the strongest capture part (the
    * strongest slot's part of the standing capture, the gait's rest of it, the sneak, the strafe); with no capture share
-   * the holstered speed set's nearer clip. A studio drive with a clip: its clip, no capture (`studioDriveTargets`).
+   * the holstered speed set's nearer clip. A chamber drive with a clip: its clip, no capture (`chamberDriveTargets`).
    * Numbers and one reference written field by field; its one argument an object (no boxed doubles). No allocation.
    */
   private notePlaying(o: RigTargets): void {
@@ -2213,7 +2213,7 @@ export class AnimGraph {
       bodyMotionBands(m, effortSpeed(this.locoSpeed, false), this.cPace, KEYED_GAITS, KEYED_CROUCH);
     }
     bodyMotionStep(m, o.motion);
-    // (CHECK-4 should-fix 2) the studio's loop player shows Michael's keys as keyed: no arm speed cap while it drives
+    // (CHECK-4 should-fix 2) the chamber's loop player shows Michael's keys as keyed: no arm speed cap while it drives
     // (the drive bypasses the pace bands, so the cap would read the walk's)
     if (this.drive !== null) o.motion.armSpeed = Infinity;
     // (mocap-trial) on the mocap share each part of the layer by its MOCAP_LAYERS scale (the capture holds its own trunk
@@ -3385,14 +3385,14 @@ export class AnimGraph {
   }
 
   /** (mixamo-retarget Source wire) The owner's Animation source handed to this graph (a remote player's: the wire's
-   *  `PlayerState.an`); null: this page's (`ANIM_SOURCE`, overrides and the Studio's pick included). */
+   *  `PlayerState.an`); null: this page's (`ANIM_SOURCE`, overrides and the Chamber's pick included). */
   private srcOwn: AnimSource | null = null;
   /** The source `srcTab` was picked for (undefined: not yet) and its tables (`animSource.ts`; rewritten in place). */
   private srcKey: AnimSource | null | undefined = undefined;
   private srcTab: SourceTables = PAGE_TABLES;
   /**
    * (mixamo-retarget Source wire, G400: "players must look exact in everyones games") The Animation source this graph
-   * draws with: the local player's (and every graph no one hands one: the Studio, menus, guards) is the setting
+   * draws with: the local player's (and every graph no one hands one: the Chamber, menus, guards) is the setting
    * (`ANIM_SOURCE.source`, read live); a remote player's graph is handed its owner's (`RemoteAvatar` from the wire), and
    * then reads that source's own tables. Setting it costs nothing until the next frame's compare.
    */

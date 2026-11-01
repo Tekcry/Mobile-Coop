@@ -1,7 +1,7 @@
 /**
  * (tuner-clarity S1, PLAN 5) The Now playing source: the graph's `playing` (motion-capture, hand-keyed and graph-code
- * shares, the move, the studio clip) with the switch on and off across the gaits, the sneak, the drawn walk, the aimed
- * strafe, a turn on the spot, a ladder and a studio drive; `NOW_PLAYING` written only through `tuneEnd`; no allocation
+ * shares, the move, the chamber clip) with the switch on and off across the gaits, the sneak, the drawn walk, the aimed
+ * strafe, a turn on the spot, a ladder and a chamber drive; `NOW_PLAYING` written only through `tuneEnd`; no allocation
  * per frame; the line's text and key in 10 % steps.
  * (mixamo-retarget M5) The capture's source in the line ("motion-capture (CMU) walk", "motion-capture (Mixamo) hang", from
  * `mocapSources.ts`), the traversal clip field (`playing.trav`, the graph's `TRAVERSE_CLIP`), both in the key, no
@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { setMixamo } from '../src/anim/mixamo';
 import { setMocapLocomotion } from '../src/anim/mocap';
 import { AnimGraph, defaultInput, type AnimInput, type RigTargets, type TraverseKind } from '../src/anim/animGraph';
-import { newStudioDrive } from '../src/anim/studioDrive';
+import { newChamberDrive } from '../src/anim/chamberDrive';
 import { KEYED_WALK } from '../src/anim/clips/keyed/walk';
 import { KEYED_CROUCH_WALK } from '../src/anim/clips/keyed/crouch_walk';
 import { MOCAP_WALK } from '../src/anim/clips/mocap/walk';
@@ -168,7 +168,7 @@ describe('now playing: the graph shares and move', () => {
     }
   });
 
-  it('(M5) the traversal clip the graph plays is in `trav`; none on foot or under a studio clip', () => {
+  it('(M5) the traversal clip the graph plays is in `trav`; none on foot or under a chamber clip', () => {
     // the hand-made clips today (I2 swaps Mixamo captures into the same table: the field follows)
     expect(run({ speed: 0.5, traverse: 'climb' }, true).playing.trav).toBe(CLIMB);
     expect(run({ speed: 0, traverse: 'hang' }, true).playing.trav).toBe(HANG);
@@ -179,22 +179,22 @@ describe('now playing: the graph shares and move', () => {
     const h = run({ speed: 0.5, traverse: 'climb' }, true);
     const back = run({ speed: 1.4 }, true, h).playing;
     expect(back.trav).toBeNull();
-    // a studio drive with a clip: its clip, no traversal
-    const d = newStudioDrive();
+    // a chamber drive with a clip: its clip, no traversal
+    const d = newChamberDrive();
     d.clip = KEYED_WALK;
     h.drive = d;
     expect(run({ speed: 0.5, traverse: 'climb' }, true, h).playing.trav).toBeNull();
   });
 
-  it('a studio drive plays its clip: no capture, the clip named, with the switch on', () => {
+  it('a chamber drive plays its clip: no capture, the clip named, with the switch on', () => {
     const g = new AnimGraph(proportions('average', 1.68));
-    const d = newStudioDrive();
+    const d = newChamberDrive();
     d.clip = KEYED_WALK;
     d.pace = 1.4;
     d.cycle = 1.1;
     g.drive = d;
     const p = run({ speed: 1.4 }, true, g).playing;
-    expectShares(p, 'studio');
+    expectShares(p, 'chamber');
     expect(p.mocap).toBe(0);
     expect(p.keyed).toBe(1);
     expect(p.move).toBe(MOVE_IDS.clip);
@@ -256,7 +256,7 @@ describe('now playing: NOW_PLAYING', () => {
 });
 
 describe('now playing: no allocation', () => {
-  it('the graph`s note, the copy and the key leave 0 bytes a frame (switch on with slots, strafe, studio drive)', async () => {
+  it('the graph`s note, the copy and the key leave 0 bytes a frame (switch on with slots, strafe, chamber drive)', async () => {
     const N = 2000;
     const g = new AnimGraph(proportions('average', 1.68));
     const SPD = inputs(N, (k) => 1.2 + 2.5 * (0.5 + 0.5 * Math.sin(k * 0.004)));
@@ -284,8 +284,8 @@ describe('now playing: no allocation', () => {
     };
     frame(N);
     const live = await bytesPerCall(noteOnly, 0);
-    // a studio drive (the clip's name hashed into the key)
-    const d = newStudioDrive();
+    // a chamber drive (the clip's name hashed into the key)
+    const d = newChamberDrive();
     d.clip = KEYED_CROUCH_WALK;
     g.drive = d;
     frame(N);
@@ -348,7 +348,7 @@ describe('now playing: the line and its key', () => {
     expect(nowPlayingText(np(0, MOVE_IDS.walk, null, capTrav), '', true)).toBe('Now playing: motion-capture (CMU) walk');
     // the source words
     expect([mocapSourceTagWord(0), mocapSourceTagWord(1), mocapSourceTagWord(2)]).toEqual(['', 'CMU', 'Mixamo']);
-    // every Mixamo row (none until M3 / M4 land) reads "(Mixamo)" as a traversal or a studio clip
+    // every Mixamo row (none until M3 / M4 land) reads "(Mixamo)" as a traversal or a chamber clip
     for (const name of MOCAP_SOURCE_NAMES) {
       const r = mocapSource(name)!;
       const w = r.source === 'mixamo' ? 'Mixamo' : 'CMU';

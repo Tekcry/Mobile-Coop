@@ -28,7 +28,7 @@ import {
   valueText,
 } from '../src/ui/tunerLayout';
 import { FREE_CFG, FreeViewCore, freeSnap } from '../src/player/freeView';
-import { STUDIO, STUDIO_ENTRIES, studioEntry, studioInput, studioReset, studioSpot, spotShift, type StudioInputOut } from '../src/anim/studio';
+import { CHAMBER, CHAMBER_ENTRIES, chamberEntry, chamberInput, chamberReset, chamberSpot, spotShift, type ChamberInputOut } from '../src/anim/chamber';
 import { mocapSource } from '../src/anim/mocapSources';
 import { TunePadCtl } from '../src/ui/animTunePad';
 import { PAD } from '../src/input/gamepadMapping';
@@ -297,7 +297,7 @@ describe('tuner-ui: the loop sets the state', () => {
     expect(loopGroups('pair:hold_choke').body).toBe('hold');
     expect(loopGroups('trav:ladder')).toMatchObject({ body: 'ladder', trav: 'trav.climbUp' });
     expect(loopGroups('off')).toMatchObject({ body: '', clip: '', team: '' });
-    for (const e of STUDIO_ENTRIES) {
+    for (const e of CHAMBER_ENTRIES) {
       const g = loopGroups(e.id);
       for (const v of [g.body, g.team, g.trav, g.step, g.weight]) if (v) expect(isTuneGroup(v), `${e.id} -> ${v}`).toBe(true);
       // (mixamo-retarget M5) a motion capture has no Keys table (Keys edit the hand-made clips only; the panel skips a missing group)
@@ -362,18 +362,18 @@ describe('tuner-ui: camera snap lock', () => {
 
 describe('tuner-ui: loop on the spot', () => {
   it('a moving state on the spot keeps its stick but does not turn; keyed clips are unchanged', () => {
-    studioReset();
-    expect(STUDIO.spot).toBe(true);
-    const o: StudioInputOut = { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false };
-    studioInput(studioEntry('state:walk'), false, o, true);
+    chamberReset();
+    expect(CHAMBER.spot).toBe(true);
+    const o: ChamberInputOut = { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false };
+    chamberInput(chamberEntry('state:walk'), false, o, true);
     expect(o.y).toBeGreaterThan(0);
     expect(o.turn).toBe(0);
-    studioInput(studioEntry('state:walk'), false, o, false);
+    chamberInput(chamberEntry('state:walk'), false, o, false);
     expect(o.turn).toBeGreaterThan(0);
-    expect(studioSpot(studioEntry('state:walk'), true)).toBe(true);
-    expect(studioSpot(studioEntry('state:idle'), true)).toBe(false);
-    expect(studioSpot(studioEntry('keyed:walk'), true)).toBe(false);
-    expect(studioSpot(studioEntry('state:walk'), false)).toBe(false);
+    expect(chamberSpot(chamberEntry('state:walk'), true)).toBe(true);
+    expect(chamberSpot(chamberEntry('state:idle'), true)).toBe(false);
+    expect(chamberSpot(chamberEntry('keyed:walk'), true)).toBe(false);
+    expect(chamberSpot(chamberEntry('state:walk'), false)).toBe(false);
     const d = spotShift(3.2, 4.1, 3, 4, { x: 0, z: 0 });
     expect(d.x).toBeCloseTo(0.2, 9);
     expect(d.z).toBeCloseTo(0.1, 9);

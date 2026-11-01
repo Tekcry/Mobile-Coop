@@ -7,7 +7,7 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 const log = process.argv.includes('--log');
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber' });
 let failed = false;
 try {
 // (the sim advances only through stepHeadless: on a hardware GPU the live loop would run ~150 steps of the match in the wait below, a different

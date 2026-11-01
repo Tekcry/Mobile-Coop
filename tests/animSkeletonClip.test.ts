@@ -13,7 +13,7 @@ import { FING_L, FING_R } from '../src/anim/fingers';
 import { RIG_JOINTS, TRS } from '../src/operators/runtime/pose';
 import type { CharacterRig } from '../src/player/characterRig';
 import type { TransformNode, Vector3 as V3 } from '../src/core/babylon';
-import type { StudioDrive } from '../src/anim/studioDrive';
+import type { ChamberDrive } from '../src/anim/chamberDrive';
 // @ts-expect-error plain .mjs build script without types
 import { clipSource } from '../scripts/anim-keys/build.mjs';
 import { bytesPerCall, HEAP_NUMBER, inputs } from './helpers/allocPerCall';
@@ -72,7 +72,7 @@ describe('anim-skeleton S3a: the clip channels (pure)', () => {
     p.clav.forEach((v, i) => expect(v).toBeCloseTo(CLAV[i]!, 6));
     p.fing.forEach((v, i) => expect(v).toBeCloseTo(FING[i]!, 6));
     p.leg.forEach((v, i) => expect(v).toBeCloseTo(LEG_KICK[i]!, 6));
-    // every shipped clip keys none of them (S3b: but the studio-only skeleton_test, all three)
+    // every shipped clip keys none of them (S3b: but the chamber-only skeleton_test, all three)
     for (const f of readdirSync('src/anim/clips/keyed')) {
       const src = readFileSync(`src/anim/clips/keyed/${f}`, 'utf8');
       if (f === 'skeleton_test.ts') expect(src.match(/^ {2}(clav|fing|leg):/gm)).toHaveLength(3);
@@ -218,7 +218,7 @@ describe('anim-skeleton S3a: the build emitter (scripts/anim-keys/build.mjs)', (
 });
 
 describe('anim-skeleton S3a: the rig applies the channels', () => {
-  type Built = { rig: CharacterRig; nodes: TransformNode[]; drive: StudioDrive };
+  type Built = { rig: CharacterRig; nodes: TransformNode[]; drive: ChamberDrive };
 
   async function setup(): Promise<{ make: (name: string, clip: KeyedClip) => Built; dispose: () => void }> {
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
@@ -227,7 +227,7 @@ describe('anim-skeleton S3a: the rig applies the channels', () => {
     const { defaultLook } = await import('../src/cosmetics/avatarLook');
     const { operatorRig } = await import('../src/operators/runtime/playerFigure');
     const { rigNodes } = await import('../src/operators/runtime/figure');
-    const { newStudioDrive } = await import('../src/anim/studioDrive');
+    const { newChamberDrive } = await import('../src/anim/chamberDrive');
     const scene = new Scene(new NullEngine());
     const lib = new PartLibrary(scene);
     const made: { dispose(): void }[] = [];
@@ -235,7 +235,7 @@ describe('anim-skeleton S3a: the rig applies the channels', () => {
       make: (name, clip) => {
         const o = operatorRig(scene, (s, h, n) => lib.instance(s, h, n), defaultLook(), name);
         made.push(o.figure, o.rig);
-        const drive = newStudioDrive();
+        const drive = newChamberDrive();
         drive.clip = clip;
         drive.held = true;
         drive.phase = 0.1;

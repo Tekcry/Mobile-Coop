@@ -27,7 +27,7 @@ import {
 } from '../src/anim/bodyMotion';
 import { KEYED_CROUCH, KEYED_GAITS } from '../src/anim/animGraph';
 import { BODY_GROUPS } from '../src/anim/tune';
-import { measureMotion, measureStudioArms, measureTurns, withBodyMotionOff, withKeyMotionOff, withTrunkMotionOff, type MotionMetrics } from './helpers/bodyMotionMeasure';
+import { measureMotion, measureChamberArms, measureTurns, withBodyMotionOff, withKeyMotionOff, withTrunkMotionOff, type MotionMetrics } from './helpers/bodyMotionMeasure';
 import { runIdentity, type IdentityFixture } from './helpers/animSkeletonIdentity';
 import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 
@@ -391,16 +391,16 @@ describe('body motion: measured on a headless Wren rig', () => {
 });
 
 /**
- * (CHECK-4 should-fix 2) Anim Studio: the loop player shows Michael's keys as keyed. The studio Wren stands (stride
+ * (CHECK-4 should-fix 2) Test Chamber: the loop player shows Michael's keys as keyed. The chamber Wren stands (stride
  * 'facing', the gate open) while the drive plays, so the layer's bands read the walk's and its 6 m/s cap filtered the
  * playing loops (keyed:run 7.7 cm off its keys on 24 / 240 frames, hold_knife 27.5 cm, hold_choke 2.0 cm). No cap while a
  * drive is set: cap on equals the cap-off rig (KEY_MOTION at its identity) on every frame.
  */
-describe('body motion: the studio loop player is never capped', () => {
+describe('body motion: the chamber loop player is never capped', () => {
   it('keyed:run, hold_knife and hold_choke: cap on = cap off on every frame (0.0 cm)', async () => {
     const ids = ['keyed:run', 'keyed:hold_knife', 'keyed:hold_choke'];
-    const on = await measureStudioArms(ids);
-    const off = await withKeyMotionOff(() => measureStudioArms(ids));
+    const on = await measureChamberArms(ids);
+    const off = await withKeyMotionOff(() => measureChamberArms(ids));
     for (const id of ids) {
       // the gate is open (the cap would apply without the drive's override) and the drive lifts it
       expect(on[id]!.gated, `${id} gated frames`).toBeGreaterThan(0);

@@ -127,7 +127,7 @@ export class DebugOverlay {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F3') this.toggle();
     });
-    // (marlow-bays item 24, track A) the Anim Studio's guard puppet while it plays (the highlight and the picks on it)
+    // (marlow-bays item 24, track A) the Test Chamber's guard puppet while it plays (the highlight and the picks on it)
     this.animTune.rig = () => (TUNE_WHO.rig as TuneRigView | null) ?? (this.crabPlayer?.() as unknown as { rig?: TuneRigView } | null)?.rig ?? null;
     // (tuner-camera) the tuner's slow-motion picker sets the loop's time scale
     this.animTune.loop = this.loop;

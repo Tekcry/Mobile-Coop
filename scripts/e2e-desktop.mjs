@@ -3,7 +3,7 @@
 // renderer booting in a match (clustered lights, shadow casters, the post stack) without console errors; 16:10,
 // 21:9 and 32:9 windows (centred menus, the HUD inset, Hor+ up to the FOV cap).
 // (voxel-retire: parts 3 and 4 run the smooth renderer; the voxel look is gone)
-// (clean-up G2c) Every part's match is on the Test Chamber (studio): the benchmark flies its rooms in the test mode (part 1), the
+// (clean-up G2c) Every part's match is on the Test Chamber (chamber): the benchmark flies its rooms in the test mode (part 1), the
 // ultrawide pages stand in its plain room (2), the Epic part spawns two alerted guards in its dark bay to light their torches (3).
 import { launch, assert, frames, GPU } from './e2e-lib.mjs';
 
@@ -127,7 +127,7 @@ try {
   await page.keyboard.press('Escape');
   await frames(page, 3);
   // in a match: the rebound key acts
-  await page.goto(url + '?autostart=studio&gfx=min');
+  await page.goto(url + '?autostart=chamber&gfx=min');
   await page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 60000 });
   await page.keyboard.down('KeyU');
   await frames(page, 2);
@@ -269,7 +269,7 @@ try {
     assert(Math.abs(m.cx - m.W / 2) < 2 && m.w <= m.H * (16 / 9) + 2 && m.h >= m.H - 2, `${label}: menus a centred layout (${m.w.toFixed(0)} x ${m.h.toFixed(0)} in ${m.W} x ${m.H})`);
     assert(m.item >= (m.W - m.w) / 2 - 1, `${label}: the menu sits inside it (x ${m.item.toFixed(0)})`);
     if (process.env.SHOTS) await P.screenshot({ path: `${process.env.SHOTS}/desk-${label.replace(':', 'x')}-menu.png` });
-    await P.goto(url + '?autostart=studio&mode=sandbox&gfx=min');
+    await P.goto(url + '?autostart=chamber&mode=sandbox&gfx=min');
     // (load-latent-ui2) 120 s, as the other match loads: the shaders compile on the loading screen first
     await P.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 120000 });
     await GA(() => window.__app.settings.update((d) => { d.video.fovH = 100; d.video.maxFov = 120; }));
@@ -345,7 +345,7 @@ try {
 
   if (part(3)) {
   // the Epic renderer in a match (small window: software GL)
-  const e = await launch({ url, params: 'autostart=studio&mode=test&gfx=epic', viewport: { width: 640, height: 360 } });
+  const e = await launch({ url, params: 'autostart=chamber&mode=test&gfx=epic', viewport: { width: 640, height: 360 } });
   browser = e.browser;
   await e.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(e.page, 6);
@@ -506,7 +506,7 @@ try {
 
   if (part(4)) {
   // 3.0 phase 5: TAAU, Panini, the Ray traced setting (screen space since voxel-retire; the saved settings, changed in the match)
-  const u = await launch({ url, params: 'autostart=studio&gfx=user', viewport: { width: 640, height: 360 } });
+  const u = await launch({ url, params: 'autostart=chamber&gfx=user', viewport: { width: 640, height: 360 } });
   browser = u.browser;
   await u.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(u.page, 3);

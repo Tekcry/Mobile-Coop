@@ -16,7 +16,7 @@
  * Live in real play for the local player's OWN role only (GameState writes `MOVE_TUNE_TEAM` from the team controller;
  * the traversal groups follow the local pose). The remote partner (`net/remoteAvatar`) never reads the live values: it
  * plays the base table (an export folded into the code, `moveTuneSelectBase`, pose-parity). Visual only: the capsule, the team-move paths and the wire
- * are unchanged. The Anim Studio poses both roles of a pair with the same calls (`studioPairs.ts`).
+ * are unchanged. The Test Chamber poses both roles of a pair with the same calls (`chamberPairs.ts`).
  */
 import '../player/speedTune'; // Body, Gun, Camera and Speed register first (the panel's section order)
 import './tuneKeys'; // then the tuner-v2 sections and Keys
@@ -29,8 +29,8 @@ export type TeamRole = 'a' | 'b';
 /**
  * (coop-kit K0) The part 2 kit moves' tuner sections (game/teamMoves `PART2_KIT_KINDS`; a test keeps them equal):
  * the same generic role and contact sliders, live for the local player's role (`teamRoleGroup` of its kit state) and
- * the partner's base values from the wire (`teamRowOfWire`). Kept out of `TEAM_MOVES` (the studio's pair list and the
- * Joints / IK rows) until each move's KA animation slice adds its studio pair.
+ * the partner's base values from the wire (`teamRowOfWire`). Kept out of `TEAM_MOVES` (the chamber's pair list and the
+ * Joints / IK rows) until each move's KA animation slice adds its chamber pair.
  */
 export const KIT_TUNE_MOVES = ['deadweight', 'dropCatch', 'chimneyPair', 'swingPass', 'plankBridge'] as const;
 export type KitTuneMove = (typeof KIT_TUNE_MOVES)[number];
@@ -168,7 +168,7 @@ TUNE_STATE_BAG.trav = '';
 // ---- the local player's team role (GameState writes it each frame; '' = not in a team move) ----
 
 /** Written by GameState before the local player animates: the role group ('' none) and the contact weight 0..1;
- *  `follow` (the Anim Studio's pairs only) is the group the panel's follow shows instead. */
+ *  `follow` (the Test Chamber's pairs only) is the group the panel's follow shows instead. */
 export const MOVE_TUNE_TEAM = { group: '', k: 0, follow: '' };
 
 const ROLE_OF_STATE: Record<string, string> = {
@@ -318,7 +318,7 @@ const SEL: { ref: GroupRef | null; k: number; group: string } = { ref: null, k: 
 /**
  * Select the group for the next root / begin / end calls: a team role group if given, else the traversal group of
  * `traverse`; `k` the contact weight (role A only). `follow` writes the panel's follow keys (the local player; the
- * studio's puppets pass false). The bypass (R3 held) selects the base table's values alone (nothing when the group has
+ * chamber's puppets pass false). The bypass (R3 held) selects the base table's values alone (nothing when the group has
  * none: identity). No allocation.
  */
 export function moveTuneSelect(team: string, k: number, traverse: string, follow = true): string {

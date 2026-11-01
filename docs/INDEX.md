@@ -28,7 +28,7 @@ Read on demand (`CLAUDE.md` points here). From 2026-11-01: the control panel iss
 | `editor/`, `security/`, `dev/` | Kestrel level editor and its security devices (dev only; Kestrel paused, G53); editor bridge |
 | `pwa/`, `config/` | Service worker, fullscreen, gestures; JSON / TS content and feel tables |
 
-Maps: Marlow Yard (`ctcourse`, Course mode, `?autostart=ctcourse&mode=course`), the Test Chamber (`studio`, Free Roam or
+Maps: Marlow Yard (`ctcourse`, Course mode, `?autostart=ctcourse&mode=course`), the Test Chamber (`chamber`, Free Roam or
 test mode), Tallow Wharf (campaign preview). Saltmarsh Park and Warehouse Ops were removed in clean-up F.
 
 ## Doc index

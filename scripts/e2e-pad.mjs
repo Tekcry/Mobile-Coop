@@ -19,7 +19,7 @@ let failed = false;
 
 /** (locomotion step 10; G2b) A Test Chamber match in the test mode (guards), the loop stepped by hand, a strike harness. */
 async function strikePage(launch, url) {
-  const S = await launch({ url, params: 'autostart=studio&mode=test' });
+  const S = await launch({ url, params: 'autostart=chamber&mode=test' });
   await S.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
   return S;
 }
@@ -700,7 +700,7 @@ try {
   }
   console.log('vent by pad (vent-kick M1: the pad matches the keyboard): Y held then A held unscrews, a Y tap kicks');
   {
-    const V = await launch({ url, params: 'autostart=studio' });
+    const V = await launch({ url, params: 'autostart=chamber' });
     try {
       await V.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
       const r = await V.page.evaluate(() => {
@@ -773,7 +773,7 @@ try {
   }
   console.log('context prompts (context-prompts S4): the cluster on a door, the pad glyph, the hold ring, the key label');
   {
-    const C = await launch({ url, params: 'autostart=studio&mode=test&ctxprompts=1' });
+    const C = await launch({ url, params: 'autostart=chamber&mode=test&ctxprompts=1' });
     try {
       await C.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
       // (G2c) the Test Chamber's annex door (hinge (28.15, 19.4), the leaf along +z): 0.8 m west of it facing it, the pad the last device
@@ -935,7 +935,7 @@ try {
       assert(ov.o && ['5', '4'].includes(ov.n) && ovGone && !v.cap && v.screen && JSON.stringify((await pad()).draw) === '[11]', `Start cancels the capture; the overlay showed the 5 s countdown (5 or 4 on a slow frame) (${JSON.stringify({ ...v, ov, ovGone, polled: prS.polled })})`);
       // play: the new button draws, X does not (settings persist through IndexedDB to a new page)
       await P.waitForTimeout(600);
-      const Q = await openPage(R.ctx, url, 'autostart=studio');
+      const Q = await openPage(R.ctx, url, 'autostart=chamber');
       try {
         await Q.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
         const r = await Q.page.evaluate(() => {

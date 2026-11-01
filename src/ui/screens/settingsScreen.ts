@@ -162,7 +162,7 @@ export class SettingsScreen extends MenuScreen {
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
             // (mission-framework FLG) the Hints row only with `?missions=1` (`flags.missions`)
             flags.missions ? desc(toggle('Hints', () => s().gameplay.hints, (v) => upd((d) => void (d.gameplay.hints = v))), 'Shows a hint line under the current mission objective.') : null,
-            // (mixamo-retarget Toggle) the Animation source: a look choice (gameplay unchanged); the Anim Studio has the same switch
+            // (mixamo-retarget Toggle) the Animation source: a look choice (gameplay unchanged); the Test Chamber has the same switch
             desc(choice('Animation source', ANIM_SOURCE_OPTS, () => settingAnimSource(s().gameplay, PREVIEW_ON), (v) => upd((d) => {
               d.gameplay.animSource = v;
               d.gameplay.animSourceSet = true; // (F45) picked: the game stops defaulting to Mixamo
@@ -406,7 +406,7 @@ export class SettingsScreen extends MenuScreen {
       // (G1) the tuner row is listed in the Test Chamber only
       ...(app.debug.animTune.canOpen ? [desc(button('Animation tuner (dev)', () => app.debug.animTune.show(), { class: 'subtle', key: 'anim-tuner' }), 'Opens the animation slider panel over the game (top right). It stays open in a match until you close it with its x.')] : []),
       // (anim-studio) the Test Chamber stage on its own (single player: not offered in a co-op session)
-      ...(app.studio && !app.debug.animTune.coop?.() ? [desc(button('Test Chamber', () => app.studio?.(), { class: 'subtle', key: 'anim-studio' }), 'A plain stage with Wren to test everything: the loop player, the animation tuner, viewing aids and snapshots. Leaves a match in progress. Two players can share it from Co-op.')] : []),
+      ...(app.chamber && !app.debug.animTune.coop?.() ? [desc(button('Test Chamber', () => app.chamber?.(), { class: 'subtle', key: 'test-chamber' }), 'A plain stage with Wren to test everything: the loop player, the animation tuner, viewing aids and snapshots. Leaves a match in progress. Two players can share it from Co-op.')] : []),
     );
     return panel;
   }

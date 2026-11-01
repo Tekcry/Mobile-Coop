@@ -15,7 +15,7 @@
  * little against it), the chest rolls against the pair's side-to-side weight shift (the takedown's hold `sway`, which
  * already moves the pelvis on the local rig; a rig without it, a remote copy, shifts on the same 0.5 Hz on its own clock)
  * and a slow braced breath in the spine pitch. A few degrees at most; it fades out as the walk comes in. The Anim
- * Studio's hold clips get the same layer on their keyed trunk (`cqKeyedHold`): the brace on `hold_idle`, the hold walk's
+ * Chamber's hold clips get the same layer on their keyed trunk (`cqKeyedHold`): the brace on `hold_idle`, the hold walk's
  * counter-rotation on the hold walks.
  *
  * The values are the code defaults (`CQ_GAIT`); the tuner's "Holds and carries" section scales them (`CQ_SECTION`,
@@ -183,7 +183,7 @@ export interface CqBraceOut {
 
 /**
  * (anim-n4b) The brace's rates (Hz): the shoulder turn and its overtone, the weight shift (the takedown's hold sway,
- * `CQ.swayHz`) and the braced breath. All divide 4 s (the studio's `hold_idle` cycle), so a keyed loop closes.
+ * `CQ.swayHz`) and the braced breath. All divide 4 s (the chamber's `hold_idle` cycle), so a keyed loop closes.
  */
 export const CQ_BRACE_HZ = { turn: 0.25, turn2: 0.75, shift: CQ.swayHz, breath: 0.25 } as const;
 /** The hips turn this share of the shoulders' brace, the other way. */
@@ -192,7 +192,7 @@ export const BRACE_PELVIS = 0.3;
 /**
  * (anim-n4b) The hold standing still at `t` s held. `sway` the pair's side-to-side shift (m, + right: the takedown's
  * hold sway as the rig gets it) and `seen` 0..1 how much of it the rig has (0: a rig without it, a remote copy or the
- * studio clip: the shift runs on `t` at the same rate and `pelX` carries it). The shoulder line (0.4 pelvis + spine) turns
+ * chamber clip: the shift runs on `t` at the same rate and `pelX` carries it). The shoulder line (0.4 pelvis + spine) turns
  * by the brace, the hips `BRACE_PELVIS` of it the other way; the chest rolls against the shift (hips right, chest left:
  * + roll); the breath pitches the spine. Pure: writes `out`.
  */
@@ -281,7 +281,7 @@ export class CqGaitLayer {
 }
 
 // ------------------------------------------------------------------------------------------
-// (anim-n4b) The Anim Studio's hold clips: the same layer on the keyed trunk
+// (anim-n4b) The Test Chamber's hold clips: the same layer on the keyed trunk
 // ------------------------------------------------------------------------------------------
 
 /** `q[o..o+3]` (x, y, z, w) pre-multiplied by a yaw (about y), pitch (x) and roll (z) in Babylon's yaw-pitch-roll order
@@ -312,7 +312,7 @@ const KG: CqGaitOut = { pelYaw: 0, spYaw: 0, spRoll: 0, pelX: 0, pelY: 0 };
 const KB: CqBraceOut = { pelYaw: 0, spYaw: 0, spRoll: 0, spPitch: 0, pelX: 0 };
 
 /**
- * (anim-n4b) A studio hold clip with the game's close-quarters layer on its keyed trunk (the clips are studio-only
+ * (anim-n4b) A chamber hold clip with the game's close-quarters layer on its keyed trunk (the clips are chamber-only
  * references; the game's hold is procedural with this layer): `walk` the hold walk's counter-rotation at gait phase `ph`
  * (the left heel strike at 0), else the hold still's brace at `t` s (the shift on its own clock). `pel` the keyed pelvis
  * offset (x, y, z), `q` the pelvis, spine, chest, neck quaternions (`KQ` layout: pelvis 0, spine 4). The keyed spine is

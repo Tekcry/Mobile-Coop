@@ -322,7 +322,7 @@ export function jointsBeginRigRows(st: JointsRigState, g: number, rows: ArrayLik
   }
   const CUR = st.cur;
   const CUR_LIVE = st.live;
-  // (J1) dt 0 (a frozen game: the tuner's Pause, the studio's pause) = at once, as the registry's sections
+  // (J1) dt 0 (a frozen game: the tuner's Pause, the chamber's pause) = at once, as the registry's sections
   const k = dt > 0 ? 1 - Math.exp(-dt / JOINT_EASE_TAU) : 1;
   let curAny = false;
   for (let j = 0; j < JOINT_COUNT; j++) {

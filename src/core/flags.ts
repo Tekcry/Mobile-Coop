@@ -10,7 +10,7 @@ export interface Flags {
   /** (G2a, tests) `?guards=1`: `TestMode` starts with the map's room squads in place (`TestMode.populate`); the Test Chamber
    *  has no guards otherwise. */
   guards: boolean;
-  /** (G2b, tests) `?stage=1`: with `?autostart=studio` the animation stage (loop player, tuner panel docked) starts; without it the Test Chamber is the plain room. The main menu's Test Chamber row always starts it. */
+  /** (G2b, tests) `?stage=1`: with `?autostart=chamber` the animation stage (loop player, tuner panel docked) starts; without it the Test Chamber is the plain room. The main menu's Test Chamber row always starts it. */
   stage: boolean;
   /** (G2c, N17) The Test Chamber's practice guards: `?practice=1` turns them on for a URL boot, `?practice=0` off for the main menu
    *  row and the co-op lobby start (both start them otherwise); the tests' pages carry `practice=0` (`e2e-lib`). */

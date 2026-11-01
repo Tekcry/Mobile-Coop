@@ -1,4 +1,4 @@
-import { STUDIO } from '../anim/studio';
+import { CHAMBER } from '../anim/chamber';
 import { KEY_FIELDS, KEY_FIELD_INDEX } from '../anim/tuneKeysFile';
 import { KEY_CLIPS } from '../anim/tuneKeysMeta';
 import { tuneKeysApply, tuneKeysDiff, tuneKeysLoadFile, tuneKeysPose, tuneKeysSmooth, tuneKeysToolKeys, tuneKeysWave, type KeyToolKey } from '../anim/tuneKeys';
@@ -13,7 +13,7 @@ export interface KeyToolsKit extends PanelKit {
 
 /** What the key tools need of the panel. */
 export interface KeyToolsApi {
-  /** The clip and key id the Keys tab shows (the studio's key when it stands on one), or null. */
+  /** The clip and key id the Keys tab shows (the chamber's key when it stands on one), or null. */
   shown(): [string, number] | null;
   /** The Keys slider selected in the list ('' none). */
   selField(): string;
@@ -24,7 +24,7 @@ export interface KeyToolsApi {
   settle(): void;
   /** The slider rows show the new values. */
   rebuild(): void;
-  /** The studio paused on key `k` of `clip` (the compare ghost's one visit). */
+  /** The chamber paused on key `k` of `clip` (the compare ghost's one visit). */
   showKey(clip: string, k: number): void;
   /** The compare ghost is recorded for the compared key. */
   ghostReady(): boolean;
@@ -50,7 +50,7 @@ const PRIME_TICKS = 15;
  * - Apply to keys: the selected slider's value on this key given to the ticked keys ("All" / "None").
  * - Smooth between: two keys; the keys between them eased from one pose to the other, every slider or the selected one.
  * The Compare row is always shown: "Compare" (off by default) draws a light ghost of the previous (or a picked) key over
- * her in the studio and a one-line values diff. Each tool is one undo step and bakes through the key sliders. Pad, keys
+ * her in the chamber and a one-line values diff. Each tool is one undo step and bakes through the key sliders. Pad, keys
  * and touch reach every control (`data-pad`); the panel calls `frame` every 100 ms with the Keys tab open.
  */
 export class TunerKeyTools {
@@ -101,7 +101,7 @@ export class TunerKeyTools {
     const cb = kit.bar();
     cb.classList.add('anim-tune-kt-cmpbar');
     this.cmpBox = kit.check(cb, 'Compare', false, (v) => this.setCompare(v), 'kt:cmp', 'anim-tune-kt-cmp');
-    this.cmpBox.title = 'A light ghost of another key over her (the studio), and how this key differs from it';
+    this.cmpBox.title = 'A light ghost of another key over her (the chamber), and how this key differs from it';
     this.cmpSel = kit.sel(cb, 'with', ['prev'], () => this.cmpChanged(), 'kt:cmpkey', 'anim-tune-kt-cmpkey');
     const cl = (this.cmpLine = document.createElement('div'));
     cl.className = 'anim-tune-kt-diff tt-note';
@@ -178,7 +178,7 @@ export class TunerKeyTools {
 
   /** The tools are reached (the Keys tab shown). Every 100 ms. */
   frame(): void {
-    // (the ghost's visit moves the studio: the key it came from stays the current one)
+    // (the ghost's visit moves the chamber: the key it came from stays the current one)
     const pr = this.prime;
     // (another tab shown and no ghost: nothing to follow)
     if (!pr && !this.cmpBox.checked && this.el.offsetParent === null) return;
@@ -206,7 +206,7 @@ export class TunerKeyTools {
     this.compareFrame(clip, cur);
   }
 
-  /** Whether the compare ghost's visit is moving the studio (the panel's key follow waits). */
+  /** Whether the compare ghost's visit is moving the chamber (the panel's key follow waits). */
   get priming(): boolean {
     return this.prime !== null;
   }
@@ -227,7 +227,7 @@ export class TunerKeyTools {
       cmpKey: this.cmpSel.value,
       diff: this.cmpLine.hidden ? '' : (this.cmpLine.textContent ?? ''),
       ghost: this.api.ghostReady(),
-      comparePhase: STUDIO.comparePhase,
+      comparePhase: CHAMBER.comparePhase,
       notes: [this.waveNote.textContent ?? '', this.applyNote.textContent ?? '', this.smoothNote.textContent ?? ''],
     };
   }
@@ -521,11 +521,11 @@ export class TunerKeyTools {
   // --- compare
 
   private setCompare(on: boolean): void {
-    STUDIO.compare = on;
+    CHAMBER.compare = on;
     this.cmpLine.hidden = !on;
     this.primed = '';
     if (!on) {
-      STUDIO.comparePhase = Number.NaN;
+      CHAMBER.comparePhase = Number.NaN;
       this.prime = null;
     }
     this.cmpSig = '';
@@ -552,17 +552,17 @@ export class TunerKeyTools {
     const ck = this.cmpKey(cur);
     const ce = this.keys.find((k) => k.id === cur);
     if (!ck || !ce) {
-      STUDIO.comparePhase = Number.NaN;
+      CHAMBER.comparePhase = Number.NaN;
       set(this.cmpLine, 'Compare: pick a key');
       return;
     }
-    STUDIO.comparePhase = ck.phase;
+    CHAMBER.comparePhase = ck.phase;
     const { d, abs } = tuneKeysDiff(clip, cur, ck.id);
     // the compared key's pose changed: the ghost records again
     tuneKeysPose(clip, ck.id, this.poseBuf);
     const pose = `${clip}:${ck.id}:${Array.from(this.poseBuf, (x) => x.toFixed(3)).join(',')}`;
     if (pose !== this.cmpPose) {
-      if (this.cmpPose) STUDIO.compareVer++;
+      if (this.cmpPose) CHAMBER.compareVer++;
       this.cmpPose = pose;
       this.primed = '';
     }
@@ -575,7 +575,7 @@ export class TunerKeyTools {
   }
 
   /**
-   * The ghost is recorded while she stands on the compared key: paused in the studio on this clip, it visits that key
+   * The ghost is recorded while she stands on the compared key: paused in the chamber on this clip, it visits that key
    * once (a few frames) and comes back.
    */
   private primeGhost(clip: string, cur: number, to: number): void {
@@ -583,19 +583,19 @@ export class TunerKeyTools {
     if (p) {
       p.ticks++;
       if (p.back < 0) {
-        // on the way back: done once the studio stands on the key it came from (the panel's follow waits till then)
-        if ((STUDIO.key === p.to && STUDIO.onKey) || p.ticks > PRIME_TICKS) this.prime = null;
+        // on the way back: done once the chamber stands on the key it came from (the panel's follow waits till then)
+        if ((CHAMBER.key === p.to && CHAMBER.onKey) || p.ticks > PRIME_TICKS) this.prime = null;
         return;
       }
       if (this.api.ghostReady() || p.ticks > PRIME_TICKS) {
-        this.primed = `${clip}:${to}:${STUDIO.compareVer}`;
+        this.primed = `${clip}:${to}:${CHAMBER.compareVer}`;
         this.api.showKey(p.clip, p.back);
         this.prime = { clip: p.clip, back: -1, to: p.back, ticks: 0 };
       }
       return;
     }
-    if (!STUDIO.active || STUDIO.entry !== `keyed:${clip}` || !this.api.frozen() || this.api.ghostReady() || to === cur) return;
-    const tag = `${clip}:${to}:${STUDIO.compareVer}`;
+    if (!CHAMBER.active || CHAMBER.entry !== `keyed:${clip}` || !this.api.frozen() || this.api.ghostReady() || to === cur) return;
+    const tag = `${clip}:${to}:${CHAMBER.compareVer}`;
     if (this.primed === tag) return;
     this.prime = { clip, back: cur, to, ticks: 0 };
     this.api.showKey(clip, to);

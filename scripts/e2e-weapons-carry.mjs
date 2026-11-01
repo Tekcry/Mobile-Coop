@@ -7,7 +7,7 @@
 import { launch, frames, assert as hard } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber' });
 const G = (f, a) => page.evaluate(f, a);
 let failed = false;
 const assert = (cond, msg) => {
@@ -250,13 +250,13 @@ try {
   // (load-latent-ui2) the match loads below take up to 120 s (shaders compile on the loading screen), as elsewhere
   for (const lo of ['pistolSd,rifle']) {
     console.log(`loadout ${lo}`);
-    await page.goto(`${url}?autostart=studio&loadout=${lo}&gfx=min&gear=4`);
+    await page.goto(`${url}?autostart=chamber&loadout=${lo}&gfx=min&gear=4`);
     await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 120000 });
     await frames(page, 10);
     await G(install);
     await checkLoadout(lo, lo.split(',').length);
   }
-  await page.goto(`${url}?autostart=studio&gfx=min&gear=4`);
+  await page.goto(`${url}?autostart=chamber&gfx=min&gear=4`);
   await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 120000 });
   await G(install);
 

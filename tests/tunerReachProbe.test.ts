@@ -74,9 +74,9 @@ const LIP_CLIMB_FREE_FEET: readonly string[] = ['trav:footFwd', 'trav:footOut', 
 describe('(mixamo-retarget M5) the attached-state probe: the rows that tune a traversal clip move it', () => {
   it('every channel capture row plays in a probed state (or a named open one)', () => {
     for (const name of MOCAP_SOURCE_NAMES) {
-      const st = mocapSource(name)!.studio;
+      const st = mocapSource(name)!.chamber;
       if (st.kind !== 'trav') continue;
-      expect(ATTACH_PROBE_LOOPS[st.loop] ?? ATTACH_NOT_PROBED[st.loop], `${name}: its Studio loop ${st.loop} is probed`).toBeDefined();
+      expect(ATTACH_PROBE_LOOPS[st.loop] ?? ATTACH_NOT_PROBED[st.loop], `${name}: its Chamber loop ${st.loop} is probed`).toBeDefined();
     }
   });
 

@@ -1,5 +1,5 @@
 // (CT prototype A3: the CT shuffle 0.35 m/s, peek at once, no pull-away, no SWAT turn, no lean-out, aiming leaves.)
-// (clean-up G2b) The Test Chamber carries the solo parts (utostart=studio; the corner takedown with &mode=test).
+// (clean-up G2b) The Test Chamber carries the solo parts (utostart=chamber; the corner takedown with &mode=test).
 // Locomotion step 11: back-to-wall. The Chamber: the context press enters within 0.5 m (a 0.2-0.45 s settle onto the
 // body line), the stick slides along the wall at the gear's pace (gear <= 4) and quieter than walking, the slide
 // stops at an outside end (edge flag), pulling the stick away leaves; MoveState `wall` from the core. Warehouse
@@ -87,7 +87,7 @@ const HARNESS = () => {
 };
 
 async function proving() {
-  const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
+  const { browser, page, errors } = await launch({ url, params: 'autostart=chamber' });
   try {
     const G = (f, a) => page.evaluate(f, a);
     await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
@@ -249,7 +249,7 @@ async function flank() {
 /** (A3, G36, G137) The edge verb on the Test Chamber: the peek at once at a doorway end, the strict peek camera, the weapon hand on
  *  the open side, and aiming leaves the wall (the lean-out is gone, G52). */
 async function edges() {
-  const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
+  const { browser, page, errors } = await launch({ url, params: 'autostart=chamber' });
   try {
     const G = (f, a) => page.evaluate(f, a);
     await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
@@ -315,7 +315,7 @@ async function edges() {
 
 /** (step 12) Corner takedown on the Test Chamber (test mode): back to a wall at an outside edge, a guard round it -> kind `corner`. */
 async function cornerTakedown() {
-  const { browser, page } = await launch({ url, params: 'autostart=studio&mode=test' });
+  const { browser, page } = await launch({ url, params: 'autostart=chamber&mode=test' });
   try {
     const G = (f, a) => page.evaluate(f, a);
     await page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });

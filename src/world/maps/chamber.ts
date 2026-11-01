@@ -1,21 +1,21 @@
 import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
-import { STUDIO_MID as C, STUDIO_PROPS as P, STUDIO_SIZE as SIZE } from '../../anim/studioProps';
+import { CHAMBER_MID as C, CHAMBER_PROPS as P, CHAMBER_SIZE as SIZE } from '../../anim/chamberProps';
 
 /**
- * (anim-studio) The Test Chamber (was the Anim Studio; the map id stays `studio`): a dev scene, not a level (it is not in
+ * (anim-studio) The Test Chamber (was the Anim Studio; the map id was `studio` until the Test Chamber rename, now `chamber`): a dev scene, not a level (it is not in
  * `MAPS`, no map list shows it; its `modes` (Free Roam, and (G2a) `test`: guards by test, revives) are for the URL boot
- * and the room; `getMap('studio')` finds it in `DEV_MAPS`, `?autostart=studio` boots it in Free Roam (`&mode=test` in the
+ * and the room; `getMap('chamber')` finds it in `DEV_MAPS`, `?autostart=chamber` boots it in Free Roam (`&mode=test` in the
  * test mode), the main menu's Test Chamber row starts it alone and the co-op lobby's Test Chamber mode hosts it for
- * two in `test`: the studio stage and its loop player run in the single player match only). The level design
+ * two in `test`: the chamber stage and its loop player run in the single player match only). The level design
  * standard (`docs/level-design.md`) binds playable maps; this is a plain room to look at the animation in, like the old
  * menu void: a dark floor with a 1 m grid (visual only: thin boxes that never collide), dark walls all round as the
  * backdrop, a warm key lamp front left, a cool rim lamp behind and a soft fill. Wren stands in the middle facing +z.
  * x east, z north, floor at 0.
  *
  * (anim-studio-2) A 28 m room (was 16) with the traversal props round the walls, clear of the middle (the loop player's
- * 2 m circle): real level pieces and anchors from the builder (`STUDIO_PROPS` in `anim/studioProps.ts` has every
+ * 2 m circle): real level pieces and anchors from the builder (`CHAMBER_PROPS` in `anim/chamberProps.ts` has every
  * number), so the game's own probes, attach states and moves play on them: the co-op team block (the pairs' 4.4 m lip and
  * a rappel point), a wall with a 2.4 m ledge, a low wall to vault, a platform with a ladder and a drainpipe (its south
  * face the back-to-wall wall), a horizontal pipe, a hang bar, a vent duct, a window and a door.
@@ -23,10 +23,10 @@ import { STUDIO_MID as C, STUDIO_PROPS as P, STUDIO_SIZE as SIZE } from '../../a
  * (G2b, `docs/plan/TEST-CHAMBER-SPEC.md`) The test bed: pieces for the movement, traversal and combat suites in the same
  * room and colours (a step row, a crouch tunnel, 35 and 55 degree stairs / ramp, a fence, hang block B, a split fin,
  * a zipline, a rappel booth with a glazed window and a roof vent, crates, barrels, two training dummies). The animation
- * stage (loop player, tuner) is opt-in: the main menu row or `?stage=1`; the plain `?autostart=studio` is the normal game.
+ * stage (loop player, tuner) is opt-in: the main menu row or `?stage=1`; the plain `?autostart=chamber` is the normal game.
  */
-export const studio: MapDef = {
-  id: 'studio',
+export const chamber: MapDef = {
+  id: 'chamber',
   name: 'Test Chamber',
   description: 'A plain room to test everything: the animation tuner, the loop player and the traversal props. One or two players.',
   modes: ['sandbox', 'test'],

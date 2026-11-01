@@ -12,7 +12,7 @@
  * One switch per machine: every rig drawn here follows it, the local player and the co-op partner alike (a visual
  * choice; nothing goes on the wire, the partner's machine draws by its own setting). Guards never play the keyed sets
  * (`AnimInput.keyedOk` is off for them). The drawn set (gun out), the crouched set, the standing idle and the wall set
- * stay hand-keyed; so do the guards, the studio's keyed loops and every weapon clip. (mocap-trial-2) Except the holstered
+ * stay hand-keyed; so do the guards, the chamber's keyed loops and every weapon clip. (mocap-trial-2) Except the holstered
  * crouched sneak band's body: the set's `crouchWalk` (CMU 136_09) over the planner's feet (animGraph `crouchSet`, BRIEF A5).
  */
 import { GLIDE_SIDE, sideStepAt, TURN_GAIT_MIN } from './motion';

@@ -1,27 +1,27 @@
 /**
- * (anim-studio-2) The Anim Studio's traversal rig (pure, Babylon-free; a dev aid): where the props stand on the stage
- * (`STUDIO_PROPS`, built as real level geometry and anchors by `world/maps/studio.ts`, so the game's own traversal
+ * (anim-studio-2) The Test Chamber's traversal rig (pure, Babylon-free; a dev aid): where the props stand on the stage
+ * (`CHAMBER_PROPS`, built as real level geometry and anchors by `world/maps/chamber.ts`, so the game's own traversal
  * plays on them), and the traversal loops: Wren is put at a start spot, walks to the prop and plays the move by
  * synthesised input (the same buttons a player presses), then she is reset and it repeats (`travTick`).
  *
- * Sizes are the engine's numbers (re-checked by `tests/animStudio2.test.ts`): a vault is at most 1.25 m high and 1.0 m
+ * Sizes are the engine's numbers (re-checked by `tests/animChamber2.test.ts`): a vault is at most 1.25 m high and 1.0 m
  * deep (`pickTraversal`); a lip hangs from 1.9 m (`LEDGE.minDrop`) and is grabbed from the floor up to 2.7 m
  * (`REACH.grabMax`); the co-op lip is in the 4.3-4.5 m band (G57, `inBoostBand`); the ladder is 0.5 m wide; the duct is the
  * Proving Grounds' 1.0 x 1.1 m crawlspace; the window is every map's 1.2 x 1.2 m at a 0.9 m sill; the door the scale sheet's
  * 1.2 x 2.1 m single door.
  */
-import type { PairStation } from './studioPairs';
-import { PAIR_TOP, STUDIO_PROPS } from './studioProps';
+import type { PairStation } from './chamberPairs';
+import { PAIR_TOP, CHAMBER_PROPS } from './chamberProps';
 
-export { STUDIO_MID, STUDIO_PROPS, STUDIO_SIZE } from './studioProps';
+export { CHAMBER_MID, CHAMBER_PROPS, CHAMBER_SIZE } from './chamberProps';
 
 /** The pairs' station: the team block's south face (outward normal -z). */
 export const PAIR_STATION: PairStation = {
-  x: (STUDIO_PROPS.team.x0 + STUDIO_PROPS.team.x1) / 2,
-  z: STUDIO_PROPS.team.z0,
+  x: (CHAMBER_PROPS.team.x0 + CHAMBER_PROPS.team.x1) / 2,
+  z: CHAMBER_PROPS.team.z0,
   yaw: Math.PI,
-  top: STUDIO_PROPS.team.top,
-  width: STUDIO_PROPS.team.x1 - STUDIO_PROPS.team.x0,
+  top: CHAMBER_PROPS.team.top,
+  width: CHAMBER_PROPS.team.x1 - CHAMBER_PROPS.team.x0,
 };
 
 /** A button the loops press (the game's actions). */
@@ -45,7 +45,7 @@ export interface TravStep {
 export interface TravEntry {
   id: string;
   label: string;
-  prop: keyof typeof STUDIO_PROPS;
+  prop: keyof typeof CHAMBER_PROPS;
   start: { x: number; y: number; z: number; yaw: number };
   walk: number;
   /** Seconds standing still after the reset (the weapon holsters, the probe runs). */

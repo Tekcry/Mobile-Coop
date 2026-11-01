@@ -383,7 +383,7 @@ try {
   assert((await top()) === 'main-menu', 'Esc: Settings back to the main menu');
   const menuKeys = await G(() => [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(','));
   // (anim-studio) the developer row Test Chamber last
-  assert(menuKeys === 'coop,loadout,settings,feedback,anim-studio', `the main menu is Co-op, Loadout, Settings, Feedback, Test Chamber (${menuKeys})`);
+  assert(menuKeys === 'coop,loadout,settings,feedback,test-chamber', `the main menu is Co-op, Loadout, Settings, Feedback, Test Chamber (${menuKeys})`);
   // (marlow-bays R1) no rejoin row without a room; a room left in the last 10 minutes shows "Rejoin <code>" after Co-op
   const rj = await G(() => {
     sessionStorage.setItem('ns-rejoin', JSON.stringify({ code: 'ABCDE', role: 'client', at: Date.now(), mode: 'course', map: 'ctcourse', difficulty: 'normal', mission: '', weather: 'clear', bay: 2 }));
@@ -392,7 +392,7 @@ try {
     const label = document.querySelector('.main-menu [data-key="rejoin"] .btn-label')?.textContent ?? '';
     return { keys, label };
   });
-  assert(rj.keys === 'rejoin,coop,loadout,settings,feedback,anim-studio' && rj.label === 'Rejoin ABCDE', `a left room shows Rejoin <code> on the main menu (${JSON.stringify(rj)})`);
+  assert(rj.keys === 'rejoin,coop,loadout,settings,feedback,test-chamber' && rj.label === 'Rejoin ABCDE', `a left room shows Rejoin <code> on the main menu (${JSON.stringify(rj)})`);
   await G(() => {
     sessionStorage.removeItem('ns-rejoin');
   });
@@ -413,7 +413,7 @@ try {
   // quit confirm, Start, the controller drop; the Objectives screen of a mission match on the Marlow Yard course (below), and the
   // pause row of the animation tuner with the stage on
   console.log('pause on the Test Chamber (G2c)');
-  const S = await launch({ url, params: 'autostart=studio&mode=test' });
+  const S = await launch({ url, params: 'autostart=chamber&mode=test' });
   try {
     const P = S.page;
     const GM = (f, a) => P.evaluate(f, a);
@@ -448,7 +448,7 @@ try {
     // but the pause row needs the stage (below)
     // (hud-guidance B5, R12) Notes right after Objectives
     assert(keys === 'resume,objectives,notes,settings,report-feedback,quit', `pause items (${keys})`);
-    assert(!keys.includes('anim-studio') && !keys.includes('anim-tuner'), `the pause menu has no Test Chamber row and, with the stage off, no Animation tuner row (${keys})`);
+    assert(!keys.includes('test-chamber') && !keys.includes('anim-tuner'), `the pause menu has no Test Chamber row and, with the stage off, no Animation tuner row (${keys})`);
     const gate0 = await GM(() => ({ can: window.__app.debug.animTune.canOpen, row: window.__app.debug.animTune.pauseRow }));
     assert(gate0.can && !gate0.row, `the tuner may open on the Test Chamber but its pause row waits for the stage (${JSON.stringify(gate0)})`);
     // (G2c) the test mode has no objectives: the screen says so (the Marlow Yard course's own is below)
@@ -493,11 +493,11 @@ try {
     await S.browser.close();
   }
   // (G2c) the animation stage on: the pause menu lists the tuner row before Quit
-  const SS = await launch({ url, params: 'autostart=studio&stage=1' });
+  const SS = await launch({ url, params: 'autostart=chamber&stage=1' });
   try {
     const P = SS.page;
     const GM = (f, a) => P.evaluate(f, a);
-    await P.waitForFunction(() => window.__app.current?.player && window.__app.current.studio, null, { timeout: 90000 });
+    await P.waitForFunction(() => window.__app.current?.player && window.__app.current.chamber, null, { timeout: 90000 });
     await frames(P, 30);
     await GM(() => window.__app.current.pause());
     await frames(P, 4);
@@ -518,7 +518,7 @@ try {
     await GM(() => window.__app.current.pause());
     await frames(P, 4);
     const ck = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key));
-    assert(!ck.includes('anim-studio') && !ck.includes('anim-tuner'), `the course's pause menu has no Test Chamber row and no Animation tuner row (${ck})`);
+    assert(!ck.includes('test-chamber') && !ck.includes('anim-tuner'), `the course's pause menu has no Test Chamber row and no Animation tuner row (${ck})`);
     const gate = await GM(() => {
       const t = window.__app.debug.animTune;
       t.show();

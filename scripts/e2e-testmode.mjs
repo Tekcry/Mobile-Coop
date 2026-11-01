@@ -1,4 +1,4 @@
-// (clean-up G2a) The Test Chamber's test mode, single player: `?autostart=studio&mode=test` is a match with the guards'
+// (clean-up G2a) The Test Chamber's test mode, single player: `?autostart=chamber&mode=test` is a match with the guards'
 // systems (nav, enemy manager, interactables) and a real `g.mode` (`TestMode`), nothing queued, infinite ammo, no
 // progression. A guard spawned by the test walks its route, a solo death respawns (no DEFEAT with `lives` at Infinity),
 // `?guards=1` is accepted (the chamber has no room squads yet). Then `mode=sandbox` on the same map is unchanged (no nav,
@@ -13,7 +13,7 @@ const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
 const errors = [];
 const NOISE = /GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext|GL Driver/i;
-// (G2c) the practice guards' spots (STUDIO_PROPS.practice): two side by side with their backs to the spawns, one facing them
+// (G2c) the practice guards' spots (CHAMBER_PROPS.practice): two side by side with their backs to the spawns, one facing them
 const SPOTS = [[12.75, 16.75], [15.25, 16.75], [19.75, 16.25]];
 /** The practice guards' checks on a page whose match has them: three passive grunts on their spots, a downed one back 10 s later, never on a player. */
 async function practiceChecks(G, label) {
@@ -62,8 +62,8 @@ async function boot(params, fn) {
 }
 
 try {
-  console.log('studio, test mode');
-  await boot('autostart=studio&mode=test', async (page, G) => {
+  console.log('chamber, test mode');
+  await boot('autostart=chamber&mode=test', async (page, G) => {
     await frames(page, 3);
     const s = await G(() => {
       const g = window.__app.current;
@@ -83,7 +83,7 @@ try {
         ints: !!g.interactables,
       };
     });
-    assert(s.map === 'studio' && s.mode === 'test', `the Test Chamber boots in the test mode (${s.map} / ${s.mode})`);
+    assert(s.map === 'chamber' && s.mode === 'test', `the Test Chamber boots in the test mode (${s.map} / ${s.mode})`);
     assert(s.modeId === 'test', `g.mode is the test mode (${s.modeId})`);
     assert(s.nav && s.em && s.ints, `the guards' systems are up: nav ${s.nav}, enemy manager ${s.em}, interactables ${s.ints}`);
     assert(s.stealth === true && s.coordinated === true, `stealth rules and the coordinated hearing (${s.stealth} / ${s.coordinated})`);
@@ -142,17 +142,17 @@ try {
     assert(d.lives === Infinity, `lives stay at Infinity (${d.lives})`);
   });
 
-  console.log('studio, test mode with ?guards=1');
+  console.log('chamber, test mode with ?guards=1');
   // (0b) with the load gate on (the default): the five annex guards placed at the match start once threw a render error in the first frames (`reading 'world'`; fixed in `GameState.gateCompile`)
-  await boot('autostart=studio&mode=test&guards=1', async (page, G) => {
+  await boot('autostart=chamber&mode=test&guards=1', async (page, G) => {
     await frames(page, 2);
     const s = await G(() => { const g = window.__app.current; return { mode: g.mode?.id, alive: g.enemyMgr?.alive }; });
     assert(s.mode === 'test' && s.alive === 5, `?guards=1 places the map's room squads: five guards in the annex (${s.mode}, ${s.alive} guards)`);
     assert(await G(() => window.__app.current.enemyMgr.enemies.every((e) => !e.passive && e.pos.x > 28)), 'all of them in the annex, none passive (the practice guards come with ?practice=1)');
   });
 
-  console.log('studio, test mode with ?practice=1 (G2c, N17)');
-  await boot('autostart=studio&mode=test&practice=1', async (page, G) => {
+  console.log('chamber, test mode with ?practice=1 (G2c, N17)');
+  await boot('autostart=chamber&mode=test&practice=1', async (page, G) => {
     await frames(page, 2);
     await practiceChecks(G, 'practice=1');
   });
@@ -161,13 +161,13 @@ try {
   for (const [params, guards] of [['practice=1', 3], ['practice=0', 0]]) {
     const { browser, page, errors: errs } = await launch({ url, params });
     try {
-      await page.waitForSelector('.main-menu [data-key="anim-studio"]', { timeout: 90000 });
-      await page.click('.main-menu [data-key="anim-studio"]');
+      await page.waitForSelector('.main-menu [data-key="test-chamber"]', { timeout: 90000 });
+      await page.click('.main-menu [data-key="test-chamber"]');
       // (one-game) map-ready is on by default: the sim is held until its load gate releases it (__mapReady.released)
-      await page.waitForFunction(() => window.__app.current?.player && window.__app.current.opts?.map?.id === 'studio' && window.__mapReady?.released, null, { timeout: 180000 });
+      await page.waitForFunction(() => window.__app.current?.player && window.__app.current.opts?.map?.id === 'chamber' && window.__mapReady?.released, null, { timeout: 180000 });
       await frames(page, 3);
       const G = (f, a) => page.evaluate(f, a);
-      const s = await G(() => { const g = window.__app.current; return { mode: g.opts.mode, modeId: g.mode?.id ?? null, stage: !!g.studio, hook: !!window.__studioStage, dummies: g.dummies.length, alive: g.enemyMgr?.alive, practice: g.opts.practice }; });
+      const s = await G(() => { const g = window.__app.current; return { mode: g.opts.mode, modeId: g.mode?.id ?? null, stage: !!g.chamber, hook: !!window.__chamberStage, dummies: g.dummies.length, alive: g.enemyMgr?.alive, practice: g.opts.practice }; });
       assert(s.mode === 'test' && s.modeId === 'test' && s.stage && s.hook && s.dummies === 0, `${params}: the menu row starts the test mode with the animation stage (${JSON.stringify(s)})`);
       assert(s.alive === guards, `${params}: ${guards} practice guards stand in the match (${s.alive})`);
       if (guards) await practiceChecks(G, `menu start ${params}`);
@@ -178,8 +178,8 @@ try {
       await browser.close();
     }
   }
-  console.log('studio, free roam (unchanged)');
-  await boot('autostart=studio&mode=sandbox', async (page, G) => {
+  console.log('chamber, free roam (unchanged)');
+  await boot('autostart=chamber&mode=sandbox', async (page, G) => {
     await frames(page, 2);
     const s = await G(() => {
       const g = window.__app.current;
@@ -190,18 +190,18 @@ try {
     assert(/try every weapon/.test(s.obj ?? ''), `the free roam objective for a map with targets (${s.obj})`);
   });
 
-  console.log('studio, the animation stage (?stage=1)');
-  await boot('autostart=studio&stage=1&mode=sandbox', async (page, G) => {
+  console.log('chamber, the animation stage (?stage=1)');
+  await boot('autostart=chamber&stage=1&mode=sandbox', async (page, G) => {
     await frames(page, 2);
-    const s = await G(() => { const g = window.__app.current; return { stage: !!g.studio, dummies: g.dummies.length, entry: window.__studioStage ? 'hook' : '' }; });
+    const s = await G(() => { const g = window.__app.current; return { stage: !!g.chamber, dummies: g.dummies.length, entry: window.__chamberStage ? 'hook' : '' }; });
     assert(s.stage && s.dummies === 0, `the stage starts with ?stage=1 and has no dummies in its room (stage ${s.stage}, dummies ${s.dummies})`);
   });
 
-  console.log('studio, free roam has no stage');
-  await boot('autostart=studio&mode=sandbox', async (page, G) => {
+  console.log('chamber, free roam has no stage');
+  await boot('autostart=chamber&mode=sandbox', async (page, G) => {
     await frames(page, 2);
-    const s = await G(() => { const g = window.__app.current; return { stage: !!g.studio, hook: !!window.__studioStage }; });
-    assert(!s.stage && !s.hook, `plain autostart=studio is the normal game: no animation stage (${s.stage}, ${s.hook})`);
+    const s = await G(() => { const g = window.__app.current; return { stage: !!g.chamber, hook: !!window.__chamberStage }; });
+    assert(!s.stage && !s.hook, `plain autostart=chamber is the normal game: no animation stage (${s.stage}, ${s.hook})`);
   });
 
   console.log('proving grounds, test mode');

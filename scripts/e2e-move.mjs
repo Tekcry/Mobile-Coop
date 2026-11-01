@@ -13,7 +13,7 @@ const FOOT = { back: FG.HEEL_BACK, down: FG.HEEL_DOWN, ball: FG.TOE_BALL };
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 // (gear=none: the real spawn cap, 5 = none; anim-rework S1)
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio&gear=none' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber&gear=none' });
 let failed = false;
 const P = () => page.evaluate(() => { const c = window.__app.current.player.controller; return { x: c.pos.x, y: c.pos.y, z: c.pos.z, crouched: c.crouched, grounded: c.grounded }; });
 const tp = (x, y, z, yaw = 0) => page.evaluate(([x, y, z, yaw]) => { const p = window.__app.current.player; p.controller.teleport(new p.controller.pos.constructor(x, y, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; }, [x, y, z, yaw]);

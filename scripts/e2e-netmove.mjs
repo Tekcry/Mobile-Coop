@@ -193,7 +193,7 @@ async function reset() {
 }
 
 try {
-  await startMode('test', 'studio');
+  await startMode('test', 'chamber');
   const mv = await GA(() => window.__app.current.net.remotes.values().next().value.state.mv);
   assert(mv && mv.m === 'ground', `the client's move state reaches the host (${JSON.stringify(mv)})`);
 
@@ -878,7 +878,7 @@ try {
   mainClosed = true;
   const off = await hostAndJoin(urlKit('0'), 2);
   try {
-    await off.startMode('test', 'studio');
+    await off.startMode('test', 'chamber');
     const OA = off.A;
     const OB = off.B;
     await allowTeleport(OA);

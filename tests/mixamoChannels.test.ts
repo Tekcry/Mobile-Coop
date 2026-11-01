@@ -2,7 +2,7 @@
 // read back from their source files, the key reduction's error bound on the game's own curves, the loop clock (the
 // cadence's reach starts), the climb-up warp landing its events on the game's constants, a synthetic hang loop end to
 // end, the source-row block writer, and every committed trav_<slug>.ts module (built through makeClip at import, header,
-// events, its source row and Studio loop).
+// events, its source row and Chamber loop).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs build script without types
@@ -13,10 +13,10 @@ import { curve, evalCurve } from '../src/anim/curves';
 import { CH, CHANNELS, type Channel } from '../src/anim/pose';
 import { CLIMB_UP, CLIMB_UP_CROUCH_K } from '../src/anim/clips/traverse';
 import { MOCAP_SOURCES } from '../src/anim/mocapSources';
-import { TRAV_ENTRIES } from '../src/anim/studioTraversal';
+import { TRAV_ENTRIES } from '../src/anim/chamberTraversal';
 
 type V = number[];
-interface Recipe { slug: string; emit: 'chanLoop' | 'chanPath'; family: string; studio: string; replaces: string; end?: string }
+interface Recipe { slug: string; emit: 'chanLoop' | 'chanPath'; family: string; chamber: string; replaces: string; end?: string }
 interface Anchor { name: string; t: number; k: number }
 interface Res { ts: number[]; series: Record<string, number[]>; loop: boolean; events: Record<string, number>; seconds: number; reach: { L: number | null; R: number | null } }
 interface Red { keys: Record<string, number[]>; err: Record<string, number>; nKeys: number }
@@ -195,7 +195,7 @@ function hangTake(): Take {
   ]);
   return { take: 'synthetic hang', frames: n, pos, quat, skel: { bones }, report: { file: 'Synthetic Hang (test).fbx' } };
 }
-const SHIMMY: Recipe = { slug: 'synthetic_hang', emit: 'chanLoop', family: 'hang', studio: 'trav:ledge', replaces: 'HANG' };
+const SHIMMY: Recipe = { slug: 'synthetic_hang', emit: 'chanLoop', family: 'hang', chamber: 'trav:ledge', replaces: 'HANG' };
 
 describe('mixamoChannels: a synthetic hang loop end to end', () => {
   it('finds each hand reach start, keys the loop on the cadence and holds the bound on the game curve', () => {
@@ -241,10 +241,10 @@ describe('mixamoChannels: the source rows', () => {
     expect(() => M.writeRows('no markers', [])).toThrow(/marker block/);
   });
 
-  it('a row names the Mixamo title, the file, the credit and the Studio loop', () => {
+  it('a row names the Mixamo title, the file, the credit and the Chamber loop', () => {
     expect(M.titleOf('Kneel Down (lay body).fbx')).toBe('Kneel Down');
     expect(M.sourceRow(M.TRAV_RECIPES[0]!, 'Hanging Idle.fbx')).toBe(
-      "  mocap_hanging_idle: { source: 'mixamo', title: 'Hanging Idle', take: 'Hanging Idle.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'trav', loop: 'trav:ledge' } },",
+      "  mocap_hanging_idle: { source: 'mixamo', title: 'Hanging Idle', take: 'Hanging Idle.fbx', credit: MIXAMO_CREDIT, chamber: { kind: 'trav', loop: 'trav:ledge' } },",
     );
   });
 });
@@ -260,7 +260,7 @@ describe('mixamoChannels: the committed modules', () => {
   });
 
   for (const r of M.TRAV_RECIPES) {
-    it(`${r.slug}: built through makeClip, its header, clock, events, row and Studio loop`, () => {
+    it(`${r.slug}: built through makeClip, its header, clock, events, row and Chamber loop`, () => {
       const path = `../src/anim/clips/mixamo/trav_${r.slug}.ts`;
       const mod = MODULES[path]!;
       const text = TEXT[path]!;
@@ -301,11 +301,11 @@ describe('mixamoChannels: the committed modules', () => {
       } else if (r.slug !== 'hanging_idle') {
         expect(clip.events).toEqual({ rReach: 0, lReach: 0.5 });
       }
-      // the source row (M5's table, the M4 block) and its Studio loop
+      // the source row (M5's table, the M4 block) and its Chamber loop
       const row = MOCAP_SOURCES[`mocap_${r.slug}`]!;
       expect(row.source).toBe('mixamo');
-      expect(row.studio).toEqual({ kind: 'trav', loop: r.studio });
-      expect(TRAV_ENTRIES.some((t) => t.id === r.studio)).toBe(true);
+      expect(row.chamber).toEqual({ kind: 'trav', loop: r.chamber });
+      expect(TRAV_ENTRIES.some((t) => t.id === r.chamber)).toBe(true);
     });
   }
 });
