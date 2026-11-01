@@ -203,10 +203,6 @@ async function boot(): Promise<void> {
       if (!app.settings.get().video.brightnessSet && !navigator.webdriver && app.screens.top === menu) app.screens.push(new BrightnessScreen(app));
     };
     const titleAllowed = !navigator.webdriver || titleFlag;
-    // music project: `?musiclab=1` opens the lab over the menu (debug)
-    if (flags.musicLab) void import('./audio/music/musicLab').then((m) => app.screens.push(new m.MusicLabScreen(app)));
-    if (flags.foleyLab) void import('./audio/foley/foleyLab').then((m) => app.screens.push(new m.FoleyLabScreen(app)));
-    if (flags.weaponLab) void import('./audio/weapons/weaponLab').then((m) => app.screens.push(new m.WeaponLabScreen(app)));
     // 3.6 Step 4b: the brightness calibration, once after the update (skippable; never under automation)
     let title: TitleScreen | null = null;
     if (titleAllowed && !titleShown) {

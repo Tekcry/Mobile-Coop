@@ -6,7 +6,6 @@ import { readWav } from '../src/audio/music/render/wavRead';
 import { loopSeconds, SKETCHES } from '../src/audio/music/render/sketches';
 import { Rng } from '../src/audio/music/rng';
 import { encodeWav } from '../src/audio/music/wav';
-import { FADE_DOWN, FADE_UP, fadeTime, loopRegion, STATE_GAINS, threatGains } from '../src/audio/music/stemMix';
 
 /** A decaying 110 Hz tone with a sharp onset: a stand-in for a recorded hit. */
 function hitSrc(sec = 0.5, hz = 110): Src {
@@ -176,36 +175,5 @@ describe('composition helpers', () => {
       expect(s.bpm).toBeGreaterThanOrEqual(80);
       expect(s.bpm).toBeLessThanOrEqual(100);
     }
-  });
-});
-
-describe('stem mix', () => {
-  it('stacks: calm always, caution over it, alert over both; evasion thins alert', () => {
-    expect(STATE_GAINS.calm).toEqual([1, 0, 0]);
-    expect(STATE_GAINS.caution).toEqual([1, 1, 0]);
-    expect(STATE_GAINS.alert).toEqual([1, 1, 1]);
-    expect(STATE_GAINS.evasion[2]).toBeGreaterThan(0);
-    expect(STATE_GAINS.evasion[2]).toBeLessThan(0.5);
-  });
-
-  it('threat fades caution in before alert, monotonically', () => {
-    expect(threatGains(0)).toEqual([1, 0, 0]);
-    expect(threatGains(1)).toEqual([1, 1, 1]);
-    expect(threatGains(0.5)[1]).toBeCloseTo(1, 6);
-    expect(threatGains(0.5)[2]).toBe(0);
-    let prev = threatGains(0);
-    for (let x = 0.05; x <= 1; x += 0.05) {
-      const g = threatGains(x);
-      expect(g[1]).toBeGreaterThanOrEqual(prev[1] - 1e-9);
-      expect(g[2]).toBeGreaterThanOrEqual(prev[2] - 1e-9);
-      prev = g;
-    }
-  });
-
-  it('rises fast and falls slowly', () => {
-    expect(fadeTime(STATE_GAINS.calm, STATE_GAINS.alert)).toBe(FADE_UP);
-    expect(fadeTime(STATE_GAINS.alert, STATE_GAINS.calm)).toBe(FADE_DOWN);
-    expect(FADE_DOWN).toBeGreaterThan(FADE_UP);
-    expect(loopRegion(0.5, 60)).toEqual({ start: 0.5, end: 60.5 });
   });
 });

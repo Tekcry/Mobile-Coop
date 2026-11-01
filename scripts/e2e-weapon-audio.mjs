@@ -1,7 +1,7 @@
 // Weapon sounds (CC0 sprite): the sprite decodes and lines up; the rifle's automatic fire plays one shot per round
 // with its brass, the choke keeps the voice count low; a suppressed gun plays its suppressed bank; reload, dry fire and
-// a guard's or teammate's shot play; the noise guards hear is unchanged (the sounds are cosmetic). Then the weapon lab
-// (`?weaponlab=1`). Proving Grounds, fake gamepad, headless audio.
+// a guard's or teammate's shot play; the noise guards hear is unchanged (the sounds are cosmetic). Proving Grounds,
+// fake gamepad, headless audio.
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -126,54 +126,5 @@ try {
   failed = true;
 }
 await browser.close();
-
-// the weapon lab (`?weaponlab=1`): every gun fires; burst and auto, suppressed, distances, reloads and brass play
-if (!failed) {
-  const lab = await launch({ url, params: 'weaponlab=1' });
-  try {
-    const p = lab.page;
-    await p.waitForSelector('.weapon-lab', { timeout: 90000 });
-    const click = (text) => p.locator('.weapon-lab .btn').filter({ hasText: new RegExp(`^${text}`) }).first().click();
-    const shots = () => p.evaluate(() => window.__app.weaponAudio.stats.shots + window.__app.weaponAudio.stats.remote);
-    await click('Fire');
-    await p.waitForFunction(() => window.__app.weaponAudio.stats.loaded, null, { timeout: 30000 });
-    const gunBtns = p.locator('.weapon-lab .lab-gun .btn');
-    const guns = await gunBtns.count();
-    const campaign = await p.locator('.weapon-lab .lab-gun').first().locator('.btn').count();
-    assert(guns === 2 && campaign === 2, `the lab lists the CT kit, the rifle and the suppressed pistol (${guns}, ${campaign})`);
-    for (let i = 0; i < guns; i++) {
-      const n0 = await shots();
-      await gunBtns.nth(i).click();
-      await click('Fire');
-      await p.waitForFunction((n) => window.__app.weaponAudio.stats.shots + window.__app.weaponAudio.stats.remote > n, n0, { timeout: 5000 });
-    }
-    assert(true, 'every gun fires in the lab');
-    await click('Auto');
-    const a0 = await shots();
-    await click('Fire');
-    await p.waitForTimeout(1300);
-    assert((await shots()) - a0 >= 5, `auto fires a run (${(await shots()) - a0} shots)`);
-    await click('Suppressed');
-    await click('Guard 18');
-    await click('Single');
-    const r0 = await p.evaluate(() => ({ ...window.__app.weaponAudio.stats }));
-    await click('Fire');
-    await click('Reload');
-    await click('Empty reload');
-    await click('Brass');
-    await click('Dry fire');
-    await p.waitForTimeout(400);
-    const r1 = await p.evaluate(() => ({ ...window.__app.weaponAudio.stats }));
-    assert(r1.remote > r0.remote && r1.reloads - r0.reloads === 2 && r1.casings > r0.casings && r1.dry > r0.dry, `the lab plays a guard shot, reloads, brass and dry fire (${JSON.stringify({ remote: r1.remote - r0.remote, reloads: r1.reloads - r0.reloads, casings: r1.casings - r0.casings, dry: r1.dry - r0.dry })})`);
-    await click('Old synth');
-    await click('Fire');
-    await p.waitForTimeout(200);
-    assert(lab.errors.length === 0, `lab: no console errors${lab.errors.length ? ': ' + lab.errors.join(' | ') : ''}`);
-  } catch (e) {
-    console.error(e);
-    failed = true;
-  }
-  await lab.browser.close();
-}
 if (failed || process.exitCode) process.exit(1);
 console.log('\nweapon audio e2e passed');

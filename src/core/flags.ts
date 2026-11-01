@@ -48,12 +48,6 @@ export interface Flags {
   /** (campus-greybox A28) Sector Ops, dev and walk links (`?sectorStart=N`, N 1-9): every run on the page starts at section
    *  N as its connectors leave it, a practice run (nothing saved); null when absent. The co-op host's link wins. */
   sectorStart: number | null;
-  /** Music project: `?musiclab=1` opens the music lab (a debug screen) after boot. */
-  musicLab: boolean;
-  /** `?foleylab=1` opens the foley lab (movement sounds, a debug screen) after boot. */
-  foleyLab: boolean;
-  /** `?weaponlab=1` opens the weapon lab (gun sounds, a debug screen) after boot. */
-  weaponLab: boolean;
   /** Sector Ops, dev and tests (`?sectorGuards=N`): at most N guards per section spawn (alarm reinforcements on top). */
   sectorGuards: number | null;
   /** (piano SO3) Dev and the GPU check (`?torchSlots=8`): the map's guard torch slots over its `MapDef.torchSlots`
@@ -285,9 +279,6 @@ export const flags: Flags = {
   devDraft: import.meta.env.DEV && params.get('editorDraft') === '1',
   spawn: import.meta.env.DEV ? readSpawn(params.get('spawn')) : null,
   sectorStart: /^[1-9]$/.test(params.get('sectorStart') ?? '') ? Number(params.get('sectorStart')) : null,
-  musicLab: params.get('musiclab') === '1',
-  foleyLab: params.get('foleylab') === '1',
-  weaponLab: params.get('weaponlab') === '1',
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
   torchSlots: /^\d{1,2}$/.test(params.get('torchSlots') ?? '') ? Number(params.get('torchSlots')) : null,
   torchShadows: /^\d{1,2}$/.test(params.get('torchShadows') ?? '') ? Number(params.get('torchShadows')) : null,

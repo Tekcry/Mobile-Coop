@@ -186,8 +186,6 @@ export class SettingsScreen extends MenuScreen {
             desc(slider('Effects', { min: 0, max: 1, step: 0.05, get: () => s().audio.sfx, set: (v) => upd((d) => void (d.audio.sfx = v)), format: pct }), 'Footsteps, guns, doors, guards and the world around you.'),
             desc(slider('Music', { min: 0, max: 1, step: 0.05, get: () => s().audio.music, set: (v) => upd((d) => void (d.audio.music = v)), format: pct }), 'The score, in menus and in missions.'),
             desc(slider('Interface', { min: 0, max: 1, step: 0.05, get: () => s().audio.ui, set: (v) => upd((d) => void (d.audio.ui = v)), format: pct }), 'Menu sounds: moving, selecting and going back.'),
-            // (music project) a debug screen for the score: dev flag `?debug=1`
-            flags.debug ? button('Music lab', () => void import('../../audio/music/musicLab').then((m) => app.screens.push(new m.MusicLabScreen(app))), { class: 'subtle', desc: 'A debug screen for the score.' }) : null,
           ),
       },
       {

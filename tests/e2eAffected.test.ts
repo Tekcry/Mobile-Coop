@@ -76,7 +76,7 @@ const MASTER_QUICK: [string, string[]][] = [
   ['src/save/sectorRecord', ['e2e-sectorops', 'e2e-menus']],
   ['src/save/', ['e2e-park', 'e2e-offline', 'e2e-feedback']],
   ['src/feedback/', ['e2e-feedback']],
-  ['src/audio/', ['e2e-foley', 'e2e-music', 'e2e-score', 'e2e-weapon-audio']],
+  ['src/audio/', ['e2e-foley', 'e2e-score', 'e2e-weapon-audio']],
   ['src/pwa/', ['e2e-offline']],
   ['src/config/', ['e2e-move', 'e2e-combat', 'e2e-anim']],
 ];
@@ -445,7 +445,7 @@ describe('affected-cap: the closest suites, at most the cap (the cases below use
     expect(pick(['src/game/sectors.ts'], { protocolTs: protocol })).toEqual(group);
   });
   it('GPU, LEGACY and AUDIO suites never take a slot', () => {
-    const off = new Set([...(LEGACY as string[]), ...(GPU as string[]), 'e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio']);
+    const off = new Set([...(LEGACY as string[]), ...(GPU as string[]), 'e2e-score', 'e2e-foley', 'e2e-weapon-audio']);
     const files = ['src/world/maps/bunker.ts', 'src/world/lightBake.ts', 'src/ai/archetypes.ts', 'src/audio/x.ts', 'src/net/remoteAvatar.ts', 'src/progression/p.ts'];
     for (const f of files) for (const s of pick([f])) expect(off.has(s) || off.has(s.split(':')[0] ?? s), `${f} ${s}`).toBe(false);
     expect(pick(['src/ai/archetypes.ts'])).toEqual(['e2e-guard-carry', 'e2e-sectorops:1', 'e2e-stealth-ai']);
