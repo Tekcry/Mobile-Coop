@@ -174,7 +174,6 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
   through the floor (head y -33 to -35), so the camera check reads below the floor. Known legacy failure: REPORT ONLY
   in affected runs once J20 T4 lands (S3a); for the camera tuning or the test fixes job.
 - **e2e-foley** (moved to AUDIO, parked) - the walk-plants check sits on its threshold at the step-22 walk speed (0.64 m/s: 3 or 4 plants against >= 4). Retuned with the CT prototype's speeds.
-- **e2e-bunker** (LEGACY, off the flaky list) - "the partner teleported across the host's spot is never solid" fails intermittently (training REVIEW-NOTES T5b2 under load; in the consolidation 2 of 4 solo runs failed with 6-13 frames solid, 2 passed). Suspect: host-page timing in the desktop browser context (snapshot gaps near the 0.3 s stall rule). The co-op test fixes job (G51) looks at it with e2e-coop and e2e-netmove.
 - **e2e-anim draw pop (fixed in feature/anim-cleanup)** - the draw from holstered popped (~0.14 per frame on the right
   hand inside the swap fade). The draw / holster now carries the gun along a path in the trigger hand to the back mount
   and the holster (WeaponModel travel): max 0.083 per frame, asserted < 0.1 like every other transition; the arm still

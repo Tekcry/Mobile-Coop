@@ -427,7 +427,7 @@ function lobbyModes(current: NetMode): typeof MODE_OPTS {
   return cur && !shown.includes(cur) ? [...shown, cur] : shown;
 }
 /**
- * The maps the host can pick for a mode: the campaign is Marlow Yard only (the course lab and bunker with `?legacy=1`).
+ * The maps the host can pick for a mode: the campaign is Marlow Yard only (the course lab with `?legacy=1`).
  * (J14 R1 fix 8) With `?marlowreplan=1` that is the re-planned yard (`roomMap`), so it is offered and named once.
  */
 function lobbyMaps(mode: NetMode): typeof MAPS {

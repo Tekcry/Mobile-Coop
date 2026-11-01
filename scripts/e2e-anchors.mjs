@@ -5,17 +5,17 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
-// (process audit, 2026-10-19) Proving only: the Warehouse (Hunter) and Fallow (`bunker`) are parked, and Marlow Yard
+// (process audit, 2026-10-19) Proving only: the Warehouse (Hunter) is parked, and Marlow Yard
 // (`ctcourse`) places no anchors yet (its walls are team moves and generated lips). Add `ctcourse` when it places one;
-// `--only=warehouse` / `--only=bunker` still run a parked map by hand.
-const PARKED = { warehouse: ['warehouse', 'clear'], bunker: ['bunker', 'sandbox'] };
+// `--only=warehouse` still runs the parked map by hand.
+const PARKED = { warehouse: ['warehouse', 'clear'] };
 const MAPS = [['proving', 'sandbox'], ...(PARKED[only] ? [PARKED[only]] : [])];
 // anchors.ts REACH.zip: a zipline's high end is grabbed within this (plan) of it
 const ZIP_REACH = 1.3;
 let failed = false;
 for (const [map, mode] of MAPS) {
   if (only && only !== map) continue;
-  const { browser, page, errors } = await launch({ url, params: `autostart=${map}&mode=${mode}${map === 'bunker' ? '&legacy=1' : ''}` });
+  const { browser, page, errors } = await launch({ url, params: `autostart=${map}&mode=${mode}` });
   try {
     await frames(page, 10);
     const res = await page.evaluate((zipReach) => {

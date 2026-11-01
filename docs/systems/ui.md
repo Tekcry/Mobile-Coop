@@ -580,7 +580,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     B / contact" on a co-op section. `window.__studio.pair()` is the test hook. Detail:
     docs/archive/anim-studio/REPORT-2.md.
 
-## Course HUD (Fallow, training D45)
+## Course HUD (training D45)
 `src/ui/hud/courseHud.ts`: the current bay's drills in teaching order with a P1 and a P2 tick column (a dash where the
 drill is not that player's), and this player's current step in large type (LANTERN's line; `{Y}` / `{Y:traverse}`
 tokens become prompt glyphs that follow the input mode). DOM is written only when the bay, the ticks

@@ -548,8 +548,6 @@ Main menu > Sector Ops > Saltmarsh Park > Start, pad first, then keyboard (E is 
 - [ ] Free Roam on Proving Grounds: brace and boost onto the 4.2 m block, the human ladder, a dual takedown; partners
   block each other (no walking through). The dual takedown banner shows on both; the host's `g.style.duals` is 1
   and `style.knockouts` did not rise from the pairing (e2e-coop).
-- [ ] The Fallow bunker: open `?net=local&autostart=bunker&mode=course` in both tabs. The objective list shows for both;
-  one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
 - [ ] (optic-coop) Optic cable seen by the partner: one tab, at a closed door hold A, OPTIC CABLE. The other tab sees her
   kneel in front of the leaf, her right hand down at the door's foot and a thin dark cable running out under the door;
   her view is not shared. When she pulls out (B) the cable shortens and goes, and she stands. Works both ways (host and

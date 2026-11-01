@@ -9,7 +9,7 @@ Read on demand (`CLAUDE.md` points here). Rules: `docs/RULES.md`; the game: `doc
 | `core/` | Babylon import surface, engine, `GameLoop` (fixed 60 Hz sim), flags, `legacy` (parked modes), settings, quality / governor / display (pure parts) |
 | `input/` | Action map; gamepad and keyboard / mouse sources write one `InputState`; bindings, remapping and conflicts |
 | `ui/` | DOM overlay: screens, `FocusNav`, widgets, HUD, debug overlay |
-| `game/` | `GameState`, modes (Infiltration, the campaign mode; Free Roam `sandbox`; Course mode `course` (Marlow Yard; Fallow parked) and its framework `course/`; Sector Ops; Hunter `clear` and Mission, parked), takedowns, gadgets, wall medkit stations, tactics |
+| `game/` | `GameState`, modes (Infiltration, the campaign mode; Free Roam `sandbox`; Course mode `course` (Marlow Yard) and its framework `course/`; Sector Ops; Hunter `clear` and Mission, parked), takedowns, gadgets, wall medkit stations, tactics |
 | `physics/` | Havok loading, collision groups, body budget |
 | `player/` | Character controller, movement, traversal and attach states, move state, camera |
 | `anim/` | Pure animation: motion driver, clips, graph, foot planner, IK |
@@ -28,7 +28,7 @@ Read on demand (`CLAUDE.md` points here). Rules: `docs/RULES.md`; the game: `doc
 | `pwa/`, `config/` | Service worker, fullscreen, gestures; JSON / TS content and feel tables |
 
 Maps: Marlow Yard (`ctcourse`, Course mode, `?autostart=ctcourse&mode=course`), Sector Ops Saltmarsh Park (`campusOps`;
-the old `warehouseOps` stays selectable, frozen, G390), Fallow (`bunker`, parked behind `?legacy=1`).
+the old `warehouseOps` stays selectable, frozen, G390).
 
 ## Doc index
 | File | Covers | Read when |

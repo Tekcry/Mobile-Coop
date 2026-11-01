@@ -125,6 +125,6 @@ KTX2. The knife (`KnifeModel`, `weapons.knife.show`) sits in the right fist when
   single use, shown spent; at full health or down it is left for later ("Health full").
 - Co-op: the host heals a client's host-authoritative health (`CoopHost.healAtStation`); the client mirrors the spent
   station.
-- Placed today only on Proving Grounds (Free Roam). The campaign maps and the bunker have no healing until stations are
+- Placed today only on Proving Grounds (Free Roam). The campaign maps have no healing until stations are
   placed (G98, not built yet). Co-op revive of a downed partner is separate (`docs/systems/coop.md`).
 - Tests: `tests/medkit.test.ts`; e2e-mouse (solo station on Proving), e2e-coop (client uses the host's station).

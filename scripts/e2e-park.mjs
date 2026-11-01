@@ -113,9 +113,9 @@ try {
   await L.waitForSelector('.main-menu');
   const lbadge = await GL(() => ({ level: !!document.querySelector('.badge-level'), credits: !!document.querySelector('.badge .credits') }));
   assert(lbadge.level && lbadge.credits, 'the profile badge shows level and credits');
-  // (sector-ops slice 1) Missions, Training and Free roam only with ?legacy=1
+  // (sector-ops slice 1) Missions and Free roam only with ?legacy=1
   const lkeys = await GL(() => [...document.querySelectorAll('.main-menu [data-key]')].map((b) => b.dataset.key));
-  assert(['sectorops', 'missions', 'coop', 'training', 'freeroam', 'loadout', 'settings', 'feedback', 'legacy'].every((k) => lkeys.includes(k)), `the legacy main menu keeps Missions, Training and Free roam (${lkeys})`);
+  assert(['sectorops', 'missions', 'coop', 'freeroam', 'loadout', 'settings', 'feedback', 'legacy'].every((k) => lkeys.includes(k)), `the legacy main menu keeps Missions and Free roam (${lkeys})`);
   await menuClick(L, 'Missions');
   await L.waitForSelector('.missions-screen .ms-item');
   const mk = await GL(() => ({ n: document.querySelectorAll('.missions-screen .ms-item').length, total: window.__missions.length }));

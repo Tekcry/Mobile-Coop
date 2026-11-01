@@ -7,7 +7,7 @@
 // T1c: drills, both tick columns, markers; the client's door is its own verb on the host; the end device refuses while
 // the last drill is open, LANTERN's radio reaches the client, results show the course panel on both pages, and a second
 // lobby starts at bay 2 with both players in its entry airlock.
-// T2: `?autostart=bunker&mode=course` boots the course solo; two pages at `?net=local&autostart=courselab&mode=course` host / join one
+// T2: two pages at `?net=local&autostart=courselab&mode=course` host / join one
 // course session with no clicks (the walk URLs; the second tab adds `&autojoin=1`, F28).
 import { launch, openPage, assert, press, BTN } from './e2e-lib.mjs';
 import { until, setSimPages, LOAD_MS, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
@@ -479,46 +479,9 @@ try {
 clearInterval(pump);
 pumpOn = false;
 
-// T2: Fallow (the training bunker) boots from `?autostart=bunker&mode=course` solo (no net): Course mode runs in bay
-// B1, the player stands on the Upper level's y 16 floor there and the page logs no errors.
-if (!failed) {
-  try {
-    await A.close().catch(() => {});
-    if (B) await B.close().catch(() => {});
-    const { page: F, errors: eF } = await openPage(ctx, url, 'autostart=bunker&mode=course&legacy=1');
-    await until(F, () => !!window.__app?.current?.player && !!window.__course?.state, null, LOAD_MS, 'Fallow course match');
-    await wait(1500);
-    const st = await F.evaluate(() => ({ mode: window.__app.current.opts?.mode, map: window.__app.current.opts?.map?.id, net: !!window.__app.current.net, bay: window.__course.debug().bay }));
-    assert(st.map === 'bunker' && st.mode === 'course' && !st.net, `Fallow: the URL boots Course mode on the bunker, single player (${JSON.stringify(st)})`);
-    assert(st.bay === 0, `Fallow: the course starts in bay B1 (bay index ${st.bay})`);
-    const p = await F.evaluate(() => { const q = window.__app.current.player.position; return { x: q.x, y: q.y, z: q.z }; });
-    assert(Math.abs(p.y - 16) < 0.3 && p.x > 0 && p.x < 20 && p.z > 60 && p.z < 74.4, `Fallow: the player spawns on the y 16 floor in B1 (${p.x.toFixed(1)}, ${p.y.toFixed(2)}, ${p.z.toFixed(1)})`);
-    // (T4 fix) the nav grid keeps every level (seeded per bay): A5 -> S6 and B5's floor (the SR) -> A5 have paths.
-    // Closed doors are walkable on the grid; (guard-ai S28) a locked shut door is shut on it, so this read of the
-    // level's own connectivity unlocks the course doors for the query and locks them back in the same evaluate (no
-    // frame runs between: the course's lock state is untouched).
-    const navp = await F.evaluate(() => {
-      const g = window.__app.current;
-      const nav = g.nav;
-      const doors = g.world.doors;
-      const held = doors.list.filter((d) => d.anchor.locked);
-      for (const d of held) doors.setLocked(d, false);
-      const pt = (id) => g.world.layout.debugPoints.find((d) => d.id === id).pos;
-      const path = (a, b) => { const p = pt(a); const q = pt(b); return !!nav && nav.findPath([p.x, p.z], [q.x, q.z], 200000, p.y, q.y) !== null; };
-      const r = { a5s6: path('A5', 'S6'), b5a5: path('B5-SR', 'A5'), hasNav: !!nav, locked: held.length };
-      for (const d of held) doors.setLocked(d, true);
-      return r;
-    });
-    assert(navp.hasNav && navp.a5s6 && navp.b5a5, `Fallow: nav paths A5 -> S6 and B5 floor -> A5 exist (${JSON.stringify(navp)})`);
-    const errs = eF.filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
-    assert(errs.length === 0, `Fallow: no console errors (${errs.slice(0, 3).join(' | ')})`);
-    await F.close();
-  } catch (e) {
-    console.error(e);
-    failed = true;
-  }
-}
-
+// The host and client pages close before the walk URL opens its own two tabs.
+await A.close().catch(() => {});
+if (B) await B.close().catch(() => {});
 // The walk URL (`?net=local&autostart=<map>&mode=course`, two tabs): the first page hosts the map's fixed local room,
 // the second joins it, and both reach the same course session with no clicks.
 if (!failed) {
