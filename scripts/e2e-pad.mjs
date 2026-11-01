@@ -189,25 +189,10 @@ try {
   }
 
   console.log('play setup + in-game pause flow');
-  // (sector-ops slice 1: the main menu starts on Sector Ops, which opens its briefing)
-  for (let i = 0; i < 8 && !/^Sector Ops/.test(await focusedText(page)); i++) await press(page, BTN.UP);
-  assert(/^Sector Ops/.test(await focusedText(page)), 'menu wraps / reaches Sector Ops');
-  await press(page, BTN.A);
-  // (sector-ops M7) the op list first, on the Warehouse
-  assert(await q('.sectorops-screen'), 'A on Sector Ops opens the op list');
-  await press(page, BTN.A);
-  assert(await q('.briefing-screen'), 'A on the op opens its briefing');
-  assert(/^Start/.test(await focusedText(page)), 'the briefing opens on Start');
-  // difficulty by pad (G106: CT's fixed levels, no sliders): d-pad up to Difficulty, right = Normal -> Realistic
-  for (let i = 0; i < 6 && !/Difficulty/.test(await focusedText(page)); i++) await press(page, BTN.UP);
-  assert(/Difficulty/.test(await focusedText(page)), `the pad reaches the Difficulty row (${await focusedText(page)})`);
-  await press(page, BTN.RIGHT);
-  const cd = await page.evaluate(() => ({ choice: document.querySelector('.briefing-screen [data-diff="choice"]')?.textContent ?? '', sliders: document.querySelectorAll('.briefing-screen [data-diff]:not([data-diff="choice"])').length }));
-  assert(/Realistic/.test(cd.choice) && cd.sliders === 0, `d-pad right picks Realistic; no custom sliders (${JSON.stringify(cd)})`);
-  await press(page, BTN.B);
-  assert(await q('.sectorops-screen'), 'B returns to the op list');
-  await press(page, BTN.B);
-  assert(await q('.main-menu'), 'B returns to the main menu');
+  // (clean-up F: the Sector Ops row and its briefing are gone; the main menu starts on Co-op)
+  for (let i = 0; i < 8 && !/^Co-op/.test(await focusedText(page)); i++) await press(page, BTN.UP);
+  assert(/^Co-op/.test(await focusedText(page)), `menu wraps / reaches Co-op (${await focusedText(page)})`);
+  assert(await q('.main-menu'), 'still on the main menu');
   // the checks below need an empty map (Free roam, only behind ?legacy=1 now): the test hook starts it at the level picked
   await page.evaluate(() => window.__play('warehouse', 'sandbox', 'realistic'));
   // (marlow-bays item 29) the warehouse match builds its voxel world in workers first: under a loaded run (E2E_JOBS=2) that
@@ -1076,7 +1061,7 @@ try {
       await P.waitForFunction(() => window.__app.screens.top?.el.classList.contains('main-menu'), null, { timeout: 10000 }).catch(() => {});
       await P.waitForFunction(() => window.__app.current?.titleLight?.phase === 'done', null, { timeout: 10000 }).catch(() => {});
       const s2 = await G(() => ({ top: window.__app.screens.top?.el.classList[1], phase: window.__app.current?.titleLight?.phase, lit: window.__app.current?.titleLight?.lit, f: window.__app.nav.focused?.dataset.key, depth: window.__app.screens.depth }));
-      assert(s2.top === 'main-menu' && s2.phase === 'done' && s2.lit === 1 && s2.f === 'sectorops' && s2.depth === 1, `a second A skips to the lit main menu, nothing selected (${JSON.stringify(s2)})`);
+      assert(s2.top === 'main-menu' && s2.phase === 'done' && s2.lit === 1 && s2.f === 'coop' && s2.depth === 1, `a second A skips to the lit main menu, nothing selected (${JSON.stringify(s2)})`);
     } finally {
       await T.browser.close();
     }
