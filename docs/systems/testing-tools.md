@@ -58,10 +58,9 @@ This page lists the suites and how they are picked.
   (`--affected`) and `WIDE_COVERS` (`--affected --wide`). Edit them there and keep their rule comments true. A name with a
   part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts.
 - The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
-  on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear` (these three get `LEGACY=1`, so
-  `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
-  `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-score`, `e2e-foley`,
-  `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-parity` (parts 1-4), `e2e-desktop:3`, `e2e-coop-gpu`. REPORT: `anim-audit`
+  on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics` (both need the removed `?legacy=1` pages: stage I deletes them),
+  `e2e-modes`, `e2e-enemies`, `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-score`, `e2e-foley`,
+  `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-parity` (part 3), `e2e-desktop:3`, `e2e-coop-gpu`. REPORT: `anim-audit`
   (never fails a run; quick picks it for `src/anim`, `src/player`, `src/net`).
 - Flaky and quarantined suites: "Flakes and quarantine" below.
 - The two-page suites (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-course) wait on the pages' own sim clocks
@@ -102,9 +101,7 @@ This page lists the suites and how they are picked.
   -> `e2e-section-rating`, which `courseMode` and `sectorMode` also pick; the Marlow Yard sets (`src/world/maps/ctcourseSets/`,
   `ctcourseGreybox.ts`) -> `e2e-ctcourse`; `src/player/smoothBody*` and `bodyEffectRecovery` also `e2e-guard-carry`.
   Every LEGACY and GPU suite is reachable from the area that owns it (an affected pick gates them out at any size and with `--wide`; `--quick` runs LEGACY / AUDIO REPORT ONLY, GPU only `--gpu`):
-  `src/progression` -> progression, `src/cosmetics` -> cosmetics, `clearMode` -> clear, `missionMode` -> modes,
-  `infiltrationMode` and `src/game/missions.ts` -> missions, `src/ai/archetypes` / `enemyDefs` -> enemies,
-  `src/world/maps/warehouse.ts` / `warehouseDress` -> ct-warehouse, the camera files
+  `src/progression` -> progression, `src/cosmetics` -> cosmetics, `src/ai/archetypes` / `enemyDefs` -> enemies, the camera files
   (`shoulderCamera`, `cameraBounds`, `src/config/camera`) -> camera-bounds, the lamp files -> darkness, `src/net/remoteAvatar` /
   `remotePlayer` -> coop-gpu. The other folders (input, ui, physics, cover, vfx, security, audio, ...) keep their quick row.
   Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**`, `scripts/e2e-times.json` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
@@ -164,16 +161,16 @@ behind a VPN adapter).
   velocity on the release step, planted feet < 2 cm on a stop, the stop holds its stride (aiming lets go; crouched: no
   kneel), forward roll (0.7 s, ~3 m, crouched, 2 m noise), aim strafe / backstep, sprint toggle and aim ends a sprint
   (CT prototype), no free jump, kneel, contextual vault / climb / step / drop / hop, steps / slopes / stairs / tunnel /
-  props on Proving Grounds
-- `e2e-traverse` Proving Grounds course (north east): ladder bottom / top entry, climb rate, slide, step off; drainpipe;
+  props on the Test Chamber
+- `e2e-traverse` the Test Chamber's course: ladder bottom / top entry, climb rate, slide, step off; drainpipe;
   ledge grab, shimmy, jump across, outside corner, climb up, hold-B lower in, drop; horizontal pipe; landing bands (soft
   / roll / heavy + noise + recovery); grab while falling; zipline; open / glazed windows; duct unscrew, crawl, vent drop
   + roll, kick; keyboard E, crouch lets go, vent hold by key; planted hands / feet locked (< 1 cm), arms reach grips
-- `e2e-anchors` every placed anchor on Proving (ladders, drainpipes, pipes, ziplines, ducts, windows both sides) is
-  offered from its approach and engages; hangable lips (`--only=warehouse` runs the parked map by hand)
+- `e2e-anchors` every placed anchor on the Test Chamber (ladders, drainpipes, pipes, ziplines, ducts, windows both sides) is
+  offered from its approach and engages; hangable lips
 - `e2e-stealth` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving, aiming, after a traversal,
   no residual offsets, level horizon after a shake)
-- `e2e-weapons-carry` Free Roam loadout (the two CT kit guns, plus a `pistolSd,rifle` loadout): back guns within 10 deg
+- `e2e-weapons-carry` sandbox loadout (the two CT kit guns, plus a `pistolSd,rifle` loadout): back guns within 10 deg
   of the spine in six gaits, no clipping (both avatar styles, with a backpack), hands within 2 cm of the grips, swap
   reach and timing
 - `e2e-anim` quality bars in the running game: first-frame response, 95% speed within 0.08 s, a stop on the release
@@ -183,9 +180,9 @@ behind a VPN adapter).
   (anim-metrics) plus the anti-crab metrics per gait (knee separation, planted track, knee over ankle, slide, elbow
   wing; report-only until `CRAB_GATES` turns a gait on; `CRAB_JSON=1` prints them as JSON; `CRAB_STATES=1` adds the walk sub-states at speeds 1-3;
   docs/archive/anim-rework/METRICS.md). The same metrics show live in the debug overlay (F3)
-- `e2e-lightbake` the Warehouse under `?gfx=min`, `?gfx=low` and `?gfx=epic` bakes the same canonical shapes and the
+- `e2e-lightbake` the Test Chamber under `?gfx=min`, `?gfx=low` and `?gfx=epic` bakes the same canonical shapes and the
   same lamp / moon / ambient bytes (cache keys and a content hash from `World.lightInfo()`); Epic draws the bake
-- `e2e-parity` (GPU list, trains via `TRAIN_PARITY`): campus S1-S5 (parts 1-2), Marlow Yard (3), Warehouse (4), Low and Epic;
+- `e2e-parity` (GPU list, trains via `TRAIN_PARITY`): Marlow Yard (3), Low and Epic (the campus parts 1-2 and the Warehouse part 4 are gone);
   grey cards found by field level per `DARK_TARGETS` row (0.27 row: within 0.02 and under 0.28), moving lights held still,
   meter = field within 0.02 at every card; `KNOWN` entries (in the script: owner, a date at most 7 days out) print and pass
   until the date; one `PARITY-SUMMARY` line per part; not in affected runs: light jobs request it by name; part 4 adds the character-shadow card (own `charlight=1` pages, char shadows Off / Low / Epic: a parked guard's shadow on a card, luma ratio within 0.1 of the field levels (with the contract) through the part's measured grey-card luma, inside reads within 0.03, band report only until J10; one `CHARSHADOW` line)

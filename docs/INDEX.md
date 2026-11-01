@@ -10,7 +10,7 @@ Read on demand (`CLAUDE.md` points here). From 2026-11-01: the control panel iss
 | `core/` | Babylon import surface, engine, `GameLoop` (fixed 60 Hz sim), flags, `legacy` (parked modes), settings, quality / governor / display (pure parts) |
 | `input/` | Action map; gamepad and keyboard / mouse sources write one `InputState`; bindings, remapping and conflicts |
 | `ui/` | DOM overlay: screens, `FocusNav`, widgets, HUD, debug overlay |
-| `game/` | `GameState`, modes (Infiltration, the campaign mode; Free Roam `sandbox`; Course mode `course` (Marlow Yard) and its framework `course/`; Sector Ops; Hunter `clear` and Mission, parked), takedowns, gadgets, wall medkit stations, tactics |
+| `game/` | `GameState`, modes (Course mode `course` (Marlow Yard) and its framework `course/`; Sector Ops `sector` (Tallow Wharf); the Test Chamber's `test`; `sandbox` for dev walks), takedowns, gadgets, wall medkit stations, tactics |
 | `physics/` | Havok loading, collision groups, body budget |
 | `player/` | Character controller, movement, traversal and attach states, move state, camera |
 | `anim/` | Pure animation: motion driver, clips, graph, foot planner, IK |
@@ -22,14 +22,15 @@ Read on demand (`CLAUDE.md` points here). From 2026-11-01: the control panel iss
 | `vfx/` | Pooled effects, post stack, TAAU, weather, silhouettes |
 | `net/` | Co-op: transports, protocol, session, host and client sims, lobby UI |
 | `operators/` | Wren and guard art assets (offline pipeline output, `scripts/operators/`) |
-| `progression/`, `cosmetics/` | XP, unlocks, upgrades, suit / HQ; avatar catalogue (parked behind `?legacy=1`) |
+| `progression/`, `cosmetics/` | XP, unlocks, upgrades, suit / HQ; avatar catalogue (hidden; stage I removes them) |
 | `save/`, `feedback/` | IndexedDB wrapper, schema, migrations; playtest notes and crash log |
 | `audio/` | WebAudio mixer, synth voices, CC0 foley, weapon sounds and music |
 | `editor/`, `security/`, `dev/` | Kestrel level editor and its security devices (dev only; Kestrel paused, G53); editor bridge |
 | `pwa/`, `config/` | Service worker, fullscreen, gestures; JSON / TS content and feel tables |
 
-Maps: Marlow Yard (`ctcourse`, Course mode, `?autostart=ctcourse&mode=course`), the Test Chamber (`chamber`, Free Roam or
-test mode), Tallow Wharf (campaign preview). Saltmarsh Park and Warehouse Ops were removed in clean-up F.
+Maps: Marlow Yard (`ctcourse`, Course mode, `?autostart=ctcourse&mode=course`), the Test Chamber (`chamber`, test mode or
+sandbox), Tallow Wharf (campaign preview), Kestrel (the level editor's map). Saltmarsh Park and Warehouse Ops were removed in clean-up F; Hunter,
+Mission, Infiltration, Free Roam, `?legacy=1`, the Warehouse, Proving Grounds and the five parked 2.x maps in clean-up H.
 
 ## Doc index
 | File | Covers | Read when |
@@ -66,7 +67,7 @@ test mode), Tallow Wharf (campaign preview). Saltmarsh Park and Warehouse Ops we
 | `docs/systems/takedowns.md` | Takedowns, grab, palm strike | Takedown work |
 | `docs/knife-kills/` | The paired knife kills' decisions and slices (built as piano-knife for the removed piano scene; now every map's lethal takedown) | Knife kill work |
 | `docs/systems/gadgets.md` | Gadgets, wheel, remote views | Gadget work |
-| `docs/systems/modes-and-progression.md` | Infiltration, Hunter, arsenal / suit / HQ, cosmetics (parked) | Mission framework |
+| `docs/systems/modes-and-progression.md` | Modes as built, the course, arsenal / suit / HQ, cosmetics (hidden) | Mission framework |
 | `docs/systems/saves.md` | Progression maths, save schema, migrations | Any save change |
 | `docs/systems/combat.md` | Weapon data, firing, damage | Weapon work |
 | `docs/systems/coop.md` | Transports, host / client sims, sync, team moves | Co-op work |

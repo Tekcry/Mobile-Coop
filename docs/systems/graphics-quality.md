@@ -18,7 +18,7 @@ Budgets: performance.md.
   and again with the guards alerted. PC1 fix: since the lamp bake the level's micro-detail shader takes 15 without a
   lamp shadow, and a spot's shadow joins a shader only once its map has casters - a guard's flashlight - so two shadowed
   flashlights took the near chunks to 17 and they stopped drawing as guards alerted; `LightRig` caps the pool at one with
-  micro detail (`MICRO_SHADOWS`). Repro on a GPU: `?autostart=warehouse&mode=clear&gfx=epic` with E2E_GPU=1, call
+  micro detail (`MICRO_SHADOWS`). Repro on a GPU: `?autostart=ctcourse&mode=course&gfx=epic` with E2E_GPU=1, call
   `alert()` on every `enemyMgr.enemies`, then count `MAX_TEXTURE_IMAGE_UNITS` console errors - 7 before the fix, 0 after), map
   size, sun filtering quality; lights 8-48; ao,
   bloom, reflections off / ssr / rt (+ `rtRes` half / full), volumetrics (shafts only: the height fog is drawn on every
@@ -61,7 +61,7 @@ Budgets: performance.md.
   process's ratio), volumetric light count; vfx / weather density). Reset on a new target or a settings change.
   Debug line `governor L<n>`; feedback context `adaptive`. `perf.mjs --preset=<p>` (budgets per preset).
 - Benchmark (3.0, `game/benchmark.ts` pure: `BENCH`, `benchPlan(kind, w, h)`, `benchResult`, `sustainedDrift`):
-  Settings > Graphics > Benchmark -> `app.benchmark(kind)` -> a Hunter (`clear`, parked) match on the Warehouse with `opts.benchmark`;
+  Settings > Graphics > Benchmark -> `app.benchmark(kind)` -> a Test Chamber match in the `test` mode (clean-up G2c; H removed the Warehouse) with `opts.benchmark`;
   `GameState` flies the camera along `benchFlight` (3.2.5, pure, `FLIGHT`: the room middles in a short tour (nearest
   neighbour + 2-opt on walking distance), joined by nav A* routes with `NavGrid.walkOnly` (doorways, stairs; no ladders
   / drops), a dead-end visit circled (`orbit`) instead of reversed, Taubin-smoothed and pushed off walls within

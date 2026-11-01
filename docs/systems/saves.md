@@ -21,7 +21,7 @@ never holds a save.
   nothing (conventions.md, Robustness).
 - Pure progression maths in `progression/` (levels, rewards, upgrades, attachments, unlocks, profile ops). UI calls
   `app.save.update(d => op(d, ...))`; `SaveManager` sanitises, debounces and persists. The economy (credits, XP, suit,
-  HQ, challenges, cosmetics) is parked behind `?legacy=1` (modes-and-progression.md); the save still holds it.
+  HQ, challenges, cosmetics) is hidden (`?legacy=1` is gone, clean-up H; stage I removes it, modes-and-progression.md); the save still holds it.
 - Unlock ids carry a prefix: `weapon:`, `att:`, `camo:`, `part:`, `pattern:`, `tag:`, `color:` (add to `UNLOCKS` or
   `registerUnlocks`).
 - Export format: `{ magic: 'shoulder-strike-save', version, exportedAt, data }` (the old internal name stays); import
