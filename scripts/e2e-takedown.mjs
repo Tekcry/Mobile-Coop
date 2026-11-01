@@ -170,7 +170,7 @@ async function coopKnife() {
     await nb.close();
   }
 }
-const { browser, ctx, page, errors } = await launch({ url, params: 'autostart=studio&mode=test' });
+const { browser, ctx, page, errors } = await launch({ url, params: 'autostart=studio&mode=test&ctxprompts=0' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);

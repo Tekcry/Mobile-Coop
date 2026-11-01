@@ -33,7 +33,7 @@ import { launch, assert, frames, press, stick, BTN } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
-const { browser, page, errors } = await launch({ url, params: 'autostart=studio&stage=1' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio&stage=1&anim=cmu' });
 const G = (f, a) => page.evaluate(f, a);
 // (gpu-tests-2) the tuner panel refreshes its effect mode every 250 ms and the Keys readout every 100 ms of wall
 // time; a few frames on a hardware GPU pass in ~50 ms, so a read of either waits out one refresh first

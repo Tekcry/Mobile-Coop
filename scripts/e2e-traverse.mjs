@@ -580,7 +580,8 @@ try {
     await page.reload();
     await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
     // (3.2.2: the match exists only once its shaders are compiled on the loading screen)
-    await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 });
+    // (one-game) map-ready is on by default: wait for the load gate's release too (not with `?mapready=0`)
+    await page.waitForFunction(() => !!window.__app?.current?.player && (/[?&]mapready=0(&|$)/.test(location.search) || !!window.__mapReady?.released), null, { timeout: 120000 });
     await frames(page, 5);
     await setup();
   };
