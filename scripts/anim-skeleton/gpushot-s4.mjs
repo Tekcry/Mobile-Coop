@@ -24,7 +24,7 @@ const kill = () => {
 process.on('exit', kill);
 await new Promise((r) => setTimeout(r, 4000));
 
-const { browser, page, errors } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: 'autostart=studio&gfx=high', viewport: { width: 1200, height: 900 } });
+const { browser, page, errors } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: 'autostart=studio&stage=1&gfx=high', viewport: { width: 1200, height: 900 } });
 try {
   await page.waitForFunction(() => !!window.__app?.current?.player && !!window.__studio?.state().active, null, { timeout: 300000 });
   if ((await waitOperator(page)) < 0) throw new Error('Wren LOD0 never reached the screen');

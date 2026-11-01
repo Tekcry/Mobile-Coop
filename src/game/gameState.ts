@@ -187,6 +187,8 @@ export interface GameOptions {
    * run per match (its settings set before the map loads); the session carries the plan and the lines so far.
    */
   benchmark?: BenchSession;
+  /** (G2b) The Test Chamber's animation stage (loop player, tuner panel docked): only when asked (the main menu row, `?stage=1`); the plain room is the test bed. */
+  stage?: boolean;
   /** Course mode: the bay to start at (1-based, D20; the lobby's "Start at bay N"). */
   courseBay?: number;
   /** 3.0 weather (visual only; the map's `weathers`). */
@@ -1087,8 +1089,8 @@ export class GameState implements AppState {
     // (map-ready S14) the compile log from the same zero point (reads only, flag on or off; `window.__compileLog`)
     g.compileLogStart(readyWorld);
     if (opts.net) g.net = opts.net.attach(g);
-    // (anim-studio) the studio stage: single player only (never offered in a co-op session)
-    else if (opts.map.id === STUDIO_MAP_ID)
+    // (anim-studio) the studio stage: single player only (never offered in a co-op session), and only when asked (G2b: `opts.stage`)
+    else if (opts.map.id === STUDIO_MAP_ID && opts.stage)
       g.studio = new StudioStage({
         player: g.player,
         scene: g.scene,

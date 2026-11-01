@@ -10,6 +10,8 @@ export interface Flags {
   /** (G2a, tests) `?guards=1`: `TestMode` starts with the map's room squads in place (`TestMode.populate`); the Test Chamber
    *  has no guards otherwise. */
   guards: boolean;
+  /** (G2b, tests) `?stage=1`: with `?autostart=studio` the animation stage (loop player, tuner panel docked) starts; without it the Test Chamber is the plain room. The main menu's Test Chamber row always starts it. */
+  stage: boolean;
   /** Infiltration: mission id and insertion id for autostart. */
   mission: string | null;
   insertion: string | null;
@@ -238,6 +240,7 @@ export const flags: Flags = {
   autostart: params.get('autostart'),
   mode: readMode(params.get('mode')),
   guards: params.get('guards') === '1',
+  stage: params.get('stage') === '1',
   mission: params.get('mission'),
   loadout: params.get('loadout')?.split(',').filter(Boolean) ?? null,
   insertion: params.get('insertion'),
