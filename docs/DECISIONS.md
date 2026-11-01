@@ -3,6 +3,12 @@ Owner: the orchestrator. Status: current.
 
 Started 2026-10-17 (consolidation run, M26 / M27). Current to G434 (2026-10-27).
 
+**Frozen at G434 since the 2026-11-01 refresh.** No new G entries. Michael's decisions since then are in
+`docs/plan/DECISIONS-2026-11.md`; they and `docs/plan/MASTER-PLAN-PROMPT.md` / `docs/plan/CLEANUP-PLAN-2026-11-01.md`
+replace any entry below they contradict (for example: 4 players, Sector Ops, the piano / storm mill scene, progression and
+cosmetics, the old modes, the old process). The rest still holds until Phase 1 writes the new short decisions file
+(authority order: `CLAUDE.md`).
+
 This file is the single source of Michael's current decisions for Night Shift. Authority order: `CLAUDE.md` (G86).
 Every entry below is also written into the bible and, where it changes the summary, `docs/VISION.md`; where the bible
 and this file disagree, this file wins until the bible is fixed.

@@ -1,8 +1,8 @@
-# Night Shift - vision (read this first)
+# Night Shift - old vision
 
-Owner: the orchestrator; updated at every DECISIONS fold (G344). Status: current.
-Read from origin/master. Citations: G numbers (`docs/DECISIONS.md`) or ROADMAP "Decided" times; the newer
-decision wins.
+Owner: the orchestrator. Status: history.
+
+**Replaced 2026-11-01:** see `docs/plan/DECISIONS-2026-11.md`. Citations: G numbers (`docs/DECISIONS.md`).
 
 ## 1. Pitch
 - Pure Chaos Theory (CT) co-op at its core, with original names, story and characters (G1, G5, G6). Michael: "I want the game
