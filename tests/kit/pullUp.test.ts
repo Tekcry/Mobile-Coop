@@ -14,8 +14,16 @@ import { flags } from '../../src/core/flags';
 
 // (mission-framework FLG) the kit is dark behind `flags.coopKit` (`?coopkit=1`): these tests drive its offers
 const coopKit0 = flags.coopKit;
-beforeAll(() => void (flags.coopKit = true));
-afterAll(() => void (flags.coopKit = coopKit0));
+// (one-game) the context prompts are on by default now; these tests pin the older hold-A list texts: `?ctxprompts=0`
+const ctx0 = flags.contextPrompts;
+beforeAll(() => {
+  flags.coopKit = true;
+  flags.contextPrompts = false;
+});
+afterAll(() => {
+  flags.coopKit = coopKit0;
+  flags.contextPrompts = ctx0;
+});
 
 const H = 4.4;
 const EDGE_X = 0.5;

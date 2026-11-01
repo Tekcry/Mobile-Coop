@@ -1,6 +1,6 @@
 /**
  * Marlow Yard re-plan, variant base (J14 slice S0; PLAN section 2): the map `ctcourseReplan` is the same yard built with
- * `{ replan: true }`, unlisted, dark behind `flags.marlowReplan`. Pins: the flag is off by default; the built `ctcourse`
+ * `{ replan: true }`, unlisted, behind `flags.marlowReplan` (on by default since one-game, 2026-11-01; `?marlowreplan=0` off). Pins: the flag is on by default; the built `ctcourse`
  * is unchanged (no stations, A2 `spotFail` kept); the re-plan registers its own course (eight bays, no strict rule); the
  * slab-with-holes helper; the station rules in `checkSetPart`; the re-plan circuit table (every light works, Q2). Each set
  * slice adds its own cases in `tests/ctcourse/replan/<set>.test.ts`.
@@ -24,8 +24,8 @@ const built = buildCtcourse(new LevelBuilder());
 const replan = buildCtcourse(new LevelBuilder(), { replan: true });
 
 describe('Marlow re-plan variant base (J14 S0)', () => {
-  it('the flag is off by default (?marlowreplan=1 turns it on)', () => {
-    expect(flags.marlowReplan).toBe(false);
+  it('the flag is on by default (?marlowreplan=0 turns it off)', () => {
+    expect(flags.marlowReplan).toBe(true);
   });
 
   it('ctcourseReplan is a second, unlisted course map in MAPS after ctcourse (every map-wide check builds it); ctcourse is untouched', () => {
@@ -36,27 +36,33 @@ describe('Marlow re-plan variant base (J14 S0)', () => {
     expect(MAPS.map((m) => m.id).indexOf('ctcourseReplan')).toBe(MAPS.map((m) => m.id).indexOf('ctcourse') + 1);
     expect(getMap('ctcourse')).toBe(ctcourse);
     expect(ctcourse.id).toBe('ctcourse');
-    // flag off: only the built course registers at load; the re-plan's own data build has its eight bays
-    expect(registeredBayCount('ctcourseReplan')).toBe(0);
+    // flag on (the default): the load registers the re-plan's eight bays too (`?marlowreplan=0`: only the built course, below)
+    expect(registeredBayCount('ctcourseReplan')).toBe(8);
     expect(replanLoad().layout.course!.def.bays.length).toBe(8);
     expect(registeredBayCount('ctcourse')).toBe(8);
     expect(ctcourseReplan.build(new LevelBuilder(), 1).course!.def.id).toBe('ctcourseReplan');
     expect(ctcourse.build(new LevelBuilder(), 1).course!.def.id).toBe('ctcourse');
   });
 
-  it('importing ctcourse.ts with the flag off builds the yard once; the re-plan builds on first ask, once (S0 check fix 1)', async () => {
-    vi.resetModules();
-    const m = await import('../../../src/world/maps/ctcourse');
-    const cd = await import('../../../src/game/course/courseDef');
-    expect(m.ctcourseBuildCount()).toBe(1);
-    expect(cd.registeredBayCount('ctcourse')).toBe(8);
-    expect(cd.registeredBayCount('ctcourseReplan')).toBe(0);
-    const a = m.replanLoad();
-    expect(m.replanLoad()).toBe(a);
-    expect(m.ctcourseBuildCount()).toBe(2);
+  it('importing ctcourse.ts with ?marlowreplan=0 builds the yard once; the re-plan builds on first ask, once (S0 check fix 1)', async () => {
+    vi.stubGlobal('location', { search: '?marlowreplan=0' });
+    try {
+      vi.resetModules();
+      const m = await import('../../../src/world/maps/ctcourse');
+      const cd = await import('../../../src/game/course/courseDef');
+      expect(m.ctcourseBuildCount()).toBe(1);
+      expect(cd.registeredBayCount('ctcourse')).toBe(8);
+      expect(cd.registeredBayCount('ctcourseReplan')).toBe(0);
+      const a = m.replanLoad();
+      expect(m.replanLoad()).toBe(a);
+      expect(m.ctcourseBuildCount()).toBe(2);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.resetModules();
+    }
   });
 
-  it('with ?marlowreplan=1 the import also builds and registers the re-plan (the lobby counts its bays)', async () => {
+  it('with the flag on (the default, or ?marlowreplan=1) the import also builds and registers the re-plan (the lobby counts its bays)', async () => {
     vi.stubGlobal('location', { search: '?marlowreplan=1' });
     try {
       vi.resetModules();

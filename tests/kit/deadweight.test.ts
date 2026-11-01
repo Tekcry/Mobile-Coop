@@ -534,7 +534,7 @@ describe('(coop-kit K1) Deadweight: the id', () => {
     expect(P.host.tm.state).toBe('none');
   });
 
-  it('`deadweight` is built: on in /preview/, off live', () => {
+  it('`deadweight` is built: on with the default on (the game), off with it off', () => {
     expect(KIT_BUILT).toContain('deadweight');
     expect(readKitMoves(null, true).has('deadweight')).toBe(true);
     expect(readKitMoves(null, false).has('deadweight')).toBe(false);

@@ -18,6 +18,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { applyMocapSwitch, hasSlots, HAND_KEYED_SET, LOCO, MOCAP_FEET, MOCAP_LAYERS, MOCAP_SET, MocapSlots, mocapWanted, setMocapLocomotion, type LocoClipSet } from '../src/anim/mocap';
 import { KEYED_WALK } from '../src/anim/clips/keyed/walk';
 import { KEYED_JOG } from '../src/anim/clips/keyed/jog';
@@ -35,6 +36,9 @@ import { flags, onOffFlag } from '../src/core/flags';
 import { runIdentity, type IdentityFixture } from './helpers/animSkeletonIdentity';
 import { bytesPerCall, HEAP_NUMBER, inputs } from './helpers/allocPerCall';
 import type { CharacterRig, RigPose } from '../src/player/characterRig';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 const SET = MOCAP_SET as Mutable<LocoClipSet>;

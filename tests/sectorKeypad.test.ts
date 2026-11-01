@@ -1,10 +1,23 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { flags } from '../src/core/flags';
 import type { Vector3 } from '../src/core/babylon';
 import { BOARD_READ, INTEL_LINE_MAX, KEYPAD_HOLD, OVERHEAR_HOLD, checkSectorCodes, checkSectors, intelItemId, keypadItemId, type SectorDef } from '../src/game/sectors';
 import { SectorCodes, inOverhear } from '../src/game/sectorKeypads';
 import { SectorMode } from '../src/game/modes/sectorMode';
 import type { GameState } from '../src/game/gameState';
 import type { Interactable } from '../src/game/interactables';
+
+// (one-game) flags default on now; the stub game has no `opts`, so this file runs Sector Ops as before: `?missions=0&campaign=0`
+const missions0 = flags.missions;
+const campaign0 = flags.campaign;
+beforeAll(() => {
+  flags.missions = false;
+  flags.campaign = false;
+});
+afterAll(() => {
+  flags.missions = missions0;
+  flags.campaign = campaign0;
+});
 
 /** (sector-redesign EW5, A4) Keypad doors in Sector Ops: codes found in the level (overheard, a board, an objective). */
 

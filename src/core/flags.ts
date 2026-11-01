@@ -67,7 +67,7 @@ export interface Flags {
   mocap: boolean | null;
   /** (mixamo-retarget I2) `?mixamo=1` / `?mixamo=0`: the Mixamo traversal captures on Wren (hang, shimmy, climb-up, ladder,
    *  vent crawl; `src/anim/mixamo.ts`); null when the page names none =
-   *  off, on /preview/ on (preview-flags: `setMixamo(flags.mixamo ?? PREVIEW_ON)`). */
+   *  on (one-game: `setMixamo(flags.mixamo ?? PREVIEW_ON)`, `PREVIEW_ON` is true). */
   mixamo: boolean | null;
   /** (mixamo-retarget Toggle) `?anim=hand|cmu|mixamo`: the Animation source for this page over the stored setting
    *  (Options > Gameplay > "Animation source", `src/anim/animSource.ts`); null when the page names none. */
@@ -92,54 +92,50 @@ export interface Flags {
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
   /** (guard-rules S6, A10, A11) Pairs that walk together check on each other at once; posted pairs talk and check.
-   *  `?guardpairs=1`. DEFAULT OFF until walk item 5 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/
-   *  default on (preview-flags). */
+   *  `?guardpairs=0` turns it off; on by default (one-game, 2026-11-01). */
   guardPairs: boolean;
-  /** (guard-rules S7, A9) Lookout posts: never sent, never leave, radio a sighting. `?lookouts=1`. DEFAULT OFF until
-   *  walk item 6 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/ default on (preview-flags). */
+  /** (guard-rules S7, A9) Lookout posts: never sent, never leave, radio a sighting. `?lookouts=0` turns it off;
+   *  on by default (one-game, 2026-11-01). */
   lookouts: boolean;
-  /** (guard-rules S8, A12) Alarm stage dogs leave the heel for the last known position. `?dogrelease=1`. DEFAULT OFF
-   *  until walk item 7 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/ default on (preview-flags). */
+  /** (guard-rules S8, A12) Alarm stage dogs leave the heel for the last known position. `?dogrelease=0` turns it off;
+   *  on by default (one-game, 2026-11-01). */
   dogRelease: boolean;
-  /** (J14 Marlow re-plan, owner Marlow Build, switch-on 2026-10-29) `?marlowreplan=1`: a host's room opens on the re-planned
-   *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged.
-   *  On /preview/ default on (preview-flags). */
+  /** (J14 Marlow re-plan, owner Marlow Build, switch-on 2026-10-29) `?marlowreplan=0`: off; on by default (one-game, 2026-11-01): a host's room opens on the re-planned
+   *  yard (map `ctcourseReplan`); the client loads whatever map the host names. */
   marlowReplan: boolean;
   /** (char-shadow-meter, J16) Character shadows in the light meter and the guards' light (`world/charOccluders.ts`);
-   *  `?charlight=1` on. DEFAULT OFF until Michael's walk (owner Sector Ops Build; switch-on: BRIEF A9). On /preview/
-   *  default on (preview-flags). */
+   *  `?charlight=0` off; on by default
+   *  (one-game, 2026-11-01). */
   charShadowLight: boolean;
   /** (map-ready, `docs/map-ready/PLAN.md`; owner Night Shift | Sector Ops Build; switch-on after Michael's Sector Ops
    *  and Marlow Yard walks, target 2026-11-01) The loading screen waits for a built and warmed map, the campus lamps
-   *  ship pre-built, the costly parts are kept between matches, the lobby preloads. `?mapready=1` on; default off.
-   *  On /preview/ default on (preview-flags). */
+   *  ship pre-built, the costly parts are kept between matches, the lobby preloads. `?mapready=0` off; on by default
+   *  (one-game, 2026-11-01). */
   mapReady: boolean;
   /** (mission-framework, owner Campaign Build) Missions on Sector Ops maps (`?mission=<id>` picks one) and the Hints
-   *  setting; `?missions=1` on. Switch-on: Michael's walk of Three Grey Coats / Two-Key Ledger, target 2026-10-27; then
-   *  the default flips to `!== '0'`. Tests set `flags.missions` (a plain object) in `beforeAll` and restore it. On
-   *  /preview/ default on (preview-flags). */
+   *  setting; `?missions=0` off; on by default
+   *  (one-game, 2026-11-01). Tests set `flags.missions` (a plain object) in `beforeAll` and restore it. */
   missions: boolean;
   /** (mission-framework, owner Campaign Build) The co-op kit's new moves (pull-up, shutter, any later kit kind);
-   *  `?coopkit=1` on, `?coopkit=0` off. Off keeps Marlow Yard as it is (M1). Switch-on: Michael's walk of the kit with
-   *  Player Build's clips, target 2026-10-28. Tests set `flags.coopKit` in `beforeAll` and restore it. (coop-kit A1,
+   *  `?coopkit=1` on, `?coopkit=0` off; on by default (one-game, 2026-11-01). Tests set `flags.coopKit` in `beforeAll` and restore it. (coop-kit A1,
    *  BRIEF A8) Still the gate its readers use and a plain writable field; only its load value folds into `kitMoves`:
-   *  on when `kitMoves` holds `pull` or `shutter` (so /preview/ turns it on through `KIT_BUILT`; `readCoopKit`).
+   *  on when `kitMoves` holds `pull` or `shutter` (so it is on through `KIT_BUILT`; `readCoopKit`).
    *  Campaign moves its readers onto the ids and removes this field in its own PR. */
   coopKit: boolean;
   /** (coop-kit A1, BRIEF A8; owner Player Build) The co-op kit moves switched on, by id (`KIT_BUILT`):
    *  `?kitmoves=descent,pull` exactly those, `all` every built id, `0` / `none` none; an id not built is dropped.
-   *  Default: `KIT_MOVES_ON` (none) in the live game, every built id on /preview/ (preview-flags). `?coopkit=1` / `0`
+   *  Default: every built id (one-game, 2026-11-01; `KIT_MOVES_ON` is the off list). `?coopkit=1` / `0`
    *  adds / removes `pull` and `shutter`. The host's rules and each page's offers read it (`has()` allocates nothing).
    *  Tests set `flags.kitMoves` in `beforeAll` and restore it. */
   kitMoves: ReadonlySet<string>;
   /** (context-prompts, `docs/context-prompts/PLAN.md` section 7; owner Night Shift | Player Build, switch-on at Michael's
    *  walk, target 2026-10-31) The context prompts: one button per action on the thing it acts on (tap / hold), in place
-   *  of the hold-A list. `?ctxprompts=1` on, `?ctxprompts=0` off; default off. On /preview/ default on (preview-flags). */
+   *  of the hold-A list. `?ctxprompts=0` off; on by default (one-game, 2026-11-01). */
   contextPrompts: boolean;
   /** (campaign-mode J22, BRIEF A10; owner Night Shift | Campaign Build, switch-on at Michael's walk of Mission 1) The
    *  campaign's front door and record: the lobby's Mission row (prologue, Mission 1), the briefing, the 0-100% rating,
-   *  the `campaign:progress` / `campaign:save` records and Continue. `?campaign=1` on, `?campaign=0` off; default off.
-   *  On /preview/ default on (preview-flags). The Mission 1 entries also need `flags.missions`. */
+   *  the `campaign:progress` / `campaign:save` records and Continue. `?campaign=0` off; on by default
+   *  (one-game, 2026-11-01). The Mission 1 entries also need `flags.missions`. */
   campaign: boolean;
 }
 
@@ -158,7 +154,7 @@ const COOPKIT_IDS: readonly string[] = ['pull', 'shutter'];
 /**
  * (coop-kit A1, BRIEF A8) `?kitmoves=` as the set of kit move ids on: a comma list (each matched to `KIT_BUILT` ignoring
  * case; an id not built is dropped), `all` every built id, `0` / `none` none. Absent or unreadable: every `KIT_BUILT` id
- * on /preview/ (`preview`), else `KIT_MOVES_ON`. `coopkit` (`?coopkit=`): `1` adds `pull` and `shutter`, `0` removes
+ * (`preview` true, what the game passes), else `KIT_MOVES_ON`. `coopkit` (`?coopkit=`): `1` adds `pull` and `shutter`, `0` removes
  * them. Load time only (allocates).
  */
 export function readKitMoves(v: string | null, preview = false, coopkit: string | null = null): ReadonlySet<string> {
@@ -188,13 +184,12 @@ export function onOffFlag(v: string | null): boolean | null {
   return v === '1' ? true : v === '0' ? false : null;
 }
 
-/** (preview-flags, Michael 2026-10-26 ~13:55 "All on in preview") The /preview/ build: every dark feature flag
- *  defaults on there (a URL `=0` still turns one off). Not the named slots (`/ct/`), the live game, dev or tests
- *  (vitest defines neither constant). New feature flags read through `darkFlag(params.get(...), PREVIEW_ON)`. */
-export const PREVIEW_ON: boolean =
-  typeof __PREVIEW__ !== 'undefined' && __PREVIEW__ && (typeof __PREVIEW_ID__ === 'undefined' || __PREVIEW_ID__ === '');
+/** (one-game, Michael 2026-11-01) Every feature flag that used to be on only in the /preview/ build ("All on in preview",
+ *  2026-10-26) is on by default in every build: the live game, dev and tests. A URL `=0` still turns one off. The name stays
+ *  until stage J removes the flags. */
+export const PREVIEW_ON = true;
 
-/** (preview-flags) A dark feature flag's URL value: "1" on, "0" off, else the build's default (`preview`: on). */
+/** (preview-flags) A feature flag's URL value: "1" on, "0" off, else the default (`preview`: on; the game passes `PREVIEW_ON`). */
 export function darkFlag(v: string | null, preview: boolean): boolean {
   return v === '1' || (v !== '0' && preview);
 }
@@ -276,12 +271,12 @@ export const flags: Flags = {
   animOff: Number(params.get('animoff')) | 0,
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
-  // (mission-framework FLG) dark until Michael's walks: `?missions=1` / `?coopkit=1` on; on /preview/ on (preview-flags)
+  // (mission-framework FLG) on by default (one-game): `?missions=0` / `?coopkit=0` turn them off
   missions: darkFlag(params.get('missions'), PREVIEW_ON),
   // (coop-kit A1) the kit's list flag; `coopKit` stays Campaign's gate, its load value read from the list
   coopKit: readCoopKit(params.get('coopkit'), kitMovesAtLoad),
   kitMoves: kitMovesAtLoad,
-  // (guard-rules F0) dark until their walk items are accepted (PLAN "Flags"): `=1` turns each on, /preview/ too
+  // (guard-rules F0) on by default (one-game): `=0` turns each off
   guardPairs: darkFlag(params.get('guardpairs'), PREVIEW_ON),
   lookouts: darkFlag(params.get('lookouts'), PREVIEW_ON),
   dogRelease: darkFlag(params.get('dogrelease'), PREVIEW_ON),
@@ -289,6 +284,6 @@ export const flags: Flags = {
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
   contextPrompts: darkFlag(params.get('ctxprompts'), PREVIEW_ON),
-  // (campaign-mode A10) dark until Michael's walk of Mission 1: `?campaign=1` on; on /preview/ on (preview-flags)
+  // (campaign-mode A10) on by default (one-game): `?campaign=0` off
   campaign: darkFlag(params.get('campaign'), PREVIEW_ON),
 };

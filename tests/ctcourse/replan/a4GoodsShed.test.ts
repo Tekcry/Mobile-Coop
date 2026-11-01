@@ -10,7 +10,7 @@
  * 10 are `a4Ticks.test.ts`; the built A4 is `tests/ctcourse/a4GoodsShed.test.ts`.
  */
 import { readFileSync } from 'node:fs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { NavGrid, type NavBlocker } from '../../../src/ai/navGrid';
 import { GUARD_INFO_LINE_MAX } from '../../../src/ai/guardInfo';
 import { COURSE_TEXT_MAX } from '../../../src/config/course';
@@ -78,6 +78,14 @@ import { kitSpotsOf } from '../../../src/game/kit/kitApi';
 import { flags } from '../../../src/core/flags';
 import { REFUSE_KIT_HELD } from '../../../src/game/course/courseState';
 import { checkSetPart, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../../src/world/maps/ctcourseSets/types';
+
+// (one-game) every kit move is on by default now; the stations here are pinned with none on (the stand-ins, whose texts are
+// chosen as the part builds below), as before: `?kitmoves=0`
+const kitMoves0 = flags.kitMoves;
+flags.kitMoves = new Set<string>();
+afterAll(() => {
+  flags.kitMoves = kitMoves0;
+});
 
 const b = new LevelBuilder();
 const built = buildCtcourse(b, { replan: true });

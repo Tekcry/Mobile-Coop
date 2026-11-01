@@ -11,6 +11,7 @@
  * switch-off rig does not also have (to within 1 deg). The capture's crouch drop and trunk are checked as "it plays".
  */
 import { afterEach, describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { HAND_KEYED_SET, LOCO, MOCAP_SET, setMocapLocomotion, type LocoClipSet } from '../src/anim/mocap';
 import { MOCAP_CROUCH_WALK } from '../src/anim/clips/mocap/crouch_walk';
 import { KEYED_SNEAK } from '../src/anim/clips/keyed/sneak';
@@ -20,6 +21,9 @@ import { driveRig, plantSlide, pops, POP_DEG, type Plan, type Rec } from './help
 import { bytesPerCall, HEAP_NUMBER, inputs } from './helpers/allocPerCall';
 import { crouchScenarios, measureAll, rampDelta, type Measures } from './helpers/afpMeasure';
 import { GEARS } from '../src/config/movement';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 const SET = MOCAP_SET as { -readonly [K in keyof LocoClipSet]: LocoClipSet[K] };
 afterEach(() => {

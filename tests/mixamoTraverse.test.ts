@@ -104,10 +104,14 @@ function differ(a: number[], b: number[]): number {
 const AT = { idle: 59, shimR: 119, shimL: 179, climbCrouch: 180 + 58, climbStand: 180 + 74, pipe: 180 + 79 + 30 + 59, ladder: 180 + 79 + 30 + 60 + 30 + 59, topOut: 180 + 79 + 30 + 60 + 30 + 60 + 40, crawl: 180 + 79 + 30 + 60 + 30 + 60 + 52 + 59, team: 180 + 79 + 30 + 60 + 30 + 60 + 52 + 60 + 30 };
 
 describe('mixamo I2: the switch and the resolved Wren table', () => {
-  it('the flag reads ?mixamo=0/1 (absent: null = off) and the table starts hand-made', () => {
+  it('the flag reads ?mixamo=0/1 (absent: null = on by default, one-game) and the table starts filled', () => {
     expect(onOffFlag('1')).toBe(true);
     expect(onOffFlag('0')).toBe(false);
     expect(flags.mixamo).toBeNull();
+    expect(MIXAMO.on).toBe(true);
+    expect(WREN_TRAV.any).toBe(true);
+    // (and off: setMixamo(false), what ?mixamo=0 does, leaves the table hand-made)
+    setMixamo(false);
     expect(MIXAMO.on).toBe(false);
     expect(WREN_TRAV.any).toBe(false);
     for (const [k, v] of Object.entries(WREN_TRAV)) if (k !== 'any' && k !== 'hold' && k !== 'stand') expect(v, k).toBeNull();

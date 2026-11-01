@@ -31,6 +31,9 @@ import { elbowWing, kneeBow, kneeSeparation } from '../src/anim/audit/metrics';
 import { driveRig, plantSlide, pops, POP_DEG, type Rec } from './helpers/mocapMeasure';
 import { bytesPerCall, HEAP_NUMBER } from './helpers/allocPerCall';
 
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
+
 const ON0 = { ...MIXAMO_ON };
 const ROWS = ['carry_body_walking', 'carry_body_idle', 'elbow_strike', 'cross_punch', 'kneel_down'] as const;
 afterEach(() => {

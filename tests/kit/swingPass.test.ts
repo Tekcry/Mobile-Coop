@@ -557,7 +557,7 @@ describe("(coop-kit K4) Swing Pass: done through K0's host; the id off; the flag
     expect(checkTeamRequest(req(riderSide(), anchorSide()))).toBe('notOffering');
   });
 
-  it('swingPass is built: on in /preview/, off live; its pair rule', () => {
+  it('swingPass is built: on with the default on (the game), off with it off; its pair rule', () => {
     expect(KIT_BUILT).toContain('swingPass');
     expect(readKitMoves(null, true).has('swingPass')).toBe(true);
     expect(readKitMoves(null, false).has('swingPass')).toBe(false);

@@ -149,7 +149,7 @@ const NO_ST_RT: StRt[] = [];
 
 /**
  * (J14 R1 fix 7; marlow-kit-wire) Is station kit move `kit` playable? `stationDef.ts` `kitMoveOn`: Player's `kitMoves` id
- * (on in /preview/ once the move's K slice adds it to `KIT_BUILT`, off live). Off: the station's stand-in opens as it goes
+ * (on once the move's K slice adds it to `KIT_BUILT`; `?kitmoves=0` off). Off: the station's stand-in opens as it goes
  * live and its place flag alone ends it. On: the stand-in stays shut, its held gates refuse presses, and the station also
  * needs its kit credit (`kitDone`). This slice wires all five kit stations at once.
  */

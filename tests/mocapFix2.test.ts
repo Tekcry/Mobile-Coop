@@ -11,6 +11,7 @@
  * - item 8: the switch turned off mid-walk leaves no clip feet state on the planner's feet (the OFF path's state).
  */
 import { afterEach, describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { MOCAP_FEET, MOCAP_SET, MOCAP_SLOT, MocapSlots, setMocapLocomotion } from '../src/anim/mocap';
 import { mixKeyed, newKeyedPose, sampleKeyed } from '../src/anim/keyed';
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
@@ -18,6 +19,9 @@ import { proportions } from '../src/player/proportions';
 import { driveRig, type Plan } from './helpers/mocapMeasure';
 import type { CharacterRig } from '../src/player/characterRig';
 import type { FootState } from '../src/anim/footPlanner';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 afterEach(() => {
   setMocapLocomotion(false);

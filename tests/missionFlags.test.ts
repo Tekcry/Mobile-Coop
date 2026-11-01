@@ -2,7 +2,7 @@
 // (`?coopkit=1`), owner Campaign Build. One test per gate: off -> `missionParam()` null (Sector Ops runs as master), no
 // Hints row, no kit offer (a Marlow Yard 4.4 m lip keeps master's moves, M1); on -> the mission and the pull-up work.
 import { readFileSync } from 'node:fs';
-import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import { flags } from '../src/core/flags';
 import { bindSectorMission, mapBootAllowed, missionParam, missionStartSector, pickMission } from '../src/game/mission/sectorMission';
@@ -16,22 +16,26 @@ import { COOP_LIP } from '../src/world/maps/ctcourseGreybox';
 import { WHARF_SECTORS } from '../src/world/maps/tallowWharfSectors';
 import { THREE_GREY_COATS } from '../src/world/maps/tallowWharfMissions';
 
-const saved = { missions: flags.missions, coopKit: flags.coopKit, mission: flags.mission };
+const saved = { missions: flags.missions, coopKit: flags.coopKit, mission: flags.mission, kitMoves: flags.kitMoves, contextPrompts: flags.contextPrompts };
+// (one-game) the context prompts are on by default; the offers below are pinned by their older hold-A list text (?ctxprompts=0)
+beforeAll(() => void (flags.contextPrompts = false));
 afterEach(() => {
   flags.missions = saved.missions;
   flags.coopKit = saved.coopKit;
   flags.mission = saved.mission;
+  flags.kitMoves = saved.kitMoves;
   vi.restoreAllMocks();
 });
 afterAll(() => {
+  flags.contextPrompts = saved.contextPrompts;
   registerKitMove(PULL_UP);
   registerKitMove(SHUTTER_MOVE);
 });
 
-describe('flags (FLG): both default off', () => {
-  it('no URL: missions and coopKit are off (the node test page has no location)', () => {
-    expect(saved.missions).toBe(false);
-    expect(saved.coopKit).toBe(false);
+describe('flags (FLG): both default on (one-game, 2026-11-01)', () => {
+  it('no URL: missions and coopKit are on (the node test page has no location); ?missions=0 / ?coopkit=0 turn them off', () => {
+    expect(saved.missions).toBe(true);
+    expect(saved.coopKit).toBe(true);
   });
 });
 
@@ -157,6 +161,7 @@ describe('coopKit gate: no kit offer on a Marlow Yard lip (FLG, M1)', () => {
 
   it('off: the holder is never offered a pull-up and kitIdle never runs; the moves are master\'s (no kit registered)', () => {
     flags.coopKit = false;
+    flags.kitMoves = new Set(); // (kitMoves default is every built id now: the part 2 offers run without coopKit)
     const kitIdle = vi.spyOn(TeamController.prototype as unknown as { kitIdle: () => boolean | null }, 'kitIdle');
     const off = holderPress();
     expect(kitIdle).not.toHaveBeenCalled();
@@ -177,6 +182,7 @@ describe('coopKit gate: no kit offer on a Marlow Yard lip (FLG, M1)', () => {
 
   it('off: a partner under a mate offering a pull-up gets no prompt and sends no request', () => {
     flags.coopKit = false;
+    flags.kitMoves = new Set();
     const f = partnerUnderLip();
     f.tick(1);
     expect(f.tm.prompt).not.toMatch(/pull-up/);

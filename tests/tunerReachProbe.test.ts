@@ -4,6 +4,7 @@
 // reach the capture, or stop reaching it, fails here until the tables follow. Its own file: the probe takes a minute or
 // two (600 s guard) and stays out of `tunerEffect.test.ts`'s budget.
 import { describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { captureSeen, MOCAP_PROBE_JOINTS, MOCAP_PROBE_STATES, runMocapProbe, SEEN } from './helpers/tuneEffectProbe';
 import { ATTACH_PROBE_JOINTS, ATTACH_PROBE_LOOPS, ATTACH_PROBE_SETUPS, ATTACH_PROBE_STATES, attachProbeRows, runAttachProbe } from './helpers/attachProbe';
 import { MOCAP_SOURCE_NAMES, mocapSource } from '../src/anim/mocapSources';
@@ -11,6 +12,9 @@ import { NO_EFFECT, sliderEffect, EFFECT_REASONS } from '../src/ui/tunerEffect';
 import { BODY_LAYER, rowReach } from '../src/ui/tunerReach';
 import { BODY_STEP, BODY_WEIGHT } from '../src/ui/tunerLayout';
 import { MOCAP_LAYERS } from '../src/anim/mocap';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 /** The group a probed slider key (`section:id`) of `state` was moved in (the probe's own). */
 function groupOf(section: string, state: string): string {

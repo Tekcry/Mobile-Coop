@@ -1,7 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { flags } from '../src/core/flags';
 import { boostPath, checkTeamRequest, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwLandingOk, throwRoom, THROW_SUB, HANG_SUB, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangLanding, hangPointOk, hangReaches, hangRootY, ROPE_SUB, ropeClimb, ropeEndOf, ropeRoom, ropeSlide, ropeTopY, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
 import { TEAM } from '../src/config/movement';
 import { ATTACH_SUB, emptyMovePose, emptyMoveState, poseFromMoveState } from '../src/player/moveState';
+
+// (one-game) every kit move is on by default now; this file pins the host rules with none on (`?kitmoves=0`)
+const kitMoves0 = flags.kitMoves;
+beforeAll(() => {
+  flags.kitMoves = new Set<string>();
+});
+afterAll(() => {
+  flags.kitMoves = kitMoves0;
+});
 
 const side = (o: Partial<TeamSide> = {}): TeamSide => ({ id: 'a', x: 0, y: 0, z: 0, mode: 'ground', alive: true, ...o });
 const req = (o: Partial<TeamRequest> = {}): TeamRequest => ({ kind: 'boost', a: side({ id: 'a', z: 0.9 }), b: side({ id: 'b', mode: 'brace' }), target: 4, targetUp: 4.2, sinceLast: 5, ...o });

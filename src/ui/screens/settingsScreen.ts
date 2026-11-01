@@ -165,7 +165,7 @@ export class SettingsScreen extends MenuScreen {
             // (mixamo-retarget Toggle) the Animation source: a look choice (gameplay unchanged); the Anim Studio has the same switch
             desc(choice('Animation source', ANIM_SOURCE_OPTS, () => settingAnimSource(s().gameplay, PREVIEW_ON), (v) => upd((d) => {
               d.gameplay.animSource = v;
-              d.gameplay.animSourceSet = true; // (F45) picked: /preview/ stops defaulting to Mixamo
+              d.gameplay.animSourceSet = true; // (F45) picked: the game stops defaulting to Mixamo
             })), 'Which animation set Wren moves with. CMU is the game as it ships; Hand-made the original keyed clips; Mixamo the CMU set with the Mixamo captures on top (hang, shimmy, ladder top-out).'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
             // (anim-fix-pass AF5, BRIEF A1) no "Mocap locomotion" row: mocap is the only player path (app.ts; `?mocap=0`

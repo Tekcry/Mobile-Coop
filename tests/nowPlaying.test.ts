@@ -10,6 +10,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import { setMocapLocomotion } from '../src/anim/mocap';
 import { AnimGraph, defaultInput, type AnimInput, type RigTargets, type TraverseKind } from '../src/anim/animGraph';
 import { newStudioDrive } from '../src/anim/studioDrive';
@@ -23,6 +24,9 @@ import { MOCAP_SOURCE_NAMES, mocapSource, mocapSourceTag, mocapSourceTagWord } f
 import { BODY_GROUPS, tuneEnd, type BodyGroup, type TuneRigIn } from '../src/anim/tune';
 import { proportions } from '../src/player/proportions';
 import { bytesPerCall, inputs, sink } from './helpers/allocPerCall';
+
+// (one-game) the Mixamo captures are on at load by default now; this file pins the hand-made state: `?mixamo=0`
+setMixamo(false);
 
 const DT = 1 / 120;
 

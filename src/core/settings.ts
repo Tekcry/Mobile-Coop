@@ -108,8 +108,8 @@ export interface Settings {
     /** (mixamo-retarget Toggle) The Animation source (`src/anim/animSource.ts`): hand-made, CMU (today's game, the
      *  default) or Mixamo on top of CMU. A look choice on this machine only (a co-op partner drawn here follows it). */
     animSource: 'hand' | 'cmu' | 'mixamo';
-    /** (F45) The player picked the Animation source (Options or the Anim Studio). Until then /preview/ plays Mixamo
-     *  (`settingAnimSource`, preview-flags "All on in preview"); the live game keeps the default. */
+    /** (F45) The player picked the Animation source (Options or the Anim Studio). Until then the game plays Mixamo
+     *  (`settingAnimSource`, on in every build since one-game, 2026-11-01). */
     animSourceSet: boolean };
   /** Accessibility and HUD. */
   access: {
@@ -147,7 +147,8 @@ const adsLook = (v: unknown, d: number, lo: number): number => {
 
 /**
  * (F45) The Animation source the stored setting asks for: the player's pick, or until they pick one, Mixamo on
- * /preview/ (`preview`: flags `PREVIEW_ON`; Michael 2026-10-26 ~13:55 "All on in preview") and the default elsewhere.
+ * (`preview` true, what the game passes: flags `PREVIEW_ON`, on in every build since one-game 2026-11-01) and the stored
+ * default when it is false.
  */
 export function settingAnimSource(g: Pick<Settings['gameplay'], 'animSource' | 'animSourceSet'>, preview: boolean): Settings['gameplay']['animSource'] {
   return !g.animSourceSet && preview ? 'mixamo' : g.animSource;

@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { flags } from '../src/core/flags';
 import { EnemyManager } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { CMD_SEND, GuardView, IncidentBoard, LEVEL, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT, type PathLen } from '../src/ai/incidents';
@@ -27,6 +28,21 @@ import type { NavGrid } from '../src/ai/navGrid';
 import type { DamageRegistry } from '../src/game/damage';
 import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
+
+// (one-game) flags default on now; the fake guards have no loops, so this file runs without the pair, lookout and dog-release rules: `=0`
+const guardPairs0 = flags.guardPairs;
+const lookouts0 = flags.lookouts;
+const dogRelease0 = flags.dogRelease;
+beforeAll(() => {
+  flags.guardPairs = false;
+  flags.lookouts = false;
+  flags.dogRelease = false;
+});
+afterAll(() => {
+  flags.guardPairs = guardPairs0;
+  flags.lookouts = lookouts0;
+  flags.dogRelease = dogRelease0;
+});
 
 // (guard-ai S5b) The Sector Ops guard tags (ENGINE.md section 7, `SectorGuard`) read by `EnemyManager.placeSlot`:
 // squad (radio checks run; a down member is missed and two of his squad look for him), handler (a dog heels on its

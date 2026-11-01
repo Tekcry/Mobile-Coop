@@ -10,7 +10,7 @@
  * sight (lead answer 4), the tuned light file. The built yard's own cases stay in `tests/ctcourse/a2CarriageShed.test.ts`.
  */
 import { readFileSync } from 'node:fs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { MOVEMENT } from '../../../src/config/movement';
 import { COURSE_TEXT_MAX } from '../../../src/config/course';
 import { hyp2 } from '../../../src/core/mathx';
@@ -84,6 +84,14 @@ import { checkSetPart, HALL_H, inBox, pieceCount, registerSum, SET_BOX, SET_GUAR
 import { runtimeNav } from '../../helpers/runtimeNav';
 import { lastTimeAtOrOver, LEAP_APEX, MANTLE, SOLO_TOP_SPEED } from '../../helpers/soloJumpReach';
 import { pickTraversal } from '../../../src/player/movement';
+
+// (one-game) every kit move is on by default now; the stations here are pinned with none on (the stand-ins, whose texts are
+// chosen as the part builds below), as before: `?kitmoves=0`
+const kitMoves0 = flags.kitMoves;
+flags.kitMoves = new Set<string>();
+afterAll(() => {
+  flags.kitMoves = kitMoves0;
+});
 
 const b = new LevelBuilder();
 const built = buildCtcourse(b, { replan: true });

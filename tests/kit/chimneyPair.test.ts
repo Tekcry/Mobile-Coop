@@ -198,13 +198,17 @@ function climbing(): World {
 
 const kit0 = flags.kitMoves;
 const coopKit0 = flags.coopKit;
+// (one-game) the context prompts are on by default now; these tests pin the older hold-A list texts: `?ctxprompts=0`
+const ctx0 = flags.contextPrompts;
 beforeAll(() => {
   flags.kitMoves = new Set(['chimneyPair']);
   flags.coopKit = false;
+  flags.contextPrompts = false;
 });
 afterAll(() => {
   flags.kitMoves = kit0;
   flags.coopKit = coopKit0;
+  flags.contextPrompts = ctx0;
   setNoSplit([]);
 });
 beforeEach(() => registerKitMove(CHIMNEY_MOVE));
