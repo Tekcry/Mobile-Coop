@@ -1,18 +1,13 @@
 name: Build and deploy to GitHub Pages
 
-# The site holds the live game (default branch) at /<repo>/, the preview (dev branch) at /<repo>/preview/ and the
-# Chaos Theory movement preview (ct-movement branch) at /<repo>/ct/ and the Kestrel map project (feature/kestrel branch)
-# at /<repo>/kestrel/. A push to the default branch, or a passing "Preview check" on dev / ct-movement / feature/kestrel,
-# rebuilds them all. Each slot is its own build, service worker and save database; the other slots are only rebuilt
-# from their own branches. Each build writes version.json ({ version, sha }) into its slot.
+# The site is one build: the game (the default branch) at /<repo>/. A push to the default branch rebuilds and deploys it.
+# The old /<repo>/preview/, /ct/ and /kestrel/ addresses are small static pages that forward to the game (keeping the
+# ?query), written after the build by scripts/write-redirects.mjs. Each build writes version.json ({ version, sha }).
 on:
   push:
     branches: [main, master]
   pull_request:
   workflow_dispatch:
-  workflow_run:
-    workflows: [Preview check]
-    types: [completed]
 
 permissions:
   contents: read
@@ -21,8 +16,7 @@ permissions:
 
 concurrency:
   group: pages-${{ github.event_name == 'pull_request' && github.head_ref || 'site' }}
-  # the site deploy queues instead of cancelling: a release push and the dev workflow_run kept cancelling each other
-  # (no Pages deploy 18:03-19:35 on 2026-10-24); pull requests still cancel their older run
+  # the site deploy queues instead of cancelling (two pushes in a row both deploy, in order); pull requests cancel their older run
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -82,8 +76,7 @@ jobs:
         run: npm ci
       # (map-ready S4) the campus prebake's folder (scripts/prebake.mjs): read only under the exact lamp key, so the
       # newest folder (restore-keys) bakes nothing when no lamp or level changed; outside node_modules (its own cache).
-      # (prebake-preview) keyed by build variant: the live and /preview/ builds bake different campus layouts, so one
-      # never restores or saves over the other's folder; plain `prebake-` is the pre-variant fallback
+      # (prebake-preview) plain `prebake-` is the pre-variant fallback key
       - uses: actions/cache@v4
         with:
           path: .prebake-cache
@@ -106,127 +99,49 @@ jobs:
           test "${{ needs['build-check'].result }}" = success
 
   build:
-    if: >-
-      github.event_name != 'pull_request'
-      && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     env:
       # Pages serves project sites from /<repo-name>/
       BASE: /${{ github.event.repository.name }}/
     steps:
-      - name: Live (default branch)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
-          path: live
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: live/package-lock.json
       - uses: actions/cache@v4
         id: nm
         with:
-          path: live/node_modules
-          key: nm-deploy-${{ runner.os }}-node24-${{ hashFiles('live/package-lock.json') }}
-      - name: Install live
+          path: node_modules
+          key: nm-deploy-${{ runner.os }}-node24-${{ hashFiles('package-lock.json') }}
+      - name: Install
         if: steps.nm.outputs.cache-hit != 'true'
-        working-directory: live
         run: npm ci
-      - name: Lint and test live
-        working-directory: live
+      - name: Lint and test
         run: |
           npm run lint
           npm test
-      - name: Campus prebake cache (live)
+      - name: Campus prebake cache
         uses: actions/cache@v4
         with:
-          path: live/.prebake-cache
-          key: prebake-live-${{ hashFiles('live/src/**', 'live/scripts/prebake/**') }}
+          path: .prebake-cache
+          key: prebake-live-${{ hashFiles('src/**', 'scripts/prebake/**') }}
           restore-keys: |
             prebake-live-
             prebake-
-      - name: Build live
-        working-directory: live
+      - name: Build
         run: |
           VITE_BASE=$BASE npm run build
           node -e "const p=require('./package.json');require('fs').writeFileSync('dist/version.json',JSON.stringify({version:p.version,sha:require('child_process').execSync('git rev-parse HEAD').toString().trim()})+'\n')"
-      - name: Is there a dev branch?
-        id: dev
-        run: |
-          if git -C live ls-remote --exit-code --heads origin dev >/dev/null; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Preview (dev branch)
-        if: steps.dev.outputs.exists == 'true'
-        uses: actions/checkout@v4
-        with:
-          ref: dev
-          path: preview
-      # (prebake-preview) VITE_PREVIEW=1 bakes the preview's own campus layout (scripts/prebake.mjs): its own cache key
-      - name: Campus prebake cache (preview)
-        if: steps.dev.outputs.exists == 'true'
-        uses: actions/cache@v4
-        with:
-          path: preview/.prebake-cache
-          key: prebake-preview-${{ hashFiles('preview/src/**', 'preview/scripts/prebake/**') }}
-          restore-keys: prebake-preview-
-      - name: Build preview into /preview/
-        if: steps.dev.outputs.exists == 'true'
-        working-directory: preview
-        run: |
-          # dev is normally master's merge commit: reuse live's node_modules (hard links) when the lockfile is the same
-          if cmp -s package-lock.json ../live/package-lock.json; then cp -al ../live/node_modules node_modules; else npm ci; fi
-          VITE_BASE=${BASE}preview/ VITE_PREVIEW=1 npm run build
-          node -e "const p=require('./package.json');require('fs').writeFileSync('dist/version.json',JSON.stringify({version:p.version,sha:require('child_process').execSync('git rev-parse HEAD').toString().trim()})+'\n')"
-          cp -r dist ../live/dist/preview
-      - name: Is there a ct-movement branch?
-        id: ct
-        run: |
-          if git -C live ls-remote --exit-code --heads origin ct-movement >/dev/null; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: CT preview (ct-movement branch)
-        if: steps.ct.outputs.exists == 'true'
-        uses: actions/checkout@v4
-        with:
-          ref: ct-movement
-          path: ct
-      - name: Build the CT preview into /ct/
-        if: steps.ct.outputs.exists == 'true'
-        working-directory: ct
-        run: |
-          npm ci
-          VITE_BASE=${BASE}ct/ VITE_PREVIEW_ID=ct npm run build
-          cp -r dist ../live/dist/ct
-      - name: Is there a feature/kestrel branch?
-        id: kestrel
-        run: |
-          if git -C live ls-remote --exit-code --heads origin feature/kestrel >/dev/null; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Kestrel preview (feature/kestrel branch)
-        if: steps.kestrel.outputs.exists == 'true'
-        uses: actions/checkout@v4
-        with:
-          ref: feature/kestrel
-          path: kestrel
-      - name: Build the Kestrel preview into /kestrel/
-        if: steps.kestrel.outputs.exists == 'true'
-        working-directory: kestrel
-        run: |
-          npm ci
-          VITE_BASE=${BASE}kestrel/ VITE_PREVIEW_ID=kestrel npm run build
-          cp -r dist ../live/dist/kestrel
+      # the old /preview/, /ct/ and /kestrel/ addresses forward to the main game (scripts/write-redirects.mjs)
+      - name: Forward the old slot addresses
+        run: node scripts/write-redirects.mjs dist
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: live/dist
+          path: dist
 
   deploy:
     needs: build
