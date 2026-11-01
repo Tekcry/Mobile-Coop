@@ -204,15 +204,15 @@ behind a VPN adapter).
   outside-end stop with its edge flag, pull-away and context exits; Warehouse: two guards against a player on a wall (a
   flanker after > 4 s, a grenade after > 6 s: `e2e-wall:flanker`, LEGACY). e2e-netmove adds "wall", "wall crouch" and
   "stack"; the pad and keyboard verb tables cover the button
-- `e2e-stealth-ai` night Warehouse: shadow vs light detection, the arc warns first, no sight through walls, noise ->
-  suspicious -> investigating, squad radio, the shout, a spotter taken out first tells nobody, LKP + ghost + converge +
-  search ends, (walk 4.82) a lone guard reports then moves up on the last known position, the probable-area search ('search area': the near dark spot checked, the room behind a wall not, three
-  searchers on three spots), patrols, the optic cable (the door menu pick, the view under the door at floor height, the look limits,
-  night vision, the tip never seen, the kneeling body seen, crouch leaves, a sealed door refuses); (coop4 AI6) 'four
-  intruders (coop4)': the local player plus up to 3 test-only stand-in refs (`t.fakes`): a calm guard with 4 in view
-  casts <= 9 rays a think and sees all 4 in turn, 4 own slots / LKPs, the alarm's reinforcements split (the raiser's
-  first), a team shares one hunt and is ticked on its own LKP, a leaver's slot kept for his rejoin, a new id takes a gone
-  slot; a 2-player control (today's rules). The 3-4 browser asserts: docs/coop4/briefs/AI6-E2E-SPEC.md
+- `e2e-stealth-ai` Test Chamber (`autostart=studio&mode=test`; the annex hall, store and dark bay; clean-up G2d, the core guard play only):
+  seeing (shadow vs light detection under the real lamp L0 and in the 0.12 dark bay, the arc warns first, vision modes
+  do not change detection, no sight through walls, the goggles button), hearing (noise -> suspicious -> investigating, one
+  guard of four sent to a noise, suppressed / loud / impact shots), search (LKP + ghost + converge + search ends, the
+  probable-area search: the near dark spot checked, the room behind a wall not, three searchers on three spots, noise
+  heard in a search and in a fight), bodies (found in the light, not in the dark, carried and hidden). The detail suites
+  (radio, alarms, lamps and switches, doors and the optic cable, patrols, armour, the dog, squad roles, four intruders,
+  the context prompts, the character shadows) were dropped under N18 and are in git history; the points are in
+  `docs/plan/TEST-CHAMBER-SPEC.md` 3.1 and section 9
 - `e2e-guard-carry` Warehouse Infiltration (High): a calm holstered grunt and officer (S21 carry) and then drawing ones
   are drawn: body among the active meshes, material ready, GPU-skinned effect (no CPU-skinning fallback), no effect
   compile error; then figures on, a forced figure compile timeout: the merged body stands in. Run with `E2E_GPU=1`
@@ -265,10 +265,11 @@ behind a VPN adapter).
   Settings / Feedback, the Sector Ops briefing, Loadout root rows, every weapon selectable with nothing unlocked, the choice kept
   across a reload, a new co-op room on Campaign (Marlow Yard) with Campaign and Sector Ops listed, save export / import) and the
   legacy-on menus (Hunter default; Missions and Free roam listed)
-- `e2e-coop` two pages over `?net=local`, opened with `legacy=1`: lobby, a Hunter match (puppet alert levels, door sync,
-  a client door use and takedown, kept / hidden bodies, pings both ways, a client gas cloud, a client grab and (coop-walk-fixes
-  P6) the host's team takedown on that hostage, a dual takedown, a client
-  reviving the host, the team wipe), validated hits, revive, results; Infiltration objectives on the client; the host's
+- `e2e-coop` two pages over `?net=local`, opened with `legacy=1`: lobby, a Test Chamber match (clean-up G2d: the host's test mode
+  with grunts spawned in the annex hall; puppet alert levels, door sync, a client door use and takedown, kept / hidden
+  bodies, pings both ways, a client gas cloud, a client grab and (coop-walk-fixes P6) the host's team takedown on that
+  hostage, a dual takedown, a client reviving the host, the team wipe), validated hits, a host guard's torch, the guard look
+  seeds, revive, results; every player seen (S23), two intruders (S24), the partner heard (S26), the hang-down; the host's
   fixed difficulty level read-only on the client and running on both; a client using the host's wall medkit station;
   host leaving, offline (known flaky). Parts: `e2e-coop:1` (the above), `e2e-coop:campaign` (`scripts/e2e-coop-campaign.mjs`: campaign lobby to a 100% end, Continue, both profiles' records)
 - `e2e-netmove` two pages, Free Roam on Proving: the client on a ladder, drainpipe, pipe, ledge, duct (hands / feet /

@@ -1,17 +1,20 @@
-// Stealth AI on the night Warehouse (Clear mode, stealth rules): shadow vs light detection, the awareness arc
-// warning before detection, no sight through walls, noise -> suspicious -> investigating, the squad radio,
-// LKP set + ghost + search that converges and ends, (guard-ai S25) the probable-area search after combat, patrols
-// walking their routes.
-// (guard-ai S1) Hearing is the coordinated rule the live modes use (`EnemyManager.coordinated`; Clear mode, parked,
-// keeps the old one, so the suite turns it on): one guard is sent to a noise, the others turn.
+// Stealth AI on the Test Chamber (map `studio`, `mode=test`, the dark annex east of the main room): the core guard play. Seeing:
+// shadow vs light detection (the real lamp L0 and the 0.12 dark bay), the awareness arc warning before detection, vision modes
+// not changing detection, no sight through walls, the vision-mode buttons. Hearing: noise -> suspicious -> investigating, one
+// guard of several sent to a noise, shots (suppressed, loud, an impact). Search: LKP set + ghost + search that converges and
+// ends, (guard-ai S25) the probable-area search after combat, (guard-ai S26) noise heard in a search and in a fight. Bodies: found
+// in the light and not in the dark, carried and hidden.
+// (guard-ai S1) Hearing is the coordinated rule the live modes use (`EnemyManager.coordinated`; the test mode sets it).
+// (clean-up G2d, decision N18) Moved off the Warehouse to the Test Chamber (positions: docs/plan/TEST-CHAMBER-SPEC.md 3.1 and
+// section 9). The detail tests of systems later phases rework (radio, alarms, lamps and switches, doors, patrols, squad roles,
+// armour, surfaces, the dog, the context prompts, the character shadows and more) were dropped; they are in git history.
 // `node scripts/e2e-stealth-ai.mjs [url] [--only=name]`
-import { launch, openPage, assert, frames } from './e2e-lib.mjs';
-import { pinLights } from './parity-lib.mjs';
+import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 let failed = false;
-const { browser, ctx, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=studio&mode=test' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);
@@ -27,45 +30,10 @@ try {
     const V = g.player.position.constructor;
     const st = a.input.state;
     const c = g.player.controller;
-    // (coop4 AI6, A180) the stand-in players of `fakes` (test only, never a game feature: G2 / G48 / G50) and the
-    // game's own remotes, put back by `reset`
-    const fakeList = [];
-    const soloRemotes = g.remotePlayers;
     // helpers kept on window for the scenarios
     window.__t = {
       V,
-      fakeList,
-      /** (coop4 AI6, A180) Up to 3 stand-in `PlayerRef`s ([x, z] or [x, z, y]: y picks the storey; ids `fake1..3`) as
-       *  `g.remotePlayers()` (the AI's `players()` = the local player, then these). Returns the live list (splice / push
-       *  it for a leave or a rejoin). `reset` restores the game's remotes. */
-      fakes(list) {
-        fakeList.length = 0;
-        for (let i = 0; i < list.length && i < 3; i++) fakeList.push(this.fake(`fake${i + 1}`, list[i][0], list[i][1], list[i][2] ?? 0));
-        g.remotePlayers = () => fakeList;
-        return fakeList;
-      },
-      /** One stand-in: feet on the nav floor at (x, z) (the storey nearest `y`), set by the test; alive; aim / head points
-       *  at feet + 1.3 / 1.65 (crouched 0.95 / 1.15); damage a no-op; light pinned to `lit` (the light pass cannot
-       *  overwrite it). */
-      fake(id, x, z, y = 0) {
-        const cell = em.nav.cellOf(x, z, y);
-        const feet = new V(x, cell >= 0 ? em.nav.height[cell] : 0, z);
-        const ref = { id, feet, speed: 0, crouched: false, cover: null, coverT: 0, spotted: false, height: 1.75, head: null, shield: null, lit: 1 };
-        Object.defineProperty(ref, 'light', { get: () => ref.lit, set: () => {}, enumerable: true });
-        ref.target = {
-          id,
-          team: 'player',
-          alive: true,
-          center: (o) => o.set(feet.x, feet.y + (ref.crouched ? 0.8 : 1.1), feet.z),
-          aimPoint: (o) => o.set(feet.x, feet.y + (ref.crouched ? 0.95 : 1.3), feet.z),
-          headPoint: (o) => o.set(feet.x, feet.y + (ref.crouched ? 1.15 : 1.65), feet.z),
-          applyDamage: () => ({ dealt: 0, killed: false }),
-        };
-        return ref;
-      },
       reset() {
-        fakeList.length = 0;
-        g.remotePlayers = soloRemotes;
         em.clear();
         em.coordinated = true;
         // (an alarm in an earlier scenario queues Hunter's reinforcements)
@@ -112,15 +80,6 @@ try {
       spawn(kind, x, z, yaw) {
         return em.spawn(kind, new V(x, 0, z), false, yaw);
       },
-      /** (coop4 AI6) `tp` / `spawn` on the storey at height y. */
-      tp3(x, y, z, yaw) {
-        c.teleport(new V(x, y, z), yaw);
-        g.player.cam.yaw = yaw;
-        g.player.cam.pitch = 0;
-      },
-      spawn3(kind, x, y, z, yaw) {
-        return em.spawn(kind, new V(x, y, z), false, yaw);
-      },
       crouch(v) {
         c['crouchToggled'] = v;
       },
@@ -146,14 +105,14 @@ try {
   };
 
   await scen('shadow', async () => {
-    // dark racking aisle: a crouched sneak past behind a guard, and crouched still in front at 8 m
+    // the Test Chamber's dark annex (zone 0.12): a crouched sneak past behind a guard, and crouched still in front at 8 m
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
       t.light(null);
-      const e = t.spawn('grunt', -14.5, 10, 0);
+      const e = t.spawn('grunt', 34.5, 2.0, 0);
       t.crouch(true);
-      t.tp(-15.2, 6.2, Math.PI / 2);
+      t.tp(31.5, 0.8, Math.PI / 2);
       t.step(0.6);
       const light = g.lightLevel;
       let max = 0;
@@ -165,7 +124,7 @@ try {
       }
       st.setMove('t', 0, 0);
       // in front, crouched and still in the dark
-      t.tp(-14.5, 17.5, Math.PI);
+      t.tp(34.5, 9.5, Math.PI);
       e.yaw = 0;
       let front = 0;
       for (let k = 0; k < 40; k++) {
@@ -174,19 +133,19 @@ try {
       }
       return { light, max, front, level: e.level };
     });
-    assert(r.light < 0.28, `the aisle is in shadow (light ${r.light.toFixed(2)})`);
+    assert(r.light < 0.28, `the dark bay is in shadow (light ${r.light.toFixed(2)})`);
     assert(r.max < 0.3, `a crouched sneak behind a guard in shadow stays unnoticed (meter max ${r.max.toFixed(2)})`);
     assert(r.front < 0.3, `crouched still in the dark in front at ~7 m stays unnoticed (meter max ${r.front.toFixed(2)}, ${r.level})`);
   });
 
   await scen('light', async () => {
-    // lit factory floor: a walker in a lamp pool is seen; the arc warns first
+    // the hall under the real lamp L0: a walker in the lamp pool is seen; the arc warns first
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
       t.light(null);
-      const e = t.spawn('grunt', 0, 5, Math.PI);
-      t.tp(-0.5, -3, 0);
+      const e = t.spawn('grunt', 32.3, 15.5, 0);
+      t.tp(32.3, 23.5, Math.PI);
       t.step(0.4);
       const light = g.lightLevel;
       const st = window.__app.input.state;
@@ -223,12 +182,12 @@ try {
         t.light(null);
         g.vision.reset();
         g.vision.set(mode);
-        const e = t.spawn('grunt', 0, 5, Math.PI);
+        const e = t.spawn('grunt', 32.3, 15.5, 0);
         // (guard-ai seed-random) his think cadence comes from his own seeded stream (keyed by his spawn number, new
         // each run), not Math.random: pin it so the three runs think on the same frames
         e.senseRng.reseed(12345);
         e.thinkT = 0;
-        t.tp(-0.5, -3, 0);
+        t.tp(32.3, 23.5, Math.PI);
         t.step(0.4);
         g.frameUpdate(0.4, 1);
         let alertAt = -1;
@@ -255,48 +214,13 @@ try {
     assert(r.electro.vk === 2 && Math.abs(r.electro.alertAt - r.off.alertAt) <= 1, `electro on: detected on the same frame +-1 (${JSON.stringify(r)})`);
   });
 
-  await scen('vision-dog', async () => {
-    // (step 14) the dog's own body (its humanoid rig is hidden) is warm in thermal, cold otherwise, and cools once dead
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const e = t.spawn('dog', 0, 5, Math.PI);
-      // the mode changes at the middle of the goggle flip (fixed step), then the render frame paints
-      const frame = () => {
-        t.step(0.3);
-        for (let k = 0; k < 3; k++) g.frameUpdate(1 / 60, 1);
-      };
-      g.vision.reset();
-      frame();
-      const off0 = e.dog.partHeat();
-      g.vision.set('thermal');
-      frame();
-      const on = e.dog.partHeat();
-      t.kill(e);
-      frame();
-      const dead0 = e.dog.partHeat();
-      e.dog.downAge = 30 - 0.4;
-      frame();
-      const dead30 = e.dog.partHeat();
-      e.dog.downAge = 61 - 0.4;
-      frame();
-      const dead61 = e.dog.partHeat();
-      g.vision.reset();
-      frame();
-      return { off0, on, dead0, dead30, dead61, off1: e.dog.partHeat(), vk: g.post.visionKind };
-    });
-    assert(r.off0 === 0 && r.on > 0.5, `a live dog's part: pattern.w 0 with thermal off, > 0 with it on (${JSON.stringify(r)})`);
-    assert(r.dead0 > 0.5 && r.dead30 > 0.3 && r.dead30 < r.dead0 && r.dead61 === 0, `a dead dog cools over 60 s (${JSON.stringify(r)})`);
-    assert(r.off1 === 0, `thermal off again: the dog is cold (${JSON.stringify(r)})`);
-  });
-
   await scen('walls', async () => {
     const r = await G(() => {
       const t = window.__t;
-      // dispatch guard facing the corridor wall; the player lit, walking, right behind the wall
+      // a guard in the store facing partition A's wall; the player lit, walking, right behind the wall (3.1 m)
       t.light(1);
-      const e = t.spawn('grunt', -2, -13, 0);
-      t.tp(-2, -9.9, Math.PI);
+      const e = t.spawn('grunt', 30.3, 12.8, 0);
+      t.tp(30.3, 15.9, Math.PI);
       const st = window.__app.input.state;
       const g = window.__app.current;
       let max = 0;
@@ -328,8 +252,8 @@ try {
       // reach is 9 m, so half is ~4.5 m: he stands 0.6 of that from the player (was 6 m, now only a turn)
       const half = 9 * Math.pow(10, -H.investigateDb / 20);
       t.light(0);
-      const e = t.spawn('grunt', -14.5, 4 + half * 0.6, 0);
-      t.tp(-14.5, 4, 0);
+      const e = t.spawn('grunt', 33, 4 + half * 0.6, 0);
+      t.tp(33, 4, 0);
       t.step(0.3);
       g.enemyMgr.hear(g.player.position, 9);
       t.step(0.2);
@@ -341,7 +265,7 @@ try {
         t.step(0.25);
       }
       const l2 = e.level;
-      t.tp(-22, -24, 0);
+      t.tp(3, 2.5, 0);
       t.step(2);
       t.light(null);
       return { l1, l2, moved: z0 - e.pos.z, half };
@@ -362,9 +286,9 @@ try {
       const R = 15;
       const half = R * Math.pow(10, -H.investigateDb / 20);
       t.light(0);
-      t.tp(-22, -24, 0);
-      const P = new t.V(3, 0, 3);
-      const gs = [t.spawn('grunt', 3, 5.5, 0), t.spawn('grunt', 7.5, 4, Math.PI / 2), t.spawn('grunt', 0, 7, 0), t.spawn('grunt', 6, -2, Math.PI)];
+      t.tp(3, 2.5, 0);
+      const P = new t.V(32.3, 0, 21);
+      const gs = [t.spawn('grunt', 32.3, 23.5, 0), t.spawn('grunt', 35.5, 22.5, Math.PI / 2), t.spawn('grunt', 29.3, 25, 0), t.spawn('grunt', 35.5, 16.5, Math.PI)];
       t.step(0.3);
       const home = gs.map((e) => [e.pos.x, e.pos.z]);
       const dist = gs.map((e) => Math.hypot(e.pos.x - P.x, e.pos.y - P.y, e.pos.z - P.z));
@@ -400,126 +324,6 @@ try {
     assert(r.moved[r.nearest] > 0.5, `the one sent walks over (${f2(r.moved[r.nearest])} m)`);
   });
 
-  await scen('radio', async () => {
-    // (guard-ai S3, M5) the spotter's call goes to his whole section (this map is one section), staggered by distance
-    // once it completes: the near squadmate (~11 m, out of voice) first, the far one (~24 m: the old 22 m radio range
-    // did not reach him) later; nobody before the call completes
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const R = em.radioTable;
-      t.light(1);
-      const a = t.spawn('grunt', 0, 5, Math.PI);
-      const b = t.spawn('grunt', 10, 9, Math.PI);
-      const far = t.spawn('grunt', -21, 17, Math.PI);
-      t.tp(-0.5, 0, 0);
-      let k = 0;
-      while (!a.alerted && k++ < 300) t.step(1 / 60);
-      const bBefore = b.alerted;
-      const pending = em.radioLeft(a);
-      // (guard-ai S6) the contact call completing (his command call opens at once, so radioLeft stays > 0)
-      const c0 = em.radioNet.completed;
-      let time = 0;
-      let bT = -1;
-      let farT = -1;
-      let done = -1;
-      while (time < pending + R.staggerMax + 1.5) {
-        t.step(0.05);
-        time += 0.05;
-        if (done < 0 && em.radioNet.completed > c0) done = time;
-        if (bT < 0 && b.alerted) bT = time;
-        if (farT < 0 && far.alerted) farT = time;
-      }
-      t.light(null);
-      return { a: a.alerted, bBefore, pending, done, bT, farT, max: R.staggerMax, d: [Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z), Math.hypot(far.pos.x - a.pos.x, far.pos.z - a.pos.z)], lkp: em.lkpValid };
-    });
-    const f = (v) => v.toFixed(2);
-    assert(r.a, 'the guard who sees the player is alerted');
-    assert(r.pending > 1.5 && !r.bBefore, `the spotter takes a moment to radio it in (${f(r.pending)} s)`);
-    assert(r.bT > 0 && r.bT >= r.pending - 0.05, `a squadmate out of voice range joins only once it is called in (at ${f(r.bT)} s, call ${f(r.pending)} s)`);
-    assert(r.farT > r.bT, `the far guard of the same section is told too, after the nearer one (${f(r.farT)} > ${f(r.bT)} s; ${r.d.map(f)} m)`);
-    assert(r.farT <= r.pending + r.max + 0.3, `everyone within the call + ${r.max} s (${f(r.farT)} s)`);
-    assert(r.lkp, 'the sighting sets the last known position');
-  });
-
-  await scen('radio window', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const em = window.__app.current.enemyMgr;
-      t.light(1);
-      const a = t.spawn('grunt', 0, 5, Math.PI);
-      const b = t.spawn('grunt', 10, 9, Math.PI);
-      const near = t.spawn('grunt', 3, 8, Math.PI);
-      t.tp(-0.5, 0, 0);
-      let k = 0;
-      while (!a.alerted && k++ < 300) t.step(1 / 60);
-      // the guard close by (~4 m, in the open) hears the shout at once (voice: +0.3 s)
-      t.step(0.8);
-      const nearOn = near.alerted;
-      const left = em.radioLeft(a);
-      const lost0 = em.radioNet.lost;
-      // the spotter is taken out (silently) before the call gets through
-      a.knockOut({ amount: 999, point: a.pos.clone(), dir: new t.V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: a.pos.clone(), impulse: 0 });
-      near.knockOut({ amount: 999, point: near.pos.clone(), dir: new t.V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: near.pos.clone(), impulse: 0 });
-      t.tp(-21, -24, 0);
-      t.step(7);
-      t.light(null);
-      return { nearOn, left, lost: em.radioNet.lost - lost0, b: b.level };
-    });
-    assert(r.nearOn, 'a squadmate close by joins at once (the shout)');
-    assert(r.left > 0.5, `the call is still going out when he is taken out (${r.left.toFixed(2)} s left)`);
-    assert(r.lost >= 1, `his call is lost (${r.lost})`);
-    assert(r.b !== 'alert', `the spotter taken out before calling it in: nobody else is told (${r.b})`);
-  });
-
-  await scen('radio stagger', async () => {
-    // (guard-ai S3, M5) five squadmates of one section, out of voice range and facing away: when the spotter's call
-    // completes they hear it one at a time, nearest first, over more than a second, all within the call + staggerMax;
-    // never all at once
-    const r = await G(() => {
-      const t = window.__t;
-      const em = window.__app.current.enemyMgr;
-      const R = em.radioTable;
-      t.light(1);
-      const a = t.spawn('grunt', 0, 5, Math.PI);
-      const os = [t.spawn('grunt', 4, 13, 0), t.spawn('grunt', -7, 14, 0), t.spawn('grunt', 9, 17, 0), t.spawn('grunt', -14, 17, 0), t.spawn('grunt', -21, 17, 0)];
-      t.tp(-0.5, 0, 0);
-      let k = 0;
-      while (!a.alerted && k++ < 300) t.step(1 / 60);
-      const before = os.filter((e) => e.alerted).length;
-      const pending = em.radioLeft(a);
-      // (guard-ai S6) the contact call completing (his command call opens at once, so radioLeft stays > 0)
-      const c0 = em.radioNet.completed;
-      const at = os.map(() => -1);
-      let dist = null;
-      let time = 0;
-      while (time < pending + R.staggerMax + 1.5) {
-        t.step(0.05);
-        time += 0.05;
-        // distances from the spotter where the call completes (the net sorts by them)
-        if (!dist && em.radioNet.completed > c0) dist = os.map((e) => Math.hypot(e.pos.x - a.pos.x, e.pos.y - a.pos.y, e.pos.z - a.pos.z));
-        os.forEach((e, i) => {
-          if (at[i] < 0 && e.alerted) at[i] = time;
-        });
-      }
-      t.light(null);
-      return { before, pending, at, dist, max: R.staggerMax, voice: os.map((e) => Math.hypot(e.pos.x - 0, e.pos.z - 5)) };
-    });
-    const f = (v) => v.toFixed(2);
-    assert(r.before === 0 && r.dist, `nobody else knows at the sighting; the call completes (${r.before}, ${f(r.pending)} s)`);
-    assert(r.at.every((x) => x > 0), `all five are told (${r.at.map(f)})`);
-    const order = r.dist.map((d, i) => [d, r.at[i]]).sort((p, q) => p[0] - q[0]);
-    let ordered = true;
-    for (let i = 1; i < order.length; i++) if (!(order[i][1] > order[i - 1][1])) ordered = false;
-    assert(ordered, `nearest first, each later than the one before (${order.map((p) => `${f(p[0])} m @ ${f(p[1])} s`).join(', ')})`);
-    const first = Math.min(...r.at);
-    const last = Math.max(...r.at);
-    assert(first >= r.pending, `nobody before the call completes (${f(first)} >= ${f(r.pending)} s)`);
-    assert(last - first > 1, `spread over more than a second (${f(last - first)} s)`);
-    assert(last <= r.pending + r.max + 0.3, `all within the call + ${r.max} s (${f(last)} <= ${f(r.pending + r.max + 0.3)} s)`);
-  });
-
   await scen('lkp', async () => {
     const r = await G(() => {
       const t = window.__t;
@@ -534,8 +338,8 @@ try {
         t.light(1);
         // no alarm run (Hunter would bring the doubled hostiles in hunting, and they find you)
         em.alarmRaised = true;
-        const e = t.spawn('grunt', 0, 5, Math.PI);
-        t.tp(-0.5, 0, 0);
+        const e = t.spawn('grunt', 32.3, 15.5, 0);
+        t.tp(32.3, 20.5, Math.PI);
         let k = 0;
         while (!(e.alerted && em.sightT < 0.1) && k++ < 900) {
           t.step(1 / 60);
@@ -543,11 +347,11 @@ try {
         }
         const seen = { alerted: e.alerted, level: e.level, sightT: +em.sightT.toFixed(2), lkp: em.lkpValid, frames: k, captured: g.ghost.captured };
         const seenAt = { x: em.lkp.x, z: em.lkp.z };
-        // vanish behind the dispatch wall (out of sight, far from the last known position). (guard-ai S25b) Behind the
-        // z = -18 wall row at (0, -20): 35 m by path, past the probable area's reach (`SEARCH_AREA.max` 20 m + 3; the old
-        // (-2, -15) was 19 m by path, inside it, so a searcher could legitimately walk there: S25B-CHECK-B)
+        // vanish to the main room's south-west corner (HIDE_FAR, out of sight, far from the last known position). (guard-ai
+        // S25b) 35 m by path from the spot in the hall (S) through the annex door, past the probable area's reach
+        // (`SEARCH_AREA.max` 20 m + 3: a searcher could legitimately walk to a spot inside it: S25B-CHECK-B)
         t.light(0);
-        t.tp(0, -20, 0);
+        t.tp(3, 2.5, 0);
         const hid = { x: +g.player.position.x.toFixed(2), z: +g.player.position.z.toFixed(2) };
         let ghost = false;
         let searching = false;
@@ -571,7 +375,7 @@ try {
             searchAt = (i + 1) * 0.05;
           }
           closest = Math.min(closest, Math.hypot(e.pos.x - seenAt.x, e.pos.z - seenAt.z));
-          if (e.level === 'alert' && e.sinceSeen > 1 && Math.hypot(e.pos.x - 0, e.pos.z + 20) < 2) wallhack = true;
+          if (e.level === 'alert' && e.sinceSeen > 1 && Math.hypot(e.pos.x - 3, e.pos.z - 2.5) < 2) wallhack = true;
         }
         const lkpNear = Math.hypot(em.lkp.x - seenAt.x, em.lkp.z - seenAt.z);
         // the search ends: it runs its length (`ALERT.searchTime` 60 s) from when it started, then he calms. (guard-ai
@@ -598,75 +402,6 @@ try {
     assert(!r.lkpAfter && !r.ghostAfter, 'the LKP and its ghost clear afterwards');
   });
 
-  await scen('report then engage', async () => {
-    // (guard-ai walk 4.82 item 2, Michael: "s2 guard sees you, hides, reports, and forgets where you are and becomes
-    // cautious. That's not logical at all. He should report then attack you instead of hiding.") A lone guard spots the
-    // lit player and radios it in; the player vanishes out of sight. Once the call is through he does not sit in cover
-    // until the lost-sight timer turns the fight into a search: he moves up on the last known position still in combat
-    // (alert), never leaving cover while his call is open, and the search starts there with the position kept.
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const rnd = Math.random;
-      let seed = 4821;
-      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-      try {
-        t.light(1);
-        // the contact call only (no command call: the alarm run would bring Hunter's reinforcements)
-        em.alarmRaised = true;
-        const e = t.spawn('grunt', 0, 5, Math.PI);
-        t.tp(-0.5, 0, 0);
-        let k = 0;
-        while (!(e.alerted && em.sightT < 0.1) && k++ < 900) t.step(1 / 60);
-        const seen = { alerted: e.alerted, call: +em.radioLeft(e).toFixed(2), lkp: em.lkpValid };
-        const at = { x: em.lkp.x, z: em.lkp.z };
-        // out of sight behind the dispatch wall, far from the last known position
-        t.light(0);
-        t.tp(-2, -15, 0);
-        let time = 0;
-        let callDone = -1;
-        let leftEarly = false;
-        let prev = e.state;
-        let wasInCover = false;
-        let arrived = null;
-        let searchAt = -1;
-        let lkpAtSearch = false;
-        let wallhack = false;
-        let closest = 99;
-        for (let i = 0; i < 700 && searchAt < 0; i++) {
-          for (const x of em.enemies) if (x !== e) x.passive = true;
-          t.step(0.05);
-          time += 0.05;
-          const open = em.radioLeft(e) > 0;
-          if (callDone < 0 && !open) callDone = time;
-          if (e.state === 'inCover') wasInCover = true;
-          if (prev === 'inCover' && e.state === 'chase' && open) leftEarly = true;
-          prev = e.state;
-          const d = Math.hypot(e.pos.x - at.x, e.pos.z - at.z);
-          closest = Math.min(closest, d);
-          if (!arrived && d < 2) arrived = { level: e.level, t: +time.toFixed(2), unseen: +e.sinceSeen.toFixed(2) };
-          if (e.level === 'alert' && e.sinceSeen > 1 && Math.hypot(e.pos.x + 2, e.pos.z + 15) < 2) wallhack = true;
-          if (e.level === 'searching') {
-            searchAt = time;
-            lkpAtSearch = em.lkpValid && em.lkpOf(e.hunt) !== null;
-          }
-        }
-        t.light(null);
-        return { seen, callDone, leftEarly, wasInCover, arrived, closest, searchAt, lkpAtSearch, wallhack, end: e.level };
-      } finally {
-        Math.random = rnd;
-      }
-    });
-    const f = (v) => v.toFixed(2);
-    assert(r.seen.alerted && r.seen.lkp, `the guard detects the lit player and sets the last known position (${JSON.stringify(r.seen)})`);
-    assert(r.seen.call > 0 && r.callDone > 0, `he radios it in (call ${f(r.seen.call)} s, through at ${f(r.callDone)} s)`);
-    assert(!r.leftEarly, `he does not leave his cover while the call is open (in cover: ${r.wasInCover})`);
-    assert(r.arrived && r.arrived.level === 'alert', `he moves up on the last known position still in the fight, not a search (${JSON.stringify(r.arrived)}, closest ${f(r.closest)} m)`);
-    assert(r.searchAt > 0 && r.lkpAtSearch, `the search starts there and the position is kept (${f(r.searchAt)} s, ${r.lkpAtSearch})`);
-    assert(!r.wallhack, 'he never homes in on the hidden player');
-  });
-
   // (guard-ai S25, A151) The probable-area search after combat (S25.md "e2e", S25B-CHECK-B.md draft). One sighting of
   // the lit player as 'lkp', then three runs, each picking its spot in the browser from the game's own data (the
   // intruder's chase field, the baked light, the level cover, `em.searchAreaTable`), so nothing hangs on hand-measured
@@ -683,6 +418,8 @@ try {
         const em = g.enemyMgr;
         const nav = em.nav;
         const SA = em.searchAreaTable;
+        // ('three': three guards spread out and one reaches the annex door, from where HIDE_FAR (3, 2.5) is in sight across the main
+        // room, so the three hide in the crouch tunnel (1.5, 13), whose east wall hides it from there)
         const lf = g.world.lightField;
         const rnd = Math.random;
         let seed = which === 'near' ? 4242 : which === 'wall' ? 4343 : 4444;
@@ -695,12 +432,14 @@ try {
           em.alarmRaised = true;
           const gs = [];
           const xs = which === 'three' ? [0, 1.5, -1.5] : [0];
-          for (const x of xs) gs.push(t.spawn('grunt', x, 5, Math.PI));
+          // the guards' post P (32.3, 15.5), the lit spot S (32.3, 20.5), the park HIDE_FAR (3, 2.5)
+          const POST = { x: 32.3, z: 15.5 };
+          for (const x of xs) gs.push(t.spawn('grunt', 32.3 + x, 15.5, 0));
           if (gs.some((x) => !x)) return { err: 'a guard did not spawn' };
           const e = gs[0];
           // his eye over his feet, standing (enemy.ts `eye`), for the 'near' sight test below
           const eyeUp = e['eye'](new t.V()).y - e.pos.y;
-          t.tp(-0.5, 0, 0);
+          t.tp(32.3, 20.5, Math.PI);
           let k = 0;
           while (!(gs.every((x) => x.alerted) && em.sightT < 0.1) && k++ < 900) {
             t.step(1 / 60);
@@ -727,14 +466,14 @@ try {
             return c >= 0 && nav.isWalkable(c) ? f[c] * cell : Infinity;
           };
           let hide = null;
-          // (S25-SAI-TRIAGE) out of his sight from his walk (post (0, 5) -> last known position) and round the last
+          // (S25-SAI-TRIAGE) out of his sight from his walk (post P -> last known position) and round the last
           // known position: an alerted guard sees by line of sight alone, light or not (enemy.ts `updateAwareness`),
           // so a spot he can see from there is no vanish: he sees him again and the last known position moves onto
           // him (the 8bd13e0c pick (-4.75, -2.25) was in view through the 1.1 m gap in the x -4 wall). Eyes on
           // walkable cells only; a static ray to the crouched hips, chest and head, clear as the guard's own losClear
           const eyes = [];
-          const ne = Math.max(1, Math.ceil(Math.hypot(Lx, Lz - 5) / 0.5));
-          for (let q = 0; q <= ne; q++) eyes.push([(Lx * q) / ne, 5 + ((Lz - 5) * q) / ne]);
+          const ne = Math.max(1, Math.ceil(Math.hypot(Lx - POST.x, Lz - POST.z) / 0.5));
+          for (let q = 0; q <= ne; q++) eyes.push([POST.x + ((Lx - POST.x) * q) / ne, POST.z + ((Lz - POST.z) * q) / ne]);
           for (let q = 0; q < 8; q++) eyes.push([Lx + 1.5 * Math.cos((q * Math.PI) / 4), Lz + 1.5 * Math.sin((q * Math.PI) / 4)]);
           const eyeV = eyes.filter(([x, z]) => nav.isWalkable(nav.cellOf(x, z, Ly))).map(([x, z]) => new t.V(x, Ly + eyeUp, z));
           const toV = new t.V();
@@ -762,10 +501,10 @@ try {
               const [x, z] = nav.center(c);
               // (not so near the last known position that walking to it passes the spot anyway)
               if (Math.hypot(x - Lx, z - Lz) < 3) return;
-              // (nor within 3 m of his walk from his post (0, 5) to the last known position: that would pass it too)
-              const sx = Lx, sz = Lz - 5;
-              const u = Math.max(0, Math.min(1, ((x - 0) * sx + (z - 5) * sz) / Math.max(1e-6, sx * sx + sz * sz)));
-              if (Math.hypot(x - u * sx, z - 5 - u * sz) < 3) return;
+              // (nor within 3 m of his walk from his post to the last known position: that would pass it too)
+              const sx = Lx - POST.x, sz = Lz - POST.z;
+              const u = Math.max(0, Math.min(1, ((x - POST.x) * sx + (z - POST.z) * sz) / Math.max(1e-6, sx * sx + sz * sz)));
+              if (Math.hypot(x - POST.x - u * sx, z - POST.z - u * sz) < 3) return;
               if (inSight(x, nav.cellHeight(c), z)) return;
               best = sc;
               hide = { x, z, path: r1(p), straight: r1(Math.hypot(x - Lx, z - Lz)), light: +l.toFixed(3), cover, score: +sc.toFixed(2) };
@@ -801,12 +540,12 @@ try {
               hide = { x, z, path: r1(p), straight: r1(d) };
             }
             if (!hide) return { seen, ownField, err: 'no floor spot 4-9 m straight, >= 4 m longer by path, out of his sight, from the last known position' };
-          } else hide = { x: 0, z: -20, far: true };
+          } else hide = { x: 1.5, z: 13, far: true };
           // he vanishes: dark, crouched
           t.light(0);
           t.crouch(true);
-          // (S25-SAI-TRIAGE 5) 'wall': the player waits out the combat at the far park spot (0, -20) (behind the
-          // dispatch walls, as 'three' and 'lkp') and takes the walled spot only once the search starts. His combat
+          // (S25-SAI-TRIAGE 5) 'wall': the player waits out the combat at the far park spot HIDE_FAR (3, 2.5) (the main room's corner, behind the
+          // annex walls, as 'three' and 'lkp') and takes the walled spot only once the search starts. His combat
           // route (the seeded cover pick: north-west to about (-2.1, 9.7), then cover at about (1-3.4, 9.5)) saw the
           // walled spot through the x -4 gap at z 8-9.1 (round 4: the LKP moved onto it at 2.2 s). A searcher is calm
           // and sees by the light (0 here), so from then on the spot stays hidden. 'wall' measures the plan and the
@@ -815,7 +554,7 @@ try {
           // moves up on the last known position while still in combat; from there (about (-4.8, 0.4) at 10.6 s) he saw
           // the near spot 4.3 m off. The near intent (the plan ranks the dark spot near the last known position and a
           // searcher reaches it) is about the search, so the spot is taken when the search starts
-          const park = which === 'wall' || which === 'near' ? { x: 0, z: -20 } : hide;
+          const park = which === 'wall' || which === 'near' ? { x: 3, z: 2.5 } : hide;
           t.tp(park.x, park.z, 0);
           // (S25-SAI-TRIAGE 2) the body follows the tp before the first sim step: the rig (and so the target's chest and
           // head, `PlayerTarget.sync` in the fixed step) is placed in `frameUpdate` (player.ts root.position), so the
@@ -1002,7 +741,7 @@ try {
 
   // (guard-ai S26, A155-A158, CT rule 8) Guards hear in a search and in a fight (S26.md "e2e"; the 'lkp' pattern: one
   // grunt sees the lit player, seeded Math.random, sim-time steps, the other guards passive). The player then goes dark
-  // and far (the 'lkp' hide spot behind the dispatch wall, 35 m by path), so nothing but the noise reaches the guard;
+  // and far (the 'lkp' hide spot HIDE_FAR in the main room, 35 m by path), so nothing but the noise reaches the guard;
   // the noise is fired through the public API as the game does for a footstep: `em.hear(feet, reach, 'noise', null,
   // localId)`. There is no sprint (CT prototype M1): the loudest step on foot is the full-stick jog, so its reach is
   // MEASURED from the game first (`g.noise` over a real full-stick walk, no guards yet, on the surface `g.surface`
@@ -1031,7 +770,7 @@ try {
           // --- the step's reach, from the game: a real full-stick walk, no guards yet ---
           t.reset();
           t.light(0);
-          t.tp(-0.5, 0, 0);
+          t.tp(32.3, 20.5, 0);
           t.step(1);
           g.noise = 0;
           st.setMove('t', 0, 1);
@@ -1049,9 +788,9 @@ try {
           t.light(1);
           // no alarm run (Hunter's reinforcements would find him)
           em.alarmRaised = true;
-          const e = t.spawn('grunt', 0, 5, Math.PI);
+          const e = t.spawn('grunt', 32.3, 15.5, 0);
           if (!e) return { err: 'the guard did not spawn' };
-          t.tp(-0.5, 0, 0);
+          t.tp(32.3, 20.5, Math.PI);
           let k = 0;
           while (!(e.alerted && em.sightT < 0.1) && k++ < 900) {
             t.step(1 / 60);
@@ -1066,10 +805,10 @@ try {
           const slot = b.slotFor(id);
           const seen = { alerted: e.alerted, level: e.level, stealth: em.stealth, coordinated: em.coordinated, sightT: r1(em.sightT), frames: k, slot, valid: slot >= 0 ? b.valid[slot] : -1, n: r2(n), surf: calibSurf };
           if (!(e.alerted && slot >= 0 && b.valid[slot] === 1)) return { seen, err: 'the guard did not detect the lit player (no intruder slot)' };
-          // he vanishes: dark, crouched, far behind the dispatch wall (nothing but the noise reaches the guard)
+          // he vanishes: dark, crouched, far off in the main room's corner HIDE_FAR (nothing but the noise reaches the guard)
           t.light(0);
           t.crouch(true);
-          t.tp(0, -20, 0);
+          t.tp(3, 2.5, 0);
           const tick = () => {
             // (the mode's later squads stay out of it: this is about the one guard)
             for (const x of em.enemies) if (x !== e) x.passive = true;
@@ -1121,6 +860,14 @@ try {
                 // (outside his search spot, and not on his way to it: walking there must not pass the step)
                 if (S && (Math.hypot(x - S[0], z - S[1]) < 3 || segD(x, z, e.pos.x, e.pos.z, S[0], S[1]) < 2)) continue;
                 if (lk && Math.hypot(x - lk.x, z - lk.z) < 1.5) continue;
+                // ('wall', G2d: not a spot his own search plan visits: the cell behind H1 is the plan's top point, so his spot
+                // came within 1.5 m of it with no noise at all)
+                if (mode === 'wall') {
+                  const pl = em.plans[slot];
+                  let nearPlan = false;
+                  for (let q = 0; q < pl.n && !nearPlan; q++) nearPlan = Math.hypot(pl.x[q] - x, pl.z[q] - z) < 3;
+                  if (nearPlan) continue;
+                }
                 let ok = false;
                 if (mode === 'step') {
                   const p = probe(x, y0, z, n);
@@ -1280,39 +1027,19 @@ try {
     assert(c.locT < 1.1, `combat: the noise located him (locT ${c.locT}; ${sc})`);
   });
 
-  await scen('patrol', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      t.light(0);
-      const e = t.spawn('grunt', -19, -10.5, Math.PI);
-      e.setPatrol({ points: [[-19, -10.5], [-12.5, -8.6], [-16.5, -14.8]], wait: 1 });
-      t.tp(-22, 16, 0);
-      const pts = [];
-      for (let i = 0; i < 64; i++) {
-        t.step(0.5);
-        pts.push([e.pos.x, e.pos.z]);
-      }
-      t.light(null);
-      const near = (x, z) => pts.some((p) => Math.hypot(p[0] - x, p[1] - z) < 0.8);
-      return { a: near(-12.5, -8.6), b: near(-16.5, -14.8), level: e.level };
-    });
-    assert(r.a && r.b, `an unaware guard walks its route (${r.a} ${r.b})`);
-    assert(r.level === 'unaware', `and stays unaware (${r.level})`);
-  });
-
   await scen('bodies', async () => {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
       const em = g.enemyMgr;
       t.light(0);
-      t.tp(-22, -24, 0);
-      // lit: a body in the factory floor lamp pool, a guard 9 m away facing it
-      const v = t.spawn('grunt', 0, -3, 0);
+      t.tp(3, 2.5, 0);
+      // lit: a body in the hall's lamp pool (S8, under L0), a guard 4.5 m away facing it
+      const v = t.spawn('grunt', 32.3, 23.5, 0);
       t.kill(v);
-      const w = t.spawn('grunt', 0.5, 6, Math.PI);
-      const mate = t.spawn('grunt', 8, 8, 0);
-      // (chain fix) bodiesFound is not reset between scenarios ('radio window' can leave a find behind): count finds
+      const w = t.spawn('grunt', 32.3, 19, 0);
+      const mate = t.spawn('grunt', 35.5, 26.5, 0);
+      // (chain fix) bodiesFound is not reset between scenarios (an earlier scenario can leave a find behind): count finds
       // from here, and only w's find of this body counts
       const f00 = em.bodiesFound;
       const ob = em.onBodyFound;
@@ -1336,14 +1063,14 @@ try {
       const lmate = mate.level;
       const cmate = em.cautionOf(mate);
       const helps = em.bodyHelps - helps0;
-      // shadow: a body in the dark aisle, a guard 6 m away facing it
+      // shadow: a body in the dark bay, a guard 3.5 m away facing it
       t.reset();
       t.light(0);
-      t.tp(-22, -24, 0);
+      t.tp(3, 2.5, 0);
       const f0 = em.bodiesFound;
-      const v2 = t.spawn('grunt', -14.5, 10.5, 0);
+      const v2 = t.spawn('grunt', 34.5, 3, 0);
       t.kill(v2);
-      t.spawn('grunt', -14.5, 16.5, Math.PI);
+      t.spawn('grunt', 34.5, 6.5, Math.PI);
       t.step(5);
       const dark = em.bodiesFound - f0;
       t.light(null);
@@ -1355,7 +1082,7 @@ try {
     assert(r.cw === 2 && r.left > 0, `the finder is held cautious and radios it (caution ${r.cw}, call ${r.left.toFixed(2)} s)`);
     assert(r.cmate0 === 0, `the mate does not know before the report gets through (${r.cmate0})`);
     assert(r.cmate === 2 && r.lmate === 'searching' && r.helps === 1, `the report gets through: the mate is cautious and (S19) hurries over to help search the body (${r.cmate}, ${r.lmate}, sent ${r.helps})`);
-    assert(r.dark === 0, `a body in the dark at 6 m is not found (${r.dark})`);
+    assert(r.dark === 0, `a body in the dark at 3.5 m is not found (${r.dark})`);
   });
 
   await scen('carry', async () => {
@@ -1365,8 +1092,10 @@ try {
       const em = g.enemyMgr;
       const st = window.__app.input.state;
       t.light(0);
-      const v = t.spawn('grunt', -18, -21, 0);
-      t.tp(-18, -23.5, 0);
+      // (x 33.5, not the spec's 30.3: walking on with the body from there came within 1.5 m of the dumpster's hiding spot, so the
+      // interact hid the body instead of putting it down)
+      const v = t.spawn('grunt', 33.5, 3.5, 0);
+      t.tp(33.5, 1.0, 0);
       t.step(0.2);
       t.kill(v);
       t.step(4);
@@ -1399,7 +1128,7 @@ try {
       t.step(0.2);
       const again = !!g.stealth.carry;
       t.step(2.0);
-      t.tp(-21.6, -20.2, Math.PI);
+      t.tp(30.3, 6.05, 0);
       t.step(0.2);
       const hideOffer = g.interactTarget?.label;
       st.tap('interact');
@@ -1418,492 +1147,13 @@ try {
     assert(r.hidden === 1 && r.present === 0, 'hidden bodies are gone for good');
   });
 
-  await scen('lights', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const reg = g.world.level.lights;
-      t.light(0);
-      t.tp(-22, -24, 0);
-      // shoot out the factory floor lamp at (0, -3): the guard on the factory floor (its room goes dark; he faces away)
-      // comes to look with a flashlight. (guard-ai S2: only guards who saw the light go are told: the room they stand
-      // in, or the fixture in their sight with a clear line; no more 25 m through walls)
-      const e = t.spawn('grunt', 6, 3, 0);
-      const lamp = reg.lights.find((l) => l.kind === 'lamp' && l.x === 0 && l.z === -3);
-      const before = reg.countOn();
-      g.weapons.onRay(new t.V(0, 1.5, -10), new t.V(0, 8.6, 4));
-      const out = lamp.destroyed;
-      // the far end of another strip (1.2 m from its centre) is a hit too
-      const lamp2 = reg.lights.find((l) => l.kind === 'lamp' && l.x === 9 && l.z === -9);
-      g.weapons.onRay(new t.V(9, 1, -7.8), new t.V(9, 9, -7.8));
-      const end = lamp2.destroyed;
-      // (guard-ai S2) the board sends him at once (a light check: investigating); the second lamp, in the corridor
-      // behind him, nobody saw: nobody is sent to it
-      t.step(2.8);
-      const lv = e.level;
-      const kind = e.incident >= 0 ? em.board.kindOf(e.incident) : null;
-      const goal = [e['lightC'][0], e['lightC'][1]];
-      // (3.6: the torch comes on where it is dark at his head - the light field, lamps included - not where the ambient
-      // alone is. He walks from the pool of the lamp at (9, 3) (0.44-0.51 at his head: no torch) to the dark lamp at
-      // (0, -3) and lights it once he leaves the light, a few metres on at the investigate pace)
-      let torch = 0;
-      let torchLevel = -1;
-      for (let k = 0; k < 150 && !torch; k++) {
-        t.step(0.1);
-        torch = em.torchesOn;
-        if (torch) torchLevel = g.world.lightField.levelAt(e.pos.x, e.pos.y + 1.4, e.pos.z);
-      }
-      // switch: the floor circuit off at its wall switch
-      t.reset();
-      t.light(0);
-      const e2 = t.spawn('grunt', 4, -2, Math.PI);
-      const sw = g.interactables.items.find((i) => i.id === 'switch-4');
-      t.tp(sw.pos.x, sw.pos.z + 0.6, Math.PI);
-      t.step(0.2);
-      const swOffer = g.interactTarget?.label;
-      const on0 = reg.countOn();
-      window.__app.input.state.tap('interact');
-      t.step(0.2);
-      const on1 = reg.countOn();
-      t.step(2.8);
-      const lv2 = e2.level;
-      // (guard-ai S15, A42) a switch cut is a fault: the one who saw it walks to the switch to turn it back on (calm)
-      const kind2 = e2.incident >= 0 ? em.board.kindOf(e2.incident) : null;
-      const brk2 = e2.breakerGroup;
-      t.light(null);
-      return { before, out, end, lv, kind, goal, torch, torchLevel, swOffer, on0, on1, lv2, kind2, brk2, shot: g.stealth.lightsShot };
-    });
-    assert(r.out, 'a shot through a bulb puts the light out');
-    assert(r.end, 'a shot at the end of a lamp strip puts it out too');
-    assert(r.lv === 'investigating', `the guard who saw it go comes to look (${r.lv})`);
-    assert(r.kind === 'light' && Math.hypot(r.goal[0], r.goal[1] + 3) < 0.5, `a light check of the lamp in his room, not the one behind the wall (${r.kind}, to ${r.goal})`);
-    assert(r.torch >= 1 && r.torchLevel < 0.35, `with a flashlight in the dark (${r.torch} on, light at his head ${r.torchLevel.toFixed(2)})`);
-    assert(r.swOffer === 'Lights off', `a wall switch offers lights off (${r.swOffer})`);
-    assert(r.on1 < r.on0, `switching turns the room's circuit off (${r.on0} -> ${r.on1})`);
-    // (guard-ai S15) was "the room going dark is investigated": a switch off is now a fault he goes to reset, calm
-    assert(r.kind2 === 'breaker' && r.brk2 >= 0 && (r.lv2 === 'unaware' || r.lv2 === 'cooldown' || r.lv2 === 'suspicious'), `the room going dark sends him to the switch to reset it, calm (${r.kind2}, circuit ${r.brk2}, ${r.lv2})`);
-  });
-
-  await scen('breaker', async () => {
-    // (guard-ai S15, stealth over shooting item 8, A42) the factory floor circuit off at its wall switch with two guards
-    // on the floor seeing it go (their room goes dark, as in 'light pair'): a fault, not an attack. Exactly one walks to
-    // the switch at his patrol pace (never a pair), works it BREAKER.resetT s and the circuit is on again; neither goes
-    // past suspicious, both end calm with no task. The same switch again inside BREAKER.repeatT: tampering, the S2 light
-    // incident at the switch. Sim-time steps only; Math.random seeded as in 'lkp'.
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const reg = g.world.level.lights;
-      const rnd = Math.random;
-      let seed = 1515;
-      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-      try {
-        t.light(0);
-        t.tp(-22, -24, 0);
-        const sw = g.interactables.items.find((i) => i.id === 'switch-4');
-        const grp = g.world.layout.switches[4].group;
-        const lamp = reg.lights.find((l) => l.kind === 'lamp' && l.x === 0 && l.z === -3);
-        const a = t.spawn('grunt', 4, 1, 0);
-        const b = t.spawn('grunt', 3, -6.5, Math.PI / 2);
-        a.setPatrol({ points: [[a.pos.x, a.pos.z], [a.pos.x, a.pos.z + 5]], wait: 1 });
-        b.setPatrol({ points: [[b.pos.x, b.pos.z], [b.pos.x + 5, b.pos.z]], wait: 1 });
-        t.step(0.5);
-        const onCircuit = lamp?.group === grp;
-        const resets0 = em.breakerResets;
-        sw.onUse(sw, 'local');
-        const off = !g.stealth.switchOn(grp) && reg.lights.filter((l) => l.group === grp && !l.destroyed).every((l) => !l.on);
-        t.step(0.3);
-        const walkers = [a, b].map((e) => e.breakerGroup === grp);
-        const kinds = [a, b].map((e) => (e.incident >= 0 ? em.board.kindOf(e.incident) : null));
-        const w = walkers[0] ? a : walkers[1] ? b : null;
-        const rank = { unaware: 0, cooldown: 0, suspicious: 1, investigating: 2, searching: 3, alert: 4 };
-        const worst = ['unaware', 'unaware'];
-        let tt = 0.3;
-        let back = -1;
-        let atSwitch = 99;
-        let maxSpeed = 0;
-        let last = w ? [w.pos.x, w.pos.z] : null;
-        for (let k = 0; k < 240 && back < 0; k++) {
-          t.step(0.25);
-          tt += 0.25;
-          [a, b].forEach((e, i) => {
-            if (rank[e.level] > rank[worst[i]]) worst[i] = e.level;
-          });
-          if (w) {
-            maxSpeed = Math.max(maxSpeed, Math.hypot(w.pos.x - last[0], w.pos.z - last[1]) / 0.25);
-            last = [w.pos.x, w.pos.z];
-            atSwitch = Math.min(atSwitch, Math.hypot(w.pos.x - sw.pos.x, w.pos.z - sw.pos.z));
-          }
-          if (g.stealth.switchOn(grp)) back = tt;
-        }
-        const relit = reg.lights.filter((l) => l.group === grp && !l.destroyed).every((l) => l.on);
-        t.step(1);
-        const after = { levels: [a.level, b.level], inc: [a.incident, b.incident], brk: [a.breakerGroup, b.breakerGroup], resets: em.breakerResets - resets0 };
-        // the same switch again at once (inside repeatT): tampering, a light check at the switch
-        sw.onUse(sw, 'local');
-        t.step(0.3);
-        const second = [a, b].map((e) => ({ lv: e.level, kind: e.incident >= 0 ? em.board.kindOf(e.incident) : null, brk: e.breakerGroup }));
-        const sinceFirst = tt + 1.3;
-        t.light(null);
-        return { onCircuit, off, walkers, kinds, worst, back, atSwitch, maxSpeed, walkSpeed: w?.def.walkSpeed ?? 0, relit, after, second, sinceFirst, repeatT: em.breakerTable.repeatT };
-      } finally {
-        Math.random = rnd;
-      }
-    });
-    const f2 = (v) => v.toFixed(2);
-    assert(r.onCircuit && r.off, `the switch puts the factory floor circuit out (lamp (0, -3) on it ${r.onCircuit}, all off ${r.off})`);
-    assert(r.walkers.filter(Boolean).length === 1, `exactly one of the two who saw it goes to the switch (${JSON.stringify(r.walkers)}, tasks ${JSON.stringify(r.kinds)})`);
-    assert(r.kinds.filter((k) => k === 'breaker').length === 1 && !r.kinds.includes('light'), `a breaker fault, not a light check (${JSON.stringify(r.kinds)})`);
-    assert(r.maxSpeed < r.walkSpeed * 1.25, `he walks over at his patrol pace (max ${f2(r.maxSpeed)} m/s, walk speed ${f2(r.walkSpeed)})`);
-    assert(r.back > 0 && r.atSwitch < 1.6 && r.relit, `he reaches the switch and the circuit is on again (at ${f2(r.back)} s, ${f2(r.atSwitch)} m from it, all lit ${r.relit})`);
-    assert(r.worst.every((l) => l === 'unaware' || l === 'cooldown' || l === 'suspicious'), `neither goes past suspicious (${JSON.stringify(r.worst)})`);
-    assert(r.after.levels.every((l) => l === 'unaware' || l === 'cooldown') && r.after.inc.every((i) => i === -1) && r.after.brk.every((x) => x === -1), `both calm with no task after (${JSON.stringify(r.after)})`);
-    assert(r.after.resets === 1, `one reset (${r.after.resets})`);
-    assert(r.sinceFirst < r.repeatT, `the second cut is inside repeatT (${f2(r.sinceFirst)} < ${r.repeatT} s)`);
-    assert(r.second.some((s) => s.kind === 'light' && s.lv === 'investigating') && r.second.every((s) => s.brk === -1), `a second cut inside repeatT is tampering: a light incident at the switch (${JSON.stringify(r.second)})`);
-  });
-
-  await scen('light pair', async () => {
-    // (guard-ai S2, M1 goal 4) three guards near the factory floor lamp at (0, -3); two can see it go (they stand on the
-    // floor: their room goes dark), the third is in the racking hall behind the x -4 wall, facing away, inside
-    // `INCIDENT.lightPairR` of it. Exactly the two go (a second witness within lightPairR: a pair), check the light
-    // and the ring round it, stand down and walk their routes again calm (unaware, not cooldown: "return back to
-    // normal"); the third never stirs.
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const I = em.incidentTable;
-      const reg = g.world.level.lights;
-      t.light(0);
-      t.tp(-22, -24, 0);
-      const a = t.spawn('grunt', 4, 1, 0);
-      const b = t.spawn('grunt', 3, -6.5, Math.PI / 2);
-      const c = t.spawn('grunt', -14.5, -1, -Math.PI / 2);
-      const ra = [[a.pos.x, a.pos.z], [a.pos.x, a.pos.z + 5]];
-      const rb = [[b.pos.x, b.pos.z], [b.pos.x + 5, b.pos.z]];
-      a.setPatrol({ points: ra, wait: 1 });
-      b.setPatrol({ points: rb, wait: 1 });
-      t.step(0.5);
-      const lamp = reg.lights.find((l) => l.kind === 'lamp' && l.x === 0 && l.z === -3);
-      const cDist = Math.hypot(c.pos.x - lamp.x, c.pos.z - lamp.z);
-      const cHome = [c.pos.x, c.pos.z];
-      g.weapons.onRay(new t.V(0, 1.5, -10), new t.V(0, 8.6, 4));
-      const out = lamp.destroyed;
-      t.step(0.3);
-      const sent = [a, b, c].map((e) => e.level === 'investigating' && e.incident >= 0);
-      const rank = { unaware: 0, cooldown: 0, suspicious: 1, investigating: 2, searching: 3, alert: 4 };
-      const worst = ['unaware', 'unaware', 'unaware'];
-      const back = [-1, -1];
-      const onRoute = [false, false];
-      const near = (e, pts) => pts.some((p) => Math.hypot(e.pos.x - p[0], e.pos.z - p[1]) < 1.2);
-      let tt = 0.3;
-      const reachedLamp = [false, false];
-      let cMoved = 0;
-      for (let k = 0; k < 240 && !(onRoute[0] && onRoute[1]); k++) {
-        t.step(0.5);
-        tt += 0.5;
-        [a, b, c].forEach((e, i) => {
-          if (rank[e.level] > rank[worst[i]]) worst[i] = e.level;
-        });
-        [a, b].forEach((e, i) => {
-          if (Math.hypot(e.pos.x - lamp.x, e.pos.z - lamp.z) < 2.5) reachedLamp[i] = true;
-          if (back[i] < 0 && worst[i] === 'investigating' && e.level !== 'investigating') back[i] = tt;
-          if (back[i] >= 0 && near(e, i === 0 ? ra : rb)) onRoute[i] = true;
-        });
-        cMoved = Math.max(cMoved, Math.hypot(c.pos.x - cHome[0], c.pos.z - cHome[1]));
-      }
-      t.light(null);
-      return { out, cDist, pairR: I.lightPairR, sent, worst, back, onRoute, reachedLamp, cMoved, levels: [a.level, b.level, c.level], inc: [a.incident, b.incident], esc: em.board.escalations };
-    });
-    const f2 = (v) => v.toFixed(2);
-    assert(r.out, 'the lamp is shot out');
-    assert(r.cDist < r.pairR, `the third guard is inside lightPairR of the lamp (${f2(r.cDist)} < ${r.pairR} m)`);
-    assert(r.sent[0] && r.sent[1] && !r.sent[2], `exactly the two who saw it go (${JSON.stringify(r.sent)})`);
-    assert(r.worst[2] === 'unaware' && r.cMoved < 1, `the third never stirs (${r.worst[2]}, moved ${f2(r.cMoved)} m)`);
-    assert(r.reachedLamp[0] && r.reachedLamp[1], `both walk to the light (${JSON.stringify(r.reachedLamp)})`);
-    assert(r.back[0] > 0 && r.back[1] > 0, `both stand down after the check (at ${r.back.map(f2)} s)`);
-    assert(r.levels[0] === 'unaware' && r.levels[1] === 'unaware' && r.inc[0] === -1 && r.inc[1] === -1, `calm again, not cautious (${JSON.stringify(r.levels)}, incidents ${r.inc})`);
-    assert(r.onRoute[0] && r.onRoute[1], `and back on their routes (${JSON.stringify(r.onRoute)})`);
-    assert(r.esc === 0, `nobody went missing (${r.esc} escalations)`);
-  });
-
-  await scen('alarm', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const st = window.__app.input.state;
-      t.light(0);
-      t.tp(-22, 16, 0);
-      const e = t.spawn('grunt', 2, 6, 0);
-      e.alert();
-      const n0 = em.alive;
-      let raised = false;
-      let tRaise = -1;
-      for (let i = 0; i < 100 && !raised; i++) {
-        t.step(0.1);
-        raised = em.alarmRaised;
-        if (raised) tRaise = (i + 1) * 0.1;
-      }
-      // (guard-ai S6) the panel 6 m off is worked before his command call (contact + report, ~6.5 s) gets through: the
-      // panel wins by ~2.5 s at reaction 1. (Stack merge) so the expected order is panel first, with his command call
-      // possibly already started (`cmdStarted`); the panel's raise cancels it (`command.raised()`), so it never
-      // completes and `alarmBy` stays 'panel'
-      const by = em.alarmBy;
-      const cmdStarted = em.command.started;
-      t.step(0.5);
-      const n1 = em.alive;
-      // disable a panel first (hold), then nobody can raise it
-      t.reset();
-      t.light(0);
-      const panel = g.interactables.items.find((i) => i.id === 'alarm-1');
-      t.tp(panel.pos.x + 0.7, panel.pos.z, -Math.PI / 2);
-      t.step(0.2);
-      const offer = g.interactTarget?.label;
-      st.set('t', 'interact', true);
-      t.step(1.5);
-      st.set('t', 'interact', false);
-      const dis = em.alarms[1].disabled;
-      em.alarms[0].disabled = true;
-      t.tp(-22, 16, 0);
-      const e2 = t.spawn('grunt', 2, 6, 0);
-      e2.alert();
-      // (guard-ai S6) with both panels off he never runs to one; his command call by radio may still raise it
-      let ran = false;
-      for (let i = 0; i < 80; i++) {
-        t.step(0.1);
-        if (e2.runningAlarm) ran = true;
-      }
-      t.light(null);
-      return { raised, tRaise, by, cmdStarted, n0, n1, offer, dis, ran, raised2: em.alarmRaised, by2: em.alarmBy };
-    });
-    // the panel first (the radio would raise it ~6.5 s after the sighting; a command call already started is fine)
-    assert(r.raised && r.by === 'panel', `an alerted guard runs to the alarm panel and raises it before his command call gets through (by '${r.by}' at ${r.tRaise} s, command calls started ${r.cmdStarted})`);
-    assert(r.n1 > r.n0, `reinforcements come in (${r.n0} -> ${r.n1})`);
-    assert(/Disable alarm/.test(r.offer ?? ''), `the panel can be disabled (${r.offer})`);
-    assert(r.dis && !r.ran && r.by2 !== 'panel', `a disabled panel never raises the alarm (ran ${r.ran}, raised ${r.raised2} by '${r.by2}')`);
-  });
-
-  await scen('alarm call', async () => {
-    // (guard-ai S6, design 7, M4) the alarm by radio, the panels off (only the radio path): (A) the spotter taken out
-    // during his contact call: no command call, no alarm, nobody comes; (B) his contact gets through: he holds the
-    // command call (RADIO.report x reaction) and the alarm goes off by radio, reinforcements come; (C) the commander
-    // taken out during that call: the squadmate still fighting takes it ALARM_CALL.retry s later and it gets through
-    const r = await G(() => {
-      const t = window.__t;
-      const em = window.__app.current.enemyMgr;
-      const R = em.radioTable;
-      const retry = em.alarmCallTable.retry;
-      const off = () => {
-        for (const p of em.alarms) p.disabled = true;
-      };
-      const spot = () => {
-        const a = t.spawn('grunt', 0, 5, Math.PI);
-        t.tp(-0.5, 0, 0);
-        let k = 0;
-        while (!a.alerted && k++ < 300) t.step(1 / 60);
-        return a;
-      };
-      const until = (f, max) => {
-        let s = 0;
-        while (!f() && s < max) {
-          t.step(0.05);
-          s += 0.05;
-        }
-        return s;
-      };
-      const out = {};
-      // (A)
-      t.light(1);
-      off();
-      const s0 = em.command.started;
-      const a = spot();
-      out.aLeft = em.radioLeft(a);
-      t.kill(a, true);
-      const n0 = em.alive;
-      t.step(12);
-      Object.assign(out, { aStarted: em.command.started - s0, aRaised: em.alarmRaised, aNew: em.alive - n0 });
-      // (B)
-      t.reset();
-      t.light(1);
-      off();
-      const b = spot();
-      const pending = em.radioLeft(b);
-      const tCmd = until(() => em.command.caller === b.num, pending + 2);
-      const report = em.radioLeft(b);
-      const nb = em.alive;
-      const tAl = tCmd + until(() => em.alarmRaised, report + 2);
-      t.step(0.5);
-      Object.assign(out, { pending, tCmd, report, tAl, bBy: em.alarmBy, bNew: em.alive - nb });
-      // (C)
-      t.reset();
-      t.light(1);
-      off();
-      const c = spot();
-      const mate = t.spawn('grunt', 10, 9, Math.PI);
-      until(() => em.command.caller === c.num, em.radioLeft(c) + 2);
-      out.cCaller = em.command.caller === c.num;
-      t.kill(c, true);
-      const tB = until(() => em.command.caller === mate.num, retry + 3);
-      const tAl2 = tB + until(() => em.alarmRaised, R.report * 2 + 2);
-      t.light(null);
-      Object.assign(out, { tB, mateUp: mate.alive && mate.alerted, tAl2, cBy: em.alarmBy, retry, R: R.report });
-      return out;
-    });
-    const f = (v) => v.toFixed(2);
-    assert(r.aLeft > 0.3 && r.aStarted === 0 && !r.aRaised && r.aNew === 0, `the spotter taken out during his call (${f(r.aLeft)} s left): no command call, no alarm, nobody comes (${r.aStarted}, ${r.aRaised}, +${r.aNew})`);
-    assert(Math.abs(r.tCmd - r.pending) < 0.2, `his contact gets through, then he calls command (${f(r.tCmd)} s, contact ${f(r.pending)} s)`);
-    assert(r.report > r.R * 0.5 && Math.abs(r.tAl - r.tCmd - r.report) < 0.2 && r.bBy === 'radio', `the command call (${f(r.report)} s) raises the alarm by radio (at ${f(r.tAl)} s, '${r.bBy}')`);
-    assert(r.bNew > 0, `reinforcements come in (+${r.bNew})`);
-    assert(r.cCaller && r.mateUp && Math.abs(r.tB - r.retry) < 0.3, `the commander taken out: the squadmate in the fight takes the call ${f(r.tB)} s later (retry ${r.retry} s)`);
-    assert(r.cBy === 'radio' && r.tAl2 > r.tB && r.tAl2 - r.tB < r.R * 1.6 + 0.3, `...and it gets through: the alarm ${f(r.tAl2 - r.tB)} s after he took it ('${r.cBy}')`);
-  });
-
-  await scen('revive', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      t.light(0);
-      t.tp(-22, -24, 0);
-      const v = t.spawn('grunt', 0, -3, 0);
-      t.kill(v, true);
-      const w = t.spawn('grunt', 0.5, 6, Math.PI);
-      const n0 = em.alive;
-      let woke = false;
-      for (let i = 0; i < 200 && !woke; i++) {
-        t.step(0.1);
-        woke = em.alive > n0;
-      }
-      const lethal = em.bodies.length;
-      // (guard-ai S4, M3, A4) the same guard is back (his key); he and the waker search round the spot, then stay
-      // cautious, then calm: sim-stepped, the times read from the caution table
-      const C = em.cautionTable;
-      const nv = em.enemies.find((e) => e.alive && e !== w);
-      const sameKey = !!nv && nv.key === v.key;
-      const c0 = nv ? [em.cautionOf(w), em.cautionOf(nv)] : [];
-      t.step(C.koSearch - 2);
-      const s1 = nv ? [em.awareness.isSearching(w.key), em.awareness.isSearching(nv.key), w.level, nv.level] : [];
-      t.step(C.koCautious);
-      const s2 = nv ? [em.cautionOf(w), em.cautionOf(nv), w.level, nv.level] : [];
-      t.step(4);
-      const s3 = nv ? [em.cautionOf(w), em.cautionOf(nv), w.level, nv.level] : [];
-      t.light(null);
-      return { woke, lethal, wl: w.level, sameKey, c0, s1, s2, s3, holds: em.awareness.holdCount() };
-    });
-    assert(r.woke, 'a knocked-out guard is woken when a squadmate finds him');
-    assert(r.lethal === 0, `and the body is gone (${r.lethal} left)`);
-    assert(r.sameKey, 'the woken guard keeps his guard key (the same guard)');
-    assert(r.c0[0] === 1 && r.c0[1] === 1 && r.holds === 0, `both turn cautious, timed (no hold) (${r.c0}, holds ${r.holds})`);
-    assert(r.s1[0] && r.s1[1] && r.s1[2] === 'searching' && r.s1[3] === 'searching', `both search round the spot (${r.s1})`);
-    assert(r.s2[0] === 1 && r.s2[1] === 1 && r.s2[2] === 'cooldown' && r.s2[3] === 'cooldown', `then stay cautious, on edge (${r.s2})`);
-    assert(r.s3[0] === 0 && r.s3[1] === 0 && r.s3[2] === 'unaware' && r.s3[3] === 'unaware', `then calm, back to normal (${r.s3})`);
-  });
-
-  await scen('witness', async () => {
-    // (guard-ai S4, design 4, M1) a kill in view of one calm guard: he turns cautious and radios it; take him out
-    // before it gets through and the section stays normal. Let it through: the section is cautious until everyone
-    // aware of it is out. A knockout seen: he goes to wake him (timed caution, no hold).
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const R = em.radioTable;
-      const three = () => {
-        t.reset();
-        t.light(0);
-        t.tp(-22, -24, 0);
-        // the victim in the factory floor lamp pool, the witness 9 m off facing it, a third out of voice range facing away
-        const v = t.spawn('grunt', 0, -3, 0);
-        const w = t.spawn('grunt', 0.5, 6, Math.PI);
-        const f = t.spawn('grunt', 8, 8, 0);
-        t.step(0.3);
-        return { v, w, f };
-      };
-      // A: the witness taken out before his report gets through
-      let s = three();
-      const k0 = em.killsWitnessed;
-      t.kill(s.v);
-      const a = { seen: em.killsWitnessed - k0, wc: em.cautionOf(s.w), left: em.radioLeft(s.w), fc0: em.cautionOf(s.f) };
-      t.step(0.5);
-      t.kill(s.w);
-      t.step(a.left + R.staggerMax + 1);
-      Object.assign(a, { fc: em.cautionOf(s.f), fl: s.f.level, holds: em.awareness.holdCount() });
-      // B: the report gets through
-      s = three();
-      t.kill(s.v);
-      const left = em.radioLeft(s.w);
-      t.step(left + R.staggerMax + 1);
-      const b = { fc: em.cautionOf(s.f), fl: s.f.level, wc: em.cautionOf(s.w) };
-      t.kill(s.w);
-      b.holdsMid = em.awareness.holdCount();
-      b.fcMid = em.cautionOf(s.f);
-      t.kill(s.f);
-      b.holdsEnd = em.awareness.holdCount();
-      // C: a knockout seen
-      s = three();
-      t.kill(s.v, true);
-      let woke = false;
-      for (let i = 0; i < 200 && !woke; i++) {
-        t.step(0.1);
-        woke = em.enemies.some((e) => e.alive && e !== s.w && e !== s.f);
-      }
-      const c = { woke, wc: em.cautionOf(s.w), fc: em.cautionOf(s.f), holds: em.awareness.holdCount() };
-      t.light(null);
-      return { a, b, c };
-    });
-    const { a, b, c } = r;
-    assert(a.seen === 1 && a.wc === 2 && a.left > 0, `the witness sees the kill, turns cautious and radios it (seen ${a.seen}, caution ${a.wc}, call ${a.left.toFixed(2)} s)`);
-    assert(a.fc0 === 0, `the third guard does not know yet (${a.fc0})`);
-    assert(a.fc === 0 && a.fl === 'unaware' && a.holds === 0, `witness taken out before his report: the section stays normal (${a.fc}, ${a.fl}, holds ${a.holds})`);
-    assert(b.fc === 2 && b.fl === 'searching' && b.wc === 2, `the report gets through: the third guard is cautious too and (S19) helps search the body (${b.fc}, ${b.fl})`);
-    assert(b.holdsMid === 1 && b.fcMid === 2, `the witness out, the third still knows: still cautious (holds ${b.holdsMid}, ${b.fcMid})`);
-    assert(b.holdsEnd === 0, `everyone aware is out: the caution is gone (holds ${b.holdsEnd})`);
-    assert(c.woke && c.wc === 1 && c.fc === 0 && c.holds === 0, `a knockout seen: the witness wakes him, timed caution, no hold (${c.woke}, ${c.wc}, ${c.fc}, holds ${c.holds})`);
-  });
-
-  await scen('surfaces', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const st = window.__app.input.state;
-      t.light(0);
-      const walk = (x, y, z, yaw) => {
-        g.player.controller.teleport(new t.V(x, y, z), yaw);
-        g.player.cam.yaw = yaw;
-        t.step(0.3);
-        st.setMove('t', 0, 1); // full stick: max gear 4 (2.3 m/s since step 22); since step 17 a 0.6 stick snaps to the silent gear-2 walk
-        let n = 0;
-        let surf = '';
-        for (let i = 0; i < 12; i++) {
-          t.step(0.1);
-          n = Math.max(n, g.noise);
-          surf = g.surface;
-        }
-        st.setMove('t', 0, 0);
-        t.step(0.4);
-        return { n, surf };
-      };
-      const concrete = walk(8, 0, -5, Math.PI / 2);
-      const metal = walk(13.5, 2.6, 14.6, Math.PI / 2);
-      const carpet = walk(-2.5, 0, 13.4, 0);
-      t.light(null);
-      return { concrete, metal, carpet };
-    });
-    assert(r.concrete.surf === 'concrete' && r.metal.surf === 'metal' && r.carpet.surf === 'carpet', `surfaces under foot (${r.concrete.surf}, ${r.metal.surf}, ${r.carpet.surf})`);
-    assert(r.metal.n > r.concrete.n && r.concrete.n > r.carpet.n, `walking is loudest on metal, quietest on carpet (${r.metal.n.toFixed(1)} / ${r.concrete.n.toFixed(1)} / ${r.carpet.n.toFixed(1)} m)`);
-  });
-
   await scen('shots', async () => {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
       t.light(0);
-      t.tp(0, -5, Math.PI);
-      const e = t.spawn('grunt', 0, 5, 0);
+      t.tp(32.3, 27.2, Math.PI);
+      const e = t.spawn('grunt', 32.3, 20.2, Math.PI);
       t.step(0.3);
       const stats = g.weapons.current.stats;
       const n0 = stats.noise;
@@ -1911,7 +1161,7 @@ try {
       g.weapons.lastShotNoise = 0.45; // (sd-rounds) onShot reads the fired round's noise, not stats
       g.weapons.events.onShot(g.weapons.current.def);
       t.step(0.2);
-      // (guard-ai S1) 10 m of a 12.6 m suppressed report is outside half the reach: he only turns to look
+      // (guard-ai S1) 7 m of a 12.6 m suppressed report is outside half the reach (6.3 m): he only turns to look
       const supp = e.level;
       const suppTurn = e.turning;
       // (S1 check fix 2) read again after ALERT.hearLook: the old "everyone walks over" rule would have him
@@ -1934,17 +1184,17 @@ try {
       };
       t.reset();
       t.light(0);
-      t.tp(0, -5, Math.PI);
-      const e2 = t.spawn('grunt', 0, -5 + quarter * 0.7, 0);
+      t.tp(32.3, 27.2, Math.PI);
+      const e2 = t.spawn('grunt', 32.3, 27.2 - quarter * 0.7, Math.PI);
       t.step(0.3);
       loudShot();
       t.step(0.2);
       const loud = e2.level;
-      // the same report 10 m off (inside half its reach, outside a quarter): he is sent to look, not to a fight
+      // the same report 8 m off (inside half its reach, outside a quarter): he is sent to look, not to a fight
       t.reset();
       t.light(0);
-      t.tp(0, -5, Math.PI);
-      const e2b = t.spawn('grunt', 0, 5, 0);
+      t.tp(32.3, 27.2, Math.PI);
+      const e2b = t.spawn('grunt', 32.3, 19.2, Math.PI);
       t.step(0.3);
       loudShot();
       t.step(0.2);
@@ -1953,407 +1203,22 @@ try {
       const loudFar2 = e2b.level;
       t.reset();
       t.light(0);
-      t.tp(-22, -24, 0);
-      const e3 = t.spawn('grunt', 0, 5, 0);
+      t.tp(3, 2.5, 0);
+      // the round lands on H1's west face (x 34.35), 2.3 m from the guard
+      const e3 = t.spawn('grunt', 32.0, 21.5, 0);
       t.step(0.3);
-      g.weapons.onRay(new t.V(-5, 1, 5), new t.V(1.5, 1, 6));
+      g.weapons.onRay(new t.V(29, 1, 21.5), new t.V(34.3, 1, 21.5));
       t.step(0.2);
       const impact = e3.level;
       const impactTurn = e3.turning;
       t.light(null);
       return { supp, suppTurn, supp2, loud, loudFar, loudFar2, impact, impactTurn, quarter };
     });
-    assert(r.supp !== 'alert' && r.supp !== 'investigating' && (r.supp === 'suspicious' || r.suppTurn), `a suppressed shot 10 m off only makes a guard turn to look (${r.supp}, turning ${r.suppTurn})`);
+    assert(r.supp !== 'alert' && r.supp !== 'investigating' && (r.supp === 'suspicious' || r.suppTurn), `a suppressed shot 7 m off only makes a guard turn to look (${r.supp}, turning ${r.suppTurn})`);
     assert(r.suppTurn && r.supp2 !== 'investigating' && r.supp2 !== 'alert', `...he turned, and 2.6 s later he still has not walked over (${r.supp2})`);
     assert(r.loud === 'alert', `a loud shot inside a quarter of its reach puts him in combat (${r.loud}, quarter ${r.quarter.toFixed(2)} m)`);
-    assert(r.loudFar === 'suspicious' && r.loudFar2 === 'investigating', `a loud shot 10 m off sends him to look, not to a fight (${r.loudFar} -> ${r.loudFar2})`);
+    assert(r.loudFar === 'suspicious' && r.loudFar2 === 'investigating', `a loud shot 8 m off sends him to look, not to a fight (${r.loudFar} -> ${r.loudFar2})`);
     assert(r.impact === 'suspicious' || r.impact === 'investigating' || r.impactTurn, `a round landing close by is heard (${r.impact}, turning ${r.impactTurn})`);
-  });
-
-  await scen('doors', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const st = window.__app.input.state;
-      const doors = g.world.doors;
-      const d = doors.nearest(-0.95, 12, 0.5);
-      // a closed door blocks sight: a lit walker on the far side is not seen
-      t.light(1);
-      const e = t.spawn('grunt', -0.95, 15, Math.PI);
-      t.tp(-0.95, 9.8, 0);
-      let blocked = 0;
-      for (let i = 0; i < 20; i++) {
-        st.setMove('t', i % 10 < 5 ? 0.5 : -0.5, 0);
-        t.step(0.1);
-        blocked = Math.max(blocked, e.rate);
-      }
-      st.setMove('t', 0, 0);
-      // opened quietly by hand: a creak (2 m), then he can see through
-      t.tp(-0.95, 11.2, 0);
-      t.step(0.2);
-      // (G5) the CT context menu top right: header INTERACT over the door set
-      const offer = [...document.querySelectorAll('.hud-ctx.show .ctx-head, .hud-ctx.show .ctx-row')].filter((x) => x.style.display !== 'none').map((x) => x.textContent).join(' / ');
-      g.noise = 0;
-      // (A3, G19; G5) a scripted tap at a closed door opens the door set latched; a second tap picks Open (row 1)
-      st.tap('interact');
-      t.step(0.1);
-      const menuOpen = g.doorMenu.open;
-      st.tap('interact');
-      t.step(0.1);
-      // (G6, AUDIT-WALLS row 4, 052349) Open is a short move: the step to the latch side, the leaf 0.8 s after the pick
-      // swinging 0.75 s: the creak is heard over the move, the door open by 1.55 s
-      let quiet = g.noise;
-      for (let i = 0; i < 19; i++) {
-        t.step(0.1);
-        quiet = Math.max(quiet, g.noise);
-      }
-      const open = d.open;
-      t.tp(-0.95, 9.8, 0);
-      let seen = 0;
-      for (let i = 0; i < 10; i++) {
-        t.step(0.1);
-        seen = Math.max(seen, e.rate);
-      }
-      // (A3, G97) running into a door does nothing special (the door is shut again first)
-      doors.close(d, () => false);
-      t.step(1.2);
-      t.reset();
-      t.light(0);
-      t.tp(-2.6, 8.2, Math.atan2(1.65, 3.8));
-      t.step(0.3);
-      st.setMove('t', 0, 1);
-      st.tap('dash');
-      for (let i = 0; i < 40 && d.target === 0; i++) t.step(0.05);
-      const sprintOpened = d.target === 1;
-      st.setMove('t', 0, 0);
-      // bash from the door menu: loud, and a guard right behind the door is knocked out
-      doors.close(d, () => false);
-      t.step(1.2);
-      t.reset();
-      t.light(0);
-      t.tp(-0.95, 11.2, 0);
-      const behind = t.spawn('grunt', -0.95, 13.1, 0); // 1.1 m behind the leaf: past the 1.0 m a guard pushes a door open from, inside the 1.3 m bash reach
-      t.step(0.3);
-      g.noise = 0;
-      st.tap('interact');
-      t.step(0.1);
-      const bashOpts = [...g.doorMenu.opts];
-      const bi = bashOpts.indexOf('bash');
-      for (let i = 0; i < bi; i++) {
-        st.tap('uiDown');
-        t.step(0.2);
-      }
-      st.tap('interact');
-      t.step(0.1);
-      const bash = g.noise;
-      t.step(0.3);
-      const bashed = d.target === 1;
-      const dbg = { bashOpts, bi, menu: g.doorMenu.open, target: d.target, ko: behind.ko, alive: behind.alive };
-      const koBehind = !behind.alive && behind.ko;
-      // a guard walking his beat through a closed door opens it
-      t.reset();
-      t.light(0);
-      t.tp(-22, -24, 0);
-      const w = t.spawn('grunt', -0.95, 14.5, Math.PI);
-      w.setPatrol({ points: [[-0.95, 14.5], [-0.95, 8.5]], wait: 1 });
-      let through = false;
-      for (let i = 0; i < 80 && !through; i++) {
-        t.step(0.25);
-        through = w.pos.z < 11;
-      }
-      t.light(null);
-      return { dbg, blocked, offer, menuOpen, quiet, open, seen, bash, bashed, sprintOpened, koBehind, through, dOpen: d.target };
-    });
-    assert(r.blocked === 0, `a closed door blocks sight (${r.blocked.toFixed(2)})`);
-    assert(r.offer.startsWith('Interact / Open door / ') && r.offer.includes('Bash door') && r.menuOpen, `at a door: the context menu lists the door set (${r.offer})`);
-    assert(r.quiet > 0 && r.quiet <= 2.5, `opening by hand is a quiet creak (${r.quiet.toFixed(1)} m)`);
-    assert(r.open === 1 && r.seen > 0, `once open he sees through (seen ${r.seen.toFixed(2)}, open ${r.open}, quiet ${r.quiet})`);
-    assert(!r.sprintOpened, 'running into a door does nothing special (G97)');
-    assert(r.bashed && r.bash >= 8, `the menu's Bash opens the door, loud (${r.bash.toFixed(1)} m, ${JSON.stringify(r.dbg)})`);
-    assert(r.koBehind, 'the bash knocks out a guard right behind the door');
-    assert(r.through && r.dOpen === 1, 'a guard walking through opens the door');
-  });
-
-  // (ct-toolkit 3.2) the door menu's OPTIC CABLE: kneel, the view under the door on the far side at floor height, the
-  // look within its limits, night vision as usual, crouch leaves; the tip is never perceived, the kneeling body is; a
-  // sealed door refuses
-  await scen('optic cable', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const st = window.__app.input.state;
-      const d = g.world.doors.nearest(-0.95, 12, 0.5);
-      const pick = () => {
-        st.tap('interact');
-        t.step(0.1);
-        const opts = [...g.doorMenu.opts];
-        const oi = opts.indexOf('optic');
-        for (let i = 0; i < oi; i++) {
-          st.tap('uiDown');
-          t.step(0.2);
-        }
-        st.tap('interact');
-        t.step(0.1);
-        return opts;
-      };
-      t.light(1);
-      // a guard 3 m behind the door faces it: he never sees the tip
-      const far = t.spawn('grunt', -0.95, 15, Math.PI);
-      t.tp(-0.95, 11.2, 0);
-      t.step(0.3);
-      g.noise = 0;
-      const opts = pick();
-      const feeding = g.optic.active && !g.optic.viewing;
-      t.step(1.3);
-      const o = g.optic.core;
-      const viewing = g.optic.viewing;
-      const cam = g.player.cam.camera.position;
-      const camAt = { x: cam.x, y: cam.y - d.anchor.hinge.y, z: cam.z };
-      const kneel = { crouched: g.player.controller.crouched, kneeling: g.player.controller.kneeling, still: g.player.controller.speed };
-      const feed = document.querySelector('.gadget-feed');
-      const feedShown = !!feed && !feed.hidden;
-      // the look turns the tip within +-75 deg yaw, -10 .. +60 deg pitch
-      st.addLook(2, 2);
-      t.step(0.1);
-      const yawOff = Math.abs(Math.atan2(Math.sin(o.yaw - o.baseYaw), Math.cos(o.yaw - o.baseYaw)));
-      const pitchA = o.pitch;
-      st.addLook(-1, -3);
-      t.step(0.1);
-      const pitchB = o.pitch;
-      // night vision toggles as usual in the view
-      const nv0 = g.vision.mode;
-      st.tap('vision');
-      t.step(0.2);
-      const nv1 = g.vision.mode;
-      st.tap('vision');
-      t.step(0.2);
-      let farRate = 0;
-      for (let i = 0; i < 10; i++) {
-        t.step(0.1);
-        farRate = Math.max(farRate, far.rate);
-      }
-      const quiet = g.noise;
-      const doorShut = d.target === 0;
-      // the kneeling body is perceived as normal: a guard on the near side in the light sees it
-      const near = t.spawn('grunt', -0.95, 7.5, 0);
-      let nearRate = 0;
-      for (let i = 0; i < 10; i++) {
-        t.step(0.1);
-        nearRate = Math.max(nearRate, near.rate);
-      }
-      g.optic.reset();
-      t.reset();
-      t.light(1);
-      t.tp(-0.95, 11.2, 0);
-      // crouch leaves: pulled out over 0.6 s, the camera back on the body
-      g.optic.pick(d.index);
-      t.step(1.4);
-      const viewing2 = g.optic.viewing;
-      st.tap('crouch');
-      t.step(0.1);
-      const retract = g.optic.core.phase;
-      t.step(0.7);
-      const done = !g.optic.active;
-      const p = g.player.position;
-      const camBack = Math.sqrt((cam.x - p.x) ** 2 + (cam.z - p.z) ** 2);
-      const camBackY = cam.y - p.y;
-      // a sealed door refuses ("Sealed"), nothing starts
-      d.anchor.seal = true;
-      t.step(0.3);
-      pick();
-      const sealed = g.optic.refused;
-      const sealedActive = g.optic.active;
-      d.anchor.seal = false;
-      t.light(null);
-      return { opts, feeding, viewing, camAt, door: { x: d.cx, z: d.cz }, kneel, feedShown, yawOff, pitchA, pitchB, nv0, nv1, farRate, quiet, doorShut, nearRate, viewing2, retract, done, camBack, camBackY, sealed, sealedActive };
-    });
-    const deg = 180 / Math.PI;
-    assert(r.opts.includes('optic') && r.feeding, `the door menu lists Optic cable and the pick starts the feed (${r.opts})`);
-    assert(r.viewing && r.feedShown, `after the 1.2 s feed the view is at the tip with the feed overlay (${r.viewing}, ${r.feedShown})`);
-    assert(Math.abs(r.camAt.y - 0.05) < 0.02 && r.camAt.z > r.door.z + 0.25, `the camera sits on the far side at floor height (${JSON.stringify(r.camAt)}, door z ${r.door.z.toFixed(2)})`);
-    assert(r.kneel.crouched && r.kneel.kneeling, `the body kneels at the door (${JSON.stringify(r.kneel)})`);
-    assert(Math.abs(r.yawOff * deg - 75) < 0.5 && Math.abs(r.pitchA * deg - 60) < 0.5 && Math.abs(r.pitchB * deg + 10) < 0.5, `the look turns the tip within +-75 / -10..+60 deg (yaw ${(r.yawOff * deg).toFixed(1)}, pitch ${(r.pitchA * deg).toFixed(1)} / ${(r.pitchB * deg).toFixed(1)})`);
-    assert(r.nv1 !== r.nv0, `night vision toggles in the view (${r.nv0} -> ${r.nv1})`);
-    assert(r.farRate === 0 && r.quiet === 0 && r.doorShut, `the tip is never perceived, the cable is silent, the door stays shut (rate ${r.farRate}, noise ${r.quiet})`);
-    assert(r.nearRate > 0, `the kneeling body is perceived as normal (${r.nearRate.toFixed(2)})`);
-    assert(r.viewing2 && r.retract === 'retract' && r.done, `crouch leaves: pulled out, then done (${r.retract}, ${r.done})`);
-    assert(r.camBack < 4 && r.camBackY > 0.3, `the camera is back on the body (${r.camBack.toFixed(2)} m, up ${r.camBackY.toFixed(2)})`);
-    assert(r.sealed === 'Sealed' && !r.sealedActive, `a sealed door refuses ("${r.sealed}")`);
-  });
-
-  // (locomotion step 12) a peek past a wall edge exposes only the head (guard perception from the real pose, never the
-  // camera); (A3: the lean-out is gone)
-  await scen('wall peek exposes the head', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const V = t.V;
-      const P = window.__pad;
-      P.connect();
-      t.light(1);
-      const segs = g.world.level.coverSegments;
-      // (flake-fix) why each tried segment gave no verified spot (printed when none does)
-      const diag = [];
-      const L = g.wallCore.links;
-      for (let i = 0; i < segs.length; i++) {
-        const s = segs[i];
-        if (s.low || s.len < 2 || L.kB[i] !== 0 || Math.abs(s.y) > 0.3) continue;
-        if (g.wallCore.active) g.wallCore.leave('test');
-        t.step(0.3);
-        g.player.controller.clearCrouchToggle();
-        const yaw = Math.atan2(-s.nx, -s.nz);
-        g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.75, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.75), yaw);
-        g.player.cam.yaw = yaw;
-        g.player.cam.pitch = 0;
-        t.step(0.3);
-        window.__app.input.state.tap('cover');
-        t.step(0.6);
-        if (g.wallCore.phase !== 'on' || g.wallCore.seg !== i) continue;
-        P.axis(0, 1);
-        t.step(3.0);
-        P.axis(0, 0);
-        t.step(0.3);
-        if (g.wallCore.edge !== 1) continue;
-        // a spot round the corner (past the end, behind the face plane) that sees the peeking head and not the chest.
-        // A guard's eye is its feet + a constant (enemy.ts `eye`): the offset is read from a grunt spawned on the floor
-        // here and cleared at once (the 1.55 m guess was 4 cm low and picked spots that showed a real guard the chest,
-        // #65 / #71)
-        const pt = new V();
-        const eye = new V();
-        let eyeUp = 1.55;
-        {
-          const probe = g.enemyMgr.spawn('grunt', new V(s.bx - s.nx * 2, s.y, s.bz - s.nz * 2), false, 0);
-          if (probe) eyeUp = probe['eye'](new V()).y - probe.pos.y;
-          g.enemyMgr.clear();
-        }
-        const place = (x, y, z) => eye.set(x, y + eyeUp, z);
-        // clear static lines from `eye` to the chest (aim point) and the head, as the guard's own test (perception
-        // losClear: a hit within the slack of the point, 0.3 m chest, 0.2 m head, is clear). `m` only ranks spots: the
-        // chest looked at `m` further out past the edge and the head `m` further in
-        const see = (m = 0) => {
-          const clear = (to, slack) => { const h = g.ballistics.ray(eye, to, 1); return !h.hit || h.distance > Math.hypot(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack; };
-          const chest = clear(g.target.aimPoint(pt).addInPlaceFromFloats(s.tx * m, 0, s.tz * m), 0.3);
-          return { chest, head: clear(g.target.headPoint(pt).addInPlaceFromFloats(-s.tx * m, 0, -s.tz * m), 0.2) };
-        };
-        // (flake-fix, fix round 2) candidate spots: floor points on a 5 cm grid where a guard can stand (a walkable nav
-        // cell on this storey; the cell's height is where a guard's feet settle, enemy.ts `move`). The guard is put on
-        // the exact point below, not on the cell's centre where the spawn snaps it: the cells are 0.5 m, the wedge that
-        // sees the head and not the chest is a few cm wide
-        const nav = g.enemyMgr.nav;
-        const spots = [];
-        for (let ia = 0; ia <= 120; ia++) {
-          for (let ib = 0; ib <= 70; ib++) {
-            const a = 1 + ia * 0.05;
-            const b = 0.5 + ib * 0.05;
-            const x = s.bx + s.tx * a - s.nx * b;
-            const z = s.bz + s.tz * a - s.nz * b;
-            const c = nav.cellOf(x, z, s.y);
-            if (!nav.isWalkable(c) || Math.abs(nav.height[c] - s.y) > 0.3) continue;
-            spots.push([x, nav.height[c], z]);
-          }
-        }
-        const hidden = spots.filter(([x, y, z]) => { place(x, y, z); const v = see(); return !v.chest && !v.head; });
-        P.axis(0, 1);
-        // (A3, G36) the peek is at once; the rig's hand switch and lean ease the head out past the edge over about 0.6 s
-        t.step(0.9);
-        // (flake-fix) the held peek never stands quite still: the pose sways a few mm (the chest point x 3.443 - 3.457 at
-        // segment 149, over about 4 s), and a guard samples it at its think ticks (a random phase, 0.22 - 0.30 s apart).
-        // The one spot a single look found ([0.25, -11.75]) cleared the chest by about 5 mm, so the guard saw the chest
-        // whenever the sway crossed it: "sees the peeking head only" (los true, head false) under load, where the run's
-        // history moves the phase. So the target points are read after every fixed step (each is the pose the guards
-        // perceive at that step: target.sync runs before the enemies' update), and a spot counts only if it sees the head
-        // and not the chest at every step of 2 s of the held peek. Each is ranked by the largest margin (`see(m)`) it held
-        // at every step, so the guard goes to the middle of the wedge first
-        const MARGINS = [0.03, 0.02, 0.01, 0.005, 0];
-        let only = hidden.map((p) => ({ p, k: 0 }));
-        let peekOn = true;
-        for (let n = 0; n < 120 && only.length; n++) {
-          t.step(1 / 60);
-          peekOn &&= g.wallCore.peekOn;
-          only = only.filter((o) => {
-            place(o.p[0], o.p[1], o.p[2]);
-            const v = see();
-            if (v.chest || !v.head) return false;
-            while (o.k < MARGINS.length - 1) {
-              const w = see(MARGINS[o.k]);
-              if (!w.chest && w.head) break;
-              o.k++;
-            }
-            return true;
-          });
-        }
-        if (!peekOn || !only.length) {
-          diag.push({ i, hidden: hidden.length, only: only.length, peekOn });
-          P.axis(0, 0);
-          t.reset();
-          continue;
-        }
-        only.sort((a, b) => a.k - b.k);
-        // (flake-fix, fix round 2) the guard's own perception there, over 2 s more of the held peek. A calm grunt is put on
-        // the exact spot (spawned at its cell, then moved there with its post, so it stands still) and made passive: its
-        // meter stays at zero, so it never turns to look or walks off, while its think still runs `perceive`, which sets
-        // los / losHead as in play. At every step its own eye must see the head and not the chest (else the next spot),
-        // and at every one of its thinks over the window (at least 5) it must report the head only
-        g.enemyMgr.clear();
-        let e = null;
-        let peek = null;
-        let tried = 0;
-        for (; tried < Math.min(8, only.length) && !peek; tried++) {
-          const [x, y, z] = only[tried].p;
-          e = g.enemyMgr.spawn('grunt', new V(x, y, z), false, Math.atan2(g.player.position.x - x, g.player.position.z - z));
-          if (!e) break;
-          e.passive = true;
-          e.pos.set(x, nav.heightAt(x, z, y), z);
-          e['prevPos'].copyFrom(e.pos);
-          e['post'] = [x, z];
-          e.setPatrol(null);
-          const at = e.pos.asArray();
-          let held = true;
-          let thinks = 0;
-          let los = true;
-          let head = true;
-          let bad = null;
-          let lastT = e['thinkT'];
-          for (let n = 0; n < 120 && held; n++) {
-            t.step(1 / 60);
-            e['eye'](eye);
-            const v = see();
-            held = !v.chest && v.head && g.wallCore.peekOn;
-            const tt = e['thinkT'];
-            if (tt > lastT) {
-              thinks++;
-              los &&= e.los;
-              head &&= e.losHead;
-              if (!(e.los && e.losHead) && !bad) bad = { n, los: e.los, head: e.losHead, lines: v, chestP: g.target.aimPoint(new V()).asArray().map((q) => +q.toFixed(3)), headP: g.target.headPoint(new V()).asArray().map((q) => +q.toFixed(3)) };
-            }
-            lastT = tt;
-          }
-          if (held) {
-            const moved = Math.hypot(e.pos.x - at[0], e.pos.y - at[1], e.pos.z - at[2]);
-            peek = { los, head, thinks, bad, margin: MARGINS[only[tried].k], moved: +moved.toFixed(4), light: g.lightLevel, at: [+x.toFixed(3), +z.toFixed(3)] };
-          } else {
-            g.enemyMgr.clear();
-            e = null;
-          }
-        }
-        if (!peek) {
-          diag.push({ i, hidden: hidden.length, only: only.length, tried });
-          P.axis(0, 0);
-          t.reset();
-          continue;
-        }
-        P.axis(0, 0);
-        t.step(0.5);
-        const back = { los: e.los };
-        if (g.wallCore.active) g.wallCore.leave('test');
-        return { i, hidden: hidden.length, only: only.length, tried, peek, back };
-      }
-      return { only: 0, segs: diag };
-    });
-    console.log(`  wall peek: ${JSON.stringify(r)}`);
-    assert(!!r && r.only > 0, `a peek past the edge exposes the head alone to spots round the corner (${JSON.stringify(r)})`);
-    assert(r.peek.los && r.peek.head && r.peek.thinks >= 5, `the guard there sees the peeking head only, at every think over 2 s of the held peek (${JSON.stringify(r.peek)})`);
-    assert(!r.back.los, `peek released: hidden again (${JSON.stringify(r.back)})`);
   });
 
   await scen('vision', async () => {
@@ -2364,9 +1229,9 @@ try {
       const st = window.__app.input.state;
       const v = g.vision;
       t.light(null);
-      // a guard behind the dispatch wall, 8 m away
-      t.spawn('grunt', 0, -15, 0);
-      t.tp(0, -7, Math.PI);
+      // a guard at P, 5 m from the player in the hall
+      t.spawn('grunt', 32.3, 15.5, 0);
+      t.tp(32.3, 20.5, Math.PI);
       t.step(0.2);
       const press = () => {
         st.tap('vision');
@@ -2395,1362 +1260,11 @@ try {
     assert(r.nvOff < 0.01, `night vision is off (${r.nvOff})`);
   });
 
-  // (guard-ai S12, A35) a helmeted guard: the first round to the head knocks the helmet off (no damage, he reels, a
-  // deflect, the helmet tumbles to the floor and stays), the second kills
-  await scen('helmet', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      // the same random draws every run (as 'lkp')
-      const rnd = Math.random;
-      let seed = 3535;
-      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-      try {
-        t.light(1);
-        em.alarmRaised = true;
-        t.tp(-0.5, 0, 0);
-        const e = t.spawn('grunt', 0, 5, Math.PI);
-        e.setGear({ helmet: true, armour: false });
-        t.step(0.1);
-        const head = () => ({ amount: 60, point: e.pos.clone(), dir: new t.V(0, 0, 1), part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 });
-        const hp = e.health.hp;
-        const r1 = e.applyDamage(head());
-        const first = { deflect: r1.deflect === true, dealt: r1.dealt, alive: e.alive, hp: e.health.hp, helmet: e.helmet, stagger: +e['stagger'].toFixed(2), alerted: e.alerted, dropped: em.helmetDrops.shown };
-        t.step(0.6);
-        const d = em.helmetDrops['drops'][0];
-        const floor = d ? +(d.m.position.y - e.pos.y).toFixed(3) : 99;
-        const r2 = e.applyDamage(head());
-        return { hp, first, floor, killed: r2.killed, alive: e.alive, still: em.helmetDrops.shown };
-      } finally {
-        Math.random = rnd;
-      }
-    });
-    assert(r.first.deflect && r.first.dealt === 0 && r.first.alive && r.first.hp === r.hp, `the first head round is a deflect: no damage, alive (${JSON.stringify(r.first)})`);
-    assert(!r.first.helmet && r.first.dropped === 1, `the helmet is knocked off and dropped (${JSON.stringify(r.first)})`);
-    assert(r.first.stagger >= 0.85 && r.first.alerted, `he reels (stagger ${r.first.stagger}) and is in combat`);
-    assert(r.floor < 0.3, `the helmet lies on the floor after its tumble (${r.floor} m above his feet)`);
-    assert(r.killed && !r.alive, 'the second head round kills');
-    assert(r.still === 1, 'the dropped helmet stays as a clue');
-  });
-
-  // (guard-ai S12, A36) an armoured guard: five rounds to the body leave him alive and unhurt (staggered at most once
-  // per 1.5 s); one round to the head kills
-  await scen('armour', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const rnd = Math.random;
-      let seed = 4646;
-      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-      try {
-        t.light(1);
-        em.alarmRaised = true;
-        t.tp(-0.5, 0, 0);
-        const e = t.spawn('grunt', 0, 5, Math.PI);
-        e.setGear({ helmet: false, armour: true });
-        t.step(0.1);
-        const shot = (part) => ({ amount: 30, point: e.pos.clone(), dir: new t.V(0, 0, 1), part, kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 });
-        const hp = e.health.hp;
-        let deflects = 0;
-        const staggers = [];
-        let clock = 0;
-        for (let i = 0; i < 5; i++) {
-          const before = e.sinceStagger;
-          if (e.applyDamage(shot('body')).deflect) deflects++;
-          if (e.sinceStagger < before) staggers.push(+clock.toFixed(2));
-          t.step(0.4);
-          clock += 0.4;
-        }
-        const body = { alive: e.alive, hp: e.health.hp, deflects, staggers };
-        const killed = e.applyDamage(shot('head')).killed;
-        return { hp, body, killed };
-      } finally {
-        Math.random = rnd;
-      }
-    });
-    assert(r.body.alive && r.body.hp === r.hp && r.body.deflects === 5, `five body rounds: alive, unhurt, five deflects (${JSON.stringify(r.body)})`);
-    let gap = 99;
-    for (let i = 1; i < r.body.staggers.length; i++) gap = Math.min(gap, r.body.staggers[i] - r.body.staggers[i - 1]);
-    assert(r.body.staggers.length >= 1 && r.body.staggers.length <= 2 && gap >= 1.5 - 1e-6, `staggered at most once per 1.5 s (${JSON.stringify(r.body.staggers)})`);
-    assert(r.killed, 'one round to the head kills (no helmet)');
-  });
-
-  // (guard-ai S14, A40) a radio check misses a squad member taken out unseen: the caller radios "not answering", the
-  // section turns cautious on a timed hold (MISSING.cautious), two search the spot; the caller taken during the call:
-  // nobody is cautious
-  await scen('missed check', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const R = em.radioTable;
-      const rnd = Math.random;
-      let seed = 1414;
-      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-      try {
-        // a squad of three facing away from their third (yaw PI = -z), a far guard of the same section; dark, the
-        // player far off
-        const setup = () => {
-          t.light(0);
-          t.tp(-22, -24, 0);
-          const a = t.spawn('grunt', 0, 5, Math.PI);
-          const b = t.spawn('grunt', 6, 5, Math.PI);
-          const c = t.spawn('grunt', 10, 9, Math.PI);
-          const far = t.spawn('grunt', -21, 17, Math.PI);
-          for (const e of [a, b, c]) em.joinSquad(e, 77);
-          t.step(0.3);
-          return { a, b, c, far };
-        };
-        const s = setup();
-        t.kill(s.c, true);
-        t.step(0.2);
-        const m0 = em.sectionCounts.missedChecks;
-        em.radioCheckNow();
-        const caller = em.lastCheckCaller;
-        t.step(0.1);
-        const inc = [s.a.incident, s.b.incident];
-        const kind = s.a.incident >= 0 ? em.board.kindOf(s.a.incident) : null;
-        const left = caller ? em.radioLeft(caller) : 0;
-        const before = em.cautionOf(s.far);
-        t.step(left + R.staggerMax + 0.5);
-        const got = {
-          far: em.cautionOf(s.far),
-          farLeft: em.awareness.alertLeft(s.far.key),
-          farKind: em.awareness.alertOf(s.far.key),
-          a: em.cautionOf(s.a),
-          b: em.cautionOf(s.b),
-          missed: em.sectionCounts.missedChecks - m0,
-        };
-        // the caller taken (silently) during his call
-        t.reset();
-        const s2 = setup();
-        t.kill(s2.c, true);
-        t.step(0.2);
-        em.radioCheckNow();
-        const caller2 = em.lastCheckCaller;
-        t.step(0.5);
-        const left2 = caller2 ? em.radioLeft(caller2) : 0;
-        if (caller2) t.kill(caller2, true);
-        t.step(left2 + R.staggerMax + 1);
-        const cut = {
-          far: em.cautionOf(s2.far),
-          alerts: [s2.a, s2.b, s2.far].filter((e) => e.alive && em.awareness.alertLeft(e.key) > 0).length,
-        };
-        t.light(null);
-        return { caller: !!caller, inc, kind, left, before, got, max: em.missingTable.cautious, caller2: !!caller2, left2, cut };
-      } finally {
-        Math.random = rnd;
-      }
-    });
-    const f = (v) => v.toFixed(2);
-    assert(r.caller && r.left > 1.5, `the radio check's caller radios the miss (call ${f(r.left)} s)`);
-    assert(r.inc[0] >= 0 && r.inc[0] === r.inc[1] && r.kind === 'missing', `two of his squad search the spot (${r.inc}, ${r.kind})`);
-    assert(r.before === 0, 'nobody is cautious before the call gets through');
-    assert(r.got.far === 1 && r.got.farKind === 1 && r.got.farLeft > r.max - 10, `the far guard of the section turns cautious, timed (${JSON.stringify(r.got)})`);
-    assert(r.got.a >= 1 && r.got.b >= 1, `the squad is cautious too (${r.got.a}, ${r.got.b})`);
-    assert(r.got.missed === 1, `one missed check counted (${r.got.missed})`);
-    assert(r.caller2 && r.left2 > 0.3, `the second caller is still on the radio when he is taken (${f(r.left2)} s left)`);
-    assert(r.cut.far === 0 && r.cut.alerts === 0, `the caller taken during the call: nobody is cautious (${JSON.stringify(r.cut)})`);
-  });
-
-  // (guard-ai S14, A41) a loud shot 20 m from one guard (he only turns): he radios "shots fired"; once it gets through a
-  // far guard who never heard it turns cautious (SHOTS.cautious) and two go to the spot (lead + cover); a suppressed
-  // shot: no call
-  await scen('loud shot', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const R = em.radioTable;
-      const rnd = Math.random;
-      let seed = 2727;
-      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-      const fire = (noise) => {
-        const st = g.weapons.current.stats;
-        const n0 = st.noise;
-        st.noise = noise;
-        g.weapons.lastShotNoise = noise;
-        g.weapons.events.onShot(g.weapons.current.def);
-        st.noise = n0;
-      };
-      try {
-        t.light(0);
-        t.tp(0, -5, Math.PI);
-        // 19 m from the shot along the factory floor, a clear line (tier 1: a turn; the old spot at (-7, 14) was behind
-        // the x -4 wall: 0.45 x 28 = 12.6 m reach, never heard), and one ~30 m off (out of its 28 m reach)
-        const ear = t.spawn('grunt', 19, -5, 0);
-        const far = t.spawn('grunt', -21, 17, Math.PI);
-        t.step(0.3);
-        const c0 = em.sectionCounts.shotsCalls;
-        fire(1);
-        const left = em.radioLeft(ear);
-        const earLevel = ear.level;
-        t.step(0.1);
-        const before = em.cautionOf(far);
-        t.step(left + R.staggerMax + 0.5);
-        const got = {
-          far: em.cautionOf(far),
-          farKind: em.awareness.alertOf(far.key),
-          farLeft: em.awareness.alertLeft(far.key),
-          ear: em.cautionOf(ear),
-          inc: [ear.incident, far.incident],
-          kind: ear.incident >= 0 ? em.board.kindOf(ear.incident) : null,
-          calls: em.sectionCounts.shotsCalls - c0,
-          alarm: em.alarmRaised,
-        };
-        // a suppressed shot 8 m from him: he turns, nobody radios
-        t.reset();
-        t.light(0);
-        t.tp(0, -5, Math.PI);
-        const ear2 = t.spawn('grunt', 0, 3, 0);
-        const far2 = t.spawn('grunt', -21, 17, Math.PI);
-        t.step(0.3);
-        fire(0.35);
-        const supp = { left: em.radioLeft(ear2) };
-        t.step(5);
-        supp.far = em.cautionOf(far2);
-        supp.calls = em.sectionCounts.shotsCalls;
-        t.light(null);
-        return { left, earLevel, before, got, max: em.shotsTable.cautious, supp };
-      } finally {
-        Math.random = rnd;
-      }
-    });
-    const f = (v) => v.toFixed(2);
-    assert(r.left > 1.5 && r.earLevel !== 'alert', `the guard who heard it (${r.earLevel}) radios it (call ${f(r.left)} s)`);
-    assert(r.before === 0, 'the far guard is calm before the call gets through');
-    assert(r.got.far === 1 && r.got.farKind === 2 && r.got.farLeft > r.max - 10, `the far guard turns cautious, timed (${JSON.stringify(r.got)})`);
-    assert(r.got.inc[0] >= 0 && r.got.inc[0] === r.got.inc[1] && r.got.kind === 'shots', `two go to the spot (${r.got.inc}, ${r.got.kind})`);
-    assert(r.got.calls === 1 && !r.got.alarm, `one shots call, no alarm (${r.got.calls}, ${r.got.alarm})`);
-    assert(r.supp.left === 0 && r.supp.far === 0 && r.supp.calls === 0, `a suppressed shot: no call, nobody cautious (${JSON.stringify(r.supp)})`);
-  });
-
-  // (guard-ai S27, A161-A163; S8 polish 2, the sketch in master `docs/guard-ai/slices/S8.md`) four grunts in view of the lit
-  // player on the factory floor, the guards' own alarm already up (no panel run); the first contact call opens, the light
-  // goes out and the player is put behind a wall, then 8 s of sim time sampled every 0.25 s. The spot is picked by reading
-  // `em.coverSet` round it (each role's band has covers that protect from it, `SQUAD`), the guards 14-18 m out on a clear line.
-  // Roles appear (a reporter and two of point / overwatch / flank), at most one role bound at a time (point / flank on the
-  // way to their role cover), nobody stands upright and still in the open out of sight longer than `SQUAD.openWait` + 0.5 s,
-  // and no overwatch round goes along a line a wall blocks (`suppressRounds` / `suppressHeld`).
-  await scen('squad roles (guard-ai S27)', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const st = window.__app.input.state;
-      const V = t.V;
-      const S = em.squadTable;
-      const nav = em.nav;
-      const set = em.coverSet;
-      const rnd = Math.random;
-      let seed = 2827;
-      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-      try {
-        // no panel run and no reinforcements: the guards' own alarm is already up (as 'lkp')
-        em.alarmRaised = true;
-        const ray = (ax, ay, az, bx, by, bz) => g.ballistics.ray(new V(ax, ay, az), new V(bx, by, bz), 1).hit;
-        const lineClear = (ax, az, bx, bz) => !ray(ax, 1.5, az, bx, 1.5, bz) && !ray(ax, 0.9, az, bx, 0.9, bz);
-        const floorOk = (x, z) => {
-          if (x < -3 || x > 23 || z < -8 || z > 11) return false;
-          const c = nav.cellOf(x, z, 0);
-          return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
-        };
-        // covers in a role's band round the spot that protect from it (the cover's normal faces the spot)
-        const band = (px, pz, lo, hi) => {
-          let n = 0;
-          for (let i = 0; i < set.n; i++) {
-            if (set.block[i] === 1 || Math.abs(set.y[i]) > S.storeyDy) continue;
-            const dx = px - set.x[i];
-            const dz = pz - set.z[i];
-            const d = Math.hypot(dx, dz);
-            if (d < lo || d > hi) continue;
-            if ((set.nx[i] * dx + set.nz[i] * dz) / d < S.protectDot) continue;
-            n++;
-          }
-          return n;
-        };
-        const offs = [[14.5, -0.16], [15.5, 0.16], [16.5, -0.05], [17.5, 0.05]];
-        let best = null;
-        for (const px of [-2, 0, 2, 4, 6]) {
-          for (const pz of [-7, -5, -3, -1, 1, 3, 5, 7, 9]) {
-            if (!floorOk(px, pz)) continue;
-            for (const b of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
-              const sp = offs.map(([d, o]) => [px + Math.cos(b + o) * d, pz + Math.sin(b + o) * d]);
-              if (!sp.every(([x, z]) => floorOk(x, z) && lineClear(px, pz, x, z))) continue;
-              const n = [band(px, pz, S.pointMin, S.pointMax), band(px, pz, S.overwatchMin, S.overwatchMax), band(px, pz, S.flankMin, S.flankMax), band(px, pz, S.reporterMin, S.reporterMax)];
-              const score = Math.min(n[0], n[1], n[2]) * 100 + n[0] + n[1] + n[2] + n[3];
-              if (!best || score > best.score) best = { score, px, pz, b, sp, n };
-            }
-          }
-        }
-        if (!best) return { spot: null };
-        // the hiding place: behind a wall from all four (the dispatch room, as 'lkp')
-        let hide = null;
-        for (const [hx, hz] of [[-2, -15], [0, -15], [2, -15], [4, -15]]) {
-          if (best.sp.every(([x, z]) => !lineClear(hx, hz, x, z))) {
-            hide = [hx, hz];
-            break;
-          }
-        }
-        hide ??= [-2, -15];
-        t.light(1);
-        // facing the guards (forward is (sin yaw, cos yaw)); they face the player
-        const yawP = Math.atan2(Math.cos(best.b), Math.sin(best.b));
-        t.tp(best.px, best.pz, yawP);
-        const guards = best.sp.map(([x, z]) => t.spawn('grunt', x, z, Math.atan2(best.px - x, best.pz - z)));
-        const base = guards[0].tacticsProfile;
-        // the lit player strafes a little (standing still the far ones would never fill their meters), until a contact call opens
-        let k = 0;
-        while (em.contactCaller < 0 && k++ < 600) {
-          st.setMove('t', k % 20 < 10 ? 0.6 : -0.6, 0);
-          t.step(0.05);
-        }
-        const opened = em.contactCaller >= 0;
-        const alertedAtCall = guards.filter((e) => e.alerted).length;
-        st.setMove('t', 0, 0);
-        t.light(0);
-        t.tp(hide[0], hide[1], 0);
-        const roleNames = ['point', 'overwatch', 'flank', 'reporter'];
-        const dt = 0.25;
-        const seen = new Set();
-        const prev = new Map();
-        const stall = new Map();
-        let maxStall = 0;
-        let stallWho = '';
-        let movers = 0;
-        let moversStrict = 0;
-        let aggr = false;
-        let viol = 0;
-        let blockedMateT = 0;
-        let blockedHeld = 0;
-        let blockedSamples = 0;
-        for (let s = 0; s < Math.round(8 / dt); s++) {
-          t.step(dt);
-          let mv = 0;
-          let mvStrict = 0;
-          for (const e of guards) {
-            if (!e.alive) continue;
-            if (e.tacticsProfile !== base) aggr = true;
-            const name = e.roleName;
-            seen.add(name);
-            const p = prev.get(e.num);
-            const speed = p ? Math.hypot(e.pos.x - p.x, e.pos.z - p.z) / dt : 99;
-            // the open wait: out of sight, upright, still, and neither on the way to cover nor in it
-            const standing = roleNames.includes(name) && e.alerted && !e.seesTarget && e.crouchBlend < 0.5 && speed < 0.1 && e.state !== 'seekCover' && e.state !== 'inCover';
-            const run = standing ? (stall.get(e.num) ?? 0) + dt : 0;
-            stall.set(e.num, run);
-            if (run > maxStall) {
-              maxStall = run;
-              stallWho = `${name} ${e.state}`;
-            }
-            // one role bound at a time: a point or flank on his way to his role's cover (the open wait's own pick is not a bound)
-            if ((name === 'point' || name === 'flank') && e.state === 'seekCover') {
-              mvStrict++;
-              if (e.roleBound) mv++;
-            }
-            // the overwatch's line to his spot, as `suppressLkp` casts it (muzzle -> hunt spot + 1.1 m, static geometry)
-            let blocked = false;
-            let hasSpot = false;
-            if (name === 'overwatch') {
-              const k2 = e['huntPos']();
-              if (k2) {
-                const m = e['muzzle'](new V(), 'suppress');
-                blocked = g.ballistics.ray(m, new V(k2.x, k2.y + 1.1, k2.z), 1).hit;
-                hasSpot = true;
-              }
-            }
-            const fire = e.state === 'inCover' || e.state === 'chase' || e.state === 'idle';
-            if (p && hasSpot && p.run2 >= 2 && blocked) {
-              // blocked at three samples in a row, and he held his fire for it in the interval before (so his cached verdict
-              // is fresh: a new suppress episode may fire for up to SUPPRESS_CHECK 0.25 s on the old one): no round in this interval
-              if (p.dheld > 0) viol += e.suppressRounds - p.rounds;
-              if (p.mate && e['mateMoving'] && fire && e['lastSeenT'] >= 2.5) {
-                blockedMateT += dt;
-                blockedHeld += e.suppressHeld - p.held;
-              }
-            }
-            if (hasSpot && blocked) blockedSamples++;
-            prev.set(e.num, { x: e.pos.x, z: e.pos.z, blocked, run2: p && hasSpot && blocked && p.blocked ? p.run2 + 1 : hasSpot && blocked ? 1 : 0, rounds: e.suppressRounds, held: e.suppressHeld, dheld: p ? e.suppressHeld - p.held : 0, mate: e['mateMoving'] && fire });
-          }
-          movers = Math.max(movers, mv);
-          moversStrict = Math.max(moversStrict, mvStrict);
-        }
-        t.light(null);
-        return {
-          spot: [best.px, best.pz], n: best.n, hide, opened, alertedAtCall, callAt: k * 0.05,
-          seen: [...seen], maxStall, stallWho, movers, moversStrict, aggr, viol, blockedMateT, blockedHeld, blockedSamples,
-          rounds: guards.reduce((a, e) => a + e.suppressRounds, 0), held: guards.reduce((a, e) => a + e.suppressHeld, 0),
-          openWait: S.openWait,
-          // the rounds a stale verdict could still let through (0.3 s at the weapon's rate, from the game's table)
-          slack: Math.ceil((guards[0].def.weapon.rpm / 60) * 0.3),
-        };
-      } finally {
-        Math.random = rnd;
-        st.setMove('t', 0, 0);
-        t.light(null);
-      }
-    });
-    const f = (v) => v.toFixed(2);
-    assert(r.spot, 'a spot on the factory floor with covers in every role band and four clear lines 14-18 m out');
-    if (!r.spot) return;
-    assert(r.opened, `a contact call opens (at ${f(r.callAt)} s, ${r.alertedAtCall} alerted; spot ${r.spot}, covers per band ${r.n})`);
-    const roles = ['point', 'overwatch', 'flank'].filter((n) => r.seen.includes(n));
-    assert(r.seen.includes('reporter') && roles.length >= 2, `a reporter and at least two of point / overwatch / flank appear (${r.seen})`);
-    assert(r.movers <= 1 || r.aggr, `at most one guard advancing / bounding to his role's cover at once, the one-mover rule (${r.movers}; a held point's open-wait pick may add a seekCover: any seekCover ${r.moversStrict}; aggressive ${r.aggr})`);
-    assert(r.maxStall <= r.openWait + 0.5, `no role guard out of sight, upright and still outside cover for more than ${r.openWait + 0.5} s (${f(r.maxStall)} s: ${r.stallWho})`);
-    assert(r.viol <= r.slack, `no overwatch round along a line a wall blocks once he has held fire for it (${r.viol} rounds, slack ${r.slack} in ${r.blockedSamples} blocked samples; rounds ${r.rounds}, held ${r.held})`);
-    assert(r.blockedMateT < 1 || r.blockedHeld > 0, `an overwatch with a blocked line held his fire while a mate moved (${f(r.blockedMateT)} s blocked, held +${r.blockedHeld})`);
-  });
-
-  // (coop4 AI6; A170, A171, A174, A176, A180, A181) Guards against up to 4 intruders in ONE browser: the local player
-  // plus up to 3 test-only stand-in PlayerRefs (`t.fakes`). Sim-time steps, Math.random seeded per run, the guards' own
-  // alarm already up (no panel run) until the alarm part raises it itself (the mode's `onAlarm` muted: no Hunter wave).
-  // 'rays': one calm guard, 4 crouched players in the dark in his field: <= 9 sight rays a think (`raysThink`), at most 3
-  // started a think, all 4 seen in turn; 2 players: 6, uncapped. 'four': 4 guards, 4 lit players: 4 own slots / LKPs;
-  // the alarm's lone reinforcements split over the intruders, the raiser's first (`nextAlarmHunt` order); a team shares
-  // one hunt, two teams hunt two intruders and are ticked on their own LKPs; a leaver's slot is kept and his rejoin takes
-  // it back (`intruderLeft`); a new id takes a gone slot and its hunters drop. 'two': the 2-player control (today's rules:
-  // every reinforcement and team on the alarm's intruder, teams on the freshest). Restored at the end: the intruder
-  // board's ids, the live cap, the game's remotes.
-  await scen('four intruders (coop4)', async () => {
-    await G(() => {
-      const t = window.__t;
-      const em = window.__app.current.enemyMgr;
-      t.ids0 = em.intruders['ids'].slice();
-      t.max0 = em.maxAlive;
-    });
-    try {
-      // (AI6 laptop fix) Two independent layouts, searched over every walkable storey of the map (a 2 m lattice of nav
-      // cells, the ground floor round the factory floor (9, 0) first), with the game's own sight ray (`Enemy.losTo`:
-      // MASK.SIGHT, static geometry, 0.3 m slack at the target, from a guard's standing eye):
-      // - pairs ('four', 'two'): 4 players 4-8 m from the nearest other, each with his own guard 4-8 m off in any of 8
-      //   directions, clear lines to his chest, head and hips; each guard's own player the nearest to him by 1.5 m, no
-      //   other player or guard within 1 m of a pair's line;
-      // - rays: one guard and 4 players fanned 6-9 m in front of him inside his focus (+-20.6 deg), crouched lines clear.
-      // None found: the best candidate and the line that blocked it are returned for the assert.
-      const L = await G(() => {
-        const t = window.__t;
-        const g = window.__app.current;
-        const em = g.enemyMgr;
-        const nav = em.nav;
-        const V = t.V;
-        t.reset();
-        const EYE = 1.55;
-        const spot = (x, z, y) => {
-          const c = nav.cellOf(x, z, y);
-          return nav.isWalkable(c) && Math.abs(nav.height[c] - y) < 0.4 ? nav.height[c] : Number.NaN;
-        };
-        // candidates: one walkable cell per 2 m lattice square and storey
-        const seen = new Set();
-        const cand = [];
-        for (let i = 0; i < nav.height.length; i++) {
-          if (!nav.isWalkable(i)) continue;
-          const [x, z] = nav.center(i);
-          const y = nav.height[i];
-          const key = `${Math.round(x / 2)},${Math.round(z / 2)},${Math.round(y / 2)}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          cand.push([x, y, z]);
-        }
-        cand.sort((a, b) => (Math.abs(a[1]) > 0.3 ? 1000 : 0) + Math.hypot(a[0] - 9, a[2]) - (Math.abs(b[1]) > 0.3 ? 1000 : 0) - Math.hypot(b[0] - 9, b[2]));
-        if (!cand.length) return { pairs: null, rays: null, diag: { cand: 0 } };
-        const probe = em.spawn('grunt', new V(cand[0][0], cand[0][1], cand[0][2]), false, 0);
-        if (!probe) return { pairs: null, rays: null, diag: { cand: cand.length, probe: false } };
-        const A = new V();
-        const B = new V();
-        const los = (ax, ay, az, bx, by, bz) => probe['losTo'](A.set(ax, ay, az), B.set(bx, by, bz), 0.3);
-        const h2 = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]);
-        // horizontal distance from point p to the segment a-b
-        const seg = (p, a, b) => {
-          const dx = b[0] - a[0];
-          const dz = b[2] - a[2];
-          const l = dx * dx + dz * dz;
-          const k = l > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[2] - a[2]) * dz) / l)) : 0;
-          return Math.hypot(p[0] - a[0] - k * dx, p[2] - a[2] - k * dz);
-        };
-        const DIST = [6, 5, 7, 4, 8];
-        // ---- pairs: greedy from a first player at cand[s0] (nearest the factory floor first), the next start when it
-        // gets stuck short of 4
-        const pd = { tried: 0, blocked: 0, last: null, starts: 0, most: 0 };
-        let pairs = [];
-        for (let s0 = 0; s0 < Math.min(cand.length, 80) && pairs.length < 4; s0++) {
-          pd.starts++;
-          pairs = [];
-          for (let ci = s0; ci < cand.length + s0; ci++) {
-            const p = cand[ci % cand.length];
-            if (pairs.length === 4) break;
-            if (pairs.length) {
-              let near = Infinity;
-              for (const q of pairs) near = Math.min(near, h2(q.p, p));
-              if (near < 4 || near > 8) continue;
-            }
-            let got = null;
-            for (const d of DIST) {
-              for (let k = 0; k < 8 && !got; k++) {
-                const a = (k * Math.PI) / 4;
-                const gx = p[0] + Math.sin(a) * d;
-                const gz = p[2] + Math.cos(a) * d;
-                const gy = spot(gx, gz, p[1]);
-                if (gy !== gy) continue;
-                const q = [gx, gy, gz];
-                const own = h2(q, p);
-                let sep = true;
-                for (const o of pairs) {
-                  if (h2(q, o.p) < own + 1.5 || h2(o.g, p) < h2(o.g, o.p) + 1.5 || h2(q, o.g) < 2.5) sep = false;
-                  if (seg(o.p, q, p) < 1 || seg(o.g, q, p) < 1 || seg(p, o.g, o.p) < 1 || seg(q, o.g, o.p) < 1) sep = false;
-                }
-                if (!sep) continue;
-                pd.tried++;
-                const lines = [['chest', 1.3], ['head', 1.65], ['hips', 0.9]];
-                const bad = lines.find(([, hh]) => !los(gx, gy + EYE, gz, p[0], p[1] + hh, p[2]));
-                if (bad) {
-                  pd.blocked++;
-                  pd.last = { player: p.map((v) => +v.toFixed(2)), guard: q.map((v) => +v.toFixed(2)), line: bad[0] };
-                  continue;
-                }
-                got = { p, g: q, yaw: Math.atan2(p[0] - gx, p[2] - gz) };
-              }
-              if (got) break;
-            }
-            if (got) pairs.push(got);
-            else if (!pairs.length) break;
-          }
-          pd.most = Math.max(pd.most, pairs.length);
-        }
-        // ---- rays: a guard and 4 players fanned in his focus
-        let rays = null;
-        let best = null;
-        const FAN = [-0.36, -0.12, 0.12, 0.36];
-        for (const q of cand) {
-          for (const d of [8, 7, 9, 6]) {
-            for (let k = 0; k < 8 && !rays; k++) {
-              const a = (k * Math.PI) / 4;
-              const pts = FAN.map((o) => [q[0] + Math.sin(a + o) * d, 0, q[2] + Math.cos(a + o) * d]);
-              let floor = true;
-              for (const pt of pts) {
-                pt[1] = spot(pt[0], pt[2], q[1]);
-                if (pt[1] !== pt[1]) floor = false;
-              }
-              if (!floor) continue;
-              let ok = 0;
-              let block = null;
-              for (const pt of pts) {
-                const c1 = los(q[0], q[1] + EYE, q[2], pt[0], pt[1] + 0.9, pt[2]);
-                const c2 = los(q[0], q[1] + EYE, q[2], pt[0], pt[1] + 1.15, pt[2]);
-                if (c1 && c2) ok++;
-                else block ??= { player: pt.map((v) => +v.toFixed(2)), line: c1 ? 'head' : 'chest' };
-              }
-              if (!best || ok > best.ok) best = { ok, guard: q.map((v) => +v.toFixed(2)), d, dir: k, block };
-              if (ok === 4) rays = { g: q, yaw: a, p: pts };
-            }
-            if (rays) break;
-          }
-          if (rays) break;
-        }
-        return {
-          pairs: pairs.length === 4 ? pairs : null,
-          rays,
-          diag: { cand: cand.length, pairs: pd.most, starts: pd.starts, pairTries: pd.tried, pairBlocked: pd.blocked, lastBlocked: pd.last, raysBest: best },
-        };
-      });
-      assert(L.pairs, `a layout of 4 players 4-8 m apart, each with his own guard 4-8 m off on clear sight lines (found ${L.diag.pairs} of 4: ${JSON.stringify(L.diag)})`);
-      assert(L.rays, `a rays layout: one guard, 4 players fanned 6-9 m in his focus on clear crouched sight lines (best ${JSON.stringify(L.diag.raysBest)}; ${L.diag.cand} candidates)`);
-      if (!L.pairs || !L.rays) return;
-      console.log(`  (layout: players ${L.pairs.map((q) => q.p.map((v) => v.toFixed(1)).join('/')).join(' ')}; rays guard ${L.rays.g.map((v) => v.toFixed(1)).join('/')})`);
-
-      // ---- rays: one calm guard, 4 (then 2) crouched players still in the dark in his focus at ~8 m ----
-      const R = await G((L) => {
-        const t = window.__t;
-        const em = window.__app.current.enemyMgr;
-        const rnd = Math.random;
-        let seed = 6161;
-        Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-        const run = (nFakes) => {
-          t.reset();
-          em.alarmRaised = true;
-          t.light(0);
-          t.crouch(true);
-          const RP = L.rays.p;
-          t.tp3(RP[0][0], RP[0][1], RP[0][2], L.rays.yaw + Math.PI);
-          const fs = [...t.fakes(RP.slice(1, 1 + nFakes).map((q) => [q[0], q[2], q[1]]))];
-          for (const f of fs) {
-            f.lit = 0;
-            f.crouched = true;
-          }
-          const e = t.spawn3('grunt', L.rays.g[0], L.rays.g[1], L.rays.g[2], L.rays.yaw);
-          t.step(0.5);
-          const rays = [];
-          let maxSeen = 0;
-          let union = 0;
-          for (let k = 0; k < 180; k++) {
-            t.step(1 / 60);
-            // one guard: rays this update = his think's (0: no think this update)
-            if (em.raysThisStep <= 0 || e.alerted) continue;
-            let bits = 0;
-            let seen = 0;
-            for (let s = 0; s < 4; s++) {
-              if (!e.seesIndex(s)) continue;
-              bits |= 1 << s;
-              seen++;
-            }
-            union |= bits;
-            maxSeen = Math.max(maxSeen, seen);
-            rays.push(e.raysThink);
-          }
-          return { n: em.players().length, c4: em.coop4(), rays, max: Math.max(0, ...rays), maxSeen, union, perRR: e.perRR, alerted: e.alerted };
-        };
-        try {
-          return { four: run(3), two: run(1) };
-        } finally {
-          Math.random = rnd;
-          t.crouch(false);
-          t.light(null);
-        }
-      }, L);
-      assert(R.four.n === 4 && R.four.c4 && R.four.rays.length >= 6, `rays: 4 players, coop4 on, a calm guard thinks with them in view (${R.four.rays.length} calm thinks, alerted ${R.four.alerted})`);
-      assert(R.four.max <= 9 && R.four.max >= 8, `rays: at most 9 sight rays a think with 4 in view, the budget used (max ${R.four.max}: ${R.four.rays.join(',')})`);
-      assert(R.four.maxSeen <= 3 && R.four.union === 15, `rays: at most 3 players started a think, all 4 seen in turn (max ${R.four.maxSeen} a think, seen bits ${R.four.union.toString(2)})`);
-      assert(R.two.n === 2 && !R.two.c4 && R.two.max === 6 && R.two.perRR === 0 && R.two.union === 3, `rays, 2 players: today's uncapped 6 rays, no rotation, both seen (${JSON.stringify(R.two)})`);
-
-      // ---- four: 4 guards, 4 lit players (the local one + 3 stand-ins) ----
-      const F = await G((L) => {
-        const t = window.__t;
-        const g = window.__app.current;
-        const em = g.enemyMgr;
-        const ib = em.intruders;
-        const st = window.__app.input.state;
-        const rnd = Math.random;
-        let seed = 6262;
-        Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-        try {
-          t.reset();
-          // fresh slots for this run (the ids persist across `em.clear`; restored at the end)
-          ib['ids'].fill('');
-          ib.gone.fill(0);
-          ib.clear();
-          em.maxAlive = 32;
-          em.alarmRaised = true;
-          t.light(1);
-          const P = L.pairs.map((q) => q.p);
-          t.tp3(P[0][0], P[0][1], P[0][2], 0);
-          const fs = [...t.fakes(P.slice(1).map((q) => [q[0], q[2], q[1]]))];
-          for (const f of fs) f.speed = 1;
-          const guards = L.pairs.map((q) => t.spawn3('grunt', q.g[0], q.g[1], q.g[2], q.yaw));
-          const ids = ['local', 'fake1', 'fake2', 'fake3'];
-          const known = () => ids.every((id) => ib.find(id) >= 0 && ib.valid[ib.find(id)] === 1);
-          // each player sways a little (the local one strafes, the stand-ins' feet move each step) until all 4 are known
-          let k = 0;
-          let maxRays = 0;
-          while (!known() && k++ < 400) {
-            const w = k % 20 < 10 ? 0.25 : -0.25;
-            st.setMove('t', w > 0 ? 0.6 : -0.6, 0);
-            for (let i = 0; i < fs.length; i++) fs[i].feet.x = P[i + 1][0] + w;
-            t.step(0.05);
-            for (const e of guards) maxRays = Math.max(maxRays, e.raysThink);
-          }
-          st.setMove('t', 0, 0);
-          for (let i = 0; i < fs.length; i++) {
-            fs[i].feet.x = P[i + 1][0];
-            fs[i].speed = 0;
-          }
-          const feet = [g.localRef.feet, ...fs.map((f) => f.feet)];
-          const slots = ids.map((id) => ib.find(id));
-          const seen = {
-            at: +(k * 0.05).toFixed(2),
-            n: em.players().length,
-            c4: em.coop4(),
-            slots,
-            valid: slots.map((s) => (s >= 0 ? ib.valid[s] : 0)),
-            err: slots.map((s, i) => (s >= 0 ? +Math.hypot(ib.x[s] - feet[i].x, ib.z[s] - feet[i].z).toFixed(2) : 99)),
-            ghosts: ids.map((id) => em.ghostOf(id, new t.V())),
-            maxRays,
-          };
-          // -- the alarm: raised by a guard who hunts someone (the mode's wave muted), then 5 lone reinforcements, two
-          // teams of 2, one more lone
-          const raiser = guards.find((e) => e.alive && e.hunt >= 0) ?? null;
-          if (!raiser) return { seen, raiser: false };
-          em.alarmRaised = false;
-          const oa = em.onAlarm;
-          em.onAlarm = null;
-          try {
-            em.raiseAlarm(raiser, null);
-          } finally {
-            em.onAlarm = oa;
-          }
-          g.mode.pending.length = 0;
-          const alarm = em.alarmHunt;
-          // the order `alarmHunts` gives: the alarm's slot, then every other known slot, freshest sighting first (ties:
-          // the lower slot)
-          const order = [];
-          if (alarm >= 0 && ib.valid[alarm] === 1 && ib.gone[alarm] !== 1) order.push(alarm);
-          order.push(...[0, 1, 2, 3].filter((s) => s !== alarm && ib.valid[s] === 1 && ib.gone[s] !== 1).sort((a, b) => ib.seenT[a] - ib.seenT[b] || a - b));
-          const told = (e) => (e.hunt >= 0 ? e.hunt : e.pendingHunt);
-          let n = 0;
-          const reinf = () => {
-            const e = em.spawnReinforcement('grunt', new t.V(-21 + (n % 4) * 0.9, 0, 17 - Math.floor(n / 4) * 0.9), 0, 0, null);
-            n++;
-            return e;
-          };
-          const lone = [];
-          for (let i = 0; i < 5; i++) {
-            const e = reinf();
-            lone.push(e ? told(e) : null);
-          }
-          const teams = [];
-          const T = [];
-          for (let j = 0; j < 2; j++) {
-            const tm = em.newTeam(0, null, [], P.map((q) => [q[0], q[2]]), 6);
-            const members = [];
-            for (let i = 0; i < 2; i++) {
-              const e = reinf();
-              if (!e) continue;
-              em.joinTeam(e, tm);
-              members.push(told(e));
-            }
-            T.push(tm);
-            teams.push({ hunt: tm.hunt, members });
-          }
-          const last = reinf();
-          const alarmPart = { raiser: true, alarm, raiserHunt: raiser.hunt, order, lone, teams, last: last ? told(last) : null };
-          // -- each team ticked on its own intruder's LKP (the manager's `teamsStep`, read at the tick)
-          const rec = T.map(() => null);
-          T.forEach((tm, j) => {
-            const f = tm.tick;
-            tm.tick = function (v, x, z) {
-              const h = tm.hunt;
-              rec[j] = { v, x, z, own: h >= 0 ? [ib.x[h], ib.z[h], ib.valid[h]] : null, mirror: [em.lkp.x, em.lkp.z] };
-              return f.call(this, v, x, z);
-            };
-          });
-          t.step(1 / 60);
-          const ticks = T.map((tm, j) => ({ hunt: tm.hunt, ...rec[j] }));
-          // -- fake2 leaves (his ref gone from the list, `intruderLeft`), then rejoins: his first shot after it (the
-          // host's remote-shot path `em.noise(pos, reach, id)`, too quiet for anyone to hear) is his first report
-          const f2 = fs[1];
-          const s2 = ib.find('fake2');
-          const lkp2 = s2 >= 0 ? [ib.x[s2], ib.z[s2]] : [0, 0];
-          t.fakeList.splice(t.fakeList.indexOf(f2), 1);
-          em.intruderLeft('fake2');
-          t.step(0.5);
-          const left = { s2, slot: ib.find('fake2'), gone: ib.gone[s2], valid: ib.valid[s2], moved: +Math.hypot(ib.x[s2] - lkp2[0], ib.z[s2] - lkp2[1]).toFixed(3), n: em.players().length };
-          t.fakeList.push(f2);
-          em.noise(f2.feet, 0.5, 'fake2');
-          const out = new t.V();
-          const back = { slot: ib.find('fake2'), gone: ib.gone[s2], valid: ib.valid[s2], moved: +Math.hypot(ib.x[s2] - lkp2[0], ib.z[s2] - lkp2[1]).toFixed(3), ghost: em.ghostOf('fake2', out), n: em.players().length };
-          // -- fake3 leaves and a new player (fake4) joins where he stood: with no free slot his first report takes fake3's
-          // gone slot; the guards and the team on it drop it at once
-          const f3 = fs[2];
-          const s3 = ib.find('fake3');
-          t.fakeList.splice(t.fakeList.indexOf(f3), 1);
-          em.intruderLeft('fake3');
-          t.step(0.1);
-          t.fakeList.push(t.fake('fake4', f3.feet.x, f3.feet.z));
-          const hunters = () => em.enemies.filter((e) => e.alive && e.hunt === s3).length;
-          const before = { hunters: hunters(), teams: T.filter((tm) => tm.hunt === s3).length, n: em.players().length };
-          em.noise(f3.feet, 0.5, 'fake4');
-          const reuse = { s3, before, slot: ib.find('fake4'), old: ib.find('fake3'), idOf: ib.idOf(s3), valid: ib.valid[s3], hunters: hunters(), teams: T.filter((tm) => tm.hunt === s3).length, others: ['local', 'fake1', 'fake2'].map((id) => ib.find(id)) };
-          return { seen, ...alarmPart, ticks, left, back, reuse };
-        } finally {
-          Math.random = rnd;
-          st.setMove('t', 0, 0);
-          t.light(null);
-          em.maxAlive = t.max0;
-        }
-      }, L);
-      const s = F.seen;
-      assert(s.n === 4 && s.c4, `four: 4 players, coop4 on (${s.n})`);
-      assert(new Set(s.slots).size === 4 && s.slots.every((x) => x >= 0 && x < 4) && s.valid.every((v) => v === 1), `four: each of the 4 players seen has his own valid slot (slots ${s.slots}, valid ${s.valid}, all known at ${s.at} s)`);
-      assert(s.err.every((d) => d < 2.5), `four: each slot's LKP is at its own player (m off: ${s.err})`);
-      assert(s.ghosts.every((v) => v >= 1), `four: ghostOf reads a known position for each (${s.ghosts})`);
-      assert(s.maxRays <= 9, `four: no guard casts more than 9 sight rays a think (max ${s.maxRays})`);
-      assert(F.raiser, 'four: a guard who hunts someone raises the alarm');
-      if (!F.raiser) return;
-      const o = F.order;
-      const m = o.length;
-      assert(F.alarm === F.raiserHunt && o[0] === F.alarm && m === 4, `alarm: the raiser's intruder is the alarm's, first in the split over 4 known (alarm ${F.alarm}, order ${o})`);
-      assert(F.lone.every((h, i) => h === o[i % m]), `alarm: 5 lone reinforcements hunt the split in turn, the raiser's first (${F.lone} vs ${o})`);
-      assert(new Set(F.lone.slice(0, 4)).size === 4, `alarm: the first 4 reinforcements hunt 4 different intruders (${F.lone})`);
-      assert(F.teams.every((tm) => tm.members.length === 2 && tm.members.every((h) => h === tm.hunt)), `team: every member hunts his team's one intruder (${JSON.stringify(F.teams)})`);
-      assert(F.teams[0].hunt === o[5 % m] && F.teams[1].hunt === o[6 % m] && F.teams[0].hunt !== F.teams[1].hunt, `team: the two teams take the next two in the split, different intruders (${F.teams.map((tm) => tm.hunt)} vs ${o})`);
-      assert(F.last === o[7 % m], `team: the members' later draws go back (the next lone takes ${o[7 % m]}: ${F.last})`);
-      const near = (a, b, d = 0.01) => Math.abs(a - b) < d;
-      assert(F.ticks.every((k) => k.v === true && k.own && k.own[2] === 1 && near(k.x, k.own[0]) && near(k.z, k.own[1])), `sweep: each team is ticked on its own intruder's LKP (${JSON.stringify(F.ticks)})`);
-      assert(Math.hypot(F.ticks[0].x - F.ticks[1].x, F.ticks[0].z - F.ticks[1].z) > 3 && F.ticks.some((k) => Math.hypot(k.x - k.mirror[0], k.z - k.mirror[1]) > 3), `sweep: the two teams sweep from two LKPs, not both from the freshest (${JSON.stringify(F.ticks)})`);
-      assert(F.left.n === 3 && F.left.slot === F.left.s2 && F.left.gone === 1 && F.left.valid === 1 && F.left.moved < 0.01, `leave: fake2's slot is kept (gone, LKP kept) while he is out (${JSON.stringify(F.left)})`);
-      assert(F.back.n === 4 && F.back.slot === F.left.s2 && F.back.gone === 0 && F.back.valid === 1 && F.back.moved < 0.01 && F.back.ghost >= 1, `rejoin: fake2 takes his slot back with its LKP (${JSON.stringify(F.back)})`);
-      const r = F.reuse;
-      assert(r.before.n === 4 && r.before.hunters >= 1, `reuse: fake3's slot ${r.s3} is hunted when he leaves (${JSON.stringify(r.before)})`);
-      assert(r.slot === r.s3 && r.old === -1 && r.idOf === 'fake4' && r.valid === 0, `reuse: a new id (fake4) takes fake3's gone slot, its old LKP dropped (${JSON.stringify(r)})`);
-      assert(r.hunters === 0 && r.teams === 0 && new Set([...r.others, r.slot]).size === 4, `reuse: its hunters and team drop it, nobody else's slot moves (${JSON.stringify(r)})`);
-
-      // ---- two: the 2-player control (local + 1 stand-in): today's rules ----
-      const W = await G((L) => {
-        const t = window.__t;
-        const g = window.__app.current;
-        const em = g.enemyMgr;
-        const ib = em.intruders;
-        const st = window.__app.input.state;
-        const rnd = Math.random;
-        let seed = 6363;
-        Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-        try {
-          t.reset();
-          ib['ids'].fill('');
-          ib.gone.fill(0);
-          ib.clear();
-          em.maxAlive = 32;
-          em.alarmRaised = true;
-          t.light(1);
-          const P = L.pairs.map((q) => q.p);
-          t.tp3(P[0][0], P[0][1], P[0][2], 0);
-          const fs = [...t.fakes([[P[1][0], P[1][2], P[1][1]]])];
-          fs[0].speed = 1;
-          const guards = L.pairs.slice(0, 2).map((q) => t.spawn3('grunt', q.g[0], q.g[1], q.g[2], q.yaw));
-          const ids = ['local', 'fake1'];
-          const known = () => ids.every((id) => ib.find(id) >= 0 && ib.valid[ib.find(id)] === 1);
-          let k = 0;
-          while (!known() && k++ < 400) {
-            const w = k % 20 < 10 ? 0.25 : -0.25;
-            st.setMove('t', w > 0 ? 0.6 : -0.6, 0);
-            fs[0].feet.x = P[1][0] + w;
-            t.step(0.05);
-          }
-          st.setMove('t', 0, 0);
-          fs[0].feet.x = P[1][0];
-          fs[0].speed = 0;
-          const slots = ids.map((id) => ib.find(id));
-          const raiser = guards.find((e) => e.alive && e.hunt >= 0) ?? null;
-          if (!raiser) return { n: em.players().length, c4: em.coop4(), slots, raiser: false };
-          em.alarmRaised = false;
-          const oa = em.onAlarm;
-          em.onAlarm = null;
-          try {
-            em.raiseAlarm(raiser, null);
-          } finally {
-            em.onAlarm = oa;
-          }
-          g.mode.pending.length = 0;
-          const told = (e) => (e.hunt >= 0 ? e.hunt : e.pendingHunt);
-          let n = 0;
-          const reinf = () => em.spawnReinforcement('grunt', new t.V(-21 + n++ * 0.9, 0, 17), 0, 0, null);
-          const lone = [];
-          for (let i = 0; i < 3; i++) {
-            const e = reinf();
-            lone.push(e ? told(e) : null);
-          }
-          const tm = em.newTeam(0, null, [], P.map((q) => [q[0], q[2]]), 3);
-          const members = [];
-          for (let i = 0; i < 2; i++) {
-            const e = reinf();
-            if (!e) continue;
-            em.joinTeam(e, tm);
-            members.push(told(e));
-          }
-          let rec = null;
-          const f = tm.tick;
-          tm.tick = function (v, x, z) {
-            rec = { v, x, z, valid: em.lkpValid, mirror: [em.lkp.x, em.lkp.z] };
-            return f.call(this, v, x, z);
-          };
-          t.step(1 / 60);
-          return { n: em.players().length, c4: em.coop4(), slots, raiser: true, alarm: em.alarmHunt, lone, team: { hunt: tm.hunt, members }, tick: rec, peers: tm.peers === null };
-        } finally {
-          Math.random = rnd;
-          st.setMove('t', 0, 0);
-          t.light(null);
-          em.maxAlive = t.max0;
-        }
-      }, L);
-      assert(W.n === 2 && !W.c4 && new Set(W.slots).size === 2 && W.slots.every((x) => x >= 0), `two: 2 players, coop4 off, two slots (${JSON.stringify(W.slots)})`);
-      assert(W.raiser, 'two: a guard who hunts someone raises the alarm');
-      if (!W.raiser) return;
-      assert(W.alarm >= 0 && W.lone.every((h) => h === W.alarm), `two: every lone reinforcement hunts the alarm's intruder (today; alarm ${W.alarm}, ${W.lone})`);
-      assert(W.team.hunt === -1 && W.team.members.every((h) => h === W.alarm), `two: no team hunt, the members hunt the alarm's intruder (today; ${JSON.stringify(W.team)})`);
-      assert(W.tick && W.tick.v === W.tick.valid && Math.abs(W.tick.x - W.tick.mirror[0]) < 0.01 && Math.abs(W.tick.z - W.tick.mirror[1]) < 0.01 && W.peers, `two: the team is ticked on the freshest LKP, no peers (today; ${JSON.stringify(W.tick)})`);
-    } finally {
-      await G(() => {
-        const t = window.__t;
-        const em = window.__app.current.enemyMgr;
-        t.reset();
-        const ids = em.intruders['ids'];
-        for (let i = 0; i < ids.length; i++) ids[i] = t.ids0[i] ?? '';
-        em.intruders.gone.fill(0);
-        em.intruders.clear();
-        em.maxAlive = t.max0;
-      });
-    }
-  });
-
-  await scen('dog release (guard-rules S8)', async () => {
-    // (guard-rules S8, A12) The alarm stage lets a dog off its handler's heel (`Enemy.releaseHeel`; the mode calls it on a
-    // `releaseDogs` raise behind `flags.dogRelease`, a vitest case: this page has no per-scenario flag). The dog heels,
-    // is released on a known position 12-15 m off, hurries there (`rushing`), searches it, then heels on its handler again.
-    // The handler stays calm and put. A grunt is no dog: `releaseHeel` returns false.
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const em = g.enemyMgr;
-      const nav = em.nav;
-      const rnd = Math.random;
-      let seed = 8088;
-      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-      try {
-        t.light(0);
-        // the player far off, dark and crouched (the 'noise' scenario's far spot)
-        const hide = [-22, -24];
-        t.tp(hide[0], hide[1], 0);
-        t.crouch(true);
-        // a handler spot proven open by earlier scenarios ('lkp': (0, 5); 'noise': (-14.5, 4)), the dog 1 m beside him,
-        // and a known position 12-15 m off on the same floor with a straight walkable line from the dog (nav cells)
-        const floor = (x, z) => {
-          const c = nav.cellOf(x, z, 0);
-          return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
-        };
-        let pick = null;
-        for (const hp of [[0, 5], [-14.5, 4]]) {
-          if (pick) break;
-          const dx = hp[0] + 1;
-          const dz = hp[1];
-          if (!floor(hp[0], hp[1]) || !floor(dx, dz)) continue;
-          for (const rr of [13, 14, 12, 15]) {
-            if (pick) break;
-            for (let a = 0; a < 24; a++) {
-              const kx = dx + Math.sin((a / 24) * Math.PI * 2) * rr;
-              const kz = dz + Math.cos((a / 24) * Math.PI * 2) * rr;
-              if (!floor(kx, kz) || Math.hypot(kx - hide[0], kz - hide[1]) < 15) continue;
-              if (!nav.lineClear([dx, dz], [kx, kz], 0, 0)) continue;
-              pick = { hx: hp[0], hz: hp[1], dx, dz, kx, kz };
-              break;
-            }
-          }
-        }
-        if (!pick) return { pick: null };
-        const { hx, hz, dx, dz, kx, kz } = pick;
-        const h = t.spawn('grunt', hx, hz, 0);
-        const d = t.spawn('dog', dx, dz, 0);
-        d.handler = h;
-        const others = () => {
-          for (const x of em.enemies) if (x !== h && x !== d) x.passive = true;
-        };
-        const atHeel = () => {
-          // the heel spot the dog's own calm step aims at (`calmDecide`: `ARCHETYPE.dog.heel` beside him)
-          const sp = d['spot'];
-          return { toSpot: Math.hypot(d.pos.x - sp[0], d.pos.z - sp[1]), spotToH: Math.hypot(sp[0] - h.pos.x, sp[1] - h.pos.z) };
-        };
-        // 1. it heels
-        for (let i = 0; i < 20; i++) {
-          others();
-          t.step(0.1);
-        }
-        const heel0 = { ...atHeel(), level: d.level, toH: Math.hypot(d.pos.x - h.pos.x, d.pos.z - h.pos.z) };
-        const grunt = h.releaseHeel();
-        const h0 = { x: h.pos.x, z: h.pos.z };
-        // 2. a known position, then the release (at once: the board forgets an unhunted intruder after 2 s)
-        em['reportIntruder'](0, kx, 0, kz, true);
-        const lkp = { valid: em.lkpValid, x: em.lkp.x, z: em.lkp.z };
-        const went = d.releaseHeel();
-        let maxFromH = 0;
-        let rushed = false;
-        let nearK = 99;
-        let searchingThere = false;
-        let hCalm = true;
-        let hMoved = 0;
-        let k = 0;
-        for (; k < 150; k++) {
-          others();
-          t.step(0.1);
-          const toK = Math.hypot(d.pos.x - kx, d.pos.z - kz);
-          maxFromH = Math.max(maxFromH, Math.hypot(d.pos.x - h.pos.x, d.pos.z - h.pos.z));
-          if (d.rushing && toK > 2) rushed = true;
-          nearK = Math.min(nearK, toK);
-          if (toK < 1.5 && d.level === 'searching') searchingThere = true;
-          if (h.level !== 'unaware' && h.level !== 'cooldown') hCalm = false;
-          hMoved = Math.max(hMoved, Math.hypot(h.pos.x - h0.x, h.pos.z - h0.z));
-        }
-        const mid = { level: d.level, t: +d.aware.t.toFixed(1) };
-        // 3. the search runs out (`ALERT.searchTime` 60 s from the release), plus up to 20 s: back at heel (held 1 s)
-        let held = 0;
-        let j = 0;
-        for (; j < 650 && held < 10; j++) {
-          others();
-          t.step(0.1);
-          const a = atHeel();
-          if ((d.level === 'cooldown' || d.level === 'unaware') && a.toSpot < 1.5) held++;
-          else held = 0;
-          if (h.level !== 'unaware' && h.level !== 'cooldown') hCalm = false;
-          hMoved = Math.max(hMoved, Math.hypot(h.pos.x - h0.x, h.pos.z - h0.z));
-        }
-        const heel1 = { ...atHeel(), level: d.level, toH: Math.hypot(d.pos.x - h.pos.x, d.pos.z - h.pos.z), held, steps: 20 + k + j };
-        return { pick, heel0, grunt, lkp, went, maxFromH, rushed, nearK, searchingThere, mid, hCalm, hMoved, hLevel: h.level, heel1 };
-      } finally {
-        Math.random = rnd;
-        t.crouch(false);
-        t.light(null);
-      }
-    });
-    assert(r.pick, 'dog release: an open handler spot and a known position 12-15 m off on the same floor');
-    if (!r.pick) return;
-    const s = JSON.stringify(r);
-    assert(r.heel0.toSpot < 1.5 && r.heel0.spotToH < 2, `dog release: the dog heels by its handler first (${JSON.stringify(r.heel0)})`);
-    assert(r.grunt === false, 'dog release: releaseHeel on a grunt returns false');
-    assert(r.lkp.valid && Math.hypot(r.lkp.x - r.pick.kx, r.lkp.z - r.pick.kz) < 0.5, `dog release: the known position is set (${JSON.stringify(r.lkp)})`);
-    assert(r.went === true, 'dog release: releaseHeel on the calm dog returns true');
-    assert(r.maxFromH > 3, `dog release: it leaves the heel (${r.maxFromH.toFixed(2)} m from the handler; ${s})`);
-    assert(r.rushed, `dog release: it hurries on the way (${s})`);
-    assert(r.nearK < 1.5 && r.searchingThere, `dog release: it gets to the known position and searches there (closest ${r.nearK.toFixed(2)} m; ${s})`);
-    assert(r.hCalm && r.hMoved < 0.5, `dog release: the handler stays calm and put (${r.hLevel}, moved ${r.hMoved.toFixed(2)} m)`);
-    assert(r.heel1.held >= 10 && r.heel1.toSpot < 1.5 && r.heel1.spotToH < 2, `dog release: the search over, it heels on its handler again (${JSON.stringify(r.heel1)}, mid ${JSON.stringify(r.mid)})`);
-  });
-
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
   assert(real.length === 0, `no console errors (${real.join(' | ')})`);
-
-  // (context-prompts S3, PLAN 8) the door under the context prompts (`?ctxprompts=1`, dark until switch-on): tap A opens
-  // (quiet), hold A bashes (loud, the guard right behind is knocked out), tap Y peeks (no jump), hold Y feeds the optic
-  // cable; away from the door Y still jumps; the old box never shows
-  if (!only || 'context prompts door'.includes(only)) {
-    console.log('context prompts door');
-    await page.close();
-    const p2 = await openPage(ctx, url, 'autostart=warehouse&mode=clear&ctxprompts=1');
-    await frames(p2.page, 10);
-    const r = await p2.page.evaluate(() => {
-      const a = window.__app;
-      const g = a.current;
-      a.loop.manual = true;
-      g.target.health.invulnerable = true;
-      g.mode.pending.length = 0;
-      const em = g.enemyMgr;
-      const V = g.player.position.constructor;
-      const st = a.input.state;
-      const c = g.player.controller;
-      const cp = g.ctxPrompts;
-      const doors = g.world.doors;
-      const d = doors.nearest(-0.95, 12, 0.5);
-      const step = (s) => a.loop.stepHeadless(s, 120);
-      let box = false;
-      const watch = (s, f) => {
-        for (let t = 0; t < s; t += 0.05) {
-          step(0.05);
-          box ||= document.querySelector('.hud-ctx.show') !== null || g.ctxMenu.state !== 'none';
-          f?.();
-        }
-      };
-      const reset = () => {
-        em.clear();
-        g.mode.pending.length = 0;
-        g.optic.reset?.();
-        g.traversal.reset();
-        st.releaseAll();
-        st.setMove('t', 0, 0);
-        c['crouchToggled'] = false;
-        c.override = null;
-        for (const x of doors.list) {
-          x.open = 0;
-          x.target = 0;
-          doors['write'](x);
-          doors['addBody'](x);
-        }
-        doors['mesh']?.thinInstanceBufferUpdated('matrix');
-        step(0.3);
-        g.noise = 0;
-      };
-      const atDoor = () => {
-        c.teleport(new V(-0.95, 0, 11.2), 0);
-        g.player.cam.yaw = 0;
-        g.player.cam.pitch = 0;
-        step(0.4);
-        g.noise = 0;
-      };
-      const press = (btn, hold) => {
-        st.set('t', btn, true);
-        step(1 / 60);
-        if (hold > 0) step(hold);
-        st.set('t', btn, false);
-        step(1 / 60);
-      };
-      const rowsOf = () => [0, 1].map((s) => (cp.shows(s) ? `${cp.rows[s].tapLabel}|${cp.rows[s].holdLabel}` : '-')).join(' ; ');
-      const out = {};
-      // the prompt on the door
-      reset();
-      atDoor();
-      out.prompt = { kind: cp.kind, ref: cp.ref, door: d.index, rows: rowsOf(), yLive: cp.yLive };
-      // tap A: the quiet open
-      let quiet = 0;
-      press('interact', 0.1);
-      watch(1.8, () => (quiet = Math.max(quiet, g.noise)));
-      out.open = { target: d.target, open: d.open, quiet };
-      // hold A: the bash, a guard right behind knocked out
-      reset();
-      const behind = em.spawn('grunt', new V(-0.95, 0, 13.1), false, 0);
-      atDoor();
-      let loud = 0;
-      press('interact', 0.5);
-      watch(0.4, () => (loud = Math.max(loud, g.noise)));
-      out.bash = { target: d.target, loud, ko: !behind.alive && behind.ko };
-      // tap Y: the peek, no jump
-      reset();
-      atDoor();
-      const leaps0 = g.traversal.leaps;
-      let peek = false;
-      let airborne = false;
-      press('jump', 0.1);
-      watch(0.6, () => {
-        peek ||= g.doorPeek.active;
-        airborne ||= !c.grounded;
-      });
-      out.peek = { peek, airborne, leaps: g.traversal.leaps - leaps0 };
-      // Y again ends the peek (today's rule)
-      press('jump', 0);
-      watch(0.6);
-      out.peek.ended = !g.doorPeek.active;
-      // hold Y: the optic cable
-      reset();
-      atDoor();
-      let optic = false;
-      press('jump', 0.5);
-      watch(0.3, () => (optic ||= g.optic.active));
-      out.optic = { optic, leaps: g.traversal.leaps - leaps0 };
-      st.tap('crouch');
-      watch(1.0);
-      // away from the door Y jumps as always
-      reset();
-      c.teleport(new V(-0.95, 0, 8.0), Math.PI);
-      g.player.cam.yaw = Math.PI;
-      step(0.4);
-      const l1 = g.traversal.leaps;
-      const awayKind = cp.kind;
-      st.set('t', 'jump', true);
-      step(1 / 60);
-      const owned = g['ctxOwnsY'];
-      st.set('t', 'jump', false);
-      let moved = false;
-      watch(0.5, () => (moved ||= g.traversal.committed !== null || !c.grounded));
-      out.away = { kind: awayKind, owned, moved, leaps: g.traversal.leaps - l1 };
-      out.box = box;
-      return out;
-    });
-    assert(r.prompt.kind === 'door' && r.prompt.ref === r.prompt.door && r.prompt.rows.startsWith('Open|Bash ; ') && r.prompt.rows.endsWith('|Optic cable') && r.prompt.yLive, `ctx: at a door, [A] Open · hold Bash and [Y] ... hold Optic cable (${JSON.stringify(r.prompt)})`);
-    assert(r.open.target === 1 && r.open.quiet > 0 && r.open.quiet <= 2.5, `ctx: tap A opens the door quietly (${JSON.stringify(r.open)})`);
-    assert(r.bash.target === 1 && r.bash.loud >= 8 && r.bash.ko, `ctx: hold A bashes, loud, the guard behind knocked out (${JSON.stringify(r.bash)})`);
-    assert(r.peek.peek && !r.peek.airborne && r.peek.leaps === 0 && r.peek.ended, `ctx: tap Y peeks, no jump; Y again ends it (${JSON.stringify(r.peek)})`);
-    assert(r.optic.optic, `ctx: hold Y feeds the optic cable (${JSON.stringify(r.optic)})`);
-    assert(r.away.kind !== 'door' && !r.away.owned && r.away.moved,`ctx: away from the door Y still jumps (${JSON.stringify(r.away)})`);
-    assert(!r.box, 'ctx: the old box never shows');
-    const real2 = p2.errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
-    assert(real2.length === 0, `ctx: no console errors (${real2.join(' | ')})`);
-  }
 } catch (e) {
   failed = true;
   console.error(String(e));
 }
 await browser.close();
-
-// (char-shadow-meter S4, J16) Character shadows in the meter, on its own `?charlight=1` page (the scenarios above run
-// with the flag off, unchanged). A guard parked in a lamp's path drops the player's meter by the field's amount (a
-// contract holding only his capsule, built here from `FILL`), and a guard watching the player fills slower than with the
-// meter pinned to the unshadowed value. The spot is picked from the field (PLAN section 5: re-picked after J10's
-// re-bake). The pin replaces `updateLight`, so the shadow cues stop filling while pinned (S3b note); the player stands
-// still, so the real run's cue adds nothing either.
-if (!only || 'charshadow'.includes(only)) {
-  console.log('charshadow');
-  const cs = await launch({ url, params: 'autostart=warehouse&mode=clear&charlight=1' });
-  const H = (f, a) => cs.page.evaluate(f, a);
-  try {
-    await frames(cs.page, 10);
-    // the flicker, the pendants' sway and the lightning held still: the meter reads only the shadow
-    await pinLights(cs.page);
-    // FILL: a copy of src/game/charOccluderFill.ts `FILL`; LIGHT: of src/world/lights.ts (shadow, lit); CROUCH_DROP: of
-    // src/game/bodyHeight.ts. The pick only; the asserts read the live meter and the field.
-    const r = await H((C) => {
-      const a = window.__app;
-      const g = a.current;
-      if (!g.charOccluders) return { err: 'no character contract (charlight=1 off?)' };
-      a.loop.manual = true;
-      g.target.health.invulnerable = true;
-      const em = g.enemyMgr;
-      const V = g.player.position.constructor;
-      const c = g.player.controller;
-      const f = g.world.lightField;
-      const nav = g.nav;
-      const occl = g['lightOccluder'];
-      const proto = Object.getPrototypeOf(g)['updateLight'];
-      const B = g.world.lightBake?.lamps;
-      if (!B) return { err: 'no baked lamps' };
-      const L = B.baked.lights;
-      const n = B.baked.ids.length;
-      const F = C.fill;
-      const tmp = new g.charOccluders.constructor();
-      const vis = (lv) => {
-        const t = Math.max(0, Math.min(1, (lv - C.shadow * 0.5) / (C.lit - C.shadow * 0.5)));
-        const v = 0.25 + 0.75 * t * t * (3 - 2 * t);
-        return v * v;
-      };
-      const floorAt = (x, z, hint) => {
-        const k = nav.cellOf(x, z, hint);
-        return k >= 0 && nav.isWalkable(k) ? nav.height[k] : -1e9;
-      };
-      // a straight walkable line on one floor (no wall or rack between): the watcher's sight, roughly
-      const clearLine = (x0, z0, x1, z1, fl) => {
-        const d = Math.hypot(x1 - x0, z1 - z0);
-        for (let s = 0.5; s < d; s += 0.5) if (Math.abs(floorAt(x0 + ((x1 - x0) * s) / d, z0 + ((z1 - z0) * s) / d, fl) - fl) > 0.3) return false;
-        return true;
-      };
-      const capInto = (gx, gy, gz, hgt) => {
-        tmp.clear();
-        tmp.add(2, 0, gx, gy + F.footLift, gz, gx, gy + Math.max(F.minTop, hgt - F.topDrop), gz, F.r);
-      };
-      const reset = () => {
-        em.clear();
-        em.coordinated = true;
-        if (Array.isArray(g.mode?.pending)) g.mode.pending.length = 0;
-        g['updateLight'] = proto;
-        c['crouchToggled'] = false;
-        g.noise = 0;
-      };
-      const park = (gx, gy, gz, yaw) => {
-        const e = em.spawn('grunt', new V(gx, gy, gz), false, yaw);
-        if (!e) return null;
-        e.update = () => {};
-        e.pos.set(gx, gy, gz);
-        e['prevPos'].copyFrom(e.pos);
-        return e;
-      };
-      const step = (s) => a.loop.stepHeadless(s, 120);
-      // a guard's height (the pick's capsule): one spawned and cleared
-      reset();
-      const probe = em.spawn('grunt', g.player.position.clone(), false, 0);
-      if (!probe) return { err: 'no grunt spawned' };
-      const GH = probe.def.height;
-      reset();
-      const hp = g.player.rig.height;
-      // the pick: the player 2-8 m from a lamp, standing or crouched, lit (0.2 up) mostly by it; a guard 0.6-0.9 m toward it
-      // shades him by >= minDrop and lowers the light factor to <= 85%; a watcher 6-8 m away from the lamp's side
-      const cands = [];
-      for (let i = 0; i < n; i++) {
-        const lx = L[i * 10], lz = L[i * 10 + 2];
-        for (let D = 2; D <= 8; D += 0.5) {
-          for (let k = 0; k < 16; k++) {
-            const ux = Math.cos((k * Math.PI) / 8), uz = Math.sin((k * Math.PI) / 8);
-            const x = lx - ux * D, z = lz - uz * D;
-            const fl = floorAt(x, z, 0);
-            if (fl < -1e8) continue;
-            for (const cr of [1, 0]) {
-              const h = hp * (1 - C.crouchDrop * cr);
-              const u = f.bodyLevel(x, fl, z, h, occl);
-              if (u < 0.2 || f.lampAt(i, x, fl + h * 0.6, z) < 0.4 * u) continue;
-              for (const d of [0.6, 0.75, 0.9]) {
-                const gx = x + ux * d, gz = z + uz * d;
-                const gf = floorAt(gx, gz, fl);
-                if (gf < -1e8 || Math.abs(gf - fl) > 0.3) continue;
-                capInto(gx, gf, gz, GH);
-                const s = f.bodyLevel(x, fl, z, h, occl, 0, 0, tmp, -1);
-                if (u - s < C.minDrop || vis(s) > 0.85 * vis(u)) continue;
-                // the first watcher spot in view (6-8 m, straight away from the lamp or turned 0.4 rad)
-                let w = null;
-                for (const dw of [6, 7, 8]) {
-                  for (const turn of [0, 0.4, -0.4]) {
-                    const wx = x - (ux * Math.cos(turn) - uz * Math.sin(turn)) * dw;
-                    const wz = z - (uz * Math.cos(turn) + ux * Math.sin(turn)) * dw;
-                    const wf = floorAt(wx, wz, fl);
-                    if (wf < -1e8 || Math.abs(wf - fl) > 0.3 || !clearLine(x, z, wx, wz, fl)) continue;
-                    w = [wx, wf, wz];
-                    break;
-                  }
-                  if (w) break;
-                }
-                if (w) cands.push({ lamp: i, x, z, fl, crouch: cr === 1, u, s, g: [gx, gf, gz], w, score: vis(u) - vis(s) });
-              }
-            }
-          }
-        }
-      }
-      cands.sort((p, q) => q.score - p.score);
-      // the best guard spot and stance per player spot (a blocked watcher is tried at the next spot, not the same one)
-      const seen = new Set();
-      const picks = cands.filter((p) => {
-        const key = `${p.x.toFixed(2)},${p.z.toFixed(2)}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      if (!picks.length) return { err: 'no lit spot with a guard in its lamp path and a watcher in view' };
-      // the player at the spot (facing the watcher), settled; the meter with no guard near
-      const place = (p) => {
-        reset();
-        c['crouchToggled'] = p.crouch;
-        const yaw = Math.atan2(p.w[0] - p.x, p.w[2] - p.z);
-        c.teleport(new V(p.x, p.fl, p.z), yaw);
-        g.player.cam.yaw = yaw;
-        g.player.cam.pitch = 0;
-        step(0.8);
-      };
-      // the fill over 2.5 s of a watcher facing the player (pinned: the meter held at `pin`); the same random draws each run
-      const watch = (p, pin) => {
-        const rnd = Math.random;
-        let seed = 12345;
-        Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-        try {
-          place(p);
-          park(p.g[0], p.g[1], p.g[2], Math.atan2(p.g[0] - p.x, p.g[2] - p.z));
-          const wt = em.spawn('grunt', new V(p.w[0], p.w[1], p.w[2]), false, Math.atan2(p.x - p.w[0], p.z - p.w[2]));
-          if (!wt) return null;
-          wt.senseRng.reseed(12345);
-          wt.thinkT = 0;
-          wt.meter = 0;
-          if (pin !== null) g['updateLight'] = () => (g.localRef.light = g.lightLevel = pin);
-          let max = 0;
-          let light = 0;
-          for (let k = 0; k < 25; k++) {
-            step(0.1);
-            max = Math.max(max, wt.meter);
-            light = g.lightLevel;
-          }
-          return { max: +max.toFixed(4), light: +light.toFixed(3), level: wt.aware.level };
-        } finally {
-          Math.random = rnd;
-          g['updateLight'] = proto;
-        }
-      };
-      const tried = [];
-      for (const p of picks.slice(0, 8)) {
-        // 1. the meter drop: no guard, then the guard parked in the lamp's path
-        place(p);
-        const um = g.lightLevel;
-        const Lin = g['lightIn'];
-        const smp = [Lin[0], Lin[1], Lin[2], Lin[3], Lin[4], Lin[5]];
-        const e = park(p.g[0], p.g[1], p.g[2], Math.atan2(p.g[0] - p.x, p.g[2] - p.z));
-        if (!e) return { err: 'no grunt parked' };
-        step(0.3);
-        const sm = g.lightLevel;
-        capInto(e.pos.x, e.pos.y, e.pos.z, e.def.height);
-        const fu = f.bodyLevel(smp[0], smp[1], smp[2], smp[3], occl, smp[4], smp[5]);
-        const fs = f.bodyLevel(smp[0], smp[1], smp[2], smp[3], occl, smp[4], smp[5], tmp, -1);
-        // 2. the watcher's fill: pinned to the unshadowed meter, then the real (shadowed) one
-        const pinned = watch(p, um);
-        if (!pinned || pinned.max < C.minFill) {
-          tried.push({ lamp: p.lamp, at: [+p.x.toFixed(2), +p.z.toFixed(2)], pinned });
-          continue;
-        }
-        const real = watch(p, null);
-        return { spot: { lamp: p.lamp, x: +p.x.toFixed(2), z: +p.z.toFixed(2), crouch: p.crouch, guard: p.g.map((v) => +v.toFixed(2)), watcher: p.w.map((v) => +v.toFixed(2)) }, um, sm, fu, fs, pinned, real, tried };
-      }
-      return { err: `no watcher filled with the meter pinned (tried ${JSON.stringify(tried)})` };
-    }, { fill: { r: 0.22, footLift: 0.25, topDrop: 0.2, minTop: 0.5 }, shadow: 0.28, lit: 0.6, crouchDrop: 0.35, minDrop: 0.05, minFill: 0.1 });
-    assert(!r.err, `charshadow: a spot (${r.err ?? JSON.stringify(r.spot)})`);
-    const md = r.um - r.sm;
-    const fd = r.fu - r.fs;
-    console.log(`  meter ${r.um.toFixed(3)} -> ${r.sm.toFixed(3)}, field ${r.fu.toFixed(3)} -> ${r.fs.toFixed(3)}`);
-    assert(fd >= 0.05, `charshadow: the parked guard shades the player in the field (${fd.toFixed(3)})`);
-    assert(Math.abs(md - fd) <= 0.02, `charshadow: the meter drops by the field's amount under the guard's shadow (meter ${md.toFixed(3)}, field ${fd.toFixed(3)}, within 0.02)`);
-    assert(r.pinned.max >= 0.1 && r.real.max < r.pinned.max, `charshadow: the watching guard fills slower in the shadow than with the meter pinned unshadowed (${JSON.stringify(r.real)} vs ${JSON.stringify(r.pinned)})`);
-    const real = cs.errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
-    assert(real.length === 0, `charshadow: no console errors (${real.join(' | ')})`);
-  } catch (e) {
-    failed = true;
-    console.error(String(e));
-  }
-  await cs.browser.close();
-}
 process.exit(failed ? 1 : 0);

@@ -385,3 +385,41 @@ Owner decision N17 settled the annex (a side room behind a door, same look, abou
 - **After the one-game merge (#740):** the e2e-menus Warehouse page carries `mapready=0` as master's other Warehouse boots do; the menu-start check in e2e-testmode waits for the load gate's release (`__mapReady.released`) before it steps the sim.
 - **Failing on master too (not touched by G2c):** e2e-clip (ladder climb: 25.6 cm of the body in the world), e2e-anim (crouched start: elbows 23.9 cm outside the shoulder), e2e-foley (a sprint plants 7 times against a walk's 8), e2e-weapons-carry (every weapon visible, holstered, carried in its slot) and the mission part of e2e-modes (the hack row is empty): the same assertion each, on master 97152d5e3 and on this branch. Not isolated further here; G2c did not touch what they measure. e2e-desktop part 1 stalls after its benchmark checks on this PC (past `the benchmark leaves no override behind`, 900 s) on master as well; its benchmark checks all pass here.
 - **e2e-score, e2e-offline, e2e-lightbake, e2e-modes:** `?guards=1` (the five squad guards). The test mode has no objective (offline asserts it). Left on their old maps (they go in stage H): the Mission and enemy-type parts of e2e-modes (Warehouse mission, Proving Grounds), the Infiltration match of e2e-offline, the mission-only parts of e2e-menus (above), the play setup and pause flow of e2e-pad.
+
+## 9. G2d as built: the two big suites (recorded 2026-11-02)
+Owner decision N18: slim G2d to the core guard tests (seeing, hearing, search, bodies, co-op guard sync); the detail tests of systems later phases rework are dropped. Dropped code is restorable from git history. No map change was needed.
+
+**e2e-stealth-ai** (boots `autostart=studio&mode=test`)
+- Kept: shadow, light, vision-detect, walls, vision (seeing); noise, one investigates, shots (hearing); lkp, search area, heard in a search (search); bodies, carry (bodies).
+- Dropped under N18, restorable from history: vision-dog, radio, radio window, radio stagger, report then engage, patrol, lights, breaker, light pair, alarm, alarm call, revive, witness, surfaces, doors, optic cable, wall peek exposes the head, helmet, armour, missed check, loud shot, squad roles, four intruders, dog release, the context prompts door block, the charshadow block (and the stand-in players, `t.fakes`, and the storey helpers only they used).
+- Moved away from section 3.1:
+  - noise: player (33, 4) and guard (33, 6.7), not x 31. The dumpster (x 29.35-31.25, z 6.75-7.75) stands on the guard's spot.
+  - carry: victim (33.5, 3.5) and player (33.5, 1.0), not x 30.3. Walking on with the body from x 30.3 ended within 1.5 m of the dumpster's hiding spot, so the interact hid the body instead of putting it down. The hide step is at (30.3, 6.05) yaw 0 as in 3.1.
+  - search area, `three`: the three hide in the crouch tunnel (1.5, 13), not HIDE_FAR. With three guards, one reached the annex door, from where (3, 2.5) is in sight across the main room, and the last known position moved onto the player. `near` and `wall` keep HIDE_FAR.
+  - heard in a search, `wall`: the cell is picked at least 3 m from every point of his search plan. The cell behind H1 is the plan's top point, so his own search came within 1.5 m of it with no noise at all.
+- Points 3.1 left open, picked here:
+  - the parked player is HIDE_FAR (3, 2.5) in noise, one investigates, bodies, shots and heard in a search;
+  - the calibration walk of heard in a search starts at S;
+  - the impact in shots hits H1's west face at (34.3, 1, 21.5), a guard at (32.0, 21.5);
+  - vision: guard P and player S;
+  - shots: the guards face away from the player (yaw π).
+
+**e2e-coop** (the matches are Test Chamber matches, `['test', 'studio', '']`)
+- Kept and re-based: host-validated client hits and kill credit; a host guard's torch on and off on the client; "co-op on the guards" (calm puppets, doors, mirrored items, a client takedown, kept and hidden bodies, strike, pings, gas, grab, the host's team takedown, dual takedown, a client revive); S23, S24, S26; the hang-down; the guard look seeds (G9); the difficulty part.
+- Dropped under N18, restorable from history: guard-ai S9 (stage gear, bark, caution, shield-led team, deflect), the joint interrogation, the Infiltration objectives check, the char-shadow-meter block.
+- Non-guard parts kept: lobby, server browser, ready-up, downed and revive, malformed messages, weapons crate, rejoins, team wipe, back to lobby, pause return, door peek, wall medkit, host leaves, context prompts, offline, the Marlow Yard course restart.
+- Guards: the test mode queues none, so each match spawns grunts in the annex hall (`spawnHall`: x 29.6-35.8 at z 17, and (30.4, 19.2)): 5 in the first match, 6 in the guards match, 3 in the hang-down match.
+- Points (section 3, e2e-coop row, unless stated):
+  - hits: the victim at (20, 21), the client 2.2 m north of it;
+  - takedown and grab pads (19, 21), strike pad and denied guard (21, 21), the client 1.1 m (takedown, grab) or 0.9 m (strike) behind; the gas victim (21, 20); the pings inside the room;
+  - S23: guard (33.5, 17.1), client (33.5, 26), host (33.5, 12.8), as 3;
+  - S24: pair 1 (31.8, 15.5) and (32.8, 15.5) with the host at S8; host hides in the store (30.3, 11), as 3. Pair 2 at (13.4, 20) and (14.6, 20) with the client at (14, 11), not (20, 12): the squad roles hold a pair 8 to 15 m off its last known position, so a client at (20, 12) had pair 2 holding at the annex door, nearer the host's spot than its own. The client hides behind the door wall at (12, 2.5), not in the tunnel: pair 2 saw the client in the tunnel for most of the hide;
+  - S26: guard P, client S8, host HIDE_FAR, client hide (12, 2.5) (the same reason as S24);
+  - hang-down: the ledge wall lip (top 2.4, z 25), hang at z 24.6, host on the deck at z 25.4, the client set up at lip.x - 0.8 (west, clear of the zipline post at x 5.3), the guard under the hang at (lip.x + 0.3, 24.3), the others at (lip.x + 3 + 1.5i, 21);
+  - context prompts block: host (14, 24.55) and client (14, 23.7) at the team block's south face, map `studio`.
+- Test-side changes the move needed (no game change):
+  - the weapons crate part turns `infiniteAmmo` off on both pages for its length: the test mode has infinite ammo, which makes a crate use a no-op;
+  - the pages open with `ctxprompts=0`: the prompts are on by default since one-game, and the hang-down's hold-A list and the grab menu are written for the menu (as e2e-takedown and e2e-net-lib);
+  - the context prompts block keeps its own `ctxprompts=1` pages.
+- Left on another map: the Free Roam objective line ("Free roam" on the client) runs on a short Proving Grounds match, because the test mode has no objective; the Marlow Yard course restart stays on the course map. Nothing is left on the Warehouse.
+- Run on the laptop RTX (Edge, headless): e2e-stealth-ai 1.5-1.6 min, e2e-coop 7.3 min, both passing.
