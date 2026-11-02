@@ -33,6 +33,10 @@ const ACT_FADE = 0.12;
 /** (slice g) Seconds the spine takes to follow the aim pitch, and the most it bends (rad, provisional). */
 const PITCH_EASE = 0.08;
 const PITCH_MAX = 1.1;
+/** (slice g) The actions whose hands are pinned to the rig's; the climb-up lets go from 0.45 through its next 0.3. */
+const ANCHORED: ReadonlySet<string> = new Set(['hang_idle', 'hang_shimmy_l', 'hang_shimmy_r', 'ladder', 'hang_climb_up']);
+const ANCHOR_CLIMB_FROM = 0.45;
+const ANCHOR_CLIMB_SPAN = 0.3;
 
 const CONTAINERS = new WeakMap<Scene, Map<MixamoModel, Promise<AssetContainer>>>();
 
@@ -137,6 +141,13 @@ export class MixamoBody {
   /** (slice g) The spine's aim bend now (rad), and its bones top first (Spine, Spine1, Spine2). */
   private pitch = 0;
   private spine: TransformNode[] = [];
+  /** (slice g) The hand anchors (rig wrists), the body's own hands (LeftHand, RightHand), the anchor's weight now,
+   *  whether the body is shifted, and the root's own height (the fit's). */
+  private anchors: { l: TransformNode; r: TransformNode } | null = null;
+  private hands: (TransformNode | null)[] = [];
+  private anchorW = 0;
+  private anchored = false;
+  private baseY = 0;
   private pendingFollow: { rigRoot: TransformNode; pairs: FollowPair[] } | null = null;
   private follows: Follow[] = [];
   private rigRoot: TransformNode | null = null;
@@ -212,6 +223,8 @@ export class MixamoBody {
     const idle = this.clips[0]?.g;
     if (idle) idle.goToFrame(idle.from);
     this.fitHeight();
+    this.baseY = this.root.position.y;
+    this.hands = [this.boneNode('LeftHand'), this.boneNode('RightHand')];
     this.spine = ['Spine', 'Spine1', 'Spine2'].map((n) => this.boneNode(n)).filter((b): b is TransformNode => !!b);
     if (this.pendingFollow) this.bindFollow(this.pendingFollow.rigRoot, this.pendingFollow.pairs);
     this.ready = true;
@@ -330,6 +343,7 @@ export class MixamoBody {
   private applyFollow(): void {
     const rr = this.rigRoot;
     if (!rr || !this.ready || !this.root.isEnabled()) return;
+    this.anchorBody();
     this.bendSpine(rr);
     const rootW = this.root.computeWorldMatrix(true);
     const rigW = rr.computeWorldMatrix(true);
@@ -470,6 +484,44 @@ export class MixamoBody {
       } else a.speedRatio = 1;
       if (this.actW <= 0) this.act = null;
     }
+    // (slice g) hanging, shimmying, on a ladder and early in a climb-up the body is placed by its hands on the rig's
+    const an = a ? (a.name.split(':').pop() ?? '') : '';
+    const climb = an === 'hang_climb_up' && act && !Number.isNaN(act.t) ? 1 - Math.min(1, Math.max(0, (act.t - ANCHOR_CLIMB_FROM) / ANCHOR_CLIMB_SPAN)) : 1;
+    this.anchorW = a && ANCHORED.has(an) ? this.actW * climb : 0;
+  }
+
+  /**
+   * (slice g) Rig hand nodes (the wrists) the body's hands are pinned to while an anchored action plays (hang, shimmy,
+   * ladder, early climb-up): the whole body shifts up or down so its hands' midpoint meets theirs in height (the rig's hands are on the lip /
+   * rungs; a Mixamo clip's own hands are wherever its take had them).
+   */
+  anchorHands(left: TransformNode, right: TransformNode): void {
+    this.anchors = { l: left, r: right };
+  }
+
+  private anchorBody(): void {
+    const a = this.anchors;
+    const w = this.anchorW;
+    if (!a || (w <= 1e-3 && !this.anchored)) return;
+    this.root.position.x = 0;
+    this.root.position.z = 0;
+    this.root.position.y = this.baseY;
+    this.anchored = w > 1e-3;
+    if (!this.anchored) return;
+    for (let p: TransformNode | null = this.root; p; p = p.parent instanceof TransformNode ? p.parent : null) p.computeWorldMatrix(true);
+    const L = this.hands[0], R = this.hands[1];
+    if (!L || !R) return;
+    for (const n of [...chainBelow(L, this.root), L, R]) n.computeWorldMatrix(true);
+    for (const n of [...chainBelow(a.l, this.rigRoot ?? this.root), a.l, a.r]) n.computeWorldMatrix(true);
+    const ml = L.getAbsolutePosition(), mr = R.getAbsolutePosition();
+    const rl = a.l.getAbsolutePosition(), rrp = a.r.getAbsolutePosition();
+    // the height gap (rig hands' midpoint - body hands' midpoint), into the parent's frame, weighted; height only: the
+    // rig's hands rest on top of the lip, inside the wall's footprint, and the body keeps its own distance from the wall
+    vT2.set(0, (rl.y + rrp.y - ml.y - mr.y) * 0.5 * w, 0);
+    (this.root.parent as TransformNode).getWorldMatrix().invertToRef(mA);
+    Vector3.TransformNormalToRef(vT2, mA, vS);
+    this.root.position.addInPlace(vS);
+    this.root.computeWorldMatrix(true);
   }
 
   /** The weight each clip plays at now, by name (tests and the e2e read it; an action's weight beside the locomotion's). */

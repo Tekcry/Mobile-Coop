@@ -68,6 +68,8 @@ export function dressRig(scene: Scene, rig: CharacterRig, model: MixamoModel, op
     { node: r.headNode, bone: 'Head', rest: restIn(r.headNode, r.root) },
   ]);
   body.holdGun(r.root, r.weaponPivot, r.grip, () => heldKind(r));
+  // (slice g) hanging, shimmying and on ladders the body's hands meet the rig's (on the lip, the rungs)
+  body.anchorHands(r.wristL, r.wristR);
   // (slice e) a body over the shoulder walks the carry set; an action (hang, ladder, climb-up, strike, throw) fades over
   const act: ActionOut = { clip: null, t: NaN };
   const hook = (dt: number, s: Parameters<NonNullable<CharacterRig['onAnimate']>>[1]): void => {
