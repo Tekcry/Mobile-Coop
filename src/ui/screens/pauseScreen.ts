@@ -50,6 +50,8 @@ export interface PauseOpts {
   lobby?: () => void;
   /** (marlow-bays R1) Co-op: the room code (the main menu offers it again if either player drops). */
   roomCode?: string;
+  /** (co-op relay fix) Co-op: the connection readout, read every second while the menu shows. */
+  link?: () => string;
 }
 
 /** (marlow-bays A1) The line a co-op client sees on a host-only row. */
@@ -210,7 +212,15 @@ export class PauseScreen extends MenuScreen {
     this.body.prepend(this.noticeEl);
     if (opts.coop) this.body.append(h('div', { class: 'ms-note dim ps-coop', text: 'The mission keeps running.' }));
     // (marlow-bays R1) the room code for a rejoin (Main menu > Rejoin / Resume hosting, or Co-op > Join with code)
-    if (opts.roomCode) this.body.append(h('div', { class: 'ms-note ps-room', text: `Room ${opts.roomCode}. If either player drops, rejoin from the main menu with this code.` }));
+    const room = opts.roomCode ? h('div', { class: 'ms-note ps-room', text: `Room ${opts.roomCode}. If either player drops, rejoin from the main menu with this code.` }) : null;
+    if (room) this.body.append(room);
+    // (co-op relay fix) the connection readout under the room line: "Connection: Connected - direct, 45 ms"
+    this.link = opts.link ?? null;
+    if (this.link) {
+      this.linkEl = h('div', { class: 'ps-link', attrs: { role: 'status' } });
+      (room ?? this.body).append(this.linkEl);
+      this.readLink();
+    }
     if (opts.notice) this.setNotice(opts.notice);
     // a reconnect clears the line; a key or click does too (MD12)
     this.noticeOff = app.input.events.on('padConnected', () => this.setNotice(''));
@@ -219,6 +229,30 @@ export class PauseScreen extends MenuScreen {
   }
 
   private clearOnKey = (): void => this.setNotice('');
+
+  private link: (() => string) | null;
+  private linkEl: HTMLElement | null = null;
+  private linkT: ReturnType<typeof setInterval> | null = null;
+
+  private readLink(): void {
+    if (!this.link || !this.linkEl) return;
+    const t = `Connection: ${this.link()}`;
+    if (this.linkEl.textContent !== t) this.linkEl.textContent = t;
+  }
+
+  override onShow(): void {
+    super.onShow();
+    if (this.link && !this.linkT) {
+      this.readLink();
+      this.linkT = setInterval(() => this.readLink(), 1000);
+    }
+  }
+
+  override onHide(): void {
+    super.onHide();
+    if (this.linkT) clearInterval(this.linkT);
+    this.linkT = null;
+  }
 
   /** The controller-disconnect line (empty hides it). */
   setNotice(text: string): void {

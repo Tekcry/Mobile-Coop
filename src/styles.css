@@ -4204,6 +4204,16 @@ body.tune-hide-hud .mouse-capture-hint {
   overflow-wrap: anywhere;
   line-height: 1.35;
 }
+/* (co-op relay fix) the connection readout, under the room code line */
+.pause-screen .ps-link {
+  margin-top: 6px;
+  color: var(--muted);
+}
+.lobby-screen.menu-screen .lobby-link {
+  padding: 0 16px 8px;
+  font-size: calc(14px * var(--ts));
+  color: var(--muted);
+}
 .objectives-screen .ms-item .ms-ctr {
   margin-left: auto;
   color: var(--muted);

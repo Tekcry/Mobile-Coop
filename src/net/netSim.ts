@@ -15,12 +15,23 @@ export interface NetSimPreset {
   readonly oneWayMs: number;
   readonly jitterMs: number;
   readonly loss: number;
+  /** (co-op relay fix) The link reads as going through the TURN relay (the connection readout says "via relay"). */
+  readonly relay?: true;
+  /** (co-op relay fix) No path at all: the peers find each other but nothing gets through, and the transport reports
+   *  a join error, as Trystero's `onJoinError` when neither a direct link nor the relay works. */
+  readonly blocked?: true;
 }
 
-/** `typical`: 80 ms RTT (40 ms one-way), 20 ms jitter, 1% loss (D11). */
+/** `typical`: 80 ms RTT (40 ms one-way), 20 ms jitter, 1% loss (D11). (co-op relay fix) `relay`: a TURN-relayed link,
+ *  140 ms RTT, 25 ms jitter, 1% loss. `blocked`: no path (a strict network with the relay unreachable). */
 export const NETSIM_PRESETS: Readonly<Record<string, NetSimPreset>> = {
   typical: { oneWayMs: 40, jitterMs: 20, loss: 0.01 },
+  relay: { oneWayMs: 70, jitterMs: 25, loss: 0.01, relay: true },
+  blocked: { oneWayMs: 0, jitterMs: 0, loss: 0, blocked: true },
 };
+
+/** (co-op relay fix) How long after first hearing a peer a `blocked` link reports its join error (ms). */
+export const BLOCKED_JOIN_ERROR_MS = 1500;
 
 /** The preset named by `?netsim=` (null = off, also for unknown names). */
 export function netSimPreset(name: string | null | undefined): NetSimPreset | null {
