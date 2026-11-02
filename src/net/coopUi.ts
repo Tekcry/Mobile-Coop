@@ -10,7 +10,9 @@ import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
 import { CHAMBER_MAP_ID } from '../anim/chamberMapId';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
-import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PLAYER_COLOUR, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
+import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PLAYER_COLOUR, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
+import { diag } from '../feedback/diag';
+import { NetDiag } from './netDiag';
 import { NetSession, resumeMap, roomMap, sectorStartOpts, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
@@ -112,6 +114,7 @@ class CoopController {
     const ev = session.events;
     // (the host follows only its members' connections: a peer refused for its version or a full room is not the partner)
     this.link = new LinkMonitor(session.transport, session.role, (r, prev) => void logAttempt(r, prev), undefined, session.isHost ? (id) => session.isMemberConn(id) : undefined);
+    this.diagRoom(session);
     // (co-op relay fix) a joiner whose tries keep failing (2 join errors 6 s apart: no path, the relay included) has
     // nothing more to wait for; the host is told, and keeps waiting
     this.link.onFailed = (f) => {
@@ -136,6 +139,36 @@ class CoopController {
           this.backToLobby();
         }
       }),
+    );
+  }
+
+  /**
+   * (diagnostics log) This room in the device's log: opened (role, transport, relay mode), the lobby's player count,
+   * starts, players leaving / dropping / rejoining, refusals (full, another version), and a link line every 10 s while
+   * connected (`NetDiag`: path, round trip, rates, game messages per type). No names, no addresses.
+   */
+  private diagRoom(session: NetSession): void {
+    const relay = new URLSearchParams(location.search).get('relay');
+    diag.add('net', `room ${session.code} opened as ${session.isHost ? 'host' : 'joiner'}, ${flags.net === 'local' ? 'same-device transport' : 'internet (WebRTC)'}${relay ? `, relay=${relay}` : ''}, protocol ${PROTOCOL_VERSION}`);
+    const nd = new NetDiag();
+    nd.wrap(session.transport);
+    this.link.onSample = (s) => nd.sample(s);
+    const ev = session.events;
+    let players = session.players.size;
+    this.offs.push(
+      ev.on('lobby', ({ players: l }) => {
+        if (l.length === players) return;
+        players = l.length;
+        diag.add('net', `lobby: ${players} player${players === 1 ? '' : 's'}`);
+      }),
+      ev.on('start', (s) => diag.add('net', `match start from the host: ${s.mode} on ${s.map}, ${s.difficulty}${s.bay ? `, bay ${s.bay}` : ''}`)),
+      ev.on('peerLeft', () => diag.add('net', 'the other player left')),
+      ev.on('away', () => diag.add('warn', 'co-op: the joiner dropped mid-match (slot held for a rejoin)')),
+      ev.on('rejoin', () => diag.add('net', 'the joiner rejoined')),
+      ev.on('late', () => diag.add('net', 'match sent to a joining / rejoining player')),
+      ev.on('hostLeft', () => diag.add('warn', 'co-op: the host left or dropped')),
+      ev.on('full', () => diag.add('net', 'refused: the room is full')),
+      ev.on('version', ({ theirs }) => diag.add('warn', `co-op: different game versions (theirs ${theirs || 'unknown'}, ours ${PROTOCOL_VERSION})`)),
     );
   }
 
@@ -229,6 +262,7 @@ class CoopController {
 
   private fail(title: string, msg: string): void {
     if (this.left) return;
+    diag.add('warn', `co-op: ${title} - ${msg}`);
     // (co-op relay fix) the dialog once the room is left: pushed before, it sat over the lobby, which then stayed under it
     void this.leave(false).then(() => this.app.screens.push(new Dialog(title, msg, [{ label: 'OK', action: () => {}, primary: true }])));
   }
@@ -252,6 +286,7 @@ class CoopController {
     this.record();
     this.stopRecord();
     this.left = true;
+    diag.add('net', `left room ${this.session.code}`);
     this.link.stop();
     for (const o of this.offs) o();
     await this.session.leave(this.session.isHost ? 'Host left' : 'left');

@@ -1,5 +1,6 @@
 import { Vector3 } from '../core/babylon';
 import { emptyKinds } from '../ai/enemyDefs';
+import { diag } from '../feedback/diag';
 import type { GameState, ModeId, NetAttachment } from '../game/gameState';
 import type { Difficulty } from '../ai/archetypes';
 import type { Enemy } from '../ai/enemy';
@@ -479,11 +480,13 @@ export class CoopHost implements NetAttachment {
   private joinStep(r: RemotePlayer, x: number, z: number): void {
     const j = this.joins.state(r.id, r.state ? r.feet : null, x, z, this.time);
     if (j & JOIN_RESYNC) {
+      diag.add('net', 'host: resync sent to a joining / rejoining player');
       this.itemsT = 0;
       this.lampForce = true;
       this.g.mode?.resync?.();
     }
     if (!(j & JOIN_PLACE)) return;
+    diag.add('net', 'host: placing a rejoining player after its reload');
     this.joins.place(r.id, this.joinSpot(r, this.joins.heldSpot(r.id)), this.time);
     r.allowTeleport(3);
   }

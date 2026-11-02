@@ -53,7 +53,7 @@ Design authority: docs/design-bible.md (Section 9). What the game is: docs/VISIO
 | `security/` | The security system (cameras, panels), first built for Kestrel (paused, G53); Sector Ops and Marlow Yard use cameras and panels through `game/ctDevices.ts` |
 | `editor/`, `dev/` | The Kestrel level editor (dev only, never in `dist/`) and its bridge |
 | `net/` | Optional co-op: transports (Trystero / BroadcastChannel), protocol validation, session / lobby, host + client sims, lobby UI |
-| `save/`, `feedback/` | IndexedDB wrapper, versioned schema, migrations, export / import, course record; playtest notes and crash log |
+| `save/`, `feedback/` | IndexedDB wrapper, versioned schema, migrations, export / import, course record; playtest notes, crash log and the diagnostics log (`ui.md`) |
 | `audio/` | Audio engine, music score, movement foley and weapon sounds (CC0 recordings), synth fallbacks |
 | `pwa/` | Service worker registration, fullscreen, gesture suppression |
 | `config/` | JSON / TS content data (weapons, enemies, missions, unlock tables), `movement.ts` and `camera.ts` feel tables |

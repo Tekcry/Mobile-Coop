@@ -15,6 +15,61 @@ export interface LinkSample {
   kind: LinkKind;
   /** Round trip (ms), null when the browser has none yet. */
   rttMs: number | null;
+  /** (diagnostics log) The pair's counters and candidate types (WebRTC only; `linkDetail`). */
+  detail?: LinkDetail;
+}
+
+/**
+ * (diagnostics log) The selected pair's counters and its candidates' TYPES (host / srflx / prflx / relay) and
+ * protocol: never an address or a port (a candidate's address is the player's IP). Totals since the link opened.
+ * WebRTC data channels report no lost packets (SCTP resends them): none here.
+ */
+export interface LinkDetail {
+  local: string;
+  remote: string;
+  /** udp / tcp, and the relay's own protocol when the local candidate is a relay one. */
+  protocol: string;
+  bytesSent: number;
+  bytesReceived: number;
+  packetsSent: number;
+  packetsReceived: number;
+  /** Data channel messages (all channels). */
+  msgsSent: number;
+  msgsReceived: number;
+}
+
+/** The selected pair's detail from a stats report, or null with no pair. */
+export function linkDetail(stats: StatsLike): LinkDetail | null {
+  const pair = selectedPair(stats);
+  if (!pair) return null;
+  const cand = (id: unknown): Rec | null => {
+    const c = typeof id === 'string' ? stats.get(id) : null;
+    return isRec(c) ? c : null;
+  };
+  const lc = cand(pair.localCandidateId);
+  const rc = cand(pair.remoteCandidateId);
+  const n = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  const word = (v: unknown): string => (typeof v === 'string' && /^[a-z]{1,8}$/i.test(v) ? v : '?');
+  let msgsSent = 0;
+  let msgsReceived = 0;
+  stats.forEach((s) => {
+    if (isRec(s) && s.type === 'data-channel') {
+      msgsSent += n(s.messagesSent);
+      msgsReceived += n(s.messagesReceived);
+    }
+  });
+  const relayProto = lc && typeof lc.relayProtocol === 'string' ? `/${word(lc.relayProtocol)}` : '';
+  return {
+    local: word(lc?.candidateType),
+    remote: word(rc?.candidateType),
+    protocol: `${word(lc?.protocol)}${relayProto}`,
+    bytesSent: n(pair.bytesSent),
+    bytesReceived: n(pair.bytesReceived),
+    packetsSent: n(pair.packetsSent),
+    packetsReceived: n(pair.packetsReceived),
+    msgsSent,
+    msgsReceived,
+  };
 }
 
 /** `retrying`: the joiner's first attempt failed (a join error), Trystero tries again (it re-offers every ~5 s). */

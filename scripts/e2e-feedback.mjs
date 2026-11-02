@@ -89,6 +89,10 @@ try {
   await wait(400);
   const stored = await G(async () => (await window.__app.feedback.all()).map((e) => ({ text: e.text, photos: e.photos.length, type: e.photos[0]?.type, map: e.context.map })));
   assert(stored.length === 1 && stored[0].photos === 2 && stored[0].type === 'image/jpeg' && stored[0].map === 'chamber', `saved to the device with its photos (${JSON.stringify(stored)})`);
+  // (diagnostics log) the match wrote its lines (the load, the map, the pause menu) and a performance sample
+  await G(() => new Promise((r) => setTimeout(r, 10500)));
+  const diagLive = await G(async () => { await window.__diag.flush(); return window.__diag.text(); });
+  assert(/loading chamber \//.test(diagLive) && /map built in/.test(diagLive) && /screen: pause-screen/.test(diagLive) && /fps avg, 1% low \d+/.test(diagLive), `a match writes diagnostics lines (${diagLive.length} chars)`);
   // persists across a reload (IndexedDB), listed in Settings > Feedback, exported as one HTML file
   await page.goto(url + '?gfx=min');
   await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
@@ -105,6 +109,22 @@ try {
   const path = await file.path();
   const html = (await import('node:fs')).readFileSync(path, 'utf8');
   assert(/sbd-feedback-.*\.html/.test(file.suggestedFilename()) && /Ladder clips the wall<br>at the top/.test(html) && (html.match(/<img src="data:image\/jpeg/g) ?? []).length === 2, 'the report has the note and both photos');
+  // (diagnostics log) Feedback > Copy log: the summary first, this session, and the match from before the reload
+  await G(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied = t; } } }));
+  await click('.btn', '^Copy log');
+  await page.waitForFunction(() => typeof window.__copied === 'string', null, { timeout: 15000 });
+  const copied = await G(() => window.__copied);
+  const top = copied.split('\n').slice(0, 16).join('\n');
+  assert(/^=== Night Shift diagnostics log/.test(copied) && /--- Summary ---/.test(top) && /^Game: \d+\.\d+/m.test(top) && /^Device: /m.test(top) && /^This session: started/m.test(top) && /^Performance: /m.test(top) && /^Connection: /m.test(top), `Copy log copies the summary first (${top.slice(0, 200)})`);
+  assert(/=== This session/.test(copied) && /=== Older session 2/.test(copied) && /loading chamber \//.test(copied) && /map built in/.test(copied), 'the copy carries the match from before the reload');
+  assert(!/\b(?:\d{1,3}\.){3}\d{1,3}:\d+/.test(copied), 'the copy holds no IP address');
+  const copiedSub = await G(() => document.querySelector('[data-key="copy-log"] .btn-sub')?.textContent ?? '');
+  assert(/paste it to Claude/.test(copiedSub), `the row says it was copied (${copiedSub})`);
+  if (process.env.DIAG_SAMPLE) (await import('node:fs')).writeFileSync(process.env.DIAG_SAMPLE, copied);
+  const dlLog = page.waitForEvent('download', { timeout: 15000 });
+  await click('.btn', '^Save as file');
+  const logFile = await dlLog;
+  assert(/^night-shift-log-.*\.txt$/.test(logFile.suggestedFilename()), `Save as file downloads the log as text (${logFile.suggestedFilename()})`);
   // a note from the menu: photo mode on the menu stage
   await click('.btn', 'New feedback');
   await frames(page, 4);

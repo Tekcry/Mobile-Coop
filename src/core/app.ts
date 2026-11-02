@@ -19,6 +19,7 @@ import { Foley } from '../audio/foley/foley';
 import { WeaponAudio } from '../audio/weapons/weaponAudio';
 import { QualityManager, type QualityTarget } from './qualityManager';
 import { FeedbackStore } from '../feedback/feedbackStore';
+import { diag } from '../feedback/diag';
 import { keyLabels, padButtons } from '../ui/prompts';
 import { bindLabel } from '../input/keyBindings';
 import type { BenchKind, BenchSession } from '../game/benchmark';
@@ -131,6 +132,8 @@ export class App {
     });
     this.loop.onFrameEnd = (interval, cpu, raf) => {
       this.quality.frame(interval, cpu, this.current?.simulating ?? false, raf);
+      // (diagnostics log) the frame time into its preallocated sample (no allocation; read every 10 s)
+      diag.perf.push(interval, cpu);
       if (this.calib || this.calibKey) this.calibFrame(raf);
     };
     uiHooks.blocked = (msg) => {

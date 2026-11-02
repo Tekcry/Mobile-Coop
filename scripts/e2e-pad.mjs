@@ -488,10 +488,10 @@ try {
   await press(page, BTN.START);
   assert(await q('.pause-screen'), 'Start opens pause again');
   // (player-flake-fix) the pad walks the whole field menu in its order (pauseScreen.ts): Resume, Objectives, Notes
-  // (hud-guidance B5), Settings, Report feedback, Quit to menu (G1: no Animation tuner row outside the Test Chamber; menu-notes A2: no
+  // (hud-guidance B5), Settings, Report feedback, Feedback, Quit to menu (G1: no Animation tuner row outside the Test Chamber; menu-notes A2: no
   // Controls item). Read by the rows' keys; the old fixed three downs to Report feedback broke when B5 added Notes
   const pauseKey = () => page.evaluate(() => window.__app.nav.focused?.dataset.key ?? '');
-  const pauseWant = ['resume', 'objectives', 'notes', 'settings', 'report-feedback', 'quit'];
+  const pauseWant = ['resume', 'objectives', 'notes', 'settings', 'report-feedback', 'feedback', 'quit'];
   const pauseSeen = [await pauseKey()];
   for (let i = 1; i < pauseWant.length; i++) {
     await press(page, BTN.DOWN);

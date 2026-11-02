@@ -9,6 +9,7 @@ import { CATEGORY_LABEL, FEEDBACK_CATEGORIES, feedbackReportHtml, feedbackText, 
 import { blobToDataUrl } from '../../feedback/feedbackStore';
 import { isPhotoHost, PhotoModeScreen } from './photoMode';
 import { shareOrDownload } from '../fileOut';
+import { diag } from '../../feedback/diag';
 import type { SettingsScreen } from './settingsScreen';
 
 /** Where a note is written: the game's own context (map, mode, position...) plus version, device and graphics. */
@@ -228,6 +229,76 @@ export async function exportFeedback(app: App): Promise<void> {
   shareOrDownload(new Blob([html], { type: 'text/html' }), `sbd-feedback-${day}.html`, 'Night Shift feedback');
 }
 
+/** The old copy command through a hidden text box (phones, older browsers); the focus goes back where it was. Not
+ *  read-only and 16 px: iOS selects nothing in a read-only box and zooms into a smaller one. */
+function legacyCopy(text: string): boolean {
+  const prev = document.activeElement as HTMLElement | null;
+  const ta = h('textarea', { attrs: { 'aria-hidden': 'true', tabindex: '-1' } }) as HTMLTextAreaElement;
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0;font-size:16px;';
+  document.body.appendChild(ta);
+  let ok: boolean;
+  try {
+    ta.focus({ preventScroll: true });
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  ta.remove();
+  prev?.focus?.({ preventScroll: true });
+  return ok;
+}
+
+/**
+ * Copy text: the clipboard API (called at once, inside the tap: no wait before it), else the old copy command. False
+ * for empty text.
+ */
+export async function copyText(text: string): Promise<boolean> {
+  if (!text) return false;
+  let api: Promise<void> | null;
+  try {
+    api = navigator.clipboard?.writeText ? navigator.clipboard.writeText(text) : null;
+  } catch {
+    api = null;
+  }
+  if (!api) return legacyCopy(text);
+  try {
+    await api;
+    return true;
+  } catch {
+    // (refused: the old command, where the tap still counts)
+    return legacyCopy(text);
+  }
+}
+
+/** The diagnostics log as a .txt file (the share sheet on a phone, else a download). */
+export function saveDiagFile(text: string): void {
+  const d = new Date();
+  const p = (n: number): string => String(n).padStart(2, '0');
+  shareOrDownload(new Blob([text], { type: 'text/plain' }), `night-shift-log-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.txt`, 'Night Shift diagnostics log');
+}
+
+/** The log's text: at once when the older sessions are loaded (the Feedback tab reads them on open), so the clipboard
+ *  or share sheet is reached inside the tap; else after loading them. */
+const diagTextNow = (): string | Promise<string> => (diag.oldReady ? diag.text() : diag.fullText());
+
+/** Copy log: copied ("Copied - paste it to Claude"), else saved as a file. */
+async function copyDiag(app: App, btn: HTMLElement | null): Promise<void> {
+  const t = diagTextNow();
+  const text = typeof t === 'string' ? t : await t;
+  const kb = Math.max(1, Math.round(text.length / 1024));
+  if (text.trim() && (await copyText(text))) {
+    app.toasts.show(`Copied (${kb} KB) - paste it to Claude`, 'ok', 4000);
+    const sub = btn?.querySelector('.btn-sub');
+    if (sub) sub.textContent = `Copied ${new Date().toLocaleTimeString()} - paste it to Claude`;
+    return;
+  }
+  app.toasts.show('Copy is blocked here: saving the log as a file instead', 'warn', 4000);
+  saveDiagFile(text);
+}
+
 /** Settings > Feedback: new note, the list (open one to edit / add photos), export, copy as text, delete all. */
 export function feedbackTab(app: App, screen: SettingsScreen): TabDef {
   return {
@@ -253,6 +324,31 @@ export function feedbackTab(app: App, screen: SettingsScreen): TabDef {
         });
       };
       refresh();
+      // (diagnostics log) the older sessions read now, so Copy log copies at once (a phone's copy needs the tap)
+      void diag.loadOld().catch(() => {});
+      const copyBtn: HTMLButtonElement = button('Copy log', () => void copyDiag(app, copyBtn), {
+        key: 'copy-log',
+        class: 'primary',
+        sub: 'Copies it to paste to Claude',
+        desc: 'This device keeps a log of the last few sessions: errors, performance, connection and what happened in each match. Copy it and paste it to Claude when something went wrong.',
+      });
+      const diagSection = section(
+        'Diagnostics log',
+        copyBtn,
+        button('Save as file', () => {
+          const t = diagTextNow();
+          if (typeof t === 'string') saveDiagFile(t);
+          else void t.then(saveDiagFile);
+        }, { key: 'save-log', desc: 'Saves the same log as a text file, for when copying is blocked or the log is long.' }),
+        button('Clear log', () =>
+          screen.manager.push(
+            new Dialog('Clear the diagnostics log?', 'Every saved session of the log is removed from this device. Logging starts again at once.', [
+              { label: 'Cancel', safe: true, action: () => {} },
+              { label: 'Clear log', primary: true, action: () => void diag.clear().then(() => app.toasts.show('Diagnostics log cleared', 'ok')) },
+            ]),
+          ),
+        { key: 'clear-log', class: 'subtle', desc: 'Removes the saved log from this device. Logging carries on.' }),
+      );
       // (menu-ui SPEC 7.22) rows with descriptions; the notes list has an empty state; Delete all confirms (Cancel first)
       return h(
         'div',
@@ -270,6 +366,7 @@ export function feedbackTab(app: App, screen: SettingsScreen): TabDef {
             );
           }, { class: 'subtle', desc: 'Copies every note as plain text.' }),
         ),
+        diagSection,
         list,
         button('Delete all feedback', () =>
           screen.manager.push(

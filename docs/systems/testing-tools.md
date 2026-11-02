@@ -322,7 +322,10 @@ behind a VPN adapter).
   rattle by gear, flip over)
 - `e2e-feedback` playtest notes: Pause > Report feedback with the context, photo mode (frozen game, no HUD, free camera,
   take / retake / keep / cancel, two photos), IndexedDB after a reload, Settings > Feedback list, the HTML report
-  download, photo mode on the menu stage
+  download, photo mode on the menu stage; the diagnostics log: the match wrote its lines and a perf sample, and after
+  the reload Feedback > Copy log copies the summary first with the match in the older session, no IP address, and
+  Save as file downloads the .txt (`DIAG_SAMPLE=<path>` writes the copied text to a file). `e2e-coop` (part 1) checks
+  both devices' logs after the rejoin (room, readout, attempt, link line, drop / rejoin)
 - `e2e-desktop` (parts 1, 2, 4; part 3, the Epic renderer in a match, is in the GPU list) menu scale, Mouse & Keyboard rebinding, the Graphics menu (presets, Custom, frame cap), the
   benchmark (a short flight saved as feedback; every preset), Auto graphics (GPU name, `?detect=1&renderer=...`
   calibration, no re-measure), the frame governor stepping down, baked lamps, 16:10 / 21:9 / 32:9 windows, the Epic
