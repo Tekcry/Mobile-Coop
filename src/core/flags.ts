@@ -78,6 +78,9 @@ export interface Flags {
    *  the merged S1 body (comparisons, and the fallback while a guard's files load). Default ON everywhere since gm-flip
    *  (the G8 gate passed after gm-perf, the gm-look fixes are baked; Michael ~23:55 2026-10-26 "Just switch them on"). */
   guardModels: boolean;
+  /** (mixamo-chars, N53) The Mixamo characters (`src/characters`): in the Test Chamber the player is a Mixamo body playing
+   *  Mixamo moves directly (slice a). `?mixamochars=0` keeps Wren on the hand-built animation. */
+  mixamoChars: boolean;
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
@@ -242,6 +245,8 @@ export const flags: Flags = {
   guardMerge: params.get('guardmerge') !== '0',
   // (guard-models G7, gm-flip) default on: `?guardmodels=0` keeps the merged S1 body
   guardModels: params.get('guardmodels') !== '0',
+  // (mixamo-chars) on by default: `?mixamochars=0` off
+  mixamoChars: params.get('mixamochars') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
   // (mission-framework FLG) on by default (one-game): `?missions=0` / `?coopkit=0` turn them off
   missions: darkFlag(params.get('missions'), PREVIEW_ON),
