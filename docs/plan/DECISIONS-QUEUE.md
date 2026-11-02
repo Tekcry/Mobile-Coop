@@ -24,13 +24,38 @@ and reason, is in `DECISIONS-2026-11.md` (N numbers) until Phase 1 writes the ne
 | - | Scope tiers | Approved as in `SCOPE.md` | N39 |
 | P4 | Pillar 6 | "Sound and music" | N40 |
 | P6b | Which ending | A, "Two switches" (`ENDING-DRAFT.md`) | N41 |
+| - | Process | Guardrails `docs/RULES.md` (N44); fully fresh (N45); recipe replaces the level standard (N46); no docs-vs-docs check (N47); provisional until played (N48); prototype standard (N49); build order (N50) | N44-N50 |
 | P7 | World and people | Hitman-style: context actions on people and objects, overheard talk that opens opportunities, world tricks; 1-3 unarmed staff per mission with routines; no disguises, no crowds | N37 |
 
 ## Open, in the order needed
 
 | # | Decision | Options (cost) | Recommended | Needed by |
 |---|---|---|---|---|
-| D15b | Sonic identity | One sentence plus 3 reference tracks, Michael picks by ear | From the approved v3 direction (`docs/audio/music-direction-v3.md`) | Phase 1 (vision v3 round) |
+| D18 | Mission engine for the first playable area (pulled forward, N50) | Sector Ops engine (`sectors.ts`, `sectorMode.ts`, `game/mission/`: about 5,850 lines) / Marlow Yard course engine (`courseMode.ts`, `game/course/`: about 5,550 lines; has spotted-then-retry already) | Decide on code evidence when the area is planned | Before the first Mission 1 area |
+| D31 | Mission 1 setting | The story plan's data centre / another site | Decide with the first area's plan | Before the first Mission 1 area |
+| D32 | Engine hard test pass marks and test PCs | Frame rate, players, guards, split-screen and wrapper targets; which slower PC | Agree before the test starts | Before the engine hard test |
+| D33 | Texture source | Generated in code / free CC0 libraries (each download asked first) / both | Both: generated first, CC0 where faster | Before the textures step |
+| D53 | Vision v3 formal approval | Approve / change | Deferred (N50); it stays provisional | Phase 3 gate |
+| D15b | Sonic identity | One sentence plus 3 reference tracks, Michael picks by ear | From music direction v3 | Music work |
+| D34 | Co-op gates | Every section forces a two-person climb or throw (old bible P6, G292) / a mix of teamwork | Mix of teamwork, never a solo way through | Phase 4 |
+| D35 | Cameras in the dark | Cameras see by infrared (G240) / darkness hides you from cameras too | Darkness hides you | Phase 3 |
+| D36 | Forced kills, unavoidable guards (G127, G303) | Never force a kill, some guards unavoidable but a KO always works / every guard avoidable / the story may force one | Never force a kill; a KO always works | First mission plan |
+| D37 | Context-action style (G19, G198 vs N37) | One button does the right thing / a hold opens a short action list | One button | Phase 4 |
+| D38 | Partner outline through walls (old bible) | Keep, faint / compass mark only | Keep, faint | Phase 4 |
+| D39 | Loud route | Required in every space (old standard) / where the space allows | Where the space allows | First mission plan |
+| D40 | Radio crew (G112) | Keep Tally and Sexton beside LANTERN / LANTERN only | Keep | Story work |
+| D41 | Aim assist on a pad (G16) | Off / on / an option | Decide with the feel tests | Phase 3 |
+| D42 | Goggle glow on the in-game operators (G73) | Glow as on the menu Wren / none | Decide with the Mixamo look | Phase 3 |
+| D43 | Third "electro" vision mode (G99) | Keep / drop | Decide with the vision-mode tests | Phase 3 |
+| D50 | On-screen arcs when a guard notices you (old bible) | Keep / barks, body language and meters only | Decide in the feel tests | Phase 3 |
+| D47 | "Reward stealth over shooting" ideas (G307) | Which of the 14 stand | Decide with the gear tests | Phase 4 |
+| D49 | Rifle attachments (old bible) | Sniper, shotgun, launcher / a plain rifle | Decide with D9 | Phase 4 |
+| D46 | Level checker (G284) | Keep, with the recipe's numbers / drop | Keep only checks that catch real problems | Phase 5 |
+| D52 | A fun team move with no believable reason in the building | Drop the move / adjust the building | Adjust the building where it stays believable | Mission design |
+| D44 | Lethal automatic defences (G128) | Allowed at military or private sites / never | Decide with the missions | Mission design |
+| D51 | Fire alarm unlocking electric doors as a world trick | Allowed / not | Decide with the missions | Mission design |
+| D48 | The two old campaign prototypes (G402) | Feed the new missions / drop | Decide with Mission 1 | Mission design |
+| D45 | LAN play (G133) | Wanted / not | Not now (online and split-screen cover it) | Phase 10 |
 | D2 | Graphics API | WebGL2 only / WebGL2 default + WebGPU option / WebGPU only | WebGL2 default, WebGPU later (still behind a flag on the Deck's AMD Linux) | Phase 2 |
 | D3 | Desktop wrapper | Electron / NW.js / Tauri | Electron (bundles Chromium; Tauri uses the system browser) | Phase 2 |
 | D4 | Online transport | Own WebRTC + TURN + signalling everywhere / Steam Networking / Epic Online Services | Own WebRTC; the `Transport` interface already exists (`src/net/transport.ts`) | Phase 2 |
@@ -44,7 +69,6 @@ and reason, is in `DECISIONS-2026-11.md` (N numbers) until Phase 1 writes the ne
 | D9 | Gear caps | Per-mission allowed list and caps / plus two kit slots that must differ between the players / a suggested split with free swaps | Allowed list + caps + slots that must differ (keeps "only you can do this half") | Phase 4 |
 | D10 | Failure model test | Revive 30 s x2 (decided) / no revive limit, cost in noise, alert and rating (Hazelight) | Test both in the gym; Michael picks from the results | Phase 4 |
 | D26 | Pause online | Pause freezes both players (Hazelight) / a menu that does not stop the world | Ask with the Phase 4 split-screen work | Phase 4 |
-| D18 | Mission 1 engine | Trimmed Sector Ops engine (`src/game/sectors.ts`, `modes/sectorMode.ts`, `game/mission/`: about 5,850 lines, plus 2,700 lines of Tallow Wharf map) / Marlow Yard course engine (`modes/courseMode.ts` + `game/course/`: about 5,550 lines, plus 9,200 lines of Marlow Yard map) | Decide on code evidence, with the cost of each | Phase 5 |
 | D19 | Level editor scope | Kestrel whole-game editor / minimal for Mission 1 / TS level files only | Minimal, time-boxed | Phase 5 |
 | D25 | Checkpoint spacing | Area starts and before set pieces (vision) / plus a soft checkpoint at every 2-4 minute beat (Hazelight: rarely more than a minute lost) | Ask with the Phase 5 mission framework | Phase 5 |
 | D12 | Joint approach choice | Adopt, at most one per mission, with a cheap echo next night / not now | Adopt as a "Should"; "Wren's way" vs "Moth's way" | Phase 7 |

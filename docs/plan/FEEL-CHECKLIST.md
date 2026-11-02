@@ -1,5 +1,5 @@
 # Night Shift - feel checklist (Phase 3 sign-off)
-Owner: the orchestrator. Status: current (draft from the planning run, 2026-11-02).
+Owner: the orchestrator. Status: current, provisional (N48): the targets are tuned by feel in Phase 3.
 
 What Michael and his partner tick in the Phase 3 stealth gym, on the Mixamo character. The numbers are Chaos Theory
 measurements from `docs/research/ct-movement/` (footage measured 2026-10-17): targets to tune by feel, not a copy

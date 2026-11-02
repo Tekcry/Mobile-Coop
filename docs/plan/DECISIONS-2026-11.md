@@ -203,3 +203,42 @@ feedback, technical fact, replaced, gone with removed features, or a question fo
 old-decision review is done, the session is cleared; a fresh session at Opus 5.5 Extra (xhigh) first reads the new plan
 documents, vision v3, N1-N42 and the sort results, and checks them against each other and the code. Declined:
 re-checking all the research again; no extra check.
+
+**N44. The guardrails rules file** (`docs/RULES.md`, read first every session; Michael approved after an outside review
+of the process: "we keep polishing documents and planning instead of building a fun, playable game. This must stop.").
+Michael added: "we will run 100% token burn sometimes when I prompt you, and we can change accounts whenever the 5 hour
+usage limit is [hit], but I don't want it to snowball and work on unnecessary things. Must remain focused. Will also run
+efficiently with a single session with helpers as needed, sticking to one account that uses the 5 hour window and
+continues. Then there is the overnight sessions when I go to sleep and you just make progress unattended without getting
+stuck." (RULES section 9).
+
+**N45. Fully fresh** (native multiple choice): `docs/DECISIONS.md` (G1-G434), the design bible, the level standard, the
+scale sheet, the map-spec template and the old vision are history, not binding; marked in place (30-70 files and the
+level checker link to them, so they were not moved). Kept: Michael's feedback (`docs/plan/FEEDBACK-RECORD.md`) and the
+technical facts (the TECH rows in `docs/plan/old-decisions/`). The old process rules moved to
+`docs/archive/RULES-2026-10.md`.
+
+**N46. The mission recipe replaces the level standard** (native multiple choice): new maps follow
+`docs/plan/MISSION-TEMPLATE.md` and the prototype standard; the old paperwork (registers, sheets, measured checker
+passes) is dropped.
+
+**N47. No documents-against-documents check** (outside review point 3, agreed): N43's fresh-session check is replaced by
+checks against code and builds.
+
+**N48. Provisional until played** (review points 4-5, agreed): design numbers and choices (guard counts, recipe numbers,
+timings, music identity, campaign size) are provisional until a playtest confirms them; the Hazelight lessons are
+hypotheses, turned into playtest questions.
+
+**N49. Prototype standard** (Michael, "not negotiable"): every prototype build has textured materials (placeholder or
+free-licence with credit rows), real lighting (a key light plus ambient or environment light) and working shadows on
+characters and level geometry; no untextured grey boxes; existing or free assets first, custom art later. "Playable" =
+two players join, move, do one two-person action, get spotted by a guard, fail and retry, in a textured, lit, shadowed
+space. Replaces N2's "Test Chamber look" as the minimum standard (today's levels use untextured stylised shading,
+`src/world/levelMaterialPlugin.ts`).
+
+**N50. Build first, in this order** (native multiple choice; outside review point 6, adjusted with code evidence): the
+automated run; textures in the level material system; the joining-side partner animation fix; the engine hard test
+(pulled forward from Phase 2; pass marks agreed first); Mission 1's setting and its mission engine (D18 pulled forward);
+the first playable Mission 1 area to the prototype standard. Documents only when a build needs them. The two-home relay
+test waits until Michael can do it ("I can't test the relay yet, I will test it later"). Vision v3 approval and the
+non-blocking review questions are deferred to their phases.

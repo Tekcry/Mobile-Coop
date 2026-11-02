@@ -4,7 +4,23 @@ Owner: the orchestrator. Status: current (planning run 2026-11-02; re-planned at
 From master brief section 7, adapted to what the planning run found in the code, the docs and the research. Each phase:
 goal, work, deliverables, exit gate (measurable), not allowed yet. Estimates in sessions come after Phase 2 gives a
 real pace; each gate re-estimates. The live state is the control panel issue; open decisions are in
-`DECISIONS-QUEUE.md`, risks in `RISKS.md`, scope in `SCOPE.md`.
+`DECISIONS-QUEUE.md`, risks in `RISKS.md`, scope in `SCOPE.md`. Every session follows `docs/RULES.md`.
+
+## Now: build first (N50, 2026-11-02)
+After an outside review Michael put the playable game first. Order, each step ending in something he can try:
+1. The automated run (`docs/RULES.md` rule 7): one quick headless check built from the existing play tests, with
+   screenshot proof and a frame-rate comparison with the last build.
+2. Textures in the level material system (generated, or free CC0 with credit rows; D33), first seen in the Test
+   Chamber and Marlow Yard.
+3. The joining side's broken partner animations fixed.
+4. The engine hard test, pulled forward from Phase 2: pass marks and test PCs agreed first (D32); a textured, lit,
+   shadowed area with 20-30 guards and two players online, a split-screen test and the Windows app wrapper.
+5. Mission 1's setting (D31) and its mission engine (D18), on code evidence.
+6. The first playable Mission 1 area to the prototype standard (N49); passes the automated run; Michael and his partner
+   play it with four questions: did we talk or ping in every part, did either of us mostly wait, did a single
+   knockdown feel fair, did we finish the two-person action from pings alone.
+The two-home relay test happens when Michael can. The phases below stay the long-range map; Steam proofs, the
+Friend's Pass proof and the remaining Phase 1 documents come after step 6, only when a build needs them.
 
 ## Phase 0 - Clean-up (done 2026-11-02)
 Stages A-J merged (#728-#731, #734-#747, #750), the co-op relay fix (#748, Phase 2 item 1 done early), the diagnostics

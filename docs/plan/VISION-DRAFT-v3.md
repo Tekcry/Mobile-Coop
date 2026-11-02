@@ -1,5 +1,6 @@
 # Night Shift - Vision (draft v3, 2026-11-02)
-Owner: Michael. Status: draft for Michael's approval; on approval it replaces `docs/VISION.md` (history).
+Owner: Michael. Status: current, provisional (N48): every number and design choice here holds until a playtest
+confirms or changes it; Michael's formal approval is deferred to its phase (N50).
 
 From draft v2 and Michael's decisions since (N1-N37), the master brief's formula (section 3) and the Hazelight
 research (`docs/research/hazelight-2026-11/README.md`).

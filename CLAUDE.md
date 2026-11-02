@@ -1,24 +1,23 @@
 # Night Shift
 Owner: the orchestrator. Status: current.
 
-Night Shift is an original third-person co-op stealth game built on pure Chaos Theory (CT): a PWA (Vite + TypeScript +
-Babylon.js 9 + Havok) on GitHub Pages, desktop only, pad first.
+Night Shift is an original 2-player co-op third-person stealth game inspired by Chaos Theory (CT): a browser game (Vite +
+TypeScript + Babylon.js 9 + Havok) on GitHub Pages, heading for Steam on Windows (N32), pad first.
 
-**Read at start (from 2026-11-01):** the pinned GitHub issue "Night Shift - control panel" (live state), then
-`docs/plan/MASTER-PLAN-PROMPT.md` (process: section 16; phases: section 7), `docs/plan/DECISIONS-2026-11.md` (Michael's
-decisions since the refresh) and `docs/plan/CLEANUP-PLAN-2026-11-01.md` (the direction). `docs/RULES.md` and
-`docs/VISION.md` are history (the old process and the old vision); new short ones come in Phase 1. Read docs from
-origin/master; a branch or worktree copy may be stale. Module map and doc index: `docs/INDEX.md` (read on demand).
+**Read at start:** `docs/RULES.md` first (how every session works), then the pinned GitHub issue "Night Shift -
+control panel" (live state), then this file. Everything else only when the task needs it (RULES.md section 12). Read
+docs from origin/master; a branch or worktree copy may be stale. Module map: `docs/INDEX.md` (on demand).
 
-**Authority order (G86, revised 2026-11-01)** - the only copy; other docs point here. The higher source wins; report
+**Authority order (revised 2026-11-02, N45)** - the only copy; other docs point here. The higher source wins; report
 the conflict.
-1. Michael's current instruction, then `docs/plan/DECISIONS-2026-11.md` and the control panel's "Decided by Michael".
-2. `docs/plan/MASTER-PLAN-PROMPT.md` and `docs/plan/CLEANUP-PLAN-2026-11-01.md`.
-3. `docs/DECISIONS.md` (the G entries, frozen at G434): still binding where 1-2 do not replace them.
-4. `docs/design-bible.md` (gameplay) and `docs/story.md` (story and in-game text), where 1-3 do not replace them.
-5. Job and map docs, `docs/level-design.md` and the map's documents.
-6. This file and `docs/systems/*.md`.
-7. Code and tests.
+1. Michael's current instruction, then `docs/RULES.md`, `docs/plan/DECISIONS-2026-11.md` and the control panel.
+2. `docs/plan/VISION-DRAFT-v3.md` (provisional), `docs/plan/MASTER-PLAN.md`, `docs/plan/SCOPE.md`, `docs/story.md`,
+   `docs/plan/MASTER-PLAN-PROMPT.md` section 16 (panel format, one prompt at a time, model guide).
+3. `docs/plan/MISSION-TEMPLATE.md` (maps) and the job's own documents.
+4. This file and `docs/systems/*.md`.
+5. Code and tests.
+History, not binding: `docs/DECISIONS.md` (G1-G434), `docs/design-bible.md`, `docs/level-design.md`, the scale
+sheet, the map-spec template, `docs/VISION.md` (G numbers below point into the history for the reason).
 
 ## Hard rules (code)
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
@@ -33,7 +32,7 @@ the conflict.
   `hyp3`, never `Math.hypot` (`docs/systems/conventions.md`).
 - Gameplay never reads graphics state (presets, LOD, the governor), only collision, occupancy, anchors, the light bake
   and the noise model. Light parity: the picture, the light meter and guard perception agree; one lighting system.
-- IP: CT's mechanics, visual style and HUD layout are copied closely, never CT's art assets; names, characters,
+- IP: CT is the reference for mechanics and feel, never CT's art assets; names, characters,
   organisations, story, logos, UI art, the goggle and the score are original (G5, G69; free licensed assets: G407,
   below). No reference-game character, gear or
   organisation names anywhere: code, UI, specs, docs, research notes (G6). "Chaos Theory" / "CT" may name the
@@ -45,13 +44,12 @@ the conflict.
   are not committed where the licence or size says so. Motion capture (CMU, Mixamo) is retargeted onto the game's own
   rigs (G406); operator and guard meshes come from in-repo offline scripts (Blender, headless); WebAudio synthesis
   stays where it sounds better. The menu font Barlow Condensed (SIL OFL) is bundled in `src/ui/fonts/` (menu-ui MD1).
-- Every new map follows `docs/level-design.md`; its spec starts from `docs/templates/map-spec.md` and may tighten the
-  standard, never loosen it without Michael's written approval; the standard and template change only with his
-  approval. An engine-fact change in level-design Section 12 updates it and lists the map decisions that relied on it.
+- Every new map follows `docs/plan/MISSION-TEMPLATE.md` (N46; its numbers are provisional until playtested) and the
+  prototype standard in `docs/RULES.md` (textured, lit, shadowed).
 - Desktop only (G12), pad first, then keyboard and mouse (loco D1, bible P7; tests run as a desktop, G13): no phone or
   touch work, except that a phone can launch the game for testing on the minimum settings and menus / HUD fit an iPad
   (G182), and menu taps and touch look in play stay (G395); the Kestrel editor keeps its phone launcher with no new work
-  (G15). Removed and parked systems (bible Section 6) get no new work; nothing is drawn as voxels. Story is text radio
+  (G15). Removed and parked systems (`docs/plan/SCOPE.md` Parked) get no new work; nothing is drawn as voxels. Story is text radio
   and subtitles, every line written so it can be voiced later (G82).
 - Unfinished work sits behind its flag in `src/core/flags.ts`, default on; `?flag=0` turns it off (Michael 2026-11-01).
   There is one build (the `/preview/`, `/ct/` and `/kestrel/` slots are retired); stage J (2026-11-02) removed the flags whose feature is permanent.

@@ -2,7 +2,7 @@
 
 Owner: the orchestrator. Status: history.
 
-**Replaced 2026-11-01:** see `docs/plan/DECISIONS-2026-11.md`. Citations: G numbers (`docs/DECISIONS.md`).
+**Replaced 2026-11-01; history, not binding (N45):** see `docs/plan/VISION-DRAFT-v3.md` (provisional) and `docs/plan/DECISIONS-2026-11.md`. Citations: G numbers (`docs/DECISIONS.md`).
 
 ## 1. Pitch
 - Pure Chaos Theory (CT) co-op at its core, with original names, story and characters (G1, G5, G6). Michael: "I want the game

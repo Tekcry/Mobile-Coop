@@ -1,6 +1,6 @@
 # Night Shift - campaign outline (draft)
-Owner: the orchestrator. Status: current (draft from the planning run, 2026-11-02; the ending is written in Phase 1,
-N36; the rest of the story is decided with the missions, STORY-03).
+Owner: the orchestrator. Status: current, provisional (N48; the ending N41 is chosen, the rest of the story is decided
+with the missions, STORY-03).
 
 The story spine from `docs/story.md` mapped onto the Target tier (N31: prologue + 7 missions; final at the Phase 7
 slice), where the twist and the emotional turn land, and where each team move is taught and reused. Mission 1 is a

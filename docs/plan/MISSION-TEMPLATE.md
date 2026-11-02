@@ -1,11 +1,12 @@
 # Night Shift - mission template (the recipe)
-Owner: the orchestrator. Status: current (draft from the planning run, 2026-11-02).
+Owner: the orchestrator. Status: current. Replaces the level standard and map spec for new maps (N46); every number
+here is provisional until a playtest confirms it (N48).
 
 How every mission (and the Marlow Yard rebuild) is designed: master brief section 8, plus the parts of
 `docs/level-design.md`, `docs/design/scale-sheet.md` and `docs/templates/map-spec.md` that still hold, and the
-Hazelight lessons (`docs/research/hazelight-2026-11/README.md`). Where those
-three differ from Michael's 2026-11 decisions, the decisions win; this template replaces them once Michael approves it
-(CLAUDE.md: the level standard and template change only with his approval).
+Hazelight lessons (`docs/research/hazelight-2026-11/README.md`). Those three are
+history now (N45); a rule from them comes back only when a build needs it (the sort in `old-decisions/level-standard.md`
+lists 87 still-fitting rules not carried here). Every map also meets the prototype standard in `docs/RULES.md`.
 
 ## Pipeline (never skip a step)
 1. **Story and stakes** (half a page): why tonight, what is at stake, what Wren and Moth each want, the one twist, the

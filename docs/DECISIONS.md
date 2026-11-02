@@ -1,5 +1,7 @@
 # Night Shift - decisions
-Owner: the orchestrator. Status: current.
+Owner: the orchestrator. Status: history.
+
+> **History, not binding (N45, 2026-11-02).** Michael chose a fully fresh start: this document no longer steers the game. Current rules: `docs/RULES.md`; decisions: `docs/plan/DECISIONS-2026-11.md`; vision: `docs/plan/VISION-DRAFT-v3.md` (provisional); maps: `docs/plan/MISSION-TEMPLATE.md`. Michael's feedback from here: `docs/plan/FEEDBACK-RECORD.md`. Read only for a specific fact.
 
 Started 2026-10-17 (consolidation run, M26 / M27). Current to G434 (2026-10-27).
 
