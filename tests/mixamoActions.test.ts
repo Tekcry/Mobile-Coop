@@ -52,9 +52,18 @@ describe('mixamo action picker (mixamo-chars slice e)', () => {
   it('(slice f) back to the wall: idle standing or crouched, sliding by side; a strike wins over the wall', () => {
     expect(pickAction({ speed: 0, localX: 0, wall: true }, false, out).clip).toBe('wall_idle');
     expect(pickAction({ speed: 0, localX: 0, wall: true, crouch: 1 }, false, out).clip).toBe('wall_crouch_idle');
-    expect(pickAction({ speed: 0.8, localX: -1, wall: true }, false, out).clip).toBe('wall_slide_l');
-    expect(pickAction({ speed: 0.8, localX: 1, wall: true }, false, out).clip).toBe('wall_slide_r');
+    // (walk-test fix A) the pack's "left cover sneak" steps to the character's right: moving left plays the right one
+    expect(pickAction({ speed: 0.8, localX: -1, wall: true }, false, out).clip).toBe('wall_slide_r');
+    expect(pickAction({ speed: 0.8, localX: 1, wall: true }, false, out).clip).toBe('wall_slide_l');
+    // (walk-test fix A) crouched and moving: no action, the locomotion's crouched sidestep
+    expect(pickAction({ speed: 0.8, localX: -1, wall: true, crouch: 1 }, false, out).clip).toBe(null);
     expect(pickAction({ speed: 0, localX: 0, wall: true, melee: 0.2 }, false, out).clip).toBe('strike_elbow');
+  });
+
+  it('(walk-test fix A) the ladder and the pipe climb play only while moving (grip); other moves do not', () => {
+    expect(pickAction({ speed: 0, localX: 0, traverse: 'climb' }, false, out)).toMatchObject({ clip: 'ladder', grip: true });
+    expect(pickAction({ speed: 0, localX: 0, traverse: 'pipeClimb' }, false, out)).toMatchObject({ clip: 'rope_climb', grip: true });
+    expect(pickAction({ speed: 0, localX: 0, traverse: 'hang' }, false, out).grip).toBe(false);
   });
 
   it('(slice h) team moves: the holder lifts, braces or hauls; the rope climber climbs; the move wins over its traverse', () => {

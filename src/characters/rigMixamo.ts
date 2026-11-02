@@ -47,6 +47,8 @@ export interface RigMixamoOpts {
   casters?: (m: AbstractMesh) => void;
   /** Standing height (m); default the player's. */
   height?: number;
+  /** (walk-test fix A) Stopping freezes the gait mid-stride, then settles into the idle (the players). */
+  holdStop?: boolean;
 }
 
 /** (slice d) Moth's body colour (Michael: Moth purple, Wren green; provisional shade). */
@@ -62,7 +64,7 @@ export function mixamoOn(mapId: string): boolean {
  * (Y Bot, purple). Both screens dress the same player the same way (`host` is the owner's role on both ends).
  */
 export function dressPlayer(scene: Scene, rig: CharacterRig, host: boolean, casters?: (m: AbstractMesh) => void): { body: MixamoBody; undo: () => void } {
-  return dressRig(scene, rig, host ? 'xbot' : 'ybot', { tint: host ? goggleColour(0) : MOTH_PURPLE, casters });
+  return dressRig(scene, rig, host ? 'xbot' : 'ybot', { tint: host ? goggleColour(0) : MOTH_PURPLE, casters, holdStop: true });
 }
 
 /** Puts a Mixamo body on `rig` (call right after the rig is built, before it first animates). `undo` takes it off. */
