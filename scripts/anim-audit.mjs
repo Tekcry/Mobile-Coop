@@ -1,5 +1,5 @@
 // Animation audit harness, local player (bible 5.12.2 realism standard, 5.12.4.2, 5.17 D2 no-bobble, D5 modern
-// layer). Proving Grounds, headless fixed steps at 60 and 120 Hz render rates. The page only records joint / camera /
+// layer). The Test Chamber (`autostart=chamber`), headless fixed steps at 60 and 120 Hz render rates. The page only records joint / camera /
 // capsule / foot-planner streams every rendered frame; node computes every metric with the pure, unit-tested
 // `src/anim/audit/metrics.ts` against `src/anim/audit/limits.ts` (bundled with esbuild at start).
 //
@@ -7,7 +7,7 @@
 //                               [--compare=<baseline.json>]
 //
 //   (default) local + remote; --local / --remote: one of them (step 08)
-//   --remote  host A and client B over ?net=local, sandbox on Proving: B moves with scripted input in real time, A records
+//   --remote  host A and client B over ?net=local, the Test Chamber (test mode): B moves with scripted input in real time, A records
 //             its copy of B every rendered frame (measured dt); 120 Hz through a page-side frame pump on A (A's loop manual)
 //             unless the pump jitters over 2 ms (then 'pending PC'). A's player stands 3.5 m behind B's start (its camera
 //             inside the copy's 22 m anim LOD; lodSkip fails any frame either rig skipped). Remote-only metrics (r1, A38):
@@ -146,7 +146,7 @@ let page = null;
 let errors = [];
 const G = (f, a) => page.evaluate(f, a);
 if (DO_LOCAL) {
-({ browser, page, errors } = await launch({ url, params: 'autostart=proving' }));
+({ browser, page, errors } = await launch({ url, params: 'autostart=chamber' }));
 await G(([NODES, W, names, LOWER]) => {
   const a = window.__app;
   const g = a.current;
@@ -445,11 +445,9 @@ await G(([NODES, W, names, LOWER]) => {
 }
 
 // ---------------------------------------------------------------- scenarios
-const FLAT = { x: -26, z: -26, yaw: 0, y: 0 }; // open lane on the west side, heading north (15 m clear, steady camera)
-const STAIRS = { x: 12.6, z: 16, yaw: -Math.PI / 2, y: 0, len: 7 }; // 9 steps, rise 0.289 m, rising toward -X onto the platform
-const RAMP = { x: -12.6, z: 16, yaw: Math.PI / 2, y: 0, len: 7 }; // 20.4 deg, rising toward +X
-const SLOPE35 = { x: 21, z: 9.0, yaw: 0, y: 0, len: 5 }; // 35 deg test slope, rising toward +Z
-const SURF = { flat: FLAT, stairs: STAIRS, ramp: RAMP, slope35: SLOPE35 };
+const FLAT = { x: 14, z: 5, yaw: 0, y: 0 }; // the Test Chamber's middle line, heading north (19 m clear to the team block, steady camera)
+const STAIRS = { x: 18, z: 7.5, yaw: 0, y: 0, len: 2.5 }; // the chamber's 35 degree stairs (6 steps, rise 1.75 m), at their foot, rising toward +Z
+const SURF = { flat: FLAT, stairs: STAIRS };
 const ACCEL = 1.0;
 const STOP = 1.5;
 
@@ -461,9 +459,8 @@ if (QUICK) {
 } else {
   // (step 17, A68) gear 6 is the sprint (sprint held, standing): crouched gear 6 is unreachable, crouch rows stop at 5
   for (const hz of [60, 120]) for (const s of ['stand', 'crouch']) for (let g = 1; g <= (s === 'crouch' ? 5 : 6); g++) add('flat', s, g, hz);
-  for (const surface of ['stairs', 'ramp']) for (const s of ['stand', 'crouch']) for (let g = 1; g <= (s === 'crouch' ? 5 : 6); g++) add(surface, s, g, 60);
-  for (const surface of ['stairs', 'slope35'])
-    for (const [s, g] of [['stand', 2], ['stand', 4], ['stand', 6], ['crouch', 2]]) add(surface, s, g, 120);
+  for (const s of ['stand', 'crouch']) for (let g = 1; g <= (s === 'crouch' ? 5 : 6); g++) add('stairs', s, g, 60);
+  for (const [s, g] of [['stand', 2], ['stand', 4], ['stand', 6], ['crouch', 2]]) add('stairs', s, g, 120);
 }
 // the drawn subset runs last (step 09 fix 4): the page carries its clocks and springs from one scenario to the next, so
 // running it among the gaits shifted every later holstered row (idle breathing phase, tunnel head / camera)
@@ -476,7 +473,7 @@ const TRANS = QUICK ? ['idle'] : ['stance', 'turn180', 'raise', 'swap', 'vault',
 const transitions = [];
 for (const hz of [60, 120]) for (const t of TRANS) transitions.push({ name: t, kind: t, hz });
 // A3: the wall edge verbs (peek, lean-out, SWAT turn, open side) were removed; their scenarios are dropped (prototype: revisit)
-// (step 13) door peek at the Proving shed door: crack, peek, close (the hand on the handle, no clip into the leaf)
+// (step 13) door peek at the chamber door: crack, peek, close (the hand on the handle, no clip into the leaf)
 if (!QUICK) for (const hz of [60, 120]) transitions.push({ name: 'doorpeek', kind: 'door', hz });
 const scenarios = [...gaits, ...transitions, ...aimGaits].filter((s) => !ONLY || s.name.includes(ONLY));
 
@@ -523,7 +520,7 @@ async function drive(sc, halt = -1) {
       m.cap = cap;
       t.stance(false, 3);
     } else if (sc.kind === 'stance') {
-      t.tp(-26, -26, 0);
+      t.tp(FLAT.x, FLAT.z, 0);
       t.begin(halt);
       t.run(0.3, {}, hz);
       m.down = t.mark();
@@ -534,7 +531,7 @@ async function drive(sc, halt = -1) {
       window.__app.current.player.controller.clearCrouchToggle();
     } else if (sc.kind === 'turn180') {
       t.stance(false, 4);
-      t.tp(-26, -26, 0);
+      t.tp(FLAT.x, FLAT.z, 0);
       t.begin(halt);
       t.run(1.0, { y: 1 }, hz);
       m.rev = t.mark();
@@ -545,7 +542,7 @@ async function drive(sc, halt = -1) {
       m.end = t.mark();
       t.stance(false, 3);
     } else if (sc.kind === 'raise') {
-      t.tp(-26, -26, 0);
+      t.tp(FLAT.x, FLAT.z, 0);
       t.begin(halt);
       t.run(0.3, {}, hz);
       m.raise = t.mark();
@@ -554,7 +551,7 @@ async function drive(sc, halt = -1) {
       t.run(1.0, {}, hz);
       m.end = t.mark();
     } else if (sc.kind === 'swap') {
-      t.tp(-26, -26, 0);
+      t.tp(FLAT.x, FLAT.z, 0);
       t.begin(halt);
       t.run(0.3, {}, hz);
       m.swap = t.mark();
@@ -563,10 +560,10 @@ async function drive(sc, halt = -1) {
       m.end = t.mark();
     } else if (sc.kind === 'vault' || sc.kind === 'mantle') {
       // as e2e-move: teleport, settle 0.5 s, read the offered traversal, one jump press, record. Vault: low cover
-      // west of (-3.8, -6); mantle: the 0.9 m block of the step row west of (-19.9, -1.2); both facing -X.
+      // east of the chamber's 1 m wall at (5.4, 17), facing -X; mantle: the 0.9 m block of the step row from (5, 2.5), facing -Z.
       t.stance(false, 3);
-      const p0 = sc.kind === 'vault' ? [-3.8, -6] : [-19.9, -1.2];
-      t.tp(p0[0], p0[1], -Math.PI / 2);
+      const p0 = sc.kind === 'vault' ? [5.4, 17, -Math.PI / 2] : [5, 2.5, Math.PI];
+      t.tp(p0[0], p0[1], p0[2]);
       t.run(0.5, {}, hz);
       m.hint = g.traversal?.hint?.kind ?? 'none';
       t.begin(halt);
@@ -576,7 +573,7 @@ async function drive(sc, halt = -1) {
       t.run(0.8, {}, hz);
       m.end = t.mark();
     } else if (sc.kind === 'ladder') {
-      t.tp(25.2, 11, Math.PI / 2);
+      t.tp(4.2, 9, -Math.PI / 2); // east of the platform's ladder, facing it
       t.run(0.4, {}, hz);
       t.begin(halt);
       t.run(0.2, { taps: { 1: 'jump' } }, hz);
@@ -587,8 +584,8 @@ async function drive(sc, halt = -1) {
       t.run(0.2, { taps: { 1: 'crouch' } }, hz);
     } else if (sc.kind === 'drop09' || sc.kind === 'drop24') {
       t.stance(false, 3);
-      if (sc.kind === 'drop09') t.tp(-22, -1.2, Math.PI / 2, 0.9);
-      else t.tp(2, 17, 0, 2.6);
+      if (sc.kind === 'drop09') t.tp(5, 0.6, 0, 0.9); // on the step row's 0.9 m block, facing north
+      else t.tp(4, 26.4, Math.PI, 2.4); // on the ledge wall's 2.4 m top, facing south
       t.begin(halt);
       t.run(0.3, {}, hz);
       m.go = t.mark();
@@ -597,7 +594,7 @@ async function drive(sc, halt = -1) {
       t.run(1.2, {}, hz);
       m.end = t.mark();
     } else if (sc.kind === 'idle') {
-      t.tp(-26, -26, 0);
+      t.tp(FLAT.x, FLAT.z, 0);
       t.begin(halt);
       t.run(0.5, {}, hz);
       m.idle = t.mark();
@@ -605,7 +602,7 @@ async function drive(sc, halt = -1) {
       m.end = t.mark();
     } else if (sc.kind === 'strike') {
       // (locomotion step 10) fire while holstered: the elbow strike (a whiff on the open lane), 0.9 s, then idle
-      t.tp(-26, -26, 0);
+      t.tp(FLAT.x, FLAT.z, 0);
       t.begin(halt);
       t.run(0.3, {}, hz);
       m.strike = t.mark();
@@ -629,7 +626,7 @@ async function drive(sc, halt = -1) {
       t.run(0.8, { taps: { 1: 'cover' } }, hz);
       m.end = t.mark();
     } else if (sc.kind === 'wall') {
-      // (locomotion step 11) back to a wall: a free high wall on Proving (FIND_WALL), 0.85 m out facing it, the context
+      // (locomotion step 11) back to a wall: a free high wall in the chamber (FIND_WALL), 0.85 m out facing it, the context
       // press enters (0.2 s settle), slide one way, stop, crouch, slide back, stop
       const w = sc.plane;
       t.stance(false, 3);
@@ -677,9 +674,9 @@ async function drive(sc, halt = -1) {
       t.run(0.3, {}, hz);
       t.stance(false, 3);
     } else if (sc.kind === 'tunnel') {
-      // crouch tunnel (x -12..-9.5, z -25..-19, roof 1.4 m), walked through crouched at gear 3
+      // the chamber's crouch tunnel (x 0..3, z 11.5..14.5, underside 1.4 m), walked into from the east, crouched at gear 3
       t.stance(true, 3);
-      t.tp(-10.75, -27.5, 0);
+      t.tp(5.5, 13, -Math.PI / 2);
       t.begin(halt);
       t.run(0.3, {}, hz);
       m.start = t.mark();
@@ -696,7 +693,7 @@ async function drive(sc, halt = -1) {
   }, [sc, halt, SURF, ACCEL, STOP]);
 }
 
-/** (step 11) A free high wall on Proving (as e2e-netmove's findWall): segment, plane, start `k` along it, body depth. */
+/** (step 11) A free high wall in the Test Chamber (as e2e-netmove's findWall): segment, plane, start `k` along it, body depth. */
 const FIND_WALL = () => {
   const g = window.__app.current;
   const V = g.player.position.constructor;
@@ -717,7 +714,7 @@ const FIND_WALL = () => {
   return null;
 };
 
-/** (step 12) The Proving doorway's high wall (1.1 m gap to a coplanar wall): the plane, a start 0.8 m from the edge,
+/** (step 12) A doorway's high wall (1.1 m gap to a coplanar wall; the Test Chamber has none, the row then reports it): the plane, a start 0.8 m from the edge,
  *  `end` the stick x toward the edge (the far wall is coplanar: the same plane holds through the SWAT turn). */
 const FIND_DOOR = () => {
   const g = window.__app.current;
@@ -732,8 +729,8 @@ const FIND_DOOR = () => {
   return null;
 };
 
-/** (step 12b) A free end (`end` 1: the b end, the body's left = edgeL; -1: the a end, edgeR) of a high or low wall on
- *  Proving, open in front (as FIND_WALL), the start 0.8 m from that end. */
+/** (step 12b) A free end (`end` 1: the b end, the body's left = edgeL; -1: the a end, edgeR) of a high or low wall in
+ *  the chamber, open in front (as FIND_WALL), the start 0.8 m from that end. */
 const FIND_END = ([end, low]) => {
   const g = window.__app.current;
   const V = g.player.position.constructor;
@@ -761,7 +758,7 @@ const wallSegs = (sc) => (sc.open ? openSegments(sc.plane.end, sc.open === 'low'
  *  to the edge, peek (stick held toward it), lean-out (aim), the SWAT turn across the doorway, settle. */
 const edgeSegments = (e) => [{ d: 0.6, tap: 'cover' }, { d: 1.2, x: e }, { d: 0.4 }, { d: 1.0, x: e }, { d: 0.6 }, { d: 1.0, ads: true }, { d: 0.6 }, { d: 0.3, x: e }, { d: 0.9, x: e, tap: 'cover' }, { d: 0.8 }];
 
-/** (step 13) The Proving shed door: where to stand (0.7 m out from the leaf's middle, facing it), the handle at the
+/** (step 13) The chamber's first door: where to stand (0.7 m out from the leaf's middle, facing it), the handle at the
  *  crack, the hand that takes it (away from the hinge) and the cracked leaf's plane. */
 const FIND_PEEKDOOR = () => {
   const g = window.__app.current;
@@ -798,11 +795,11 @@ const FIND_PEEKDOOR = () => {
 async function record(sc, halt = -1) {
   if (sc.kind === 'door' && !sc.door) {
     sc.door = await G(FIND_PEEKDOOR);
-    if (!sc.door) throw new Error('anim-audit door: no door on Proving');
+    if (!sc.door) throw new Error('anim-audit door: no door in the Test Chamber');
   }
   if (sc.kind === 'wall' && !sc.plane) {
     sc.plane = await G(...findPlane(sc));
-    if (!sc.plane) throw new Error('anim-audit wall: no free high wall on Proving');
+    if (!sc.plane) throw new Error('anim-audit wall: no free high wall in the Test Chamber');
   }
   // (step 12) the edge drive's segments go into the page with the scenario
   if (sc.edge) sc.segs = wallSegs(sc);
@@ -1277,7 +1274,6 @@ function remoteScenarios() {
   for (const [s, k] of flat) g('flat', s, k, 60);
   if (!QUICK) {
     g('stairs', 'stand', 3, 60);
-    g('ramp', 'stand', 3, 60);
     out.push({ name: 'stopidle', kind: 'gait', surface: 'flat', stance: 'stand', gear: 3, hz: 60, steady: 1.0, idleTail: true });
     out.push({ name: 'stance', kind: 'stance', hz: 60 });
     // (step 10) the elbow strike: a client strike approved by the host (cmove / cstart), posed from MoveState
@@ -1590,7 +1586,7 @@ async function runRemote() {
   const net = await hostAndJoin(url, 2, { viewport: { width: 640, height: 360 }, args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
   const { browser: rb, A, B } = net;
   try {
-    await startModeSlow(net.pages, 'sandbox', 'proving');
+    await startModeSlow(net.pages, 'test', 'chamber');
     rep.lobbySeconds = (Date.now() - t0) / 1000;
     // A: the recorder (its copy of B, every rendered frame, measured dt) and the 120 Hz frame pump
     // software GL renders two match scenes at 2-12 frames/s on this VM, far from real time: there both pages skip the
@@ -2026,11 +2022,11 @@ async function runRemote() {
       let rec;
       let b;
       if (sc.kind === 'boost') {
-        // as e2e-netmove: the 4.2 m block north of Proving (south face z 27.5); B braces with its back to it, A boosts
+        // as e2e-netmove: the chamber's 4.4 m team block north (south face z 25); B braces with its back to it, A boosts
         await A.evaluate(() => window.__ar.teleported());
         const placeTeam = (P, x, z, yaw) => P.evaluate(([x, z, yaw]) => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), yaw); g.player.cam.yaw = yaw; }, [x, z, yaw]);
-        await placeTeam(B, 4, 27.05, Math.PI);
-        await placeTeam(A, 4, 26.2, 0);
+        await placeTeam(B, 14, 24.55, Math.PI);
+        await placeTeam(A, 14, 23.7, 0);
         // (B2) the co-op action is RB (pad button 5), not Y
         await wait(1000);
         await B.evaluate(() => window.__pad.set(5, 1));
@@ -2051,20 +2047,20 @@ async function runRemote() {
         rec = toRec(await A.evaluate(() => window.__ar.end()));
         await B.waitForFunction(() => window.__rb.done(), null, { timeout: 6000, polling: 50 });
         b = await B.evaluate(() => window.__rb.end());
-        await A.evaluate(() => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); });
+        await A.evaluate(() => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); g.player.controller.teleport(new g.player.position.constructor(14, 0.1, 14), 0); });
         for (const P of [A, B]) await P.evaluate(() => window.__pad.disconnect());
       } else {
         let s = sc.kind === 'stance' || sc.kind === 'strike' || sc.kind === 'door' ? FLAT : SURF[sc.surface];
         if (sc.kind === 'wall') {
           // (step 11) B 0.85 m out from a free high wall facing it (A's player then stands BEHIND m further out)
           sc.plane ??= await A.evaluate(...findPlane(sc));
-          if (!sc.plane) throw new Error('anim-audit wall: no free high wall on Proving');
+          if (!sc.plane) throw new Error('anim-audit wall: no free high wall in the Test Chamber');
           const w = sc.plane;
           s = { x: w.ax + w.tx * w.k + w.nx * 0.75, z: w.az + w.tz * w.k + w.nz * 0.75, yaw: Math.atan2(-w.nx, -w.nz), y: w.y };
         }
         if (sc.kind === 'door') {
           sc.door ??= await A.evaluate(FIND_PEEKDOOR);
-          if (!sc.door) throw new Error('anim-audit door: no door on Proving');
+          if (!sc.door) throw new Error('anim-audit door: no door in the Test Chamber');
           sc.door.handLen = await A.evaluate(() => window.__app.current.net.remotes.values().next().value.avatar.rig.p.hand.len);
           s = { x: sc.door.sx, z: sc.door.sz, yaw: sc.door.syaw, y: sc.door.y };
         }
@@ -2189,7 +2185,7 @@ if (DO_LOCAL) try {
   await G(() => {
     const t = window.__aa;
     t.stance(false, 3);
-    t.tp(-26, -26, 0);
+    t.tp(FLAT.x, FLAT.z, 0);
     t.begin();
     t.run(1.0, {});
   });

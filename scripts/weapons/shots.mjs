@@ -1,6 +1,6 @@
 // In-game weapon screenshots (feature/weapons): node scripts/weapons/shots.mjs [outDir] [view ...]
-// Serves dist/ (run `npm run build` first) on E2E_PORT (default 4189, the GPU port) and drives Free Roam on the
-// training map (Proving) or, with STAGE=warehouse, in the Warehouse under a ceiling lamp; each view a camera placed
+// Serves dist/ (run `npm run build` first) on E2E_PORT (default 4189, the GPU port) and drives the Test Chamber
+// (`autostart=chamber`, sandbox) or, with STAGE=annex, in its dark annex hall under the ceiling lamp; each view a camera placed
 // round Wren after the game's own camera update. Use E2E_GPU=1 for the
 // hardware GPU (Michael, 2026-10-19: "You are on the laptop also, so you can run the screenshots as needed").
 import { spawn } from 'node:child_process';
@@ -11,9 +11,9 @@ import { launch, frames, waitOperator } from '../e2e-lib.mjs';
 const PORT = Number(process.env.E2E_PORT ?? 4189);
 const out = process.argv[2] ?? 'docs/archive/weapons/renders/game';
 const only = process.argv.slice(3);
-// staging (Michael 2026-10-19): the training map (Proving, bright and clear) by default; STAGE=warehouse stands Wren
-// under a warehouse ceiling lamp
-const STAGE = process.env.STAGE ?? 'proving';
+// staging (Michael 2026-10-19): the Test Chamber's lit room by default; STAGE=annex stands Wren under the annex
+// hall's ceiling lamp
+const STAGE = process.env.STAGE ?? 'room';
 mkdirSync(out, { recursive: true });
 
 // view: [camera offset right, up, forward of the player (m, her frame), target height]; weapon: loadout class to hold
@@ -53,25 +53,25 @@ const VIEWS = {
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { windowsHide: true, stdio: 'ignore' });
 process.on('exit', () => server.kill());
 await new Promise((r) => setTimeout(r, 2500));
-const { browser, page, errors } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: STAGE === 'warehouse' ? 'autostart=warehouse&mode=sandbox' : 'autostart=proving', viewport: { width: 1600, height: 900 } });
+const { browser, page, errors } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: 'autostart=chamber', viewport: { width: 1600, height: 900 } });
 try {
   await waitOperator(page, 1, 180000);
   // every kit item with a built mesh (src/weapons/assets/<id>.glb) shows it
   const built = readdirSync('src/weapons/assets').filter((f) => f.endsWith('.glb')).map((f) => f.slice(0, -4));
   await page.waitForFunction((ids) => window.__app?.current?.weapons?.slots?.every((s) => s.model.mesh || !ids.includes(s.def.id)), built, { timeout: 120000, polling: 200 });
-  await page.evaluate(() => {
+  await page.evaluate((annex) => {
     const a = window.__app;
     const g = a.current;
     const p = g.player;
     const V = p.position.constructor;
     g.target.damageMul = 0;
     document.querySelectorAll('.hud, .hud-root, #hud').forEach((e) => (e.style.visibility = 'hidden'));
-    // staging: under the lit ceiling lamp nearest the spawn (the warehouse floor is level), the lamp just in front of her
+    // STAGE=annex, staging: under the lit ceiling lamp nearest the spawn (the chamber floor is level), the lamp just in front of her
     const sp = p.position.clone();
     const lamps = g.world.level.lights.lights.filter((l) => l.on && l.kind === 'lamp' && l.y > 2 && l.y < 7);
     lamps.sort((a1, b1) => Math.hypot(a1.x - sp.x, a1.z - sp.z) - Math.hypot(b1.x - sp.x, b1.z - sp.z));
     const l = lamps[0];
-    if (l && location.search.includes('warehouse')) {
+    if (l && annex) {
       p.controller.teleport(new V(l.x, sp.y, l.z - 0.5), 0);
       p.cam.yaw = 0;
       p.cam.snap();
@@ -91,7 +91,7 @@ try {
       c.position.set(r.x + fz * v[0] + fx * v[2], r.y + v[1], r.z - fx * v[0] + fz * v[2]);
       c.setTarget(new V(r.x + fx * 0.1, r.y + v[3], r.z + fz * 0.1));
     };
-  });
+  }, STAGE === 'annex');
   for (const [name, v] of Object.entries(VIEWS)) {
     if (only.length && !only.includes(name)) continue;
     const info = await page.evaluate((v) => {

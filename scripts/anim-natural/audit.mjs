@@ -6,12 +6,13 @@
 //   hands: wrist forward range (cm, root frame) and peak / mean wrist speed (m/s, root frame)
 //   feet: planted-foot slide (max cm per contact), the planted foot's yaw against the pelvis (deg: wind-up), contacts
 //   draw: draw progress, carry raise and the held gun's world speed (a stall = speed ~0 before the settle)
-// Groups: `chamber` (Test Chamber loops, ?autostart=chamber&gfx=high, on the spot, front 3/4 view), `proving` (scenarios on
-// Proving Grounds at ?gfx=high: gait turns with a top-down foot plot, draws, starts / stops, one-shots), `all` (both).
-//   E2E_GPU=1 node scripts/anim-natural/audit.mjs <chamber|proving|all> [--pass=1|2] [--only=a,b] [--dtmul=2.5]
+// Groups: `chamber` (Test Chamber loops, ?autostart=chamber&gfx=high, on the spot, front 3/4 view), `lane` (scenarios in
+// the Test Chamber's anim lane, x 9-26 on z 21, and its props, at ?gfx=high: gait turns with a top-down foot plot, draws,
+// starts / stops, one-shots), `all` (both).
+//   E2E_GPU=1 node scripts/anim-natural/audit.mjs <chamber|lane|all> [--pass=1|2] [--only=a,b] [--dtmul=2.5]
 // `--pass=2` runs only the second pass's rows (AUDIT.md "Pass 2": the rows pass 1 did not capture, the co-op pairs framed
 // on the puppets, the hit flinch, the aimed turn in place); no `--pass` runs every row of the group. Each row's metrics
-// entry carries `pass` and `row` (the COVERAGE # it covers). (pass 2) Proving cameras sit on the sun side (the theme's
+// entry carries `pass` and `row` (the COVERAGE # it covers). (pass 2) lane cameras sit on the sun side (the theme's
 // directional light; NAT_SUN=0 keeps pass 1's sides); the chamber pairs move the stage lights onto the puppets.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -73,10 +74,10 @@ const CHAMBER = [
   ...[['hold_idle', 43], ['hold_back', 44], ['hold_choke', 45], ['hold_knife', 46]].map(([m, row]) => ({ n: `pair-${m}`, id: `pair:${m}`, f: 12, hold: true, az: -Math.PI / 2, far: 3.8, pass: 2, row })),
 ];
 
-// proving: scenarios as scripts/anim-sheet.mjs (input per t), with a camera mode: `follow` side, `fixed` 3/4 high, `top`
-const P0 = { pos: [0, -14], yaw: Math.PI / 2 };
-const gearP = (g) => `autostart=proving&gear=${g}&gfx=high`;
-const PROVING = [
+// lane: scenarios as scripts/anim-sheet.mjs (input per t), with a camera mode: `follow` side, `fixed` 3/4 high, `top`
+const P0 = { pos: [14, 21], yaw: Math.PI / 2 };
+const gearP = (g) => `autostart=chamber&gear=${g}&gfx=high`;
+const LANE = [
   // gait turns (the feet): 90 and 180 deg at walk, jog, run; a stick sweep (a curve)
   { n: 'turn90-walk', ...P0, pre: 2.0, warm: { y: 0.5 }, input: (t) => (t < 0 ? { y: 0.5 } : { x: 0.5 }), f: 12, dt: 0.08, cam: 'fixed', top: true },
   { n: 'turn90-jog', ...P0, pre: 1.8, warm: { y: 1 }, input: (t) => (t < 0 ? { y: 1 } : { x: 1 }), f: 12, dt: 0.06, cam: 'fixed', top: true, params: gearP(4) },
@@ -92,7 +93,7 @@ const PROVING = [
   { n: 'stop-run', ...P0, pre: 2.0, warm: { y: 1 }, input: () => ({}), f: 12, dt: 0.07, cam: 'follow', params: gearP(5) },
   { n: 'strafe', ...P0, pre: 1.8, warm: { x: 1 }, input: () => ({ x: 1 }), f: 12, dt: 0.07, cam: 'follow', fixCam: true },
   { n: 'back', ...P0, pre: 1.8, warm: { y: -1 }, input: () => ({ y: -1 }), f: 12, dt: 0.07, cam: 'follow' },
-  { n: 'sprint', pos: [-14, -14], yaw: Math.PI / 2, pre: 1.2, warm: { y: 1 }, at0: "a.input.state.tap('dash');", input: () => ({ y: 1 }), f: 12, dt: 0.05, cam: 'follow' },
+  { n: 'sprint', pos: [10, 21], yaw: Math.PI / 2, pre: 1.2, warm: { y: 1 }, at0: "a.input.state.tap('dash');", input: () => ({ y: 1 }), f: 12, dt: 0.05, cam: 'follow' },
   // weapons: the draw from holstered (aim press), the low-ready draw (X), holster, swap, reload, ready to aim
   { n: 'draw-rifle', ...P0, pre: 0.8, input: () => ({ ads: true }), f: 18, dt: 1 / 30, cam: 'front34' },
   { n: 'draw-pistol', ...P0, pre: 0.8, weapon: 'pistol', input: () => ({ ads: true }), f: 18, dt: 1 / 30, cam: 'front34' },
@@ -106,11 +107,11 @@ const PROVING = [
   { n: 'reload-pistol', ...P0, pre: 1.2, weapon: 'pistol', warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "g.weapons.current.mag = 0; a.input.state.tap('reload');" }, f: 18, dt: 0.12, cam: 'front34' },
   // one-shots and air
   { n: 'grenade', ...P0, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('grenade');" }, f: 12, dt: 0.1, cam: 'follow' },
-  { n: 'drop-land', pos: [0, -14], y: 1.4, yaw: Math.PI / 2, pre: 0.02, input: () => ({}), f: 12, dt: 0.07, cam: 'follow' },
+  { n: 'drop-land', pos: [14, 21], y: 1.4, yaw: Math.PI / 2, pre: 0.02, input: () => ({}), f: 12, dt: 0.07, cam: 'follow' },
   { n: 'crouch-stand', ...P0, pre: 0.8, input: () => ({}), at: { 0: "a.input.state.tap('crouch');", 0.8: "a.input.state.tap('crouch');" }, f: 12, dt: 0.12, cam: 'follow' },
-  { n: 'dash-roll', pos: [0, -18], yaw: Math.PI / 2, pre: 0.6, input: () => ({ y: 1 }), at: { 0.05: "a.input.state.tap('dash');" }, f: 12, dt: 0.08, cam: 'follow' },
+  { n: 'dash-roll', pos: [12, 21], yaw: Math.PI / 2, pre: 0.6, input: () => ({ y: 1 }), at: { 0.05: "a.input.state.tap('dash');" }, f: 12, dt: 0.08, cam: 'follow' },
   { n: 'hit-flinch', ...P0, pre: 0.6, input: () => ({}), at: { 0: "g.player.rig.hit(1, 0.8);" }, f: 12, dt: 0.05, cam: 'follow' },
-  // close quarters (Warehouse, a calm grunt ahead: as anim-sheet G7)
+  // close quarters (test mode, a calm grunt ahead: as anim-sheet G7)
   ...[
     ['grab', 0.4, {}, {}],
     ['hold-walk', 1.8, { 0.4: 'P' }, { y: 1 }],
@@ -124,7 +125,7 @@ const PROVING = [
 /**
  * Pass 2 (AUDIT.md "Pass 2"): the rows pass 1 did not capture. Input per t as above, plus `cy` (the camera yaw from the
  * start yaw, rad: the aim direction), `fire`, `crouch` and `coop` held; `every` runs code each recorded step (`t` in
- * scope); `find` places her from the level (a free high wall, a wall end, the shed door: as scripts/anim-audit.mjs).
+ * scope); `find` places her from the level (a free high wall, a wall end, the door: as scripts/anim-audit.mjs).
  * Rows 70 and 72 drive `player.pose.slide` / `pose.check` directly: no game code sets them (the graph's SLIDE clip and
  * check sweep are dead channels in play), so the sheet shows what the graph would play.
  */
@@ -172,11 +173,11 @@ function PASS2() {
     // (row 10) the tense sneak (crouched near an unaware guard: `tenseForce` stands in for the guard)
     { n: 'tense-sneak', pass: 2, row: 10, ...P0, pre: 1.8, at0: "a.input.state.tap('crouch'); g.player.controller.tenseForce = true;", warm: { y: 0.45 }, input: () => ({ y: 0.45 }), f: 12, dt: 0.1, cam: 'follow' },
     // (row 12) the crouch run in play (crouched, stick full at the top gear)
-    { n: 'crouch-run', pass: 2, row: 12, pos: [-14, -14], yaw: Math.PI / 2, pre: 1.6, at0: "a.input.state.tap('crouch');", warm: { y: 1 }, input: () => ({ y: 1 }), f: 12, dt: 0.06, cam: 'follow', params: gearP(5) },
+    { n: 'crouch-run', pass: 2, row: 12, pos: [10, 21], yaw: Math.PI / 2, pre: 1.6, at0: "a.input.state.tap('crouch');", warm: { y: 1 }, input: () => ({ y: 1 }), f: 12, dt: 0.06, cam: 'follow', params: gearP(5) },
     // (row 16) low ready (drawn, not aiming) at walk, jog, run
     { n: 'lowready-walk', pass: 2, row: 16, ...P0, pre: 1.8, at0: "a.input.state.tap('draw');", warm: { y: 0.5 }, input: () => ({ y: 0.5 }), f: 12, dt: 0.09, cam: 'follow' },
-    { n: 'lowready-jog', pass: 2, row: 16, pos: [-14, -14], yaw: Math.PI / 2, pre: 1.8, at0: "a.input.state.tap('draw');", warm: { y: 1 }, input: () => ({ y: 1 }), f: 12, dt: 0.06, cam: 'follow', params: gearP(4) },
-    { n: 'lowready-run', pass: 2, row: 16, pos: [-14, -14], yaw: Math.PI / 2, pre: 1.8, at0: "a.input.state.tap('draw');", warm: { y: 1 }, input: () => ({ y: 1 }), f: 12, dt: 0.05, cam: 'follow', params: gearP(5) },
+    { n: 'lowready-jog', pass: 2, row: 16, pos: [10, 21], yaw: Math.PI / 2, pre: 1.8, at0: "a.input.state.tap('draw');", warm: { y: 1 }, input: () => ({ y: 1 }), f: 12, dt: 0.06, cam: 'follow', params: gearP(4) },
+    { n: 'lowready-run', pass: 2, row: 16, pos: [10, 21], yaw: Math.PI / 2, pre: 1.8, at0: "a.input.state.tap('draw');", warm: { y: 1 }, input: () => ({ y: 1 }), f: 12, dt: 0.05, cam: 'follow', params: gearP(5) },
     // (row 24) wall block: aiming, glide into a high wall (1.3 m out, facing it) and back off
     { n: 'wall-block', pass: 2, row: 24, find: ['wall', 1.3], pre: 1.4, warm: { ads: true }, input: (t) => ({ ads: true, y: t < 1.6 ? 0.35 : -0.35 }), f: 12, dt: 0.2, cam: 'follow', fixCam: true },
     // (row 25) fire and recoil: the rifle held on, the pistol tapped
@@ -200,28 +201,28 @@ function PASS2() {
     { n: 'door-peek', pass: 2, row: 40, find: ['door'], pre: 0.5, input: (t) => (t >= 2.3 && t < 2.7 ? { y: -0.7 } : {}), at: { 0.3: 'g.stealthPick = true;' }, f: 18, dt: 0.17, cam: 'back' },
     // (row 49) the elbow strike (fire holstered): a whiff on the open yard
     // (row 49) the elbow strike: no whiff in the game (`StrikeController` starts only with a guard in reach), so only the
-    // Warehouse row below
+    // test mode row below
     // (row 58) the split jump: two jumps in the corridor, braced, then the drop
-    { n: 'split-brace', pass: 2, row: 58, pos: [10, 25.05], yaw: Math.PI / 2, pre: 0.5, input: () => ({}), at: { 0: J, 0.1: J, 2.2: "a.input.state.tap('drop');" }, f: 18, dt: 0.17, cam: 'back' },
+    { n: 'split-brace', pass: 2, row: 58, pos: [17.825, 24.5], yaw: 0, pre: 0.5, input: () => ({}), at: { 0: J, 0.1: J, 2.2: "a.input.state.tap('drop');" }, f: 18, dt: 0.17, cam: 'back' },
     // (rows 61-67) mantle (0.9 m block), step up (0.6 m), climb up (from a ledge hang), drop off a ledge and from a pipe
     // hang, hop (a running gap between the hang blocks' tops), roll (crouch held at the run), wall kick (the 3.3 m block)
-    { n: 'mantle', pass: 2, row: 61, pos: [-19.9, -1.2], yaw: -Math.PI / 2, pre: 0.5, input: () => ({}), at: { 0: J }, f: 12, dt: 0.1, cam: 'follow' },
-    { n: 'step-up', pass: 2, row: 62, pos: [-19.9, -4.4], yaw: -Math.PI / 2, pre: 0.5, input: () => ({}), at: { 0: J }, f: 12, dt: 0.06, cam: 'follow' },
-    { n: 'climb-up', pass: 2, row: 63, pos: [25.45, 16], yaw: Math.PI / 2, pre: 1.4, preAt: { 0.4: J }, input: () => ({}), at: { 0: J }, f: 12, dt: 0.14, cam: 'follow' },
-    { n: 'drop-ledge', pass: 2, row: 64, pos: [0, 18.4], y: 2.62, yaw: 0, pre: 0.5, input: () => ({}), at: { 0: J }, f: 12, dt: 0.08, cam: 'follow' },
-    { n: 'drop-hang', pass: 2, row: 64, pos: [0.5, 22.7], yaw: 0, pre: 1.4, preAt: { 0.4: J }, input: () => ({}), at: { 0: "a.input.state.tap('drop');" }, f: 12, dt: 0.1, cam: 'follow' },
-    { n: 'hop', pass: 2, row: 65, pos: [27.5, 14.7], y: 2.32, yaw: 0, pre: 0.3, input: () => ({ y: 1 }), every: "if (!window.__natHop && g.player.controller.pos.z > 16.85) { a.input.state.tap('jump'); window.__natHop = 1; }", f: 18, dt: 0.09, cam: 'follow', params: gearP(5) },
-    { n: 'roll', pass: 2, row: 66, pos: [-14, -14], yaw: Math.PI / 2, pre: 1.6, warm: { y: 1 }, input: (t) => ({ y: 1, crouch: t < 0.5 }), f: 12, dt: 0.07, cam: 'follow', params: gearP(5) },
-    { n: 'wall-kick', pass: 2, row: 67, pos: [17.5, 23.3], yaw: 0, pre: 0.5, input: () => ({}), at: { 0: J }, f: 12, dt: 0.1, cam: 'follow' },
+    { n: 'mantle', pass: 2, row: 61, pos: [5, 2.5], yaw: Math.PI, pre: 0.5, input: () => ({}), at: { 0: J }, f: 12, dt: 0.1, cam: 'follow' },
+    { n: 'step-up', pass: 2, row: 62, pos: [3, 2.5], yaw: Math.PI, pre: 0.5, input: () => ({}), at: { 0: J }, f: 12, dt: 0.06, cam: 'follow' },
+    { n: 'climb-up', pass: 2, row: 63, pos: [4, 24.2], yaw: 0, pre: 1.4, preAt: { 0.4: J }, input: () => ({}), at: { 0: J }, f: 12, dt: 0.14, cam: 'follow' },
+    { n: 'drop-ledge', pass: 2, row: 64, pos: [4, 26.4], y: 2.42, yaw: Math.PI, pre: 0.5, input: () => ({}), at: { 0: J }, f: 12, dt: 0.08, cam: 'follow' },
+    { n: 'drop-hang', pass: 2, row: 64, pos: [4, 24.2], yaw: 0, pre: 1.4, preAt: { 0.4: J }, input: () => ({}), at: { 0: "a.input.state.tap('drop');" }, f: 12, dt: 0.1, cam: 'follow' },
+    { n: 'hop', pass: 2, row: 65, pos: [3, 26], y: 2.42, yaw: Math.PI / 2, pre: 0.3, input: () => ({ y: 1 }), every: "if (!window.__natHop && g.player.controller.pos.x > 5.2) { a.input.state.tap('jump'); window.__natHop = 1; }", f: 18, dt: 0.09, cam: 'follow', params: gearP(5) },
+    { n: 'roll', pass: 2, row: 66, pos: [10, 21], yaw: Math.PI / 2, pre: 1.6, warm: { y: 1 }, input: (t) => ({ y: 1, crouch: t < 0.5 }), f: 12, dt: 0.07, cam: 'follow', params: gearP(5) },
+    { n: 'wall-kick', pass: 2, row: 67, pos: [1.5, 6.9], yaw: 0, pre: 0.5, input: () => ({}), at: { 0: J }, f: 12, dt: 0.1, cam: 'follow' },
     // (row 70) dash slide, driven (dead in play): pose.slide 0..1 over 0.7 s from a run
-    { n: 'dash-slide-driven', pass: 2, row: 70, pos: [-14, -14], yaw: Math.PI / 2, pre: 1.6, warm: { y: 1 }, input: (t) => (t < 0.7 ? { y: 1 } : {}), every: 'g.player.pose.slide = t < 0.7 ? t / 0.7 : -1;', f: 12, dt: 0.07, cam: 'follow', params: gearP(5) },
-    // (row 72) doorway check sweep, driven (dead in play): pose.check 0..1 over 1.2 s, drawn, at the lane's doorway
-    { n: 'door-sweep-driven', pass: 2, row: 72, pos: [-20, 6.6], yaw: 0, pre: 1.2, at0: "a.input.state.tap('draw');", input: () => ({}), every: 'g.player.pose.check = t < 1.2 ? t / 1.2 : -1;', f: 12, dt: 0.12, cam: 'follow' },
+    { n: 'dash-slide-driven', pass: 2, row: 70, pos: [10, 21], yaw: Math.PI / 2, pre: 1.6, warm: { y: 1 }, input: (t) => (t < 0.7 ? { y: 1 } : {}), every: 'g.player.pose.slide = t < 0.7 ? t / 0.7 : -1;', f: 12, dt: 0.07, cam: 'follow', params: gearP(5) },
+    // (row 72) doorway check sweep, driven (dead in play): pose.check 0..1 over 1.2 s, drawn, at the chamber's door
+    { n: 'door-sweep-driven', pass: 2, row: 72, pos: [10, 3.2], yaw: 0, pre: 1.2, at0: "a.input.state.tap('draw');", input: () => ({}), every: 'g.player.pose.check = t < 1.2 ? t / 1.2 : -1;', f: 12, dt: 0.12, cam: 'follow' },
     // (row 79) the hit flinch (`CharacterRig.hit` -> the graph's additive `hitReact`): from the right then the left,
     // holstered; and aiming
     { n: 'hit-flinch-2', pass: 2, row: 79, ...P0, pre: 0.6, input: () => ({}), at: { 0: 'g.player.rig.hit(1, 0.8);', 0.5: 'g.player.rig.hit(1, -0.8);' }, f: 18, dt: 0.05, cam: 'front34' },
     { n: 'hit-flinch-aim', pass: 2, row: 79, ...P0, pre: 1.4, warm: { ads: true }, input: () => ({ ads: true }), at: { 0: 'g.player.rig.hit(1, 0.8);' }, f: 12, dt: 0.05, cam: 'front34' },
-    // (rows 43, 46, 47, 49) close quarters on the Warehouse (a calm grunt ahead, as above): hold still, the knife kill
+    // (rows 43, 46, 47, 49) close quarters in the test mode (a calm grunt ahead, as above): hold still, the knife kill
     // (pick 1), the interrogation (pick 4; he is given a line to give), the elbow strike landing on him
     ...[
       ['hold-still', 43, { 0.4: 'P' }, {}, {}, 0.25],
@@ -521,7 +522,7 @@ const pickSide = (base, offs, sunAz) => {
   const d = (a) => Math.abs(Math.atan2(Math.sin(a - sunAz), Math.cos(a - sunAz)));
   return offs.map((o) => base + o).reduce((a, b) => (d(b) < d(a) ? b : a));
 };
-/** (as scripts/anim-audit.mjs step 11) A free high wall on Proving: segment, plane, start `k` along it. */
+/** (as scripts/anim-audit.mjs step 11) A free high wall in the Test Chamber: segment, plane, start `k` along it. */
 const FIND_WALL = () => {
   const g = window.__app.current;
   const V = g.player.position.constructor;
@@ -560,7 +561,7 @@ const FIND_END = ([end, low]) => {
   }
   return null;
 };
-/** (as anim-audit step 13) The Proving shed door: 0.7 m out from the leaf's middle, facing it. */
+/** (as anim-audit step 13) The chamber's first door: 0.7 m out from the leaf's middle, facing it. */
 const FIND_PEEKDOOR = () => {
   const g = window.__app.current;
   const d = g.world.doors.list[0];
@@ -777,20 +778,20 @@ async function runChamber() {
   }
 }
 
-// ---- proving group ----
-async function runProving() {
-  for (const sc of PROVING) {
+// ---- lane group ----
+async function runLane() {
+  for (const sc of LANE) {
     if (!wanted(sc)) continue;
     const t0 = Date.now();
-    const params = sc.g7 ? 'autostart=warehouse&mode=clear&gfx=high' : sc.params ?? 'autostart=proving&gfx=high';
+    const params = sc.g7 ? 'autostart=chamber&mode=test&gfx=high' : sc.params ?? 'autostart=chamber&gfx=high';
     const { browser, page, errors } = await launch({ url: URL0, params, viewport: { width: 1000, height: 800 } });
     try {
       await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
       if ((await waitOperator(page)) < 0) throw new Error('Wren LOD0 never reached the screen');
       await page.addStyleTag({ content: 'body > :not(#game), .hud, .screens, .toasts, .toast { display: none !important; }' });
       await page.evaluate(SAMPLER);
-      // (pass 2) a placement read from the level (a free high wall, a wall end, the shed door)
-      let place = { pos: sc.pos ?? [2, -2.2], yaw: sc.yaw ?? 0, y: sc.y ?? 0 };
+      // (pass 2) a placement read from the level (a free high wall, a wall end, the door)
+      let place = { pos: sc.pos ?? [14, 19.8], yaw: sc.yaw ?? 0, y: sc.y ?? 0 };
       if (sc.find) {
         const [kind, a1, a2] = sc.find;
         let w = null;
@@ -816,7 +817,7 @@ async function runProving() {
       const natAz = sun ? pickSide(place.yaw, [natAz0, -natAz0], sunAz) - place.yaw : natAz0;
       const natFaz = sun ? pickSide(place.yaw, [natFaz0, -natFaz0], sunAz) - place.yaw : natFaz0;
       const sideAz = sun ? pickSide(place.yaw, [-Math.PI / 2, Math.PI / 2], sunAz) - place.yaw : -Math.PI / 2;
-      const G7AT0 = "g.target.health.invulnerable = true; g.mode.pending.length = 0; g.enemyMgr.clear(); const V = g.player.position.constructor; const e = g.enemyMgr.spawn('grunt', new V(2, 0, -1), false, 0); e.passive = true; e.info = { lines: ['(audit) the line he gives'] }; window.__natE = e;";
+      const G7AT0 = "g.target.health.invulnerable = true; g.mode.pending.length = 0; g.enemyMgr.clear(); const V = g.player.position.constructor; const e = g.enemyMgr.spawn('grunt', new V(14, 0, 21), false, 0); e.passive = true; e.info = { lines: ['(audit) the line he gives'] }; window.__natE = e;";
       await page.evaluate(({ pos, yaw, weapon, y0, cam, fixCam, g7, g7at0, natAz, natFaz, sideAz, keyK }) => {
         const a = window.__app;
         const g = a.current;
@@ -1008,7 +1009,7 @@ async function runProving() {
         const reach = (deg) => { const i = yawT.findIndex((y) => Math.abs(y) >= deg); return i < 0 ? null : r1(i / 60, 2); };
         turn = { yawAt90pct: reach(Math.abs(yawT[yawT.length - 1]) * 0.9), finalYaw: r1(yawT[yawT.length - 1]), firstLiftS: firstLift, windDegMax: [sum.feet.L.windDegMax, sum.feet.R.windDegMax], plantSlideCm: [sum.feet.L.slideCmMax, sum.feet.R.slideCmMax] };
       }
-      saveMet(`proving:${sc.n}`, { params, file, topFile, turn, pass: sc.pass ?? 1, row: sc.row ?? null, ...sum });
+      saveMet(`lane:${sc.n}`, { params, file, topFile, turn, pass: sc.pass ?? 1, row: sc.row ?? null, ...sum });
       console.log(`${sc.n}: ${file} ${size} B ${((Date.now() - t0) / 1000).toFixed(0)} s ${JSON.stringify({ seen: sum?.seen, trunk: sum?.trunk, lean: sum?.lean, feet: sum?.feet, turn, gun: sum?.gun ? { peak: sum.gun.peak, stall: sum.gun.stall } : null, ev: sum?.ev, gap: await page.evaluate(() => window.__natGap ?? null) })}`);
       const real = errors.filter((x) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(x));
       if (real.length) console.log('  console:', real.slice(0, 3).join(' | '));
@@ -1022,8 +1023,8 @@ async function runProving() {
 
 try {
   if (group === 'chamber' || group === 'all') await runChamber();
-  if (group === 'proving' || group === 'all') await runProving();
-  if (!['chamber', 'proving', 'all'].includes(group)) throw new Error(`unknown group ${group}`);
+  if (group === 'lane' || group === 'all') await runLane();
+  if (!['chamber', 'lane', 'all'].includes(group)) throw new Error(`unknown group ${group}`);
 } finally {
   kill();
 }

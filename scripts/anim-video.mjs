@@ -9,9 +9,9 @@
 // Never headed; output outside git; needs a prior `npm run build` unless `--url`. Look videos run on the laptop look tier:
 //   npm run build && E2E_GPU=1 E2E_PORT=4189 node scripts/anim-video.mjs --scenes smoke --out C:/NightShift/scratch/look/<job>
 // Scene list (JSON; or the built-in name `smoke`), one .webm per list:
-//   { "name": "walk-gears", "params": "autostart=proving", "hud": false,
-//     "scenes": [ { "name": "Walk, gear 3, side view", "params": "autostart=proving&gear=3", "seconds": 8, "view": "side",
-//                   "place": [0, 0, -14, 1.5708],
+//   { "name": "walk-gears", "params": "autostart=chamber", "hud": false,
+//     "scenes": [ { "name": "Walk, gear 3, side view", "params": "autostart=chamber&gear=3", "seconds": 8, "view": "side",
+//                   "place": [9, 0, 21, 1.5708],
 //                   "steps": [ { "t": 0, "move": [0, 1] }, { "t": 6, "move": [0, 0] }, { "t": 6.5, "press": "B" } ] } ] }
 //   list: name (a-z0-9 words joined by -, <= 40 chars: the file name), params (the page query, must name autostart=), hud
 //   (default false: hidden), scenes (>= 1, total <= 120 s). scene: name (the caption, 1-60 chars), seconds (0 < s <= 120),
@@ -49,10 +49,10 @@ scripts/anim-video.mjs. Exit 0 done, 1 run failure, 2 usage or list error.
 export const BUILTIN_LISTS = {
   smoke: {
     name: 'smoke',
-    params: 'autostart=proving',
+    params: 'autostart=chamber',
     scenes: [
       { name: 'Stand, game camera', seconds: 4, view: 'ots' },
-      { name: 'Walk forward, side view', seconds: 8, view: 'side', place: [0, 0, -14, 1.5708], steps: [{ t: 0, move: [0, 1] }, { t: 6, move: [0, 0] }] },
+      { name: 'Walk forward, side view', seconds: 8, view: 'side', place: [9, 0, 21, 1.5708], steps: [{ t: 0, move: [0, 1] }, { t: 6, move: [0, 0] }] },
       { name: 'Look round', seconds: 6, view: 'ots', steps: [{ t: 0, look: [1, 0] }, { t: 3, look: [0, 0] }] },
     ],
   },

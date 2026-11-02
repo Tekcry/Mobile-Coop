@@ -1,4 +1,4 @@
-// anim-skeleton S2 GPU look (desktop, E2E_GPU=1, under C:/NightShift/heavy.lock): serves dist/ on 4189, boots Proving at
+// anim-skeleton S2 GPU look (desktop, E2E_GPU=1, under C:/NightShift/heavy.lock): serves dist/ on 4189, boots the Test Chamber at
 // ?gfx=high (Wren's LOD0) and shoots close views of her upper body:
 //   1. rifle aimed: the hands closed on the gun through the finger bones (A9);
 //   2. holstered, hands free: a clavicle shrug (left) and push (right), per-finger curls and spreads, the goggle 2 cm up;
@@ -25,7 +25,7 @@ const kill = () => {
 process.on('exit', kill);
 await new Promise((r) => setTimeout(r, 4000));
 
-const { browser, page } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: 'autostart=proving&gfx=high', viewport: { width: 1200, height: 900 } });
+const { browser, page } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: 'autostart=chamber&gfx=high', viewport: { width: 1200, height: 900 } });
 try {
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
   if ((await waitOperator(page)) < 0) throw new Error('Wren LOD0 never reached the screen');
@@ -36,7 +36,7 @@ try {
     const p = g.player;
     a.loop.manual = true;
     const V = p.controller.pos.constructor;
-    p.controller.teleport(new V(0, 0, -14), Math.PI / 2);
+    p.controller.teleport(new V(14, 0, 21), Math.PI / 2);
     p.cam.yaw = Math.PI / 2;
     p.cam.pitch = 0;
     const orig = p.cam.update.bind(p.cam);

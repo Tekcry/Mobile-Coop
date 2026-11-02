@@ -23,9 +23,10 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   magazine, no floating parts.
 - [ ] Every menu works by pad alone: the stick and d-pad move the focus ring, A selects, B goes back, LB / RB switch
   tabs, sliders and choices change with left / right. Prompts show the pad's glyphs (Xbox letters or PlayStation shapes).
-- [ ] The main menu shows Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
-  `?legacy=1`). There is no Sector Ops entry (clean-up F removed the menu, its two maps and the stars).
-- [ ] (G339) No minimap, compass or objective dots in Sector Ops, Marlow Yard (co-op) or free roam; the Marlow drill
+- [ ] The main menu shows Co-op, Loadout, Settings, Feedback and Test Chamber, plus "Continue campaign" once a campaign
+  mission is saved and "Rejoin" / "Resume hosting" after a dropped room. There is no Play, Missions, Training, Free Roam
+  or Sector Ops row (clean-up F and H removed them).
+- [ ] (G339) No minimap, compass or objective dots in Sector Ops, Marlow Yard (co-op) or the Test Chamber; the Marlow drill
   pointer and pings still show.
 - [ ] Co-op Sector Ops (clean-up F removed the menu and the stars): the HUD shows Syringes (2 on Normal); a downed partner is revived until they run out, then a down restarts the
   section with both players at the room.
@@ -59,7 +60,7 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
   beam has a soft edge, and the meter fades with it at the beam's edge (LR16 fix).
-- [ ] Failing tube (LR16-5): stand under the stutter tube (the Warehouse: the service corridor strip; Marlow Yard: the A7 south rack strip): every few seconds it chatters or drops
+- [ ] Failing tube (LR16-5): stand under the stutter tube (Marlow Yard: the A7 south rack strip): every few seconds it chatters or drops
   out, the floor, the fitting and the light meter go with it; shoot it and it stays dark.
 - [ ] Swinging pendants (LR16-5b, Marlow Yard only): fire past a hung fitting (the A4 aisle-2 strips), or throw a
   grenade near it: the fitting and its two rods swing as one, up to a hand's width, and settle in about 15 s; the pool
@@ -143,7 +144,7 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
 - [ ] Unplug the pad mid-match: no stuck movement or firing, keyboard and mouse take over; plug it back in and press a
   button: the pad works again without a reload.
 
-### In a match (controller; Free Roam on Proving Grounds, then Infiltration on the Warehouse at night)
+### In a match (controller; the Test Chamber's test mode, then the co-op campaign on Marlow Yard)
 - [ ] Moving (anim-rework S1): how far you push the stick sets the speed, smoothly from a creep to a run (no speed
   buttons; d-pad up / down do nothing in play); most of the travel is creep / sneak / walk, the last fifth jogs and
   runs. Keyboard: WASD walks, hold Left Shift to run, Left Alt to creep. B crouches; a stop holds the stride, then
@@ -165,14 +166,14 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
 - [ ] (G6) Crouched on a wall: side-on, a hand on the knee, turning through facing out on a reversal; Open from the door
   menu steps to the latch side and pushes the door with a hand; the edge peek puts the head just past the frame.
 - [ ] Y climbs and uses: ladders, drainpipes, ledges (shimmy, climb up), pipes, ducts, windows, the split jump, wall jump,
-  rappel and fences on the Proving CT course.
+  rappel and fences on the Test Chamber's props.
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
   (light parity). Shooting a lamp or a switch darkens it for the meter and the guards at once.
 - [ ] Character shadows (LR14, High and up): under a lamp near you a guard, your partner, a body or a held rifle throws
   its real silhouette on the floor and walls (arms, legs, crouch), steady as you walk between lamps; at Medium (or
   Graphics > Character shadows Off) the soft capsule shadows return.
 - [ ] Guard shadow in view (guard-cap T1-SHADOW, A195): Marlow, a guard just out of view under a lamp, his shadow in
-  view: his shadow's feet do not step or slide (`&animshadow=0` shows the camera-only 1/8 rate).
+  view: his shadow's feet do not step or slide.
 - [ ] Guard alerts (guard-ai S1-S3, Sector Ops): a thrown bottle sends one guard over while the others only turn; shoot
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
@@ -189,11 +190,11 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   before his first radio line: no alarm, nobody comes.
 - [ ] Barks by cause (guard-rules S4): let a guard glimpse you at the edge of a light: he says a seeing line ("Thought
   I saw something."); throw a bottle near another: he says a hearing line; neither ever says the other kind.
-- [ ] Lookouts (guard-rules S7 / S9, Sector Ops S5, `?lookouts=1`): throw a bottle near the roof marksman: he only
+- [ ] Lookouts (guard-rules S7 / S9, Sector Ops S5): throw a bottle near the roof marksman: he only
   turns and edges within 1 m of his spot and someone else comes. Let him glimpse you lit: a startled line (e.g.
   "Huh?"), then a radio line, and a calm guard nearby walks to where you stood while he stays put. A second glimpse
   within 20 s: no second call.
-- [ ] Dog release (guard-rules S8, Sector Ops S4 / S5, `?dogrelease=1`): raise S4 to alarm stage 2: each free dog runs
+- [ ] Dog release (guard-rules S8, Sector Ops S4 / S5): raise S4 to alarm stage 2: each free dog runs
   to where you were last seen, searches, then goes back to its handler. A camera or laser alarm (no guard has seen
   you): the dogs search round their handlers instead.
 - [ ] Squads and dogs (guard-ai S5b, Sector Ops): knock a guard out unseen and wait up to ~40 s: his squad's radio
@@ -229,7 +230,7 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every
   round); a takedown drops either in one move.
 - [ ] Guard models (guard-models; on by default; `?guardmodels=0` is the old body):
-  - Variety: on a map with several guards (Sector Ops, Marlow Yard, the Warehouse) the guards are not clones: three
+  - Variety: on a map with several guards (Sector Ops, Marlow Yard) the guards are not clones: three
     builds (grunt, droneOp and officer average; runner and sniper lean; heavy and enforcer broad), different faces, skin
     tones, hair and hair colours, caps, beanies, a boonie on a sniper, a headset on the drone operator, a peaked cap on
     the officer, glasses on some (the sniper always dark ones). The heavy and enforcer wear a balaclava, no hair.
@@ -276,7 +277,7 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
   watching: a guard comes and switches it back on (a shot lamp stays dark); a timed isolator's lights stay off for its
   window (guards only come to look) and come back on their own.
   Campus S2: cut the reception panel board; #1 walks over and switches the atrium back on; take him at the board and it stays dark.
-- [ ] Lasers (guard-ai S17, Sector Ops campus S3 or the warehouse): break a beam near guards, then climb out of the room
+- [ ] Lasers (guard-ai S17, Sector Ops campus S3): break a beam near guards, then climb out of the room
   unseen: two guards come to the middle of the beam and search that room only; the reinforcements search there too and
   never head for where you went unless one sees you.
 - [ ] Dead bodies (guard-ai S18): leave a body where a patrol finds it and watch from cover: the finder and the guard who
@@ -330,9 +331,9 @@ history (docs/archive/testing-history.md, TESTING-pre-3.0.md, testing-job-sectio
 - [ ] Takedowns: A behind an unaware guard, GRAB CHARACTER (G7: the step-in and pull-in ~1 s; walk him at a slow pace;
   RT tap knocks him out and lowers him, RT hold kills, LT aims the pistol over his shoulder; Interrogate); a drop takedown from a pipe or ledge; a body takes 2 s to lift, carries at a slow
   walk, opens a door, and is put down beside you or hidden.
-- [ ] The wall medkit station on Proving Grounds (Free Roam): hurt, then hold to heal +40; it shows spent; at full
+- [ ] A wall medkit station (Marlow Yard or Tallow Wharf): hurt, then hold to heal +40; it shows spent; at full
   health it is refused ("Health full"). No other way heals.
-- [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).
+- [ ] The Marlow Yard prologue (co-op) runs to its results screen (the 0-100% rating shown, no rewards panel).
 - [ ] Animation tuner (G1: it opens in the Test Chamber only; main menu > Test Chamber): open it from Pause > Animation tuner (dev)
   (the match resumes with the panel open), Settings > Graphics > Animation tuner (dev) or F3 > Anim (the stage opens it too); on a phone the panel folds to its header (_ / +), scrolls, drags by
   thumb and closes with x, and Share / Copy shares, copies or shows the JSON. Walk: "arm swing amplitude", "stance knee
@@ -507,10 +508,10 @@ Main menu > Co-op > Host a room > Start (Marlow Yard), pad first, then keyboard 
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
   both players and the host's difficulty read-only on the client.
-- [ ] Infiltration on the Warehouse: both see the same guards, doors and bodies; a client takedown, door and objective
+- [ ] Marlow Yard campaign (prologue): both see the same guards, doors and bodies; a client takedown, door and objective
   register on the host; pings show on both; a downed partner is revived; results on both pages.
-- [ ] Free Roam on Proving Grounds: brace and boost onto the 4.2 m block, the human ladder, a dual takedown; partners
-  block each other (no walking through). The dual takedown banner shows on both; the host's `g.style.duals` is 1
+- [ ] Test Chamber in the test mode (Co-op > Host > Mode: Test Chamber): brace and boost onto the 4.4 m team block, the
+  human ladder, a dual takedown; partners block each other (no walking through). The dual takedown banner shows on both; the host's `g.style.duals` is 1
   and `style.knockouts` did not rise from the pairing (e2e-coop).
 - [ ] (optic-coop) Optic cable seen by the partner: one tab, at a closed door hold A, OPTIC CABLE. The other tab sees her
   kneel in front of the leaf, her right hand down at the door's foot and a thin dark cable running out under the door;
@@ -528,7 +529,7 @@ Main menu > Co-op > Host a room > Start (Marlow Yard), pad first, then keyboard 
 - [ ] Host: Start (Esc) > Restart at checkpoint: the confirm opens on Stay; Restart puts both players at the bay start.
   Joiner: Start > Restart at checkpoint and Return to lobby are greyed "Host only"; Quit to menu still works.
 - [ ] Host: Start > Return to lobby > Return: both tabs land in the room lobby (ready cleared), a new match starts.
-- [ ] Solo Sector Ops: Start > Restart at checkpoint > Restart: the section starts again from its checkpoint.
+- [ ] Co-op Sector Ops (Tallow Wharf, host): Start > Restart at checkpoint > Restart: the section starts again from its checkpoint.
 - [ ] (marlow-bays R) Rejoin: in a co-op match, Start shows "Room CODE". Joiner: Start > Quit to menu; the host sees
   "<name> disconnected - reconnecting..." and the joiner's body stays put. Joiner: Main menu > "Rejoin CODE": back in,
   where you stood, same health.
@@ -553,7 +554,7 @@ Main menu > Co-op > Host a room > Start (Marlow Yard), pad first, then keyboard 
 
 ### Offline and install
 - [ ] First visit online; wait for the "Ready to play offline" toast. Go offline, close the tab, reopen: the game boots,
-  menus work, a Free Roam and an Infiltration match play.
+  menus work, the Test Chamber plays.
 - [ ] Installed app (desktop Chrome / Edge install) offline: the same; Co-op shows the offline notice and nothing else
   is blocked.
 - [ ] Deploy a new version while the app is closed; the next online launch picks it up, progress intact.
@@ -562,7 +563,7 @@ Main menu > Co-op > Host a room > Start (Marlow Yard), pad first, then keyboard 
 - [ ] Switch to another window mid-match: on return a solo match is paused, sound was silent while away, progress saved.
 
 ### Save migration
-- [ ] Settings > Data > Import an export from an older build (v1 onwards): loadout and look carry over; a deleted gun
+- [ ] Settings > Data > Import an export from an older build (v1 onwards): the loadout carries over; a deleted gun
   becomes the kept gun of its slot.
 - [ ] A save from a newer build opened in an older one: Settings > Data says it was left untouched; playing does not
   overwrite it.
@@ -571,12 +572,12 @@ Main menu > Co-op > Host a room > Start (Marlow Yard), pad first, then keyboard 
 ### Controller (Xbox and PlayStation layouts)
 - [ ] Connect and hot-plug: "Controller connected" toast, prompts switch to the pad's glyphs; disconnect mid-match:
   "Controller disconnected", no stuck input; reconnect works without a reload.
-- [ ] Every screen is fully usable without the mouse: main menu, Play, Loadout, Settings, Co-op (Host / Join, the code
+- [ ] Every screen is fully usable without the mouse: main menu, Loadout, Settings, Co-op (Host / Join, the code
   keypad, Ready / Start / Leave), pause (Menu closes it), dialogs (A confirms, B cancels), results.
 - [ ] Rumble on firing, hits, explosions and damage (where the pad supports it); off when Vibration is off.
 
 ### Final pass
-- [ ] A 10-minute soak on the Warehouse (`node scripts/soak.mjs`, debug overlay): steady frame time, no heap growth, no
+- [ ] A 10-minute soak on Marlow Yard (`node scripts/soak.mjs`, debug overlay): steady frame time, no heap growth, no
   audio crackle.
-- [ ] Two PCs in co-op through an Infiltration mission, then Play again, then the host leaves.
+- [ ] Two PCs in co-op through the Marlow Yard prologue, then Return to lobby, then the host leaves.
 - [ ] iPad: version label, bottom strip, no GPU banner, pause room note.

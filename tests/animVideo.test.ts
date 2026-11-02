@@ -23,21 +23,21 @@ const err = (fn: () => unknown): string => {
 
 const EXAMPLE = {
   name: 'walk-gears',
-  params: 'autostart=proving',
+  params: 'autostart=chamber',
   hud: false,
   scenes: [
     {
       name: 'Walk, gear 3, side view',
-      params: 'autostart=proving&gear=3',
+      params: 'autostart=chamber&gear=3',
       seconds: 8,
       view: 'side',
-      place: [0, 0, -14, 1.5708],
+      place: [9, 0, 21, 1.5708],
       steps: [{ t: 0, move: [0, 1] }, { t: 6, move: [0, 0] }, { t: 6.5, press: 'B' }],
     },
   ],
 };
 /** A valid one-scene list with this scene merged in (and the list fields `list`). */
-const one = (scene: object, list: object = {}): object => ({ name: 'x', params: 'autostart=proving', scenes: [{ name: 's', seconds: 10, ...scene }], ...list });
+const one = (scene: object, list: object = {}): object => ({ name: 'x', params: 'autostart=chamber', scenes: [{ name: 's', seconds: 10, ...scene }], ...list });
 
 describe('anim-video parseArgs', () => {
   it('a full valid line', () => {
@@ -90,7 +90,7 @@ describe('anim-video parseSceneList', () => {
     expect(l.scenes[0]).toEqual(EXAMPLE.scenes[0]);
     const d = parse(one({}));
     expect(d.hud).toBe(false);
-    expect(d.scenes[0]).toEqual({ name: 's', seconds: 10, params: 'autostart=proving', view: 'ots', steps: [] });
+    expect(d.scenes[0]).toEqual({ name: 's', seconds: 10, params: 'autostart=chamber', view: 'ots', steps: [] });
   });
   it('a JSON text parses like the object', () => {
     expect(parse(JSON.stringify(EXAMPLE))).toEqual(parse(EXAMPLE));
@@ -99,12 +99,12 @@ describe('anim-video parseSceneList', () => {
     const cases: [object, RegExp][] = [
       [one({}, { name: 'Walk Gears' }), /l\.json: name /],
       [one({}, { params: 'mode=clear' }), /l\.json: params .*autostart=/],
-      [one({}, { params: '?autostart=proving' }), /l\.json: params must not start/],
-      [{ name: 'x', params: 'autostart=proving', scenes: [] }, /l\.json: scenes /],
-      [{ name: 'x', params: 'autostart=proving', scenes: [{ seconds: 5 }] }, /scene 0: name /],
+      [one({}, { params: '?autostart=chamber' }), /l\.json: params must not start/],
+      [{ name: 'x', params: 'autostart=chamber', scenes: [] }, /l\.json: scenes /],
+      [{ name: 'x', params: 'autostart=chamber', scenes: [{ seconds: 5 }] }, /scene 0: name /],
       [one({ seconds: 0 }), /scene 0: seconds /],
       [one({ seconds: 121 }), /scene 0: seconds /],
-      [{ name: 'x', params: 'autostart=proving', scenes: [{ name: 'a', seconds: 70 }, { name: 'b', seconds: 60 }] }, /l\.json: scenes total 130 s/],
+      [{ name: 'x', params: 'autostart=chamber', scenes: [{ name: 'a', seconds: 70 }, { name: 'b', seconds: 60 }] }, /l\.json: scenes total 130 s/],
       [one({ view: 'top' }), /scene 0: view /],
       [one({ place: [0, 0, 1] }), /scene 0: place /],
       [one({ steps: [{ t: 11, move: [0, 1] }] }), /scene 0 step 0: t /],
@@ -119,7 +119,7 @@ describe('anim-video parseSceneList', () => {
     for (const [list, re] of cases) expect(err(() => parse(list))).toMatch(re);
   });
   it('one bad list with three problems throws one error naming all three', () => {
-    const m = err(() => parse({ name: 'Bad Name', params: 'autostart=proving', scenes: [{ name: 's', seconds: 10, view: 'top', steps: [{ t: 0, press: 'Z' }] }] }));
+    const m = err(() => parse({ name: 'Bad Name', params: 'autostart=chamber', scenes: [{ name: 's', seconds: 10, view: 'top', steps: [{ t: 0, press: 'Z' }] }] }));
     expect(m).toMatch(/l\.json: name /);
     expect(m).toMatch(/l\.json scene 0: view /);
     expect(m).toMatch(/l\.json scene 0 step 0: press /);
@@ -129,8 +129,8 @@ describe('anim-video parseSceneList', () => {
 
 describe('anim-video pageParams', () => {
   it('adds the preset and gear=none unless the query names them', () => {
-    expect(pageParams('autostart=proving', 'high')).toBe('autostart=proving&gfx=high&gear=none');
-    expect(pageParams('autostart=proving&gfx=epic&gear=3', 'high')).toBe('autostart=proving&gfx=epic&gear=3');
+    expect(pageParams('autostart=chamber', 'high')).toBe('autostart=chamber&gfx=high&gear=none');
+    expect(pageParams('autostart=chamber&gfx=epic&gear=3', 'high')).toBe('autostart=chamber&gfx=epic&gear=3');
   });
 });
 
