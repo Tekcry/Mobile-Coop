@@ -242,3 +242,14 @@ automated run; textures in the level material system; the joining-side partner a
 the first playable Mission 1 area to the prototype standard. Documents only when a build needs them. The two-home relay
 test waits until Michael can do it ("I can't test the relay yet, I will test it later"). Vision v3 approval and the
 non-blocking review questions are deferred to their phases.
+
+**N51. Texture source** (native multiple choice, 2026-11-02, D33): "Code first, free where faster": improve the surface
+textures the game makes in code (`src/world/surfaceAtlas.ts`, 16 kinds, on every non-cheap level); a free CC0 photo
+texture only where a surface still looks flat, each download asked first. Code check the same day: N49's "untextured
+stylised shading" is only the cheap path (`levelMaterialPlugin.ts`); normal levels already wear the generated surfaces.
+
+**N52. Full move to Mixamo is build step 3** (native multiple choice, 2026-11-02; Michael: "The animations have been a
+pain point"): every animation on both operators and the guards from Mixamo, and the characters too. First a cost check
+of about 30 minutes (what is already on Mixamo, what a full move takes, the downloads he must make with his Adobe
+sign-in), then he approves the plan before the build. It replaces step 3's joining-side partner animation fix, which it
+covers.
