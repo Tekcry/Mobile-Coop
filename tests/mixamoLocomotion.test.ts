@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { LOCO_CLIPS, LOCO_N, locoBlend } from '../src/characters/locomotion';
+import { LOCO_SLOTS, LOCO_N, locoBlend, setClip } from '../src/characters/locomotion';
 import { MOVEMENT } from '../src/config/movement';
 
 const w = new Float64Array(LOCO_N);
 const r = new Float64Array(LOCO_N);
-const at = (name: (typeof LOCO_CLIPS)[number]): number => w[LOCO_CLIPS.indexOf(name)] as number;
+const at = (name: (typeof LOCO_SLOTS)[number]): number => w[LOCO_SLOTS.indexOf(name)] as number;
 const sum = (): number => w.reduce((a, b) => a + b, 0);
 
 describe('mixamo locomotion blend (mixamo-chars slice a)', () => {
@@ -29,18 +29,18 @@ describe('mixamo locomotion blend (mixamo-chars slice a)', () => {
   it('splits a diagonal between forward and strafe, and backwards uses the back walk', () => {
     locoBlend({ speed: 1.4, localX: 1, localZ: 1, crouch: 0 }, w, r);
     expect(at('walk')).toBeCloseTo(0.5, 9);
-    expect(at('strafe_walk_r')).toBeCloseTo(0.5, 9);
+    expect(at('right')).toBeCloseTo(0.5, 9);
     locoBlend({ speed: 1.2, localX: 0, localZ: -1, crouch: 0 }, w, r);
-    expect(at('walk_back')).toBeCloseTo(1, 9);
+    expect(at('back')).toBeCloseTo(1, 9);
     locoBlend({ speed: 1.3, localX: -1, localZ: 0, crouch: 0 }, w, r);
-    expect(at('strafe_walk_l')).toBeCloseTo(1, 9);
+    expect(at('left')).toBeCloseTo(1, 9);
   });
 
   it('crouches into the crouch idle and crouch walk', () => {
     locoBlend({ speed: 0, localX: 0, localZ: 0, crouch: 1 }, w, r);
-    expect(at('crouch_idle')).toBe(1);
+    expect(at('c_idle')).toBe(1);
     locoBlend({ speed: 1.1, localX: 0, localZ: 1, crouch: 1 }, w, r);
-    expect(at('crouch_walk')).toBeCloseTo(1, 9);
+    expect(at('c_walk')).toBeCloseTo(1, 9);
     locoBlend({ speed: 1.1, localX: 0, localZ: 1, crouch: 0.5 }, w, r);
     expect(sum()).toBeCloseTo(1, 9);
   });
@@ -56,5 +56,21 @@ describe('mixamo locomotion blend (mixamo-chars slice a)', () => {
             expect(v).toBeLessThanOrEqual(1.5);
           }
         }
+  });
+
+  it('aims the idles and turns a crouched sidestep into the crouched strafe', () => {
+    locoBlend({ speed: 0, localX: 0, localZ: 0, crouch: 0, aim: 1 }, w, r);
+    expect(at('aim_idle')).toBe(1);
+    locoBlend({ speed: 1, localX: 1, localZ: 0, crouch: 1 }, w, r);
+    expect(at('c_right')).toBeCloseTo(1, 9);
+  });
+
+  it('a set without a slot borrows the unarmed clip (pistol crouch walk, unarmed aim idle)', () => {
+    const k = (n: (typeof LOCO_SLOTS)[number]): number => LOCO_SLOTS.indexOf(n);
+    expect(setClip('rifle', k('c_left'))).toBe('rifle_crouch_strafe_l');
+    expect(setClip('pistol', k('c_walk'))).toBe('crouch_walk');
+    expect(setClip('pistol', k('aim_idle'))).toBe('pistol_idle');
+    expect(setClip('unarmed', k('aim_idle'))).toBe('idle');
+    expect(setClip('unarmed', k('c_back'))).toBe('crouch_walk');
   });
 });
