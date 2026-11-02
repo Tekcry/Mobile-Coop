@@ -70,7 +70,16 @@ export interface SessionEvents {
   late: { id: string };
   hostLeft: Record<string, never>;
   full: Record<string, never>;
+  /**
+   * (co-op relay fix, protocol 91) Another game version is in the room: on the client, the host's `hello` carried another
+   * version, or the host refused ours (`bye` `VERSION_BYE`), so the join can never work (the session is refused); on the
+   * host, a joiner of another version was refused. `theirs` is the other side's version (0: not known).
+   */
+  version: { theirs: number };
 }
+
+/** (co-op relay fix, protocol 91) The host's `bye` reason for a joiner of another protocol version. */
+export const VERSION_BYE = 'Different game version';
 
 /**
  * Lobby + message routing for a coop room. The host is authoritative: clients accept lobby/start/
@@ -132,6 +141,8 @@ export class NetSession {
   private holdTimer: ReturnType<typeof setInterval> | null = null;
   /** (R2) Client: refused by a full room; that room's lobbies are no longer ours to take. */
   private refused = false;
+  /** (co-op relay fix) Host: the connections already told they run another version (one `version` event each). */
+  private readonly versionTold = new Set<string>();
   /** (PR E fix) Host: removes the pending auto start's listeners (`startWhenUnblocked`); null when none is pending. */
   private autoOff: (() => void) | null = null;
 
@@ -207,7 +218,16 @@ export class NetSession {
 
   private hostReceive(msg: Msg, from: string, conn: string): void {
     if (msg.t === 'hello') {
-      if (msg.v !== PROTOCOL_VERSION) return;
+      // (co-op relay fix, protocol 91) a joiner of another version is told so (it used to be dropped silently: the joiner
+      // saw our lobby and waited, the host never saw it - one way "room code failed")
+      if (msg.v !== PROTOCOL_VERSION) {
+        this.send({ t: 'bye', reason: VERSION_BYE }, conn);
+        if (!this.versionTold.has(conn)) {
+          this.versionTold.add(conn);
+          this.events.emit('version', { theirs: msg.v });
+        }
+        return;
+      }
       let pid = from;
       // a fresh connection: the token's held slot (its first, tokenless hello may already have made it a new player,
       // which the held slot replaces), else in a full room the only held slot
@@ -293,7 +313,15 @@ export class NetSession {
       if (fresh) this.send(this.hello(true), from);
       return;
     }
-    if (msg.t === 'hello') return; // other clients introducing themselves; the host's lobby is authoritative
+    if (msg.t === 'hello') {
+      // (co-op relay fix, protocol 91) the host introduces itself first: another version can never take us in
+      if (msg.v !== PROTOCOL_VERSION && (!this.hostId || from === this.hostId)) this.refuseVersion(msg.v);
+      return; // other clients introducing themselves; the host's lobby is authoritative
+    }
+    if (msg.t === 'bye' && msg.reason === VERSION_BYE && (!this.hostId || from === this.hostId)) {
+      this.refuseVersion(0);
+      return;
+    }
     // a full room's host refuses us before we ever see its lobby
     if (msg.t === 'bye' && !this.hostId && /full/i.test(msg.reason)) {
       this.refused = true;
@@ -322,6 +350,14 @@ export class NetSession {
       return;
     }
     this.events.emit('game', { msg, from });
+  }
+
+  /** (co-op relay fix) Client: the room's host runs another version; its lobbies are no longer ours to take. */
+  private refuseVersion(theirs: number): void {
+    if (this.refused) return;
+    this.refused = true;
+    this.hostId = null;
+    this.events.emit('version', { theirs });
   }
 
   private peerLeft(conn: string): void {

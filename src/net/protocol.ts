@@ -21,7 +21,7 @@ import type { MotionState } from '../anim/motion';
 import type { AnimSource } from '../anim/animSource';
 
 /** The wire version. Only this line holds it; tests read it. Bump it in the PR that changes the wire (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 90;
+export const PROTOCOL_VERSION = 91;
 /** The colour of a player's pings and lobby dot. Fixed: the saved player tag (title, emblem, colour) that used to set it was removed in clean-up I (protocol 90); per-operator colours are future work. */
 export const PLAYER_COLOUR = '#ff8a1e';
 /** Room cap on the wire: two players in every mode (`COOP_MAX`, `COURSE_MAX`). */
