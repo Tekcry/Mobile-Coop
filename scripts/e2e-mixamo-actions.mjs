@@ -177,7 +177,7 @@ try {
   console.log('pipe held phases', held.map((x) => x.ph.toFixed(2)).join(' '));
   assert(held.length >= 1 && held.every((x) => [0.05, 0.47, 0.78].some((g) => Math.abs(x.ph - g) < 0.02)), `stopped on the pipe the climb holds on a grip (${held.length} held frames)`);
   // (walk-test fix A2) the wall kick's own spin is taken out: the hip line keeps its first frame's angle (the raw clip
-  // turns about 140 deg)
+  // turns about 220 deg)
   const kickYaw = [];
   for (const t of [0.1, 0.5, 0.9]) {
     await hold({ traverse: 'wallKick', traverseT: t });
