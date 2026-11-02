@@ -34,12 +34,19 @@ def fcurves(act):
         yield from act.fcurves
 
 
-def in_place(act):
+# Moves whose climb the game's traversal already carries (the body rises with the ladder / ledge): their vertical
+# travel goes too (channel 1), else the body would rise twice.
+CLIMBS = ('ladder', 'hang_climb_up')
+
+
+def in_place(act, name=''):
     """Removes the hips' steady ground travel (pack moves carry it; the game's controller moves the body): on the two
-    horizontal location channels (0, 2: the Hips bone's own frame), the straight line from the first key to the last is
-    taken away, so the sway stays and the clip starts and ends on the spot. In-place downloads change by millimetres."""
+    horizontal location channels (0, 2: the Hips bone's own frame), and the vertical one (1) for `CLIMBS`, the straight
+    line from the first key to the last is taken away, so the sway stays and the clip starts and ends on the spot.
+    In-place downloads change by millimetres."""
+    axes = (0, 1, 2) if name in CLIMBS else (0, 2)
     for fc in fcurves(act):
-        if not (fc.data_path.endswith('location') and 'Hips' in fc.data_path and fc.array_index in (0, 2)):
+        if not (fc.data_path.endswith('location') and 'Hips' in fc.data_path and fc.array_index in axes):
             continue
         ks = fc.keyframe_points
         if len(ks) < 2:
@@ -123,7 +130,7 @@ def main():
         if len(src) != 1 or src[0].animation_data is None or src[0].animation_data.action is None:
             raise RuntimeError(f'{f}: expected one animated armature')
         act = src[0].animation_data.action
-        in_place(act)
+        in_place(act, name)
         k = retarget(act, src[0], rig)
         act.name = name
         act.use_fake_user = True

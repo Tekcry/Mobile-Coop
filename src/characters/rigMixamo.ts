@@ -10,6 +10,7 @@ import type { CharacterRig } from '../player/characterRig';
 import { handsWeaponOf } from '../anim/tuneHands';
 import { MixamoBody, type HoldKind, type MixamoModel } from './mixamoBody';
 import type { LocoSet } from './locomotion';
+import { pickAction, type ActionOut } from './actions';
 import { flags } from '../core/flags';
 import { CHAMBER_MAP_ID } from '../anim/chamberMapId';
 import { goggleColour } from '../operators/runtime/goggle';
@@ -67,7 +68,10 @@ export function dressRig(scene: Scene, rig: CharacterRig, model: MixamoModel, op
     { node: r.headNode, bone: 'Head', rest: restIn(r.headNode, r.root) },
   ]);
   body.holdGun(r.root, r.weaponPivot, r.grip, () => heldKind(r));
-  const hook = (dt: number, s: Parameters<NonNullable<CharacterRig['onAnimate']>>[1]): void => body.update(s, mixamoSetOf(r), dt);
+  // (slice e) a body over the shoulder walks the carry set; an action (hang, ladder, climb-up, strike, throw) fades over
+  const act: ActionOut = { clip: null, t: NaN };
+  const hook = (dt: number, s: Parameters<NonNullable<CharacterRig['onAnimate']>>[1]): void =>
+    body.update(s, s.carryBody ? 'carry' : mixamoSetOf(r), dt, pickAction(s, r.holdingKnife, act));
   r.onAnimate = hook;
   return {
     body,

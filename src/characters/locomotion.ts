@@ -31,8 +31,8 @@ export function slotMoves(k: number): boolean {
 }
 
 /** The move sets: the packed animation (glTF name) for each slot, or null to borrow the unarmed set's. */
-export type LocoSet = 'unarmed' | 'rifle' | 'pistol';
-export const LOCO_SETS: readonly LocoSet[] = ['unarmed', 'rifle', 'pistol'];
+export type LocoSet = 'unarmed' | 'rifle' | 'pistol' | 'carry';
+export const LOCO_SETS: readonly LocoSet[] = ['unarmed', 'rifle', 'pistol', 'carry'];
 export const LOCO_SET_CLIPS: Readonly<Record<LocoSet, Readonly<Record<LocoSlot, string | null>>>> = {
   unarmed: {
     idle: 'idle', aim_idle: null, walk: 'walk', run: 'run', sprint: 'sprint', back: 'walk_back', left: 'strafe_walk_l', right: 'strafe_walk_r',
@@ -47,6 +47,12 @@ export const LOCO_SET_CLIPS: Readonly<Record<LocoSet, Readonly<Record<LocoSlot, 
     idle: 'pistol_idle', aim_idle: null, walk: 'pistol_walk', run: 'pistol_run', sprint: 'pistol_run', back: 'pistol_walk_back',
     left: 'pistol_strafe_l', right: 'pistol_strafe_r', c_idle: 'pistol_crouch_idle', c_aim_idle: null, c_walk: null, c_back: null,
     c_left: null, c_right: null,
+  },
+  // (slice e) a body over the shoulder: one walk for every standing direction and pace (the carrier's pace is capped)
+  carry: {
+    idle: 'carry_idle', aim_idle: null, walk: 'carry_walk', run: 'carry_walk', sprint: 'carry_walk', back: 'carry_walk',
+    left: 'carry_walk', right: 'carry_walk', c_idle: null, c_aim_idle: null, c_walk: null, c_back: null, c_left: null,
+    c_right: null,
   },
 };
 
