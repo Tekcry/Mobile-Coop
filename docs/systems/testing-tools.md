@@ -185,7 +185,7 @@ behind a VPN adapter).
 - `e2e-parity` (GPU list, trains via `TRAIN_PARITY`): Marlow Yard (3), Low and Epic (the campus parts 1-2 and the Warehouse part 4 are gone);
   grey cards found by field level per `DARK_TARGETS` row (0.27 row: within 0.02 and under 0.28), moving lights held still,
   meter = field within 0.02 at every card; `KNOWN` entries (in the script: owner, a date at most 7 days out) print and pass
-  until the date; one `PARITY-SUMMARY` line per part; not in affected runs: light jobs request it by name; part 4 adds the character-shadow card (own `charlight=1` pages, char shadows Off / Low / Epic: a parked guard's shadow on a card, luma ratio within 0.1 of the field levels (with the contract) through the part's measured grey-card luma, inside reads within 0.03, band report only until J10; one `CHARSHADOW` line)
+  until the date; one `PARITY-SUMMARY` line per part; not in affected runs: light jobs request it by name; part 4 adds the character-shadow card (own pages, char shadows Off / Low / Epic: a parked guard's shadow on a card, luma ratio within 0.1 of the field levels (with the contract) through the part's measured grey-card luma, inside reads within 0.03, band report only until J10; one `CHARSHADOW` line)
 - `e2e-darkness` (GPU list): night vision (on) at the 0.12 / 0.70 points, the turning check, (LR16-6) thermal: the button cuts
   on the first frame both ways, a guard behind a shut door shows one dim blue silhouette, none with the door open
 - `e2e-coop-gpu` (GPU list, port 4189) the real menu flow, two players (shared and separate contexts at High, shared at Epic; `COOPGPU_ALL=1` adds separate at Epic): fails on a "failed to load" console message, no host avatar or LOD on the joiner, the host not drawn (body mesh enabled, visible, active, bounds over 0.5 m), or "Connecting to host" still shown; `scripts/repro-coop-avatar.mjs` is the diagnostic version
@@ -454,8 +454,7 @@ behind a VPN adapter).
 - `E2E_GPU=1 E2E_PORT=4189 timeout 1800 node scripts/look-video.mjs <dir> <plan.json> [sections]` (campaign look-video): a 1280 x 720 walk video per section of a plan (`scripts/look-video/tallowWharf.json`: Tallow Wharf W1-W4, ~75 s each), the photo camera flying the plan's path over the frozen world: `<dir>/<section>.webm` and `<section>.json` (`start`: the flight's offset after the boot). The look video a lighting or animation PR links; never committed. Pure parts: `tests/lookVideo.test.ts`.
 - `scripts/guard-cap.mjs` (T1-SHADOW) also reports the anim tier in its counted render sample: `anim_ms_mean` / `_p95`
   (EnemyManager.frameUpdate per real frame), `anim_solves_per_frame`, `anim_offscreen_per_frame` (not camera-drawn),
-  `anim_shadow_seen_per_frame` and `eval_mean_ms` (the shadow test runs in the evaluation); `--query=animoff=4&animshadow=0`
-  is master's rule, `--query=animshadow=0` tier 8 camera only.
+  `anim_shadow_seen_per_frame` and `eval_mean_ms` (the shadow test runs in the evaluation).
 - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
 - `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]`
   (anim-bake) bakes an animation tuner export into the code defaults: `--dry-run` prints the diff and the table and

@@ -1,5 +1,5 @@
-// Traversal and wall contact sheets of Wren (feature/anim-cleanup slice 3): each move from e2e-clip's set-ups on
-// Proving, frames at the given times, a camera beside her (her right, out from the anchor) after the game's camera.
+// Traversal and wall contact sheets of Wren (feature/anim-cleanup slice 3): each move from e2e-clip's set-ups in
+// the Test Chamber, frames at the given times, a camera beside her (her right, out from the anchor) after the game's camera.
 //   E2E_GPU=1 node scripts/anim-cleanup/traverse-shots.mjs <outDir> [move ...]   (serves dist/ on E2E_PORT, 4189)
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -13,31 +13,31 @@ mkdirSync(out, { recursive: true });
 
 // set-up: [x, y, z, yaw] (e2e-clip), input per frame, frame times (s), camera [right, up, forward, target up] in her frame
 const MOVES = {
-  'ladder-climb': { at: [25.2, 0, 11, Math.PI / 2], tap: 'jump', move: [0, 1], times: [0.6, 1.4, 2.4, 3.6], cam: [1.4, 1.2, -0.6, 1.0] },
-  'ladder-dense': { at: [25.2, 0, 11, Math.PI / 2], tap: 'jump', move: [0, 1], times: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4], cam: [1.4, 1.2, -0.6, 1.0] },
-  'ladder-slide': { at: [26.7, 3.6, 11, -Math.PI / 2], tap: 'jump', move: [0, -1], times: [0.5, 1.2, 2.0], cam: [1.4, 0.4, -0.6, 0.6] },
-  'drainpipe': { at: [27.8, 0, 8.95, 0], tap: 'jump', move: [0, 1], times: [0.6, 1.6, 3.0], cam: [1.3, 1.1, -0.7, 1.0] },
-  'hang-shimmy': { at: [25.45, 0, 16, Math.PI / 2], tap: 'jump', move: [1, 0], times: [0.5, 1.2, 2.2], cam: [1.2, 0.6, -1.4, 1.4] },
-  'hang-climb': { at: [25.45, 0, 16, Math.PI / 2], tap: 'jump', tap2: [0.6, 'jump'], times: [0.4, 0.9, 1.3, 1.8], cam: [1.6, 1.0, -0.8, 1.4] },
+  'ladder-climb': { at: [3.8, 0, 9, -Math.PI / 2], tap: 'jump', move: [0, 1], times: [0.6, 1.4, 2.4, 3.6], cam: [1.4, 1.2, -0.6, 1.0] },
+  'ladder-dense': { at: [3.8, 0, 9, -Math.PI / 2], tap: 'jump', move: [0, 1], times: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4], cam: [1.4, 1.2, -0.6, 1.0] },
+  'ladder-slide': { at: [2.35, 3.0, 9, Math.PI / 2], tap: 'jump', move: [0, -1], times: [0.5, 1.2, 2.0], cam: [1.4, 0.4, -0.6, 0.6] },
+  'drainpipe': { at: [3.55, 0, 10.4, -Math.PI / 2], tap: 'jump', move: [0, 1], times: [0.6, 1.6, 3.0], cam: [1.3, 1.1, -0.7, 1.0] },
+  'hang-shimmy': { at: [4, 0, 24.4, 0], tap: 'jump', move: [1, 0], times: [0.5, 1.2, 2.2], cam: [1.2, 0.6, -1.4, 1.4] },
+  'hang-climb': { at: [4, 0, 24.4, 0], tap: 'jump', tap2: [0.6, 'jump'], times: [0.4, 0.9, 1.3, 1.8], cam: [1.6, 1.0, -0.8, 1.4] },
   // (ct-prototype D+E) dense frames: the climb-up's three phases, the shimmy's reaches, the drainpipe's legs
-  'hang-climb-dense': { at: [25.45, 0, 16, Math.PI / 2], tap: 'jump', tap2: [0.6, 'jump'], times: [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.7], cam: [2.4, 0.9, -1.2, 0.8] },
-  'hang-shimmy-dense': { at: [25.45, 0, 16, Math.PI / 2], tap: 'jump', move: [1, 0], times: [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4], cam: [1.2, 0.6, -1.4, 1.4] },
-  'drainpipe-dense': { at: [27.8, 0, 8.95, 0], tap: 'jump', move: [0, 1], times: [1.0, 1.2, 1.4, 1.6, 1.8, 2.0], cam: [2.0, 0.5, -1.6, 0.7] },
-  'pipe-hands': { at: [25.5, 0, 23.1, 0], camYaw: Math.PI / 2, tap: 'jump', move: [0, 1], times: [0.5, 1.2, 2.0], cam: [1.6, 0.4, 0.4, 1.6] },
-  'duct': { at: [21.75, 3.2, -5, Math.PI / 2], tap: 'jump', move: [0, 1], times: [1.0, 2.5], cam: [1.2, 0.6, 0.3, 0.3] },
-  'window-vault': { at: [26, 0, -9.2, 0], tap: 'jump', times: [0.25, 0.55, 0.9], cam: [1.8, 1.0, 0.2, 0.8] },
-  'zipline': { at: [26.5, 3.6, 10.2, Math.PI], tap: 'jump', times: [0.4, 1.0, 1.8], cam: [1.6, 1.0, 0.0, 1.1] },
-  'rappel': { at: [24, 'RH', 27.0, Math.PI], tap: 'jump', move: [0, -1], times: [0.8, 1.6, 2.6], cam: [-1.5, 1.1, -0.2, 1.0] },
-  'fence': { at: [-9, 0, 25.4, 0], tap: 'jump', move: [0, 1], times: [0.6, 1.2, 2.0], cam: [1.4, 1.4, -0.8, 1.3] },
-  'wall-stand': { at: [-8.3, 0, 0.5, 0], wall: true, times: [0.8], cam: [0.3, 1.4, 1.8, 1.0] },
-  'wall-crouch': { at: [-8.3, 0, 0.5, 0], wall: true, crouch: true, times: [0.8], cam: [0.3, 1.0, 1.8, 0.6] },
-  'wall-slide': { at: [-8.3, 0, 0.5, 0], wall: true, move: [1, 0], times: [0.6, 1.2], cam: [0.3, 1.4, 1.8, 1.0] },
+  'hang-climb-dense': { at: [4, 0, 24.4, 0], tap: 'jump', tap2: [0.6, 'jump'], times: [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.7], cam: [2.4, 0.9, -1.2, 0.8] },
+  'hang-shimmy-dense': { at: [4, 0, 24.4, 0], tap: 'jump', move: [1, 0], times: [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4], cam: [1.2, 0.6, -1.4, 1.4] },
+  'drainpipe-dense': { at: [3.55, 0, 10.4, -Math.PI / 2], tap: 'jump', move: [0, 1], times: [1.0, 1.2, 1.4, 1.6, 1.8, 2.0], cam: [2.0, 0.5, -1.6, 0.7] },
+  'pipe-hands': { at: [25.2, 0, 6.5, Math.PI / 2], camYaw: 0, tap: 'jump', move: [0, 1], times: [0.5, 1.2, 2.0], cam: [1.6, 0.4, 0.4, 1.6] },
+  'duct': { at: [20.4, 0, 14, Math.PI / 2], tap: 'jump', move: [0, 1], times: [1.0, 2.5], cam: [1.2, 0.6, 0.3, 0.3] },
+  'window-vault': { at: [18, 0, 2.8, 0], tap: 'jump', times: [0.25, 0.55, 0.9], cam: [1.8, 1.0, 0.2, 0.8] },
+  'zipline': { at: [5.3, 2.42, 26.4, Math.PI], tap: 'jump', times: [0.4, 1.0, 1.8], cam: [1.6, 1.0, 0.0, 1.1] },
+  'rappel': { at: [16.3, 'RH', 25.6, Math.PI], tap: 'jump', move: [0, -1], times: [0.8, 1.6, 2.6], cam: [-1.5, 1.1, -0.2, 1.0] },
+  'fence': { at: [7.5, 0, 5.2, 0], tap: 'jump', move: [0, 1], times: [0.6, 1.2, 2.0], cam: [1.4, 1.4, -0.8, 1.3] },
+  'wall-stand': { at: [10, 0, 0.5, 0], wall: true, times: [0.8], cam: [0.3, 1.4, 1.8, 1.0] },
+  'wall-crouch': { at: [10, 0, 0.5, 0], wall: true, crouch: true, times: [0.8], cam: [0.3, 1.0, 1.8, 0.6] },
+  'wall-slide': { at: [10, 0, 0.5, 0], wall: true, move: [1, 0], times: [0.6, 1.2], cam: [0.3, 1.4, 1.8, 1.0] },
 };
 
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { windowsHide: true, stdio: 'ignore' });
 process.on('exit', () => server.kill());
 await new Promise((r) => setTimeout(r, 2500));
-const { browser, page, errors } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: 'autostart=proving', viewport: { width: 1280, height: 720 } });
+const { browser, page, errors } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: 'autostart=chamber', viewport: { width: 1280, height: 720 } });
 const report = {};
 try {
   await waitOperator(page, 1, 180000);
@@ -74,7 +74,7 @@ try {
       g.traversal.reset();
       st.releaseAll();
       if (c.crouched) c.clearCrouchToggle();
-      const y = m.at[1] === 'RH' ? 5.7 : m.at[1];
+      const y = m.at[1] === 'RH' ? 4.42 : m.at[1];
       c.teleport(new V(m.at[0], y, m.at[2]), m.at[3]);
       p.cam.yaw = m.camYaw ?? m.at[3];
       p.cam.pitch = 0;

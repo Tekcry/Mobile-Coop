@@ -32,7 +32,7 @@ export const CAMPAIGN_ORDER: readonly CampaignEntry[] = [
 /** Every entry key in order (the records sanitise unknown keys away against it). */
 export const CAMPAIGN_KEYS: readonly CampaignKey[] = CAMPAIGN_ORDER.map((e) => e.key);
 
-/** The maps a prologue room may name: Marlow Yard and its re-plan (`roomMap` with `?marlowreplan=1`, J14). */
+/** The maps a prologue room may name: Marlow Yard and its re-plan (`roomMap`, J14). */
 const PROLOGUE_MAPS: readonly string[] = ['ctcourse', 'ctcourseReplan'];
 
 /** The map shape this module reads (a `MapDef` fits): its id and its missions' ids. */

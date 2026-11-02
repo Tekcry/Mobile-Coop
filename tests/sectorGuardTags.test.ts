@@ -29,18 +29,12 @@ import type { DamageRegistry } from '../src/game/damage';
 import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
 
-// (one-game) flags default on now; the fake guards have no loops, so this file runs without the pair, lookout and dog-release rules: `=0`
-const guardPairs0 = flags.guardPairs;
-const lookouts0 = flags.lookouts;
+// (one-game) flags default on now; the fake guards have no loops, so this file runs without the dog-release rule: `=0`
 const dogRelease0 = flags.dogRelease;
 beforeAll(() => {
-  flags.guardPairs = false;
-  flags.lookouts = false;
   flags.dogRelease = false;
 });
 afterAll(() => {
-  flags.guardPairs = guardPairs0;
-  flags.lookouts = lookouts0;
   flags.dogRelease = dogRelease0;
 });
 
@@ -236,6 +230,9 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     taken: false,
     runningAlarm: false,
     dog: null,
+    patrolRoute: null,
+    postDef: null,
+    postPoint: [x, z],
     buff: false,
     secure: false,
     level: 'unaware',

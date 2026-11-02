@@ -55,7 +55,7 @@ async function join(hostParams, clientParams) {
     await until(A, () => !!document.querySelector('.lobby-screen') && !!window.__coop, null, 15000, 'host lobby');
     // (mission-rules R7, R4) the lobby on Sector Ops, Tallow Wharf, Realistic; the host alone cannot start the campaign:
     // `startMatch()` returns null, the room stays in the lobby and the Start button carries the blocked text
-    await A.evaluate(() => window.__coop.session.setSettings('sector', 'tallowWharf', 'realistic', ''));
+    await A.evaluate(() => window.__coop.session.setSettings('sector', 'tallowWharf', 'realistic'));
     const alone = await A.evaluate(() => { const s = window.__coop.session; return { start: s.startMatch(), phase: s.phase, n: s.players.size }; });
     assert(alone.start === null && alone.phase === 'lobby' && alone.n === 1, `the host alone cannot start: startMatch() null, the room in the lobby (${JSON.stringify(alone)})`);
     await until(A, (t) => { const b = document.querySelector('.lobby-actions .btn[data-key="start"]'); return !!b && b.classList.contains('blocked') && b.dataset.locked === t; }, TWO_PLAYERS, 8000, 'the Start button shows the blocked text');

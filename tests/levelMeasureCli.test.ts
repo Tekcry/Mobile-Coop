@@ -75,13 +75,13 @@ describe('level-measure parseArgs', () => {
   });
 
   it('--flags is repeatable and splits key=value[,value]; a malformed one throws', () => {
-    const a = cli.parseArgs(['a.json', 'b.json', '--flags', 'guardSun=0', '--flags=loadout=1,2,3']);
+    const a = cli.parseArgs(['a.json', 'b.json', '--flags', 'guardMerge=0', '--flags=loadout=1,2,3']);
     expect(a.files).toHaveLength(2);
     expect(a.flags).toEqual([
-      { key: 'guardSun', values: ['0'] },
+      { key: 'guardMerge', values: ['0'] },
       { key: 'loadout', values: ['1', '2', '3'] },
     ]);
-    expect(() => cli.parseArgs(['g.json', '--flags', 'guardSun'])).toThrow(/--flags takes/);
+    expect(() => cli.parseArgs(['g.json', '--flags', 'guardMerge'])).toThrow(/--flags takes/);
     expect(() => cli.parseArgs(['g.json', '--flags', '=1'])).toThrow(/--flags takes/);
     expect(() => cli.parseArgs(['g.json', '--flags', 'k='])).toThrow(/--flags takes/);
   });
@@ -178,11 +178,11 @@ describe('level-measure --flags', () => {
     expect(done.map(([k]) => k)).toEqual(['sun', 'gear', 'loadout', 'pick', 'name']);
   });
 
-  it('works on the real flags object: guardSun (boolean) is set, a made-up key is refused and not added', () => {
+  it('works on the real flags object: guardMerge (boolean) is set, a made-up key is refused and not added', () => {
     const copy: Record<string, unknown> = { ...flags };
-    expect(copy.guardSun).toBe(true);
-    cli.applyFlags(copy, [{ key: 'guardSun', values: ['false'] }]);
-    expect(copy.guardSun).toBe(false);
+    expect(copy.guardMerge).toBe(true);
+    cli.applyFlags(copy, [{ key: 'guardMerge', values: ['false'] }]);
+    expect(copy.guardMerge).toBe(false);
     expect(() => cli.applyFlags(copy, [{ key: 'notAFlag', values: ['1'] }])).toThrow(/unknown key 'notAFlag'/);
     expect('notAFlag' in copy).toBe(false);
   });

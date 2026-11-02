@@ -20,7 +20,8 @@ merges); `docs/plan/DECISIONS-2026-11.md` (one game: master is the only build, 2
   folder are cached by lockfile / source hash.
 - Every feature flag in `src/core/flags.ts` that the old preview switched on defaults on in this build
   (`PREVIEW_ON` is the constant `true`; `darkFlag`; Michael 2026-11-01, "master becomes the only game"). A URL `=0`
-  turns one off for testing (`?ctxprompts=0`, `?kitmoves=0`, `?mixamo=0`). Stage J of the cleanup plan removes the flags.
+  turns one off for testing (`?ctxprompts=0`, `?kitmoves=0`, `?mixamo=0`). Clean-up stage J (2026-11-02) removed the flags whose feature
+  is permanent; the rest wait on a later job (Sector Ops, the Mixamo switch) or are comparison switches the play tests use.
 - The build's label shows the version and the commit (G183): the commit is the checked-out folder's own HEAD
   (`src/core/buildSha.ts`); GITHUB_SHA is only the fallback when git fails. The game's save database is IndexedDB
   `shoulder-strike` (`src/save/db.ts`).

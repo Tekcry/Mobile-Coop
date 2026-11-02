@@ -228,9 +228,6 @@ describe('flag on: the guard figure over the rig', () => {
   it('(S11) the tier\'s own skipped state gates the figure: `GuardAnimTier.skipped` after each update', async () => {
     const { B, scene } = await setup();
     const { GuardAnimTier } = await import('../src/ai/animTierView');
-    const { flags } = await import('../src/core/flags');
-    const was = flags.animTier;
-    flags.animTier = true;
     const body = new B.Mesh('tierbody', scene);
     const cam = new B.FreeCamera('tiercam', new B.Vector3(0, 1.6, 0), scene);
     scene.activeCamera = cam;
@@ -249,7 +246,6 @@ describe('flag on: the guard figure over the rig', () => {
     expect(got.filter(Boolean).length).toBe(3);
     expect(got.some((s) => !s)).toBe(true);
     fid.mockRestore();
-    flags.animTier = was;
   });
 
   it('despawn: the owner frees the figure first; a rig disposed alone frees it too (the client ragdoll path)', async () => {

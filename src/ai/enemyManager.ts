@@ -177,8 +177,8 @@ export class EnemyManager {
    */
   stealth = false;
   /**
-   * (guard-ai-j16 G3, G352) The character-occluder contract (`GameState.charOccluders`, set after construction by G4a;
-   * null while `charShadowLight` is off): the guards' light reads (a target without its own sample, a body, a fallen
+   * (guard-ai-j16 G3, G352) The character-occluder contract (`GameState.charOccluders`, set after construction by G4a):
+   * the guards' light reads (a target without its own sample, a body, a fallen
    * guard) take the characters' shadows from it. The guards read it through `AiContext.chars` (a getter, so a later set
    * reaches them). Null: today's light.
    */
@@ -2340,14 +2340,13 @@ export class EnemyManager {
     if (inList) this.buildPair(e, index);
   }
 
-  /** (guard-rules S7, A9) The post a slot gives: a lookout's (flag on) is a high-security copy, so `Enemy.secure`, the
-   *  lure and the board's `GV_POSTED` hold him with no `enemy.ts` change; flag off it is no post (today). A dog is never
-   *  a lookout (his smell counts as sight, S4): on a lookout post he gets no post either way. Load time; the copy is the
-   *  only allocation. */
+  /** (guard-rules S7, A9) The post a slot gives: a lookout's is a high-security copy, so `Enemy.secure`, the lure and the
+   *  board's `GV_POSTED` hold him with no `enemy.ts` change. A dog is never a lookout (his smell counts as sight, S4): on
+   *  a lookout post he gets no post. Load time; the copy is the only allocation. */
   private slotPost(p: PostDef | undefined, dog: boolean): PostDef | null {
     if (!p) return null;
     if (!p.lookout) return p;
-    return flags.lookouts && !dog ? { ...p, highSecurity: true } : null;
+    return !dog ? { ...p, highSecurity: true } : null;
   }
 
   /**
@@ -2357,9 +2356,9 @@ export class EnemyManager {
    * overlap, at the slower walker's speed: a timed loop walks at `walkSpeed`). The two walkers' loop times now line the
    * clocks up (they may have been placed at different moments). No window (no timed loop, periods differ, no overlap):
    * logged (`pairSkips`, a console warning) and skipped. Load time only.
-   * (guard-rules S6, A10, A11; `flags.guardPairs`, read here only) A timed-loop pair also gets the walking-together
+   * (guard-rules S6, A10, A11) A timed-loop pair also gets the walking-together
    * check (`PairDef.watch`); two standing guards (`postedWhyNot`) whose posts are within `PAIRS.meetMax` become a posted
-   * pair (`postedDef`: meet points at the posts, a fixed clock). Flag off: today's path, nothing new read.
+   * pair (`postedDef`: meet points at the posts, a fixed clock).
    */
   private buildPair(e: Enemy, index: number): void {
     const sg = this.slotGuard;
@@ -2393,16 +2392,13 @@ export class EnemyManager {
     const id = e.section * 100 + lo;
     const why = this.pairWhyNot(A, B);
     if (why) {
-      let pw = '';
-      if (flags.guardPairs) {
-        pw = this.postedWhyNot(A, B);
-        if (!pw) {
-          const pa = A.postPoint;
-          const pb = B.postPoint;
-          const pm = new PairMeet(postedDef(id, [pa[0], pa[1]], [pb[0], pb[1]]));
-          this.pairs.push({ pm, sa: lo, sb: hi });
-          return;
-        }
+      const pw = this.postedWhyNot(A, B);
+      if (!pw) {
+        const pa = A.postPoint;
+        const pb = B.postPoint;
+        const pm = new PairMeet(postedDef(id, [pa[0], pa[1]], [pb[0], pb[1]]));
+        this.pairs.push({ pm, sa: lo, sb: hi });
+        return;
       }
       const msg = pw ? `section ${e.section} slots ${lo} + ${hi}: ${why} (posted pair: ${pw})` : `section ${e.section} slots ${lo} + ${hi}: ${why}`;
       this.pairSkips.push(msg);
@@ -2425,7 +2421,7 @@ export class EnemyManager {
     }
     const pa = ra.points[m.stopA]!;
     const pb = rb.points[m.stopB]!;
-    const pm = new PairMeet({ id, period: ra.loop!.period, t0: ta, open: m.open, close: m.close, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]], watch: flags.guardPairs });
+    const pm = new PairMeet({ id, period: ra.loop!.period, t0: ta, open: m.open, close: m.close, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]], watch: true });
     this.pairs.push({ pm, sa: lo, sb: hi });
   }
 
@@ -2441,7 +2437,7 @@ export class EnemyManager {
 
   /**
    * (guard-rules S6, A11, S6-a) Why two guards cannot be a posted pair ('' when they can): each stands (no route at all,
-   * or a post with an untimed route) and their posts are within `PAIRS.meetMax`. Load time only (`flags.guardPairs`).
+   * or a post with an untimed route) and their posts are within `PAIRS.meetMax`. Load time only.
    */
   private postedWhyNot(A: Enemy, B: Enemy): string {
     if (A.dog || B.dog) return 'a dog does not talk';

@@ -103,7 +103,7 @@ try {
   await B.keyboard.type(code.toLowerCase());
   await B.keyboard.press('Enter');
   await until(A, () => window.__coop.session.players.size === 2, null, 15000, 'host sees client');
-  await GA(() => window.__coop.session.setSettings('course', 'courselab', 'normal', ''));
+  await GA(() => window.__coop.session.setSettings('course', 'courselab', 'normal'));
   await GB(() => window.__coop.session.setReady(true));
   await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
   await GA(() => window.__coop.session.startMatch());

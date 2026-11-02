@@ -25,8 +25,6 @@ export interface StartInfo {
   map: string;
   seed: number;
   difficulty: Difficulty;
-  /** The retired Infiltration mission field (always ''). */
-  mission: string;
   weather: WeatherChoice;
   /** Course mode: the bay to start at (1-based, D20). (campaign-mode CM3) Sector Ops with `flags.campaign`: the section
    *  to start at (1-based; 1 the mission's own start). */
@@ -38,19 +36,11 @@ export interface StartInfo {
 }
 
 /**
- * (J14 R1, PLAN A16) The map a host's room opens on: Marlow Yard (`ctcourse`) is the re-planned yard (`ctcourseReplan`)
- * with `?marlowreplan=1`; every other map, and the flag off, as picked. The client loads the map the host's `start` names.
+ * (J14 R1, PLAN A16) The map a host's room opens on: Marlow Yard (`ctcourse`) is the re-planned yard (`ctcourseReplan`);
+ * every other map as picked. A "Resume hosting" record goes through it too. The client loads the map the host's `start` names.
  */
-export function roomMap(map: string, replan = flags.marlowReplan): string {
-  return replan && map === 'ctcourse' ? 'ctcourseReplan' : map;
-}
-
-/**
- * (J14 R1 fix 8) The map a "Resume hosting" record reopens on: a record kept on the re-planned yard falls back to the
- * built yard when this page has `?marlowreplan=1` off (the re-plan is dark); with the flag on, as `roomMap`.
- */
-export function resumeMap(map: string, replan = flags.marlowReplan): string {
-  return !replan && map === 'ctcourseReplan' ? 'ctcourse' : roomMap(map, replan);
+export function roomMap(map: string): string {
+  return map === 'ctcourse' ? 'ctcourseReplan' : map;
 }
 
 export interface SessionEvents {
@@ -100,7 +90,6 @@ export class NetSession {
   mode: NetMode = 'course';
   map = roomMap('ctcourse');
   difficulty: Difficulty = 'normal';
-  mission = '';
   /**
    * (mission-framework NET3) Sector Ops' mission. Host: its own `?mission=` (the mission its mode binds), sent in a
    * sector `start`. Client: the one the host's last `start` carried ('' none), never its own URL's: its start section
@@ -314,7 +303,6 @@ export class NetSession {
       this.mode = msg.mode;
       this.map = msg.map;
       this.difficulty = msg.difficulty;
-      this.mission = msg.mission;
       this.weather = msg.weather;
       this.phase = msg.phase;
       this.lobbySm = msg.sm ?? '';
@@ -342,7 +330,7 @@ export class NetSession {
     if (from !== this.hostId) return;
     if (msg.t === 'start') {
       this.phase = 'playing';
-      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1, ...(msg.sm ? { sectorMission: msg.sm } : {}) };
+      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, weather: msg.weather, bay: msg.bay ?? 1, ...(msg.sm ? { sectorMission: msg.sm } : {}) };
       // (NET3) the host's sector mission, or none: ours (`?mission=`) never counts
       this.sectorMission = msg.mode === 'sector' ? (msg.sm ?? '') : '';
       this.events.emit('start', this.start);
@@ -418,7 +406,7 @@ export class NetSession {
     if (!this.isHost) return;
     const players = [...this.players.values()];
     const sm = this.campaignPick;
-    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission, weather: this.weather, ...(sm ? { sm } : {}) });
+    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, weather: this.weather, ...(sm ? { sm } : {}) });
     this.events.emit('lobby', { players });
   }
 
@@ -438,7 +426,7 @@ export class NetSession {
     else this.toHost({ t: 'ready', ready });
   }
 
-  setSettings(mode: NetMode, map: string, difficulty: Difficulty, _mission = '', weather = this.weather, sm = this.sectorMission): void {
+  setSettings(mode: NetMode, map: string, difficulty: Difficulty, weather = this.weather, sm = this.sectorMission): void {
     if (!this.isHost) return;
     // (campaign-mode CM3, PLAN 3.4) the lobby's campaign pick sets Sector Ops' mission, only with `flags.campaign` and
     // `flags.missions` (as the constructor's URL path); flags off: the session's mission as before
@@ -453,7 +441,7 @@ export class NetSession {
     }
     this.sectorMission = pick;
     this.mode = mode;
-    // (J14 R1) the lobby's Marlow Yard pick opens the re-planned yard with the flag on
+    // (J14 R1) the lobby's Marlow Yard pick opens the re-planned yard
     this.map = roomMap(map);
     this.difficulty = difficulty;
     this.weather = weather;
@@ -512,7 +500,7 @@ export class NetSession {
     // host's start only (`startMsg` never sends it) and is used once
     const resume = this.resumeFor(sm);
     this.campaignResume = null;
-    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : this.sectorStartBay(resume), ...(sm ? { sectorMission: sm } : {}), ...(resume ? { campaignResume: resume } : {}) };
+    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : this.sectorStartBay(resume), ...(sm ? { sectorMission: sm } : {}), ...(resume ? { campaignResume: resume } : {}) };
     this.send(startMsg(this.start));
     this.broadcastLobby();
     this.events.emit('start', this.start);
@@ -558,7 +546,7 @@ export class NetSession {
    */
   continueCampaign(save: CampaignSave): void {
     if (!this.isHost || !flags.campaign || !flags.missions) return;
-    this.setSettings('sector', save.map, save.difficulty, '', this.weather, save.mission);
+    this.setSettings('sector', save.map, save.difficulty, this.weather, save.mission);
     this.campaignResume = save;
   }
 
@@ -640,5 +628,5 @@ export function sectorStartOpts(s: StartInfo): Pick<GameOptions, 'sectorMission'
 
 /** The `start` message for a match ((NET3) `sm` only when a sector mission is set). */
 export function startMsg(s: StartInfo): Msg {
-  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, bay: s.bay ?? 1, ...(s.sectorMission ? { sm: s.sectorMission } : {}) };
+  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, weather: s.weather, bay: s.bay ?? 1, ...(s.sectorMission ? { sm: s.sectorMission } : {}) };
 }

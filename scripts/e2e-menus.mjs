@@ -385,7 +385,7 @@ try {
   assert(menuKeys === 'coop,loadout,settings,feedback,test-chamber', `the main menu is Co-op, Loadout, Settings, Feedback, Test Chamber (${menuKeys})`);
   // (marlow-bays R1) no rejoin row without a room; a room left in the last 10 minutes shows "Rejoin <code>" after Co-op
   const rj = await G(() => {
-    sessionStorage.setItem('ns-rejoin', JSON.stringify({ code: 'ABCDE', role: 'client', at: Date.now(), mode: 'course', map: 'ctcourse', difficulty: 'normal', mission: '', weather: 'clear', bay: 2 }));
+    sessionStorage.setItem('ns-rejoin', JSON.stringify({ code: 'ABCDE', role: 'client', at: Date.now(), mode: 'course', map: 'ctcourse', difficulty: 'normal', weather: 'clear', bay: 2 }));
     window.__app.screens.top.onShow();
     const keys = [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(',');
     const label = document.querySelector('.main-menu [data-key="rejoin"] .btn-label')?.textContent ?? '';

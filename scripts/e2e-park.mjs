@@ -60,7 +60,7 @@ try {
     return { mode0, map0, seen, maps };
   });
   // (sector-ops slice 3) co-op is the campaign: Marlow Yard in Course mode by default; no Sector Ops map is listed
-  assert(lob.mode0 === 'course' && lob.map0 === 'ctcourseReplan', `a new room starts on the campaign, Marlow Yard, the re-planned yard (marlowreplan is on by default) (${lob.mode0}, ${lob.map0})`);
+  assert(lob.mode0 === 'course' && lob.map0 === 'ctcourseReplan', `a new room starts on the campaign, Marlow Yard, the re-planned yard (a room opens on the re-plan) (${lob.mode0}, ${lob.map0})`);
   // (clean-up G1) plus the Test Chamber: the test mode on the dev map `chamber` (e2e-coop:chamber starts it)
   assert(JSON.stringify(lob.seen) === JSON.stringify(['Campaign', 'Test Chamber']), `the lobby lists Campaign and the Test Chamber only (${lob.seen})`);
   assert(lob.maps['Campaign'] === 'ctcourseReplan' && lob.maps['Test Chamber'] === 'chamber', `the Test Chamber is the chamber map, the Campaign Marlow Yard (${JSON.stringify(lob.maps)})`);

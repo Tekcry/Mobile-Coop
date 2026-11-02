@@ -47,27 +47,19 @@ describe('LR14 character shadow presets', () => {
 describe('Character shadows settings help (CHAR_SHADOW_HELP)', () => {
   const p = CHAR_SHADOW_PRESET;
 
-  it('off is the Settings text as it stood before the flag (byte for byte)', () => {
-    expect(CHAR_SHADOW_HELP.off).toBe('The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: follows Shadows (the nearest lamp on Low and Medium, more lamps from High). Looks only: the light meter and the guards are the same either way.');
+  it('names the lamp counts the preset table holds (1 on Low and Medium, more from High)', () => {
+    expect(p.low.lamps === 1 && p.medium.lamps === 1 && p.high.lamps > 1, 'preset table changed: update CHAR_SHADOW_HELP').toBe(true);
+    expect(CHAR_SHADOW_HELP).toContain('(the nearest lamp on Low and Medium, more lamps from High)');
   });
 
-  it('on names the lamp counts the preset table holds (1 on Low and Medium, more from High)', () => {
-    expect(p.low.lamps === 1 && p.medium.lamps === 1 && p.high.lamps > 1, 'preset table changed: update CHAR_SHADOW_HELP.on').toBe(true);
-    expect(CHAR_SHADOW_HELP.on).toContain('(the nearest lamp on Low and Medium, more lamps from High)');
-  });
-
-  it('only on says the meter darkens; both keep the shared opening and the Off / Auto lines', () => {
-    expect(CHAR_SHADOW_HELP.on).toContain('a shadow on you darkens the light meter and what guards see by the same amount at every setting.');
-    expect(CHAR_SHADOW_HELP.off).not.toContain('darkens');
+  it('says the meter darkens, and keeps the opening and the Off / Auto lines', () => {
+    expect(CHAR_SHADOW_HELP).toContain('a shadow on you darkens the light meter and what guards see by the same amount at every setting.');
     const lead = 'The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: follows Shadows ';
-    expect(CHAR_SHADOW_HELP.on.startsWith(lead)).toBe(true);
-    expect(CHAR_SHADOW_HELP.off.startsWith(lead)).toBe(true);
+    expect(CHAR_SHADOW_HELP.startsWith(lead)).toBe(true);
   });
 
-  it('plain text: no em or en dashes in either string', () => {
-    for (const s of [CHAR_SHADOW_HELP.off, CHAR_SHADOW_HELP.on]) {
-      expect(s).not.toMatch(/[–—]/);
-    }
+  it('plain text: no em or en dashes', () => {
+    expect(CHAR_SHADOW_HELP).not.toMatch(/[–—]/);
   });
 });
 

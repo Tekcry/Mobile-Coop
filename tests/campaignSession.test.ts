@@ -456,20 +456,20 @@ describe('CM3: the lobby pick sets the session mission; the lobby carries it as 
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const cli = sess(h.make('C'), 'client', 'ABCDE', prof('Cli'));
-    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', 'threeGreyCoats');
+    host.setSettings('sector', 'tallowWharf', 'normal', 'clear', 'threeGreyCoats');
     expect(host.sectorMission).toBe('threeGreyCoats');
     expect(host.campaignPick).toBe('threeGreyCoats');
     expect(cli.campaignPick).toBe('threeGreyCoats');
     expect(cli.sectorMission).toBe('');
-    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', 'twoKeyLedger');
+    host.setSettings('sector', 'tallowWharf', 'normal', 'clear', 'twoKeyLedger');
     expect(cli.campaignPick).toBe('twoKeyLedger');
     expect(host.startMatch()?.sectorMission).toBe('twoKeyLedger');
     expect(cli.sectorMission).toBe('twoKeyLedger');
     // junk is no mission; the prologue (course) shows none
     host.backToLobby();
-    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', '<b>');
+    host.setSettings('sector', 'tallowWharf', 'normal', 'clear', '<b>');
     expect(host.sectorMission).toBe('');
-    host.setSettings('course', 'ctcourse', 'normal', '', 'clear', 'threeGreyCoats');
+    host.setSettings('course', 'ctcourse', 'normal', 'clear', 'threeGreyCoats');
     expect(host.campaignPick).toBe('');
     expect(cli.campaignPick).toBe('');
   });
@@ -477,16 +477,16 @@ describe('CM3: the lobby pick sets the session mission; the lobby carries it as 
   it('a new pick cancels a pending auto start; the same pick keeps it', () => {
     setFlags(true);
     const host = sess(hub().make('H'), 'host', 'ABCDE', prof('Host'));
-    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', 'threeGreyCoats');
+    host.setSettings('sector', 'tallowWharf', 'normal', 'clear', 'threeGreyCoats');
     host.startWhenUnblocked(() => host.campaignBlock);
-    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', 'threeGreyCoats');
+    host.setSettings('sector', 'tallowWharf', 'normal', 'clear', 'threeGreyCoats');
     expect(host.autoStarting).toBe(true);
-    host.setSettings('sector', 'tallowWharf', 'normal', '', 'clear', 'twoKeyLedger');
+    host.setSettings('sector', 'tallowWharf', 'normal', 'clear', 'twoKeyLedger');
     expect(host.autoStarting).toBe(false);
   });
 
   it('lobby sm parse: a mission id passes; junk is dropped; absent is the lobby as before', () => {
-    const lobby = { t: 'lobby', players: [], mode: 'sector', map: 'tallowWharf', difficulty: 'normal', phase: 'lobby', mission: '', weather: 'clear' };
+    const lobby = { t: 'lobby', players: [], mode: 'sector', map: 'tallowWharf', difficulty: 'normal', phase: 'lobby', weather: 'clear' };
     expect(parseMessage({ ...lobby, sm: 'threeGreyCoats' })).toMatchObject({ t: 'lobby', sm: 'threeGreyCoats' });
     for (const bad of ['', 'a b', 'x'.repeat(65), 7, null, { id: 'x' }]) expect('sm' in (parseMessage({ ...lobby, sm: bad }) as object)).toBe(false);
     expect(parseMessage(lobby)).toEqual(lobby);
@@ -503,7 +503,7 @@ describe('CM3: the lobby pick sets the session mission; the lobby carries it as 
       const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
       const cli = sess(h.make('C'), 'client', 'ABCDE', prof('Cli'));
       const sent = tap(host);
-      host.setSettings('sector', 'kestrel', 'normal', '', 'clear', 'threeGreyCoats');
+      host.setSettings('sector', 'kestrel', 'normal', 'clear', 'threeGreyCoats');
       expect(host.sectorMission).toBe('');
       expect(host.campaignPick).toBe('');
       expect(cli.campaignPick).toBe('');
@@ -538,7 +538,7 @@ describe('CM3: a sector campaign start carries the section in bay', () => {
     expect(got!).toMatchObject({ mode: 'sector', bay: W('W3') + 1, sectorMission: 'threeGreyCoats' });
     expect('campaignResume' in got!).toBe(false);
     const wireStart = sent.find((x) => x.t === 'start')!;
-    expect(Object.keys(wireStart).sort()).toEqual(['bay', 'difficulty', 'map', 'mission', 'mode', 'seed', 'sm', 't', 'time', 'weather']);
+    expect(Object.keys(wireStart).sort()).toEqual(['bay', 'difficulty', 'map', 'mode', 'seed', 'sm', 't', 'time', 'weather']);
     expect(sectorStartOpts(s)).toEqual({ sectorStart: 3, sectorMission: 'threeGreyCoats', campaignResume: save });
     expect(sectorStartOpts(got!)).toEqual({ sectorStart: 3, sectorMission: 'threeGreyCoats' });
     // used once: the room's next start is the mission from its own start
@@ -550,14 +550,14 @@ describe('CM3: a sector campaign start carries the section in bay', () => {
     setFlags(true);
     const host = sess(hub().make('H'), 'host', 'ABCDE', prof('Host'));
     host.continueCampaign(tgcSave());
-    host.setSettings('sector', 'tallowWharf', 'realistic', '', 'clear', 'threeGreyCoats');
+    host.setSettings('sector', 'tallowWharf', 'realistic', 'clear', 'threeGreyCoats');
     expect(host.campaignResume).toBeNull();
     expect(host.sectorStartBay()).toBe(1);
     host.continueCampaign(tgcSave());
-    host.setSettings('sector', 'tallowWharf', 'normal', '', 'rain', 'threeGreyCoats');
+    host.setSettings('sector', 'tallowWharf', 'normal', 'rain', 'threeGreyCoats');
     expect(host.campaignResume).not.toBeNull();
     expect(host.sectorStartBay()).toBe(3);
-    host.setSettings('sector', 'tallowWharf', 'normal', '', 'rain', 'twoKeyLedger');
+    host.setSettings('sector', 'tallowWharf', 'normal', 'rain', 'twoKeyLedger');
     expect(host.campaignResume).toBeNull();
     // its earlier steps would be missing (PLAN risk 1)
     host.sectorBay = 3;
@@ -708,7 +708,7 @@ describe('CM3: rejoin (A11)', () => {
   it('RejoinRecord keeps sm through tab storage; junk sm is dropped; absent as before', () => {
     const m = new Map<string, string>();
     vi.stubGlobal('sessionStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
-    const rec: RejoinRecord = { code: 'ABCDE', role: 'host', at: Date.now(), mode: 'sector', map: 'tallowWharf', difficulty: 'normal', mission: '', weather: 'clear', bay: 3, sm: 'threeGreyCoats' };
+    const rec: RejoinRecord = { code: 'ABCDE', role: 'host', at: Date.now(), mode: 'sector', map: 'tallowWharf', difficulty: 'normal', weather: 'clear', bay: 3, sm: 'threeGreyCoats' };
     saveRejoin(rec);
     expect(loadRejoin()).toEqual(rec);
     saveRejoin({ ...rec, sm: 'a b<' });

@@ -51,7 +51,7 @@ import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 import { KitRender } from './kit/kitRender';
 import { PropRender } from './props/propRender';
-import { SunCascadeLists, csmSplitLen, csmSplitZ, keepNearCamera, sunCasterDrawn, useCascadeLists } from './sunCascadeCull';
+import { SunCascadeLists, csmSplitLen, csmSplitZ, keepNearCamera, sunCasterDrawn } from './sunCascadeCull';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
 export { FLASHLIGHTS } from './torches';
@@ -447,7 +447,7 @@ export class World {
     }
     if (!this.sunMoving.includes(m)) {
       this.sunMoving.push(m);
-      this.sunReach.push(flags.guardSun ? sunReach : Infinity);
+      this.sunReach.push(sunReach);
       this.sunNear.push(true);
       this.sunT = 0;
       m.onEffectiveEnabledStateChangedObservable.add(this.markSun);
@@ -588,7 +588,10 @@ export class World {
     const sm = csm.getShadowMap();
     if (sm) {
       sm.renderList = this.sunCasters;
-      if (useCascadeLists(flags.guardSun, this.bakedMoon)) sm.getCustomRenderList = this.cascadeList;
+      // Babylon re-prepares a custom render list for every cascade layer (the default list is prepared once a frame), so
+      // the per-cascade lists pay only where the list is all moving casters: under the baked moon the level is not a sun
+      // caster. Otherwise the level sits in the list and would be prepared up to 4 times per refresh.
+      if (this.bakedMoon) sm.getCustomRenderList = this.cascadeList;
     }
     if (!this.sunRefillOn) {
       this.sunRefillOn = true;

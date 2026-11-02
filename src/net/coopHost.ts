@@ -202,8 +202,6 @@ export class CoopHost implements NetAttachment {
   private readonly ff: boolean;
   /** Course mode: `ctick` rate limit per client. */
   private ctickLim = new Map<string, TickLimiter>();
-  /** Free roam: respawn timers. */
-  private respawnIn = new Map<string, number>();
   /** (B8, G126) 30 s revive window, 2 revives per mission; past either the player is out until the checkpoint. */
   readonly reviveClock = new ReviveClock();
   /** (mission-rules R5, G126, Q19) The match runs a campaign mission: 2 revives, never topped up (`addSyringes`). */
@@ -320,7 +318,7 @@ export class CoopHost implements NetAttachment {
 
   private hookHud(): void {
     const hud = this.g.hud;
-    // (coop-fix, bug 2) an objective set before the hook (Free Roam's, `gameState.ts` create) reaches the client too
+    // (coop-fix, bug 2) an objective set before the hook (`gameState.ts` create) reaches the client too
     this.obj = hud.objectiveText;
     const setObjective = hud.setObjective.bind(hud);
     hud.setObjective = (t) => {
@@ -617,14 +615,10 @@ export class CoopHost implements NetAttachment {
     // (coop-carry) down: the body drops where he fell
     this.remoteDrop(r.id);
     this.g.hud.feedItem(`${r.avatar.info.name} is down`, 'warn');
-    if (!this.g.mode) {
-      this.respawnIn.set(r.id, 3); // free roam
-      return;
-    }
     if (this.anyoneUp(r.id) && this.g.interactables) {
       if (this.reviveClock.down(r.id)) this.addRevive(r.id, r.feet, r.avatar.info.name);
       else this.goOut(r.id);
-    } else this.g.mode.onPlayerDeath();
+    } else this.g.mode?.onPlayerDeath();
   }
 
   /**
@@ -1993,15 +1987,6 @@ export class CoopHost implements NetAttachment {
       if (s.t > TD_MAX || !by || !by.alive) this.release(eid);
     }
     this.remoteNoise(dt);
-    for (const [id, t] of this.respawnIn) {
-      const left = t - dt;
-      if (left > 0) {
-        this.respawnIn.set(id, left);
-        continue;
-      }
-      this.respawnIn.delete(id);
-      this.reviveOne(id, this.spawnPoint([...this.remotes.keys()].indexOf(id) + 1));
-    }
     this.histT -= dt;
     if (this.histT <= 0) {
       this.histT = 1 / HISTORY_HZ;

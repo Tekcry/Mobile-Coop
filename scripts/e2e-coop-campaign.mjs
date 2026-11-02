@@ -177,16 +177,20 @@ async function joinByCode(P, code) {
 const clickStart = (P) => P.evaluate(() => document.querySelector('.lobby-actions .btn[data-key="start"]')?.click());
 /** A sector match with its net on this page. */
 const inMatch = (P, what) => until(P, () => { const g = window.__app.current; return g?.opts?.mode === 'sector' && !!g.net && !g.isEnded; }, null, LOAD_MS, what);
-/** The host's guards frozen and nobody hurt (the test reads the campaign, not the stealth). Needs the client's state on the host. */
+/** The host's guards frozen and nobody hurt (the test reads the campaign, not the stealth). Safe to repeat. Call it the moment the host is in
+ *  the match, before waiting for the other page to load: on a slow machine the guards otherwise see the idle players and raise an alarm
+ *  while the joiner loads (that alarm made the rating 85%, not 100% PERFECT: a guard's alarm is one `run.alarmsRaised`, -15). */
+const halt = (A) => A.evaluate(() => {
+  const g = window.__app.current;
+  g.target.damageMul = 0;
+  for (const r of g.net.remotes.values()) r.damageMul = 0;
+  g.enemyMgr.update = () => {};
+  if (g.security) g.security.fixedUpdate = () => {};
+});
+/** `halt`, then (the client's state is on the host) again for the partner's damage too. */
 async function freeze(A, what) {
   await until(A, () => window.__app.current.net.remotes.values().next().value?.state, null, 15000, `${what}: the client's state reaches the host`);
-  await A.evaluate(() => {
-    const g = window.__app.current;
-    g.target.damageMul = 0;
-    for (const r of g.net.remotes.values()) r.damageMul = 0;
-    g.enemyMgr.update = () => {};
-    if (g.security) g.security.fixedUpdate = () => {};
-  });
+  await halt(A);
 }
 /** The results panel as drawn on page `P`. */
 const panel = (P) => P.evaluate(() => ({
@@ -256,6 +260,7 @@ try {
   const difficulty = await A.evaluate(() => window.__coop.session.difficulty);
   await clickStart(A);
   await inMatch(A, 'the host match');
+  await halt(A);
   await inMatch(B, 'the partner match');
   setSimPages([A, B]);
   await until(A, () => !!window.__sector && !!window.__mission && window.__sector.debug().index === 0, null, LOAD_MS, 'the host runs section W1');
@@ -315,6 +320,7 @@ try {
   console.log('Start: the match starts at the saved section');
   await clickStart(A2);
   await inMatch(A2, 'the continued host match');
+  await halt(A2);
   await inMatch(C, 'the continued joiner match');
   setSimPages([A2, C]);
   await until(A2, () => !!window.__sector && !!window.__mission, null, LOAD_MS, 'the host runs the continued mission');

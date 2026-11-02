@@ -1,5 +1,4 @@
 import { Vector3 } from '../../core/babylon';
-import { flags } from '../../core/flags';
 import type { MapDef, MapLayout } from '../mapDef';
 import { LevelBuilder } from '../levelBuilder';
 import { FacilityKit } from '../kit/facilityKit';
@@ -217,15 +216,15 @@ export const ctcourse: MapDef = {
 };
 
 /**
- * (J14 Marlow re-plan, A16) The re-planned yard: map `ctcourseReplan`, unlisted (in `MAPS` after `ctcourse`, not in `LISTED_MAP_IDS`). A host with
- * `?marlowreplan=1` opens its room on it and the client loads whatever map the host's `start` names. Reached by
- * `?autostart=ctcourseReplan&mode=course`. Dark until switch-on (`flags.marlowReplan`); C1 then points `ctcourse` at it.
+(J14 Marlow re-plan, A16) The re-planned yard: map `ctcourseReplan`, unlisted (in `MAPS` after `ctcourse`, not in `LISTED_MAP_IDS`). A host
+ * opens its room on it and the client loads whatever map the host's `start` names. Reached by
+ * `?autostart=ctcourseReplan&mode=course`; a host's room opens on it (`roomMap`).
  */
 export const ctcourseReplan: MapDef = {
   ...ctcourse,
   id: 'ctcourseReplan',
   name: 'Marlow Yard (re-plan)',
-  description: "Marlow Yard re-planned: eighteen stations, one forced route, retries in place (dark behind ?marlowreplan=1).",
+  description: "Marlow Yard re-planned: eighteen stations, one forced route, retries in place.",
   build(b): MapLayout {
     return buildCtcourse(b, { replan: true }).layout;
   },
@@ -246,15 +245,14 @@ export const LIGHT_SPOTS: Readonly<Record<SetId | 'facility', readonly LightSpot
 export const SHOT_VANTAGES: readonly ShotVantage[] = [...LOAD.facility.shotVantages, ...LOAD.parts.flatMap((p) => p.shotVantages)];
 
 /**
- * (J14) The re-plan's data build, memoised: it runs only when something asks for it, so a page with the flag off builds
- * one yard at load, not two. It registers under its own map id (the lobby's "Start at" counts its bays) when
- * `?marlowreplan=1` is on or the page autostarts `ctcourseReplan`; the course start registers it anyway (`courseMode`).
+ * (J14) The re-plan's data build, memoised: one build, whoever asks first. It registers under its own map id at load
+ * (the lobby's "Start at" counts its bays); the course start registers it anyway (`courseMode`).
  */
 let replanBuild: CtcourseBuild | null = null;
 export function replanLoad(): CtcourseBuild {
   return (replanBuild ??= buildCtcourse(new LevelBuilder(), { replan: true }));
 }
-if (flags.marlowReplan || flags.autostart === 'ctcourseReplan') registerCourse('ctcourseReplan', replanLoad().layout.course!.def);
+registerCourse('ctcourseReplan', replanLoad().layout.course!.def);
 
 /** (J14) The re-plan's co-op lips, light-test spots and GPU vantages (the set slices' tests and `CTLIGHT_VARIANT=replan`); the first call builds it. */
 export function coopLipsReplan(): readonly CoopLip[] {

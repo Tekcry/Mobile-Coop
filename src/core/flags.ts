@@ -78,35 +78,12 @@ export interface Flags {
    *  the merged S1 body (comparisons, and the fallback while a guard's files load). Default ON everywhere since gm-flip
    *  (the G8 gate passed after gm-perf, the gm-look fixes are baked; Michael ~23:55 2026-10-26 "Just switch them on"). */
   guardModels: boolean;
-  /** (guard-render S4) Guard anim tiers (off-screen every `ANIM_TIER_OFFSCREEN` th frame, far every 2nd:
-   *  `src/ai/animTier.ts`); `?animtier=0` off. */
-  animTier: boolean;
-  /** (guard-cap T1-SHADOW, A195) Shadow-in-view counts as seen: a guard out of view whose shadow can fall in it animates
-   *  at full rate (`src/ai/animTierView.ts`); `?animshadow=0` off, for A/B. */
-  animShadow: boolean;
-  /** (guard-cap T1-SHADOW) Dev A/B: the off-screen tier's period, `?animoff=N` (0 = `ANIM_TIER_OFFSCREEN`). */
-  animOff: number;
-  /** (guard-render S6) Per-cascade sun caster lists and the guards' sun reach; `?guardsun=0`: off, for comparisons. */
-  guardSun: boolean;
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
-  /** (guard-rules S6, A10, A11) Pairs that walk together check on each other at once; posted pairs talk and check.
-   *  `?guardpairs=0` turns it off; on by default (one-game, 2026-11-01). */
-  guardPairs: boolean;
-  /** (guard-rules S7, A9) Lookout posts: never sent, never leave, radio a sighting. `?lookouts=0` turns it off;
-   *  on by default (one-game, 2026-11-01). */
-  lookouts: boolean;
   /** (guard-rules S8, A12) Alarm stage dogs leave the heel for the last known position. `?dogrelease=0` turns it off;
    *  on by default (one-game, 2026-11-01). */
   dogRelease: boolean;
-  /** (J14 Marlow re-plan, owner Marlow Build, switch-on 2026-10-29) `?marlowreplan=0`: off; on by default (one-game, 2026-11-01): a host's room opens on the re-planned
-   *  yard (map `ctcourseReplan`); the client loads whatever map the host names. */
-  marlowReplan: boolean;
-  /** (char-shadow-meter, J16) Character shadows in the light meter and the guards' light (`world/charOccluders.ts`);
-   *  `?charlight=0` off; on by default
-   *  (one-game, 2026-11-01). */
-  charShadowLight: boolean;
   /** (map-ready, `docs/map-ready/PLAN.md`; owner Night Shift | Sector Ops Build; switch-on after Michael's Sector Ops
    *  and Marlow Yard walks, target 2026-11-01) The loading screen waits for a built and warmed map, the campus lamps
    *  ship pre-built, the costly parts are kept between matches, the lobby preloads. `?mapready=0` off; on by default
@@ -185,8 +162,9 @@ export function onOffFlag(v: string | null): boolean | null {
 }
 
 /** (one-game, Michael 2026-11-01) Every feature flag that used to be on only in the /preview/ build ("All on in preview",
- *  2026-10-26) is on by default in every build: the live game, dev and tests. A URL `=0` still turns one off. The name stays
- *  until stage J removes the flags. */
+ *  2026-10-26) is on by default in every build: the live game, dev and tests. A URL `=0` still turns one off. Stage J
+ *  (2026-11-02) removed the flags whose feature is permanent; what is left is Sector Ops, the co-op kit, the animation
+ *  source and the guard-body and load-gate comparison switches. */
 export const PREVIEW_ON = true;
 
 /** (preview-flags) A feature flag's URL value: "1" on, "0" off, else the default (`preview`: on; the game passes `PREVIEW_ON`). */
@@ -264,22 +242,14 @@ export const flags: Flags = {
   guardMerge: params.get('guardmerge') !== '0',
   // (guard-models G7, gm-flip) default on: `?guardmodels=0` keeps the merged S1 body
   guardModels: params.get('guardmodels') !== '0',
-  animTier: params.get('animtier') !== '0',
-  animShadow: params.get('animshadow') !== '0',
-  animOff: Number(params.get('animoff')) | 0,
-  guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
   // (mission-framework FLG) on by default (one-game): `?missions=0` / `?coopkit=0` turn them off
   missions: darkFlag(params.get('missions'), PREVIEW_ON),
   // (coop-kit A1) the kit's list flag; `coopKit` stays Campaign's gate, its load value read from the list
   coopKit: readCoopKit(params.get('coopkit'), kitMovesAtLoad),
   kitMoves: kitMovesAtLoad,
-  // (guard-rules F0) on by default (one-game): `=0` turns each off
-  guardPairs: darkFlag(params.get('guardpairs'), PREVIEW_ON),
-  lookouts: darkFlag(params.get('lookouts'), PREVIEW_ON),
+  // (guard-rules F0) on by default (one-game): `=0` turns it off
   dogRelease: darkFlag(params.get('dogrelease'), PREVIEW_ON),
-  marlowReplan: darkFlag(params.get('marlowreplan'), PREVIEW_ON),
-  charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
   contextPrompts: darkFlag(params.get('ctxprompts'), PREVIEW_ON),
   // (campaign-mode A10) on by default (one-game): `?campaign=0` off

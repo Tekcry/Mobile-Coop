@@ -19,7 +19,7 @@
  * up, they count as walking together when within `PAIRS.togetherR`; if one then goes down or absent and the other stays
  * calm for `PAIRS.notice` s, the pair goes missing at once (the same outputs as the window's `grace` path; inside the
  * window this check fires first when they were together). The timer counts only while the one left is calm. A posted
- * pair (`postedDef`: two standing guards, the manager builds it behind `flags.guardPairs`) runs the same clock with its
+ * pair (`postedDef`: two standing guards, the manager builds it) runs the same clock with its
  * meet points at the two posts: a fixed `PAIRS.postedPeriod` s period whose window is its first `PAIRS.postedOpen` s,
  * opening on the first step (no randomness, G143), with `watch` on.
  */

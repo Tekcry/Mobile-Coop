@@ -51,11 +51,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   above) stays the base rule; a lookout is the deliberate exception on its route; a vent lookout stands where he
   overlooks the vent run or its exit, not in the vent (G378). Built: talking pairs on a timed loop that meet, and search
   when the partner is missing at the meeting (guard-ai S10, "Talking pairs" below), plus the squad radio checks. Built
-  dark behind `guardPairs` (guard-rules S6, J15): a partner check while the pair walks between meetings, and posted
-  (static) pairs that talk and check. Lookouts: built dark behind `lookouts`
-  (guard-rules S7, A9; Posts below).
+  (guard-rules S6, J15; on, no flag since clean-up J): a partner check while the pair walks between meetings, and posted
+  (static) pairs that talk and check. Lookouts (guard-rules S7, A9; Posts below).
 - Decided (G327, "Yes, shadow in view = seen"; G382, "Like on screen"): a guard whose shadow falls in view animates
-  like an on-screen guard (`animTierView.ts`; replaces G294's assumption). Built (J4, #438; `animShadow`).
+  like an on-screen guard (`animTierView.ts`; replaces G294's assumption). Built (J4, #438).
 - Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
   shows them (light parity; `docs/systems/lighting.md`), and a player's cast shadow in a guard's view gives him a
   faint cue, a small rise in suspicion, never a sighting on its own (G379; planned in FOLDED-PLAN J16). Today guards
@@ -184,10 +183,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   clamped into the leash; he wakes no knocked-out guard outside it; in combat `chasePoint` / strafe points are clamped,
   cover outside the leash is skipped, and a target outside it (+1.5 m) is held from the post (the `hold` rule); he
   never runs to an alarm panel outside it. A revived guard keeps his post (`Enemy.inherit`).
-  A lookout (guard-rules S7, A3, A9; flag `lookouts`, `?lookouts=1`): `PostDef.lookout`, a perch with a leash of at most
-  `POST.lookoutLeash` 1 m, never `free`. Flag on, `placeSlot` gives him a high-security copy of the post (`slotPost`,
+  A lookout (guard-rules S7, A3, A9): `PostDef.lookout`, a perch with a leash of at most
+  `POST.lookoutLeash` 1 m, never `free`. `placeSlot` gives him a high-security copy of the post (`slotPost`,
   load time; the slot's own object is untouched), so every rule above holds him: never sent, never leaves, a lure only
-  turns him. Flag off it is no post (today's guard). A dog is never a lookout. When he grows suspicious by sight (a rise
+  turns him. A dog is never a lookout. When he grows suspicious by sight (a rise
   into suspicious or investigating with `riseCause` `RISE_SIGHT`) he radios it: `EnemyManager.lookoutStep` barks
   `spotCall` (urgent, so it follows his own "Huh?") and reports a `noise` incident at his stimulus (`stimX` / `stimZ`,
   the floor the lowest walkable layer under it) with no perceivers, so the board sends the best-placed calm free guard
@@ -242,7 +241,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   nearest free cover; the missing guard joins `silent`, so a radio check does not miss him again); parked modes: he
   searches. A missing pair whose guards are both up again (a woken partner takes his slot) starts over. Host only, no
   wire change. Tests: `tests/pairs.test.ts`, `tests/pairsWiring.test.ts`; e2e: e2e-sectorops part 1 "talking pairs".
-  (guard-rules S6, A10, A11; `flags.guardPairs`, read only in `buildPair`, default off) Walking-together check and
+  (guard-rules S6, A10, A11; `buildPair`) Walking-together check and
   posted pairs. A timed-loop pair gets `PairDef.watch`: while both are up they count as together within
   `PAIRS.togetherR` 4 m; one then down or absent while the other stays calm for `PAIRS.notice` 3 s -> missing at once
   (`PairMeet.watch`, before the window logic; the same `lookFor` / `lookX` / `lookZ` outputs and `pairMissing` path as the
@@ -253,8 +252,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   window is its first `PAIRS.postedOpen` 12 s, opening on the first step (no randomness, G143), `watch` on. A downed
   posted partner under 2.5 m away is found as a body (`BODY.close`); 2.5-4 m by the 3 s pair check; 4-6 m by the
   window's grace only (S6-b). The hold is the same `pairFace` / `pairPt`; after the talk the walker turns him back to
-  his post yaw. Flag off: every pair `watch: false`, no posted pair (today's skip). Host only, no wire change. e2e:
-  e2e-sectorops part 1 "pair checks" (`?guardpairs=1`).
+  his post yaw. Host only, no wire change. e2e:
+  e2e-sectorops part 1 "pair checks".
 - Tactics: from sight into cover first (85%; the profile's `coverFirst` by `profileOf(tacticsProfile)`, S6, a seeded roll, S8), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
   an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold (`ADVANCE_HOLD`; a point or an aggressive guard: `profileOf(tacticsProfile).advanceHold`, 0.8 s aggressive), then the next; the last
   stretch is walked (`ADVANCE_PACE`; aggressive: a jog); cover is picked against `knownPt` (never the real position out of sight). One bullet

@@ -57,16 +57,16 @@ afterEach(async () => {
   clearRejoin();
 });
 
-const base: StartInfo = { mode: 'sector', map: 'tallowWharf', seed: 7, difficulty: 'normal', mission: '', weather: 'clear', bay: 1 };
+const base: StartInfo = { mode: 'sector', map: 'tallowWharf', seed: 7, difficulty: 'normal', weather: 'clear', bay: 1 };
 const wire = (m: unknown): unknown => parseMessage(JSON.parse(JSON.stringify(m)));
 
 describe('NET3: the sector mission on the start message', () => {
   it('round-trips `sm`; absent or empty is no mission and the message is as before', () => {
     const withSm = wire(startMsg({ ...base, sectorMission: 'twoKeyLedger' }));
-    expect(withSm).toMatchObject({ t: 'start', mode: 'sector', sm: 'twoKeyLedger', mission: '' });
+    expect(withSm).toMatchObject({ t: 'start', mode: 'sector', sm: 'twoKeyLedger' });
     const none = wire(startMsg(base)) as Record<string, unknown>;
     expect('sm' in none).toBe(false);
-    expect(none).toEqual({ t: 'start', mode: 'sector', map: 'tallowWharf', seed: 7, difficulty: 'normal', time: 0, mission: '', weather: 'clear', bay: 1 });
+    expect(none).toEqual({ t: 'start', mode: 'sector', map: 'tallowWharf', seed: 7, difficulty: 'normal', time: 0, weather: 'clear', bay: 1 });
     expect('sm' in (startMsg({ ...base, sectorMission: '' }) as object)).toBe(false);
     expect('sm' in (wire({ ...startMsg(base), sm: '' }) as object)).toBe(false);
   });

@@ -1,4 +1,4 @@
-// Combat performance probe on Warehouse by default (MAP=...) with 10 enemies (120 Hz targets):
+// Combat performance probe in the Test Chamber's test mode by default (MAP=...) with 10 enemies (120 Hz targets):
 //  - CPU per display frame at a simulated 120 Hz (fixed 60 Hz sim + 2 interpolated frame updates), p50/p95/p99
 //  - animation cost per character (rig evaluation, ms)
 //  - allocations per simulated second (sampling heap profiler, incl. collected objects) + top allocators
@@ -61,13 +61,13 @@ const BUDGET = GPU ? { ...CLOUD_BUDGET, ...LOCAL_BUDGET } : CLOUD_BUDGET;
 
 // STEALTH=1: the ten are unaware (stealth rules, patrols / posts, full perception with exposure rays)
 const stealth = !!process.env.STEALTH;
-// MAP=embassy: the embassy court (the same ten enemies)
-const MAP = process.env.MAP ?? 'warehouse';
+// MAP=<id>: another map for the same ten enemies (default: the Test Chamber, `mode=test`)
+const MAP = process.env.MAP ?? 'chamber';
 // MODE=sector (campusOps) / course (ctcourse): the map's own mode and guards; the ten-enemy scene is skipped
 const MODE = process.env.MODE;
 const { browser, page, errors } = await launch({
   url,
-  params: `autostart=${MAP}&mode=${MODE ?? (stealth ? 'clear' : 'mission')}&debug=1${preset ? `&gfx=${preset}` : desktop ? '&gfx=epic' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}${process.env.EXTRA ? '&' + process.env.EXTRA : ''}`,
+  params: `autostart=${MAP}&mode=${MODE ?? 'test'}&debug=1${preset ? `&gfx=${preset}` : desktop ? '&gfx=epic' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}${process.env.EXTRA ? '&' + process.env.EXTRA : ''}`,
   ...(desktop ? { viewport: { width: 640, height: 360 } } : {}),
 });
 if (heavy) await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
@@ -93,13 +93,10 @@ await page.evaluate(([stealth, own]) => {
     g.enemyMgr.clear();
   }
   const V = g.player.position.constructor;
-  // factory floor fight: player at the south door, ten enemies spread over the floor
-  const emb = location.search.includes('autostart=embassy');
-  g.player.controller.teleport(emb ? new V(0, 0, -19) : new V(3, 0, -7.5), 0);
+  // Test Chamber fight: player at the south of the main room, ten enemies spread over its open floor (clear of the props)
+  g.player.controller.teleport(new V(14, 0, 6), 0);
   g.player.cam.yaw = 0;
-  const spots = emb
-    ? [[-6, -12], [-3, -6], [3, -6], [6, -12], [10, -3], [-10, -3], [-2, 4], [3, 7], [8, 4], [-7, 7]]
-    : [[-1, -2], [4, -3], [8, -1], [12, 0.5], [16, -4], [-1, 4], [4, 6], [8, 3], [13, 7], [18, 4]];
+  const spots = [[8, 14], [12, 16], [16, 14], [19, 18], [24, 20], [7, 20], [11, 22], [15, 20], [20, 22], [10, 10]];
   for (let i = 0; i < 10; i++) {
     const e = g.enemyMgr.spawn(['grunt', 'heavy', 'sniper', 'enforcer', 'dog', 'droneOp', 'officer', 'runner', 'grunt', 'grunt'][i % 10], new V(spots[i][0], 0, spots[i][1]), !stealth, i * 0.6);
     // stealth: half walk short beats, all keep looking; the player crouches in the dark doorway

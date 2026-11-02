@@ -182,17 +182,17 @@ console.log('section rating: Marlow Yard co-op (the card on both pages, the clie
 }
 
 // ---------------------------------------------------------------- Marlow Yard re-plan (J14 R2)
-// Host + client on `?marlowreplan=1` (map ctcourseReplan, both pages carry the flag as e2e-ctcourse parts 5-8 do). The objective
+// Host + client on the re-plan (map ctcourseReplan). The objective
 // list's header names the live step ("step <n> of 18") and the line under it the bay's retry rule, on host and client (A1: no
 // rule, nothing can fail). A1 and A3 are unrated (no guard who can see): sealing them gives no card and no results line. In A2
 // a station retry (the shunter sees the client) is not a set restart: the set's rating stats are not reset (a kill recorded
 // before it still counts at the seal), `restarts` + 1 with `lastRetry` { st 3, cause 'seen' }; A2 is rated once at L2. In A3 the
 // corridor camera's detection retries station 6 and still gives no A3 rating. NOT RUN by the builder: pending PC run.
-console.log('section rating: Marlow Yard re-plan (?marlowreplan=1): step badges, the retry rule, unrated A1 / A3, a station retry');
+console.log('section rating: Marlow Yard re-plan: step badges, the retry rule, unrated A1 / A3, a station retry');
 {
   const { openPage } = await import('./e2e-lib.mjs');
   const { setSimPages, NET_VIEWPORT } = await import('./e2e-net-lib.mjs');
-  const Q = 'net=local&autostart=ctcourseReplan&mode=course&marlowreplan=1';
+  const Q = 'net=local&autostart=ctcourseReplan&mode=course';
   const { browser, ctx, page: A, errors: eA } = await launch({ url, params: Q, viewport: NET_VIEWPORT });
   let B = null;
   let eB = [];

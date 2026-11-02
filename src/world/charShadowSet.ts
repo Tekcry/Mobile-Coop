@@ -3,7 +3,7 @@
  * presets, which lamps hold a shadow-map slot (with hysteresis, so the set does not flicker), each slot's cone fit
  * around the characters in its reach, and the shared atlas's tiles. Babylon-free and allocation-free per frame
  * (fixed typed arrays); `world/charShadows.ts` renders it. Rendering only: the light meter and guard perception never
- * read any of it (they keep the light field; with `charShadowLight` on its character term comes from `charOccluders.ts`,
+ * read any of it (they keep the light field; its character term comes from `charOccluders.ts`,
  * never from this file).
  */
 import type { ShadowQuality } from '../core/quality';
@@ -64,11 +64,9 @@ export function charShadowSpec(q: ShadowQuality, mode: CharShadowMode = 'auto'):
   return { lamps: p.lamps, tile: p.tile };
 }
 
-/** Settings help for Character shadows (`settingsScreen.ts`): `on` when `flags.charShadowLight` is on, else `off`. */
-export const CHAR_SHADOW_HELP = {
-  off: 'The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: follows Shadows (the nearest lamp on Low and Medium, more lamps from High). Looks only: the light meter and the guards are the same either way.',
-  on: 'The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: follows Shadows (the nearest lamp on Low and Medium, more lamps from High). Looks only: a shadow on you darkens the light meter and what guards see by the same amount at every setting.',
-} as const;
+/** Settings help for Character shadows (`settingsScreen.ts`). */
+export const CHAR_SHADOW_HELP =
+  'The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: follows Shadows (the nearest lamp on Low and Medium, more lamps from High). Looks only: a shadow on you darkens the light meter and what guards see by the same amount at every setting.';
 
 export const CHAR_SHADOW = {
   /** Slots in the atlas (2 x 2 tiles). */

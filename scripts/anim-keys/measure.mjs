@@ -11,14 +11,14 @@ import { launch, waitOperator } from '../e2e-lib.mjs';
 const PORT = Number(process.env.E2E_PORT ?? 4195);
 const SC = {
   walk: { y: 0.5, warm: 2.5, span: 2.4 },
-  walk3: { y: 1, warm: 2.0, span: 1.6, pos: [-6, -14], params: '&gear=3' },
-  jog: { y: 1, warm: 1.5, span: 1.6, pos: [-8, -14] },
-  sprint: { y: 1, warm: 1.2, span: 1.2, pos: [-14, -14], at0: "a.input.state.tap('dash');" },
-  run: { y: 1, warm: 1.5, span: 1.2, pos: [-16, -14], params: '&gear=5' },
-  crouchrun5: { y: 1, warm: 1.5, span: 1.2, pos: [-12, -14], params: '&gear=5', at0: "a.input.state.tap('crouch');" },
+  walk3: { y: 1, warm: 2.0, span: 1.6, pos: [13, 21], params: '&gear=3' },
+  jog: { y: 1, warm: 1.5, span: 1.6, pos: [12, 21] },
+  sprint: { y: 1, warm: 1.2, span: 1.2, pos: [10, 21], at0: "a.input.state.tap('dash');" },
+  run: { y: 1, warm: 1.5, span: 1.2, pos: [9, 21], params: '&gear=5' },
+  crouchrun5: { y: 1, warm: 1.5, span: 1.2, pos: [11, 21], params: '&gear=5', at0: "a.input.state.tap('crouch');" },
   sneak: { y: 0.4, warm: 1.5, span: 2.4, at0: "a.input.state.tap('crouch');" },
   crouchwalk: { y: 0.7, warm: 1.5, span: 2.0, at0: "a.input.state.tap('crouch');" },
-  crouchrun: { y: 1, warm: 1.5, span: 1.6, pos: [-8, -14], at0: "a.input.state.tap('crouch');" },
+  crouchrun: { y: 1, warm: 1.5, span: 1.6, pos: [12, 21], at0: "a.input.state.tap('crouch');" },
   crouchidle: { y: 0, warm: 3.0, span: 8.0, still: true, at0: "a.input.state.tap('crouch');" },
   idle: { y: 0, warm: 3.0, span: 8.0, still: true },
 };
@@ -29,7 +29,7 @@ await new Promise((r) => setTimeout(r, 2500));
 const lines = [];
 for (const name of names) {
   const sc = SC[name];
-  const { browser, page } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: 'autostart=proving' + (sc.params ?? '') });
+  const { browser, page } = await launch({ url: `http://127.0.0.1:${PORT}/`, params: 'autostart=chamber' + (sc.params ?? '') });
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
   await waitOperator(page, 1, 60000);
   const res = await page.evaluate(({ sc }) => {
@@ -39,7 +39,7 @@ for (const name of names) {
     a.loop.manual = true;
     const V = p.controller.pos.constructor;
     const yaw0 = Math.PI / 2;
-    const pos = sc.pos ?? [0, -14];
+    const pos = sc.pos ?? [14, 21];
     p.controller.teleport(new V(pos[0], 0, pos[1]), yaw0);
     p.cam.yaw = yaw0;
     p.cam.pitch = 0;

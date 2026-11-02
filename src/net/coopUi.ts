@@ -13,7 +13,7 @@ import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PLAYER_COLOUR, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { diag } from '../feedback/diag';
 import { NetDiag } from './netDiag';
-import { NetSession, resumeMap, roomMap, sectorStartOpts, type LocalProfile, type StartInfo } from './session';
+import { NetSession, roomMap, sectorStartOpts, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
 import { createTrysteroTransport } from './trysteroTransport';
@@ -209,7 +209,7 @@ class CoopController {
     const s = this.session;
     // (campaign-mode CM3, A11) a Sector Ops record keeps the campaign mission (`sm`, the flag on)
     const sm = flags.campaign && s.mode === 'sector' ? s.sectorMission : '';
-    const r: RejoinRecord = { code: s.code, role: s.role, at: Date.now(), mode: s.mode, map: s.map, difficulty: s.difficulty, mission: s.mission, weather: s.weather, bay: g.mode?.resumeBay?.() ?? s.courseBay, ...(sm ? { sm } : {}) };
+    const r: RejoinRecord = { code: s.code, role: s.role, at: Date.now(), mode: s.mode, map: s.map, difficulty: s.difficulty, weather: s.weather, bay: g.mode?.resumeBay?.() ?? s.courseBay, ...(sm ? { sm } : {}) };
     saveRejoin(r);
   }
 
@@ -477,7 +477,7 @@ const modeLabel = (mode: string, map: string): string => (isChamber(mode, map) ?
 const mapLabel = (id: string): string => MAPS.find((m) => m.id === id)?.name ?? (id === CHAMBER_MAP_ID ? getMap(id).name : id);
 /**
  * The maps the host can pick for a mode: the campaign is Marlow Yard only.
- * (J14 R1 fix 8) With `?marlowreplan=1` that is the re-planned yard (`roomMap`), so it is offered and named once.
+ * (J14 R1 fix 8) That is the re-planned yard (`roomMap`), so it is offered and named once.
  */
 function lobbyMaps(mode: NetMode): typeof MAPS {
   const all = MAPS.filter((m) => !m.unlisted && m.modes.includes(mode));
@@ -645,7 +645,7 @@ class LobbyScreen extends MenuScreen {
     const cur = maps.find((m) => m.id === s.map);
     const pick = lobbyMaps(s.mode);
     const shownMaps = cur && !pick.includes(cur) ? [...pick, cur] : pick;
-    const set = (mode: NetMode, map: string, d: Difficulty, mission = s.mission, sm = s.sectorMission): void => this.apply(mode, map, d, mission, sm);
+    const set = (mode: NetMode, map: string, d: Difficulty, sm = s.sectorMission): void => this.apply(mode, map, d, sm);
     const entry = this.entry();
     const weathers = MAPS.find((m) => m.id === s.map)?.weathers;
     const row = (r: LobbyRow): HTMLElement[] => {
@@ -655,9 +655,9 @@ class LobbyScreen extends MenuScreen {
           // leaves its map and mission
           return [
             choice('Mode', lobbyModeChoices(s.mode, s.map), () => (chamber ? CHAMBER : entry ? 'course' : s.mode), (v) => {
-              if (v === CHAMBER) return set('test', CHAMBER_MAP_ID, s.difficulty, '', '');
-              if (entry?.mode === 'sector') return v === 'course' ? set('course', CAMPAIGN_MAP, s.difficulty, '', '') : set('sector', lobbyMaps('sector')[0]?.id ?? s.map, s.difficulty, '', '');
-              set(v, MAPS.find((m) => m.id === s.map)?.modes.includes(v) ? s.map : (lobbyMaps(v)[0]?.id ?? s.map), s.difficulty, '');
+              if (v === CHAMBER) return set('test', CHAMBER_MAP_ID, s.difficulty, '');
+              if (entry?.mode === 'sector') return v === 'course' ? set('course', CAMPAIGN_MAP, s.difficulty, '') : set('sector', lobbyMaps('sector')[0]?.id ?? s.map, s.difficulty, '');
+              set(v, MAPS.find((m) => m.id === s.map)?.modes.includes(v) ? s.map : (lobbyMaps(v)[0]?.id ?? s.map), s.difficulty);
             }),
           ];
         case 'campaign': {
@@ -687,7 +687,7 @@ class LobbyScreen extends MenuScreen {
               (weathers ?? []).map((w) => ({ value: w, label: WEATHER_LABEL[w] })),
               () => s.weather,
               (v) => {
-                s.setSettings(s.mode, s.map, s.difficulty, s.mission, v);
+                s.setSettings(s.mode, s.map, s.difficulty, v);
                 this.renderPlayers();
               },
             ),
@@ -712,8 +712,8 @@ class LobbyScreen extends MenuScreen {
   }
 
   /** The host's settings change, then the rows, players and actions again with the focus kept on the same row. */
-  private apply(mode: NetMode, map: string, d: Difficulty, mission: string, sm: string): void {
-    this.c.session.setSettings(mode, map, d, mission, this.c.session.weather, sm);
+  private apply(mode: NetMode, map: string, d: Difficulty, sm: string): void {
+    this.c.session.setSettings(mode, map, d, this.c.session.weather, sm);
     this.rebuild();
   }
 
@@ -751,8 +751,8 @@ class LobbyScreen extends MenuScreen {
     if (!e) return;
     // the entry itself starts it fresh (the same mission and difficulty would otherwise keep the Continue)
     s.campaignResume = null;
-    if (e.mode === 'course') this.apply('course', CAMPAIGN_MAP, s.difficulty, '', '');
-    else this.apply('sector', e.map, s.difficulty, '', e.mission ?? '');
+    if (e.mode === 'course') this.apply('course', CAMPAIGN_MAP, s.difficulty, '');
+    else this.apply('sector', e.map, s.difficulty, e.mission ?? '');
   }
 
   /** Marks a row as the campaign's: its context panel is the briefing (`applyBrief`). */
@@ -943,8 +943,7 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     // the code, or rejoining from its menu) takes the match as it starts
     // (set directly: a lobby broadcast before the start would send a waiting joiner to the lobby)
     session.mode = resume.mode;
-    // (J14 R1 fix 8) a record on the re-planned yard reopens on the built yard with the flag off here
-    session.map = resumeMap(resume.map);
+    session.map = roomMap(resume.map);
     session.difficulty = resume.difficulty;
     session.weather = resume.weather;
     session.courseBay = resume.bay;
@@ -961,7 +960,7 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
   if (role === 'host') {
     // (campaign-mode CM4, A9) the main menu's "Continue campaign": the room opens on the save's mission, difficulty and section
     if (cont && flags.campaign && flags.missions) session.continueCampaign(cont);
-    else session.setSettings('course', CAMPAIGN_MAP, session.difficulty, '');
+    else session.setSettings('course', CAMPAIGN_MAP, session.difficulty);
   }
   const c = adopt(app, api, session);
   if (role === 'client') {
@@ -1045,7 +1044,7 @@ export async function autoLocalCourse(app: App, api: CoopApi, map: string, mode:
   }
   await probe.leave();
   const session = new NetSession(createLocalTransport(roomId(code)), 'host', code, api.profile());
-  session.setSettings(mode, map, session.difficulty, '');
+  session.setSettings(mode, map, session.difficulty);
   adopt(app, api, session);
   const off = session.events.on('lobby', () => {
     if (session.phase !== 'lobby' || session.players.size < 2 || !session.allReady || session.overCapacity || session.campaignBlock !== null) return;

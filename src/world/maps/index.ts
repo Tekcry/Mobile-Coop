@@ -11,8 +11,8 @@ import { chamber } from './chamber';
  * supporting a mode is its default. The retired maps (Exchange, Trunk Annex, Dead Line v1 / v2) were deleted in the
  * consolidation (`docs/archive/consolidation/deleted-maps.md`); Warehouse, Proving Grounds and the five parked maps
  * (Embassy, Mansion, Port, Refinery, Dust Depot) in clean-up stage H. (J14 Marlow
- * re-plan) `ctcourseReplan` sits after `ctcourse` (so `ctcourse` stays the course default): unlisted like it, dark behind
- * `flags.marlowReplan` (a host's room names it in `start`), and every map-wide check builds it.
+ * re-plan) `ctcourseReplan` sits after `ctcourse` (so `ctcourse` stays the course default): unlisted like it
+ * (a host's room names it in `start`), and every map-wide check builds it.
  */
 export const MAPS: MapDef[] = [kestrel, seclab, ctcourse, ctcourseReplan, tallowWharf, courselab];
 

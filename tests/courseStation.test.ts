@@ -14,7 +14,7 @@ import { CourseMode, courseStationParam, inTickZone, mirrorKitRetry, retryHook, 
 import { REPLAN_TICKS, type StationHooks, type StationTick } from '../src/game/course/replan/ticks';
 import { RESTART_DELAY } from '../src/config/course';
 import { parseMessage } from '../src/net/protocol';
-import { resumeMap, roomMap } from '../src/net/session';
+import { roomMap } from '../src/net/session';
 import type { GameState } from '../src/game/gameState';
 import type { SecurityConsole } from '../src/game/course/securityRoom';
 import { LightRegistry } from '../src/world/lights';
@@ -1273,18 +1273,10 @@ describe('validateCourse: stations', () => {
 });
 
 describe('the room map', () => {
-  it('the flag off leaves the room on ctcourse; on, Marlow Yard opens the re-planned yard; other maps as picked', () => {
-    expect(roomMap('ctcourse', false)).toBe('ctcourse');
-    expect(roomMap('ctcourse', true)).toBe('ctcourseReplan');
-    expect(roomMap('kestrel', true)).toBe('kestrel');
-    expect(roomMap('ctcourseReplan', false)).toBe('ctcourseReplan');
-  });
-  it('a Resume hosting record on the re-planned yard reopens on the built yard with the flag off (fix 8)', () => {
-    expect(resumeMap('ctcourseReplan', false)).toBe('ctcourse');
-    expect(resumeMap('ctcourseReplan', true)).toBe('ctcourseReplan');
-    expect(resumeMap('ctcourse', true)).toBe('ctcourseReplan');
-    expect(resumeMap('ctcourse', false)).toBe('ctcourse');
-    expect(resumeMap('kestrel', false)).toBe('kestrel');
+  it('Marlow Yard opens the re-planned yard; other maps as picked (a Resume hosting record too)', () => {
+    expect(roomMap('ctcourse')).toBe('ctcourseReplan');
+    expect(roomMap('kestrel')).toBe('kestrel');
+    expect(roomMap('ctcourseReplan')).toBe('ctcourseReplan');
   });
 });
 

@@ -21,7 +21,7 @@ import type { MotionState } from '../anim/motion';
 import type { AnimSource } from '../anim/animSource';
 
 /** The wire version. Only this line holds it; tests read it. Bump it in the PR that changes the wire (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 91;
+export const PROTOCOL_VERSION = 92;
 /** The colour of a player's pings and lobby dot. Fixed: the saved player tag (title, emblem, colour) that used to set it was removed in clean-up I (protocol 90); per-operator colours are future work. */
 export const PLAYER_COLOUR = '#ff8a1e';
 /** Room cap on the wire: two players in every mode (`COOP_MAX`, `COURSE_MAX`). */
@@ -308,11 +308,11 @@ export type Msg =
   | { t: 'you'; id: string }
   /** (campaign-mode CM3) `sm`: the host's campaign mission pick (`MissionDef.id`; absent: none, the lobby as before), so
    *  the partner's lobby shows the entry and its briefing. The client's start mission still comes only from `start.sm`. */
-  | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice; sm?: string }
+  | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; weather: WeatherChoice; sm?: string }
   | { t: 'ready'; ready: boolean }
-  /** `mission`: retired (Infiltration's; always ''). (mission-framework NET3) `sm`: Sector Ops' mission (`MissionDef.id`, the host's
+  /** (mission-framework NET3) `sm`: Sector Ops' mission (`MissionDef.id`, the host's
    *  `?mission=`; absent / '': none), so a client starts in the mission's start section and follows the host's. */
-  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number; sm?: string }
+  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; weather: WeatherChoice; bay?: number; sm?: string }
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
@@ -638,8 +638,6 @@ function endStats(v: unknown): EndStats | null {
 }
 
 const MODES = NET_MODES;
-/** The retired `mission` field (Infiltration's): a plain slug, '' = none (always '' now). */
-const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
 /** (NET3) A Sector Ops mission id (`MissionDef.id`: camelCase, as `MISSION_WIRE.idMax`); anything else is '' (none). */
 export const sectorMissionId = (v: unknown): string => (typeof v === 'string' && /^[A-Za-z0-9_-]{0,64}$/.test(v) ? v : '');
 
@@ -861,7 +859,7 @@ export function parseMessage(raw: unknown): Msg | null {
       if (!mode || !difficulty || !phase || !map) return null;
       // (campaign-mode CM3) the campaign pick rides only when set (junk: dropped, the lobby as before)
       const sm = sectorMissionId(raw.sm);
-      return { t: 'lobby', players, mode, map, difficulty, phase, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', ...(sm ? { sm } : {}) };
+      return { t: 'lobby', players, mode, map, difficulty, phase, weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', ...(sm ? { sm } : {}) };
     }
     case 'ready': {
       const r = bool(raw.ready);
@@ -1016,7 +1014,7 @@ export function parseMessage(raw: unknown): Msg | null {
       if (!mode || !difficulty || !map || seed === null) return null;
       // (NET3) the sector mission rides only when set (a run with none: the message as before)
       const sm = sectorMissionId(raw.sm);
-      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1), ...(sm ? { sm } : {}) };
+      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1), ...(sm ? { sm } : {}) };
     }
     case 'pstate': {
       const s = playerState(raw.s);

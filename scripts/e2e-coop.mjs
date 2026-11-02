@@ -32,8 +32,8 @@ const NET = GM ? 'net=local&ctxprompts=0' : 'net=local&ctxprompts=0&guardmodels=
 const wait = (ms) => waitSim(ms);
 let failed = false;
 const errs = [];
-// (G2d) the match every guard part runs: the Test Chamber in the test mode (mode, map, mission)
-const MISSION = ['test', 'chamber', ''];
+// (G2d) the match every guard part runs: the Test Chamber in the test mode (mode, map)
+const MATCH = ['test', 'chamber'];
 // (G2d) a test-mode match has no guards of its own: five grunts stand in the annex hall (calm, behind the divider from the
 // players in the main room), their ids returned; the cap is 12 (`MAX_ALIVE`)
 const HALL = [[29.6, 17], [31.2, 17], [32.8, 17], [34.4, 17], [35.8, 17], [30.4, 19.2]];
@@ -172,7 +172,7 @@ try {
   assert(/Not ready/.test(bText), 'client button toggles to Not ready');
 
   console.log('host starts a match on the Test Chamber (test mode)');
-  await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'normal', m[2]), MISSION);
+  await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'normal'), MATCH);
   await GA(() => window.__coop.session.startMatch());
   await until(A, () => window.__app.current?.net && window.__app.current.enemyMgr, null, LOAD_MS, 'host match');
   await until(B, () => window.__app.current?.net && window.__app.current.puppet, null, LOAD_MS, 'client match');
@@ -529,8 +529,8 @@ try {
 
   const pages = () => [A, B];
   /** Host picks the mode, everyone readies, the match starts on every page. */
-  async function startMode(mode, map, mission = '') {
-    await GA(([m, mp, mi]) => window.__coop.session.setSettings(m, mp, 'normal', mi), [mode, map, mission]);
+  async function startMode(mode, map) {
+    await GA(([m, mp]) => window.__coop.session.setSettings(m, mp, 'normal'), [mode, map]);
     for (const P of pages().slice(1)) await P.evaluate(() => window.__coop.session.setReady(true));
     await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
     await GA(() => window.__coop.session.startMatch());
@@ -549,7 +549,7 @@ try {
   }
 
   console.log('co-op on the guards: calm puppets, doors, mirrored items, a client takedown, a client revive');
-  await startMode(...MISSION);
+  await startMode(...MATCH);
   await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
   await spawnHall(6);
   await until(B, () => window.__app.current.net.puppets.size > 0, null, 15000, 'guard puppets on the client');
@@ -1101,7 +1101,7 @@ try {
   await toLobby();
   console.log("difficulty (G106: fixed levels): the host's level reaches the client lobby read-only and runs the match on both");
   {
-    await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'realistic', m[2]), MISSION);
+    await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'realistic'), MATCH);
     await until(B, () => window.__coop.session.difficulty === 'realistic', null, 8000, 'the level reaches the client');
     await until(B, () => /Realistic/.test(document.querySelector('.lobby-screen')?.textContent ?? ''), null, 8000, 'the client lobby row shows the host level');
     const ro = await GB(() => !document.querySelector('.lobby-screen [data-diff]'));
@@ -1116,7 +1116,7 @@ try {
     const cd = await GB(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label }));
     assert(cd.p === 1.3 && cd.l === 'Realistic', `the client's match takes the host's level (${JSON.stringify(cd)})`);
     await toLobby();
-    await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'normal', m[2]), MISSION);
+    await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'normal'), MATCH);
   }
 
   // (guard-ai S23, A143 / A144) every player is seen: a calm grunt in the annex hall (33.5, 17.1) faces the client standing
@@ -1130,7 +1130,7 @@ try {
   // nothing else alerts him. Both players invulnerable (damageMul 0).
   console.log('guard-ai S23: every player is seen (a calm guard spots the client in his light while the host hides nearer)');
   {
-    await startMode(...MISSION);
+    await startMode(...MATCH);
     await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
     const S23 = { guard: [33.5, 17.1], client: [33.5, 26], host: [33.5, 12.8] };
     const cid = await GB(() => window.__coop.session.selfId);
@@ -1279,7 +1279,7 @@ try {
   // known position, never the other's, and no guard of either pair ever hunts the other pair's player.
   console.log('guard-ai S24: two intruders (each pair hunts the player it saw, never the other)');
   {
-    await startMode(...MISSION);
+    await startMode(...MATCH);
     await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
     const S24 = { pair1: [[31.8, 15.5], [32.8, 15.5]], host: [32.3, 23.5], pair2: [[13.4, 20], [14.6, 20]], client: [14, 11], hostHide: [30.3, 11], clientHide: [12, 2.5] };
     const cid = await GB(() => window.__coop.session.selfId);
@@ -1455,7 +1455,7 @@ try {
   // the client's noise locates the client only). A real run is a jog (CT has no sprint): its reach is ~3.4 m.
   console.log('guard-ai S26: the partner is heard (a searcher hears the client run behind him; only the client is located)');
   {
-    await startMode(...MISSION);
+    await startMode(...MATCH);
     await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
     const S26 = { guard: [32.3, 15.5], client: [32.3, 23.5], hostHide: [3, 2.5], clientHide: [12, 2.5] };
     const cid = await GB(() => window.__coop.session.selfId);
@@ -1701,7 +1701,7 @@ try {
   // host pulls it up: the held guard is knocked out by default. The guards are statues on their spots (their brains off,
   // as the takedown steps above: the start, the reach check and the outcome are the real code).
   console.log('hang-down: the hanging joiner draws the pistol, grabs, neck-snaps; the pull-up knocks the held guard out');
-  await startMode(...MISSION);
+  await startMode(...MATCH);
   await spawnHall(3);
   await until(B, () => [...window.__app.current.net.puppets.values()].filter((p) => p.alive && p.def.kind === 'grunt').length >= 3, null, 15000, 'hang-down: three guards on the client');
   {
@@ -1964,7 +1964,7 @@ try {
   // (locomotion step 13) a client's door crack is host-authoritative: it shows on the host (the snapshot's dcr), and its
   // close clears it
   console.log('door peek: a client crack shows on the host; close clears it');
-  await startMode(...MISSION);
+  await startMode(...MATCH);
   const dpos = await GB(() => {
     const d = window.__app.current.world.doors.list[0];
     if (!d) return null;
@@ -2077,7 +2077,7 @@ if (!failed) {
     await B2.keyboard.press('Enter');
     await until(A2, () => window.__coop.session.players.size === 2, null, 15000, 'ctx: the client joins');
     // (G2a) the test mode: a Free Roam room has no `g.mode`, so a downed client got no revive point (it respawned in 3 s)
-    await GA(() => window.__coop.session.setSettings('test', 'chamber', 'normal', ''));
+    await GA(() => window.__coop.session.setSettings('test', 'chamber', 'normal'));
     await GB(() => window.__coop.session.setReady(true));
     await until(A2, () => window.__coop.session.allReady, null, 8000, 'ctx: everyone ready');
     await GA(() => window.__coop.session.startMatch());

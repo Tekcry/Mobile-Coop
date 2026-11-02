@@ -17,7 +17,7 @@ import { ANIM_LOD_DISTANCE } from '../src/player/characterRig';
 
 /** A guard on screen, rendered, near the camera, far from every player. */
 function base(over: Partial<AnimTierIn> = {}): AnimTierIn {
-  return { ...newAnimTierIn(), on: true, pinned: false, rendered: true, seen: true, camDist2: 10 * 10, playerDist2: 20 * 20, ...over };
+  return { ...newAnimTierIn(), pinned: false, rendered: true, seen: true, camDist2: 10 * 10, playerDist2: 20 * 20, ...over };
 }
 const FAR2 = (ANIM_TIER_FAR + 1) ** 2;
 const OFF = { seen: false };
@@ -42,9 +42,6 @@ describe('animTierPeriod', () => {
   it('off-screen: every ANIM_TIER_OFFSCREEN th frame, near or far', () => {
     expect(animTierPeriod(base(OFF))).toBe(ANIM_TIER_OFFSCREEN);
     expect(animTierPeriod(base({ ...OFF, camDist2: FAR2 }))).toBe(ANIM_TIER_OFFSCREEN);
-    // (guard-cap T1-SHADOW) the period is an input (`?animoff=N` A/B runs on one build); the constant by default
-    expect(newAnimTierIn().offPeriod).toBe(ANIM_TIER_OFFSCREEN);
-    expect(animTierPeriod(base({ seen: false, offPeriod: 4 }))).toBe(4);
   });
 
   it('no render since the last update (headless): visibility unknown, counts as seen', () => {
@@ -64,10 +61,6 @@ describe('animTierPeriod', () => {
     expect(animTierPeriod(base({ ...OFF, playerDist2: ANIM_TIER_NEAR_PLAYER ** 2 }))).toBe(ANIM_TIER_OFFSCREEN);
   });
 
-  it('off (?animtier=0): every frame', () => {
-    expect(animTierPeriod(base({ ...OFF, on: false }))).toBe(1);
-    expect(animTierPeriod(base({ camDist2: FAR2, on: false }))).toBe(1);
-  });
 });
 
 function solves(slot: number, period: number, frames: number): number[] {
@@ -176,12 +169,11 @@ describe('animTierStep', () => {
 // (sector-redesign perfg, folded in from `animFrozen.ts` at the #226 master merge) The FROZEN tier: a render-frozen
 // guard skips the solve, the skipped time is carried (capped) into the thaw solve, which comes at once.
 describe('animTier FROZEN (perfg fold)', () => {
-  it('frozen is the first rule: over pinned, a near player and the tiers being off', () => {
+  it('frozen is the first rule: over pinned and a near player', () => {
     expect(ANIM_TIER_FROZEN).toBe(0);
     const near = (ANIM_TIER_NEAR_PLAYER - 1) ** 2;
     expect(animTierPeriod(base({ frozen: true }))).toBe(ANIM_TIER_FROZEN);
     expect(animTierPeriod(base({ frozen: true, pinned: true, playerDist2: near }))).toBe(ANIM_TIER_FROZEN);
-    expect(animTierPeriod(base({ frozen: true, on: false }))).toBe(ANIM_TIER_FROZEN);
     expect(newAnimTierIn().frozen).toBe(false);
   });
 

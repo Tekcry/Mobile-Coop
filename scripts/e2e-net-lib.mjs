@@ -204,7 +204,7 @@ export async function hostAndJoin(url, n = 2, launchOpts = {}) {
 /** Host (pages[0]) sets the mode and map, every client readies, the match starts on every page; damage off. */
 export async function startMode(pages, mode, map) {
   const [A, ...clients] = pages;
-  await A.evaluate(([m, mp]) => window.__coop.session.setSettings(m, mp, 'normal', ''), [mode, map]);
+  await A.evaluate(([m, mp]) => window.__coop.session.setSettings(m, mp, 'normal'), [mode, map]);
   for (const P of clients) await P.evaluate(() => window.__coop.session.setReady(true));
   await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
   await A.evaluate(() => window.__coop.session.startMatch());

@@ -112,3 +112,23 @@ orchestrator tells Michael so he can clear the session; with no reply in 10 minu
 
 **N21. One-game follow-ups** (native multiple choice, on #740): fast map loading (`mapReady`) is on by default; nothing
 is kept from the old preview save (start fresh); new unfinished features default on (`?flag=0` turns one off).
+
+## 2026-11-02
+
+**N22. Free Roam is removed** (native multiple choice): both the solo menu row and the co-op lobby choice; the Test Chamber
+covers free testing.
+
+**N23. The five parked maps are deleted in stage H** (native multiple choice): Embassy, Mansion, Port, Refinery and Dust
+Depot; git history keeps them.
+
+**N24. The co-op relay is Metered's 500 MB free trial** (native multiple choice): no card, never charged.
+
+**N25. The relay login goes in the game code for now** (native multiple choice): the repository is public, and the worst
+case is the 500 MB being used up, at no cost. It is replaced when Steam networking or short-lived logins come in.
+
+**N26. Host leaving** (Michael; parked - "Don't bother with the leave job yet"): "when the host actually leaves a coop game
+with another player, it should also remove the other player and tell them the host has left the game. If the host drops out
+for any reason, ie internet connection or crash, and they havent exited using the pause menu, then it should allow them to
+rejoin as per normal. Leaving via the quit button in the pause menu should prevent the re-join or re-host option to appear."
+
+**N27. Always merge when green:** every pull request merges once all its checks pass.

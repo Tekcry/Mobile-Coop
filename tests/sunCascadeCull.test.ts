@@ -16,7 +16,6 @@ import {
   moonShadowLen,
   shadowInDepth,
   sunCasterDrawn,
-  useCascadeLists,
 } from '../src/world/sunCascadeCull';
 
 function cascade(): { t: Float32Array | number[]; dir: Vector3; right: Vector3 } {
@@ -97,15 +96,6 @@ describe('SunCascadeLists.fill', () => {
     expect(lists.fill(0, [a], null)).toBeNull();
     expect(lists.fill(4, [a], t)).toBeNull();
     expect(lists.fill(2, [], t)).toEqual([]);
-  });
-});
-
-describe('useCascadeLists', () => {
-  it('only with the flag on and the baked moon (level not a sun caster)', () => {
-    expect(useCascadeLists(true, true)).toBe(true);
-    expect(useCascadeLists(true, false)).toBe(false);
-    expect(useCascadeLists(false, true)).toBe(false);
-    expect(useCascadeLists(false, false)).toBe(false);
   });
 });
 

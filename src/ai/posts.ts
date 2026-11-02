@@ -9,9 +9,9 @@
  * rad centred on the lure bearing (A12: the map author sizes the leash so that facing the lure from the edge faces him
  * away from the choke), then walks back and faces his post yaw (`PostLure`).
  *
- * A lookout (guard-rules S7, A9, `PostDef.lookout`) is a perch: with the `lookouts` flag on he reads as a high-security
+ * A lookout (guard-rules S7, A9, `PostDef.lookout`) is a perch: he reads as a high-security
  * post with a leash of at most `POST.lookoutLeash` (never sent, never leaves; a lure only turns him), and when he grows
- * suspicious by sight he radios it (`LOOKOUT`) so the board sends a calm guard to what he saw. Flag off he is no post.
+ * suspicious by sight he radios it (`LOOKOUT`) so the board sends a calm guard to what he saw.
  * Map authors (M3): a lookout on a vent route stands where he overlooks the vent run or its exit.
  *
  * Yaw convention as `Enemy`: radians, 0 = +Z, yaw = atan2(dx, dz).
@@ -31,8 +31,8 @@ export interface PostDef {
   highSecurity?: boolean;
   /** What the post guards ('vault door', 'token', 'c1-door'), for barks and debug. */
   guards?: string;
-  /** (guard-rules S7, A9) A lookout's perch: read as a high-security post with the `lookouts` flag on (never sent,
-   *  never leaves; leash <= `POST.lookoutLeash`), and he radios what he sees (`LOOKOUT`). Flag off: no post. */
+  /** (guard-rules S7, A9) A lookout's perch: read as a high-security post (never sent, never leaves;
+   *  leash <= `POST.lookoutLeash`), and he radios what he sees (`LOOKOUT`). */
   lookout?: boolean;
 }
 

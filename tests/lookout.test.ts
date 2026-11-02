@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EnemyManager } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { validatePosts, type GuardSlot } from '../src/ai/guardAiData';
@@ -6,17 +6,15 @@ import { KIND } from '../src/ai/incidents';
 import { LOOKOUT, POST, mayLeave, type PostDef } from '../src/ai/posts';
 import { RISE_NONE, RISE_SIGHT, RISE_SOUND, type Enemy } from '../src/ai/enemy';
 import { BARKS, BarkVoice } from '../src/ai/barks';
-import { P_POST, P_STANDARD } from '../src/ai/squadRoles';
-import { TAGS } from '../src/ai/sectorTags';
+import { P_POST } from '../src/ai/squadRoles';
 import { Vector3, type Scene } from '../src/core/babylon';
-import { flags } from '../src/core/flags';
 import type { World } from '../src/world/world';
 import type { NavGrid } from '../src/ai/navGrid';
 import type { DamageRegistry } from '../src/game/damage';
 import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
 
-// (guard-rules S7, A9) Lookout posts behind `flags.lookouts`: the data rules, the high-security copy `placeSlot` gives
+// (guard-rules S7, A9) Lookout posts: the data rules, the high-security copy `placeSlot` gives
 // (flag off: no post), never sent by the board, and the radio: a sight rise into suspicious / investigating barks
 // `spotCall` and opens a `noise` incident at what he saw (no perceivers), so a calm guard within callR goes; at most
 // every `LOOKOUT.callCd` s. The stand-ins are copied from tests/postsWiring.test.ts (no import across test files).
@@ -139,9 +137,8 @@ interface Priv {
 const P = (em: EnemyManager) => em as unknown as Priv;
 const spotCalls = (g: FakeGuard) => g.bark.mock.calls.filter((c) => c[0] === 'spotCall').length;
 
-/** A lookout at the origin (key 3, placed with the flag on) and a calm free guard at (20, 0). */
+/** A lookout at the origin (key 3) and a calm free guard at (20, 0). */
 function scene() {
-  flags.lookouts = true;
   const look = guard(0, 0, { key: 3 });
   const calm = guard(20, 0);
   const em = manager([look, calm]);
@@ -157,11 +154,6 @@ function rise(g: FakeGuard, cause = RISE_SIGHT, level = 'suspicious', sx = 10, s
   g.stimX = sx;
   g.stimZ = sz;
 }
-
-const flagWas = flags.lookouts;
-afterEach(() => {
-  flags.lookouts = flagWas;
-});
 
 describe('lookout data (validatePosts, mayLeave, numbers)', () => {
   const slot = (post: PostDef, o: Partial<GuardSlot> = {}): GuardSlot => ({ x: 0, z: 0, post, ...o });
@@ -186,8 +178,7 @@ describe('lookout data (validatePosts, mayLeave, numbers)', () => {
 });
 
 describe('placeSlot: a lookout post', () => {
-  it('flag on: a high-security copy (the slot untouched), P_POST, counted, the zone circle his leash', () => {
-    flags.lookouts = true;
+  it('a high-security copy (the slot untouched), P_POST, counted, the zone circle his leash', () => {
     const g = guard(5, 0, { key: 2, riseN: 4 });
     const em = manager([g]);
     const post: PostDef = { leash: 1, lookout: true };
@@ -200,29 +191,14 @@ describe('placeSlot: a lookout post', () => {
     expect(P(em).lookoutN).toBe(1);
     expect(P(em).lookRise[2]).toBe(4);
   });
-  it('flag off: no post (as a slot with none), P_STANDARD, nothing counted', () => {
-    flags.lookouts = false;
-    const g = guard(5, 0, { key: 2 });
-    const em = manager([g]);
-    em.placeSlot(E(g), { yaw: 1.1, post: { leash: 1, lookout: true }, zone: 'secure' }, 0);
-    expect(g.setPost).toHaveBeenLastCalledWith(null, 1.1);
-    expect(g.tacticsProfile).toBe(P_STANDARD);
-    expect(g.zoneR).toBe(TAGS.secureR);
-    const h = guard(5, 0, { key: 3 });
-    em.placeSlot(E(h), { yaw: 1.1, zone: 'secure' }, 0);
-    expect(h.zoneR).toBe(g.zoneR);
-    expect(P(em).lookoutN).toBe(0);
-  });
-  it('a dog is never a lookout: on a lookout post he gets no post, even with the flag on', () => {
-    flags.lookouts = true;
+  it('a dog is never a lookout: on a lookout post he gets no post', () => {
     const d = guard(5, 0, { key: 4, dog: {} });
     const em = manager([d]);
     em.placeSlot(E(d), { yaw: 0, post: { leash: 1, lookout: true } }, 0);
     expect(d.setPost).toHaveBeenLastCalledWith(null, 0);
     expect(P(em).lookoutN).toBe(0);
   });
-  it('a plain post is passed through as the same object (flag on or off)', () => {
-    flags.lookouts = true;
+  it('a plain post is passed through as the same object', () => {
     const g = guard(5, 0, { key: 1 });
     const em = manager([g]);
     const post: PostDef = { leash: 3, highSecurity: true };
@@ -233,8 +209,7 @@ describe('placeSlot: a lookout post', () => {
 });
 
 describe('a lookout is never sent', () => {
-  it('flag on: he and a free guard hear a bottle: the free one is sent, the lookout lured on his perch', () => {
-    flags.lookouts = true;
+  it('he and a free guard hear a bottle: the free one is sent, the lookout lured on his perch', () => {
     const look = guard(2, 0, { key: 0 });
     const free = guard(-3, 0);
     const em = manager([look, free]);
@@ -318,18 +293,6 @@ describe('the radio (lookoutStep)', () => {
     P(em).lookoutStep(E(look), 0.1);
     expect(spotCalls(look)).toBe(2);
     expect(calm.sendTo).toHaveBeenCalledTimes(1);
-  });
-  it('flag off end to end: the same slot places no lookout, and a sight rise says nothing', () => {
-    flags.lookouts = false;
-    const look = guard(0, 0, { key: 3 });
-    const calm = guard(20, 0);
-    const em = manager([look, calm]);
-    em.placeSlot(E(look), { yaw: 0, post: { leash: 1, lookout: true } }, 0);
-    expect(P(em).lookoutN).toBe(0);
-    rise(look);
-    P(em).lookoutStep(E(look), 0.1);
-    expect(spotCalls(look)).toBe(0);
-    expect(calm.sendTo).not.toHaveBeenCalled();
   });
   it('despawn and clear reset the per-key state', () => {
     const { look, em } = scene();
