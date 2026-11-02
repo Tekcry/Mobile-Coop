@@ -76,7 +76,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   limit)), (marlow-bays items 3-4) Restart at checkpoint
   (Sector Ops and the course, `GameMode.restartCheckpoint`: the same clean retry as everyone down) and, in co-op,
   Return to lobby (`SessionCallbacks.lobby`: the host's `backToLobby`, every client follows), then Settings, Report
-  feedback, the dev rows and Quit to menu. Both confirm in a `Dialog` that opens on Stay. In co-op they are host
+  feedback, Feedback (the main menu's Feedback screen: notes and the diagnostics log), the dev rows and Quit to menu. Both confirm in a `Dialog` that opens on Stay. In co-op they are host
   actions (A1): the client's rows are blocked with the line "Host only" (`HOST_ONLY`) and it keeps its own Quit.
 - Controls (`ControlsScreen`, Settings > Controls > Remap controls, the one Controls place: no Pause item, menu-notes A2; loco D7): a Controller and a Keyboard & mouse tab to remap
   (`bindPanel`: two slots per verb, capture with a 5 s timeout, conflict warnings on both rows and a summary, reset per
@@ -147,6 +147,40 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   every other screen; free camera by keys, mouse and sticks; a photo is the next rendered frame copied off the canvas
   (no DOM in it), max 1920 px JPEG; keep / retake (Y) / cancel (B). Full-resolution saves go up to 7680 px, JPEG
   quality stepped down to stay under 8 MB.
+- Diagnostics log (always on, per device; Michael 2026-11-02): Main menu > Feedback, or Pause > Feedback (the same
+  Settings screen on its Feedback tab), section "Diagnostics log": Copy log (`navigator.clipboard.writeText`, else a
+  hidden text box + `execCommand('copy')`, else it saves the file; the row then reads "Copied ... - paste it to
+  Claude"), Save as file (`night-shift-log-<date>.txt`, share sheet / download) and Clear log (confirm, Cancel first).
+  - Pure core `feedback/diagLog.ts`: `DiagBook` (lines `{t ms since start, kind, text, repeats}`; errors / warnings /
+    notes repeating with only numbers changed count on their first line, other lines when back to back; 40 new lines
+    a second, the rest counted as skipped; blocks of 200 lines; a session over 400 KB drops its oldest block after the
+    first), `scrub` (the relay login registered by `trysteroTransport`, `name=value` logins, IPv4 / IPv6 / mDNS
+    addresses -> "[ip]", 500 characters a line), `FramePerf` (preallocated frame intervals: `push` per frame, `take`
+    every 10 s: average fps, 1% low, worst frame, frames over 50 ms, cpu ms), `rotate` (5 sessions, 1 MB), `diagText`
+    (the copy: summary first - game version, device, screen, GPU, graphics, last session crashed or not, this
+    session's length / errors / warnings / matches, worst performance, co-op attempts and failures, older sessions -
+    then this session's header and lines, then older sessions; over 180 000 characters it drops the older sessions'
+    perf / menu / note lines, then their other lines, then this session's middle (its first 40 lines stay), and the
+    summary says what).
+  - `feedback/diag.ts` (`diag`, the page's log): IndexedDB `kv` `diag:s:<session>` (meta: header, stats) and
+    `diag:c:<session>:<block>` (lines); only changed blocks are written, every 3 s and on hide / `pagehide` (a crash
+    loses a few seconds). No IndexedDB: memory only. Older sessions' lines load when the Feedback tab opens.
+  - `feedback/diagWatch.ts`: `installDiagHooks` (boot start: `error` and `unhandledrejection`, failed file loads,
+    `console.error / warn / info` wrapped with the original output kept); `watchApp` (the header: version + build,
+    start time and zone, URL flags, device, user agent, input, screen, GPU, WebGL caps, graphics via `feedbackContext`,
+    audio, network type, storage; then screens, settings changes (`settingsDigest` diff), input mode, controllers,
+    WebGL context lost / restored, tab hidden / visible, page hide / show, online / offline, pointer lock, fullscreen,
+    resize; a 1 s poll for the player down / up, the governor's level and the audio state; a 10 s perf line in a match
+    with preset, render size, governor, heap, draw calls, active meshes). `main.ts` logs the crash heartbeat's result
+    ("Last session"), each match load / map built / map ready / leave (with its spikes and load summary), the menu;
+    `GameState.endSession` the result; the match's objective / alarm / checkpoint restart / body found events.
+  - Co-op (pushed from `src/net`, which imports `feedback/diag`, never the other way): the room opened (role,
+    transport, relay mode, protocol), lobby size, starts, leave / drop / rejoin / host left / full / version refusals,
+    join errors, readout phase changes (`LinkMonitor`), each attempt (`logAttempt`), the host's resync / rejoin
+    placement, and every 10 s while connected `NetDiag`: direct or relay, round trip, candidate TYPES and protocol
+    (`linkDetail`: never an address), bytes and packets per second each way, game messages per second by type.
+  - Per frame: one `diag.perf.push` in `App`'s `onFrameEnd` (a typed-array store, no allocation); everything else is
+    an event or a timer. Not logged: player names, IP addresses, the relay login, mouse / key input, positions.
 
 ## Debug overlay (F3)
 - `ui/debugOverlay.ts`; buttons, lines and the anti-crab readout: `docs/systems/testing-tools.md`, "Debug overlay".
