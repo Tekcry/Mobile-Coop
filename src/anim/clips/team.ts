@@ -656,6 +656,11 @@ export interface TeamRigIn {
 /** The RigPose fields the team pose writes. */
 export interface TeamRigPose {
   traverse?: TraverseKind;
+  /** (mixamo-chars slice h) The team move this rig is in, its role and clock (`TeamPoseIn`), '' none: the Mixamo body
+   *  picks its team move from them. Written every `begin`. */
+  teamMove?: TeamPoseMove | '';
+  teamRole?: TeamPoseRole | '';
+  teamK?: number;
   bend?: number;
   bendDrop?: number;
   sway?: number;
@@ -711,6 +716,9 @@ export class TeamPoser {
     this.hands = false;
     this.foot = false;
     const on = i.move !== '' && i.role !== '';
+    p.teamMove = on ? i.move : '';
+    p.teamRole = on ? i.role : '';
+    p.teamK = i.k;
     if (on && (i.move !== this.move || i.role !== this.role)) {
       if (this.w <= 0.01) this.t = 0;
       this.bFace = NaN;

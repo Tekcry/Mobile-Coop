@@ -73,7 +73,47 @@ try {
     assert(t.best === clip, `${name} plays ${clip} (${t.best} ${t.bw.toFixed(2)})`);
     assert(back.best === 'idle', `after ${name} the idle is back (${back.best})`);
   }
-  const bad = errors.filter((e) => !/WebGL|GPU stall|GL Driver/i.test(e));
+  // (slice h) a timed action follows the game's progress (it stood on one frame while pinned at rate 0): the climb-up's
+  // hips at 10% and 90% of the move differ
+  const hipsY = () => G(() => { const p = window.__app.current.player; return p.mixamo.boneNode('Hips').getAbsolutePosition().y - p.controller.pos.y; });
+  await hold({ traverse: 'climbUp', traverseT: 0.1 });
+  await frames(page, 30);
+  const early = await hipsY();
+  await hold({ traverse: 'climbUp', traverseT: 0.9 });
+  await frames(page, 10);
+  const late = await hipsY();
+  await release();
+  await G(() => { window.__app.current.player.pose.traverse = 'none'; });
+  console.log('climb-up hips', early.toFixed(2), late.toFixed(2));
+  assert(Math.abs(late - early) > 0.2, `the climb-up follows its progress (hips ${early.toFixed(2)} -> ${late.toFixed(2)} m)`);
+  // (slice h) the team moves: the team input fed to the player's team pose (as GameState writes it in a real move)
+  await G(() => {
+    const tp = window.__app.current.player.teamPose;
+    tp.__orig ??= tp.begin.bind(tp);
+    tp.begin = (dt, i, rp, rig) => tp.__orig(dt, window.__ti ? Object.assign({}, i, window.__ti) : i, rp, rig);
+  });
+  const team = [
+    ['leg-up offer', { move: 'boost', role: 'b', k: -1 }, 'team_lift', (h) => h < 0.7],
+    ['leg-up drive', { move: 'boost', role: 'b', k: 1 }, 'team_lift', (h) => h > 0.85],
+    ['hang-down holder', { move: 'hang', role: 'b', k: 1 }, 'team_brace', null],
+    ['rope holder', { move: 'rope', role: 'b', k: 1 }, 'team_rope', null],
+    ['rope climber', { move: 'rope', role: 'a', k: 1 }, 'rope_climb', null],
+  ];
+  for (const [name, ti, clip, hipsOk] of team) {
+    await G((x) => { window.__ti = x; }, ti);
+    await frames(page, 30);
+    const t = await top();
+    const h = await hipsY();
+    console.log(name, JSON.stringify(t), 'hips', h.toFixed(2));
+    await shot(`t-${name.replace(/ /g, '-')}`);
+    assert(t.best === clip, `${name} plays ${clip} (${t.best} ${t.bw.toFixed(2)})`);
+    if (hipsOk) assert(hipsOk(h), `${name}: hips at ${h.toFixed(2)} m`);
+  }
+  await G(() => { window.__ti = null; });
+  await frames(page, 30);
+  const after = await top();
+  assert(after.best === 'idle', `after the team moves the idle is back (${after.best})`);
+  const bad =errors.filter((e) => !/WebGL|GPU stall|GL Driver/i.test(e));
   if (bad.length) console.log('console errors:\n  ' + bad.join('\n  '));
   assert(bad.length === 0, `${bad.length} console errors`);
 } catch (e) {
