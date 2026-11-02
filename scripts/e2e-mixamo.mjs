@@ -72,16 +72,24 @@ try {
   await frames(page, 30);
   await press(page, BTN.B); // stand
   await frames(page, 40);
-  // (slice b) the chest node (the slung gun's parent) rides on the Mixamo spine: it sits within 15 cm of Spine2
-  const near = await G(() => {
-    const p = window.__app.current.player;
-    const b = p.mixamo.boneNode('Spine2');
-    const a = p.rig.torso.getAbsolutePosition();
-    const c = b.getAbsolutePosition();
-    return Math.hypot(a.x - c.x, a.y - c.y, a.z - c.z);
-  });
-  console.log('chest to Spine2', near.toFixed(3));
-  assert(near < 0.15, `the chest node follows the Mixamo spine (${near.toFixed(3)} m)`);
+  // (slice b) the chest node (the slung gun's parent) rides on the Mixamo spine: within 25 cm of Spine2 (the two
+  // skeletons mark the chest at different points), and the offset holds (within 3 cm) from standing to a run
+  const chestGap = () =>
+    G(() => {
+      const p = window.__app.current.player;
+      const a = p.rig.torso.getAbsolutePosition();
+      const c = p.mixamo.boneNode('Spine2').getAbsolutePosition();
+      return Math.hypot(a.x - c.x, a.y - c.y, a.z - c.z);
+    });
+  const near = await chestGap();
+  await fwd(-1);
+  await frames(page, 45);
+  const nearRun = await chestGap();
+  await fwd(0);
+  await frames(page, 40);
+  console.log('chest to Spine2', near.toFixed(3), 'running', nearRun.toFixed(3));
+  assert(near < 0.25, `the chest node follows the Mixamo spine (${near.toFixed(3)} m)`);
+  assert(Math.abs(nearRun - near) < 0.03, `the chest offset holds while running (${near.toFixed(3)} -> ${nearRun.toFixed(3)} m)`);
   await press(page, BTN.X); // draw (the long gun's sling draw travels ~2.5 s before it is on the aim pivot)
   await frames(page, 220);
   t = await top();

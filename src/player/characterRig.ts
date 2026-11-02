@@ -952,6 +952,8 @@ export class CharacterRig {
   gunPush = 0;
   /** Weapon node whose grips the hands follow (null = free arms). */
   heldWeapon: TransformNode | null = null;
+  /** (mixamo-chars slice c) Called by every solving `animate` with its inputs (a Mixamo body drawn over this rig). */
+  onAnimate: ((dt: number, s: RigPose) => void) | null = null;
   /**
    * (ct-prototype D1) The weapon node a draw / holster travel is carrying (WeaponModel sets it; null: none): while it is
    * `heldWeapon` the grip stays at 1. (fix r1) A node, not a flag: a travel abandoned without its end (death, the weapon
@@ -1754,6 +1756,8 @@ export class CharacterRig {
     this.stepGlide(dt);
     if (solveDt !== undefined && solveDt < 0) return;
     if (solveDt !== undefined) dt = solveDt;
+    // (mixamo-chars slice c) a Mixamo body over this rig takes the same inputs (before the LOD below skips a solve)
+    this.onAnimate?.(dt, s);
     // animation LOD: rigs far from the camera solve every other frame
     const cam = solveDt === undefined ? this.root.getScene().activeCamera : null;
     if (cam) {

@@ -24,7 +24,7 @@ export function buildBodyRig(scene: Scene, world: World, def: EnemyDef, name: st
     armor: def.plated,
     merge: true, // (guard-render S1) one merged smooth mesh (`?guardmerge=0`: the parts)
   });
-  if (guardModelsFor(def)) new GuardBody(scene, world, def, rig, name, gear ?? undefined);
+  if (guardModelsFor(def)) new GuardBody(scene, world, def, rig, name, gear ?? undefined, false);
   for (const m of rig.renderMeshes) world.addShadowCaster(m);
   return rig;
 }
@@ -118,6 +118,8 @@ export class Body {
     /** (S5) Where it lies (sim, `deathLieOn`). */
     lie: BodyLie,
   ) {
+    // (mixamo-chars slice c) the ragdoll poses the rig: the guard figure takes over from a Mixamo body
+    guardBodyOf(rig)?.dropMixamo();
     rig.heldWeapon = null;
     rig.emote = null;
     this.occR = bodyOccR(rig.p);

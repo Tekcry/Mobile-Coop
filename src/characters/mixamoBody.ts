@@ -51,6 +51,8 @@ export interface MixamoBodyOpts {
   tint?: readonly [number, number, number];
   /** Each mesh as it loads (shadow casters). */
   casters?: (m: AbstractMesh) => void;
+  /** Standing height (m); default `MIXAMO_HEIGHT` (the player's). */
+  height?: number;
 }
 
 /** One rig node that follows a Mixamo bone: the node, the bone's name (`Hips`, `Spine2`, ...) and the node's rest
@@ -105,6 +107,8 @@ export class MixamoBody {
   readonly root: TransformNode;
   ready = false;
   failed = false;
+  /** Called once when the model is in and playing (the owner hides what it stood in for). */
+  onReady: (() => void) | null = null;
   /** The move set playing now (the strongest after the crossfade). */
   set: LocoSet = 'unarmed';
   private readonly scene: Scene;
@@ -146,21 +150,6 @@ export class MixamoBody {
     for (const n of inst.rootNodes) n.parent = this.root;
     this.groups = inst.animationGroups;
     for (const n of inst.rootNodes) for (const m of n.getChildMeshes(false)) this.meshes.push(m);
-    // scale to the game height from the model's bind-pose bounds (Mixamo models differ: X Bot ~1.8 m, Swat ~1.9 m)
-    let minY = Infinity, maxY = -Infinity;
-    for (const m of this.meshes) {
-      m.computeWorldMatrix(true);
-      const b = m.getBoundingInfo().boundingBox;
-      minY = Math.min(minY, b.minimumWorld.y);
-      maxY = Math.max(maxY, b.maximumWorld.y);
-    }
-    const parentY = this.root.parent instanceof TransformNode ? this.root.parent.getAbsolutePosition().y : 0;
-    const h = maxY - minY;
-    if (h > 0.1) {
-      const s = MIXAMO_HEIGHT / h;
-      this.root.scaling.setAll(s);
-      this.root.position.y = -(minY - parentY) * s;
-    }
     if (this.opts.tint) this.tint(this.opts.tint);
     for (const m of this.meshes) {
       m.isPickable = false;
@@ -171,8 +160,6 @@ export class MixamoBody {
       g.stop();
       g.enableBlending = false;
     }
-    // the bind pose, before any move plays: the follow's bone rests
-    if (this.pendingFollow) this.bindFollow(this.pendingFollow.rigRoot, this.pendingFollow.pairs);
     // the clip table: every set's clip per slot, each distinct clip one looping group
     const byName = new Map<string, number>();
     this.table = new Int32Array(LOCO_SETS.length * LOCO_N).fill(-1);
@@ -197,7 +184,45 @@ export class MixamoBody {
       c.g.start(true, 1);
       c.g.weight = i === 0 ? 1 : 0;
     }
+    // the reference pose: the idle's first frame, a standing pose like the rig's rest (a model's bind pose can sit its
+    // hips on the floor, the Swat's does, and holds a T): the height fit and the follow's bone rests are taken in it
+    const idle = this.clips[0]?.g;
+    if (idle) idle.goToFrame(idle.from);
+    this.fitHeight();
+    if (this.pendingFollow) this.bindFollow(this.pendingFollow.rigRoot, this.pendingFollow.pairs);
     this.ready = true;
+    this.onReady?.();
+  }
+
+  /**
+   * Scales the body to the game's size (in the reference pose), its feet on the parent's origin (Mixamo models stand on
+   * their own origin). With a rig to follow, the Head bone's height above the feet matches the rig's head node at rest
+   * (his eye, the camera fade; hips-to-head lengths do not: the two skeletons mark the head at different points); else
+   * the model's bounds give `height` (the Swat's unskinned mesh bounds read 1.79x small: the skeleton is the reliable
+   * measure).
+   */
+  private fitHeight(): void {
+    this.root.scaling.setAll(1);
+    this.root.position.y = 0;
+    for (let p: TransformNode | null = this.root; p; p = p.parent instanceof TransformNode ? p.parent : null) p.computeWorldMatrix(true);
+    const headPair = this.pendingFollow?.pairs.find((p) => p.bone === 'Head');
+    const head = this.boneNode('Head');
+    if (headPair && head) {
+      for (const n of [...chainBelow(head, this.root), head]) n.computeWorldMatrix(true);
+      const have = head.getAbsolutePosition().y - this.root.getAbsolutePosition().y;
+      const want = headPair.rest.m[13] as number;
+      if (have > 0.1 && want > 0.1) this.root.scaling.setAll(want / have);
+      return;
+    }
+    let minY = Infinity, maxY = -Infinity;
+    for (const m of this.meshes) {
+      m.computeWorldMatrix(true);
+      const b = m.getBoundingInfo().boundingBox;
+      minY = Math.min(minY, b.minimumWorld.y);
+      maxY = Math.max(maxY, b.maximumWorld.y);
+    }
+    const h = maxY - minY;
+    if (h > 0.1) this.root.scaling.setAll((this.opts.height ?? MIXAMO_HEIGHT) / h);
   }
 
   /** The model's main surface colour (the mannequins' body; the joints keep theirs). */
@@ -369,6 +394,11 @@ export class MixamoBody {
     const out: Record<string, number> = {};
     for (let ci = 0; ci < this.clips.length; ci++) out[this.clips[ci]!.g.name.split(':').pop() ?? ''] = this.clipW[ci] as number;
     return out;
+  }
+
+  /** The first mesh (an owner's visibility checks watch it), or null before the model is in. */
+  get firstMesh(): AbstractMesh | null {
+    return this.meshes[0] ?? null;
   }
 
   setEnabled(on: boolean): void {
