@@ -87,6 +87,9 @@ export interface LocoIn {
   aim?: number;
   /** (slice g) Aim pitch (rad, up positive): the spine bends to it while a gun is raised. */
   aimPitch?: number;
+  /** (walk-test fix A3) Aim yaw off the body's facing (rad, right positive): the spine twists to it while a gun is
+   *  raised. */
+  aimYaw?: number;
 }
 
 /** `w[k] += v` (strict index access). */

@@ -91,6 +91,8 @@ export function dressRig(scene: Scene, rig: CharacterRig, model: MixamoModel, op
       act.clip = 'downed_lie';
       act.t = NaN;
     } else pickAction(s, r.holdingKnife, act);
+    // (walk-test fix A3) aimed, the arms reach for the rig's gun only while the rig holds it in its right hand too
+    body.rightHanded = r.weaponHand > 0;
     body.update(s, s.carryBody ? 'carry' : mixamoSetOf(r), dt, act);
   };
   r.onAnimate = hook;

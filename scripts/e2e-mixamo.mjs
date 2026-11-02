@@ -116,6 +116,42 @@ try {
   t = await top();
   console.log('aim', JSON.stringify(t));
   await shot('6-aim');
+  // (walk-test fix A3) aimed, the rifle comes up to the eye (its muzzle sat 100 px under the reticle), and strafing the
+  // upper body holds the aim: the head stays clear left of the reticle (the strafe leaned it onto it) and still
+  const spots = () =>
+    G(() => {
+      const p = window.__app.current.player;
+      const sc = window.__app.current.world.scene;
+      const V = p.rig.root.position.constructor;
+      const T = sc.getTransformMatrix();
+      const W = sc.getEngine().getRenderWidth(), H = sc.getEngine().getRenderHeight();
+      const proj = (v) => {
+        const c = V.TransformCoordinates(v, T);
+        return [((c.x + 1) / 2 - 0.5) * W, ((1 - c.y) / 2 - 0.5) * H];
+      };
+      const m = p.rig.weaponPivot.getWorldMatrix().m;
+      const l = Math.hypot(m[8], m[9], m[10]);
+      const muzzle = new V(m[12] + (m[8] / l) * 0.6, m[13] + (m[9] / l) * 0.6, m[14] + (m[10] / l) * 0.6);
+      return { head: proj(p.mixamo.boneNode('Head').getAbsolutePosition()), muzzle: proj(muzzle), W, H };
+    });
+  const sa = await spots();
+  console.log('aimed head / muzzle (px off the reticle)', JSON.stringify(sa));
+  if (t.best.startsWith('rifle_')) assert(sa.muzzle[1] < 0.12 * sa.H, `aimed, the rifle is up at the eye (muzzle ${sa.muzzle[1].toFixed(0)} px under the reticle)`);
+  await G(() => window.__pad.axis(0, 0.6)); // strafe right, aimed
+  await frames(page, 30);
+  let hMax = -Infinity, hMin = Infinity;
+  for (let f = 0; f < 10; f++) {
+    await frames(page, 4);
+    const s = await spots();
+    hMax = Math.max(hMax, s.head[0]);
+    hMin = Math.min(hMin, s.head[0]);
+  }
+  await shot('6a-aim-strafe');
+  await G(() => window.__pad.axis(0, 0));
+  await frames(page, 30);
+  console.log('strafing aimed, head x', hMin.toFixed(0), '..', hMax.toFixed(0));
+  assert(hMax < -0.15 * sa.W, `strafing aimed, the head stays clear of the reticle (head x up to ${hMax.toFixed(0)} px)`);
+  assert(hMax - hMin < 40, `strafing aimed, the head holds still across the view (${(hMax - hMin).toFixed(0)} px)`);
   // (slice g) aiming up or down bends the Mixamo spine: the gun in its hand points with the view (the barrel's rise
   // follows the camera's pitch, within a third of it)
   const barrel = () =>
