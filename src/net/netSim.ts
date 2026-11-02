@@ -32,6 +32,8 @@ export const NETSIM_PRESETS: Readonly<Record<string, NetSimPreset>> = {
 
 /** (co-op relay fix) How long after first hearing a peer a `blocked` link reports its join error (ms). */
 export const BLOCKED_JOIN_ERROR_MS = 1500;
+/** ... and again this often while it keeps hearing it (ms): Trystero re-offers about every 5.3 s, each try failing. */
+export const BLOCKED_RETRY_MS = 5333;
 
 /** The preset named by `?netsim=` (null = off, also for unknown names). */
 export function netSimPreset(name: string | null | undefined): NetSimPreset | null {

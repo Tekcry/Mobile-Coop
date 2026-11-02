@@ -17,8 +17,9 @@ export interface RelayServer {
 const USER = '132f2be98063edc9af58fba9';
 const KEY = 'sX4KGLRy8Ld66sV9';
 
+/** TURN only: Metered's STUN entry is left out, Trystero already adds 4 STUN servers (more ICE servers slow Firefox's
+ *  candidate gathering). */
 export const RELAY_SERVERS: readonly RelayServer[] = [
-  { urls: 'stun:stun.relay.metered.ca:80' },
   { urls: 'turn:global.relay.metered.ca:80', username: USER, credential: KEY },
   { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: USER, credential: KEY },
   { urls: 'turn:global.relay.metered.ca:443', username: USER, credential: KEY },

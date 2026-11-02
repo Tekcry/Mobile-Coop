@@ -50,10 +50,14 @@ export interface CoopApi {
 
 /**
  * How long a joiner waits for the host's lobby (ms). (co-op relay fix) 25 s, was 15 s: a link that needs the TURN
- * relay, or slow signalling relays, can take longer than a direct one; a link that fails outright reports at once
- * (`LinkMonitor.onFailed`), so this is only for "nobody answered".
+ * relay, or slow signalling relays, can take longer than a direct one. Join errors alone end it sooner only after two
+ * of them 6 s apart (`LinkMonitor.onFailed`: Trystero retries); at the timeout the first join error, if any, is the
+ * reason shown, else "nobody answered".
  */
 const JOIN_TIMEOUT_MS = 25000;
+/** A joiner whose link is up at the timeout (no lobby yet) waits this much more (ms), at most `JOIN_GRACES` times. */
+const JOIN_GRACE_MS = 5000;
+const JOIN_GRACES = 2;
 const roomId = (code: string): string => `ss-${code}`;
 
 function isOffline(): boolean {
@@ -106,8 +110,10 @@ class CoopController {
     readonly session: NetSession,
   ) {
     const ev = session.events;
-    this.link = new LinkMonitor(session.transport, session.role, (r) => void logAttempt(r));
-    // (co-op relay fix) a joiner whose link failed outright (no path, the relay included) has nothing to wait for
+    // (the host follows only its members' connections: a peer refused for its version or a full room is not the partner)
+    this.link = new LinkMonitor(session.transport, session.role, (r, prev) => void logAttempt(r, prev), undefined, session.isHost ? (id) => session.isMemberConn(id) : undefined);
+    // (co-op relay fix) a joiner whose tries keep failing (2 join errors 6 s apart: no path, the relay included) has
+    // nothing more to wait for; the host is told, and keeps waiting
     this.link.onFailed = (f) => {
       if (!session.isHost && !session.hostId && !this.inGame) this.failJoin(f);
       else if (session.isHost) this.app.toasts.show('A player found the room but could not connect', 'warn');
@@ -118,8 +124,10 @@ class CoopController {
       ev.on('full', () => this.failJoin('full')),
       // (co-op relay fix, protocol 91) another game version: the joiner cannot join; the host is told who it refused
       ev.on('version', () => {
-        if (session.isHost) this.app.toasts.show('A player with a different game version tried to join. Both of you reload to update.', 'warn');
-        else this.failJoin('version');
+        if (session.isHost) {
+          this.link.note('version');
+          this.app.toasts.show('A player with a different game version tried to join. Both of you reload to update.', 'warn');
+        } else this.failJoin('version');
       }),
       ev.on('lobby', () => {
         // host went back to the lobby while we were still in the match
@@ -303,9 +311,10 @@ class ConnectionLogScreen extends MenuScreen {
   private list: HTMLElement;
 
   constructor() {
-    super('coop-screen connection-log-screen', ['Connection', 'Log']);
+    // (not `coop-screen`: that class tells the app update policy a peer may be connected, and none is here)
+    super('connection-log-screen', ['Connection', 'Log']);
     this.list = h('div', { class: 'menu-list ms-list', attrs: { 'data-wrap': '' } });
-    this.body.append(h('div', { class: 'join-note', text: 'Co-op connections on this device. Kept here only.' }), this.list);
+    this.body.append(h('div', { class: 'log-note', text: 'Co-op connections on this device. Kept here only.' }), this.list);
     this.render([]);
     void loadAttempts().then((l) => {
       this.render(l);
@@ -921,10 +930,19 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
   }
   const c = adopt(app, api, session);
   if (role === 'client') {
-    setTimeout(() => {
-      // (co-op relay fix) logged as a timeout, with the dialog's advice (the code, then a strict network)
-      if (!session.hostId && current === c && !c.inGame) c.failJoin('timeout');
-    }, JOIN_TIMEOUT_MS);
+    // (co-op relay fix) no host lobby by the timeout: failed, with the first join error's reason if there was one, else
+    // `timeout`; a link already up (the host's lobby on its way) gets JOIN_GRACE_MS more, up to JOIN_GRACES times
+    let graces = 0;
+    const check = (): void => {
+      if (session.hostId || current !== c || c.inGame) return;
+      if (graces < JOIN_GRACES && (transport.peers().length > 0 || c.link.state.phase === 'connected')) {
+        graces++;
+        setTimeout(check, JOIN_GRACE_MS);
+        return;
+      }
+      c.failJoin(c.link.firstJoinError ?? 'timeout');
+    };
+    setTimeout(check, JOIN_TIMEOUT_MS);
   }
 }
 

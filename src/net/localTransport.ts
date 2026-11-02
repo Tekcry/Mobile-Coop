@@ -1,5 +1,5 @@
 import type { Transport } from './transport';
-import { BLOCKED_JOIN_ERROR_MS, NetSim, netSimPreset } from './netSim';
+import { BLOCKED_JOIN_ERROR_MS, BLOCKED_RETRY_MS, NetSim, netSimPreset } from './netSim';
 
 /**
  * Same-device transport over BroadcastChannel (several tabs/windows of the game). Used for
@@ -8,7 +8,7 @@ import { BLOCKED_JOIN_ERROR_MS, NetSim, netSimPreset } from './netSim';
  * the shipped transport); presence (hi / ack / bye) is not delayed. Only this transport reads the param.
  * (co-op relay fix) `linkStats` reads "same device" (with `&netsim=`, its round trip; `relay` reads as via relay);
  * `&netsim=blocked` hears the other tabs but takes nothing from them, and reports a join error after
- * `BLOCKED_JOIN_ERROR_MS`, as Trystero does when no path works.
+ * `BLOCKED_JOIN_ERROR_MS`, then every `BLOCKED_RETRY_MS`, as Trystero's retries do when no path works.
  */
 export function createLocalTransport(roomId: string): Transport {
   const selfId = `L${Math.random().toString(36).slice(2, 10)}`;
@@ -61,7 +61,15 @@ export function createLocalTransport(roomId: string): Transport {
     if (w.to && w.to !== selfId) return;
     if (blocked) {
       // found through "signalling", no path: one join error per first contact, as Trystero's
-      if (!joinErrT && !closed) joinErrT = setTimeout(() => t.onJoinError?.(`could not connect to peer ${w.from} after exchanging SDP (simulated: netsim=blocked)`), BLOCKED_JOIN_ERROR_MS);
+      if (!joinErrT && !closed) {
+        const from = w.from;
+        const fire = (): void => {
+          if (closed) return;
+          t.onJoinError?.(`could not connect to peer ${from} after exchanging SDP (simulated: netsim=blocked)`);
+          joinErrT = setTimeout(fire, BLOCKED_RETRY_MS);
+        };
+        joinErrT = setTimeout(fire, BLOCKED_JOIN_ERROR_MS);
+      }
       return;
     }
     if (w.k === 'hi') {

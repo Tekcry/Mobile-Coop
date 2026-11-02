@@ -78,14 +78,53 @@ describe('protocol version mismatch', () => {
     const cli = new NetSession(h.make('C'), 'client', 'ABCDE', prof('Cli'));
     const ev: number[] = [];
     cli.events.on('version', (e) => ev.push(e.theirs));
-    fakeHost.send({ t: 'hello', v: PROTOCOL_VERSION + 1, name: 'New', loadout: [], tok: '' }, 'C');
+    fakeHost.send({ t: 'hello', v: PROTOCOL_VERSION + 1, name: 'New', loadout: [], tok: '', h: 1 }, 'C');
     expect(ev).toEqual([PROTOCOL_VERSION + 1]);
     // a hello of our own version is quiet
     const cli2 = new NetSession(h.make('D'), 'client', 'ABCDE', prof('Cli2'));
     const ev2: number[] = [];
     cli2.events.on('version', (e) => ev2.push(e.theirs));
-    fakeHost.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Same', loadout: [], tok: '' }, 'D');
+    fakeHost.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Same', loadout: [], tok: '', h: 1 }, 'D');
     expect(ev2).toEqual([]);
+  });
+
+  it('a third peer of another version (not the host: no h flag) never stops a joiner', () => {
+    const h = hub();
+    const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    const cli = new NetSession(h.make('C'), 'client', 'ABCDE', prof('Cli'));
+    const ev: number[] = [];
+    cli.events.on('version', (e) => ev.push(e.theirs));
+    // before and after the host is known: an old joiner's hello to everyone
+    const third = h.make('X');
+    third.send({ t: 'hello', v: PROTOCOL_VERSION - 1, name: 'Old', loadout: [], tok: '' });
+    expect(ev).toEqual([]);
+    expect(cli.hostId).toBe('H');
+    // no host known yet (another room, the old peer first): still not a refusal; the same hello with h is
+    const h2 = hub();
+    const x = h2.make('X');
+    const early = new NetSession(h2.make('E'), 'client', 'FGHJK', prof('Early'));
+    const ev2: number[] = [];
+    early.events.on('version', (e) => ev2.push(e.theirs));
+    x.send({ t: 'hello', v: PROTOCOL_VERSION - 1, name: 'Old', loadout: [], tok: '' }, 'E');
+    expect(ev2).toEqual([]);
+    expect(early.hostId).toBeNull();
+    x.send({ t: 'hello', v: PROTOCOL_VERSION - 1, name: 'OldHost', loadout: [], tok: '', h: 1 }, 'E');
+    expect(ev2).toEqual([PROTOCOL_VERSION - 1]);
+    expect(host.players.has('C')).toBe(true);
+  });
+
+  it("the host's hello carries h: 1, a joiner's does not", () => {
+    const h = hub();
+    const seen: Record<string, unknown>[] = [];
+    const spy = h.make('S');
+    spy.onMessage = (m) => {
+      const o = m as Record<string, unknown>;
+      if (o.t === 'hello') seen.push(o);
+    };
+    new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    new NetSession(h.make('C'), 'client', 'ABCDE', prof('Cli'));
+    expect(seen.find((m) => m.name === 'Host')?.h).toBe(1);
+    expect(seen.find((m) => m.name === 'Cli')?.h).toBeUndefined();
   });
 
   it('the same version joins as before', () => {

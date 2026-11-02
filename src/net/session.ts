@@ -182,7 +182,17 @@ export class NetSession {
   /** Our hello; the rejoin token only in the one sent to the host (`withTok`): a broadcast would hand it to anyone in
    *  the room. */
   private hello(withTok = false): Msg {
-    return { t: 'hello', v: PROTOCOL_VERSION, name: this.me.name, loadout: this.me.loadout, tok: withTok ? this.tok : '' };
+    return { t: 'hello', v: PROTOCOL_VERSION, name: this.me.name, loadout: this.me.loadout, tok: withTok ? this.tok : '', ...(this.isHost ? { h: 1 as const } : {}) };
+  }
+
+  /**
+   * (co-op relay fix) Host: transport connection `conn` is a member's live connection (in the room, not away, not a
+   * replaced one): the connection readout follows only these, never a peer refused for its version or a full room.
+   */
+  isMemberConn(conn: string): boolean {
+    const id = this.alias.get(conn) ?? conn;
+    const p = this.players.get(id);
+    return !!p && !p.host && !p.away && (this.route.get(id) ?? id) === conn;
   }
 
   /** Send to everyone, or to one player id (a rejoined player's current connection). */
@@ -315,7 +325,8 @@ export class NetSession {
     }
     if (msg.t === 'hello') {
       // (co-op relay fix, protocol 91) the host introduces itself first: another version can never take us in
-      if (msg.v !== PROTOCOL_VERSION && (!this.hostId || from === this.hostId)) this.refuseVersion(msg.v);
+      // (only the host's own hello, `h`: another joiner of another version in the room is not ours to refuse)
+      if (msg.v !== PROTOCOL_VERSION && msg.h === 1 && (!this.hostId || from === this.hostId)) this.refuseVersion(msg.v);
       return; // other clients introducing themselves; the host's lobby is authoritative
     }
     if (msg.t === 'bye' && msg.reason === VERSION_BYE && (!this.hostId || from === this.hostId)) {

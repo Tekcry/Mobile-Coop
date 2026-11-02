@@ -84,30 +84,42 @@ export function attemptLine(r: AttemptRecord): string {
   return r.ms === null ? `${who} - ${how}` : `${who} - ${how}, ${(r.ms / 1000).toFixed(1)} s`;
 }
 
-let memory: AttemptRecord[] | null = null;
+/** The list as last written (newest first), loaded once: the load's promise is cached, so two early callers share one
+ *  read and an attempt logged while it runs is never lost. */
+let loading: Promise<AttemptRecord[]> | null = null;
+/** Writes run one after another (each reads the list the one before it left). */
+let queue: Promise<void> = Promise.resolve();
 
-export async function loadAttempts(): Promise<AttemptRecord[]> {
-  if (memory) return memory;
-  try {
-    memory = sanitizeAttempts(await dbGet('kv', ATTEMPTS_KEY));
-  } catch {
-    memory = [];
-  }
-  return memory;
+export function loadAttempts(): Promise<AttemptRecord[]> {
+  loading ??= dbGet('kv', ATTEMPTS_KEY).then(
+    (raw) => sanitizeAttempts(raw),
+    () => [] as AttemptRecord[],
+  );
+  return loading;
 }
 
-/** Add one attempt (and say it in the console: no relay login, only the method, time and reason). */
-export async function logAttempt(rec: AttemptRecord): Promise<void> {
-  console.info(`co-op connection: ${attemptLine(rec)}`);
-  memory = addAttempt(await loadAttempts(), rec);
-  try {
-    await dbPut('kv', ATTEMPTS_KEY, memory);
-  } catch {
-    // (storage blocked: the log lives for this session only)
-  }
+/**
+ * Add one attempt (and say it in the console: no relay login, only the method, time and reason). `replaces`: an earlier
+ * record of the same attempt (an `ok` line, then the join was refused) that this one takes the place of.
+ */
+export function logAttempt(rec: AttemptRecord, replaces: AttemptRecord | null = null): Promise<void> {
+  console.info(`co-op connection: ${attemptLine(rec)}${replaces ? ' (in place of the earlier line)' : ''}`);
+  queue = queue.then(async () => {
+    const list = await loadAttempts();
+    const i = replaces ? list.indexOf(replaces) : -1;
+    const next = i >= 0 ? list.map((r, k) => (k === i ? rec : r)) : addAttempt(list, rec);
+    loading = Promise.resolve(next);
+    try {
+      await dbPut('kv', ATTEMPTS_KEY, next);
+    } catch {
+      // (storage blocked: the log lives for this session only)
+    }
+  });
+  return queue;
 }
 
 /** For tests: forget the cached list. */
 export function resetAttemptCache(): void {
-  memory = null;
+  loading = null;
+  queue = Promise.resolve();
 }

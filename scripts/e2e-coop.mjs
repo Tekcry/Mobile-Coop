@@ -122,17 +122,17 @@ try {
     assert(hl === 'Connection: Waiting for your partner', `the host's lobby readout waits for the partner (${hl})`);
   }
   // (co-op relay fix) a joiner with no path to the host (netsim=blocked: found, nothing gets through, a join error) gets
-  // the plain failure dialog at once, and its connection log counts it
-  console.log('relay fix: a blocked join fails at once with a plain message and is logged');
+  // the plain failure dialog once its retries keep failing (2 join errors 6 s apart, about 12 s), and its connection log counts it
+  console.log('relay fix: a blocked join retries, then fails with a plain message and is logged');
   {
     const { page: C } = await openPage(ctx, url, `${NET}&netsim=blocked`);
     await C.click('.main-menu .btn:has-text("Co-op")');
     await C.click('.btn:has-text("Join with code")');
     await C.keyboard.type(code);
     await C.keyboard.press('Enter');
-    await until(C, () => /Couldn't reach your partner/.test(document.querySelector('.dialog-title')?.textContent ?? ''), null, 12000, 'the blocked joiner sees "Couldn\'t reach your partner"');
+    await until(C, () => /Couldn't reach your partner/.test(document.querySelector('.dialog-title')?.textContent ?? ''), null, 25000, 'the blocked joiner sees "Couldn\'t reach your partner"');
     const txt = await C.evaluate(() => document.querySelector('.dialog-screen .dialog')?.textContent ?? '');
-    assert(/strict network/.test(txt) && /relay/.test(txt), `the failure says what to do (${txt.slice(0, 160)})`);
+    assert(/neither a direct link nor the relay server/.test(txt) && /hotspot/.test(txt), `the failure says what to do (${txt.slice(0, 160)})`);
     assert(await GA(() => window.__coop.session.players.size === 1), 'the host never saw the blocked joiner');
     await C.evaluate(() => document.querySelector('.dialog-screen .btn')?.click());
     await until(C, () => !document.querySelector('.dialog-screen'), null, 5000, 'the dialog closes');

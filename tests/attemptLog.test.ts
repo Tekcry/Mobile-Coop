@@ -55,4 +55,26 @@ describe('attempt log (IndexedDB)', () => {
     resetAttemptCache();
     expect((await loadAttempts()).map((r) => r.method)).toEqual(['relay', 'direct']);
   });
+
+  it('attempts logged before the first load finishes are all kept; a failure can replace its ok line', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    await dbPut('kv', ATTEMPTS_KEY, [rec({ at: 0 })]);
+    resetAttemptCache();
+    const ok = rec({ at: 5, method: 'relay' });
+    // no await between them: one shared load, writes in order
+    const a = logAttempt(rec({ at: 3 }));
+    const b = logAttempt(ok);
+    const c = loadAttempts();
+    await Promise.all([a, b, c]);
+    expect((await loadAttempts()).map((r) => r.at)).toEqual([5, 3, 0]);
+    await logAttempt(rec({ at: 6, method: 'none', ms: null, result: 'version' }), ok);
+    info.mockRestore();
+    expect((await loadAttempts()).map((r) => [r.at, r.result])).toEqual([
+      [6, 'version'],
+      [3, 'ok'],
+      [0, 'ok'],
+    ]);
+    resetAttemptCache();
+    expect(sanitizeAttempts(await dbGet('kv', ATTEMPTS_KEY)).map((r) => r.at)).toEqual([6, 3, 0]);
+  });
 });

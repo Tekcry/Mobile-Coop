@@ -3941,7 +3941,8 @@ body.tune-hide-hud .mouse-capture-hint {
 }
 
 /* co-op screens */
-.coop-screen.menu-screen {
+.coop-screen.menu-screen,
+.connection-log-screen.menu-screen {
   background: transparent;
 }
 .coop-screen.menu-screen .coop-offline {
@@ -3965,7 +3966,8 @@ body.tune-hide-hud .mouse-capture-hint {
   color: var(--muted);
   text-transform: uppercase;
 }
-.join-screen.menu-screen .join-note {
+.join-screen.menu-screen .join-note,
+.connection-log-screen.menu-screen .log-note {
   font-size: var(--fs-row);
   color: var(--muted);
   letter-spacing: 0.06em;

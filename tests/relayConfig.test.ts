@@ -7,7 +7,8 @@ import { iceConfig, RELAY_SERVERS, relayMode } from '../src/net/relayConfig';
 describe('relay config', () => {
   it('lists the relay over UDP, TCP and TLS on 80 / 443, with a login on every TURN entry', () => {
     const urls = RELAY_SERVERS.flatMap((s) => (typeof s.urls === 'string' ? [s.urls] : [...s.urls]));
-    expect(urls.some((u) => u.startsWith('stun:'))).toBe(true);
+    // (TURN only: Trystero brings its own 4 STUN servers)
+    expect(urls.some((u) => u.startsWith('stun:'))).toBe(false);
     expect(urls.some((u) => /^turn:.*:80$/.test(u))).toBe(true);
     expect(urls.some((u) => /^turn:.*:80\?transport=tcp$/.test(u))).toBe(true);
     expect(urls.some((u) => /^turn:.*:443$/.test(u))).toBe(true);

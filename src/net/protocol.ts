@@ -302,7 +302,8 @@ export interface EndStats {
 
 export type Msg =
   /** `tok` (marlow-bays R2): the client's rejoin token for this room ('' = none), so a rejoin gets its held slot back. */
-  | { t: 'hello'; v: number; name: string; loadout: WeaponId[]; tok: string }
+  /** `h` (co-op relay fix, protocol 91): 1 on the host's own hello, so a joiner refuses only the host's other version. */
+  | { t: 'hello'; v: number; name: string; loadout: WeaponId[]; tok: string; h?: 1 }
   /** (marlow-bays R2) Host -> one client: the player id the host knows it by (its held slot's on a rejoin). */
   | { t: 'you'; id: string }
   /** (campaign-mode CM3) `sm`: the host's campaign mission pick (`MissionDef.id`; absent: none, the lobby as before), so
@@ -840,7 +841,7 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'hello': {
       const v = num(raw.v, 0, 1e6);
       if (v === null) return null;
-      return { t: 'hello', v, name: safeText(raw.name, 16) || 'Operator', loadout: loadout(raw.loadout), tok: id(raw.tok) ?? '' };
+      return { t: 'hello', v, name: safeText(raw.name, 16) || 'Operator', loadout: loadout(raw.loadout), tok: id(raw.tok) ?? '', ...(raw.h === 1 ? { h: 1 as const } : {}) };
     }
     case 'you': {
       const pid = id(raw.id);

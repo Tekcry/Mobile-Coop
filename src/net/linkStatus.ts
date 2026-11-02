@@ -17,7 +17,8 @@ export interface LinkSample {
   rttMs: number | null;
 }
 
-export type LinkPhase = 'waiting' | 'connecting' | 'connected' | 'failed';
+/** `retrying`: the joiner's first attempt failed (a join error), Trystero tries again (it re-offers every ~5 s). */
+export type LinkPhase = 'waiting' | 'connecting' | 'retrying' | 'connected' | 'failed';
 
 export interface LinkState {
   phase: LinkPhase;
@@ -92,12 +93,12 @@ export function failureDialog(f: JoinFailure, code: string): { title: string; te
     case 'unreachable':
       return {
         title: "Couldn't reach your partner",
-        text: `Found room ${code}, but no connection got through. One of you may be behind a strict network (a VPN, a work or school network, some mobile hotspots). Try again: the relay is used when a direct link fails. If it keeps failing, try without the VPN or on another network.`,
+        text: `Found room ${code}, but neither a direct link nor the relay server got through. One of you is probably on a network that blocks it (a VPN, a work or school network, a strict firewall). Try another network, such as a phone hotspot, or turn the VPN off, and check that the firewall lets the browser connect.`,
       };
     case 'timeout':
       return {
         title: 'No host found',
-        text: `Nobody answered in room ${code}. Check the code, and that the host still has the lobby open. If the code is right, one of you may be behind a strict network - try again, the relay will be used.`,
+        text: `Nobody answered in room ${code}. Check the code, and that the host still has the lobby open, then try again.`,
       };
     case 'version':
       return {
@@ -117,6 +118,7 @@ export function failureDialog(f: JoinFailure, code: string): { title: string; te
 export function linkText(s: LinkState): string {
   if (s.phase === 'waiting') return 'Waiting for your partner';
   if (s.phase === 'connecting') return 'Connecting...';
+  if (s.phase === 'retrying') return 'Connecting... (first try failed, retrying)';
   if (s.phase === 'failed') return `Failed - ${FAILURE_SHORT[s.failure ?? 'other']}`;
   const smp = s.sample;
   if (!smp) return 'Connected';

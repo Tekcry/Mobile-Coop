@@ -49,6 +49,7 @@ describe('linkText', () => {
   it('reads in plain words', () => {
     expect(linkText({ phase: 'waiting', sample: null, failure: null })).toBe('Waiting for your partner');
     expect(linkText({ phase: 'connecting', sample: null, failure: null })).toBe('Connecting...');
+    expect(linkText({ phase: 'retrying', sample: null, failure: null })).toBe('Connecting... (first try failed, retrying)');
     expect(linkText({ phase: 'connected', sample: null, failure: null })).toBe('Connected');
     expect(linkText({ phase: 'connected', sample: { kind: 'direct', rttMs: 45 }, failure: null })).toBe('Connected - direct, 45 ms');
     expect(linkText({ phase: 'connected', sample: { kind: 'relay', rttMs: 120 }, failure: null })).toBe('Connected - via relay, 120 ms');
@@ -76,7 +77,8 @@ describe('join failures', () => {
       for (const s of secrets) expect(all).not.toContain(s);
     }
     expect(failureDialog('timeout', 'QWXYZ').text).toMatch(/QWXYZ.*Check the code/);
-    expect(failureDialog('unreachable', 'QWXYZ').text).toMatch(/strict network.*relay/);
+    expect(failureDialog('unreachable', 'QWXYZ').text).toMatch(/neither a direct link nor the relay server got through.*hotspot.*firewall/);
+    expect(failureDialog('timeout', 'QWXYZ').text).not.toMatch(/relay|strict/);
     expect(failureDialog('version', 'QWXYZ').text).toMatch(/reload/);
   });
 });
