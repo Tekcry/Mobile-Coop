@@ -295,6 +295,8 @@ export interface NetHooks {
   role: 'host' | 'client';
   /** (marlow-bays R1) The room code, shown in the pause menu so either player can rejoin on it. */
   code?: string;
+  /** (co-op relay fix) The connection readout ("Connected - via relay, 120 ms"), shown in the pause menu. */
+  link?: () => string;
   attach(g: GameState): NetAttachment;
 }
 
@@ -1443,6 +1445,7 @@ export class GameState implements AppState {
           restartCheckpoint: CHECKPOINT_MODES.has(this.opts.mode) ? () => this.restartCheckpoint() : undefined,
           lobby: this.net && this.cb.lobby ? () => this.cb.lobby?.() : undefined,
           roomCode: this.opts.net?.code,
+          link: this.opts.net?.link,
         },
       ),
     );

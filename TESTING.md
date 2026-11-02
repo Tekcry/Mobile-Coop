@@ -532,9 +532,11 @@ Main menu > Co-op > Host a room > Start (Marlow Yard), pad first, then keyboard 
 - [ ] (marlow-bays R) Rejoin: in a co-op match, Start shows "Room CODE". Joiner: Start > Quit to menu; the host sees
   "<name> disconnected - reconnecting..." and the joiner's body stays put. Joiner: Main menu > "Rejoin CODE": back in,
   where you stood, same health.
-- [ ] (server browser) Host: Co-op > Host a room, Room: Public. Other tab / PC: Co-op > Browse rooms shows the room
-  (code, Marlow Yard, 1 / 2) within a few seconds; pick it to join. Once both are in, it leaves the list. One real-relay
-  check on the PC (two machines, not `?net=local`).
+- [ ] (co-op relay fix) Two homes (two networks, not `?net=local`): host a room, the partner joins by the code or the
+  invite link; both lobbies show "Connection: Connected - direct, N ms" or "Connected - via relay, N ms" within about
+  10 s. Three joins in a row, then one with the joiner on a phone hotspot. Co-op > Connection log on each PC counts
+  them. Start in a match shows the same connection line under the room code.
+- [ ] (co-op relay fix) Join a code nobody hosts: "No host found" after 25 s, telling you to check the code.
 - [ ] Host: Start > Quit to menu; the joiner shows "Host disconnected - waiting (CODE)". Host: Main menu > "Resume
   hosting CODE": the match restarts at the bay you were in and the joiner is pulled in.
 

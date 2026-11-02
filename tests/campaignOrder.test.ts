@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   CAMPAIGN_KEYS,
   CAMPAIGN_ORDER,
@@ -185,22 +185,22 @@ describe('lobby rows (CM4)', () => {
 
   it('flag off: the rows are exactly today (host and client, every mode)', () => {
     for (const entry of [null, pro, tgc]) {
-      expect(lobbyRows({ ...base, campaign: false, mode: 'course', entry })).toEqual(['mode', 'map', 'difficulty', 'bay', 'room']);
-      expect(lobbyRows({ ...base, campaign: false, mode: 'sector', entry, continued: true, weather: true })).toEqual(['mode', 'map', 'difficulty', 'weather', 'room']);
+      expect(lobbyRows({ ...base, campaign: false, mode: 'course', entry })).toEqual(['mode', 'map', 'difficulty', 'bay']);
+      expect(lobbyRows({ ...base, campaign: false, mode: 'sector', entry, continued: true, weather: true })).toEqual(['mode', 'map', 'difficulty', 'weather']);
       expect(lobbyRows({ ...base, campaign: false, host: false, mode: 'course', entry, weather: true })).toEqual(['mode', 'map', 'difficulty', 'weather']);
     }
   });
 
   it('flag on, a campaign entry: the Mission row replaces Map; the prologue keeps its bay row', () => {
-    expect(lobbyRows({ ...base, campaign: true, mode: 'course', entry: pro })).toEqual(['mode', 'campaign', 'difficulty', 'bay', 'room']);
-    expect(lobbyRows({ ...base, campaign: true, mode: 'sector', entry: tgc })).toEqual(['mode', 'campaign', 'difficulty', 'room']);
+    expect(lobbyRows({ ...base, campaign: true, mode: 'course', entry: pro })).toEqual(['mode', 'campaign', 'difficulty', 'bay']);
+    expect(lobbyRows({ ...base, campaign: true, mode: 'sector', entry: tgc })).toEqual(['mode', 'campaign', 'difficulty']);
     expect(lobbyRows({ ...base, campaign: true, host: false, mode: 'sector', entry: tgc })).toEqual(['mode', 'campaign', 'difficulty']);
     // no entry (plain Sector Ops): as today
-    expect(lobbyRows({ ...base, campaign: true, mode: 'sector', entry: null })).toEqual(['mode', 'map', 'difficulty', 'room']);
+    expect(lobbyRows({ ...base, campaign: true, mode: 'sector', entry: null })).toEqual(['mode', 'map', 'difficulty']);
   });
 
   it('a Continue locks the host difficulty row (the client row is locked anyway)', () => {
-    expect(lobbyRows({ ...base, campaign: true, mode: 'sector', entry: tgc, continued: true })).toEqual(['mode', 'campaign', 'difficultyLocked', 'room']);
+    expect(lobbyRows({ ...base, campaign: true, mode: 'sector', entry: tgc, continued: true })).toEqual(['mode', 'campaign', 'difficultyLocked']);
     expect(lobbyRows({ ...base, campaign: true, host: false, mode: 'sector', entry: tgc, continued: true })).toEqual(['mode', 'campaign', 'difficulty']);
   });
 });

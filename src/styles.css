@@ -3941,7 +3941,8 @@ body.tune-hide-hud .mouse-capture-hint {
 }
 
 /* co-op screens */
-.coop-screen.menu-screen {
+.coop-screen.menu-screen,
+.connection-log-screen.menu-screen {
   background: transparent;
 }
 .coop-screen.menu-screen .coop-offline {
@@ -3965,7 +3966,8 @@ body.tune-hide-hud .mouse-capture-hint {
   color: var(--muted);
   text-transform: uppercase;
 }
-.join-screen.menu-screen .join-note {
+.join-screen.menu-screen .join-note,
+.connection-log-screen.menu-screen .log-note {
   font-size: var(--fs-row);
   color: var(--muted);
   letter-spacing: 0.06em;
@@ -4203,6 +4205,16 @@ body.tune-hide-hud .mouse-capture-hint {
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.35;
+}
+/* (co-op relay fix) the connection readout, under the room code line */
+.pause-screen .ps-link {
+  margin-top: 6px;
+  color: var(--muted);
+}
+.lobby-screen.menu-screen .lobby-link {
+  padding: 0 16px 8px;
+  font-size: calc(14px * var(--ts));
+  color: var(--muted);
 }
 .objectives-screen .ms-item .ms-ctr {
   margin-left: auto;

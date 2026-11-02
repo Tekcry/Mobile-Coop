@@ -13,6 +13,18 @@ describe('NetSim', () => {
     expect(netSimPreset('bogus')).toBeNull();
   });
 
+  it('(co-op relay fix) relay is a slower relayed link; blocked is no path at all', () => {
+    expect(netSimPreset('relay')).toEqual({ oneWayMs: 70, jitterMs: 25, loss: 0.01, relay: true });
+    expect(netSimPreset('blocked')?.blocked).toBe(true);
+    expect(netSimPreset('typical')?.relay).toBeUndefined();
+    const sim = new NetSim(NETSIM_PRESETS.relay!, 2);
+    for (let i = 0; i < 200; i++) {
+      const d = sim.deliverAt('p', i * 50) - i * 50;
+      expect(d).toBeGreaterThanOrEqual(45);
+      expect(d).toBeLessThanOrEqual(70 + 25 + 165);
+    }
+  });
+
   it('is seeded and deterministic', () => {
     const a = new NetSim(NETSIM_PRESETS.typical!, 7);
     const b = new NetSim(NETSIM_PRESETS.typical!, 7);
