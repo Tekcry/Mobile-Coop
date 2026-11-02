@@ -85,6 +85,8 @@ export interface LocoIn {
   crouch: number;
   /** 0 .. 1 weapon raised on the aim line (the idles turn into the aimed idles). */
   aim?: number;
+  /** (slice g) Aim pitch (rad, up positive): the spine bends to it while a gun is raised. */
+  aimPitch?: number;
 }
 
 /** `w[k] += v` (strict index access). */

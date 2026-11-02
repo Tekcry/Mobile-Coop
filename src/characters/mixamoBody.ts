@@ -30,6 +30,9 @@ export const MIXAMO_HEIGHT = 1.68;
 const SET_FADE = 0.2;
 /** (slice e) Seconds for an action to fade in over the locomotion, or back out. */
 const ACT_FADE = 0.12;
+/** (slice g) Seconds the spine takes to follow the aim pitch, and the most it bends (rad, provisional). */
+const PITCH_EASE = 0.08;
+const PITCH_MAX = 1.1;
 
 const CONTAINERS = new WeakMap<Scene, Map<MixamoModel, Promise<AssetContainer>>>();
 
@@ -99,7 +102,7 @@ export type HoldKind = keyof typeof HOLD_FRAMES;
 
 // scratch (follow runs once per body per frame; no allocation)
 const mA = new Matrix(), mB = new Matrix(), mC = new Matrix(), mD = new Matrix();
-const vS = new Vector3(), vT = new Vector3();
+const vS = new Vector3(), vT = new Vector3(), vT2 = new Vector3();
 const qR = new Quaternion();
 
 /**
@@ -131,6 +134,9 @@ export class MixamoBody {
   private readonly actions = new Map<string, AnimationGroup>();
   private act: AnimationGroup | null = null;
   private actW = 0;
+  /** (slice g) The spine's aim bend now (rad), and its bones top first (Spine, Spine1, Spine2). */
+  private pitch = 0;
+  private spine: TransformNode[] = [];
   private pendingFollow: { rigRoot: TransformNode; pairs: FollowPair[] } | null = null;
   private follows: Follow[] = [];
   private rigRoot: TransformNode | null = null;
@@ -206,6 +212,7 @@ export class MixamoBody {
     const idle = this.clips[0]?.g;
     if (idle) idle.goToFrame(idle.from);
     this.fitHeight();
+    this.spine = ['Spine', 'Spine1', 'Spine2'].map((n) => this.boneNode(n)).filter((b): b is TransformNode => !!b);
     if (this.pendingFollow) this.bindFollow(this.pendingFollow.rigRoot, this.pendingFollow.pairs);
     this.ready = true;
     this.onReady?.();
@@ -286,10 +293,44 @@ export class MixamoBody {
     this.followObs ??= this.scene.onAfterAnimationsObservable.add(() => this.applyFollow());
   }
 
+  /**
+   * (slice g) Bends the spine to the aim pitch: `pitch` (rad, up positive) split over Spine, Spine1 and Spine2, each
+   * turned about the body's right axis through its own joint, after the moves are applied. The gun in the right hand
+   * and the chest-hung gear follow (the hold and the follow run after this).
+   */
+  private bendSpine(rr: TransformNode): void {
+    const p = this.pitch;
+    if (Math.abs(p) < 1e-3 || this.spine.length === 0) return;
+    const r = rr.computeWorldMatrix(true).m;
+    vT.set(r[0] as number, r[1] as number, r[2] as number).normalize();
+    const a = -p / this.spine.length;
+    for (const b of this.spine) {
+      for (const n of chainBelow(b, this.root)) n.computeWorldMatrix(true);
+      const W = b.computeWorldMatrix(true);
+      const px = W.m[12] as number, py = W.m[13] as number, pz = W.m[14] as number;
+      // new world = W . move(-joint) . turn(right, a) . move(joint)
+      Matrix.TranslationToRef(-px, -py, -pz, mA);
+      W.multiplyToRef(mA, mB);
+      Matrix.RotationAxisToRef(vT, a, mC);
+      mB.multiplyToRef(mC, mD);
+      Matrix.TranslationToRef(px, py, pz, mA);
+      mD.multiplyToRef(mA, mB);
+      (b.parent as TransformNode).getWorldMatrix().invertToRef(mA);
+      mB.multiplyToRef(mA, mC);
+      mC.decompose(vS, qR, vT2);
+      b.position.copyFrom(vT2);
+      if (b.rotationQuaternion) b.rotationQuaternion.copyFrom(qR);
+      else b.rotationQuaternion = qR.clone();
+      b.scaling.copyFrom(vS);
+      b.computeWorldMatrix(true);
+    }
+  }
+
   /** After Babylon's animation step: each follower takes its bone's movement from the bind pose. */
   private applyFollow(): void {
     const rr = this.rigRoot;
     if (!rr || !this.ready || !this.root.isEnabled()) return;
+    this.bendSpine(rr);
     const rootW = this.root.computeWorldMatrix(true);
     const rigW = rr.computeWorldMatrix(true);
     for (const f of this.follows) {
@@ -371,6 +412,11 @@ export class MixamoBody {
   update(i: LocoIn, set: LocoSet, dt: number, act?: ActionOut): void {
     if (!this.ready) return;
     this.set = set;
+    // (slice g) the spine bends to the aim pitch while a gun is up (no action playing), eased
+    const armed = (set === 'rifle' || set === 'pistol') && !act?.clip;
+    const pitchWant = armed ? (i.aimPitch ?? 0) * Math.min(1, Math.max(0, i.aim ?? 0)) : 0;
+    const k = dt > 0 ? Math.min(1, dt / PITCH_EASE) : 1;
+    this.pitch += (Math.max(-PITCH_MAX, Math.min(PITCH_MAX, pitchWant)) - this.pitch) * k;
     const step = dt > 0 ? dt / SET_FADE : 1;
     let sum = 0;
     for (let s = 0; s < LOCO_SETS.length; s++) {

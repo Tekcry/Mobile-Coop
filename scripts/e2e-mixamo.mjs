@@ -101,6 +101,25 @@ try {
   t = await top();
   console.log('aim', JSON.stringify(t));
   await shot('6-aim');
+  // (slice g) aiming up or down bends the Mixamo spine: the gun in its hand points with the view (the barrel's rise
+  // follows the camera's pitch, within a third of it)
+  const barrel = () =>
+    G(() => {
+      const m = window.__app.current.player.rig.weaponPivot.getWorldMatrix().m;
+      return m[9] / Math.hypot(m[8], m[9], m[10]);
+    });
+  const pitchTo = async (v) => {
+    await G((x) => { window.__app.current.player.cam.pitch = x; }, v);
+    await frames(page, 30);
+  };
+  await pitchTo(0.6);
+  const up = await barrel();
+  await shot('6b-aim-up');
+  await pitchTo(-0.6);
+  const down = await barrel();
+  await pitchTo(-0.21);
+  console.log('barrel rise', up.toFixed(2), down.toFixed(2));
+  assert(up > 0.3 && down < -0.3, `aiming up / down turns the gun with the spine (rise ${up.toFixed(2)} / ${down.toFixed(2)})`);
   await G(() => window.__pad.set(6, 0));
   await frames(page, 30);
   // the other gun (T: next weapon): its set plays and, held, the gun sits in the Mixamo right hand (within 15 cm)
