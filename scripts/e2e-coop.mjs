@@ -113,7 +113,8 @@ try {
   await B.click('.main-menu .btn:has-text("Co-op")');
   // (co-op relay fix) no public room list: the co-op menu is Host / Join with code / Connection log; the lobby has no Room row
   {
-    const items = await GB(() => [...document.querySelectorAll('.coop-screen .coop-rows .btn')].map((b) => b.dataset.key));
+    await until(B, () => !!window.__app.screens.top?.el.querySelector('[data-key="join"]'), null, 8000, 'the co-op menu');
+    const items = await GB(() => [...window.__app.screens.top.el.querySelectorAll('[data-key]')].map((b) => b.dataset.key));
     assert(!items.includes('browse') && items.includes('join') && items.includes('connection-log'), `the co-op menu has no Browse rooms (${items})`);
     const rows = await GA(() => [...document.querySelectorAll('.lobby-opts .row-label')].map((l) => l.textContent));
     assert(!rows.includes('Room'), `the lobby has no Room (public / private) row (${rows})`);
