@@ -48,6 +48,17 @@ try {
     await A.screenshot({ path: join(shots, 'co1-host.png') });
     await B.screenshot({ path: join(shots, 'co2-joiner.png') });
   }
+  // (slice f) a downed partner lies by the Mixamo move (the rig root is not tipped on its side)
+  await A.evaluate(() => {
+    const av = window.__app.current.net.remotes.values().next().value.avatar;
+    Object.defineProperty(av, 'dead', { get: () => true, configurable: true });
+  });
+  await until(A, () => { const av = window.__app.current.net.remotes.values().next().value.avatar; return (av.mixamo.weights().downed_lie ?? 0) > 0.95; }, null, 8000, 'the downed partner lies');
+  const down = await A.evaluate(() => { const av = window.__app.current.net.remotes.values().next().value.avatar; return { tip: av.rig.root.rotation.z, w: av.mixamo.weights().downed_lie }; });
+  console.log('downed partner', JSON.stringify(down));
+  assert(Math.abs(down.tip) < 1e-6, `the downed partner's rig root is not tipped (${down.tip})`);
+  if (shots) await A.screenshot({ path: join(shots, 'co3-partner-down.png') });
+  await A.evaluate(() => { delete window.__app.current.net.remotes.values().next().value.avatar.dead; });
   // (errors holds one list per page; the GPU driver notes are not the game's, as e2e-coop-chamber)
   const bad = errors.flat().filter((e) => !/WebGL|GPU stall|swiftshader|favicon|GL Driver/i.test(e));
   if (bad.length) console.log('console errors:\n  ' + bad.join('\n  '));

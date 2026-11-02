@@ -112,6 +112,8 @@ export class MixamoBody {
   failed = false;
   /** Called once when the model is in and playing (the owner hides what it stood in for). */
   onReady: (() => void) | null = null;
+  /** (slice f) The owner's player is down: the body lies (`downed_lie`) over everything else. */
+  downed = false;
   /** The move set playing now (the strongest after the crossfade). */
   set: LocoSet = 'unarmed';
   private readonly scene: Scene;

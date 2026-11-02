@@ -267,7 +267,7 @@ Slice e (2026-11-02 night), added to every packed model:
 | `strike_elbow` | Male Elbow Punch | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | takedown strike |
 | `strike_knife` | Male Knife Stab With The Rear Hand And Reverse Grip | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | knife takedown |
 | `throw` | Throwing A Grenade While Walking | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | grenade throw |
-| `downed_lie` | Laying While Breathless Idle | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | downed (not wired yet) |
+| `downed_lie` | Laying While Breathless Idle | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | downed co-op partner (slice f) |
 
 Slice f (2026-11-02 night), added to every packed model ("Action Adventure Pack" on Y Bot, 23 files; only the listed):
 

@@ -15,6 +15,8 @@ import type { TraverseKind } from '../anim/animGraph';
 export const ACTION_CLIPS = [
   'hang_idle', 'hang_shimmy_l', 'hang_shimmy_r', 'hang_climb_up', 'ladder', 'strike_elbow', 'strike_knife', 'throw',
   'vault', 'fall', 'hop', 'roll', 'crawl', 'wall_idle', 'wall_crouch_idle', 'wall_slide_l', 'wall_slide_r',
+  // (slice f) a downed player lies breathing (set by the owner, `MixamoBody.downed`; not picked from the pose)
+  'downed_lie',
 ] as const;
 export type ActionClip = (typeof ACTION_CLIPS)[number];
 
