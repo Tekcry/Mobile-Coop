@@ -91,8 +91,8 @@ try {
   assert(stored.length === 1 && stored[0].photos === 2 && stored[0].type === 'image/jpeg' && stored[0].map === 'chamber', `saved to the device with its photos (${JSON.stringify(stored)})`);
   // (diagnostics log) the match wrote its lines (the load, the map, the pause menu) and a performance sample
   await G(() => new Promise((r) => setTimeout(r, 10500)));
-  const live = await G(async () => { await window.__diag.flush(); return window.__diag.text(); });
-  assert(/loading chamber \//.test(live) && /map built in/.test(live) && /screen: pause-screen/.test(live) && /fps avg, 1% low \d+/.test(live), `a match writes diagnostics lines (${live.length} chars)`);
+  const diagLive = await G(async () => { await window.__diag.flush(); return window.__diag.text(); });
+  assert(/loading chamber \//.test(diagLive) && /map built in/.test(diagLive) && /screen: pause-screen/.test(diagLive) && /fps avg, 1% low \d+/.test(diagLive), `a match writes diagnostics lines (${diagLive.length} chars)`);
   // persists across a reload (IndexedDB), listed in Settings > Feedback, exported as one HTML file
   await page.goto(url + '?gfx=min');
   await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
