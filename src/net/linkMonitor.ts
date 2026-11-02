@@ -1,6 +1,7 @@
 import type { Transport } from './transport';
 import { classifyJoinError, linkText, type JoinFailure, type LinkSample, type LinkState } from './linkStatus';
 import type { AttemptRecord } from './attemptLog';
+import { diag } from '../feedback/diag';
 
 /** How often the monitor looks at the transport's peers (ms). */
 export const LINK_POLL_MS = 1000;
@@ -28,6 +29,8 @@ export class LinkMonitor {
   state: LinkState;
   /** The readout text changed. */
   onChange: (() => void) | null = null;
+  /** (diagnostics log) Each stats read of the partner's link (at least every `STATS_SLOW_MS` while connected). */
+  onSample: ((s: LinkSample) => void) | null = null;
   /** Joiner: the join failed on its join errors (2+, 6 s apart; the first one's reason). Host: each join error. */
   onFailed: ((f: JoinFailure) => void) | null = null;
   private timer: ReturnType<typeof setInterval> | null;
@@ -51,6 +54,8 @@ export class LinkMonitor {
   private statsAt = -Infinity;
   private readAt = -Infinity;
   private lastText: string;
+  /** (diagnostics log) The last phase / path logged. */
+  private diagKey = '';
 
   constructor(
     private readonly transport: Transport,
@@ -103,11 +108,13 @@ export class LinkMonitor {
     if (this.transport.onJoinError) this.transport.onJoinError = null;
     this.onChange = null;
     this.onFailed = null;
+    this.onSample = null;
   }
 
   private joinError(error: string): void {
     if (this.stopped || this.held) return;
     const f = classifyJoinError(error);
+    diag.add('net', `join error (${f}): ${error}`);
     // the host (any time) or a joiner already connected: one peer's try failed; logged, the readout stays
     if (this.role === 'host' || this.peer) {
       this.log({ at: this.now(), role: this.role, method: 'none', ms: null, result: f }, null);
@@ -174,6 +181,7 @@ export class LinkMonitor {
     this.reading = false;
     if (this.stopped || this.held || this.peer !== id || !sample) return;
     this.state = { phase: 'connected', sample, failure: null };
+    this.onSample?.(sample);
     if (!this.logged) {
       this.logged = true;
       const ms = this.role === 'client' && this.connections === 1 ? Math.max(0, this.connectedAt - this.t0) : null;
@@ -187,6 +195,14 @@ export class LinkMonitor {
     const t = linkText(this.state);
     if (t === this.lastText) return;
     this.lastText = t;
+    // (diagnostics log) a readout change of phase or path (connecting / direct / relay / failed); the round trip alone
+    // changes often and goes in the 10 s link line instead
+    const s = this.state;
+    const key = `${s.phase}|${s.sample?.kind ?? ''}|${s.failure ?? ''}|${s.sample ? 1 : 0}`;
+    if (key !== this.diagKey) {
+      this.diagKey = key;
+      diag.link(`${this.role === 'host' ? 'host' : 'joiner'}: ${t}`);
+    }
     this.onChange?.();
   }
 }

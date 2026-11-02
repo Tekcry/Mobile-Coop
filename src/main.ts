@@ -48,6 +48,8 @@ import { BENCH, benchPlan, type BenchSession } from './game/benchmark';
 import { PRESET_IDS } from './core/quality';
 import { feedbackContext, feedbackTab } from './ui/screens/feedbackScreen';
 import { CrashLog } from './feedback/crashLog';
+import { diag } from './feedback/diag';
+import { diagMatchLeave, diagMatchLoad, diagWatchMatch, installDiagHooks, watchApp } from './feedback/diagWatch';
 import { benchTag } from './ui/benchTag';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { loadoutEntries, lobbyLoadout } from './weapons/loadout';
@@ -77,6 +79,8 @@ function endLaunchBoot(): void {
 }
 
 async function boot(): Promise<void> {
+  // (diagnostics log) errors and the console from the first moment (the engine's own warnings included)
+  installDiagHooks();
   // (M2) the wordmark-only boot is for a launch that shows the title; any other keeps the status lines
   if (titleShown || (navigator.webdriver && !titleFlag)) endLaunchBoot();
   suppressBrowserGestures();
@@ -95,6 +99,8 @@ async function boot(): Promise<void> {
     onDeferred: () => app.toasts.show('Update ready - restarts at the menu', 'info', 4000),
   });
   (window as unknown as { __app: App }).__app = app;
+  // tests: the diagnostics log (its lines and the copied text)
+  (window as unknown as { __diag: typeof diag }).__diag = diag;
   // tests (mocap-trial M1): whether the mocap locomotion switch is on for this page (`?mocap=` over the setting), read-only
   (window as unknown as { __mocapOn: () => boolean }).__mocapOn = () => LOCO.mocap;
 
@@ -106,8 +112,13 @@ async function boot(): Promise<void> {
   // 3.1.4 crash log: the last session's heartbeat still "alive" = it died while open (a note), then a new heartbeat
   const crashLog = new CrashLog(() => feedbackContext(app));
   app.crashLog = crashLog;
+  // (diagnostics log) the header (device, GPU, graphics...), the page's events, then the device's older sessions
+  watchApp(app);
+  void diag.start();
   void crashLog.recover((e) => app.feedback.save(e)).then((note) => {
     if (note) app.toasts.show('The last session crashed: a report is in Settings > Feedback', 'warn');
+    diag.fact('Last session', note ? note.text.replace(/^Crash report - /, 'CRASHED: ') : 'closed normally (or this is the first run)');
+    if (note) diag.add('warn', `previous session crashed: ${note.text}`);
     crashLog.start();
   });
   if (flags.debug) app.debug.toggle(true);
@@ -118,6 +129,8 @@ async function boot(): Promise<void> {
   setBoot(0.8, 'Building scene…');
 
   const goToMenu = (): void => {
+    diagMatchLeave(app);
+    diag.add('game', 'loading the main menu');
     app.screens.clear();
     // (menu-notes note 2) the boot screen stays up until the menu stage is ready to be seen: Wren's close-up LOD loaded
     // and drawn, the weapons in, the first shot's shaders compiled (MenuState.prepare). After a match too.
@@ -341,6 +354,10 @@ async function boot(): Promise<void> {
     const b = opts.benchmark;
     const what = b ? `benchmark run ${b.idx + 1}/${b.runs.length}: ${b.runs[b.idx]?.label ?? ''} (${app.quality.level.name})` : `${opts.map.id} / ${opts.mode}`;
     app.crashLog?.stage(`loading ${what}`);
+    // (diagnostics log) the match being left, then the one loading
+    diagMatchLeave(app);
+    diagMatchLoad(what, opts);
+    const loadT0 = performance.now();
     // (the last match / the menu stage freed first: never two matches in memory; nothing may hold the menu)
     app.onAvatarStyle = null;
     app.releaseState();
@@ -349,12 +366,19 @@ async function boot(): Promise<void> {
       .then((st) => {
         app.setState(st);
         app.crashLog?.stage(`in ${what}`);
+        diag.add('game', `map built in ${((performance.now() - loadT0) / 1000).toFixed(1)} s`);
+        diagWatchMatch(app);
         // (map-ready S2) the state is held behind the boot screen: the load gate (`mapGate.ts`) releases it, then the boot
         // screen goes (`finally`). Never rejects.
         if (flags.mapReady)
-          return st.runGate((p, text) => {
-            if (gen === bootGen) setBoot(0.5 + 0.5 * p, text);
-          }, readyCapMs(location.search));
+          return st
+            .runGate((p, text) => {
+              if (gen === bootGen) setBoot(0.5 + 0.5 * p, text);
+            }, readyCapMs(location.search))
+            .then((r) => {
+              diag.add('game', `map ready to play in ${((performance.now() - loadT0) / 1000).toFixed(1)} s (${r.status}${r.capStep ? `, cut at ${r.capStep}` : ''})`);
+              return r;
+            });
         return undefined;
       })
       .catch((e: unknown) => {

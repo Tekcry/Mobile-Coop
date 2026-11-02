@@ -4,6 +4,7 @@ import { type AbstractMesh, Color3, type Effect, type FreeCamera, InstancedMesh,
 import { World } from '../world/world';
 import { disposeSectionBakersSince, sectionBakerMark } from '../voxel/sectionJobs';
 import { flags } from '../core/flags';
+import { diag } from '../feedback/diag';
 import { CharOccluders } from '../world/charOccluders';
 import { ShadowCues } from '../world/shadowCues';
 import type { LightField } from '../world/lightField';
@@ -1244,6 +1245,7 @@ export class GameState implements AppState {
   endSession(won: boolean, subtitle: string): void {
     if (this.ended) return;
     this.ended = true;
+    diag.add('game', `mission ended: ${won ? 'won' : 'lost'} - ${subtitle} (${Math.round(this.time)} s)`);
     this.net?.onEnd?.(won, subtitle);
     this.stats.won = won;
     this.stats.time = Math.round(this.time);

@@ -1,7 +1,8 @@
 import type { Transport } from './transport';
 import { APP_ID } from './transport';
-import { iceConfig, relayMode } from './relayConfig';
-import { sampleFromStats } from './linkStatus';
+import { iceConfig, relayMode, RELAY_SERVERS } from './relayConfig';
+import { linkDetail, sampleFromStats } from './linkStatus';
+import { diag } from '../feedback/diag';
 
 /**
  * WebRTC data channels via Trystero with its default public Nostr relays for signalling
@@ -12,6 +13,8 @@ import { sampleFromStats } from './linkStatus';
  */
 export async function createTrysteroTransport(roomId: string): Promise<Transport> {
   const { joinRoom, selfId } = await import('trystero');
+  // (diagnostics log) the relay login is hidden in any line that would carry it (none should)
+  diag.addSecrets(RELAY_SERVERS.flatMap((s) => [s.username, s.credential]));
   const mode = relayMode(typeof location !== 'undefined' ? new URLSearchParams(location.search).get('relay') : null);
   const t: Transport = {
     selfId,
@@ -28,7 +31,12 @@ export async function createTrysteroTransport(roomId: string): Promise<Transport
       const pc = room.getPeers()[id];
       if (!pc) return null;
       try {
-        return sampleFromStats(await pc.getStats());
+        const st = await pc.getStats();
+        const s = sampleFromStats(st);
+        // (diagnostics log) the pair's counters and candidate types (never an address)
+        const d = s ? linkDetail(st) : null;
+        if (s && d) s.detail = d;
+        return s;
       } catch {
         return null;
       }

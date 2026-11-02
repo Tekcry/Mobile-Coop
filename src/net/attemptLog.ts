@@ -1,5 +1,6 @@
 import { dbGet, dbPut } from '../save/db';
 import { JOIN_FAILURES, type JoinFailure } from './linkStatus';
+import { diag } from '../feedback/diag';
 
 /**
  * (co-op relay fix) The connection attempt log: one line per co-op connection (method, time to connect, failure
@@ -104,6 +105,14 @@ export function loadAttempts(): Promise<AttemptRecord[]> {
  */
 export function logAttempt(rec: AttemptRecord, replaces: AttemptRecord | null = null): Promise<void> {
   console.info(`co-op connection: ${attemptLine(rec)}${replaces ? ' (in place of the earlier line)' : ''}`);
+  // (diagnostics log) counted for its summary (a failure that replaces an `ok` line takes that success back)
+  if (replaces?.result === 'ok') {
+    const st = diag.session.stats;
+    st.attemptsOk = Math.max(0, st.attemptsOk - 1);
+    if (replaces.method === 'relay') st.relay = Math.max(0, st.relay - 1);
+    st.attempts = Math.max(0, st.attempts - 1);
+  }
+  diag.attempt(rec.result === 'ok', rec.method === 'relay', rec.result === 'ok' ? '' : FAIL_WORDS[rec.result], `${rec.role}: ${attemptLine(rec)}`);
   queue = queue.then(async () => {
     const list = await loadAttempts();
     const i = replaces ? list.indexOf(replaces) : -1;
