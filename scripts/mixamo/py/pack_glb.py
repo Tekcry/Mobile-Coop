@@ -36,7 +36,7 @@ def fcurves(act):
 
 # Moves whose climb the game's traversal already carries (the body rises with the ladder / ledge): their vertical
 # travel goes too (channel 1), else the body would rise twice.
-CLIMBS = ('ladder', 'hang_climb_up')
+CLIMBS = ('ladder', 'hang_climb_up', 'rope_climb')
 
 
 def in_place(act, name=''):

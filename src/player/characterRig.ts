@@ -2,6 +2,7 @@ import { Color4, Matrix, Quaternion, TransformNode, Vector3, type Vector4, type 
 import { buildSmoothBody, type SmoothBody } from './smoothBody';
 import { BEACON, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
 import type { SwapReach } from '../anim/clips/actions';
+import type { TeamPoseMove, TeamPoseRole } from '../anim/clips/team';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from './avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
@@ -116,6 +117,10 @@ export interface RigPose {
   traverseD?: number;
   /** (anim-joints J2) This rig's co-op team role row (`team.<move>.<a|b>`, '' / unset none): the tuner's team rows. */
   tuneTeam?: string;
+  /** (mixamo-chars slice h) The team move, role and clock (`TeamPoser.begin` writes them; the Mixamo body reads them). */
+  teamMove?: TeamPoseMove | '';
+  teamRole?: TeamPoseRole | '';
+  teamK?: number;
   melee?: number;
   /** (G7) Close quarters: the spine bent forward (rad), the pelvis dropped (m), the hold sway (m); see AnimInput. */
   bend?: number;

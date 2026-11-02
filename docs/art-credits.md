@@ -278,3 +278,12 @@ Slice f (2026-11-02 night), added to every packed model ("Action Adventure Pack"
 | `vault` | Male Jumping Over An Obstacle With 1 Hand Planted | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | vault |
 | `crawl` | Crawling Forward On Hands And Knees | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | crawl |
 | `wall_idle` / `wall_crouch_idle` | Standing Cover Against Object; Crouched For Cover Against Object | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | back to wall |
+
+Slice h (2026-11-03 night), added to every packed model:
+
+| Animation (in every GLB above) | Mixamo title | Kind | Source (URL) | Terms | Date added | Used by |
+|---|---|---|---|---|---|---|
+| `team_lift` | Lifting Object (Lifting A Heavy Object With Both Hands) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | leg-up, partner throw and lifting kit moves: the holder |
+| `team_brace` | Pull Heavy Object (Pulling A Heavy Object), in place | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | hang-down and pull-up: the holder |
+| `team_rope` | Pulling A Rope (Mime Pulling A Rope) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | two-person rope and swing: the holder |
+| `rope_climb` | Climbing A Rope (With Hands And Feet), in place | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | two-person rope: the climber |

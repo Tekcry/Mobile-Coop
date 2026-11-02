@@ -30,6 +30,8 @@ export const MIXAMO_HEIGHT = 1.68;
 const SET_FADE = 0.2;
 /** (slice e) Seconds for an action to fade in over the locomotion, or back out. */
 const ACT_FADE = 0.12;
+/** (slice h) The play rate of a timed action pinned to its frame (see `update`). */
+const PIN_RATE = 1e-3;
 /** (slice g) Seconds the spine takes to follow the aim pitch, and the most it bends (rad, provisional). */
 const PITCH_EASE = 0.08;
 const PITCH_MAX = 1.1;
@@ -485,9 +487,11 @@ export class MixamoBody {
     const a = this.act;
     if (a) {
       a.weight = this.actW;
-      // a timed action is pinned to the game's progress; a looping one runs on its own clock
+      // a timed action is pinned to the game's progress; a looping one runs on its own clock. (slice h) Pinned at a
+      // near-zero rate, not 0: at 0 Babylon's next animation step puts the frame back (a jump is timed by the rate), so
+      // the clip stood on one frame
       if (want && act && !Number.isNaN(act.t)) {
-        a.speedRatio = 0;
+        a.speedRatio = PIN_RATE;
         a.goToFrame(a.from + act.t * (a.to - a.from));
       } else a.speedRatio = 1;
       if (this.actW <= 0) this.act = null;
