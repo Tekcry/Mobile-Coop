@@ -873,9 +873,10 @@ export class RemoteAvatar {
       this.world.ropes.hide(this.ropeKey);
       this.roped = false;
     }
-    // downed: lie on the side
-    r.rotation.z = this.dead ? Math.PI / 2 : 0;
-    if (this.dead) r.position.y += 0.22;
+    // downed: lie on the side ((mixamo-chars slice f) a Mixamo body lies down by its own move instead)
+    if (this.mixamo) this.mixamo.downed = this.dead;
+    r.rotation.z = this.dead && !this.mixamo ? Math.PI / 2 : 0;
+    if (this.dead && !this.mixamo) r.position.y += 0.22;
     // Wren on the rig (render only; a Mixamo body poses inside the rig's animate)
     if (!this.mixamo) partnerFigureFrame(this.figure, this.rig, dt, this.world.scene.activeCamera);
     this.fireVisuals(dt);

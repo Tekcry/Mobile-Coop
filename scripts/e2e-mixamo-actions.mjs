@@ -1,6 +1,7 @@
 // (mixamo-chars, N53 slice e) The Test Chamber player's action moves: with the pose forced (the systems that set it in
 // play are the traversal, the strike and the grenade), hanging plays `hang_idle`, a climb-up `hang_climb_up` pinned to
-// its progress, a ladder `ladder`, a takedown strike `strike_elbow`, a throw `throw`, a carried body the carry set; each
+// its progress, a ladder `ladder`, a takedown strike `strike_elbow`, a throw `throw`, a carried body the carry set, (slice f)
+// a vault, a drop (fall), a roll, a crawl and back to the wall; each
 // action fades back to the locomotion when it ends. Screenshots of each to `--shots=<dir>`.
 //   node scripts/e2e-mixamo-actions.mjs [url] [--shots=<dir>]
 import { mkdirSync } from 'node:fs';
@@ -26,7 +27,7 @@ const hold = (fields) =>
     const owner = (k) => (k === 'grenadeT' ? g.player : g.player.pose);
     for (const [k, v] of Object.entries(f)) Object.defineProperty(owner(k), k, { get: () => v, set() {}, configurable: true });
     window.__mxHold = () => {
-      const rest = { grenadeT: -1, melee: -1, traverse: 'none', traverseT: 0, carryBody: false, carrySide: 0 };
+      const rest = { grenadeT: -1, melee: -1, traverse: 'none', traverseT: 0, carryBody: false, carrySide: 0, wall: false };
       for (const k of Object.keys(f)) {
         delete owner(k)[k];
         owner(k)[k] = rest[k];
@@ -51,6 +52,12 @@ try {
     ['strike', { melee: 0.4 }, 'strike_elbow'],
     ['throw', { grenadeT: 0.3 }, 'throw'],
     ['carry', { carryBody: true, carrySide: 1 }, 'carry_idle'],
+    // (slice f)
+    ['vault', { traverse: 'vault', traverseT: 0.4 }, 'vault'],
+    ['fall', { traverse: 'drop', traverseT: 0 }, 'fall'],
+    ['roll', { traverse: 'roll', traverseT: 0.5 }, 'roll'],
+    ['crawl', { traverse: 'crawl', traverseT: 0 }, 'crawl'],
+    ['wall', { wall: true }, 'wall_idle'],
   ];
   for (const [name, fields, clip] of cases) {
     await hold(fields);

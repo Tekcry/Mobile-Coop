@@ -70,8 +70,14 @@ export function dressRig(scene: Scene, rig: CharacterRig, model: MixamoModel, op
   body.holdGun(r.root, r.weaponPivot, r.grip, () => heldKind(r));
   // (slice e) a body over the shoulder walks the carry set; an action (hang, ladder, climb-up, strike, throw) fades over
   const act: ActionOut = { clip: null, t: NaN };
-  const hook = (dt: number, s: Parameters<NonNullable<CharacterRig['onAnimate']>>[1]): void =>
-    body.update(s, s.carryBody ? 'carry' : mixamoSetOf(r), dt, pickAction(s, r.holdingKnife, act));
+  const hook = (dt: number, s: Parameters<NonNullable<CharacterRig['onAnimate']>>[1]): void => {
+    if (body.downed) {
+      // (slice f) a downed player lies breathing, whatever the pose says
+      act.clip = 'downed_lie';
+      act.t = NaN;
+    } else pickAction(s, r.holdingKnife, act);
+    body.update(s, s.carryBody ? 'carry' : mixamoSetOf(r), dt, act);
+  };
   r.onAnimate = hook;
   return {
     body,
