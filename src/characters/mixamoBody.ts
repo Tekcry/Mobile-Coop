@@ -223,6 +223,7 @@ export class MixamoBody {
   private stopW = new Float64Array(0);
   private stopCrouch = 0;
   private stopAim = 0;
+  private stopSet: LocoSet = 'unarmed';
   private stopHad = false;
   private stopOn = false;
   private stopT = 0;
@@ -609,7 +610,7 @@ export class MixamoBody {
     const aStep = dt > 0 ? dt / ACT_FADE : 1;
     this.actW = want ? Math.min(1, this.actW + aStep) : Math.max(0, this.actW - aStep);
     const keep = 1 - this.actW;
-    const h = this.opts.holdStop ? this.stopHold(i, dt) : 0;
+    const h = this.opts.holdStop ? this.stopHold(i, set, dt) : 0;
     for (let ci = 0; ci < this.clips.length; ci++) {
       const c = this.clips[ci]!;
       c.g.weight = ((this.clipW[ci] as number) * (1 - h) + (this.stopW[ci] as number) * h) * keep * BLEND_FULL;
@@ -641,15 +642,16 @@ export class MixamoBody {
   /**
    * (walk-test fix A) The stop hold's weight this frame (0..1): the gait's last full mix (`stopW`) holds while the body
    * slows out of it and stands, for `HOLD_STOP` s, then eases into the idle. Moving off again (not slowing, not still)
-   * or a crouch or aim change lets it go.
+   * or a crouch, aim or move-set change (a draw, a holster) lets it go.
    */
-  private stopHold(i: LocoIn, dt: number): number {
+  private stopHold(i: LocoIn, set: LocoSet, dt: number): number {
     const s = i.speed > 0 ? i.speed : 0;
     const aim = i.aim ?? 0;
     if (s >= HOLD_FULL) {
       this.stopW.set(this.clipW);
       this.stopCrouch = i.crouch;
       this.stopAim = aim;
+      this.stopSet = set;
       this.stopHad = true;
       this.stopOn = false;
     } else if (!this.stopOn && this.stopHad && s < this.prevSpeed) {
@@ -665,7 +667,7 @@ export class MixamoBody {
       this.stopMin = Math.min(this.stopMin, s);
       this.stopMoveT = s > HOLD_STILL ? this.stopMoveT + dt : 0;
       const off = s > this.stopMin + HOLD_SPEEDUP || this.stopMoveT > HOLD_SLOW;
-      if (off || Math.abs(i.crouch - this.stopCrouch) > 0.3 || Math.abs(aim - this.stopAim) > 0.3) {
+      if (off || set !== this.stopSet || Math.abs(i.crouch - this.stopCrouch) > 0.3 || Math.abs(aim - this.stopAim) > 0.3) {
         this.stopOn = false;
         this.stopHad = false;
       }
@@ -783,7 +785,9 @@ export class MixamoBody {
   weights(): Record<string, number> {
     const out: Record<string, number> = {};
     const keep = 1 - this.actW;
-    for (let ci = 0; ci < this.clips.length; ci++) out[this.clips[ci]!.g.name.split(':').pop() ?? ''] = (this.clipW[ci] as number) * keep;
+    // (walk-test fix A2) with the stop hold's share
+    const h = this.opts.holdStop ? this.holdW : 0;
+    for (let ci = 0; ci < this.clips.length; ci++) out[this.clips[ci]!.g.name.split(':').pop() ?? ''] = ((this.clipW[ci] as number) * (1 - h) + (this.stopW[ci] as number) * h) * keep;
     if (this.act) out[this.act.name.split(':').pop() ?? ''] = this.actW;
     return out;
   }
