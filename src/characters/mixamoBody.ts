@@ -32,6 +32,8 @@ const SET_FADE = 0.2;
 const ACT_FADE = 0.12;
 /** (slice h) The play rate of a timed action pinned to its frame (see `update`). */
 const PIN_RATE = 1e-3;
+/** (slice i) The latest share of a timed clip shown (its last frame wraps to its first). */
+const PIN_END = 0.995;
 /** (slice g) Seconds the spine takes to follow the aim pitch, and the most it bends (rad, provisional). */
 const PITCH_EASE = 0.08;
 const PITCH_MAX = 1.1;
@@ -106,6 +108,12 @@ export const HOLD_FRAMES = {
 } as const;
 export type HoldKind = keyof typeof HOLD_FRAMES;
 
+/** (slice i) A gun on its way between its slot and the hands, and its class. */
+export interface GunTravel {
+  node: TransformNode;
+  kind: HoldKind;
+}
+
 // scratch (follow runs once per body per frame; no allocation)
 const mA = new Matrix(), mB = new Matrix(), mC = new Matrix(), mD = new Matrix();
 const vS = new Vector3(), vT = new Vector3(), vT2 = new Vector3();
@@ -159,7 +167,10 @@ export class MixamoBody {
   private follows: Follow[] = [];
   private rigRoot: TransformNode | null = null;
   private followObs: Observer<Scene> | null = null;
-  private hold: { pivot: TransformNode; chain: TransformNode[]; grip: Vector3; kind: () => HoldKind | null; hand: TransformNode; handChain: TransformNode[] } | null = null;
+  private hold: { pivot: TransformNode; chain: TransformNode[]; grip: Vector3; kind: () => HoldKind | null; hand: TransformNode; handChain: TransformNode[]; travel: (() => GunTravel | null) | null } | null = null;
+  /** (slice i) The travelling gun's node and its chain to the rig root (rebuilt only when the node changes). */
+  private travelNode: TransformNode | null = null;
+  private travelChain: TransformNode[] = [];
   private readonly holdL = new Matrix();
   private disposed = false;
 
@@ -382,29 +393,44 @@ export class MixamoBody {
    * (slice b) Puts a held gun in the Mixamo right hand: `pivot` (the rig node the held gun sits on at its origin) is set
    * so the gun's grip point (`grip`, gun space, m) lands in the palm with the gun turned by its class's hold frame.
    * `kind` says each frame which class is held in the hands (null: none, or the gun is on its way: the rig places it).
+   * (slice i) `travel` gives the gun on its way (drawn or holstered, off the aim pivot) and its class: it too sits in the
+   * Mixamo hand until it is seated (the rig's travel follows the hidden rig's hand, so the gun floated beside the body).
    */
-  holdGun(rigRoot: TransformNode, pivot: TransformNode, grip: Vector3, kind: () => HoldKind | null): void {
+  holdGun(rigRoot: TransformNode, pivot: TransformNode, grip: Vector3, kind: () => HoldKind | null, travel: (() => GunTravel | null) | null = null): void {
     const hand = this.ready ? this.boneNode('RightHand') : null;
     if (!this.ready) {
       // the model is still loading: bind once it is
       const o = this.scene.onBeforeRenderObservable.add(() => {
         if (!this.ready && !this.failed) return;
         this.scene.onBeforeRenderObservable.remove(o);
-        if (this.ready) this.holdGun(rigRoot, pivot, grip, kind);
+        if (this.ready) this.holdGun(rigRoot, pivot, grip, kind, travel);
       });
       return;
     }
     if (!hand) return;
     this.rigRoot ??= rigRoot;
-    this.hold = { pivot, chain: chainBelow(pivot, rigRoot), grip, kind, hand, handChain: [...chainBelow(hand, this.root), hand] };
+    this.hold = { pivot, chain: chainBelow(pivot, rigRoot), grip, kind, hand, handChain: [...chainBelow(hand, this.root), hand], travel };
     this.followObs ??= this.scene.onAfterAnimationsObservable.add(() => this.applyFollow());
   }
 
   private applyHold(): void {
     const h = this.hold;
     if (!h) return;
-    const k = h.kind();
-    if (!k) return;
+    let k = h.kind();
+    let target = h.pivot;
+    let chain = h.chain;
+    if (!k) {
+      // (slice i) a gun on its way in or out: the gun node itself into the hand
+      const t = h.travel?.() ?? null;
+      if (!t) return;
+      if (t.node !== this.travelNode) {
+        this.travelNode = t.node;
+        this.travelChain = chainBelow(t.node, this.rigRoot ?? this.root);
+      }
+      k = t.kind;
+      target = t.node;
+      chain = this.travelChain;
+    }
     const F = HOLD_FRAMES[k];
     for (const n of h.handChain) n.computeWorldMatrix(true);
     const H = h.hand.getWorldMatrix();
@@ -418,14 +444,14 @@ export class MixamoBody {
     const tx = (F.palm[0] - gx) * u, ty = (F.palm[1] - gy) * u, tz = (F.palm[2] - gz) * u;
     Matrix.FromValuesToRef(rx * u, ry * u, rz * u, 0, ux * u, uy * u, uz * u, 0, fx * u, fy * u, fz * u, 0, tx, ty, tz, 1, this.holdL);
     this.holdL.multiplyToRef(H, mD);
-    for (const n of h.chain) n.computeWorldMatrix(true);
-    (h.pivot.parent as TransformNode).getWorldMatrix().invertToRef(mA);
+    for (const n of chain) n.computeWorldMatrix(true);
+    (target.parent as TransformNode).getWorldMatrix().invertToRef(mA);
     mD.multiplyToRef(mA, mB);
     mB.decompose(vS, qR, vT);
-    h.pivot.position.copyFrom(vT);
-    if (h.pivot.rotationQuaternion) h.pivot.rotationQuaternion.copyFrom(qR);
-    else h.pivot.rotationQuaternion = qR.clone();
-    h.pivot.computeWorldMatrix(true);
+    target.position.copyFrom(vT);
+    if (target.rotationQuaternion) target.rotationQuaternion.copyFrom(qR);
+    else target.rotationQuaternion = qR.clone();
+    target.computeWorldMatrix(true);
   }
 
   /**
@@ -492,7 +518,8 @@ export class MixamoBody {
       // the clip stood on one frame
       if (want && act && !Number.isNaN(act.t)) {
         a.speedRatio = PIN_RATE;
-        a.goToFrame(a.from + act.t * (a.to - a.from));
+        // (slice i) just short of the last frame: the clip loops, so its end is its first frame again
+        a.goToFrame(a.from + Math.min(act.t, PIN_END) * (a.to - a.from));
       } else a.speedRatio = 1;
       if (this.actW <= 0) this.act = null;
     }

@@ -571,6 +571,7 @@ export class Player {
     tuneGuardFrame(); // (item 24, track A) the guard rows into the guard tables every guard rig reads
     tuneKeysFrame(); // (tuner-v2 item 4) Keys section edits -> the keyed clips' per-key offset tables
     // (anim-joints J1) the Joints / Hands & feet / IK / Weapon windows: the rig opens its own inside animate (tuneRows)
+    if (this.mixamo) this.mixamo.downed = !this.alive; // (mixamo-chars slice i) our own body lies down while we are down
     this.teamPose.begin(dt, TEAM_POSE_LOCAL, rp, this.rig); // (anim-n4b, track A) the co-op team pose (GameState wrote it)
     moveTuneBegin(rp, this.rig); // (anim-studio-2) the move sections selected above (identity unless a slider moved)
     try {

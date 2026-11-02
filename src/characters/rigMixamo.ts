@@ -8,7 +8,7 @@
 import { TransformNode, type AbstractMesh, type Matrix, type Scene } from '../core/babylon';
 import type { CharacterRig } from '../player/characterRig';
 import { handsWeaponOf } from '../anim/tuneHands';
-import { MixamoBody, type HoldKind, type MixamoModel } from './mixamoBody';
+import { MixamoBody, type GunTravel, type HoldKind, type MixamoModel } from './mixamoBody';
 import type { LocoSet } from './locomotion';
 import { pickAction, type ActionOut } from './actions';
 import { flags } from '../core/flags';
@@ -32,6 +32,14 @@ export function mixamoSetOf(rig: CharacterRig): LocoSet {
 /** The gun class held in the hands now (on the aim pivot, not mid-draw), or null. */
 function heldKind(rig: CharacterRig): HoldKind | null {
   return rig.heldModel && rig.heldModel.node.parent === rig.weaponPivot ? (rig.supportStyle === 'cup' ? 'pistol' : 'rifle') : null;
+}
+
+/** (slice i) The gun a draw / holster is carrying now (into `out`), or null. */
+function travelOf(rig: CharacterRig, out: GunTravel): GunTravel | null {
+  if (!rig.weaponTravel || !rig.travelNode) return null;
+  out.node = rig.travelNode;
+  out.kind = rig.supportStyle === 'cup' ? 'pistol' : 'rifle';
+  return out;
 }
 
 export interface RigMixamoOpts {
@@ -67,7 +75,8 @@ export function dressRig(scene: Scene, rig: CharacterRig, model: MixamoModel, op
     { node: r.torso, bone: 'Spine2', rest: restIn(r.torso, r.root) },
     { node: r.headNode, bone: 'Head', rest: restIn(r.headNode, r.root) },
   ]);
-  body.holdGun(r.root, r.weaponPivot, r.grip, () => heldKind(r));
+  const trav: GunTravel = { node: r.weaponPivot, kind: 'rifle' };
+  body.holdGun(r.root, r.weaponPivot, r.grip, () => heldKind(r), () => travelOf(r, trav));
   // (slice g) hanging, shimmying and on ladders the body's hands meet the rig's (on the lip, the rungs)
   body.anchorHands(r.wristL, r.wristR);
   // (slice e) a body over the shoulder walks the carry set; an action (hang, ladder, climb-up, strike, throw) fades over

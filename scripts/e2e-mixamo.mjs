@@ -91,7 +91,22 @@ try {
   assert(near < 0.25, `the chest node follows the Mixamo spine (${near.toFixed(3)} m)`);
   assert(Math.abs(nearRun - near) < 0.03, `the chest offset holds while running (${near.toFixed(3)} -> ${nearRun.toFixed(3)} m)`);
   await press(page, BTN.X); // draw (the long gun's sling draw travels ~2.5 s before it is on the aim pivot)
-  await frames(page, 220);
+  // (slice i) on its way the gun is in the Mixamo right hand (it floated beside the body, on the hidden rig's hand)
+  let mid = null;
+  for (let f = 0; f < 120 && mid === null; f += 10) {
+    await frames(page, 10);
+    mid = await G(() => {
+      const r = window.__app.current.player.rig;
+      if (!r.weaponTravel) return null;
+      const h = window.__app.current.player.mixamo.boneNode('RightHand').getAbsolutePosition();
+      const g = r.travelNode.getAbsolutePosition();
+      return Math.hypot(h.x - g.x, h.y - g.y, h.z - g.z);
+    });
+  }
+  console.log('mid-draw gun to hand', mid === null ? 'no travel seen' : mid.toFixed(3));
+  if (mid !== null) await shot('5a-mid-draw');
+  if (mid !== null) assert(mid < 0.3, `the gun on its way sits at the Mixamo hand (${mid.toFixed(3)} m)`);
+  await frames(page, 160);
   t = await top();
   console.log('drawn', JSON.stringify(t));
   assert(/^(rifle|pistol)_/.test(t.best), `a drawn gun plays its set (${t.best})`);
