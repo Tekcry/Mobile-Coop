@@ -12,7 +12,7 @@ const url = process.argv.find((a) => /^https?:/.test(a)) ?? 'http://localhost:41
 const shots = process.argv.find((a) => a.startsWith('--shots='))?.slice(8) ?? '';
 if (shots) mkdirSync(shots, { recursive: true });
 let failed = false;
-const { browser, page, errors } = await launch({ url, params: 'autostart=chamber' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=chamber&stage=1' });
 const G = (f, a) => page.evaluate(f, a);
 const shot = async (name) => {
   if (shots) await page.screenshot({ path: join(shots, `${name}.png`) });
@@ -147,6 +147,22 @@ try {
   const up = await top();
   assert(down.best === 'downed_lie', `our own player down lies (${down.best})`);
   assert(up.best === 'idle', `back up, the idle is back (${up.best})`);
+  // (walk-test fix A) the chamber's own traversal loops (stage=1): back to the wall and sliding, a ledge, a bar. An
+  // action fading fully in as the walk and the strafe both left put Babylon's blend at 0 / 0: the bones went NaN and
+  // the body vanished (it stayed gone: the rig's springs kept the NaN). The bones stay finite through each loop.
+  const finite = () => G(() => { const m = window.__app.current.player.mixamo; return ['Hips', 'Spine2', 'Head', 'LeftHand'].every((b) => { const n = m.boneNode(b); return Number.isFinite(n.position.x + n.position.y + n.position.z + (n.rotationQuaternion?.w ?? 0)); }); });
+  for (const id of ['trav:wall', 'trav:ledge', 'trav:bar']) {
+    await G((x) => window.__chamber.pick(x), id);
+    let ok = true;
+    for (let i = 0; i < 90 && ok; i++) {
+      await G(() => window.__app.loop.stepHeadless(1 / 30));
+      ok = await finite();
+    }
+    await shot(`l-${id.slice(5)}`);
+    await G(() => window.__chamber.pick('state:idle'));
+    for (let i = 0; i < 6; i++) await G(() => window.__app.loop.stepHeadless(0.5));
+    assert(ok, `the ${id.slice(5)} loop keeps the body's bones finite`);
+  }
   const bad =errors.filter((e) => !/WebGL|GPU stall|GL Driver/i.test(e));
   if (bad.length) console.log('console errors:\n  ' + bad.join('\n  '));
   assert(bad.length === 0, `${bad.length} console errors`);

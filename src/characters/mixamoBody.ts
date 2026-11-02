@@ -34,6 +34,11 @@ const ACT_FADE = 0.12;
 const PIN_RATE = 1e-3;
 /** (slice i) The latest share of a timed clip shown (its last frame wraps to its first). */
 const PIN_END = 0.995;
+/** (walk-test fix A) Every group's weight is scaled by this, so the total stays just under 1. At a total of exactly 1
+ *  Babylon's quaternion blend divides the first two weights by their sum, 0 / 0 when both clips just dropped to 0 in
+ *  the same frame (an action fading fully in: the walk and the strafe leave at once): the bones went NaN and the body
+ *  vanished (hang, ledge, ladder top, pipe, wall). Under 1 the blend starts from the bind value instead. */
+const BLEND_FULL = 0.9999;
 /** (slice g) Seconds the spine takes to follow the aim pitch, and the most it bends (rad, provisional). */
 const PITCH_EASE = 0.08;
 const PITCH_MAX = 1.1;
@@ -386,6 +391,8 @@ export class MixamoBody {
       parent.getWorldMatrix().invertToRef(mA);
       mD.multiplyToRef(mA, mB);
       mB.decompose(vS, qR, vT);
+      // (walk-test fix A) never a NaN into the rig: its springs keep it for good (the body stayed gone after a wall)
+      if (!Number.isFinite(qR.w + vT.x + vT.y + vT.z)) continue;
       f.node.position.copyFrom(vT);
       if (f.node.rotationQuaternion) f.node.rotationQuaternion.copyFrom(qR);
       else f.node.rotationQuaternion = qR.clone();
@@ -511,13 +518,13 @@ export class MixamoBody {
     const keep = 1 - this.actW;
     for (let ci = 0; ci < this.clips.length; ci++) {
       const c = this.clips[ci]!;
-      c.g.weight = (this.clipW[ci] as number) * keep;
+      c.g.weight = (this.clipW[ci] as number) * keep * BLEND_FULL;
       // idles keep their own clock; moving clips run on the shared rate (cycle-normalised)
       c.g.speedRatio = !c.moves || mw <= 0 ? 1 : rate * c.cycle;
     }
     const a = this.act;
     if (a) {
-      a.weight = this.actW;
+      a.weight = this.actW * BLEND_FULL;
       // a timed action is pinned to the game's progress; a looping one runs on its own clock. (slice h) Pinned at a
       // near-zero rate, not 0: at 0 Babylon's next animation step puts the frame back (a jump is timed by the rate), so
       // the clip stood on one frame
