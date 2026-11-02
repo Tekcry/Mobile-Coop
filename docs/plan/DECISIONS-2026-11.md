@@ -132,3 +132,48 @@ for any reason, ie internet connection or crash, and they havent exited using th
 rejoin as per normal. Leaving via the quit button in the pause menu should prevent the re-join or re-host option to appear."
 
 **N27. Always merge when green:** every pull request merges once all its checks pass.
+
+**N28. The planning run web-checks only what Phase 1 rests on** (native multiple choice): the facts behind the Phase 1
+decisions (engine, Steam Deck, Friend's Pass, music, licences) are checked now; everything else when its phase arrives.
+
+**N29. Deep research into Hazelight's co-op games** (A Way Out, It Takes Two, Split Fiction, plus Brothers). Michael: "I
+approve deep research into hazelight. I think this will be a critical step to making a fun and unique 2 player coop
+game." Result: `docs/research/hazelight-2026-11/`.
+
+**N30. Stay on Babylon.js** (native multiple choice, provisional; final after the Phase 2 kill criteria). Michael asked
+which engine lets Claude Code build the game from start to production, as his priority is work: Babylon.js is all plain
+text that Claude writes, runs and tests by itself; Godot means a rewrite and some editor work; Unreal and Unity need a
+person in their editors.
+
+**N31. Plan for the Target campaign: prologue + 7 missions** (native multiple choice, provisional; final after the
+Mission 1 slice shows the real cost per mission). Reason: room for the whole story; CT's top complaint was a short
+campaign.
+
+**N32. Platforms: Windows on Steam first, Steam Deck as a goal** (native multiple choice): the Deck is promised only once
+tested on a real Deck; Mac and Linux later or never; phones for test launches only; the browser build stays for
+development and tests.
+
+**N33. The Chaos Theory footage in the repo is removed** (native multiple choice): 30 comparison sheets under
+`docs/ct-prototype/shots/g8` held CT game footage beside our frames; our own frames stay; git history keeps the old
+files. Reason: not publishing another game's art beside ours before a commercial release.
+
+**N34. Wren and Moth have the same abilities; roles come from the situation** (native multiple choice, after the
+Hazelight research): A Way Out's model; each team moment gives the players different jobs by where they stand or what
+they carry, and the jobs alternate; personality comes from banter. Declined: a few fixed personal moves; new powers each
+mission (breaks the one stealth ruleset).
+
+**N35. A recurring music theme carried as sound and rhythm** (native multiple choice): a short signature sound or rhythm
+returns in every mission, the menu and the big moments; still no hummable tune (music direction v3 stands). Reason: It
+Takes Two's score had no recurring theme and did not stick.
+
+**N36. The ending is written in Phase 1** (native multiple choice), with its early hints, so Mission 1 can plant them; it
+stays co-operative, never player against player. Replaces "decide with the missions" (STORY-04) for the ending only.
+Reason: Hazelight fixed the start and end of Brothers and A Way Out before production.
+
+**N37. Hitman-style interaction with people and the world** (Michael: "I would like the characters to interact with
+other NPCs and the world similarly to hitman world of assassination. I like how the contextual system works."; then
+native multiple choice): context actions on people and objects (one button does the right thing: open, use, sabotage,
+hide a body, question someone); overheard talk that opens opportunities (a code, a route, a chance); world tricks
+(cut power, break a pipe, start a machine, stage an accident, throw something to pull a guard). Missions have 1-3 unarmed
+staff with routines who react and can be avoided, questioned or used; harming them costs rating. Declined: disguises,
+crowds.
