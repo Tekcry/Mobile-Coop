@@ -2,7 +2,7 @@
 Owner: Michael. Status: draft for Michael's approval; on approval it replaces `docs/VISION.md` (history).
 
 From draft v2 and Michael's decisions since (N1-N37), the master brief's formula (section 3) and the Hazelight
-research (`docs/research/hazelight-2026-11/README.md`). Open items are marked (pending).
+research (`docs/research/hazelight-2026-11/README.md`).
 
 ## 1. What it is
 A 2-player co-op third-person stealth campaign. Two operators of a deniable unit, Wren and Moth, slip through places
@@ -31,7 +31,7 @@ Friend's Pass, so only one of the two needs to buy it. Nothing else: no solo pla
 3. **Readable, fair guards** - few guards, each a puzzle you can learn; every detection can be explained.
 4. **Always know where to go** - objectives, the compass and the level itself make the next step clear.
 5. **Physical, deliberate movement** - weighted and controllable.
-6. **Sound and music** - noise matters; the score carries the tension (pending: "and music" by name, P4).
+6. **Sound and music** - noise matters; the score carries the tension.
 
 ## 5. The two operators
 - **Same abilities.** Each team moment gives the two players different jobs by where they stand or what they carry,
@@ -47,8 +47,9 @@ Friend's Pass, so only one of the two needs to buy it. Nothing else: no solo pla
   humour, told through text radio, documents and overheard talk.
 - **Story first, play wins a tie:** each mission starts from why we are here tonight, what is at stake and what
   changes for Wren and Moth; if a step is not fun, the story beat changes, not the stealth rules.
-- **The ending is written now** and hinted at from Mission 1; it is co-operative to the last scene (pending: which
-  ending, `docs/plan/ENDING-DRAFT.md`).
+- **The ending is written now** and hinted at from Mission 1: "Two switches" (`docs/plan/ENDING-DRAFT.md`, A). With
+  the radio jammed, Wren holds the control room and Moth the roof generator, each the other's eyes; the last press is
+  the first two-person action they ever learned, and Moth, drawn to light, turns the city back on.
 - Each night has one short, optional quiet moment.
 
 ## 7. Missions
@@ -62,7 +63,8 @@ Friend's Pass, so only one of the two needs to buy it. Nothing else: no solo pla
 - The method: `docs/plan/MISSION-TEMPLATE.md`.
 
 ## 8. People in the world
-- **Guards:** roughly 2-5 per area, hand-placed, **never spawned**; each has a job, a routine and a moment alone. An
+- **Guards:** 20-30 per mission, about a Chaos Theory co-op level (typically 3-6 in an area, more in set pieces),
+  hand-placed, **never spawned**; each has a job, a routine and a moment alone. An
   alarm makes the guards already there tougher. **When spotted, hiding is the answer:** guards are deadly head-on,
   search where they last saw you, and never know where you are once you are hidden. They come to fix lights.
 - **Staff:** 1-3 unarmed people per mission with routines. They react, and can be avoided, questioned or used;

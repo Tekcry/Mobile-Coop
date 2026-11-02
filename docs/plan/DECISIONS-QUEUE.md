@@ -20,6 +20,10 @@ and reason, is in `DECISIONS-2026-11.md` (N numbers) until Phase 1 writes the ne
 | P1 | Chaos Theory footage in the repo | Removed: 30 comparison sheets under `docs/ct-prototype/shots/g8` (our own frames kept) | N33 |
 | P3 | Story | Kept: Hollowmere, SUNDOWN, the nine nights, Wren and Moth (round 5: "if it makes sense"; it fits a fresh Mission 1) | vision round 5 |
 | P6 | The ending | Written in Phase 1 with its early hints; stays co-operative (no player against player, G9) | N36 |
+| - | Guard count | 20-30 per mission (about a Chaos Theory co-op level), typically 3-6 in an area, more in set pieces | N38 |
+| - | Scope tiers | Approved as in `SCOPE.md` | N39 |
+| P4 | Pillar 6 | "Sound and music" | N40 |
+| P6b | Which ending | A, "Two switches" (`ENDING-DRAFT.md`) | N41 |
 | P7 | World and people | Hitman-style: context actions on people and objects, overheard talk that opens opportunities, world tricks; 1-3 unarmed staff per mission with routines; no disguises, no crowds | N37 |
 
 ## Open, in the order needed
@@ -27,7 +31,6 @@ and reason, is in `DECISIONS-2026-11.md` (N numbers) until Phase 1 writes the ne
 | # | Decision | Options (cost) | Recommended | Needed by |
 |---|---|---|---|---|
 | D15b | Sonic identity | One sentence plus 3 reference tracks, Michael picks by ear | From the approved v3 direction (`docs/audio/music-direction-v3.md`) | Phase 1 (vision v3 round) |
-| P4 | Music as pillar 6 by name | "Sound and music" / keep "Sound" | "Sound and music" (brief section 3) | Phase 1 (vision v3 round) |
 | D2 | Graphics API | WebGL2 only / WebGL2 default + WebGPU option / WebGPU only | WebGL2 default, WebGPU later (still behind a flag on the Deck's AMD Linux) | Phase 2 |
 | D3 | Desktop wrapper | Electron / NW.js / Tauri | Electron (bundles Chromium; Tauri uses the system browser) | Phase 2 |
 | D4 | Online transport | Own WebRTC + TURN + signalling everywhere / Steam Networking / Epic Online Services | Own WebRTC; the `Transport` interface already exists (`src/net/transport.ts`) | Phase 2 |
@@ -63,7 +66,7 @@ and reason, is in `DECISIONS-2026-11.md` (N numbers) until Phase 1 writes the ne
 | C7 | Phones first class in the old movement docs | G12, G182, D14 | Phones launch-only for tests |
 | C8 | Human ladder 4.1 m in code vs 4.5 m decided; lip band 4.3-4.5 m | G57 stands | Code catches up when the ledge relay is rebuilt (Phase 4) |
 | C9 | FOV 86 in code vs CT about 75 | Not a conflict: 86 horizontal at 16:9 = 55.3 deg vertical; CT's 75 at its footage aspect = 55.7 deg vertical (`src/config/camera.ts`, `ct-measure-camera.md`) | No change; the thermal range table is recomputed at 86 |
-| C10 | "As many guards as realistically possible" (G289) vs 2-5 per area | Vision (round 2) | 2-5 per area |
+| C10 | "As many guards as realistically possible" (G289) vs 2-5 per area (round 2) | N38 | 20-30 per mission, typically 3-6 per area |
 | C11 | At most one hard rule per mission (research) vs up to 2, signposted (G290) | Master brief | Up to 2 |
 | C12 | Escort objective type vs "no escort missions" | Master brief | No escort missions |
 | C13 | Music timings: code G67 (Alert 10 s, Evasion 12 s, Cautious 8 s) vs brief 11 (Caution out after about 15 s, 1-2 bar tail) | Tuned with placeholder stems in Phase 4 | Brief targets |

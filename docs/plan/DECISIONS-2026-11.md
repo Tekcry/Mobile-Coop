@@ -177,3 +177,18 @@ hide a body, question someone); overheard talk that opens opportunities (a code,
 (cut power, break a pipe, start a machine, stage an accident, throw something to pull a guard). Missions have 1-3 unarmed
 staff with routines who react and can be avoided, questioned or used; harming them costs rating. Declined: disguises,
 crowds.
+
+**N38. 20-30 guards per mission** (native multiple choice). Michael on vision v3: "I feel like the overall guard count of
+2-5 per area count is low. Where is this number derived from? For a game about being a stealth operative, there's not
+many people to sneak past." The 2-5 per area was his own round-2 answer after the playthrough (Sector Ops felt
+overpacked); now about a Chaos Theory co-op level (about 22 across a map), typically 3-6 in an area, more in set
+pieces, plus 1-3 staff; stated as a mission total. Declined: 30-50 per mission; no fixed range.
+
+**N39. The scope tiers are approved** (native multiple choice): `docs/plan/SCOPE.md` (Must / Should / Could / Parked).
+
+**N40. Pillar 6 is "Sound and music"** (native multiple choice): the score is planned and protected from the start.
+
+**N41. The ending is "Two switches"** (native multiple choice; `docs/plan/ENDING-DRAFT.md` A): with the radio jammed,
+Wren holds the control room and Moth the roof generator, each the other's eyes by pings; the last press is the same
+two-key "both ready" action they learned on night 1; Moth, drawn to light, turns the city back on. Declined: "Carry";
+"The radio comes back".

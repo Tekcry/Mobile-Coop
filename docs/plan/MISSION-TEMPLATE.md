@@ -70,7 +70,7 @@ minutes for a good pair.
 | Person | Guard or staff | Job tonight | Routine (cycle, stops) | Moment alone | Covers / covered by | Pair for a double drop? | Light they come to fix | What they say that can be overheard |
 |---|---|---|---|---|---|---|---|---|
 
-- 2-5 guards per area, hand-placed; **never spawned**. An alarm makes the guards already there tougher and more alert.
+- 20-30 guards per mission (N38), typically 3-6 in an area and more in set pieces, hand-placed; **never spawned**. An alarm makes the guards already there tougher and more alert.
 - Patrols like clockwork: 25-45 s cycles, 3-6 s stops, 3-8 s gaps. No more than 4 sight cones overlap one spot; every
   patrol shows its back to the dark route within 20 s.
 - Bodies get found; every search area has a hiding spot; guards search where they last saw you, never where you are.

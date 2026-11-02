@@ -20,14 +20,11 @@ fresh design (N2): its setting is chosen in level planning, so "Dead Line" below
 - **The ending** (written in Phase 1, N36): the team turns the lights back on; the last image is Hollowmere lighting up
   block by block, seen from a rooftop. Co-operative to the last scene (no player against player, G9); both players get
   the same story text (no secret knowledge for one).
-- **The emotional turn uses the co-op bond through the controls** (Brothers' model, not A Way Out's fight). Candidates
-  for Phase 1:
-  1. **The radio dies (Lantern Out):** five missions leaning on LANTERN, then only each other and the pings.
-  2. **The finale apart:** Wren in grid control, Moth on the substation roof, each the other's only eyes; the last
-     two-key action is the switch that lights the rooftop view. Seeded by the first two-key action in Mission 1.
-  3. **One handshake left:** a team move taught on Night 1 must be done at the end under the hardest conditions (one
-     operator pinned, the other completing it with a cue the pair learned together).
-  Hints planted from Mission 1 on, whichever is chosen.
+- **The emotional turn uses the co-op bond through the controls** (Brothers' model, not A Way Out's fight):
+  **"Two switches"** (N41, `ENDING-DRAFT.md` A). With the radio jammed, Wren holds the control room and Moth the roof
+  generator, each the other's eyes by pings; the last press is the two-key "both ready" action from night 1; Moth,
+  drawn to light, turns the city back on. Earlier, Lantern Out (the radio dies) rehearses it.
+  Hints planted from Mission 1 on (`ENDING-DRAFT.md`).
 
 ## Missions (Target tier; nights 1-9; 20-30 min each, prologue 15-20 min, about 4 hours in all)
 
