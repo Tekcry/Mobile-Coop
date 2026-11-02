@@ -86,16 +86,29 @@ void surf(int k, vec2 uv, out float h, out vec3 col, out float rough) {
   float n = fbm(uv, 4.0, 5);
   float fine = pnoise(uv * 64.0, 64.0);
   h = 0.5; col = vec3(0.5); rough = 0.8;
-  if (k == 0) { // concrete wall: blotches, pores, stains
+  if (k == 0) { // concrete wall: formwork panels (2 x 2 per tile) with seams and tie holes, run-off streaks, stains, pores
+    // (textures N51) marks big enough to read across a room and in dim light, not only fine grain
+    vec2 pp = fract(uv * 2.0);
+    float seam = smoothstep(0.0, 0.012, pp.x) * smoothstep(0.0, 0.012, 1.0 - pp.x) * smoothstep(0.0, 0.012, pp.y) * smoothstep(0.0, 0.012, 1.0 - pp.y);
+    float tie = smoothstep(0.03, 0.018, length(fract(uv * 4.0) - 0.5));
+    float pv = hash(mod(floor(uv * 2.0), 2.0) + 11.0);
     float st = fbm(uv + 3.1, 2.0, 4);
-    h = 0.5 + (n - 0.5) * 0.18 - step(0.9, fine) * 0.12;
-    col = vec3(0.47 + (n - 0.5) * 0.1 - smoothstep(0.55, 0.8, st) * 0.05);
+    // vertical run-off streaks (u only), fading in and out down the wall
+    float streak = smoothstep(0.55, 0.85, pnoise(vec2(uv.x * 24.0, 0.5), 24.0)) * fbm(uv + 5.3, 2.0, 2);
+    h = 0.5 + (n - 0.5) * 0.18 - step(0.9, fine) * 0.12 - (1.0 - seam) * 0.22 - tie * 0.3;
+    col = vec3(0.47 + (n - 0.5) * 0.14 + (pv - 0.5) * 0.08 - smoothstep(0.5, 0.8, st) * 0.1 - streak * 0.08);
+    col = mix(vec3(0.3), col, seam) * (1.0 - tie * 0.45);
     rough = 0.82 + fine * 0.1;
-  } else if (k == 1) { // concrete floor: smoother, polished wear, hairline cracks
+  } else if (k == 1) { // concrete floor: 2 x 2 slabs per tile with sawn joints, worn patches, stains, hairline cracks
+    vec2 sp2 = fract(uv * 2.0);
+    float joint = smoothstep(0.0, 0.008, sp2.x) * smoothstep(0.0, 0.008, 1.0 - sp2.x) * smoothstep(0.0, 0.008, sp2.y) * smoothstep(0.0, 0.008, 1.0 - sp2.y);
     float cr = smoothstep(0.02, 0.0, abs(fbm(uv + 7.3, 3.0, 4) - 0.5));
-    h = 0.5 + (n - 0.5) * 0.1 - cr * 0.08;
-    col = vec3(0.47 + (n - 0.5) * 0.08 - cr * 0.06);
-    rough = mix(0.62, 0.88, fbm(uv + 1.7, 2.0, 3)) + fine * 0.04;
+    float wear = fbm(uv + 1.7, 2.0, 3);
+    float spot = smoothstep(0.22, 0.08, cells(uv + 0.37, 3.0)) * step(0.6, hash(mod(floor((uv + 0.37) * 3.0), 3.0)));
+    h = 0.5 + (n - 0.5) * 0.1 - cr * 0.08 - (1.0 - joint) * 0.25;
+    col = vec3(0.47 + (n - 0.5) * 0.12 + (wear - 0.5) * 0.14 - cr * 0.08 - spot * 0.12);
+    col = mix(vec3(0.28), col, joint);
+    rough = mix(0.62, 0.88, wear) + fine * 0.04 - spot * 0.2;
   } else if (k == 2) { // asphalt: grain and aggregate
     float g = pnoise(uv * 128.0, 128.0);
     h = 0.5 + (g - 0.5) * 0.4;
@@ -111,9 +124,10 @@ void surf(int k, vec2 uv, out float h, out vec3 col, out float rough) {
     h = 0.4 + b * 0.4;
     col = vec3(0.42 + b * 0.18 + (n - 0.5) * 0.15);
     rough = 0.9;
-  } else if (k == 5) { // plaster / stucco
+  } else if (k == 5) { // plaster / stucco: trowel grain and patchy tone (repairs, damp)
+    float blot = fbm(uv + 9.1, 2.0, 3);
     h = 0.5 + (pnoise(uv * 48.0, 48.0) - 0.5) * 0.25 + (n - 0.5) * 0.1;
-    col = vec3(0.47 + (n - 0.5) * 0.12);
+    col = vec3(0.47 + (n - 0.5) * 0.12 + (blot - 0.5) * 0.16);
     rough = 0.88;
   } else if (k == 6) { // wood planks along u
     float plank = floor(uv.y * 6.0);
@@ -129,11 +143,13 @@ void surf(int k, vec2 uv, out float h, out vec3 col, out float rough) {
     h = 0.3 + rib * 0.5;
     col = mix(vec3(0.5 + (n - 0.5) * 0.08), vec3(0.33, 0.3, 0.28), wear);
     rough = mix(0.5, 0.8, wear);
-  } else if (k == 8) { // brushed metal: streaks
+  } else if (k == 8) { // brushed metal sheet: streaks, a seam at the sheet edges (one sheet per tile), smudges
     float s = pnoise(vec2(uv.x * 4.0, uv.y * 256.0), 256.0);
-    h = 0.5 + (s - 0.5) * 0.08;
-    col = vec3(0.47 + s * 0.06);
-    rough = 0.28 + s * 0.12;
+    float edge = smoothstep(0.0, 0.01, uv.x) * smoothstep(0.0, 0.01, 1.0 - uv.x) * smoothstep(0.0, 0.01, uv.y) * smoothstep(0.0, 0.01, 1.0 - uv.y);
+    float smudge = fbm(uv + 4.4, 2.0, 3);
+    h = 0.5 + (s - 0.5) * 0.08 - (1.0 - edge) * 0.2;
+    col = vec3(0.47 + s * 0.06 + (smudge - 0.5) * 0.12) * mix(0.6, 1.0, edge);
+    rough = 0.28 + s * 0.12 + smudge * 0.15;
   } else if (k == 9) { // rust: blotchy oxide over steel
     float r = smoothstep(0.35, 0.7, fbm(uv, 3.0, 6));
     h = 0.5 + (fine - 0.5) * 0.3 * r;

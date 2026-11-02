@@ -143,7 +143,8 @@ vec4 sfTap(sampler2D s, int k, vec2 uv) {
   normalW = normalize(normalW + pert * sp.z * surfMix);
 #endif
   sfMetal = sp.y;
-  surfaceAlbedo *= mix(vec3(1.0), (0.5 + (sfD.rgb - 0.5) * 0.5) * 2.0 * mix(1.0, sfAo, 0.35), surfMix);
+  // (textures N51) the detail at full strength (it was halved: the surfaces read as flat colour)
+  surfaceAlbedo *= mix(vec3(1.0), sfD.rgb * 2.0 * mix(1.0, sfAo, 0.5), surfMix);
 #ifndef SURF_OBJECT
   // rain: what faces the sky darkens and goes glossy, more in the low spots (cavity) - puddles for the reflections
   float swet = surfWet * smoothstep(0.55, 0.92, sn.y);

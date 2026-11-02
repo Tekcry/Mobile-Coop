@@ -248,9 +248,12 @@ const renderProof = (P) =>
     for (const [map, o] of obs) if (map && o) map.onBeforeRenderObservable.remove(o);
     const mats = new Set();
     for (const m of scene.getActiveMeshes().data.slice(0, scene.getActiveMeshes().length)) if (m.material) mats.add(m.material);
-    const surface = (m) => !!(m.albedoTexture || m.diffuseTexture || m.baseTexture || m.bumpTexture || m.subMaterials?.some((s) => s && (s.albedoTexture || s.diffuseTexture)));
+    // (textures N51) a material is textured when it wears the generated surfaces (`SurfacePlugin`, 'Surfaces') or an image
+    const gen = (m) => { const p = m.pluginManager?.getPlugin?.('Surfaces'); return !!p && p._isEnabled !== false; };
+    const surface = (m) => gen(m) || !!(m.albedoTexture || m.diffuseTexture || m.baseTexture || m.subMaterials?.some((s) => s && (s.albedoTexture || s.diffuseTexture)));
     const textured = [...mats].filter(surface).length;
-    return { lights: lights.length, shadowMaps: gens.length, shadowRenders: rendered, shadowCasters: casters, materials: mats.size, texturedMaterials: textured, meshes: scene.meshes.length };
+    const levelTextured = [...mats].some((m) => /^levelMat-/.test(m.name) && gen(m));
+    return { lights: lights.length, shadowMaps: gens.length, shadowRenders: rendered, shadowCasters: casters, levelTextured, materials: mats.size, texturedMaterials: textured, meshes: scene.meshes.length };
   });
 
 /** Frames per second and frame times on page P over `ms` of real time (its own frame stats, perf.mjs's draw count). */
@@ -335,7 +338,7 @@ try {
     console.log(`  A1 (host view): ${JSON.stringify(p)}`);
     check(p.lights >= 1, 'lights are on', `${p.lights} lights`);
     check(p.shadowMaps >= 1 && p.shadowRenders > 0 && p.shadowCasters > 0, 'shadow maps draw the characters', `${p.shadowMaps} maps, ${p.shadowRenders} renders, up to ${p.shadowCasters} casters`);
-    console.log(`  report only: ${p.texturedMaterials} of ${p.materials} materials in view have a surface texture (a check from the textures step)`);
+    check(p.levelTextured, 'the level wears its textures', `${p.texturedMaterials} of ${p.materials} materials in view textured`);
     await shot(A, 'a1-host-view');
     await shot(B, 'a1-partner-view');
     await sampleFrames(A, 'A1 host');

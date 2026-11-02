@@ -32,5 +32,8 @@ describe('procedural surfaces (3.0)', () => {
     expect(pieceKind('#a5482e', 6, 3, 0.4, null)).toBe('brick');
     expect(pieceKind('#3d6b35', 3, 1.8, 0.8, null)).toBe('grass'); // hedge
     expect(pieceKind('#1a1c1e', 1, 1, 1, null)).toBe('rubber');
+    // (textures N51) a thin green gate is painted metal, not grass; a big dark wall is concrete, not rubber
+    expect(pieceKind('#2f6b3a', 4, 3.5, 0.15, null)).toBe('corrugated');
+    expect(pieceKind('#26292e', 12, 6, 0.4, null)).toBe('concrete');
   });
 });

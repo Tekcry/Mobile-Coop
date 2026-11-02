@@ -52,8 +52,10 @@ export function pieceKind(hex: string, sx: number, sy: number, sz: number, under
   const floor = sy <= 0.35 && sx * sz >= 4;
   if (floor && under) return floorKind(under, hex);
   const [h, s, v] = hsv(hex);
-  if (h >= 70 && h <= 170 && s > 0.2) return 'grass';
-  if (v < 0.22) return 'rubber';
+  // (textures N51) growth is a thick, low mass (a hedge); a thin green panel (a gate, a door, a sign) is painted
+  if (h >= 70 && h <= 170 && s > 0.2 && Math.min(sx, sz) >= 0.5 && sy <= 2.5) return 'grass';
+  // (textures N51) rubber is a small dark thing (a mat, a tyre, a bumper); a big dark wall is dark concrete
+  if (v < 0.22) return Math.max(sx, sy, sz) <= 2 ? 'rubber' : floor ? 'concreteFloor' : 'concrete';
   if (h >= 5 && h <= 28 && s > 0.45 && v < 0.58 && sy < 2.5) return 'rust';
   if (h >= 0 && h <= 25 && s > 0.4 && sy >= 2 && v >= 0.35) return 'brick';
   if (h >= 18 && h <= 48 && s > 0.35 && v >= 0.25) return 'wood';
