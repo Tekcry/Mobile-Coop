@@ -39,6 +39,29 @@ const PIN_END = 0.995;
  *  the same frame (an action fading fully in: the walk and the strafe leave at once): the bones went NaN and the body
  *  vanished (hang, ledge, ladder top, pipe, wall). Under 1 the blend starts from the bind value instead. */
 const BLEND_FULL = 0.9999;
+/** (walk-test fix A) Each grip climb's grips: shares of its cycle where no hand or foot is reaching (measured in the
+ *  game 2026-11-03: the rope climb is free of reaches at 0-0.1, 0.35-0.6 and 0.73-0.83, the ladder at 0-0.03 and
+ *  0.13-0.18; provisional). Stopped, the clip runs on to the next one and holds. */
+const GRIPS: Readonly<Record<string, readonly number[]>> = { rope_climb: [0.05, 0.47, 0.78], ladder: [0, 0.15] };
+/** (walk-test fix A) Faster than this (m/s) a grip climb plays. */
+const GRIP_MOVE = 0.05;
+/** (walk-test fix A) Actions whose own turn about the vertical is taken out (the game's facing stands): the wall
+ *  kick's clip spins round as it jumps off (Michael: "an unnecessary spin"). */
+const NO_YAW: ReadonlySet<string> = new Set(['wall_kick']);
+/** (walk-test fix A, Michael: "stop mid animation, then after ... around 3 seconds ... an idle position") A player's
+ *  gait freezes where it is when the body slows out of it, holds `HOLD_STOP` s, then settles into the idle over
+ *  `HOLD_SETTLE` s; moving again it lets go over `HOLD_LEAVE` s. `HOLD_FULL` (m/s): at or above it the gait is fully in
+ *  (the locomotion's stand speed plus its fade). Provisional. */
+const HOLD_STOP = 3;
+const HOLD_SETTLE = 0.5;
+const HOLD_LEAVE = 0.15;
+const HOLD_FULL = 0.4;
+/** (walk-test fix A) At or below this (m/s) the body stands (the locomotion's stand speed). A held stop lets go when
+ *  the body speeds up by `HOLD_SPEEDUP` (m/s) over its slowest, or keeps moving `HOLD_SLOW` s (a slow walk, not a
+ *  stop: the walk brakes to a stand in about 0.1 s, `MOVEMENT.decelMax`). */
+const HOLD_STILL = 0.05;
+const HOLD_SPEEDUP = 0.05;
+const HOLD_SLOW = 0.25;
 /** (slice g) Seconds the spine takes to follow the aim pitch, and the most it bends (rad, provisional). */
 const PITCH_EASE = 0.08;
 const PITCH_MAX = 1.1;
@@ -72,6 +95,8 @@ export interface MixamoBodyOpts {
   casters?: (m: AbstractMesh) => void;
   /** Standing height (m); default `MIXAMO_HEIGHT` (the player's). */
   height?: number;
+  /** (walk-test fix A) Stopping freezes the gait mid-stride, then settles into the idle (`HOLD_STOP`; the players). */
+  holdStop?: boolean;
 }
 
 /** One rig node that follows a Mixamo bone: the node, the bone's name (`Hips`, `Spine2`, ...) and the node's rest
@@ -181,6 +206,32 @@ export class MixamoBody {
   private travelNode: TransformNode | null = null;
   private travelChain: TransformNode[] = [];
   private readonly holdL = new Matrix();
+  /** (walk-test fix A) A grip climb: its phase last frame (NaN: just started), whether it holds on a grip, and the
+   *  held frame. */
+  private gripPh = NaN;
+  private gripHeld = false;
+  private gripFrame = 0;
+  /** (walk-test fix A) The no-yaw actions' hip-line angle at their first frame (rad, in the body's ground plane), and
+   *  the thigh bones that measure it. */
+  private readonly yaw0 = new Map<string, number>();
+  private thighs: (TransformNode | null)[] = [];
+  private thighChain: TransformNode[] = [];
+  private hipsBone: TransformNode | null = null;
+  private hipsChain: TransformNode[] = [];
+  /** (walk-test fix A) The stop hold: the last full gait mix (per clip), the crouch and aim it was taken at, whether a
+   *  stop is on, how long it has been held (s), its weight now and the speed last frame. */
+  private stopW = new Float64Array(0);
+  private stopCrouch = 0;
+  private stopAim = 0;
+  private stopSet: LocoSet = 'unarmed';
+  private stopHad = false;
+  private stopOn = false;
+  private stopT = 0;
+  /** The slowest speed since the stop began (m/s) and how long the body has kept moving in it (s). */
+  private stopMin = 0;
+  private stopMoveT = 0;
+  private holdW = 0;
+  private prevSpeed = 0;
   private disposed = false;
 
   constructor(scene: Scene, readonly model: MixamoModel, parent: TransformNode, private readonly opts: MixamoBodyOpts = {}) {
@@ -232,6 +283,7 @@ export class MixamoBody {
         this.table[s * LOCO_N + k] = ci;
       }
     this.clipW = new Float64Array(this.clips.length);
+    this.stopW = new Float64Array(this.clips.length);
     for (let i = 0; i < this.clips.length; i++) {
       const c = this.clips[i]!;
       c.g.start(true, 1);
@@ -247,6 +299,17 @@ export class MixamoBody {
     }
     // the reference pose: the idle's first frame, a standing pose like the rig's rest (a model's bind pose can sit its
     // hips on the floor, the Swat's does, and holds a T): the height fit and the follow's bone rests are taken in it
+    // (walk-test fix A) each no-yaw action's hip line at its first frame (the idle's frame below resets the pose)
+    this.thighs = [this.boneNode('LeftUpLeg'), this.boneNode('RightUpLeg')];
+    if (this.thighs[0] && this.thighs[1]) this.thighChain = [...chainBelow(this.thighs[0], this.root), this.thighs[0], this.thighs[1]];
+    this.hipsBone = this.boneNode('Hips');
+    if (this.hipsBone) this.hipsChain = chainBelow(this.hipsBone, this.root);
+    for (const name of NO_YAW) {
+      const g = this.actions.get(name);
+      if (!g) continue;
+      g.goToFrame(g.from);
+      this.yaw0.set(name, this.hipYaw());
+    }
     const idle = this.clips[0]?.g;
     if (idle) idle.goToFrame(idle.from);
     this.fitHeight();
@@ -345,27 +408,55 @@ export class MixamoBody {
     const r = rr.computeWorldMatrix(true).m;
     vT.set(r[0] as number, r[1] as number, r[2] as number).normalize();
     const a = -p / this.spine.length;
-    for (let si = 0; si < this.spine.length; si++) {
-      const b = this.spine[si]!;
-      for (const n of this.spineChains[si]!) n.computeWorldMatrix(true);
-      const W = b.computeWorldMatrix(true);
-      const px = W.m[12] as number, py = W.m[13] as number, pz = W.m[14] as number;
-      // new world = W . move(-joint) . turn(right, a) . move(joint)
-      Matrix.TranslationToRef(-px, -py, -pz, mA);
-      W.multiplyToRef(mA, mB);
-      Matrix.RotationAxisToRef(vT, a, mC);
-      mB.multiplyToRef(mC, mD);
-      Matrix.TranslationToRef(px, py, pz, mA);
-      mD.multiplyToRef(mA, mB);
-      (b.parent as TransformNode).getWorldMatrix().invertToRef(mA);
-      mB.multiplyToRef(mA, mC);
-      mC.decompose(vS, qR, vT2);
-      b.position.copyFrom(vT2);
-      if (b.rotationQuaternion) b.rotationQuaternion.copyFrom(qR);
-      else b.rotationQuaternion = qR.clone();
-      b.scaling.copyFrom(vS);
-      b.computeWorldMatrix(true);
-    }
+    for (let si = 0; si < this.spine.length; si++) this.turnBone(this.spine[si]!, this.spineChains[si]!, vT, a);
+  }
+
+  /** Turns bone `b` (its ancestors `chain`, top first) by `a` rad about the world axis `axis` through its own joint. */
+  private turnBone(b: TransformNode, chain: TransformNode[], axis: Vector3, a: number): void {
+    for (const n of chain) n.computeWorldMatrix(true);
+    const W = b.computeWorldMatrix(true);
+    const px = W.m[12] as number, py = W.m[13] as number, pz = W.m[14] as number;
+    // new world = W . move(-joint) . turn(axis, a) . move(joint)
+    Matrix.TranslationToRef(-px, -py, -pz, mA);
+    W.multiplyToRef(mA, mB);
+    Matrix.RotationAxisToRef(axis, a, mC);
+    mB.multiplyToRef(mC, mD);
+    Matrix.TranslationToRef(px, py, pz, mA);
+    mD.multiplyToRef(mA, mB);
+    (b.parent as TransformNode).getWorldMatrix().invertToRef(mA);
+    mB.multiplyToRef(mA, mC);
+    mC.decompose(vS, qR, vT2);
+    b.position.copyFrom(vT2);
+    if (b.rotationQuaternion) b.rotationQuaternion.copyFrom(qR);
+    else b.rotationQuaternion = qR.clone();
+    b.scaling.copyFrom(vS);
+    b.computeWorldMatrix(true);
+  }
+
+  /** (walk-test fix A) The hip line's angle (left thigh to right thigh) in the body root's ground plane (rad). */
+  private hipYaw(): number {
+    const L = this.thighs[0], R = this.thighs[1];
+    if (!L || !R) return 0;
+    for (const n of this.thighChain) n.computeWorldMatrix(true);
+    const m = this.root.computeWorldMatrix(true).m;
+    const l = L.getAbsolutePosition(), r = R.getAbsolutePosition();
+    const dx = r.x - l.x, dy = r.y - l.y, dz = r.z - l.z;
+    const x = dx * (m[0] as number) + dy * (m[1] as number) + dz * (m[2] as number);
+    const z = dx * (m[8] as number) + dy * (m[9] as number) + dz * (m[10] as number);
+    return Math.atan2(z, x);
+  }
+
+  /** (walk-test fix A) A no-yaw action: the hips turn back about the body's up by the clip's own turn since its first
+   *  frame (weighted by the action's weight), so the body keeps the game's facing. */
+  private flattenYaw(): void {
+    const y0 = this.act ? this.yaw0.get(this.actName) : undefined;
+    const hips = this.hipsBone;
+    if (y0 === undefined || !hips || this.actW <= 0) return;
+    const now = this.hipYaw();
+    const d = Math.atan2(Math.sin(now - y0), Math.cos(now - y0));
+    const m = this.root.computeWorldMatrix(true).m;
+    vT.set(m[4] as number, m[5] as number, m[6] as number).normalize();
+    this.turnBone(hips, this.hipsChain, vT, d * this.actW);
   }
 
   /** After Babylon's animation step: each follower takes its bone's movement from the bind pose. */
@@ -374,6 +465,7 @@ export class MixamoBody {
     if (!rr || !this.ready || !this.root.isEnabled()) return;
     this.anchorBody();
     this.turnBody();
+    if (NO_YAW.has(this.actName)) this.flattenYaw();
     this.bendSpine(rr);
     const rootW = this.root.computeWorldMatrix(true);
     const rigW = rr.computeWorldMatrix(true);
@@ -512,15 +604,19 @@ export class MixamoBody {
       this.act = want;
       this.actName = act?.clip ?? '';
       want.speedRatio = 1;
+      this.gripPh = NaN;
+      this.gripHeld = false;
     }
     const aStep = dt > 0 ? dt / ACT_FADE : 1;
     this.actW = want ? Math.min(1, this.actW + aStep) : Math.max(0, this.actW - aStep);
     const keep = 1 - this.actW;
+    const h = this.opts.holdStop ? this.stopHold(i, set, dt) : 0;
     for (let ci = 0; ci < this.clips.length; ci++) {
       const c = this.clips[ci]!;
-      c.g.weight = (this.clipW[ci] as number) * keep * BLEND_FULL;
-      // idles keep their own clock; moving clips run on the shared rate (cycle-normalised)
-      c.g.speedRatio = !c.moves || mw <= 0 ? 1 : rate * c.cycle;
+      c.g.weight = ((this.clipW[ci] as number) * (1 - h) + (this.stopW[ci] as number) * h) * keep * BLEND_FULL;
+      // idles keep their own clock; moving clips run on the shared rate (cycle-normalised), (walk-test fix A) frozen
+      // by the stop hold
+      c.g.speedRatio = !c.moves ? 1 : Math.max(PIN_RATE, (mw <= 0 ? 1 : rate * c.cycle) * (1 - h));
     }
     const a = this.act;
     if (a) {
@@ -532,7 +628,8 @@ export class MixamoBody {
         a.speedRatio = PIN_RATE;
         // (slice i) just short of the last frame: the clip loops, so its end is its first frame again
         a.goToFrame(a.from + Math.min(act.t, PIN_END) * (a.to - a.from));
-      } else a.speedRatio = 1;
+      } else if (want && act?.grip) this.gripStep(a, i.speed);
+      else a.speedRatio = 1;
       if (this.actW <= 0) this.act = null;
     }
     // (slice g) hanging, shimmying, on a ladder and early in a climb-up the body is placed by its hands on the rig's
@@ -540,6 +637,84 @@ export class MixamoBody {
     const climb = an === 'hang_climb_up' && act && !Number.isNaN(act.t) ? 1 - Math.min(1, Math.max(0, (act.t - ANCHOR_CLIMB_FROM) / ANCHOR_CLIMB_SPAN)) : 1;
     this.anchorW = a && ANCHORED.has(an) ? this.actW * climb : 0;
     this.turnOn = !!act?.turn && !!a;
+  }
+
+  /**
+   * (walk-test fix A) The stop hold's weight this frame (0..1): the gait's last full mix (`stopW`) holds while the body
+   * slows out of it and stands, for `HOLD_STOP` s, then eases into the idle. Moving off again (not slowing, not still)
+   * or a crouch, aim or move-set change (a draw, a holster) lets it go.
+   */
+  private stopHold(i: LocoIn, set: LocoSet, dt: number): number {
+    const s = i.speed > 0 ? i.speed : 0;
+    const aim = i.aim ?? 0;
+    if (s >= HOLD_FULL) {
+      this.stopW.set(this.clipW);
+      this.stopCrouch = i.crouch;
+      this.stopAim = aim;
+      this.stopSet = set;
+      this.stopHad = true;
+      this.stopOn = false;
+    } else if (!this.stopOn && this.stopHad && s < this.prevSpeed) {
+      this.stopOn = true;
+      this.stopT = 0;
+      this.stopMin = s;
+      this.stopMoveT = 0;
+      this.holdW = 1;
+    }
+    if (this.stopOn) {
+      this.stopT += dt;
+      // (the speed changes in the game's fixed steps: frames between them read level, so "not slowing" is not a let-go)
+      this.stopMin = Math.min(this.stopMin, s);
+      this.stopMoveT = s > HOLD_STILL ? this.stopMoveT + dt : 0;
+      const off = s > this.stopMin + HOLD_SPEEDUP || this.stopMoveT > HOLD_SLOW;
+      if (off || set !== this.stopSet || Math.abs(i.crouch - this.stopCrouch) > 0.3 || Math.abs(aim - this.stopAim) > 0.3) {
+        this.stopOn = false;
+        this.stopHad = false;
+      }
+    }
+    this.prevSpeed = s;
+    const goal = this.stopOn && this.stopT < HOLD_STOP ? 1 : 0;
+    if (goal >= this.holdW) this.holdW = goal;
+    else this.holdW = Math.max(goal, this.holdW - (dt > 0 ? dt / (this.stopOn ? HOLD_SETTLE : HOLD_LEAVE) : 1));
+    if (this.stopOn && this.holdW <= 0) {
+      this.stopOn = false;
+      this.stopHad = false;
+    }
+    return this.holdW;
+  }
+
+  /** (walk-test fix A) A grip climb's clock: it plays while the body moves; stopped, it runs on to its next grip and
+   *  holds there (pinned like a timed action) until the body moves again. */
+  private gripStep(a: AnimationGroup, speed: number): void {
+    const grips = GRIPS[this.actName];
+    const len = a.to - a.from;
+    if (!grips || len <= 0) {
+      a.speedRatio = 1;
+      return;
+    }
+    const moving = speed > GRIP_MOVE;
+    if (moving) this.gripHeld = false;
+    if (this.gripHeld) {
+      a.speedRatio = PIN_RATE;
+      a.goToFrame(this.gripFrame);
+      return;
+    }
+    a.speedRatio = 1;
+    const fr = a.animatables[0]?.masterFrame ?? a.from;
+    const ph = ((((fr - a.from) / len) % 1) + 1) % 1;
+    const was = this.gripPh;
+    this.gripPh = ph;
+    if (moving) return;
+    for (const g of grips) {
+      // the clock passed grip g since last frame (or, just started, sits on it)
+      const hit = Number.isNaN(was) ? Math.abs(ph - g) < 0.03 : was <= ph ? was < g && g <= ph : g > was || g <= ph;
+      if (!hit) continue;
+      this.gripHeld = true;
+      this.gripFrame = a.from + g * len;
+      a.speedRatio = PIN_RATE;
+      a.goToFrame(this.gripFrame);
+      return;
+    }
   }
 
   /**
@@ -610,7 +785,9 @@ export class MixamoBody {
   weights(): Record<string, number> {
     const out: Record<string, number> = {};
     const keep = 1 - this.actW;
-    for (let ci = 0; ci < this.clips.length; ci++) out[this.clips[ci]!.g.name.split(':').pop() ?? ''] = (this.clipW[ci] as number) * keep;
+    // (walk-test fix A2) with the stop hold's share
+    const h = this.opts.holdStop ? this.holdW : 0;
+    for (let ci = 0; ci < this.clips.length; ci++) out[this.clips[ci]!.g.name.split(':').pop() ?? ''] = ((this.clipW[ci] as number) * (1 - h) + (this.stopW[ci] as number) * h) * keep;
     if (this.act) out[this.act.name.split(':').pop() ?? ''] = this.actW;
     return out;
   }

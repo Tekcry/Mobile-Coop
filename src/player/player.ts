@@ -389,7 +389,9 @@ export class Player {
     // turn follows CT's curves (`wallTurnRate`: the front-loaded entry, the 0.45 s side-on reversal, the turn-out)
     const cp = this.pose;
     this.wallT = cp.wall ? this.wallT + dt : 0;
-    const visGoal = cp.wall ? wrapPi(c.renderYaw + wallYawOffset(c.crouchBlend, cp.wallSide)) : c.renderYaw;
+    // (mixamo walk-test fix A) a Mixamo body stays back to the wall crouched too: its crouched cover pose and sidestep
+    // already face out (turned side-on they stood across the wall)
+    const visGoal = cp.wall ? wrapPi(c.renderYaw + (this.mixamo ? 0 : wallYawOffset(c.crouchBlend, cp.wallSide))) : c.renderYaw;
     if (cp.wall || this.wallK > 0 || Math.abs(wrapPi(visGoal - this.visYaw)) > 0.05) {
       const d = wrapPi(visGoal - this.visYaw);
       const mx = (cp.wall || this.wallK > 0 ? wallTurnRate(Math.abs(d), cp.wall, this.wallT >= WALL_TURN.settleT, c.crouchBlend) : WALL_TURN_RATE) * dt;

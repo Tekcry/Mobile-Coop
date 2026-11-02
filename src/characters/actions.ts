@@ -63,6 +63,9 @@ export interface ActionOut {
   t: number;
   /** (slice i) The body turns over with the rig's tumble (legs up / inverted on a pipe). */
   turn?: boolean;
+  /** (walk-test fix A) A climb that plays only while the body moves and, stopped, runs on to its next grip (hands and
+   *  feet on) and holds there (Michael: "only stop when all hands/feet are on the pipe"). */
+  grip?: boolean;
 }
 
 /** Hanging (or on a wall) and moving sideways faster than this (m/s) shimmies (slides). */
@@ -113,6 +116,7 @@ export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionO
   out.clip = null;
   out.t = NaN;
   out.turn = false;
+  out.grip = false;
   const tm = i.teamMove ?? '';
   if (tm !== '') {
     if (i.teamRole === 'b') {
@@ -145,6 +149,7 @@ export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionO
       return out;
     case 'climb':
       out.clip = 'ladder';
+      out.grip = true;
       return out;
     case 'vault':
     case 'windowVault':
@@ -167,6 +172,7 @@ export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionO
     // (slice i)
     case 'pipeClimb':
       out.clip = 'rope_climb';
+      out.grip = true;
       return out;
     case 'pipeLegs':
     case 'pipeInv':
@@ -193,8 +199,12 @@ export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionO
   } else if ((i.grenade ?? -1) >= 0) {
     timed(out, 'throw', i.grenade);
   } else if (i.wall) {
-    if (i.speed > SHIMMY) out.clip = i.localX < 0 ? 'wall_slide_l' : 'wall_slide_r';
-    else out.clip = (i.crouch ?? 0) > 0.5 ? 'wall_crouch_idle' : 'wall_idle';
+    // (walk-test fix A) the pack's "left cover sneak" steps to the character's right (named from the viewer's side,
+    // measured in the game: its planted foot slides to the body's left), so moving left plays `wall_slide_r`.
+    // Crouched and moving, the locomotion's crouched sidestep plays (the body stays back to the wall; the sneaks stand)
+    const crouched = (i.crouch ?? 0) > 0.5;
+    if (i.speed > SHIMMY) out.clip = crouched ? null : i.localX < 0 ? 'wall_slide_r' : 'wall_slide_l';
+    else out.clip = crouched ? 'wall_crouch_idle' : 'wall_idle';
   }
   return out;
 }

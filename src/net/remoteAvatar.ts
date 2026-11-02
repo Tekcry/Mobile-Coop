@@ -423,7 +423,8 @@ export class RemoteAvatar {
       // turns side-on toward the travel, at the owner's turn curves (`wallYawOffset`, `wallTurnRate`)
       if (!this.wallYawOn) this.wallOnT = 0;
       this.wallOnT += dt;
-      const target = wrapPi(this.wp.yaw + wallYawOffset(this.crouch, wallSideFromSub(mv!.sub)));
+      // (mixamo walk-test fix A) a Mixamo body stays back to the wall crouched too (as the owner's, `Player`)
+      const target = wrapPi(this.wp.yaw + (this.mixamo ? 0 : wallYawOffset(this.crouch, wallSideFromSub(mv!.sub))));
       if (!this.wallYawOn) this.wallYaw = s.yaw;
       const d = wrapPi(target - this.wallYaw);
       const step = wallTurnRate(Math.abs(d), true, this.wallOnT >= WALL_TURN.settleT, this.crouch) * dt;
