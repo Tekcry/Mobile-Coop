@@ -16,6 +16,7 @@ import {
   type AbstractMesh, type AnimationGroup, type AssetContainer, type Observer, type Scene,
 } from '../core/babylon';
 import { LOCO_N, LOCO_SETS, locoBlend, setClip, slotMoves, type LocoIn, type LocoSet } from './locomotion';
+import { ACTION_CLIPS, type ActionOut } from './actions';
 import xbotUrl from './assets/xbot.glb?url';
 import ybotUrl from './assets/ybot.glb?url';
 import swatUrl from './assets/swat.glb?url';
@@ -27,6 +28,8 @@ const URLS: Readonly<Record<MixamoModel, string>> = { xbot: xbotUrl, ybot: ybotU
 export const MIXAMO_HEIGHT = 1.68;
 /** Seconds for a move-set change (holster, draw) to crossfade. */
 const SET_FADE = 0.2;
+/** (slice e) Seconds for an action to fade in over the locomotion, or back out. */
+const ACT_FADE = 0.12;
 
 const CONTAINERS = new WeakMap<Scene, Map<MixamoModel, Promise<AssetContainer>>>();
 
@@ -122,6 +125,10 @@ export class MixamoBody {
   private clipW = new Float64Array(0);
   private readonly w = new Float64Array(LOCO_N);
   private readonly ratio = new Float64Array(LOCO_N);
+  /** (slice e) The action clips by name, the one playing (or fading out) and its weight. */
+  private readonly actions = new Map<string, AnimationGroup>();
+  private act: AnimationGroup | null = null;
+  private actW = 0;
   private pendingFollow: { rigRoot: TransformNode; pairs: FollowPair[] } | null = null;
   private follows: Follow[] = [];
   private rigRoot: TransformNode | null = null;
@@ -183,6 +190,14 @@ export class MixamoBody {
       const c = this.clips[i]!;
       c.g.start(true, 1);
       c.g.weight = i === 0 ? 1 : 0;
+    }
+    // (slice e) the action clips, looping at weight 0 until an action picks one
+    for (const name of ACTION_CLIPS) {
+      const g = this.groups.find((x) => x.name.split(':').pop() === name);
+      if (!g) continue;
+      g.start(true, 1);
+      g.weight = 0;
+      this.actions.set(name, g);
     }
     // the reference pose: the idle's first frame, a standing pose like the rig's rest (a model's bind pose can sit its
     // hips on the floor, the Swat's does, and holds a T): the height fit and the follow's bone rests are taken in it
@@ -348,10 +363,10 @@ export class MixamoBody {
   }
 
   /**
-   * One frame of locomotion in move set `set` (`dt` s). Moving clips share one cycle clock so the feet agree while they
-   * blend; a set change crossfades over `SET_FADE`.
+   * One frame of locomotion in move set `set` (`dt` s), and (slice e) the action `act` over it, if any. Moving clips
+   * share one cycle clock so the feet agree while they blend; a set change crossfades over `SET_FADE`.
    */
-  update(i: LocoIn, set: LocoSet, dt: number): void {
+  update(i: LocoIn, set: LocoSet, dt: number, act?: ActionOut): void {
     if (!this.ready) return;
     this.set = set;
     const step = dt > 0 ? dt / SET_FADE : 1;
@@ -381,18 +396,40 @@ export class MixamoBody {
       }
     }
     if (mw > 0) rate /= mw;
+    // (slice e) an action fades over the locomotion (ACT_FADE); a new action takes over at once
+    const want = act?.clip ? (this.actions.get(act.clip) ?? null) : null;
+    if (want && want !== this.act) {
+      if (this.act) this.act.weight = 0;
+      this.act = want;
+      want.speedRatio = 1;
+    }
+    const aStep = dt > 0 ? dt / ACT_FADE : 1;
+    this.actW = want ? Math.min(1, this.actW + aStep) : Math.max(0, this.actW - aStep);
+    const keep = 1 - this.actW;
     for (let ci = 0; ci < this.clips.length; ci++) {
       const c = this.clips[ci]!;
-      c.g.weight = this.clipW[ci] as number;
+      c.g.weight = (this.clipW[ci] as number) * keep;
       // idles keep their own clock; moving clips run on the shared rate (cycle-normalised)
       c.g.speedRatio = !c.moves || mw <= 0 ? 1 : rate * c.cycle;
     }
+    const a = this.act;
+    if (a) {
+      a.weight = this.actW;
+      // a timed action is pinned to the game's progress; a looping one runs on its own clock
+      if (want && act && !Number.isNaN(act.t)) {
+        a.speedRatio = 0;
+        a.goToFrame(a.from + act.t * (a.to - a.from));
+      } else a.speedRatio = 1;
+      if (this.actW <= 0) this.act = null;
+    }
   }
 
-  /** The weight each clip plays at now, by name (tests and the e2e read it). */
+  /** The weight each clip plays at now, by name (tests and the e2e read it; an action's weight beside the locomotion's). */
   weights(): Record<string, number> {
     const out: Record<string, number> = {};
-    for (let ci = 0; ci < this.clips.length; ci++) out[this.clips[ci]!.g.name.split(':').pop() ?? ''] = this.clipW[ci] as number;
+    const keep = 1 - this.actW;
+    for (let ci = 0; ci < this.clips.length; ci++) out[this.clips[ci]!.g.name.split(':').pop() ?? ''] = (this.clipW[ci] as number) * keep;
+    if (this.act) out[this.act.name.split(':').pop() ?? ''] = this.actW;
     return out;
   }
 

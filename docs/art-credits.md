@@ -254,3 +254,17 @@ Locomotion Pack" (Y Bot, 21 files); only the clips listed are packed.
 | `rifle_crouch_walk`, `rifle_crouch_walk_back`, `rifle_crouch_strafe_l`, `rifle_crouch_strafe_r` | Pro Rifle Pack: walk crouching forward, backward, left, right | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | rifle set |
 | `pistol_idle`, `pistol_walk`, `pistol_walk_back`, `pistol_run`, `pistol_crouch_idle` | Pistol/Handgun Locomotion Pack: pistol idle, pistol walk, pistol walk backward, pistol run, pistol kneeling idle | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | pistol set |
 | `pistol_strafe_l`, `pistol_strafe_r` | Pistol/Handgun Locomotion Pack: pistol strafe, pistol strafe (2) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | pistol set |
+
+Slice e (2026-11-02 night), added to every packed model:
+
+| Animation (in every GLB above) | Mixamo title | Kind | Source (URL) | Terms | Date added | Used by |
+|---|---|---|---|---|---|---|
+| `hang_idle` | Hanging Idle | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | hang |
+| `hang_shimmy_l` / `hang_shimmy_r` | Braced Hang Shimmy (left, right) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | hang |
+| `hang_climb_up` | Freehang Climb | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | climb-up |
+| `ladder` | Climbing Ladder | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | ladder |
+| `carry_idle` / `carry_walk` | Carrying (Carrying Someone Idle; Walking While Carrying Someone) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | body carry |
+| `strike_elbow` | Male Elbow Punch | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | takedown strike |
+| `strike_knife` | Male Knife Stab With The Rear Hand And Reverse Grip | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | knife takedown |
+| `throw` | Throwing A Grenade While Walking | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | grenade throw |
+| `downed_lie` | Laying While Breathless Idle | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | downed (not wired yet) |
