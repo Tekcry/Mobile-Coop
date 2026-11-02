@@ -34,6 +34,15 @@ describe('scrub', () => {
     expect(scrub('version 4.139.0 at 12:30:45, 999.1.2.3')).toBe('version 4.139.0 at 12:30:45, 999.1.2.3');
   });
 
+  it('hides an address at the end of a sentence and a login in a URL', () => {
+    expect(scrub('could not reach 192.168.1.5.')).toBe('could not reach [ip].');
+    expect(scrub('peer fe80::1. done')).toBe('peer [ip]. done');
+    expect(scrub('via 2001:db8:1:2:3:4:5:6.')).toBe('via [ip].');
+    expect(scrub('relay wss://bob:hunter2@relay.example/x and https://user@host.test')).toBe('relay wss://[hidden]@relay.example/x and https://[hidden]@host.test');
+    // (a longer dotted number is not an address)
+    expect(scrub('build 1.2.3.4.5')).toBe('build 1.2.3.4.5');
+  });
+
   it('hides registered secrets and name=value logins, folds lines and caps the length', () => {
     expect(scrub('turn user=abc login abcdef1234 here', ['abcdef1234'])).toBe('turn user=abc login [hidden] here');
     expect(scrub('{"username":"bob","credential":"xyz"} password=hunter2')).toBe('{"username":"[hidden]","credential":"[hidden]"} password=[hidden]');
@@ -294,5 +303,31 @@ describe('DiagLog storage (IndexedDB)', () => {
     const k3 = (await dbKeys('kv')).filter((k) => k.startsWith('diag:'));
     expect(k3.every((k) => k.includes(last.session.id))).toBe(true);
     expect(last.text()).toMatch(/log cleared on this device/);
+  });
+
+  it('Clear log racing a flush keeps only the new session', async () => {
+    resetDbCache();
+    const other = fresh(T0 + 200 * 60_000);
+    await other.start();
+    other.add('game', 'another page');
+    await other.flush();
+    const log = fresh(T0 + 300 * 60_000);
+    await log.start();
+    for (let i = 0; i < 30; i++) log.add('err', `before clear ${String.fromCharCode(65 + i)}`);
+    const oldId = log.session.id;
+    // a flush queued, the clear, and flushes while it deletes
+    const f1 = log.flush();
+    const c = log.clear();
+    log.add('game', 'during clear');
+    const f2 = log.flush();
+    await Promise.all([f1, c, f2]);
+    await log.flush();
+    const keys = (await dbKeys('kv')).filter((k) => k.startsWith('diag:'));
+    expect(keys.some((k) => k.includes(oldId) || k.includes(other.session.id))).toBe(false);
+    expect(keys).toContain(`${META_PREFIX}${log.session.id}`);
+    const txt = await log.fullText();
+    expect(txt).not.toMatch(/before clear|another page/);
+    expect(txt).toMatch(/during clear/);
+    expect(txt).toMatch(/Older sessions on this device: 0/);
   });
 });

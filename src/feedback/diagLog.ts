@@ -105,8 +105,11 @@ export function zoneLabel(d: Date): string {
 
 // ---- scrubbing: no relay login, no addresses ----
 
-const IPV4 = /(?<![\w.]|[A-Za-z]\/)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\w.])/g;
-const IPV6 = /(?<![\w:.])(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}(?![\w:.])/gi;
+// (a sentence's full stop after an address still counts as its end: only ".<digit>" / ".<hex>" continues it)
+const IPV4 = /(?<![\w.]|[A-Za-z]\/)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?!\w|\.\d)/g;
+const IPV6 = /(?<![\w:.])(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}(?![\w:]|\.[\da-f])/gi;
+/** A URL with a login in it ("wss://user:pass@host"). */
+const URL_LOGIN = /\b([a-z][\w+.-]*:\/\/)[^\s/@]+@/gi;
 const MDNS = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.local\b/gi;
 const SECRET_KV = /\b(username|credential|password|passwd|token|secret|apikey|api_key)(["']?\s*[:=]\s*["']?)[^\s"',;&}]+/gi;
 
@@ -119,6 +122,7 @@ export function scrub(text: string, secrets: readonly string[] = [], max = DIAG.
   let s = text;
   for (const k of secrets) if (k.length >= 4 && s.includes(k)) s = s.split(k).join('[hidden]');
   s = s.replace(SECRET_KV, '$1$2[hidden]');
+  s = s.replace(URL_LOGIN, '$1[hidden]@');
   s = s.replace(IPV4, (all, a: string, b: string, c: string, d: string) => ([a, b, c, d].every((p) => Number(p) <= 255) ? '[ip]' : all));
   s = s.replace(IPV6, (all) => (all.includes('::') || (all.match(/:/g)?.length ?? 0) >= 5) && /[0-9a-f]/i.test(all) ? '[ip]' : all);
   s = s.replace(MDNS, '[ip]');

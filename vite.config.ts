@@ -32,6 +32,11 @@ export default defineConfig({
     __BUILD_SHA__: JSON.stringify(buildSha),
     ...previewDefines(previewBuild),
   },
+  server: {
+    // (diagnostics log) the console wrapper is left out of DevTools stacks, so a warning shows its real caller (the
+    // build ships no source maps, so only the dev server needs it)
+    sourcemapIgnoreList: (path) => path.includes('node_modules') || path.endsWith('src/feedback/diagWatch.ts'),
+  },
   optimizeDeps: {
     // Havok resolves its WASM relative to its own module; prebundling breaks that.
     exclude: ['@babylonjs/havok'],

@@ -154,7 +154,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   - Pure core `feedback/diagLog.ts`: `DiagBook` (lines `{t ms since start, kind, text, repeats}`; errors / warnings /
     notes repeating with only numbers changed count on their first line, other lines when back to back; 40 new lines
     a second, the rest counted as skipped; blocks of 200 lines; a session over 400 KB drops its oldest block after the
-    first), `scrub` (the relay login registered by `trysteroTransport`, `name=value` logins, IPv4 / IPv6 / mDNS
+    first), `scrub` (the relay login registered by `trysteroTransport`, `name=value` logins and URL logins (`wss://user:pass@`), IPv4 / IPv6 / mDNS
     addresses -> "[ip]", 500 characters a line), `FramePerf` (preallocated frame intervals: `push` per frame, `take`
     every 10 s: average fps, 1% low, worst frame, frames over 50 ms, cpu ms), `rotate` (5 sessions, 1 MB), `diagText`
     (the copy: summary first - game version, device, screen, GPU, graphics, last session crashed or not, this
@@ -164,7 +164,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     summary says what).
   - `feedback/diag.ts` (`diag`, the page's log): IndexedDB `kv` `diag:s:<session>` (meta: header, stats) and
     `diag:c:<session>:<block>` (lines); only changed blocks are written, every 3 s and on hide / `pagehide` (a crash
-    loses a few seconds). No IndexedDB: memory only. Older sessions' lines load when the Feedback tab opens.
+    loses a few seconds). No IndexedDB: memory only. Older sessions' lines load when the Feedback tab opens (so Copy log builds its text inside the tap) and are freed 2 min after their last use. Clear log swaps to a new session first and deletes after the queued writes, with writes held until done. Every hook, header line and callback is guarded: the log never stops the boot or throws into a console call.
   - `feedback/diagWatch.ts`: `installDiagHooks` (boot start: `error` and `unhandledrejection`, failed file loads,
     `console.error / warn / info` wrapped with the original output kept); `watchApp` (the header: version + build,
     start time and zone, URL flags, device, user agent, input, screen, GPU, WebGL caps, graphics via `feedbackContext`,

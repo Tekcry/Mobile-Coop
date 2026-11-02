@@ -229,22 +229,17 @@ export async function exportFeedback(app: App): Promise<void> {
   shareOrDownload(new Blob([html], { type: 'text/html' }), `sbd-feedback-${day}.html`, 'Night Shift feedback');
 }
 
-/** Copy text: the clipboard API, else a hidden text box and the old copy command (phones, older browsers). */
-export async function copyText(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // (refused: the fallback below)
-  }
-  const ta = h('textarea', { attrs: { readonly: '', 'aria-hidden': 'true' } }) as HTMLTextAreaElement;
+/** The old copy command through a hidden text box (phones, older browsers); the focus goes back where it was. Not
+ *  read-only and 16 px: iOS selects nothing in a read-only box and zooms into a smaller one. */
+function legacyCopy(text: string): boolean {
+  const prev = document.activeElement as HTMLElement | null;
+  const ta = h('textarea', { attrs: { 'aria-hidden': 'true', tabindex: '-1' } }) as HTMLTextAreaElement;
   ta.value = text;
-  ta.style.cssText = 'position:fixed;top:-1000px;left:0;opacity:0;';
+  ta.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0;font-size:16px;';
   document.body.appendChild(ta);
   let ok: boolean;
   try {
+    ta.focus({ preventScroll: true });
     ta.select();
     ta.setSelectionRange(0, text.length);
     ok = document.execCommand('copy');
@@ -252,7 +247,30 @@ export async function copyText(text: string): Promise<boolean> {
     ok = false;
   }
   ta.remove();
+  prev?.focus?.({ preventScroll: true });
   return ok;
+}
+
+/**
+ * Copy text: the clipboard API (called at once, inside the tap: no wait before it), else the old copy command. False
+ * for empty text.
+ */
+export async function copyText(text: string): Promise<boolean> {
+  if (!text) return false;
+  let api: Promise<void> | null;
+  try {
+    api = navigator.clipboard?.writeText ? navigator.clipboard.writeText(text) : null;
+  } catch {
+    api = null;
+  }
+  if (!api) return legacyCopy(text);
+  try {
+    await api;
+    return true;
+  } catch {
+    // (refused: the old command, where the tap still counts)
+    return legacyCopy(text);
+  }
 }
 
 /** The diagnostics log as a .txt file (the share sheet on a phone, else a download). */
@@ -262,11 +280,16 @@ export function saveDiagFile(text: string): void {
   shareOrDownload(new Blob([text], { type: 'text/plain' }), `night-shift-log-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.txt`, 'Night Shift diagnostics log');
 }
 
+/** The log's text: at once when the older sessions are loaded (the Feedback tab reads them on open), so the clipboard
+ *  or share sheet is reached inside the tap; else after loading them. */
+const diagTextNow = (): string | Promise<string> => (diag.oldReady ? diag.text() : diag.fullText());
+
 /** Copy log: copied ("Copied - paste it to Claude"), else saved as a file. */
 async function copyDiag(app: App, btn: HTMLElement | null): Promise<void> {
-  const text = diag.oldReady ? diag.text() : await diag.fullText();
+  const t = diagTextNow();
+  const text = typeof t === 'string' ? t : await t;
   const kb = Math.max(1, Math.round(text.length / 1024));
-  if (await copyText(text)) {
+  if (text.trim() && (await copyText(text))) {
     app.toasts.show(`Copied (${kb} KB) - paste it to Claude`, 'ok', 4000);
     const sub = btn?.querySelector('.btn-sub');
     if (sub) sub.textContent = `Copied ${new Date().toLocaleTimeString()} - paste it to Claude`;
@@ -312,7 +335,11 @@ export function feedbackTab(app: App, screen: SettingsScreen): TabDef {
       const diagSection = section(
         'Diagnostics log',
         copyBtn,
-        button('Save as file', () => void diag.fullText().then(saveDiagFile), { key: 'save-log', desc: 'Saves the same log as a text file, for when copying is blocked or the log is long.' }),
+        button('Save as file', () => {
+          const t = diagTextNow();
+          if (typeof t === 'string') saveDiagFile(t);
+          else void t.then(saveDiagFile);
+        }, { key: 'save-log', desc: 'Saves the same log as a text file, for when copying is blocked or the log is long.' }),
         button('Clear log', () =>
           screen.manager.push(
             new Dialog('Clear the diagnostics log?', 'Every saved session of the log is removed from this device. Logging starts again at once.', [

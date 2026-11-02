@@ -104,7 +104,13 @@ export function loadAttempts(): Promise<AttemptRecord[]> {
  * record of the same attempt (an `ok` line, then the join was refused) that this one takes the place of.
  */
 export function logAttempt(rec: AttemptRecord, replaces: AttemptRecord | null = null): Promise<void> {
-  console.info(`co-op connection: ${attemptLine(rec)}${replaces ? ' (in place of the earlier line)' : ''}`);
+  // (the diagnostics log writes its own line below: the console note is not logged twice)
+  diag.muted = true;
+  try {
+    console.info(`co-op connection: ${attemptLine(rec)}${replaces ? ' (in place of the earlier line)' : ''}`);
+  } finally {
+    diag.muted = false;
+  }
   // (diagnostics log) counted for its summary (a failure that replaces an `ok` line takes that success back)
   if (replaces?.result === 'ok') {
     const st = diag.session.stats;
@@ -112,7 +118,7 @@ export function logAttempt(rec: AttemptRecord, replaces: AttemptRecord | null = 
     if (replaces.method === 'relay') st.relay = Math.max(0, st.relay - 1);
     st.attempts = Math.max(0, st.attempts - 1);
   }
-  diag.attempt(rec.result === 'ok', rec.method === 'relay', rec.result === 'ok' ? '' : FAIL_WORDS[rec.result], `${rec.role}: ${attemptLine(rec)}`);
+  diag.attempt(rec.result === 'ok', rec.method === 'relay', rec.result === 'ok' ? '' : FAIL_WORDS[rec.result], `${rec.role}: ${attemptLine(rec)}${replaces ? ' (in place of the earlier line)' : ''}`);
   queue = queue.then(async () => {
     const list = await loadAttempts();
     const i = replaces ? list.indexOf(replaces) : -1;

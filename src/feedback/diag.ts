@@ -25,6 +25,12 @@ export class DiagLog {
   private storeOk = true;
   private timer: ReturnType<typeof setInterval> | null = null;
   private writing: Promise<void> = Promise.resolve();
+  /** Clear log is deleting (no writes meanwhile); bumped by each clear (a load or start begun before it is stale). */
+  private clearing = false;
+  private gen = 0;
+  private releaseT: ReturnType<typeof setTimeout> | null = null;
+  /** While true the console hooks skip their line (a caller that logs the same thing itself, `logAttempt`). */
+  muted = false;
   /** Frame intervals for the performance samples (`push` every frame). */
   readonly perf = new FramePerf();
 
@@ -96,6 +102,7 @@ export class DiagLog {
 
   private async begin(): Promise<void> {
     this.started = true;
+    const gen = this.gen;
     try {
       const keys = (await dbKeys('kv')).filter((k) => k.startsWith('diag:'));
       const metas: DiagMeta[] = [];
@@ -106,7 +113,8 @@ export class DiagLog {
         else await dbDelete('kv', k);
       }
       const { keep, drop } = rotate(metas);
-      this.old = keep;
+      // (a Clear log during the reads: those sessions are being deleted, not kept)
+      if (gen === this.gen) this.old = keep;
       for (const m of drop) await dbDelete('kv', metaKey(m.id));
       // (a dropped session's blocks, and any left behind)
       const live = new Set([...keep.map((m) => m.id), this.session.id]);
@@ -127,7 +135,8 @@ export class DiagLog {
 
   /** Write what changed (meta first, then the changed blocks; dropped blocks deleted). */
   flush(): Promise<void> {
-    if (!this.started || !this.storeOk || !this.book.isDirty) return this.writing;
+    // (while Clear log deletes, nothing is written: the new session goes once the deletes are done)
+    if (!this.started || !this.storeOk || this.clearing || !this.book.isDirty) return this.writing;
     const { chunks, removed } = this.book.takeDirty();
     const sid = this.session.id;
     const meta = metaOf(this.session);
@@ -144,11 +153,16 @@ export class DiagLog {
     return this.writing;
   }
 
-  /** The older sessions' lines (once; the copy waits for it). */
+  /**
+   * The older sessions' lines, read when the Feedback tab opens so Copy log builds its text at once, inside the tap
+   * (a phone's clipboard and share sheet need the tap). Freed `HOLD_OLD_MS` after their last use.
+   */
   loadOld(): Promise<void> {
+    this.holdOld();
     this.oldLoading ??= (async () => {
       // (the older sessions' list comes from `start`)
       await this.startP;
+      const gen = this.gen;
       const out: DiagSession[] = [];
       for (const m of this.old) {
         const chunks = [];
@@ -163,13 +177,29 @@ export class DiagLog {
         }
         out.push({ id: m.id, started: m.started, last: m.last, tz: m.tz, facts: m.facts, stats: m.stats, chunks, dropped: m.dropped });
       }
-      this.oldSessions = out;
+      if (gen === this.gen) this.oldSessions = out;
     })();
     return this.oldLoading;
   }
 
-  /** The text to paste (this session, and the older ones loaded so far; `loadOld` first for all of them). */
+  /** Free the older sessions' lines `HOLD_OLD_MS` after their last use (they load again on the next Feedback tab). */
+  private holdOld(): void {
+    if (this.releaseT) clearTimeout(this.releaseT);
+    const t = setTimeout(() => this.releaseOld(), HOLD_OLD_MS);
+    (t as { unref?: () => void }).unref?.();
+    this.releaseT = t;
+  }
+
+  releaseOld(): void {
+    if (this.releaseT) clearTimeout(this.releaseT);
+    this.releaseT = null;
+    this.oldSessions = null;
+    this.oldLoading = null;
+  }
+
+  /** The text to paste (this session, and the older ones loaded so far; `loadOld` first for all of them). Sync. */
   text(now = Date.now()): string {
+    if (this.oldSessions) this.holdOld();
     return diagText([this.session, ...(this.oldSessions ?? [])], { now, unloaded: this.oldSessions ? [] : this.old });
   }
 
@@ -178,31 +208,50 @@ export class DiagLog {
     return this.text(now);
   }
 
-  /** Delete every stored session; this one starts again (its header kept). */
+  /**
+   * Delete every stored session; this one starts again (its header kept). The new session takes over first, so any
+   * line or write from now on is the new one's; the deletes run after the writes already queued, and no write starts
+   * until they are done (`clearing`).
+   */
   async clear(): Promise<void> {
     const facts = { ...this.session.facts };
-    try {
-      await this.writing;
-      for (const k of await dbKeys('kv')) if (k.startsWith('diag:')) await dbDelete('kv', k);
-    } catch {
-      // (no storage: the memory copy is cleared below)
-    }
-    this.old = [];
-    this.oldSessions = [];
-    this.oldLoading = Promise.resolve();
+    this.gen++;
     const now = this.clockNow();
     this.book = new DiagBook(now, zoneLabel(new Date(now)));
     Object.assign(this.book.session.facts, facts);
+    const keepId = this.book.session.id;
+    this.old = [];
+    this.releaseOld();
+    this.oldSessions = [];
+    this.oldLoading = Promise.resolve();
     this.add('sys', 'log cleared on this device');
+    this.clearing = true;
+    this.writing = this.writing
+      .then(async () => {
+        try {
+          for (const k of await dbKeys('kv')) if (k.startsWith('diag:') && !k.includes(keepId)) await dbDelete('kv', k);
+        } catch {
+          // (no storage: the memory copy is already cleared)
+        }
+      })
+      .finally(() => {
+        this.clearing = false;
+      });
+    await this.writing;
     await this.flush();
   }
 
-  /** For tests: stop the timer. */
+  /** For tests: stop the timers. */
   stop(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    if (this.releaseT) clearTimeout(this.releaseT);
+    this.releaseT = null;
   }
 }
+
+/** How long the older sessions' lines stay in memory after their last use (ms). */
+export const HOLD_OLD_MS = 120_000;
 
 /** The page's diagnostics log. */
 export const diag = new DiagLog();

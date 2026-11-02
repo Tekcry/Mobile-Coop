@@ -14,7 +14,9 @@ export const NET_DIAG_MS = 10_000;
 export class NetDiag {
   private msgsIn = 0;
   private msgsOut = 0;
-  private readonly byType = new Map<string, number>();
+  /** Messages per type (`t`), one map each way: the message's own string is the key (no string made per message). */
+  private readonly inByType = new Map<string, number>();
+  private readonly outByType = new Map<string, number>();
   private last: LinkDetail | null = null;
   private lastAt = 0;
   private nextAt = 0;
@@ -32,8 +34,9 @@ export class NetDiag {
     if (out) this.msgsOut++;
     else this.msgsIn++;
     const t = typeof msg === 'object' && msg !== null ? (msg as { t?: unknown }).t : undefined;
-    const key = `${out ? '>' : '<'}${typeof t === 'string' ? t.slice(0, 12) : '?'}`;
-    this.byType.set(key, (this.byType.get(key) ?? 0) + 1);
+    const key = typeof t === 'string' && t.length <= 12 ? t : '?';
+    const m = out ? this.outByType : this.inByType;
+    m.set(key, (m.get(key) ?? 0) + 1);
   }
 
   /** Wrap a transport's send and receive to count them (after the session took `onMessage`). */
@@ -73,14 +76,16 @@ export class NetDiag {
       this.last = d;
       this.lastAt = now;
     }
-    const top = [...this.byType.entries()]
+    // (the busiest types each way, once per line: "<snap 20.0 >in 10.0")
+    const top = [...[...this.inByType].map(([k, n]) => [`<${k}`, n] as const), ...[...this.outByType].map(([k, n]) => [`>${k}`, n] as const)]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([k, n]) => `${k} ${(n / sec).toFixed(1)}`)
       .join(' ');
     parts.push(`game messages out ${(this.msgsOut / sec).toFixed(1)}/s in ${(this.msgsIn / sec).toFixed(1)}/s${top ? ` (${top})` : ''}`);
     this.msgsIn = this.msgsOut = 0;
-    this.byType.clear();
+    this.inByType.clear();
+    this.outByType.clear();
     this.since = now;
     this.sink(parts.join(', '));
   }
