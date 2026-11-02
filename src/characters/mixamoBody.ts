@@ -15,8 +15,9 @@ import {
   LoadAssetContainerAsync, Color3, Matrix, PBRMaterial, Quaternion, StandardMaterial, TransformNode, Vector3,
   type AbstractMesh, type AnimationGroup, type AssetContainer, type Observer, type Scene,
 } from '../core/babylon';
-import { LOCO_N, LOCO_SETS, locoBlend, setClip, slotMoves, type LocoIn, type LocoSet } from './locomotion';
+import { LOCO_N, LOCO_SETS, LOCO_SLOTS, locoBlend, setClip, slotMoves, type LocoIn, type LocoSet } from './locomotion';
 import { ACTION_CLIPS, type ActionOut } from './actions';
+import { reachElbow } from './reach';
 import xbotUrl from './assets/xbot.glb?url';
 import ybotUrl from './assets/ybot.glb?url';
 import swatUrl from './assets/swat.glb?url';
@@ -65,6 +66,14 @@ const HOLD_SLOW = 0.25;
 /** (slice g) Seconds the spine takes to follow the aim pitch, and the most it bends (rad, provisional). */
 const PITCH_EASE = 0.08;
 const PITCH_MAX = 1.1;
+/** (walk-test fix A3) The most the spine twists to the aim (rad, provisional). */
+const YAW_MAX = 1.2;
+/** (walk-test fix A3, Michael: "body sways too much while aiming", the head came into the reticle strafing) Aimed, the
+ *  upper body holds its set's aimed idle (standing or crouched) in the body's space, whatever the legs play; its bones
+ *  top first (the Spine's parent is the Hips). */
+const UPPER = ['Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'] as const;
+const AIM_SLOT = LOCO_SLOTS.indexOf('aim_idle');
+const C_AIM_SLOT = LOCO_SLOTS.indexOf('c_aim_idle');
 /** (slice g) The actions whose hands are pinned to the rig's; the climb-up lets go from 0.45 through its next 0.3. */
 const ANCHORED: ReadonlySet<string> = new Set(['hang_idle', 'hang_shimmy_l', 'hang_shimmy_r', 'ladder', 'hang_climb_up']);
 const ANCHOR_CLIMB_FROM = 0.45;
@@ -148,6 +157,12 @@ export interface GunTravel {
 const mA = new Matrix(), mB = new Matrix(), mC = new Matrix(), mD = new Matrix();
 const vS = new Vector3(), vT = new Vector3(), vT2 = new Vector3();
 const qR = new Quaternion();
+// (walk-test fix A3) the aim lock and the arms' reach
+const mGc = new Matrix(), mGt = new Matrix(), mHr = new Matrix(), mHl = new Matrix();
+const vP = new Vector3(), vE = new Vector3(), vW = new Vector3(), vE2 = new Vector3(), vAx = new Vector3(), vF = new Vector3();
+const vH = new Vector3(), vH2 = new Vector3();
+const qA = new Quaternion(), qB = new Quaternion(), qC = new Quaternion();
+const ONE = Vector3.One();
 
 /**
  * One Mixamo body, parented to `parent` (its feet on the parent's origin, facing the parent's +Z). Loads in the
@@ -232,6 +247,31 @@ export class MixamoBody {
   private stopMoveT = 0;
   private holdW = 0;
   private prevSpeed = 0;
+  /** (walk-test fix A3) The owner says each frame whether the rig's gun is in its right hand (the Mixamo body always
+   *  holds it in the right): only then do the arms reach for the rig's aimed gun. */
+  rightHanded = true;
+  /** (walk-test fix A3) The spine's aim twist now (rad); the upper bones (`UPPER`, null: the model lacks one); per
+   *  armed set its aimed idle's local rotations standing and crouched (index 0 the Hips, then `UPPER`; null: no track);
+   *  the aim lock's weight and crouch now. */
+  private yaw = 0;
+  private upper: (TransformNode | null)[] = [];
+  private readonly aimPose = new Map<LocoSet, { stand: (Quaternion | null)[]; crouch: (Quaternion | null)[] }>();
+  /** (walk-test fix A3) Per armed set, the head's spot in this body's root space in its aimed idles (standing,
+   *  crouched): aimed, the spine leans so the head keeps it across the ground (the hips' sway in a walk taken out). */
+  private readonly aimHead = new Map<LocoSet, { stand: Vector3; crouch: Vector3 }>();
+  private headChain: TransformNode[] = [];
+  private lockW = 0;
+  private lockCrouch = 0;
+  /** (walk-test fix A3) The rig's own aimed gun (its pivot's world, taken before the follow moves the rig's torso), and
+   *  whether it was taken this frame; the arms (upper arm, forearm, hand) and the chains above them. */
+  private readonly rigGun = new Matrix();
+  private rigGunOk = false;
+  private armR: TransformNode[] = [];
+  private armL: TransformNode[] = [];
+  private armChainR: TransformNode[] = [];
+  private armChainL: TransformNode[] = [];
+  private foreChainR: TransformNode[] = [];
+  private foreChainL: TransformNode[] = [];
   private disposed = false;
 
   constructor(scene: Scene, readonly model: MixamoModel, parent: TransformNode, private readonly opts: MixamoBodyOpts = {}) {
@@ -317,6 +357,25 @@ export class MixamoBody {
     this.hands = [this.boneNode('LeftHand'), this.boneNode('RightHand')];
     this.spine = ['Spine', 'Spine1', 'Spine2'].map((n) => this.boneNode(n)).filter((b): b is TransformNode => !!b);
     this.spineChains = this.spine.map((b) => chainBelow(b, this.root));
+    // (walk-test fix A3) the aimed idles' upper body, and the arms the aim reaches with
+    this.upper = UPPER.map((n) => this.boneNode(n));
+    const head = this.upper[UPPER.indexOf('Head')];
+    if (head) this.headChain = [...chainBelow(head, this.root), head];
+    for (const s of ['rifle', 'pistol'] as const) {
+      const stand = this.poseOf(setClip(s, AIM_SLOT));
+      if (!stand) continue;
+      const crouch = this.poseOf(setClip(s, C_AIM_SLOT)) ?? stand;
+      this.aimPose.set(s, { stand, crouch });
+      const hs = this.headIn(setClip(s, AIM_SLOT), stand);
+      if (hs) this.aimHead.set(s, { stand: hs, crouch: this.headIn(setClip(s, C_AIM_SLOT), crouch) ?? hs });
+    }
+    const arm = (side: string): TransformNode[] => [`${side}Arm`, `${side}ForeArm`, `${side}Hand`].map((n) => this.boneNode(n)).filter((b): b is TransformNode => !!b);
+    this.armR = arm('Right');
+    this.armL = arm('Left');
+    if (this.armR.length === 3) this.armChainR = chainBelow(this.armR[0]!, this.root);
+    if (this.armL.length === 3) this.armChainL = chainBelow(this.armL[0]!, this.root);
+    this.foreChainR = [...this.armChainR, ...this.armR.slice(0, 1)];
+    this.foreChainL = [...this.armChainL, ...this.armL.slice(0, 1)];
     if (this.pendingFollow) this.bindFollow(this.pendingFollow.rigRoot, this.pendingFollow.pairs);
     this.ready = true;
     this.onReady?.();
@@ -364,6 +423,46 @@ export class MixamoBody {
     }
   }
 
+  /** (walk-test fix A3) Clip `name`'s first-frame local rotations of the Hips and the `UPPER` bones (null: no track),
+   *  or null when the model lacks the clip. */
+  private poseOf(name: string | null): (Quaternion | null)[] | null {
+    const g = name ? this.groups.find((x) => x.name.split(':').pop() === name) : undefined;
+    if (!g) return null;
+    return [this.hipsBone, ...this.upper].map((b) => {
+      const ta = b ? g.targetedAnimations.find((t) => t.target === b && t.animation.targetProperty === 'rotationQuaternion') : undefined;
+      const q: unknown = ta?.animation.evaluate(g.from);
+      return q instanceof Quaternion ? q.clone() : null;
+    });
+  }
+
+  /** (walk-test fix A3) The head's spot in this body's root space with the Hips and `UPPER` bones in `pose` (clip
+   *  `name`'s first frame, its Hips at that frame's place); the bones are put back after. */
+  private headIn(name: string | null, pose: (Quaternion | null)[]): Vector3 | null {
+    const g = name ? this.groups.find((x) => x.name.split(':').pop() === name) : undefined;
+    const hips = this.hipsBone;
+    const head = this.headChain[this.headChain.length - 1];
+    if (!g || !hips || !head) return null;
+    const bones = [hips, ...this.upper];
+    const saved = bones.map((b) => b?.rotationQuaternion?.clone() ?? null);
+    const hipsAt = hips.position.clone();
+    bones.forEach((b, k) => {
+      const q = pose[k];
+      if (b?.rotationQuaternion && q) b.rotationQuaternion.copyFrom(q);
+    });
+    const ta = g.targetedAnimations.find((t) => t.target === hips && t.animation.targetProperty === 'position');
+    const p: unknown = ta?.animation.evaluate(g.from);
+    if (p instanceof Vector3) hips.position.copyFrom(p);
+    for (const n of this.headChain) n.computeWorldMatrix(true);
+    const out = Vector3.TransformCoordinates(head.getAbsolutePosition(), this.root.computeWorldMatrix(true).clone().invert());
+    bones.forEach((b, k) => {
+      const q = saved[k];
+      if (b?.rotationQuaternion && q) b.rotationQuaternion.copyFrom(q);
+    });
+    hips.position.copyFrom(hipsAt);
+    for (const n of this.headChain) n.computeWorldMatrix(true);
+    return out;
+  }
+
   /** A bone's node by its Mixamo name (`Hips`, `Spine2`, `RightUpLeg`, ...), or null. */
   boneNode(name: string): TransformNode | null {
     const re = new RegExp(`(^|[:_])${name}$`);
@@ -403,12 +502,167 @@ export class MixamoBody {
    * and the chest-hung gear follow (the hold and the follow run after this).
    */
   private bendSpine(rr: TransformNode): void {
-    const p = this.pitch;
-    if (Math.abs(p) < 1e-3 || this.spine.length === 0) return;
+    const p = this.pitch, y = this.yaw;
+    const n = this.spine.length;
+    if ((Math.abs(p) < 1e-3 && Math.abs(y) < 1e-3) || n === 0) return;
     const r = rr.computeWorldMatrix(true).m;
-    vT.set(r[0] as number, r[1] as number, r[2] as number).normalize();
-    const a = -p / this.spine.length;
-    for (let si = 0; si < this.spine.length; si++) this.turnBone(this.spine[si]!, this.spineChains[si]!, vT, a);
+    // (walk-test fix A3) first the twist about the body's up (the gun follows the aim round, as the rig's did: it swung
+    // up to 20 deg off the reticle while the body caught up with a turn), then the bend about the twisted right axis
+    if (Math.abs(y) >= 1e-3) {
+      vT.set(r[4] as number, r[5] as number, r[6] as number).normalize();
+      for (let si = 0; si < n; si++) this.turnBone(this.spine[si]!, this.spineChains[si]!, vT, y / n);
+    }
+    if (Math.abs(p) < 1e-3) return;
+    const c = Math.cos(y), s = Math.sin(y);
+    vT.set((r[0] as number) * c - (r[8] as number) * s, (r[1] as number) * c - (r[9] as number) * s, (r[2] as number) * c - (r[10] as number) * s).normalize();
+    for (let si = 0; si < n; si++) this.turnBone(this.spine[si]!, this.spineChains[si]!, vT, -p / n);
+  }
+
+  /**
+   * (walk-test fix A3) Aimed, the upper body takes its set's aimed idle (blended standing to crouched), by the aim's
+   * weight: the Spine in the body's space (the Hips' turn and lean in a strafe or a walk taken back out), the bones above
+   * it as the idle has them. The legs keep the gait.
+   */
+  private lockUpper(): void {
+    const w = this.lockW;
+    const pose = w > 1e-3 ? this.aimPose.get(this.set) : undefined;
+    if (!pose) return;
+    const c = this.lockCrouch;
+    const hips = this.hipsBone?.rotationQuaternion;
+    for (let k = 0; k < this.upper.length; k++) {
+      const b = this.upper[k];
+      const qs = pose.stand[k + 1], r = b?.rotationQuaternion;
+      if (!qs || !r) continue;
+      Quaternion.SlerpToRef(qs, pose.crouch[k + 1] ?? qs, c, qA);
+      if (k === 0) {
+        // the Spine's world turn is the Hips' parent's x Hips x Spine: in the pose's, the Hips' own swapped for the pose's
+        const hs = pose.stand[0];
+        if (!hips || !hs) continue;
+        Quaternion.SlerpToRef(hs, pose.crouch[0] ?? hs, c, qB);
+        qB.multiplyToRef(qA, qC);
+        hips.conjugateToRef(qB);
+        qB.multiplyToRef(qC, qA);
+      }
+      Quaternion.SlerpToRef(r, qA, w, r);
+    }
+  }
+
+  /** (walk-test fix A3) Aimed, the Spine leans about its joint so the head keeps its aimed idle's spot across the
+   *  ground (in this body's root space, by the aim's weight); its height still rides the gait. */
+  private steadyHead(): void {
+    const w = this.lockW;
+    const at = w > 1e-3 ? this.aimHead.get(this.set) : undefined;
+    const sp = this.spine[0], head = this.headChain[this.headChain.length - 1];
+    if (!at || !sp || !head) return;
+    for (const n of this.headChain) n.computeWorldMatrix(true);
+    const rootW = this.root.computeWorldMatrix(true);
+    rootW.invertToRef(mA);
+    head.getAbsolutePosition().subtractToRef(sp.getAbsolutePosition(), vH);
+    Vector3.TransformCoordinatesToRef(head.getAbsolutePosition(), mA, vP);
+    Vector3.LerpToRef(at.stand, at.crouch, this.lockCrouch, vE);
+    vF.set((vE.x - vP.x) * w, 0, (vE.z - vP.z) * w);
+    Vector3.TransformNormalToRef(vF, rootW, vF);
+    // the joint-to-head line turned onto the moved head, its length kept
+    const len = vH.length();
+    vH.addToRef(vF, vH2);
+    const l2 = vH2.length();
+    if (len < 1e-4 || l2 < 1e-4) return;
+    vH2.scaleInPlace(len / l2);
+    this.turnFromTo(sp, this.spineChains[0]!, vH, vH2);
+  }
+
+  /** (walk-test fix A3) The held gun's pivot world for a hand world `H` (`grip`, its class), and the hand's units per
+   *  metre (the bone's world scale is the body's scale x the model's centimetres): `holdL` maps pivot to hand space. */
+  private holdFrame(kind: HoldKind, grip: Vector3, H: Matrix): void {
+    const F = HOLD_FRAMES[kind];
+    const m = H.m;
+    const u = 1 / Math.hypot(m[0] as number, m[1] as number, m[2] as number);
+    const g = grip;
+    const [rx, ry, rz] = F.right, [ux, uy, uz] = F.up, [fx, fy, fz] = F.fwd;
+    // the grip point's spot in hand space, then the gun's origin so the grip lands on the palm
+    const gx = g.x * rx + g.y * ux + g.z * fx, gy = g.x * ry + g.y * uy + g.z * fy, gz = g.x * rz + g.y * uz + g.z * fz;
+    const tx = (F.palm[0] - gx) * u, ty = (F.palm[1] - gy) * u, tz = (F.palm[2] - gz) * u;
+    Matrix.FromValuesToRef(rx * u, ry * u, rz * u, 0, ux * u, uy * u, uz * u, 0, fx * u, fy * u, fz * u, 0, tx, ty, tz, 1, this.holdL);
+  }
+
+  /** (walk-test fix A3) Before the follow moves the rig's torso: the rig's aimed gun (its pivot), when the arms will
+   *  reach for it this frame. */
+  private takeRigGun(): void {
+    const h = this.hold;
+    this.rigGunOk = !!h && this.lockW > 1e-3 && this.rightHanded && this.armR.length === 3 && this.armL.length === 3 && h.kind() !== null;
+    if (!h || !this.rigGunOk) return;
+    for (const n of h.chain) n.computeWorldMatrix(true);
+    this.rigGun.copyFrom(h.pivot.computeWorldMatrix(true));
+  }
+
+  /**
+   * (walk-test fix A3, Michael: "rifle held too low when aimed") Aimed, the gun goes where the rig aims it (its sight
+   * level with the eye, along the aim, `CharacterRig.sightToEye`), by the aim's weight, and the arms reach for it: the
+   * right hand takes the grip (its hold frame), the left keeps its place on the gun as the idle has it.
+   */
+  private reachGun(): void {
+    const h = this.hold;
+    const k = h && this.rigGunOk ? h.kind() : null;
+    if (!h || !k) return;
+    for (const n of h.handChain) n.computeWorldMatrix(true);
+    const L = this.armL[2]!;
+    L.computeWorldMatrix(true);
+    // the gun as the hand holds it now (locked and bent), and the target between it and the rig's
+    this.holdFrame(k, h.grip, h.hand.getWorldMatrix());
+    this.holdL.multiplyToRef(h.hand.getWorldMatrix(), mGc);
+    mGc.decompose(vS, qA, vP);
+    this.rigGun.decompose(vS, qB, vE);
+    Quaternion.SlerpToRef(qA, qB, this.lockW, qC);
+    Vector3.LerpToRef(vP, vE, this.lockW, vW);
+    Matrix.ComposeToRef(ONE, qC, vW, mGt);
+    // the right hand: the hold frame back off the target; the left: its place on the gun now, on the target
+    this.holdL.invertToRef(mA);
+    mA.multiplyToRef(mGt, mHr);
+    mGc.invertToRef(mA);
+    L.getWorldMatrix().multiplyToRef(mA, mB);
+    mB.multiplyToRef(mGt, mHl);
+    this.reachArm(this.armR, this.armChainR, this.foreChainR, mHr);
+    this.reachArm(this.armL, this.armChainL, this.foreChainL, mHl);
+  }
+
+  /** (walk-test fix A3) Upper arm, forearm and hand (`arm`; the bones above the upper arm `chain`, above the forearm
+   *  `foreChain`) reach hand world `target`. */
+  private reachArm(arm: TransformNode[], chain: TransformNode[], foreChain: TransformNode[], target: Matrix): void {
+    const [up, fore, hand] = arm as [TransformNode, TransformNode, TransformNode];
+    for (const n of chain) n.computeWorldMatrix(true);
+    up.computeWorldMatrix(true).getTranslationToRef(vP);
+    fore.computeWorldMatrix(true).getTranslationToRef(vE);
+    hand.computeWorldMatrix(true).getTranslationToRef(vW);
+    const t = target.m;
+    vF.set(t[12] as number, t[13] as number, t[14] as number);
+    if (reachElbow(vP, vE, vF, Vector3.Distance(vP, vE), Vector3.Distance(vE, vW), vE2)) {
+      // the upper arm turns its elbow onto the solved one, then the forearm its wrist onto the target
+      vE.subtractInPlace(vP);
+      vE2.subtractInPlace(vP);
+      this.turnFromTo(up, chain, vE, vE2);
+      fore.computeWorldMatrix(true).getTranslationToRef(vE);
+      hand.computeWorldMatrix(true).getTranslationToRef(vW);
+      vW.subtractInPlace(vE);
+      vF.subtractInPlace(vE);
+      this.turnFromTo(fore, foreChain, vW, vF);
+    }
+    // the hand turned as the target has it
+    fore.computeWorldMatrix(true).invertToRef(mA);
+    target.multiplyToRef(mA, mB);
+    mB.decompose(vS, qR, vT);
+    if (!Number.isFinite(qR.w) || !hand.rotationQuaternion) return;
+    hand.rotationQuaternion.copyFrom(qR);
+    hand.computeWorldMatrix(true);
+  }
+
+  /** Turns bone `b` (its ancestors `chain`) about its joint so world direction `from` lies along `to`. */
+  private turnFromTo(b: TransformNode, chain: TransformNode[], from: Vector3, to: Vector3): void {
+    Vector3.CrossToRef(from, to, vAx);
+    const s = vAx.length();
+    const a = Math.atan2(s, Vector3.Dot(from, to));
+    if (s < 1e-9 || Math.abs(a) < 1e-5) return;
+    vAx.scaleInPlace(1 / s);
+    this.turnBone(b, chain, vAx, a);
   }
 
   /** Turns bone `b` (its ancestors `chain`, top first) by `a` rad about the world axis `axis` through its own joint. */
@@ -463,10 +717,14 @@ export class MixamoBody {
   private applyFollow(): void {
     const rr = this.rigRoot;
     if (!rr || !this.ready || !this.root.isEnabled()) return;
+    this.takeRigGun();
     this.anchorBody();
     this.turnBody();
     if (NO_YAW.has(this.actName)) this.flattenYaw();
+    this.lockUpper();
+    this.steadyHead();
     this.bendSpine(rr);
+    this.reachGun();
     const rootW = this.root.computeWorldMatrix(true);
     const rigW = rr.computeWorldMatrix(true);
     for (const f of this.follows) {
@@ -535,18 +793,9 @@ export class MixamoBody {
       target = t.node;
       chain = this.travelChain;
     }
-    const F = HOLD_FRAMES[k];
     for (const n of h.handChain) n.computeWorldMatrix(true);
     const H = h.hand.getWorldMatrix();
-    // hand-local units per metre (the bone's world scale is the body's scale x the model's centimetres)
-    const m = H.m;
-    const u = 1 / Math.hypot(m[0] as number, m[1] as number, m[2] as number);
-    const g = h.grip;
-    const [rx, ry, rz] = F.right, [ux, uy, uz] = F.up, [fx, fy, fz] = F.fwd;
-    // the grip point's spot in hand space, then the gun's origin so the grip lands on the palm
-    const gx = g.x * rx + g.y * ux + g.z * fx, gy = g.x * ry + g.y * uy + g.z * fy, gz = g.x * rz + g.y * uz + g.z * fz;
-    const tx = (F.palm[0] - gx) * u, ty = (F.palm[1] - gy) * u, tz = (F.palm[2] - gz) * u;
-    Matrix.FromValuesToRef(rx * u, ry * u, rz * u, 0, ux * u, uy * u, uz * u, 0, fx * u, fy * u, fz * u, 0, tx, ty, tz, 1, this.holdL);
+    this.holdFrame(k, h.grip, H);
     this.holdL.multiplyToRef(H, mD);
     for (const n of chain) n.computeWorldMatrix(true);
     (target.parent as TransformNode).getWorldMatrix().invertToRef(mA);
@@ -570,6 +819,11 @@ export class MixamoBody {
     const pitchWant = armed ? (i.aimPitch ?? 0) * Math.min(1, Math.max(0, i.aim ?? 0)) : 0;
     const k = dt > 0 ? Math.min(1, dt / PITCH_EASE) : 1;
     this.pitch += (Math.max(-PITCH_MAX, Math.min(PITCH_MAX, pitchWant)) - this.pitch) * k;
+    // (walk-test fix A3) the twist as it comes (the body's facing steps as it catches up with the aim: eased, the upper
+    // body would swing by the step); the aim lock by the raise
+    this.yaw = armed ? Math.max(-YAW_MAX, Math.min(YAW_MAX, i.aimYaw ?? 0)) : 0;
+    this.lockW = armed ? Math.min(1, Math.max(0, i.aim ?? 0)) : 0;
+    this.lockCrouch = Math.min(1, Math.max(0, i.crouch));
     const step = dt > 0 ? dt / SET_FADE : 1;
     let sum = 0;
     for (let s = 0; s < LOCO_SETS.length; s++) {
