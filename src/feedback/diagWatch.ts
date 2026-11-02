@@ -104,7 +104,7 @@ function header(app: App): void {
   diag.fact('Game', `${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?'}${preview}${sha}`);
   diag.fact('Started', `${clock(diag.session.started)} (${diag.session.tz})`);
   diag.fact('Page', `${location.host}${location.pathname}${location.search ? ` flags ${location.search}` : ' (no flags)'}${matchMedia?.('(display-mode: standalone)').matches ? ', installed app' : ''}`);
-  diag.fact('Device', `${shortDevice(nav.userAgent)}, ${nav.hardwareConcurrency ?? '?'} threads${nav.deviceMemory ? `, ${nav.deviceMemory} GB memory` : ''}, ${nav.userAgentData?.platform ?? nav.platform ?? ''}, language ${nav.language}`);
+  diag.fact('Device', `${shortDevice(nav.userAgent)}, ${nav.hardwareConcurrency ?? '?'} threads${nav.deviceMemory ? `, ${nav.deviceMemory} GB memory` : ''}, language ${nav.language}`);
   diag.fact('User agent', nav.userAgent);
   const coarse = matchMedia?.('(pointer: coarse)').matches;
   diag.fact('Input', `touch points ${nav.maxTouchPoints ?? 0}, pointer ${coarse ? 'coarse (touch)' : 'fine (mouse)'}, controllers ${(nav.getGamepads?.() ?? []).filter(Boolean).length}, mode ${app.input.mode}`);
@@ -240,13 +240,13 @@ export function watchApp(app: App): void {
     }
     if (!diag.perf.take(p)) return;
     const mem = (performance as { memory?: { usedJSHeapSize: number } }).memory;
-    const e = app.engine as unknown as { _drawCalls?: { current?: number }; getRenderWidth(): number; getRenderHeight(): number };
+    // (no draw call count: the engine's counter only resets per frame with instrumentation on, which costs a frame)
+    const e = app.engine as unknown as { getRenderWidth(): number; getRenderHeight(): number };
     const extra = [
       app.quality.level.name,
       `${e.getRenderWidth()}x${e.getRenderHeight()}`,
       app.quality.adaptiveOn ? `governor ${app.quality.governor.level}` : '',
       mem ? `heap ${Math.round(mem.usedJSHeapSize / 1048576)} MB` : '',
-      typeof e._drawCalls?.current === 'number' ? `${e._drawCalls.current} draw calls` : '',
       m.scene?.getActiveMeshes ? `${m.scene.getActiveMeshes().length} meshes` : '',
       m.menuPaused ? 'menu open' : '',
     ]

@@ -171,7 +171,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     audio, network type, storage; then screens, settings changes (`settingsDigest` diff), input mode, controllers,
     WebGL context lost / restored, tab hidden / visible, page hide / show, online / offline, pointer lock, fullscreen,
     resize; a 1 s poll for the player down / up, the governor's level and the audio state; a 10 s perf line in a match
-    with preset, render size, governor, heap, draw calls, active meshes). `main.ts` logs the crash heartbeat's result
+    with preset, render size, governor, heap, active meshes). `main.ts` logs the crash heartbeat's result
     ("Last session"), each match load / map built / map ready / leave (with its spikes and load summary), the menu;
     `GameState.endSession` the result; the match's objective / alarm / checkpoint restart / body found events.
   - Co-op (pushed from `src/net`, which imports `feedback/diag`, never the other way): the room opened (role,

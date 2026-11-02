@@ -14,8 +14,9 @@ export const DIAG = {
   sessionCapBytes: 400_000,
   /** Lines per stored block (only changed blocks are written). */
   chunkLines: 200,
-  /** Longest kept line (characters). */
+  /** Longest kept line / header fact (characters; the settings digest is long). */
   maxLineChars: 500,
+  maxFactChars: 2000,
   /** The copied text's cap (characters). */
   copyCapChars: 180_000,
   /** New lines allowed per second (a burst past it is counted, not kept). */
@@ -432,7 +433,7 @@ export function metaOf(s: DiagSession): DiagMeta {
 export function sanitizeMeta(raw: unknown): DiagMeta | null {
   if (!isObj(raw) || typeof raw.id !== 'string' || !/^[\w-]{1,40}$/.test(raw.id) || typeof raw.started !== 'number') return null;
   const facts: Record<string, string> = {};
-  if (isObj(raw.facts)) for (const [k, v] of Object.entries(raw.facts)) if (typeof v === 'string') facts[k.slice(0, 40)] = v.slice(0, DIAG.maxLineChars);
+  if (isObj(raw.facts)) for (const [k, v] of Object.entries(raw.facts)) if (typeof v === 'string') facts[k.slice(0, 40)] = v.slice(0, DIAG.maxFactChars);
   const ids = Array.isArray(raw.chunkIds) ? raw.chunkIds.filter((c): c is number => typeof c === 'number' && Number.isInteger(c) && c >= 0).slice(0, 200) : [];
   return { id: raw.id, started: raw.started, last: num(raw.last, raw.started), tz: str(raw.tz, 60), facts, stats: sanitizeStats(raw.stats), dropped: Math.max(0, num(raw.dropped)), chunkIds: ids, bytes: Math.max(0, num(raw.bytes)) };
 }

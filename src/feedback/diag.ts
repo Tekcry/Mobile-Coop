@@ -1,5 +1,5 @@
 import { dbDelete, dbGet, dbKeys, dbPut } from '../save/db';
-import { DiagBook, diagText, FramePerf, metaOf, rotate, sanitizeLines, sanitizeMeta, scrub, zoneLabel, type DiagKind, type DiagMeta, type DiagSession } from './diagLog';
+import { DIAG, DiagBook, diagText, FramePerf, metaOf, rotate, sanitizeLines, sanitizeMeta, scrub, zoneLabel, type DiagKind, type DiagMeta, type DiagSession } from './diagLog';
 
 /**
  * The diagnostics log's live session and its storage: IndexedDB (`kv`), one meta record per session (`diag:s:<id>`) and
@@ -60,7 +60,7 @@ export class DiagLog {
 
   /** A header fact ("GPU", "Graphics"...), replacing the last value. */
   fact(key: string, value: string): void {
-    this.book.session.facts[key] = scrub(value, this.secrets);
+    this.book.session.facts[key] = scrub(value, this.secrets, DIAG.maxFactChars);
     this.book.touch();
   }
 
