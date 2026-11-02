@@ -12,6 +12,8 @@ import type { CharacterRig, RigPose } from '../player/characterRig';
 import { newTeamPoseIn, teamPoseOfWire, TeamPoser } from '../anim/clips/team'; // (anim-n4b, track A)
 import type { OperatorFigure } from '../operators/runtime/figure';
 import { loadPlayLods, operatorRig, partnerFigureFrame } from '../operators/runtime/playerFigure';
+import type { MixamoBody } from '../characters/mixamoBody';
+import { dressPlayer, mixamoOn } from '../characters/rigMixamo';
 import { avatarFactory } from '../player/avatarFactory';
 import { defaultLook } from '../player/avatarLook';
 import { WeaponModel, DEFAULT_WEAPON_COLORS } from '../weapons/weaponModel';
@@ -64,6 +66,9 @@ export class RemoteAvatar {
   readonly rig: CharacterRig;
   /** (operators 11e) Wren, drawn on the rig. */
   readonly figure: OperatorFigure;
+  /** (mixamo-chars slice d) The partner's Mixamo body in the Test Chamber (null elsewhere: Wren's figure draws). */
+  readonly mixamo: MixamoBody | null;
+  private mixamoUndo: (() => void) | null;
   /** (step 13) The door-peek handle reach (world) and whether it is set. */
   private readonly doorHand = { x: 0, y: 0, z: 0 };
   private doorHandOn = false;
@@ -230,7 +235,12 @@ export class RemoteAvatar {
     this.rig.carrier = true;
     // (A5, G135) partner beacon: the host is player 1 (blue), a joiner player 2 (red); both ends hold `info.host`
     this.rig.setBeacon(info.host ? 1 : 2);
-    loadPlayLods(this.figure);
+    // (mixamo-chars slice d) in the Test Chamber the partner is a Mixamo body too: the host Wren, a joiner Moth
+    const mx = mixamoOn(world.map.id) ? dressPlayer(world.scene, this.rig, info.host, (m) => world.addShadowCaster(m)) : null;
+    this.mixamo = mx?.body ?? null;
+    this.mixamoUndo = mx?.undo ?? null;
+    if (this.mixamo) this.figure.setEnabled(false);
+    else loadPlayLods(this.figure);
     this.pouches = new GrenadePouches(world.parts, this.rig, undefined, false);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
     // (doorPeek parity) the planted feet on the floor under them, as the owner's rig (without it they stood at the
@@ -866,8 +876,8 @@ export class RemoteAvatar {
     // downed: lie on the side
     r.rotation.z = this.dead ? Math.PI / 2 : 0;
     if (this.dead) r.position.y += 0.22;
-    // Wren on the rig (render only)
-    partnerFigureFrame(this.figure, this.rig, dt, this.world.scene.activeCamera);
+    // Wren on the rig (render only; a Mixamo body poses inside the rig's animate)
+    if (!this.mixamo) partnerFigureFrame(this.figure, this.rig, dt, this.world.scene.activeCamera);
     this.fireVisuals(dt);
   }
 
@@ -927,6 +937,8 @@ export class RemoteAvatar {
     this.models.clear();
     this.knifeModel?.dispose();
     this.knifeModel = null;
+    this.mixamoUndo?.();
+    this.mixamoUndo = null;
     this.figure.dispose();
     this.rig.dispose();
   }

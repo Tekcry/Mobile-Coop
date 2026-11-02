@@ -229,7 +229,7 @@ royalty free for commercial projects).
 | Files (repo path) | Mixamo title | Kind | Source (URL) | Terms | Date added | Used by |
 |---|---|---|---|---|---|---|
 | `src/characters/assets/xbot.glb` | X Bot | character | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | Wren (Test Chamber, slice a) |
-| `src/characters/assets/ybot.glb` | Y Bot | character | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | Moth (later slice) |
+| `src/characters/assets/ybot.glb` | Y Bot | character | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | Moth (Test Chamber co-op, slice d) |
 | `src/characters/assets/swat.glb` | Swat | character | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | guards (Test Chamber, slice c) |
 | every GLB above, animation `idle` | Breathing Idle | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
 | animation `walk` | Walking (In Place) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |

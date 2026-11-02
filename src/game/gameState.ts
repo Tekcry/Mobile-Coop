@@ -660,7 +660,7 @@ export class GameState implements AppState {
     this.puppet = opts.net?.role === 'client';
     this.shadowCues = shadowCuesFor(world, this.charOccluders, this.puppet);
     const spawn = world.layout.playerSpawns[0]!;
-    this.player = new Player(world, spawn, () => app.settings.get());
+    this.player = new Player(world, spawn, () => app.settings.get(), this.puppet);
     // (A5, G135) partner beacon: the host / solo player is player 1 (blue), a joiner player 2 (red)
     this.player.rig.setBeacon(this.puppet ? 2 : 1);
     // (G1, audit row 26) the tense sneak reads the takedown victims (the guards, or a client's puppets of them)
