@@ -1,5 +1,7 @@
 # Night Shift - clean-up plan and what comes after (2026-11-01)
-Owner: the orchestrator. Status: snapshot from the main session's plan, 2026-11-01 ~12:25 Sydney. The live state is the pinned control panel issue.
+Owner: the orchestrator. Status: history. The live state is the pinned control panel issue.
+
+> **History, not binding (N45, 2026-11-02).** Michael chose a fully fresh start: this document no longer steers the game. Current rules: `docs/RULES.md`; decisions: `docs/plan/DECISIONS-2026-11.md`; vision: `docs/plan/VISION-DRAFT-v3.md` (provisional); maps: `docs/plan/MISSION-TEMPLATE.md`. Michael's feedback from here: `docs/plan/FEEDBACK-RECORD.md`. Read only for a specific fact.
 
 ```text
 NIGHT SHIFT - CURRENT PLAN (as of 2026-11-01)

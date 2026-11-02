@@ -3,7 +3,9 @@
 Version 2.3 - 2026-10-27. States today's game, rewritten in place to Michael's decisions G1-G434 (`docs/DECISIONS.md`;
 "Rewrite it now", G10; "I want to make sure my vision is clear constantly", G337). `docs/VISION.md` is the one-page
 summary. The 1.13 text, with the removed systems and the old process, is in `docs/archive/design-bible-history.md`.
-Owner: the orchestrator (it edits; Michael decides). Status: current.
+Owner: the orchestrator (it edits; Michael decides). Status: history.
+
+> **History, not binding (N45, 2026-11-02).** Michael chose a fully fresh start: this document no longer steers the game. Current rules: `docs/RULES.md`; decisions: `docs/plan/DECISIONS-2026-11.md`; vision: `docs/plan/VISION-DRAFT-v3.md` (provisional); maps: `docs/plan/MISSION-TEMPLATE.md`. Michael's feedback from here: `docs/plan/FEEDBACK-RECORD.md`. Read only for a specific fact.
 
 ---
 

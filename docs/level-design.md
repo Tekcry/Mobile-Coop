@@ -1,5 +1,7 @@
 # Level design standard - Night Shift
-Owner: Marlow Build (level validator); a change needs Michael's approval. Status: current.
+Owner: Marlow Build (level validator); a change needs Michael's approval. Status: history.
+
+> **History, not binding (N45, 2026-11-02).** Michael chose a fully fresh start: this document no longer steers the game. Current rules: `docs/RULES.md`; decisions: `docs/plan/DECISIONS-2026-11.md`; vision: `docs/plan/VISION-DRAFT-v3.md` (provisional); maps: `docs/plan/MISSION-TEMPLATE.md`. Michael's feedback from here: `docs/plan/FEEDBACK-RECORD.md`. Read only for a specific fact.
 
 The baseline for every map, now and future. A map's spec may tighten a rule; it may only loosen one with Michael's
 written approval in that spec. Numbers marked "constant" come from the code: re-confirm them with grep before each

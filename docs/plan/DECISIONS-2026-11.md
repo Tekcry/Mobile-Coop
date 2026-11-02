@@ -177,3 +177,68 @@ hide a body, question someone); overheard talk that opens opportunities (a code,
 (cut power, break a pipe, start a machine, stage an accident, throw something to pull a guard). Missions have 1-3 unarmed
 staff with routines who react and can be avoided, questioned or used; harming them costs rating. Declined: disguises,
 crowds.
+
+**N38. 20-30 guards per mission** (native multiple choice). Michael on vision v3: "I feel like the overall guard count of
+2-5 per area count is low. Where is this number derived from? For a game about being a stealth operative, there's not
+many people to sneak past." The 2-5 per area was his own round-2 answer after the playthrough (Sector Ops felt
+overpacked); now about a Chaos Theory co-op level (about 22 across a map), typically 3-6 in an area, more in set
+pieces, plus 1-3 staff; stated as a mission total. Declined: 30-50 per mission; no fixed range.
+
+**N39. The scope tiers are approved** (native multiple choice): `docs/plan/SCOPE.md` (Must / Should / Could / Parked).
+
+**N40. Pillar 6 is "Sound and music"** (native multiple choice): the score is planned and protected from the start.
+
+**N41. The ending is "Two switches"** (native multiple choice; `docs/plan/ENDING-DRAFT.md` A): with the radio jammed,
+Wren holds the control room and Moth the roof generator, each the other's eyes by pings; the last press is the same
+two-key "both ready" action they learned on night 1; Moth, drawn to light, turns the city back on. Declined: "Carry";
+"The radio comes back".
+
+**N42. Sort every old decision and rule first, then choose: start fresh or fine-tune** (native multiple choice, Michael's
+own wording): "Sort all of them first, then let's review and decide whether to start fresh or fine tune it. I don't want
+old decisions dictating the direction of the game, but I don't want to destroy any useful feedback." Covers G1-G434
+(`docs/DECISIONS.md`), the design bible and the level standard; each entry sorted as still-fitting direction, Michael's
+feedback, technical fact, replaced, gone with removed features, or a question for him.
+
+**N43. Clear after the review round, then a fresh check of today's documents** (native multiple choice): once the
+old-decision review is done, the session is cleared; a fresh session at Opus 5.5 Extra (xhigh) first reads the new plan
+documents, vision v3, N1-N42 and the sort results, and checks them against each other and the code. Declined:
+re-checking all the research again; no extra check.
+
+**N44. The guardrails rules file** (`docs/RULES.md`, read first every session; Michael approved after an outside review
+of the process: "we keep polishing documents and planning instead of building a fun, playable game. This must stop.").
+Michael added: "we will run 100% token burn sometimes when I prompt you, and we can change accounts whenever the 5 hour
+usage limit is [hit], but I don't want it to snowball and work on unnecessary things. Must remain focused. Will also run
+efficiently with a single session with helpers as needed, sticking to one account that uses the 5 hour window and
+continues. Then there is the overnight sessions when I go to sleep and you just make progress unattended without getting
+stuck." (RULES section 9).
+
+**N45. Fully fresh** (native multiple choice): `docs/DECISIONS.md` (G1-G434), the design bible, the level standard, the
+scale sheet, the map-spec template and the old vision are history, not binding; marked in place (30-70 files and the
+level checker link to them, so they were not moved). Kept: Michael's feedback (`docs/plan/FEEDBACK-RECORD.md`) and the
+technical facts (the TECH rows in `docs/plan/old-decisions/`). The old process rules moved to
+`docs/archive/RULES-2026-10.md`.
+
+**N46. The mission recipe replaces the level standard** (native multiple choice): new maps follow
+`docs/plan/MISSION-TEMPLATE.md` and the prototype standard; the old paperwork (registers, sheets, measured checker
+passes) is dropped.
+
+**N47. No documents-against-documents check** (outside review point 3, agreed): N43's fresh-session check is replaced by
+checks against code and builds.
+
+**N48. Provisional until played** (review points 4-5, agreed): design numbers and choices (guard counts, recipe numbers,
+timings, music identity, campaign size) are provisional until a playtest confirms them; the Hazelight lessons are
+hypotheses, turned into playtest questions.
+
+**N49. Prototype standard** (Michael, "not negotiable"): every prototype build has textured materials (placeholder or
+free-licence with credit rows), real lighting (a key light plus ambient or environment light) and working shadows on
+characters and level geometry; no untextured grey boxes; existing or free assets first, custom art later. "Playable" =
+two players join, move, do one two-person action, get spotted by a guard, fail and retry, in a textured, lit, shadowed
+space. Replaces N2's "Test Chamber look" as the minimum standard (today's levels use untextured stylised shading,
+`src/world/levelMaterialPlugin.ts`).
+
+**N50. Build first, in this order** (native multiple choice; outside review point 6, adjusted with code evidence): the
+automated run; textures in the level material system; the joining-side partner animation fix; the engine hard test
+(pulled forward from Phase 2; pass marks agreed first); Mission 1's setting and its mission engine (D18 pulled forward);
+the first playable Mission 1 area to the prototype standard. Documents only when a build needs them. The two-home relay
+test waits until Michael can do it ("I can't test the relay yet, I will test it later"). Vision v3 approval and the
+non-blocking review questions are deferred to their phases.

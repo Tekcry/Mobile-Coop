@@ -1,5 +1,6 @@
 # Task: <Map name> - <one-line pitch>
-<!-- Owner: the orchestrator (template). Status: current. -->
+<!-- Owner: the orchestrator (template). Status: history. -->
+<!-- History, not binding (N45, 2026-11-02): new maps follow docs/plan/MISSION-TEMPLATE.md (N46) and the prototype standard in docs/RULES.md. -->
 
 <!-- How to use: copy this file, fill every <...>, delete these comments, paste into Claude Code.
      Sections marked (fixed) stay as written. Sections marked (fill) describe this map.

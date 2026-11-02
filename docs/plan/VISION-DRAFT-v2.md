@@ -1,5 +1,7 @@
 # Night Shift - Vision (draft v2, 2026-11-01)
-Owner: Michael. Status: draft (on hold until Michael rereads it; the planning run turns it into v3).
+Owner: Michael. Status: history.
+
+> **History, not binding (N45, 2026-11-02).** Michael chose a fully fresh start: this document no longer steers the game. Current rules: `docs/RULES.md`; decisions: `docs/plan/DECISIONS-2026-11.md`; vision: `docs/plan/VISION-DRAFT-v3.md` (provisional); maps: `docs/plan/MISSION-TEMPLATE.md`. Michael's feedback from here: `docs/plan/FEEDBACK-RECORD.md`. Read only for a specific fact.
 
 Built from Michael's answers after the full co-op playthrough, checked against the Chaos Theory co-op research
 (`docs/ct-research/`) and the level design research (`docs/research/mission-audit/`, `docs/level-design.md`).
