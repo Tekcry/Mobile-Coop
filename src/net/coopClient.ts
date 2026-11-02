@@ -326,7 +326,7 @@ export class CoopClient implements NetAttachment {
     (g as { interactables: Interactables | null }).interactables = this.ints;
     // (coop-fix, bug 2) the placeholder is the mirror's value: the first snapshot replaces it, an empty host
     // objective (course mode sets none) included. (hud-guidance B3, HG9) It shows on the net-status line; the objective
-    // line holds only the host's objective, so the client's own free roam line goes until the first snapshot.
+    // line holds only the host's objective, so the client's own line goes until the first snapshot.
     g.hud.setObjective('');
     this.showLine(this.obj);
     // (coop-fix, bug 1) a hidden client page keeps simulating and sending its states

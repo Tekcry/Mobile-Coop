@@ -219,7 +219,7 @@ describe('rejoin session (R2-R3)', () => {
 });
 
 describe('rejoin record (R1)', () => {
-  const rec = (at: number): RejoinRecord => ({ code: 'ABCDE', role: 'client', at, mode: 'course', map: 'ctcourse', difficulty: 'normal', mission: '', weather: 'clear', bay: 2 });
+  const rec = (at: number): RejoinRecord => ({ code: 'ABCDE', role: 'client', at, mode: 'course', map: 'ctcourse', difficulty: 'normal', weather: 'clear', bay: 2 });
   it('is offered for the hold after it was last seen live, then gone', () => {
     const t = 1_000_000_000;
     expect(rejoinLive(rec(t), t + 1000)).toBe(true);

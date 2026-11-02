@@ -18,7 +18,7 @@ describe('G2a: the wire and the URL take mode "test"', () => {
   it('NET_MODES lists it, a room takes two players, and the lobby / start messages parse it', () => {
     expect(NET_MODES).toContain('test');
     expect(capacity('test')).toBe(COOP_MAX);
-    const lobby = { t: 'lobby', players: [], mode: 'test', map: 'chamber', difficulty: 'normal', phase: 'lobby', mission: '', weather: 'clear' };
+    const lobby = { t: 'lobby', players: [], mode: 'test', map: 'chamber', difficulty: 'normal', phase: 'lobby', weather: 'clear' };
     expect(parseMessage(lobby)).toMatchObject({ t: 'lobby', mode: 'test', map: 'chamber' });
     expect(parseMessage({ t: 'start', mode: 'test', map: 'chamber', seed: 1, difficulty: 'normal' })).toMatchObject({ t: 'start', mode: 'test' });
     expect(parseMessage({ ...lobby, mode: 'tester' })).toBeNull();
@@ -38,7 +38,7 @@ describe('G2a: the wire and the URL take mode "test"', () => {
     expect(flags.guards).toBe(false);
   });
   it('a rejoin record keeps the test mode', () => {
-    const r: RejoinRecord = { code: 'ABCDE', role: 'host', at: Date.now(), mode: 'test', map: 'chamber', difficulty: 'normal', mission: '', weather: 'clear', bay: 1 };
+    const r: RejoinRecord = { code: 'ABCDE', role: 'host', at: Date.now(), mode: 'test', map: 'chamber', difficulty: 'normal', weather: 'clear', bay: 1 };
     saveRejoin(r);
     expect(loadRejoin()?.mode).toBe('test');
     clearRejoin();

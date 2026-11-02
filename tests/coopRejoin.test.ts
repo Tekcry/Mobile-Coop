@@ -61,7 +61,7 @@ describe('the match going to one client again (late)', () => {
   it('a late join: the host hears `late`; a course start goes at the current bay (lateBay), the room start unchanged', () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
-    host.setSettings('course', 'ctcourse', 'normal', '');
+    host.setSettings('course', 'ctcourse', 'normal');
     const first = host.startMatch();
     expect(first?.bay).toBe(1);
     const late: string[] = [];
@@ -95,7 +95,7 @@ describe('the match going to one client again (late)', () => {
   it('a held joiner coming back: `rejoin` then `late` for the same player id', async () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
-    host.setSettings('course', 'ctcourse', 'normal', '');
+    host.setSettings('course', 'ctcourse', 'normal');
     const c1 = sess(h.make('C1'), 'client', 'ABCDE', prof('Cli'), 'tokA');
     host.startMatch();
     const seen: string[] = [];

@@ -45,7 +45,7 @@ import { hostAndJoin, allowTeleport, JOINTS, until, LOAD_MS } from './e2e-net-li
  *  host runs near 28 fps; e2e-net-lib's 8 s `everyone ready` wait timed out twice. The ready is re-sent every 2 s until the host has it. */
 async function startModeSlow(pages, mode, map) {
   const [A, ...clients] = pages;
-  await A.evaluate(([m, mp]) => window.__coop.session.setSettings(m, mp, 'normal', ''), [mode, map]);
+  await A.evaluate(([m, mp]) => window.__coop.session.setSettings(m, mp, 'normal'), [mode, map]);
   for (const P of clients) await P.evaluate(() => window.__coop.session.setReady(true));
   for (let t = 0; t < 20; t++) {
     if (await A.evaluate(() => window.__coop.session.allReady)) break;
