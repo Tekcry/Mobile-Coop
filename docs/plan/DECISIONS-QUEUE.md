@@ -26,6 +26,7 @@ and reason, is in `DECISIONS-2026-11.md` (N numbers) until Phase 1 writes the ne
 | P6b | Which ending | A, "Two switches" (`ENDING-DRAFT.md`) | N41 |
 | - | Process | Guardrails `docs/RULES.md` (N44); fully fresh (N45); recipe replaces the level standard (N46); no docs-vs-docs check (N47); provisional until played (N48); prototype standard (N49); build order (N50) | N44-N50 |
 | P7 | World and people | Hitman-style: context actions on people and objects, overheard talk that opens opportunities, world tricks; 1-3 unarmed staff per mission with routines; no disguises, no crowds | N37 |
+| D33 | Texture source | Code first (the generated surfaces), free CC0 where faster, each download asked | N51 |
 
 ## Open, in the order needed
 
@@ -34,7 +35,6 @@ and reason, is in `DECISIONS-2026-11.md` (N numbers) until Phase 1 writes the ne
 | D18 | Mission engine for the first playable area (pulled forward, N50) | Sector Ops engine (`sectors.ts`, `sectorMode.ts`, `game/mission/`: about 5,850 lines) / Marlow Yard course engine (`courseMode.ts`, `game/course/`: about 5,550 lines; has spotted-then-retry already) | Decide on code evidence when the area is planned | Before the first Mission 1 area |
 | D31 | Mission 1 setting | The story plan's data centre / another site | Decide with the first area's plan | Before the first Mission 1 area |
 | D32 | Engine hard test pass marks and test PCs | Frame rate, players, guards, split-screen and wrapper targets; which slower PC | Agree before the test starts | Before the engine hard test |
-| D33 | Texture source | Generated in code / free CC0 libraries (each download asked first) / both | Both: generated first, CC0 where faster | Before the textures step |
 | D53 | Vision v3 formal approval | Approve / change | Deferred (N50); it stays provisional | Phase 3 gate |
 | D15b | Sonic identity | One sentence plus 3 reference tracks, Michael picks by ear | From music direction v3 | Music work |
 | D34 | Co-op gates | Every section forces a two-person climb or throw (old bible P6, G292) / a mix of teamwork | Mix of teamwork, never a solo way through | Phase 4 |
