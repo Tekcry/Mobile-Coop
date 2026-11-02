@@ -47,7 +47,7 @@ async function climb(hz: number): Promise<{ frames: Frame[]; reach: number; crou
   const { Scene, Vector3 } = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
   const { CharacterRig } = await import('../src/player/characterRig');
-  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../src/player/avatarLook');
   const { WREN_HANDS } = await import('../src/operators/handFrame');
   const { PLAYER_HEIGHT } = await import('../src/operators/runtime/playerFigure');
   const { AttachGrips } = await import('../src/player/attachGrips');

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GRENADE, validateWeaponDefs, WEAPONS, WEAPON_IDS } from '../src/weapons/weaponDefs';
-import { computeStats, damageAt, dps, falloffMult, MAX_UPGRADE, recoilKick, playerSpreadDeg, sampleSpread, spreadDeg } from '../src/weapons/weaponStats';
+import { computeStats, damageAt, dps, falloffMult, recoilKick, playerSpreadDeg, sampleSpread, spreadDeg } from '../src/weapons/weaponStats';
 import raw from '../src/config/weapons.json';
 
 describe('weapon data', () => {
@@ -37,21 +37,16 @@ describe('weapon stats maths', () => {
     const s = computeStats(rifle);
     expect(damageAt(rifle, s, 5, true)).toBeCloseTo(rifle.damage * rifle.headMult);
   });
-  it('upgrades apply per level and clamp at max', () => {
+  it('the attachments modifiers multiply the base stats; no mods leaves them as they are', () => {
     const base = computeStats(rifle);
-    const up = computeStats(rifle, { damage: 2, magazine: 1, recoil: 5, reload: 3 });
-    expect(up.damage).toBeCloseTo(base.damage * 1.12);
-    expect(up.magSize).toBe(base.magSize + 3);
-    expect(up.recoilPitch).toBeCloseTo(base.recoilPitch * 0.6);
-    expect(up.reloadTime).toBeCloseTo(base.reloadTime * 0.79);
-    const over = computeStats(rifle, { damage: 99, magazine: -3, recoil: 0, reload: 0 });
-    expect(over.damage).toBeCloseTo(base.damage * (1 + 0.06 * MAX_UPGRADE));
-    expect(over.magSize).toBe(base.magSize);
-  });
-  it('small magazines still gain at least one round per level', () => {
-    const five = { ...WEAPONS.pistolSd, magSize: 5 };
-    const s = computeStats(five, { damage: 0, magazine: 2, recoil: 0, reload: 0 });
-    expect(s.magSize).toBe(7);
+    const mods = { damage: 0.95, magSize: 1.25, recoil: 0.85, spreadHip: 1, spreadAds: 0.7, adsZoom: 0.7, reload: 1.1, noise: 0.45 };
+    const up = computeStats(rifle, mods);
+    expect(up.damage).toBeCloseTo(base.damage * 0.95);
+    expect(up.magSize).toBe(Math.round(rifle.magSize * 1.25));
+    expect(up.recoilPitch).toBeCloseTo(base.recoilPitch * 0.85);
+    expect(up.reloadTime).toBeCloseTo(base.reloadTime * 1.1);
+    expect(up.noise).toBeCloseTo(base.noise * 0.45);
+    expect(computeStats(rifle, undefined)).toEqual(base);
   });
   it('spread: ADS tighter than hip, movement and bloom widen, capped', () => {
     const s = computeStats(rifle);
@@ -125,7 +120,7 @@ describe('step 09: no hip fire, ADS spread', () => {
       // gear 4 cap: faster adds nothing more
       expect(playerSpreadDeg(def, s, false, 5, 0)).toBeCloseTo(playerSpreadDeg(def, s, false, 2.8, 0), 6);
       // hip-fire attachment mods do not reach the player
-      const laser = computeStats(def, undefined, { damage: 1, magSize: 1, recoil: 1, spreadHip: 0.5, spreadAds: 1, adsZoom: 1, reload: 1, noise: 1 });
+      const laser = computeStats(def, { damage: 1, magSize: 1, recoil: 1, spreadHip: 0.5, spreadAds: 1, adsZoom: 1, reload: 1, noise: 1 });
       expect(playerSpreadDeg(def, laser, false, 0, 0)).toBeCloseTo(still, 6);
     }
   });

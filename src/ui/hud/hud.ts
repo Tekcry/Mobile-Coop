@@ -389,7 +389,7 @@ export class Hud {
     });
   }
 
-  /** Small right-side feed (kills, XP, pickups). */
+  /** Small right-side feed (kills, pickups). */
   feedItem(text: string, kind = ''): void {
     const it = h('div', { class: `feed-item ${kind}`, text });
     this.feed.appendChild(it);

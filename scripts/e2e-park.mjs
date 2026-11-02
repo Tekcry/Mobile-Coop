@@ -1,5 +1,5 @@
 // The flat menu and the campaign lobby (clean-up H removed the parked modes, Free Roam and ?legacy=1): the main menu is
-// Co-op, Loadout (the issued kit, read only), Settings, Feedback and the Test Chamber, with no level or credits; the co-op
+// Co-op, Loadout (the issued kit, read only), Settings, Feedback and the Test Chamber; the co-op
 // lobby lists Campaign and the Test Chamber only; saves export and import.
 import { launch, frames, assert } from './e2e-lib.mjs';
 
@@ -77,6 +77,11 @@ try {
     return { name: s.profile.name, atts: s.weapons.rifle.attachments.length };
   }, ex);
   assert(imp.name === 'Imported' && imp.atts === exAtts, `importing an exported file restores it (${JSON.stringify(imp)})`);
+  // (clean-up I, save v11) the profile keeps the name and the gear, nothing of the removed progression or cosmetics
+  const keys11 = await G(() => Object.keys(window.__app.save.get()).sort().join());
+  assert(keys11 === 'createdAt,loadout,preset,presets,profile,updatedAt,version,weapons', `the profile keeps only the v11 fields (${keys11})`);
+  const exd = JSON.parse(ex).data;
+  assert(exd.version === 11 && !('unlocks' in exd) && !('avatar' in exd) && !('xp' in exd.profile) && !('credits' in exd.profile), 'the exported profile is v11, with no XP, credits, unlocks or look');
 } catch (e) {
   failed = true;
   console.error(String(e));

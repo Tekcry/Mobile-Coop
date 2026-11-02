@@ -70,7 +70,7 @@ async function strikeFrames(arcAt: (t: number) => number = nowArc, posed = Math.
   const { Matrix, Scene } = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
   const { CharacterRig } = await import('../src/player/characterRig');
-  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../src/player/avatarLook');
   const { WREN_HANDS } = await import('../src/operators/handFrame');
   const scene = new Scene(new NullEngine());
   const lib = new PartLibrary(scene);
@@ -256,7 +256,7 @@ async function swapReversal(rev: number): Promise<number[]> {
   const { Matrix, Scene } = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
   const { CharacterRig } = await import('../src/player/characterRig');
-  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../src/player/avatarLook');
   const { WeaponModel, DEFAULT_WEAPON_COLORS } = await import('../src/weapons/weaponModel');
   const { WEAPONS } = await import('../src/weapons/weaponDefs');
   const { WREN_HANDS, WREN_HOLSTER, WREN_BACK_MOUNT } = await import('../src/operators/handFrame');

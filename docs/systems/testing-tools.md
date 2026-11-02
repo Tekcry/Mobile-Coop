@@ -58,7 +58,7 @@ This page lists the suites and how they are picked.
   (`--affected`) and `WIDE_COVERS` (`--affected --wide`). Edit them there and keep their rule comments true. A name with a
   part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts.
 - The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
-  on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics` (both need the removed `?legacy=1` pages: stage I deletes them),
+  on. LEGACY (`--legacy`): (`e2e-progression` and `e2e-cosmetics` were deleted in clean-up I)
   `e2e-modes`, `e2e-enemies`, `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-score`, `e2e-foley`,
   `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-parity` (part 3), `e2e-desktop:3`, `e2e-coop-gpu`. REPORT: `anim-audit`
   (never fails a run; quick picks it for `src/anim`, `src/player`, `src/net`).
@@ -101,7 +101,7 @@ This page lists the suites and how they are picked.
   -> `e2e-section-rating`, which `courseMode` and `sectorMode` also pick; the Marlow Yard sets (`src/world/maps/ctcourseSets/`,
   `ctcourseGreybox.ts`) -> `e2e-ctcourse`; `src/player/smoothBody*` and `bodyEffectRecovery` also `e2e-guard-carry`.
   Every LEGACY and GPU suite is reachable from the area that owns it (an affected pick gates them out at any size and with `--wide`; `--quick` runs LEGACY / AUDIO REPORT ONLY, GPU only `--gpu`):
-  `src/progression` -> progression, `src/cosmetics` -> cosmetics, `src/ai/archetypes` / `enemyDefs` -> enemies, the camera files
+  `src/ai/archetypes` / `enemyDefs` -> enemies, the camera files
   (`shoulderCamera`, `cameraBounds`, `src/config/camera`) -> camera-bounds, the lamp files -> darkness, `src/net/remoteAvatar` /
   `remotePlayer` -> coop-gpu. The other folders (input, ui, physics, cover, vfx, security, audio, ...) keep their quick row.
   Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**`, `scripts/e2e-times.json` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
@@ -258,7 +258,7 @@ behind a VPN adapter).
   No kills missed; the extraction: results lines), co-op (a synced pair on both cards, the client top-up, the host syringe,
   a rejoin with no second grant) and solo Marlow Yard (A1 unrated, A2 rated with the gadget grant, A3 rated clean after a
   kill and a restart). In the required list; the quick map picks it for the rating files and both modes.
-- `e2e-park` the legacy-off menus (title Night Shift, badge without level / credits, the main menu Sector Ops / Co-op / Loadout /
+- `e2e-park` the menus (title Night Shift, no profile badge, level or credits, the v11 save fields only, the main menu Sector Ops / Co-op / Loadout /
   Settings / Feedback, the Sector Ops briefing, Loadout root rows, every weapon selectable with nothing unlocked, the choice kept
   across a reload, a new co-op room on Campaign (Marlow Yard) with Campaign and Sector Ops listed, save export / import) and the
   legacy-on menus (Hunter default; Missions and Free roam listed)
@@ -406,9 +406,7 @@ behind a VPN adapter).
 - `e2e-foley` (AUDIO) on Proving: the sprite decodes; one foley step per real foot plant at a walk and a sprint (the walk
   check reads 3 or 4 plants against >= 4 at the step-22 speed: parked, not fixed), silence standing still, a drop
   plays a landing, the guards' footstep noise unchanged
-- Also LEGACY (`npm run e2e:legacy`): `e2e-progression` (Loadout by controller, upgrades, rewards, IndexedDB,
-  export / import), `e2e-cosmetics` (Loadout
-  appearance by controller, live / locked previews, the Tag page, camo, in-game look), `e2e-clear` (Hunter on the
+- Also LEGACY (`npm run e2e:legacy`): `e2e-clear` (Hunter on the
   Warehouse: "Enemies left N", "DOWN", the OPERATION COMPLETE stinger, results; doorway checks on Mission; no Training
   mode)
 - `npm run e2e:editor` (`scripts/e2e-editor.mjs`, not required): the Kestrel editor by a fake controller alone; starts

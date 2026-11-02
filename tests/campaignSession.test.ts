@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { CAMPAIGN_ROOM, NetSession, sectorStartOpts, type StartInfo } from '../src/net/session';
 import type { Transport } from '../src/net/transport';
-import { defaultLook } from '../src/cosmetics/avatarLook';
 import { clearRejoin, loadRejoin, saveRejoin, type RejoinRecord } from '../src/core/rejoin';
 import { CAMPAIGN_PICK_MISSION, CAMPAIGN_TWO_PLAYERS } from '../src/game/mission/campaign';
 import type * as Protocol from '../src/net/protocol';
@@ -61,7 +60,7 @@ function hub() {
   };
   return { make };
 }
-const prof = (name: string) => ({ name, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, look: defaultLook(), loadout: ['rifle', 'pistolSd'] as WeaponId[] });
+const prof = (name: string) => ({ name, loadout: ['rifle', 'pistolSd'] as WeaponId[] });
 const sessions: NetSession[] = [];
 const sess = (...a: ConstructorParameters<typeof NetSession>): NetSession => {
   const s = new NetSession(...a);

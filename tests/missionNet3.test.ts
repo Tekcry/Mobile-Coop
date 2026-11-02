@@ -6,7 +6,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { NetSession, startMsg, type StartInfo } from '../src/net/session';
 import type { Transport } from '../src/net/transport';
-import { defaultLook } from '../src/cosmetics/avatarLook';
 import { parseMessage, PROTOCOL_VERSION, sectorMissionId } from '../src/net/protocol';
 import { clearRejoin } from '../src/core/rejoin';
 import { flags } from '../src/core/flags';
@@ -46,7 +45,7 @@ function hub() {
   };
   return { make };
 }
-const prof = (name: string) => ({ name, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, look: defaultLook(), loadout: ['rifle', 'pistolSd'] as WeaponId[] });
+const prof = (name: string) => ({ name, loadout: ['rifle', 'pistolSd'] as WeaponId[] });
 const sessions: NetSession[] = [];
 const sess = (...a: ConstructorParameters<typeof NetSession>): NetSession => {
   const s = new NetSession(...a);

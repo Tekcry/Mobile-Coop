@@ -1,5 +1,5 @@
 import raw from '../config/enemies.json';
-import { defaultLook, sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
+import { defaultLook, sanitizeLook, type AvatarLook } from '../player/avatarLook';
 import { BUILDS, type Build } from '../player/proportions';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 
@@ -56,8 +56,6 @@ export interface EnemyDef {
   usesCover: boolean;
   weapon: EnemyWeapon | null;
   melee: EnemyMelee | null;
-  xp: number;
-  credits: number;
   look: AvatarLook;
   /** Four-legged (the dog): its own body model on the shared brain; smells as well as sees. */
   quadruped: boolean;
@@ -68,7 +66,7 @@ export function validateEnemyDefs(data: unknown): Record<EnemyKind, EnemyDef> {
   for (const k of ENEMY_KINDS) {
     const e = (data as Record<string, Record<string, unknown>>)[k];
     if (!e) throw new Error(`enemies: missing ${k}`);
-    for (const f of ['hp', 'armor', 'walkSpeed', 'runSpeed', 'height', 'engageMin', 'engageMax', 'xp', 'credits']) {
+    for (const f of ['hp', 'armor', 'walkSpeed', 'runSpeed', 'height', 'engageMin', 'engageMax']) {
       if (typeof e[f] !== 'number' || !((e[f] as number) >= 0)) throw new Error(`enemies.${k}.${f} invalid`);
     }
     if (!e.weapon && !e.melee) throw new Error(`enemies.${k}: needs weapon or melee`);

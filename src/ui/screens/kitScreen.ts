@@ -1,7 +1,7 @@
 import type { App } from '../../core/app';
 import { campaignAttachments, campaignKit } from '../../config/arsenal';
 import { GADGETS, type GadgetId } from '../../game/gadgets';
-import { attachmentById, combinedMods } from '../../progression/attachments';
+import { attachmentById, combinedMods } from '../../weapons/attachments';
 import { computeStats } from '../../weapons/weaponStats';
 import { WEAPONS, type WeaponId } from '../../weapons/weaponDefs';
 import { h } from '../dom';
@@ -39,7 +39,7 @@ export class KitScreen extends MenuScreen {
     const gun = (slot: string, w: WeaponId, first: boolean): HTMLElement => {
       const def = WEAPONS[w];
       const ids = campaignAttachments(w, sv.weapons[w]?.attachments ?? []);
-      const st = computeStats(def, sv.weapons[w]?.upgrades, combinedMods(ids));
+      const st = computeStats(def, combinedMods(ids));
       const atts = ids.map((id) => attachmentById(id)?.name ?? id);
       const ctx =
         `<h3>${slot}</h3><p><b>${def.name}</b>  ·  ${def.fireMode === 'auto' ? 'Automatic' : 'Semi-automatic'}  ·  ${st.magSize} rounds</p>` +

@@ -12,9 +12,9 @@ import {
   type Scene,
 } from '../core/babylon';
 
-import { PatternPlugin } from '../cosmetics/patternPlugin';
+import { PatternPlugin } from './patternPlugin';
 import { CAPSULE, DOME, HELMET, ROUND_CYL, SPHERE, TORSO, limbProfile, revolve, superellipsoid } from './smoothMeshes';
-import { PATTERN_ID, type PatternName } from '../cosmetics/patterns';
+import { PATTERN_ID, type PatternName } from './patterns';
 import { SURFACE_ID, type SurfaceAtlas } from './surfaceAtlas';
 import { SurfacePlugin } from './surfacePlugin';
 import { SmoothBodyPlugin } from '../player/smoothBodyPlugin';

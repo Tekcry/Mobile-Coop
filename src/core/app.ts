@@ -142,7 +142,7 @@ export class App {
       this.sfx.uiMove();
     });
     document.addEventListener('click', (e) => {
-      const b = (e.target as HTMLElement | null)?.closest('.btn, .tab, .row-choice, .row-toggle, .swatch');
+      const b = (e.target as HTMLElement | null)?.closest('.btn, .tab, .row-choice, .row-toggle');
       if (b && !b.classList.contains('blocked')) this.sfx.uiConfirm();
     });
     this.screens.onBack = () => this.sfx.uiBack();

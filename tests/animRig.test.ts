@@ -119,7 +119,7 @@ describe('anim-rig: the joint map (export list, operator figure, runtime rig map
     const { Scene } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const { rigNodes } = await import('../src/operators/runtime/figure');
     const { operatorRig } = await import('../src/operators/runtime/playerFigure');
     const scene = new Scene(new NullEngine());
@@ -214,7 +214,7 @@ describe('anim-rig: the keyed wrist frame', () => {
     const { Scene } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const scene = new Scene(new NullEngine());
     const lib = new PartLibrary(scene);
     const rig = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());
@@ -282,7 +282,7 @@ describe('anim-rig: the toes follow the planted foot roll', () => {
     const { Scene, Quaternion, Vector3 } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const scene = new Scene(new NullEngine());
     const lib = new PartLibrary(scene);
     const rig = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());

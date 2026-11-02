@@ -16,7 +16,7 @@ import TIMES from './e2e-times.json' with { type: 'json' };
 
 // The runner's lists (scripts/run-e2e.mjs imports them): LEGACY = parked content, run by `npm run e2e:legacy` and
 // REPORT ONLY in a quick / affected run; GPU = visual read-backs, `--gpu` only (no visual result from SwiftShader).
-export const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-modes', 'e2e-enemies', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
+export const LEGACY = ['e2e-modes', 'e2e-enemies', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
 // e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow)
 export const GPU = ['e2e-darkness', 'e2e-parity', 'e2e-desktop:3', 'e2e-coop-gpu'];
 
@@ -123,8 +123,6 @@ export const QUICK_COVERS = {
   'src/net/coopUi': ['e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
   'src/net/': ['anim-audit', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse', 'e2e-sectorops'],
   'src/security/': ['e2e-security', 'e2e-sectorops'],
-  'src/progression/': ['e2e-park'],
-  'src/cosmetics/': ['e2e-park'],
   'src/save/sectorRecord': ['e2e-sectorops', 'e2e-menus'],
   'src/save/': ['e2e-park', 'e2e-offline', 'e2e-feedback'],
   'src/feedback/': ['e2e-feedback'],
@@ -223,8 +221,6 @@ export const WIDE_COVERS = {
   // the wire's mirrored camera count (a change needs a PROTOCOL_VERSION bump)
   'src/security/data': ['e2e-security', 'e2e-sectorops', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
   'src/security/': ['e2e-security', 'e2e-sectorops'],
-  'src/progression/': ['e2e-park', 'e2e-progression'],
-  'src/cosmetics/': ['e2e-park', 'e2e-cosmetics'],
   'src/save/sectorRecord': ['e2e-sectorops', 'e2e-menus', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
   // the save shape (schema, migrations, db, saveManager, courseRecord): the co-op group carries it in the session
   'src/save/': ['e2e-park', 'e2e-offline', 'e2e-feedback', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
@@ -335,8 +331,6 @@ export const DIRECT_COVERS = {
   // (checker FIX) the Sector Ops record: the missions screen reads it (as --quick and --wide)
   'src/save/sectorRecord': ['e2e-sectorops', 'e2e-menus', ...COOP],
   'src/save/': COOP,
-  'src/progression/': ['e2e-park', 'e2e-progression'],
-  'src/cosmetics/': ['e2e-park', 'e2e-cosmetics'],
   'src/feedback/': ['e2e-feedback'],
   'src/audio/': ['e2e-foley', 'e2e-score', 'e2e-weapon-audio'],
   'src/pwa/': ['e2e-offline'],

@@ -184,7 +184,7 @@ async function driveClimb(who: 'grunt' | 'heavy' | 'officer' | 'wren', mixamoOn:
     let rig: CharacterRig;
     let done: () => void;
     if (who === 'wren') {
-      const { defaultLook } = await import('../src/cosmetics/avatarLook');
+      const { defaultLook } = await import('../src/player/avatarLook');
       const { operatorRig } = await import('../src/operators/runtime/playerFigure');
       const op = operatorRig(scene, (s, h, sl) => parts.instance(s, h, sl), defaultLook(), 'mixamo-guard-control');
       rig = op.rig;

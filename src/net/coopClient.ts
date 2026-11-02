@@ -18,7 +18,7 @@ import type { HitInfo } from '../game/damage';
 import { Interactables, KIND_COLOR, drawsExitBeacon, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
-import { animSourceWire, BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, USE_ONLY_GADGETS, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
+import { animSourceWire, BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, PLAYER_COLOUR, USE_ONLY_GADGETS, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
 import { ANIM_SOURCE, wireAnimSource } from '../anim/animSource'; // (mixamo-retarget Source wire)
 import { kitAttemptKey } from './kitNet';
 import { MissionMirror, campaignFinishFromWire } from './missionMirror';
@@ -1052,7 +1052,7 @@ export class CoopClient implements NetAttachment {
         g.world.level.lights.swayImpulse(e.id, e.t, e.a, e.h);
         break;
       case 'ping':
-        if (e.player !== me) g.addPing(e.player, e.x, e.y, e.z, e.target, this.s.players.get(e.player)?.tag.color ?? '#4fdc7c');
+        if (e.player !== me) g.addPing(e.player, e.x, e.y, e.z, e.target, PLAYER_COLOUR);
         break;
     }
   }
@@ -1480,7 +1480,7 @@ export class CoopClient implements NetAttachment {
     this.feed?.ping();
     const me = this.s.selfId;
     this.s.toHost({ t: 'ping', x, y, z, target });
-    this.g.addPing(me, x, y, z, target, this.s.players.get(me)?.tag.color ?? '#4fdc7c');
+    this.g.addPing(me, x, y, z, target, PLAYER_COLOUR);
   }
 
   shadows(b: BlobShadows): void {

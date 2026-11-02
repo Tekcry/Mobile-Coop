@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { lerpAngle, turnTowards, wrapAngle } from '../src/player/playerController';
-import { defaultLook, sanitizeLook } from '../src/cosmetics/avatarLook';
+import { defaultLook, sanitizeLook } from '../src/player/avatarLook';
 
 describe('angle helpers', () => {
   it('wraps to [-pi, pi]', () => {

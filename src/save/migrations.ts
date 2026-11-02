@@ -1,5 +1,4 @@
 import { SAVE_VERSION } from './schema';
-import { LEGACY_LOOK_IDS } from '../cosmetics/avatarLook';
 
 /**
  * Versioned migrations. Each step takes the previous version's raw object and returns the next.
@@ -10,11 +9,23 @@ import { LEGACY_LOOK_IDS } from '../cosmetics/avatarLook';
  *  v4: avatar overhaul - renamed look options (slim/regular/heavy -> lean/average/broad, square/hex/tall
  *      heads -> strong/oval/long, spikes -> swept, blade -> bedroll, horns -> headset) in the look and
  *      in owned `part:` unlock ids
+ *  v5-v10: records, suit / HQ / challenges / presets, the 2.0 kit, removed systems (see each step below)
+ *  v11 (clean-up I): progression and cosmetics are gone - the profile keeps the name, the attachments per weapon, the
+ *      loadout and the presets (see `MIGRATIONS[10]`)
  */
 type Raw = Record<string, unknown>;
 type Migration = (s: Raw) => Raw;
 
 const isObj = (v: unknown): v is Raw => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** Option ids renamed by the v4 avatar overhaul (hard-edged/cartoon parts became smooth, realistic ones); read by the v3 -> v4 step. */
+const LEGACY_LOOK_IDS: Record<string, Record<string, string>> = {
+  body: { slim: 'lean', regular: 'average', heavy: 'broad' },
+  head: { square: 'strong', hex: 'oval', tall: 'long' },
+  hair: { spikes: 'swept' },
+  backpack: { blade: 'bedroll' },
+  helmet: { horns: 'headset', trilens: 'headset' },
+};
 
 /**
  * The guns deleted with the CT kit (G76 / G115), each to the kept gun of its slot: sidearms to the suppressed pistol,
@@ -170,6 +181,27 @@ export const MIGRATIONS: Record<number, Migration> = {
       hq = rest;
     }
     return { ...s, version: 10, hq };
+  },
+  // v10 -> v11 (clean-up I): XP, credits, unlocks, weapon upgrades / camos / kill counts, the suit, HQ upgrades, challenges, the
+  // saved look, the player tag, lifetime stats and the per-mission best results (`missions`) are gone. Kept: the creation
+  // and update times, the player's name, each weapon's attachments, the loadout, the presets and the preset in use.
+  // Nothing is refunded. (The records in the `kv` store and the settings are not part of this object.)
+  10: (s) => {
+    const profile = isObj(s.profile) ? s.profile : {};
+    const weapons: Raw = {};
+    if (isObj(s.weapons)) {
+      for (const [w, e] of Object.entries(s.weapons)) weapons[w] = { attachments: isObj(e) && Array.isArray(e.attachments) ? e.attachments : [] };
+    }
+    return {
+      version: 11,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
+      profile: { name: profile.name },
+      weapons,
+      loadout: s.loadout,
+      presets: s.presets,
+      preset: s.preset,
+    };
   },
 };
 

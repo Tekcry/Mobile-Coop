@@ -3,7 +3,7 @@
  * squads read as a city security company, desert militia or a maritime unit. Silhouettes (headgear, armour,
  * shield, hood, beret) stay per archetype; only colours change.
  */
-import type { AvatarLook } from '../cosmetics/avatarLook';
+import type { AvatarLook } from '../player/avatarLook';
 import type { Faction } from '../world/mapDef';
 
 interface Palette {
