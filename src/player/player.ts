@@ -29,11 +29,8 @@ import { tuneGuardFrame } from '../anim/tuneGuard';
 import { tuneKeysFrame } from '../anim/tuneKeys';
 import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
 import { TEAM_POSE_LOCAL, TeamPoser } from '../anim/clips/team'; // (anim-n4b, track A)
-import { flags } from '../core/flags';
-import { CHAMBER_MAP_ID } from '../anim/chamberMapId';
-import { goggleColour } from '../operators/runtime/goggle';
 import type { MixamoBody } from '../characters/mixamoBody';
-import { dressRig } from '../characters/rigMixamo';
+import { dressPlayer, mixamoOn } from '../characters/rigMixamo';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
@@ -194,14 +191,16 @@ export class Player {
     readonly world: World,
     spawn: { pos: Vector3; yaw: number },
     private getSettings: () => Settings,
+    /** (mixamo-chars slice d) This page's player joined a co-op room: Moth (a host or solo player is Wren). */
+    joiner = false,
   ) {
     this.controller = new PlayerController(world.scene, spawn.pos, spawn.yaw);
     const op = operatorRig(world.scene, avatarFactory(world.parts, 'player-part'), defaultLook(), 'player', (m) => world.addShadowCaster(m));
     this.rig = op.rig;
     this.figure = op.figure;
     this.rig.carrier = true;
-    // (slice b, c) the Mixamo body takes the rig's animate inputs; the guns, holster and pouches ride on its bones
-    this.mixamo = flags.mixamoChars && world.map.id === CHAMBER_MAP_ID ? dressRig(world.scene, this.rig, 'xbot', { tint: goggleColour(0), casters: (m) => world.addShadowCaster(m) }).body : null;
+    // (slice b, c, d) the Mixamo body takes the rig's animate inputs; the guns, holster and pouches ride on its bones
+    this.mixamo = mixamoOn(world.map.id) ? dressPlayer(world.scene, this.rig, !joiner, (m) => world.addShadowCaster(m)).body : null;
     if (this.mixamo) this.figure.setEnabled(false);
     else loadPlayLods(this.figure);
     this.cam = new ShoulderCamera(world.scene);

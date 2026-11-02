@@ -10,6 +10,9 @@ import type { CharacterRig } from '../player/characterRig';
 import { handsWeaponOf } from '../anim/tuneHands';
 import { MixamoBody, type HoldKind, type MixamoModel } from './mixamoBody';
 import type { LocoSet } from './locomotion';
+import { flags } from '../core/flags';
+import { CHAMBER_MAP_ID } from '../anim/chamberMapId';
+import { goggleColour } from '../operators/runtime/goggle';
 
 /** A rig node's transform in its root's space now (taken before the rig first animates: its rest). */
 function restIn(n: TransformNode, root: TransformNode): Matrix {
@@ -35,6 +38,22 @@ export interface RigMixamoOpts {
   casters?: (m: AbstractMesh) => void;
   /** Standing height (m); default the player's. */
   height?: number;
+}
+
+/** (slice d) Moth's body colour (Michael: Moth purple, Wren green; provisional shade). */
+export const MOTH_PURPLE: readonly [number, number, number] = [0.5, 0.22, 0.85];
+
+/** (slice d) Whether bodies on map `mapId` are Mixamo bodies (`flags.mixamoChars`, the Test Chamber for now). */
+export function mixamoOn(mapId: string): boolean {
+  return flags.mixamoChars && mapId === CHAMBER_MAP_ID;
+}
+
+/**
+ * (slice d) A player's Mixamo body: the host (and a solo player) is Wren (X Bot, her goggle green), a joiner is Moth
+ * (Y Bot, purple). Both screens dress the same player the same way (`host` is the owner's role on both ends).
+ */
+export function dressPlayer(scene: Scene, rig: CharacterRig, host: boolean, casters?: (m: AbstractMesh) => void): { body: MixamoBody; undo: () => void } {
+  return dressRig(scene, rig, host ? 'xbot' : 'ybot', { tint: host ? goggleColour(0) : MOTH_PURPLE, casters });
 }
 
 /** Puts a Mixamo body on `rig` (call right after the rig is built, before it first animates). `undo` takes it off. */
