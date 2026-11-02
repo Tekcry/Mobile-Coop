@@ -18,6 +18,7 @@
     "test": "vitest run",
     "lamp-audit": "node scripts/lamp-audit.mjs",
     "icons": "node scripts/gen-icons.mjs",
+    "auto-run": "node scripts/auto-run.mjs",
     "e2e": "node scripts/run-e2e.mjs",
     "e2e:legacy": "node scripts/run-e2e.mjs --legacy",
     "e2e:audio": "node scripts/run-e2e.mjs --audio",
