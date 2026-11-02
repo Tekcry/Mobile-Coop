@@ -1,5 +1,7 @@
 # G8 plan: keyed gait clips (2026-10-20)
 
+> **2026-11-02:** the comparison sheets that held Chaos Theory footage were removed from the repo (Michael, planning run P1: not publishing another game's art); only our own frames (`shots/g8/**/ours/`) remain. Links below to the removed sheets no longer resolve.
+
 Michael (10:25): "You have all walking videos from CT, why cant we match it" ... "Yes, keyframed clips". The
 procedural gait cycles stay as the fallback and the blending layer; the look of each gait comes from a keyed clip
 authored pose by pose. Walk first as the proof; Michael judges it before jog, run, crouch walk, crouch idle and the

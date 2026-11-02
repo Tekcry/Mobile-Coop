@@ -11,12 +11,18 @@ Stages A-J merged (#728-#731, #734-#747, #750), the co-op relay fix (#748, Phase
 log (#749), branch purge (N14). Playthrough bugs are in `docs/backlog.md` item 32, tagged to phases below.
 
 ## Phase 1 - Vision lock and foundation decisions (docs only)
+- **Settled in the planning run (2026-11-02):** D1 provisional, D11, D13 provisional, D14, D15a, P1 (done), P3, P6,
+  P7 (N30-N37).
 - **Work:** vision v3 from v2 plus the Steam release, Friend's Pass, local split-screen, the formula (brief section 3),
-  the story-first rule, music as identity, the reuse rule, the scope tiers and the Hazelight lessons (N29); the short
-  new `RULES.md` and `DECISIONS.md` (with N1-N29, D8, D20 and the C1-C15 results); the campaign outline
-  (`CAMPAIGN-OUTLINE.md`, this run's draft); a "superseded" note atop each stale research and level doc; a "Made in
-  the repo" section in the credits files (P2); P1 (footage frames) as Michael decides.
-- **Decisions:** D1 provisional, D11, D13 provisional, D14, D15 identity, P1, P3, P4, P5.
+  the story-first rule (play wins a tie), music as identity, the reuse rule, the Target tier, same abilities (N34),
+  Hitman-style interaction and staff (N37) and the Hazelight lessons (`docs/research/hazelight-2026-11/README.md`);
+  the ending, both characters' arcs and the hints Mission 1 plants (N36); the short new `RULES.md` and
+  `DECISIONS.md` (with N1-N37, D8, D20 and the C1-C19 results); `MISSION-TEMPLATE.md` replacing the level standard
+  and map spec (needs Michael's approval, CLAUDE.md); a "superseded" note atop each stale research and level doc, and
+  the reference-game names redacted from the research notes (G6); a "Made in the repo" section in the credits files
+  (P2).
+- **Decisions in the vision v3 round:** D15b (sonic identity and 3 reference tracks), P4 (music as pillar 6 by name),
+  the ending candidate.
 - **Exit:** Michael approves vision v3 and the scope tiers in one native question round.
 - **Not allowed yet:** code, art, music.
 
@@ -30,7 +36,7 @@ log (#749), branch purge (N14). Playthrough bugs are in `docs/backlog.md` item 3
   (4) Steamworks proof on Valve's test app 480 (pick the binding: the maintained steamworks.js fork or
   steamworks-ffi-node): init, overlay with launch flags, an achievement, a cloud save. (4b) Friend's Pass proof: a
   join-only, no-achievements build joins a full-game host over the internet. (5) Split-screen proof in the Test
-  Chamber: two viewports, two pads, per-player HUD, frame time. (6) Performance proof: realistic light count, 2
+  Chamber: two viewports, two pads, per-player HUD, frame time; also the cost of a small partner view online (D7). (6) Performance proof: realistic light count, 2
   players, Electron, WebGL2 (WebGPU for comparison), mid-range and lowest supported PC, Steam Deck if one is available.
   (7) Draft the email to Valve about the Demo-type Friend's Pass app and its fee (Michael sends it).
 - **Decisions:** D1 final, D2, D3, D4, D6; D5 email sent.
@@ -43,7 +49,8 @@ log (#749), branch purge (N14). Playthrough bugs are in `docs/backlog.md` item 3
   agree); night vision toned down; guard perception fixed so hiding works and guards search the last place they saw
   you; level bounds; prop pushing per frame (backlog 33). A "stealth gym" of 4-6 tiny rooms: dark lane, lit pool with
   a switch, one patrolling guard, one stationary guard, a noisy floor, a door.
-- **Exit:** Michael and his partner play the gym and tick the feel checklist; no unexplained detection in 20 minutes.
+- **Decisions:** D27 (thermal through doors), D28 (wall lean-out, turn-and-aim from a wall), D29 (thermal palette).
+- **Exit:** Michael and his partner play the gym and tick `FEEL-CHECKLIST.md`; no unexplained detection in 20 minutes.
 - **Not allowed yet:** mission content, art beyond the greybox standard.
 
 ## Phase 4 - Co-op toolkit ("the first 3 minutes")
@@ -51,17 +58,19 @@ log (#749), branch purge (N14). Playthrough bugs are in `docs/backlog.md` item 3
   the ledge relay reaching 4.5 m (C8); pings, compass bar, partner state readouts (downed impossible to miss);
   checkpoints and the rating skeleton; gear choice with EMP back in the list, the grenade and sticky cam fixed; local
   split-screen made real (D6) and the online layout decided (D7); the adaptive music system tuned with placeholder
-  stems (brief 11.1).
+  stems (brief 11.1); context actions and world tricks (N37) as gym rooms; the "both ready" ring for two-person actions.
 - **Each move passes:** fun twice, multi-use, readable with pings only, swap (`PLAYTEST-KIT.md`). Cut or park a move
   that fails twice; expect to cut about a quarter.
-- **Decisions:** D7, D9, D10.
+- **Decisions:** D7, D9, D10, D26.
 - **Exit:** the kept move list signed off by Michael; the cut list recorded with reasons.
 
 ## Phase 5 - Mission framework and tools
 - **Work:** D18 on code evidence (Sector Ops engine about 5,850 lines vs course engine about 5,550), then remove the
   unused engine and Tallow Wharf (its failing tests go with it); mission data (3-5 steps, objective chain with intel
   used, optional objective, up to 2 signposted rules, checkpoints, both-player extraction, percent rating); level
-  tools (D19); the validator keeps only checks that catch real problems; playtest telemetry to a local file.
+  tools (D19); the validator keeps only checks that catch real problems; playtest telemetry to a local file;
+  unarmed staff with routines and reactions, and overheard conversations that open opportunities (N37).
+- **Decisions:** D18, D19, D25.
 - **Exit:** a dummy 3-room mission runs start to finish with rating, checkpoints and telemetry.
 
 ## Phase 6 - Marlow Yard prologue rebuild
@@ -75,7 +84,7 @@ log (#749), branch purge (N14). Playthrough bugs are in `docs/backlog.md` item 3
 - **Exit (all, measured):** 3+ fresh pairs finish in 20-30 min with nobody idle over 60 s; every detection explainable;
   fun 4/5 or better per area and an unprompted retell; no stall over 2 minutes; a Friend's Pass build joins a
   full-game host by room code across two networks; performance budget met in Electron; the cost of Mission 1 recorded.
-- **Decisions:** D12, D13 final, D15 pick, D16. If it fails: iterate or cut scope; no production on a slice that is
+- **Decisions:** D12, D13 final, D15 pick, D16, D30. If it fails: iterate or cut scope; no production on a slice that is
   not fun.
 
 ## Phase 8 - Steam presence (right after the slice passes)

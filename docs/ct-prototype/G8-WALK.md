@@ -1,5 +1,7 @@
 # G8 walk, round 2: matched camera and pose targets (2026-10-20)
 
+> **2026-11-02:** the comparison sheets that held Chaos Theory footage were removed from the repo (Michael, planning run P1: not publishing another game's art); only our own frames (`shots/g8/**/ours/`) remain. Links below to the removed sheets no longer resolve.
+
 Michael (10:55) on the walk proof: the after is narrower with more swing but still looks like the before. CT's walk is
 heavier: the torso pitched a little forward, the knees softly bent all the way through, the shoulders and arms hanging
 forward and a little bent, a lower and heavier centre. Ours is upright and light. His choice: "Tight pose matching, also

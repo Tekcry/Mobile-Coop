@@ -2,7 +2,8 @@
 Owner: the orchestrator. Status: current (draft from the planning run, 2026-11-02).
 
 How every mission (and the Marlow Yard rebuild) is designed: master brief section 8, plus the parts of
-`docs/level-design.md`, `docs/design/scale-sheet.md` and `docs/templates/map-spec.md` that still hold. Where those
+`docs/level-design.md`, `docs/design/scale-sheet.md` and `docs/templates/map-spec.md` that still hold, and the
+Hazelight lessons (`docs/research/hazelight-2026-11/README.md`). Where those
 three differ from Michael's 2026-11 decisions, the decisions win; this template replaces them once Michael approves it
 (CLAUDE.md: the level standard and template change only with his approval).
 
@@ -14,19 +15,20 @@ three differ from Michael's 2026-11 decisions, the decisions win; this template 
 3. **Beat chart** in minutes (table below).
 4. **Ingredients checklist** (below).
 5. **Connectivity graph and top-down plan** (routes, splits, lookouts, checkpoints).
-6. **Guard sheet** (table below).
+6. **People sheet:** guards and staff (table below), with the conversations that can be overheard.
 7. **Michael's one-click sign-off** on a one-page plan plus a 5-line intent check.
 8. **Greybox:** Test Chamber look, real lamp positions and real darkness. Walk it with no guards first, then guards.
 9. **Playtest rounds** (`PLAYTEST-KIT.md`) until the exit criteria pass; fix the top 3 issues per round.
 10. **Only then:** art pass, lighting polish, audio, music, banter polish.
 
 ## Beat chart (one row per beat)
-| Minute | Beat | Co-op type (parallel / step-by-step / simultaneous) | Who does what | Real reason it needs two | Other way through | If it fails | Tension 1-5 |
+| Minute | Beat | Co-op type (parallel / step-by-step / simultaneous) | Who sets up / who carries out | Real reason it needs two | Other way through | If it fails | Tension 1-5 |
 |---|---|---|---|---|---|---|---|
 
 Shape: a gentle co-op opening; a small team moment every 2-4 min; a set piece every 6-10 min with 30-90 s calm after;
 one twist at 40-60%; a joint climax; an exit under 2 min or by a different route. Co-op types alternate; simultaneous
-is a peak, not the default. Never three tension 4-5 stretches in a row. A mission is 3-5 steps of 2-5 minutes, 20-30
+is a peak, not the default; who sets up and who carries out alternates across the mission (fairness is an arc, not a
+moment). Never three tension 4-5 stretches in a row. A mission is 3-5 steps of 2-5 minutes, 20-30
 minutes for a good pair.
 
 ## Ingredients checklist
@@ -42,7 +44,14 @@ minutes for a good pair.
 - At least one vertical route that needs a team move.
 - At most one new mission toy, used 3+ times with rising difficulty; earlier toys reused.
 - No signature set piece shared with another mission.
-- At most one joint approach choice (D12): both must agree, it changes the route and play, not the story.
+- At most one joint approach choice (D12): labelled "Wren's way" / "Moth's way", both must agree, it changes the
+  route and play, not the story, and echoes next night (a banter callback, a changed starting state).
+- **Hitman-style (N37):** at least one overheard conversation that opens an opportunity (a code, a route, a chance);
+  world tricks in each area (cut power, break a pipe, start a machine, stage an accident, a thrown object); context
+  actions on the people and objects that matter.
+- **Big set piece formula:** split the information, split the doing, finish with timing.
+- One short optional quiet beat (1-2 minutes, off the critical path, a both-press moment with a banter reward).
+- A story moment for one player gives the other a short task at the same time.
 
 ## Space rules
 - **Entry vantage** at each area: dark, out of every guard's view for the whole patrol cycle, room for two, every
@@ -57,14 +66,16 @@ minutes for a good pair.
 - **Level bounds:** clear edges and landmarks; nobody climbs out of the playable area.
 - Quiet connectors glimpse the next space; lit critical-path exits, a dark alternative visible from them.
 
-## Guard sheet (one row per guard)
-| Guard | Job tonight | Routine (cycle, stops) | Moment alone | Covers / covered by | Pair for a double drop? | Light they come to fix |
-|---|---|---|---|---|---|---|
+## People sheet (one row per guard or staff member)
+| Person | Guard or staff | Job tonight | Routine (cycle, stops) | Moment alone | Covers / covered by | Pair for a double drop? | Light they come to fix | What they say that can be overheard |
+|---|---|---|---|---|---|---|---|---|
 
 - 2-5 guards per area, hand-placed; **never spawned**. An alarm makes the guards already there tougher and more alert.
 - Patrols like clockwork: 25-45 s cycles, 3-6 s stops, 3-8 s gaps. No more than 4 sight cones overlap one spot; every
   patrol shows its back to the dark route within 20 s.
 - Bodies get found; every search area has a hiding spot; guards search where they last saw you, never where you are.
+- 1-3 unarmed staff per mission (N37) with routines; they react (call a guard, flee, freeze) and can be avoided,
+  questioned or used; harming them costs rating.
 
 ## Light, sound and devices
 - Every light has a visible source and a switch; a lit chokepoint has two ways to darken it, or a route around.
@@ -81,7 +92,13 @@ minutes for a good pair.
 - Both players always have something to do; a story moment for one means play for the other.
 - No escort missions, no hidden timers (soft windows only), no instant fail on detection, no forced kills.
 - Up to 2 mission rules, signposted; breaking one restarts the section (Michael, round 6).
-- Every two-person action works with pings alone, shows each player's ready state, and is tested on pad and keyboard.
+- Every two-person action works with pings alone, shows each player's ready state (a "both ready" ring), and is
+  tested on pad and keyboard.
+- Each half of a two-person beat is locked to one player (where they stand, what they carry, a target in their colour
+  with an icon); never one shared prompt both can press.
+- Anything new is taught in four steps: safe solo use, one handover, a hold, then both under time pressure.
+- One radio line at a time for both players; banter reacts to what just happened, is silent on alert and never spells
+  out a solution.
 - Every mission is testably 100%-able: no kills, no alarms, every primary objective.
 
 ## Sizes (still valid; measured on the old camera, re-check in Phase 3)

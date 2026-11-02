@@ -10,6 +10,8 @@ they do not set the vision.
 - **Fresh pairs:** people who have never played that mission. A pair is "fresh" once per mission. At least 3 fresh
   pairs per gate (Phase 6 prologue, Phase 7 slice). Recruit early.
 - **Steam Playtest pairs:** from Phase 8.
+- Where possible pair a stronger and a weaker player: the skill gap between partners was the top gameplay complaint
+  in both Hazelight games (`docs/research/hazelight-2026-11/gameplay.md` section 10).
 
 ## Before the session (the orchestrator gives Michael this list each time)
 1. Both players open the build named in the walk-through; the main menu shows the same version label for both.
@@ -26,15 +28,20 @@ they do not set the vision.
 | | | | | | | | | |
 | | | | | | | | | |
 
-Also note: moments one player did nothing because the other was busy; partner lost or separated; a downed partner
+Also note: stretches where nobody spoke or pinged (Hazelight's main warning sign); moments one player did nothing
+because the other was busy; partner lost or separated; a downed partner
 missed; anything the players said out loud about the story or the characters.
 
-## After the session (5 questions, each player separately, then together)
+## After the session (each player separately, then together)
 1. What was the best moment? (Retell test: can they tell it without prompting?)
 2. What was the most confusing moment?
 3. When did you wait for your partner?
 4. Fun 1-5 for each area.
 5. What would you cut?
+6. (Gym and slice only) When did you notice you were working together? (Hazelight checks whether players knew they
+   co-operated.)
+
+Do not ask for story feedback before the Phase 7 slice; testers show where the play fails, not what the story is.
 
 Then save the files: both recordings, the diagnostics log from each player (Main menu or Pause > Feedback >
 Diagnostics log > Copy log), and the telemetry file once Phase 5 builds it.
@@ -62,6 +69,8 @@ Per move or per gym room, measure and record:
 ## Acting on results
 - Fix the top 3 issues per round, then test again. A blocker is fixed whatever its rank.
 - Never redesign from one pair's opinion alone unless it is a blocker.
+- Each prototype review answers one more question: can this reach the polish bar in reasonable time? If not, cut it
+  early (Hazelight cuts 20-30% of ideas).
 - Expect completion time to drop by a third to a half as a pair learns a mission; a careful pair takes about 2.5-5x a
   perfect run.
 - Each round's results go in one short note in the mission's folder; the top 3 go on the control panel.

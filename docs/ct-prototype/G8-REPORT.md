@@ -1,5 +1,7 @@
 # G8 report: animation feel, the keyed walk proof (2026-10-20)
 
+> **2026-11-02:** the comparison sheets that held Chaos Theory footage were removed from the repo (Michael, planning run P1: not publishing another game's art); only our own frames (`shots/g8/**/ours/`) remain. Links below to the removed sheets no longer resolve.
+
 Implementer, Opus. Michael (10:10): "i played through it and want to focus on fine tuning the animations, they all look
 weird and unnatural" ... "Legs are out too wide, looks like a crab. Elbows also go out too wide when moving quicker.
 This all translates to crouching too, and crouching idles too quick, and the hand resting on the knee is upside down and
