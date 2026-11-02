@@ -29,6 +29,10 @@ import { tuneGuardFrame } from '../anim/tuneGuard';
 import { tuneKeysFrame } from '../anim/tuneKeys';
 import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
 import { TEAM_POSE_LOCAL, TeamPoser } from '../anim/clips/team'; // (anim-n4b, track A)
+import { flags } from '../core/flags';
+import { CHAMBER_MAP_ID } from '../anim/chamberMapId';
+import { goggleColour } from '../operators/runtime/goggle';
+import { MixamoBody } from '../characters/mixamoBody';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
@@ -90,6 +94,9 @@ export class Player {
   readonly rig: CharacterRig;
   /** (operators 11e, D31 / G123) Wren, drawn on the rig; the rig stays the gameplay and pose body. */
   readonly figure: OperatorFigure;
+  /** (mixamo-chars, N53, slice a) In the Test Chamber the drawn body is a Mixamo mannequin playing Mixamo moves (Wren
+   *  is hidden); the rig stays the gameplay body under it. Null elsewhere or with `?mixamochars=0`. */
+  readonly mixamo: MixamoBody | null;
   readonly cam: ShoulderCamera;
   readonly carry = new WeaponCarry();
   readonly carryIn = emptyCarryInput();
@@ -192,7 +199,9 @@ export class Player {
     this.rig = op.rig;
     this.figure = op.figure;
     this.rig.carrier = true;
-    loadPlayLods(this.figure);
+    this.mixamo = flags.mixamoChars && world.map.id === CHAMBER_MAP_ID ? new MixamoBody(world.scene, 'xbot', this.rig.root, { tint: goggleColour(0), casters: (m) => world.addShadowCaster(m) }) : null;
+    if (this.mixamo) this.figure.setEnabled(false);
+    else loadPlayLods(this.figure);
     this.cam = new ShoulderCamera(world.scene);
     this.cam.yaw = spawn.yaw;
     // (F1, playtest 2) every mission starts on the right shoulder (`gameplay.defaultShoulder` is no longer read)
@@ -583,6 +592,10 @@ export class Player {
       this.footPlantSide = pl.L.landed ? -1 : 1;
     }
     this.cam.applyBodyFade(this.rig);
+    if (this.mixamo) {
+      this.mixamo.update(rp);
+      return;
+    }
     // Wren follows the camera fade (the head hide; the whole-body hide is the rig root's) and the rig's pose
     const f = this.figure;
     f.setHeadVisible(this.cam.headVisible);
@@ -591,6 +604,7 @@ export class Player {
   }
 
   dispose(): void {
+    this.mixamo?.dispose();
     this.figure.dispose();
     this.rig.dispose();
     this.controller.dispose();

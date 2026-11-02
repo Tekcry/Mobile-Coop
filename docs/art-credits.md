@@ -216,3 +216,27 @@ still open.
 | --- | --- | --- | --- |
 | ANSUR II public CSVs (men, women) | https://www.openlab.psu.edu/ansur2/ | Public release of US Army survey data | Checking operator proportions (`docs/operators/SPEC.md` 4.2) |
 | RAB Lighting ALEDS3T 80 W 5000 K Type III area light, photometric file (IES test DLF2207109-4a) | https://www.rablighting.com/downloads/ies/aleds3t-80w-5k-dlf2207109-4a.ies (product page https://www.rablighting.com/product/ALEDS3T) | RAB Website Terms of Use (rablighting.com/legal): viewing and download allowed; commercial use, copying and sharing of the material barred. So only five derived numbers are used; the file is not committed, bundled or copied into the repo (Michael, 2026-10-25 ~21:00: "Yes, numbers only (Recommended)") | Five ground lux readings for a 6 m mount, 0.8 m arm, at 0 / 3 / 6 / 9 / 12 m (32.1, 53.9, 47.7, 25.4, 11.2 lx): the light-realism reference test (`scripts/light-realism/calibrate.ts` `REFERENCE`, `docs/light-realism/measure/calibration.md` section 3) |
+
+## Mixamo characters and moves played directly (mixamo-chars, N53)
+
+Michael 2026-11-02 (native questions): replace the animation system, stock Mixamo characters for now (X Bot as Wren,
+Y Bot as Moth, Swat for the guards; ours re-rigged later), the packed models committed to the project. Downloaded in
+Michael's Mixamo account through the site's own Download button (FBX Binary; characters T-pose with skin, moves 30 fps
+without skin, "In Place" where offered). Raw FBX files stay outside the repo (`D:/NightShift/mixamo-raw/`);
+`scripts/mixamo/pack.mjs` packs each character with every move into one GLB. Licence: as the section above (Mixamo FAQ,
+royalty free for commercial projects).
+
+| Files (repo path) | Mixamo title | Kind | Source (URL) | Terms | Date added | Used by |
+|---|---|---|---|---|---|---|
+| `src/characters/assets/xbot.glb` | X Bot | character | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | Wren (Test Chamber, slice a) |
+| `src/characters/assets/ybot.glb` | Y Bot | character | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | Moth (later slice) |
+| `src/characters/assets/swat.glb` | Swat | character | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | guards (later slice) |
+| every GLB above, animation `idle` | Breathing Idle | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
+| animation `walk` | Walking (In Place) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
+| animation `run` | Running (In Place) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
+| animation `sprint` | Fast Run (In Place) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
+| animation `walk_back` | Walking Backwards (In Place) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
+| animation `strafe_walk_l` | Left Strafe Walking (In Place) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
+| animation `strafe_walk_r` | Left Strafe Walking (In Place, Mirror) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
+| animation `crouch_idle` | Crouching Idle | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
+| animation `crouch_walk` | Crouched Walking (In Place) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |

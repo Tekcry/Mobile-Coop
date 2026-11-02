@@ -110,6 +110,10 @@ export { ShapeCastResult } from '@babylonjs/core/Physics/shapeCastResult';
 export { BallAndSocketConstraint, HingeConstraint } from '@babylonjs/core/Physics/v2/physicsConstraint';
 export type { Nullable } from '@babylonjs/core/types';
 export type { IPhysicsCollisionEvent } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin';
+// (mixamo-chars, N53) Mixamo characters: bundled glTF models and their skeletal animation groups
+export { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
+export { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
+export type { AssetContainer } from '@babylonjs/core/assetContainer';
 
 // Side-effect modules (register scene components / engine extensions).
 import '@babylonjs/core/Physics/joinedPhysicsEngineComponent';
@@ -164,6 +168,10 @@ import '@babylonjs/core/Rendering/depthRendererSceneComponent';
 import '@babylonjs/core/Rendering/geometryBufferRendererSceneComponent';
 import '@babylonjs/core/Rendering/prePassRendererSceneComponent';
 import '@babylonjs/core/PostProcesses/RenderPipeline/postProcessRenderPipelineManagerSceneComponent';
+// (mixamo-chars) the animation runtime (scene.beginDirectAnimation, used by AnimationGroup.start) and the glTF 2.0 loader
+import '@babylonjs/core/Animations/animatable';
+import '@babylonjs/loaders/glTF/glTFFileLoader';
+import '@babylonjs/loaders/glTF/2.0/glTFLoader';
 
 // Babylon 9 stubs out methods whose side-effect module is missing. Warn loudly
 // so the smoke test catches any missing import above.
