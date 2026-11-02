@@ -287,3 +287,9 @@ Slice h (2026-11-03 night), added to every packed model:
 | `team_brace` | Pull Heavy Object (Pulling A Heavy Object), in place | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | hang-down and pull-up: the holder |
 | `team_rope` | Pulling A Rope (Mime Pulling A Rope) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | two-person rope and swing: the holder |
 | `rope_climb` | Climbing A Rope (With Hands And Feet), in place | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | two-person rope: the climber |
+
+Slice i (2026-11-03 night), added to every packed model:
+
+| Animation (in every GLB above) | Mixamo title | Kind | Source (URL) | Terms | Date added | Used by |
+|---|---|---|---|---|---|---|
+| `wall_kick` | Jump From Wall (Hanging On Wall To Jump Off), its rise held flat | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | wall kick |

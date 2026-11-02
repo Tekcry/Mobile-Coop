@@ -37,6 +37,9 @@ def fcurves(act):
 # Moves whose climb the game's traversal already carries (the body rises with the ladder / ledge): their vertical
 # travel goes too (channel 1), else the body would rise twice.
 CLIMBS = ('ladder', 'hang_climb_up', 'rope_climb')
+# (slice i) Jumps whose arc the game's traversal carries: their vertical travel is held flat at the first key (the
+# pose stays, the body does not leave the capsule).
+JUMPS = ('wall_kick',)
 
 
 def in_place(act, name=''):
@@ -44,7 +47,7 @@ def in_place(act, name=''):
     horizontal location channels (0, 2: the Hips bone's own frame), and the vertical one (1) for `CLIMBS`, the straight
     line from the first key to the last is taken away, so the sway stays and the clip starts and ends on the spot.
     In-place downloads change by millimetres."""
-    axes = (0, 1, 2) if name in CLIMBS else (0, 2)
+    axes = (0, 1, 2) if name in CLIMBS or name in JUMPS else (0, 2)
     for fc in fcurves(act):
         if not (fc.data_path.endswith('location') and 'Hips' in fc.data_path and fc.array_index in axes):
             continue
@@ -52,6 +55,14 @@ def in_place(act, name=''):
         if len(ks) < 2:
             continue
         t0, v0 = ks[0].co
+        if name in JUMPS and fc.array_index == 1:
+            for k in ks:
+                dv = k.co[1] - v0
+                k.co[1] -= dv
+                k.handle_left[1] -= dv
+                k.handle_right[1] -= dv
+            fc.update()
+            continue
         t1, v1 = ks[-1].co
         span = (t1 - t0) or 1.0
         for k in ks:

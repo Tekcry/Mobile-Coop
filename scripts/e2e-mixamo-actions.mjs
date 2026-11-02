@@ -58,6 +58,13 @@ try {
     ['roll', { traverse: 'roll', traverseT: 0.5 }, 'roll'],
     ['crawl', { traverse: 'crawl', traverseT: 0 }, 'crawl'],
     ['wall', { wall: true }, 'wall_idle'],
+    // (slice i)
+    ['pipe climb', { traverse: 'pipeClimb', traverseT: 0 }, 'rope_climb'],
+    ['pipe legs', { traverse: 'pipeLegs', traverseT: 0 }, 'hang_idle'],
+    ['wall kick', { traverse: 'wallKick', traverseT: 0.4 }, 'wall_kick'],
+    ['rappel', { traverse: 'rappel', traverseT: 0 }, 'team_rope'],
+    ['split', { traverse: 'split', traverseT: 0 }, 'fall'],
+    ['brace', { traverse: 'brace', traverseT: 0 }, 'team_lift'],
   ];
   for (const [name, fields, clip] of cases) {
     await hold(fields);
@@ -82,7 +89,13 @@ try {
   await hold({ traverse: 'climbUp', traverseT: 0.9 });
   await frames(page, 10);
   const late = await hipsY();
+  // (slice i) at its very end the clip shows its last frame, not its first again (the clip loops)
+  await hold({ traverse: 'climbUp', traverseT: 1 });
+  await frames(page, 10);
+  const end = await hipsY();
   await release();
+  console.log('climb-up hips at the end', end.toFixed(2));
+  assert(Math.abs(end - late) < 0.25, `the climb-up ends on its last frame (hips ${late.toFixed(2)} at 90%, ${end.toFixed(2)} at 100%)`);
   await G(() => { window.__app.current.player.pose.traverse = 'none'; });
   console.log('climb-up hips', early.toFixed(2), late.toFixed(2));
   assert(Math.abs(late - early) > 0.2, `the climb-up follows its progress (hips ${early.toFixed(2)} -> ${late.toFixed(2)} m)`);
@@ -113,6 +126,27 @@ try {
   await frames(page, 30);
   const after = await top();
   assert(after.best === 'idle', `after the team moves the idle is back (${after.best})`);
+  // (slice i) hanging inverted on a pipe the body turns over with the rig's tumble: the feet above the head
+  await hold({ traverse: 'pipeInv', traverseT: 0, tumble: Math.PI });
+  await frames(page, 60);
+  const inv = await G(() => { const m = window.__app.current.player.mixamo; return { foot: m.boneNode('LeftFoot').getAbsolutePosition().y, head: m.boneNode('Head').getAbsolutePosition().y }; });
+  await shot('a-pipe-inverted');
+  await release();
+  await G(() => { const p = window.__app.current.player.pose; p.traverse = 'none'; p.tumble = 0; });
+  await frames(page, 40);
+  const upright = await G(() => { const m = window.__app.current.player.mixamo; return { foot: m.boneNode('LeftFoot').getAbsolutePosition().y, head: m.boneNode('Head').getAbsolutePosition().y }; });
+  assert(inv.foot > inv.head + 0.5, `inverted on a pipe the body is turned over (feet ${inv.foot.toFixed(2)}, head ${inv.head.toFixed(2)})`);
+  assert(upright.head > upright.foot + 1, `back upright after (head ${upright.head.toFixed(2)}, feet ${upright.foot.toFixed(2)})`);
+  // (slice i) our own player down: the body lies (`downed_lie`); back up, the idle
+  await G(() => { window.__app.current.player.alive = false; });
+  await frames(page, 30);
+  const down = await top();
+  await shot('d-downed');
+  await G(() => { window.__app.current.player.alive = true; });
+  await frames(page, 30);
+  const up = await top();
+  assert(down.best === 'downed_lie', `our own player down lies (${down.best})`);
+  assert(up.best === 'idle', `back up, the idle is back (${up.best})`);
   const bad =errors.filter((e) => !/WebGL|GPU stall|GL Driver/i.test(e));
   if (bad.length) console.log('console errors:\n  ' + bad.join('\n  '));
   assert(bad.length === 0, `${bad.length} console errors`);

@@ -13,6 +13,11 @@
  * lifting kit moves plays "Lifting Object", crouched with the hands low while offering, rising with the move's clock;
  * the hang-down and pull-up holder "Pull Heavy Object" (a braced lean back); the rope holder and the swing "Pulling A
  * Rope"; the rope climber (role a) "Climbing A Rope". The procedural hand reach to the partner is not on the Mixamo body.
+ *
+ * (slice i, provisional stand-ins until a better move or our own animation): up a vertical pipe the rope climb; legs up
+ * or hanging inverted on a pipe the hang, the whole body turned over with the rig's tumble; the wall kick "Jump From
+ * Wall" pinned to its progress; on a rappel rope the rope haul; braced in a split the falling pose (arms and legs out);
+ * a holder's brace with no team move the lift's crouched offer.
  */
 import type { TraverseKind } from '../anim/animGraph';
 import type { TeamPoseMove, TeamPoseRole } from '../anim/clips/team';
@@ -25,6 +30,8 @@ export const ACTION_CLIPS = [
   'downed_lie',
   // (slice h) the team moves
   'team_lift', 'team_brace', 'team_rope', 'rope_climb',
+  // (slice i)
+  'wall_kick',
 ] as const;
 export type ActionClip = (typeof ACTION_CLIPS)[number];
 
@@ -54,6 +61,8 @@ export interface ActionOut {
   clip: ActionClip | null;
   /** 0..1 through a timed clip; NaN for a looping one. */
   t: number;
+  /** (slice i) The body turns over with the rig's tumble (legs up / inverted on a pipe). */
+  turn?: boolean;
 }
 
 /** Hanging (or on a wall) and moving sideways faster than this (m/s) shimmies (slides). */
@@ -103,6 +112,7 @@ function timed(out: ActionOut, clip: ActionClip, t: number | undefined): void {
 export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionOut {
   out.clip = null;
   out.t = NaN;
+  out.turn = false;
   const tm = i.teamMove ?? '';
   if (tm !== '') {
     if (i.teamRole === 'b') {
@@ -153,6 +163,27 @@ export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionO
     case 'crawl':
     case 'crawlOut':
       out.clip = 'crawl';
+      return out;
+    // (slice i)
+    case 'pipeClimb':
+      out.clip = 'rope_climb';
+      return out;
+    case 'pipeLegs':
+    case 'pipeInv':
+      out.clip = 'hang_idle';
+      out.turn = true;
+      return out;
+    case 'wallKick':
+      timed(out, 'wall_kick', i.traverseT);
+      return out;
+    case 'rappel':
+      out.clip = 'team_rope';
+      return out;
+    case 'split':
+      out.clip = 'fall';
+      return out;
+    case 'brace':
+      timed(out, 'team_lift', LIFT_OFFER);
       return out;
     default:
       break;
