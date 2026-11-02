@@ -55,6 +55,42 @@ def in_place(act):
         fc.update()
 
 
+def hips_height(arm):
+    """The Hips bone's rest distance from the armature origin (armature units): the body's scale measure."""
+    for b in arm.data.bones:
+        if b.name.split(':')[-1] == 'Hips':
+            return b.head_local.length
+    raise RuntimeError(f'{arm.name}: no Hips bone')
+
+
+def retarget(act, src_arm, dst_arm):
+    """A move downloaded on one Mixamo skeleton (Y Bot) played on another (Swat): its bone positions carry the source's
+    bone lengths and units, which would stretch the target. Only rotations travel, plus the hips' position, scaled by the
+    two skeletons' hip heights (the standard rule); every other bone keeps the target's own rest position."""
+    k = hips_height(dst_arm) / hips_height(src_arm)
+    # each curve with its owner (the channel bag in Blender 5's layered actions, else the action)
+    owned = []
+    if hasattr(act, 'layers'):
+        for layer in act.layers:
+            for strip in layer.strips:
+                for cb in strip.channelbags:
+                    owned += [(cb, fc) for fc in cb.fcurves]
+    elif hasattr(act, 'fcurves'):
+        owned = [(act, fc) for fc in act.fcurves]
+    for owner, fc in owned:
+        if not fc.data_path.endswith('location'):
+            continue
+        if '"' in fc.data_path and fc.data_path.split('"')[1].split(':')[-1] == 'Hips':
+            for kp in fc.keyframe_points:
+                kp.co[1] *= k
+                kp.handle_left[1] *= k
+                kp.handle_right[1] *= k
+            fc.update()
+        else:
+            owner.fcurves.remove(fc)
+    return k
+
+
 def import_fbx(path):
     before = set(bpy.context.scene.objects)
     bpy.ops.import_scene.fbx(filepath=path, automatic_bone_orientation=False, ignore_leaf_bones=True)
@@ -88,6 +124,7 @@ def main():
             raise RuntimeError(f'{f}: expected one animated armature')
         act = src[0].animation_data.action
         in_place(act)
+        k = retarget(act, src[0], rig)
         act.name = name
         act.use_fake_user = True
         track = rig.animation_data.nla_tracks.new()
@@ -99,7 +136,7 @@ def main():
         track.mute = True
         for o in objs:
             bpy.data.objects.remove(o, do_unlink=True)
-        print(f'move {name}: frames {act.frame_range[0]:.0f}-{act.frame_range[1]:.0f}')
+        print(f'move {name}: frames {act.frame_range[0]:.0f}-{act.frame_range[1]:.0f}, hips x{k:.4f}')
 
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     bpy.ops.export_scene.gltf(
