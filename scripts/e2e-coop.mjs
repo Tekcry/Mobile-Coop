@@ -111,20 +111,38 @@ try {
   setSimPages([A, B]);
   const GB = (f, a) => B.evaluate(f, a);
   await B.click('.main-menu .btn:has-text("Co-op")');
-  // (server browser, prototype) the host's Room row (default Private) set Public lists the room under Browse rooms, live,
-  // on the same relays (here the local test relay); full, it leaves the list
-  console.log('server browser: a public room shows in Browse rooms; full, it leaves the list');
-  const roomRow = '.lobby-opts .row-choice:has-text("Room")';
-  const rv0 = (await A.textContent(`${roomRow} .choice-val`)) ?? '';
-  assert(/Private/.test(rv0) && (await GA(() => !window.__coop.isPublic)), `a new room is Private (${rv0})`);
-  await A.click(`${roomRow} .choice-arrow >> nth=1`);
-  await until(A, () => window.__coop.isPublic && !!window.__coop.dir?.posted, null, 15000, 'the public room posts its notice');
-  await B.click('.btn:has-text("Browse rooms")');
-  await until(B, (c) => /1 \/ 2/.test(document.querySelector(`.browse-screen [data-key="room-${c}"]`)?.textContent ?? ''), code, 20000, 'Browse rooms lists the public room (1 / 2)');
-  const listed = await GB((c) => document.querySelector(`.browse-screen [data-key="room-${c}"]`)?.textContent ?? '', code);
-  assert(listed.includes(code) && /Marlow Yard|ctcourse/.test(listed), `the listed room names its code and map (${listed})`);
-  await B.keyboard.press('Escape');
-  await until(B, () => !!document.querySelector('.coop-screen:not(.browse-screen) [data-key="join"]'), null, 8000, 'back to the co-op menu');
+  // (co-op relay fix) no public room list: the co-op menu is Host / Join with code / Connection log; the lobby has no Room row
+  {
+    const items = await GB(() => [...document.querySelectorAll('.coop-screen .coop-rows .btn')].map((b) => b.dataset.key));
+    assert(!items.includes('browse') && items.includes('join') && items.includes('connection-log'), `the co-op menu has no Browse rooms (${items})`);
+    const rows = await GA(() => [...document.querySelectorAll('.lobby-opts .row-label')].map((l) => l.textContent));
+    assert(!rows.includes('Room'), `the lobby has no Room (public / private) row (${rows})`);
+    const hl = await GA(() => document.querySelector('.lobby-screen .lobby-link')?.textContent ?? '');
+    assert(hl === 'Connection: Waiting for your partner', `the host's lobby readout waits for the partner (${hl})`);
+  }
+  // (co-op relay fix) a joiner with no path to the host (netsim=blocked: found, nothing gets through, a join error) gets
+  // the plain failure dialog at once, and its connection log counts it
+  console.log('relay fix: a blocked join fails at once with a plain message and is logged');
+  {
+    const { page: C } = await openPage(ctx, url, `${NET}&netsim=blocked`);
+    await C.click('.main-menu .btn:has-text("Co-op")');
+    await C.click('.btn:has-text("Join with code")');
+    await C.keyboard.type(code);
+    await C.keyboard.press('Enter');
+    await until(C, () => /Couldn't reach your partner/.test(document.querySelector('.dialog-title')?.textContent ?? ''), null, 12000, 'the blocked joiner sees "Couldn\'t reach your partner"');
+    const txt = await C.evaluate(() => document.querySelector('.dialog-screen .dialog')?.textContent ?? '');
+    assert(/strict network/.test(txt) && /relay/.test(txt), `the failure says what to do (${txt.slice(0, 160)})`);
+    assert(await GA(() => window.__coop.session.players.size === 1), 'the host never saw the blocked joiner');
+    await C.evaluate(() => document.querySelector('.dialog-screen .btn')?.click());
+    await until(C, () => !document.querySelector('.dialog-screen'), null, 5000, 'the dialog closes');
+    if (await C.evaluate(() => window.__app.screens.top?.el.classList.contains('join-screen'))) await C.keyboard.press('Escape');
+    await until(C, () => !!window.__app.screens.top?.el.querySelector('[data-key="connection-log"]'), null, 8000, 'back on the co-op menu');
+    await C.evaluate(() => window.__app.screens.top.el.querySelector('[data-key="connection-log"]').click());
+    await until(C, () => /Join failed - no network path/.test(document.querySelector('.connection-log-screen')?.textContent ?? ''), null, 8000, 'the connection log lists the failed join');
+    const sum = await C.evaluate(() => document.querySelector('.connection-log-screen [data-key="summary"]')?.textContent ?? '');
+    assert(/1 failed/.test(sum), `the connection log counts it (${sum})`);
+    await C.close();
+  }
   await B.click('.btn:has-text("Join with code")');
   await B.keyboard.type(code.toLowerCase());
   const typed = await GB(() => [...document.querySelectorAll('.code-slot')].map((s) => s.textContent).join(''));
@@ -132,7 +150,10 @@ try {
   await B.keyboard.press('Enter');
   await until(B, () => window.__coop?.session.hostId && window.__coop.session.players.size === 2, null, 15000, 'client sees host lobby');
   await until(A, () => window.__coop.session.players.size === 2, null, 5000, 'host sees client');
-  await until(A, () => window.__coop.isPublic && window.__coop.dir?.posted === '', null, 8000, 'the full room leaves the list (gone)');
+  // (co-op relay fix) both lobbies show the connection readout
+  for (const [P, who] of [[A, 'host'], [B, 'client']]) {
+    await until(P, () => /^Connection: Connected - same device/.test(document.querySelector('.lobby-screen .lobby-link')?.textContent ?? ''), null, 8000, `the ${who} lobby reads "Connected - same device"`);
+  }
   if (process.env.SHOTS) await B.screenshot({ path: `${process.env.SHOTS}/coop-lobby.png` });
   const startBlocked = await GA(() => document.querySelector('.lobby-actions .btn')?.classList.contains('blocked'));
   assert(startBlocked, 'start is blocked until everyone is ready');
@@ -450,6 +471,9 @@ try {
     await GB(() => window.__app.current.pause());
     const room = await GB(() => document.querySelector('.pause-screen .ps-room')?.textContent ?? '');
     assert(room.includes(code0), `the pause menu shows the room code (${room})`);
+    // (co-op relay fix) and the connection readout (the local test transport: same device)
+    const plink = await GB(() => document.querySelector('.pause-screen .ps-link')?.textContent ?? '');
+    assert(/^Connection: Connected - same device/.test(plink), `the pause menu shows the connection (${plink})`);
     await GB(() => window.__app.screens.top.resume());
     await GA((id) => { window.__app.current.net.remotes.get(id).health.hp = 60; }, pid0);
     await until(B, () => Math.abs(window.__app.current.target.health.hp - 60) < 0.01, null, 8000, 'client mirrors 60 hp');

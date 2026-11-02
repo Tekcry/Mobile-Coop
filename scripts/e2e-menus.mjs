@@ -429,6 +429,11 @@ try {
       const n = document.createElement('div');
       n.className = 'ms-note ps-room';
       n.textContent = 'Room ABCDE. If either player drops, rejoin from the main menu with this code.';
+      // (co-op relay fix) with the connection readout under it
+      const l = document.createElement('div');
+      l.className = 'ps-link';
+      l.textContent = 'Connection: Connected - via relay, 120 ms';
+      n.append(l);
       document.querySelector('.pause-screen .ms-body').append(n);
     });
     const roomFit = await GM(() => {

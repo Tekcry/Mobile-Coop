@@ -10,7 +10,7 @@ export interface UpdateContext {
   updateWaiting: boolean;
   /** a match (solo or co-op) is the running state, or one is loading */
   inMatch: boolean;
-  /** a co-op screen is open (lobby, connecting, join, browse): a peer may be connected */
+  /** a co-op screen is open (lobby, connecting, join, connection log): a peer may be connected */
   coopConnected: boolean;
   /** the top screen is the title or the main menu */
   onMenu: boolean;
@@ -32,7 +32,7 @@ export interface ScreenFacts {
   booting: boolean;
   /** the class list of the top screen, empty when none */
   topClasses: readonly string[];
-  /** a co-op screen (`.coop-screen`: lobby, connecting, join, browse) is open, on top or under another screen */
+  /** a co-op screen (`.coop-screen`: lobby, connecting, join, connection log) is open, on top or under another screen */
   coopOpen: boolean;
 }
 

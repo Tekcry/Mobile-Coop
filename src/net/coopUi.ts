@@ -10,12 +10,14 @@ import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
 import { CHAMBER_MAP_ID } from '../anim/chamberMapId';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
-import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PLAYER_COLOUR, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
+import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PLAYER_COLOUR, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { NetSession, resumeMap, roomMap, sectorStartOpts, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
 import { createTrysteroTransport } from './trysteroTransport';
-import { DIRECTORY_ROOM, DirectoryBrowser, DirectoryPoster, type ListedRoom, type RoomNotice } from './roomDirectory';
+import { LinkMonitor } from './linkMonitor';
+import { failureDialog, type JoinFailure } from './linkStatus';
+import { attemptLine, attemptSummary, loadAttempts, logAttempt } from './attemptLog';
 import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
 import { loadCourseRecord, lobbyStartBay, startableBays, type CourseRecord } from '../save/courseRecord';
@@ -46,7 +48,12 @@ export interface CoopApi {
   profile(): LocalProfile;
 }
 
-const JOIN_TIMEOUT_MS = 15000;
+/**
+ * How long a joiner waits for the host's lobby (ms). (co-op relay fix) 25 s, was 15 s: a link that needs the TURN
+ * relay, or slow signalling relays, can take longer than a direct one; a link that fails outright reports at once
+ * (`LinkMonitor.onFailed`), so this is only for "nobody answered".
+ */
+const JOIN_TIMEOUT_MS = 25000;
 const roomId = (code: string): string => `ss-${code}`;
 
 function isOffline(): boolean {
@@ -56,14 +63,6 @@ function isOffline(): boolean {
 async function openTransport(code: string): Promise<Transport> {
   return flags.net === 'local' ? createLocalTransport(roomId(code)) : createTrysteroTransport(roomId(code));
 }
-
-/** (server browser) The shared directory room of public rooms, on the same relays (`?net=local`: this device). */
-async function openDirectory(): Promise<Transport> {
-  return flags.net === 'local' ? createLocalTransport(DIRECTORY_ROOM) : createTrysteroTransport(DIRECTORY_ROOM);
-}
-
-/** (server browser) The version a public room is listed under: only the same game and protocol see it. */
-export const LISTED_VERSION = `${__APP_VERSION__}/p${PROTOCOL_VERSION}`;
 
 export function shareLink(code: string): string {
   const u = new URL(location.href);
@@ -98,9 +97,8 @@ class CoopController {
   private left = false;
   /** (R1) Refreshes the rejoin record while a match runs. */
   private recT: ReturnType<typeof setInterval> | null = null;
-  /** (server browser) Host: the room is listed in Browse rooms (default Private). */
-  isPublic = false;
-  dir: DirectoryPoster | null = null;
+  /** (co-op relay fix) The connection readout (lobby, pause menu) and the attempt log for this room. */
+  readonly link: LinkMonitor;
 
   constructor(
     readonly app: App,
@@ -108,13 +106,22 @@ class CoopController {
     readonly session: NetSession,
   ) {
     const ev = session.events;
+    this.link = new LinkMonitor(session.transport, session.role, (r) => void logAttempt(r));
+    // (co-op relay fix) a joiner whose link failed outright (no path, the relay included) has nothing to wait for
+    this.link.onFailed = (f) => {
+      if (!session.isHost && !session.hostId && !this.inGame) this.failJoin(f);
+      else if (session.isHost) this.app.toasts.show('A player found the room but could not connect', 'warn');
+    };
     this.offs.push(
       ev.on('start', (s) => this.start(s)),
       ev.on('hostLeft', () => this.hostLost()),
-      ev.on('full', () => this.fail('Room full', 'That room already has its two players. Ask the host to free a slot, or host your own room.')),
+      ev.on('full', () => this.failJoin('full')),
+      // (co-op relay fix, protocol 91) another game version: the joiner cannot join; the host is told who it refused
+      ev.on('version', () => {
+        if (session.isHost) this.app.toasts.show('A player with a different game version tried to join. Both of you reload to update.', 'warn');
+        else this.failJoin('version');
+      }),
       ev.on('lobby', () => {
-        // (server browser) the player count changed: the notice now (a full room is taken off)
-        this.dir?.post();
         // host went back to the lobby while we were still in the match
         if (!session.isHost && this.inGame && !this.waiting && session.phase === 'lobby') {
           this.app.toasts.show('Host ended the match');
@@ -122,55 +129,6 @@ class CoopController {
         }
       }),
     );
-  }
-
-  /** (server browser) The room's notice now: null when not listed (private, full, left). */
-  private notice(): RoomNotice | null {
-    const s = this.session;
-    if (!this.isPublic || this.left || !s.isHost) return null;
-    const players = [...s.players.values()].filter((p) => !p.away).length;
-    const cap = s.cap;
-    if (s.players.size >= cap) return null;
-    return { code: s.code, map: s.map, mode: s.mode, v: LISTED_VERSION, players, cap, host: s.players.get(s.selfId)?.name ?? 'Operator' };
-  }
-
-  /** (server browser) Host: list the room in Browse rooms, or take it off. */
-  setPublic(on: boolean): Promise<void> {
-    if (!this.session.isHost || this.left) return Promise.resolve();
-    this.isPublic = on;
-    return this.syncDir();
-  }
-
-  private dirBusy: Promise<void> | null = null;
-
-  /** (server browser) One directory open or close at a time (Trystero shares one room per id), until the poster matches
-   *  `isPublic` (fast toggles and a leave mid-open end right). */
-  private syncDir(): Promise<void> {
-    if (this.dirBusy) return this.dirBusy;
-    const run = async (): Promise<void> => {
-      for (;;) {
-        const want = this.isPublic && !this.left;
-        if (want && !this.dir) {
-          let t: Transport;
-          try {
-            t = await openDirectory();
-          } catch {
-            this.isPublic = false;
-            this.app.toasts.show('Could not reach the room list', 'warn');
-            this.lobby?.el.querySelectorAll('.row-choice').forEach((r) => r.dispatchEvent(new Event('widget-refresh')));
-            return;
-          }
-          if (this.isPublic && !this.left) this.dir = new DirectoryPoster(t, () => this.notice());
-          else await t.leave().catch(() => {});
-        } else if (!want && this.dir) {
-          const d = this.dir;
-          this.dir = null;
-          await d.close();
-        } else return;
-      }
-    };
-    this.dirBusy = run().finally(() => (this.dirBusy = null));
-    return this.dirBusy;
   }
 
   showLobby(): void {
@@ -241,6 +199,8 @@ class CoopController {
         net: {
           role: session.role,
           code: session.code,
+          // (co-op relay fix) the pause menu's connection line
+          link: () => this.link.text,
           attach: (g) => (session.isHost ? new CoopHost(g, session) : new CoopClient(g, session)),
         },
       },
@@ -261,8 +221,16 @@ class CoopController {
 
   private fail(title: string, msg: string): void {
     if (this.left) return;
-    void this.leave(false);
-    this.app.screens.push(new Dialog(title, msg, [{ label: 'OK', action: () => {}, primary: true }]));
+    // (co-op relay fix) the dialog once the room is left: pushed before, it sat over the lobby, which then stayed under it
+    void this.leave(false).then(() => this.app.screens.push(new Dialog(title, msg, [{ label: 'OK', action: () => {}, primary: true }])));
+  }
+
+  /** (co-op relay fix) A join that cannot work: logged (once), the readout says why, and the dialog says what to do. */
+  failJoin(f: JoinFailure): void {
+    if (this.left) return;
+    this.link.fail(f);
+    const d = failureDialog(f, this.session.code);
+    this.fail(d.title, d.text);
   }
 
   private stopRecord(): void {
@@ -276,8 +244,7 @@ class CoopController {
     this.record();
     this.stopRecord();
     this.left = true;
-    // (server browser) off the list
-    void this.syncDir();
+    this.link.stop();
     for (const o of this.offs) o();
     await this.session.leave(this.session.isHost ? 'Host left' : 'left');
     if (toMenu || this.inGame) this.api.goToMenu();
@@ -312,18 +279,47 @@ class CoopScreen extends MenuScreen {
   }
 
   private build(): void {
+    // (co-op relay fix) this device's connection attempts, for a tester to count failures
+    const log = this.item('Connection log', 'connection-log', 'The co-op connections tried on this device: direct or through the relay, how long each took, and why any failed.', () => this.app.screens.push(new ConnectionLogScreen()));
     if (isOffline()) {
       this.list.replaceChildren(
         h('div', { class: 'coop-offline' }, h('b', { text: 'Offline' }), h('span', { text: 'Co-op needs an internet connection. Single player works fully offline.' })),
         this.item('Retry', 'retry', 'Check the connection again.', () => this.build(), true),
+        log,
       );
       return;
     }
+    // (co-op relay fix) no public room list: a room is joined by its code or the host's invite link
     this.list.replaceChildren(
       this.item('Host a room', 'host', 'Open a room for one other player. You choose the mission and difficulty; the room code appears in the lobby.', () => void hostRoom(this.app, this.api), true),
-      this.item('Join with code', 'join', 'Enter the five character code the host shows in their lobby.', () => this.app.screens.push(new JoinScreen(this.app, this.api))),
-      this.item('Browse rooms', 'browse', 'Public rooms of this version, live. Pick one to join it by its code.', () => this.app.screens.push(new BrowseScreen(this.app, this.api))),
+      this.item('Join with code', 'join', 'Enter the five character code the host shows in their lobby, or open the invite link they sent.', () => this.app.screens.push(new JoinScreen(this.app, this.api))),
+      log,
     );
+  }
+}
+
+/** (co-op relay fix) Co-op > Connection log: the summary, then this device's attempts, newest first. Read only. */
+class ConnectionLogScreen extends MenuScreen {
+  private list: HTMLElement;
+
+  constructor() {
+    super('coop-screen connection-log-screen', ['Connection', 'Log']);
+    this.list = h('div', { class: 'menu-list ms-list', attrs: { 'data-wrap': '' } });
+    this.body.append(h('div', { class: 'join-note', text: 'Co-op connections on this device. Kept here only.' }), this.list);
+    this.render([]);
+    void loadAttempts().then((l) => {
+      this.render(l);
+      if (this.manager?.top === this) this.manager.nav.setRoot(this.el, this.list.firstElementChild as HTMLElement | null);
+    });
+  }
+
+  private render(list: Awaited<ReturnType<typeof loadAttempts>>): void {
+    const rows = [button(attemptSummary(list), () => {}, { class: 'menu-item ms-item', key: 'summary', autofocus: true, desc: 'Direct: the two of you connected straight. Via relay: the game went through the relay server. Failed: no connection.' })];
+    list.forEach((r, i) => {
+      const when = new Date(r.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      rows.push(button(attemptLine(r), () => {}, { class: 'menu-item ms-item', key: `attempt-${i}`, sub: when, desc: `${attemptLine(r)} (${when}).` }));
+    });
+    this.list.replaceChildren(...rows);
   }
 }
 
@@ -455,6 +451,7 @@ const sectionsOf = (map: string): readonly { name: string }[] | undefined => MAP
 class LobbyScreen extends MenuScreen {
   private list: HTMLElement;
   private status: HTMLElement;
+  private linkEl: HTMLElement;
   private opts: HTMLElement;
   private actions: HTMLElement;
   private head: HTMLElement;
@@ -466,10 +463,13 @@ class LobbyScreen extends MenuScreen {
     const s = c.session;
     this.head = h('div', { class: 'screen-title lobby-head', text: `Room ${s.code}` });
     this.status = h('div', { class: 'row-note lobby-status' });
+    // (co-op relay fix) the connection readout: "Connected - via relay, 120 ms"
+    this.linkEl = h('div', { class: 'row-note dim lobby-link', attrs: { role: 'status' } });
     this.list = h('div', { class: 'lobby-players' });
     this.opts = h('div', { class: 'lobby-opts' });
     this.actions = h('div', { class: 'lobby-actions' });
-    this.body.append(this.head, this.list, this.status, h('div', { class: 'rows ms-rows lobby-rows', attrs: { 'data-wrap': '' } }, this.opts, this.actions));
+    this.body.append(this.head, this.list, this.status, this.linkEl, h('div', { class: 'rows ms-rows lobby-rows', attrs: { 'data-wrap': '' } }, this.opts, this.actions));
+    this.renderLink();
     this.buildOpts();
     this.buildActions();
     this.renderPlayers();
@@ -509,11 +509,22 @@ class LobbyScreen extends MenuScreen {
       }),
       ev.on('peerLeft', ({ name }) => this.c.app.toasts.show(`${name} left`)),
     );
+    this.c.link.onChange = () => this.renderLink();
+    this.off.push(() => {
+      if (this.c.link.onChange) this.c.link.onChange = null;
+    });
+    this.renderLink();
   }
 
   override onHide(): void {
     for (const o of this.off) o();
     this.off = [];
+  }
+
+  /** (co-op relay fix) The connection line. */
+  private renderLink(): void {
+    const t = `Connection: ${this.c.link.text}`;
+    if (this.linkEl.textContent !== t) this.linkEl.textContent = t;
   }
 
   private toastJoined(): void {
@@ -639,19 +650,6 @@ class LobbyScreen extends MenuScreen {
           ];
         case 'bay':
           return [this.bayChoice()];
-        case 'room':
-          // (server browser) listed in Browse rooms or not (default Private: only the code brings anyone in)
-          return [
-            choice(
-              'Room',
-              [
-                { value: 'private', label: 'Private' },
-                { value: 'public', label: 'Public' },
-              ],
-              () => (this.c.isPublic ? 'public' : 'private'),
-              (v) => void this.c.setPublic(v === 'public'),
-            ),
-          ];
         default:
           // (G1) the Test Chamber is its own room: the map is part of the mode choice
           if (chamber) return [lockedRow('Map', CHAMBER_LABEL, 'Set by the mode.', 'The Test Chamber is one room: pick another mode to choose a map.')];
@@ -664,8 +662,7 @@ class LobbyScreen extends MenuScreen {
     for (const r of Array.from(this.opts.children) as HTMLElement[]) {
       const label = r.querySelector('.row-label')?.textContent ?? '';
       if (r.classList.contains('row-locked') || 'campaign' in r.dataset) continue;
-      if (label === 'Room') describe(r, label, 'Private: only players with the code can join. Public: the room is listed under Co-op > Browse rooms until it is full.');
-      else describe(r, label, `Choose the ${label.toLowerCase()}. The other player sees it but cannot change it.`);
+      describe(r, label, `Choose the ${label.toLowerCase()}. The other player sees it but cannot change it.`);
     }
     this.applyBrief();
   }
@@ -854,95 +851,6 @@ class LobbyScreen extends MenuScreen {
 
 }
 
-/** (server browser) Co-op > Browse rooms: the public rooms of this version, live; a pick joins by the code. */
-class BrowseScreen extends MenuScreen {
-  private list: HTMLElement;
-  private browser: DirectoryBrowser | null = null;
-  private tick: ReturnType<typeof setInterval> | null = null;
-  private opening = false;
-
-  constructor(
-    private app: App,
-    private api: CoopApi,
-  ) {
-    super('coop-screen browse-screen', ['Browse', 'Rooms']);
-    this.list = h('div', { class: 'menu-list ms-list browse-rows', attrs: { 'data-wrap': '' } });
-    this.body.append(h('div', { class: 'join-note', text: 'Public rooms of this version. Rooms list themselves when the host sets Room: Public.' }), this.list);
-    this.render();
-  }
-
-  override onShow(): void {
-    this.render();
-    if (!this.browser && !this.opening) void this.open();
-    if (this.tick) clearInterval(this.tick);
-    this.tick = setInterval(() => this.render(), 5000);
-  }
-
-  override onHide(): void {
-    if (this.tick) clearInterval(this.tick);
-    this.tick = null;
-    const b = this.browser;
-    this.browser = null;
-    void b?.close();
-  }
-
-  private async open(): Promise<void> {
-    this.opening = true;
-    let t: Transport;
-    try {
-      t = await openDirectory();
-    } catch {
-      this.opening = false;
-      this.app.toasts.show('Could not reach the room list', 'warn');
-      return;
-    }
-    this.opening = false;
-    // left before the list opened
-    if (this.manager.top !== this) {
-      void t.leave();
-      return;
-    }
-    this.browser = new DirectoryBrowser(t, LISTED_VERSION);
-    this.browser.onChange = () => this.render();
-    this.render();
-  }
-
-  /** A pick: off the directory first (it reopens if the join comes back here), then join by the code. */
-  private join(code: string): void {
-    if (this.tick) clearInterval(this.tick);
-    this.tick = null;
-    const b = this.browser;
-    this.browser = null;
-    void b?.close();
-    void joinRoom(this.app, this.api, code);
-  }
-
-  private row(r: ListedRoom): HTMLElement {
-    const map = mapLabel(r.map);
-    const mode = modeLabel(r.mode, r.map);
-    const b = button(`${r.code} · ${map}`, () => this.join(r.code), { class: 'menu-item ms-item', key: `room-${r.code}`, sub: `${mode} · host ${r.host}` });
-    b.append(h('span', { class: 'ms-ctr', text: `${r.players} / ${r.cap}` }));
-    b.dataset.ctx = `<p>Join ${r.host}'s room ${r.code} (${map}, ${mode}).</p>`;
-    return b;
-  }
-
-  private render(): void {
-    const rooms = this.browser?.list() ?? [];
-    const keep = (this.app.nav.focused as HTMLElement | null)?.dataset.key ?? null;
-    const rows = rooms.map((r) => this.row(r));
-    if (!rows.length) {
-      const empty = button(this.browser ? 'No public rooms yet' : 'Looking for rooms…', () => {}, { class: 'menu-item ms-item', key: 'none' });
-      empty.dataset.ctx = '<p>Rooms appear here live when a host of this version sets Room: Public.</p>';
-      rows.push(empty);
-    }
-    this.list.replaceChildren(...rows);
-    if (this.manager?.top === this) {
-      const again = keep ? this.list.querySelector<HTMLElement>(`[data-key="${keep}"]`) : null;
-      this.app.nav.setRoot(this.el, again ?? (this.list.firstElementChild as HTMLElement | null));
-    }
-  }
-}
-
 /** Shown while the transport connects (WebRTC signalling can take a few seconds). */
 class ConnectingScreen extends MenuScreen {
   cancelled = false;
@@ -973,7 +881,9 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
   try {
     transport = await openTransport(code);
   } catch (e) {
-    console.warn('coop transport failed', e);
+    // (the error is the transport's own: it never holds the relay login)
+    console.warn('coop transport failed', e instanceof Error ? e.message : e);
+    void logAttempt({ at: Date.now(), role, method: 'none', ms: null, result: 'signalling' });
     if (app.screens.top === wait) app.screens.pop();
     app.screens.push(new Dialog('Could not connect', 'Co-op signalling is unreachable. Check your connection and try again.', [{ label: 'OK', action: () => {}, primary: true }]));
     return;
@@ -1012,11 +922,8 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
   const c = adopt(app, api, session);
   if (role === 'client') {
     setTimeout(() => {
-      if (!session.hostId && current === c && !c.inGame) {
-        void c.leave(false).then(() =>
-          app.screens.push(new Dialog('No host found', `Nobody is hosting room ${code}. Check the code and that the host is still in the lobby.`, [{ label: 'OK', action: () => {}, primary: true }])),
-        );
-      }
+      // (co-op relay fix) logged as a timeout, with the dialog's advice (the code, then a strict network)
+      if (!session.hostId && current === c && !c.inGame) c.failJoin('timeout');
     }, JOIN_TIMEOUT_MS);
   }
 }
