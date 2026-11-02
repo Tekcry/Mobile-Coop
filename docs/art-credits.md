@@ -240,3 +240,17 @@ royalty free for commercial projects).
 | animation `strafe_walk_r` | Left Strafe Walking (In Place, Mirror) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
 | animation `crouch_idle` | Crouching Idle | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
 | animation `crouch_walk` | Crouched Walking (In Place) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
+
+Slice b (2026-11-02 night): the moves below are added to every packed model; the pack clips carry ground travel, which
+`pack_glb.py` removes (in place). Packs as the site names them: "Pro Rifle Pack" (Y Bot, 50 files), "Pistol/Handgun
+Locomotion Pack" (Y Bot, 21 files); only the clips listed are packed.
+
+| Animation (in every GLB above) | Mixamo title | Kind | Source (URL) | Terms | Date added | Used by |
+|---|---|---|---|---|---|---|
+| `crouch_strafe_l` / `crouch_strafe_r` | Crouched Sneaking Left (In Place; right = Mirror) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | locomotion |
+| `rifle_idle`, `rifle_aim_idle`, `rifle_crouch_idle`, `rifle_crouch_aim_idle` | Pro Rifle Pack: idle, idle aiming, idle crouching, idle crouching aiming | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | rifle set |
+| `rifle_walk`, `rifle_walk_back`, `rifle_strafe_walk_l`, `rifle_strafe_walk_r` | Pro Rifle Pack: walk forward, walk backward, walk left, walk right | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | rifle set |
+| `rifle_run`, `rifle_sprint` | Pro Rifle Pack: run forward, sprint forward | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | rifle set |
+| `rifle_crouch_walk`, `rifle_crouch_walk_back`, `rifle_crouch_strafe_l`, `rifle_crouch_strafe_r` | Pro Rifle Pack: walk crouching forward, backward, left, right | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | rifle set |
+| `pistol_idle`, `pistol_walk`, `pistol_walk_back`, `pistol_run`, `pistol_crouch_idle` | Pistol/Handgun Locomotion Pack: pistol idle, pistol walk, pistol walk backward, pistol run, pistol kneeling idle | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | pistol set |
+| `pistol_strafe_l`, `pistol_strafe_r` | Pistol/Handgun Locomotion Pack: pistol strafe, pistol strafe (2) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | pistol set |

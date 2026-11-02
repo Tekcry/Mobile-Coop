@@ -23,6 +23,38 @@ def armatures():
     return [o for o in bpy.context.scene.objects if o.type == 'ARMATURE']
 
 
+def fcurves(act):
+    """Every F-curve of an action (Blender 5 layered actions keep them in channel bags)."""
+    if hasattr(act, 'layers'):
+        for layer in act.layers:
+            for strip in layer.strips:
+                for cb in strip.channelbags:
+                    yield from cb.fcurves
+    elif hasattr(act, 'fcurves'):
+        yield from act.fcurves
+
+
+def in_place(act):
+    """Removes the hips' steady ground travel (pack moves carry it; the game's controller moves the body): on the two
+    horizontal location channels (0, 2: the Hips bone's own frame), the straight line from the first key to the last is
+    taken away, so the sway stays and the clip starts and ends on the spot. In-place downloads change by millimetres."""
+    for fc in fcurves(act):
+        if not (fc.data_path.endswith('location') and 'Hips' in fc.data_path and fc.array_index in (0, 2)):
+            continue
+        ks = fc.keyframe_points
+        if len(ks) < 2:
+            continue
+        t0, v0 = ks[0].co
+        t1, v1 = ks[-1].co
+        span = (t1 - t0) or 1.0
+        for k in ks:
+            d = v0 + (v1 - v0) * (k.co[0] - t0) / span
+            k.co[1] -= d - v0
+            k.handle_left[1] -= d - v0
+            k.handle_right[1] -= d - v0
+        fc.update()
+
+
 def import_fbx(path):
     before = set(bpy.context.scene.objects)
     bpy.ops.import_scene.fbx(filepath=path, automatic_bone_orientation=False, ignore_leaf_bones=True)
@@ -55,6 +87,7 @@ def main():
         if len(src) != 1 or src[0].animation_data is None or src[0].animation_data.action is None:
             raise RuntimeError(f'{f}: expected one animated armature')
         act = src[0].animation_data.action
+        in_place(act)
         act.name = name
         act.use_fake_user = True
         track = rig.animation_data.nla_tracks.new()

@@ -1,4 +1,4 @@
-import { PhysicsRaycastResult, Vector3, type PhysicsEngine } from '../core/babylon';
+import { PhysicsRaycastResult, TransformNode, Vector3, type Matrix, type PhysicsEngine } from '../core/babylon';
 import type { SwapReach } from '../anim/clips/actions';
 import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
@@ -83,6 +83,14 @@ export interface PlayerPose {
 }
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
+
+/** (mixamo-chars slice b) A rig node's transform in its root's space now (the rest, before the rig first animates). */
+function restIn(n: TransformNode, root: TransformNode): Matrix {
+  const chain: TransformNode[] = [];
+  for (let p: TransformNode | null = n; p; p = p.parent instanceof TransformNode ? p.parent : null) chain.unshift(p);
+  for (const c of chain) c.computeWorldMatrix(true);
+  return n.getWorldMatrix().multiply(root.getWorldMatrix().clone().invert());
+}
 
 /**
  * The local player: input -> controller (fixed step) -> camera + rig (per frame). Owns the weapon carry
@@ -200,8 +208,19 @@ export class Player {
     this.figure = op.figure;
     this.rig.carrier = true;
     this.mixamo = flags.mixamoChars && world.map.id === CHAMBER_MAP_ID ? new MixamoBody(world.scene, 'xbot', this.rig.root, { tint: goggleColour(0), casters: (m) => world.addShadowCaster(m) }) : null;
-    if (this.mixamo) this.figure.setEnabled(false);
-    else loadPlayLods(this.figure);
+    if (this.mixamo) {
+      this.figure.setEnabled(false);
+      // (slice b) the rig nodes the guns, holster and pouches hang on ride on the Mixamo bones
+      const r = this.rig;
+      this.mixamo.follow(r.root, [
+        { node: r.hips, bone: 'Hips', rest: restIn(r.hips, r.root) },
+        { node: r.hipR, bone: 'RightUpLeg', rest: restIn(r.hipR, r.root) },
+        { node: r.torso, bone: 'Spine2', rest: restIn(r.torso, r.root) },
+        { node: r.headNode, bone: 'Head', rest: restIn(r.headNode, r.root) },
+      ]);
+      // a gun held in the hands (on the aim pivot, not mid-draw) sits in the Mixamo right hand
+      this.mixamo.holdGun(r.root, r.weaponPivot, r.grip, () => (r.heldModel && r.heldModel.node.parent === r.weaponPivot ? (r.supportStyle === 'cup' ? 'pistol' : 'rifle') : null));
+    } else loadPlayLods(this.figure);
     this.cam = new ShoulderCamera(world.scene);
     this.cam.yaw = spawn.yaw;
     // (F1, playtest 2) every mission starts on the right shoulder (`gameplay.defaultShoulder` is no longer read)
@@ -593,7 +612,9 @@ export class Player {
     }
     this.cam.applyBodyFade(this.rig);
     if (this.mixamo) {
-      this.mixamo.update(rp);
+      // (slice b) the move set follows the gun in the hands (a launcher carries like the rifle)
+      const hw = handsWeaponOf(this.rig);
+      this.mixamo.update(rp, hw === 'rifle' || hw === 'launcher' ? 'rifle' : hw === 'pistol' ? 'pistol' : 'unarmed', dt);
       return;
     }
     // Wren follows the camera fade (the head hide; the whole-body hide is the rig root's) and the rig's pose

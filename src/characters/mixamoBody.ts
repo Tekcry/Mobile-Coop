@@ -1,14 +1,21 @@
 /**
  * (mixamo-chars, N53) A Mixamo character in the game: the packed model (`scripts/mixamo/pack.mjs`: one GLB per
  * character, every move a glTF animation) loaded once per scene, one instance per body, its moves played directly by
- * Babylon's animation groups and blended by `locomotion.ts`. Render side only: gameplay reads nothing here (the hand-built
- * rig stays under it for gameplay until later slices move the sockets, eye and hit volumes onto the Mixamo bones).
+ * Babylon's animation groups and blended by `locomotion.ts`.
+ *
+ * Slice b: the move set follows the gun in the hands (unarmed, rifle, pistol; a short crossfade), and named nodes of the
+ * hand-built rig FOLLOW the Mixamo bones (`follow`): each takes its bone's movement away from the bind pose, so whatever
+ * hangs on those nodes (the slung rifle on the chest, the holster on the thigh, pouches on the hips) rides on the Mixamo
+ * body. The rig still animates first every frame; the follow overwrites those nodes after Babylon's animation step.
  *
  * Michael's picks (2026-11-02 night): stock Mixamo mannequins for the players (X Bot as Wren, Y Bot as Moth, in the
  * players' colours) and Swat for the guards, ours re-rigged later.
  */
-import { LoadAssetContainerAsync, Color3, PBRMaterial, StandardMaterial, TransformNode, type AbstractMesh, type AnimationGroup, type AssetContainer, type Scene } from '../core/babylon';
-import { LOCO_CLIPS, LOCO_N, locoBlend, type LocoIn } from './locomotion';
+import {
+  LoadAssetContainerAsync, Color3, Matrix, PBRMaterial, Quaternion, StandardMaterial, TransformNode, Vector3,
+  type AbstractMesh, type AnimationGroup, type AssetContainer, type Observer, type Scene,
+} from '../core/babylon';
+import { LOCO_N, LOCO_SETS, locoBlend, setClip, slotMoves, type LocoIn, type LocoSet } from './locomotion';
 import xbotUrl from './assets/xbot.glb?url';
 import ybotUrl from './assets/ybot.glb?url';
 import swatUrl from './assets/swat.glb?url';
@@ -18,6 +25,8 @@ const URLS: Readonly<Record<MixamoModel, string>> = { xbot: xbotUrl, ybot: ybotU
 
 /** Height of every Mixamo body (m): the player's (G74, 1.68 m), so the camera and capsule fit unchanged. */
 export const MIXAMO_HEIGHT = 1.68;
+/** Seconds for a move-set change (holster, draw) to crossfade. */
+const SET_FADE = 0.2;
 
 const CONTAINERS = new WeakMap<Scene, Map<MixamoModel, Promise<AssetContainer>>>();
 
@@ -44,6 +53,50 @@ export interface MixamoBodyOpts {
   casters?: (m: AbstractMesh) => void;
 }
 
+/** One rig node that follows a Mixamo bone: the node, the bone's name (`Hips`, `Spine2`, ...) and the node's rest
+ *  transform in its rig root's space (taken before the rig first animates). */
+export interface FollowPair {
+  node: TransformNode;
+  bone: string;
+  rest: Matrix;
+}
+
+interface Follow {
+  node: TransformNode;
+  /** The node's ancestors below the rig root, top first (recomputed before the node is set). */
+  chain: TransformNode[];
+  rest: Matrix;
+  bone: TransformNode;
+  /** The bone's ancestors below this body's root, top first, and the bone itself last. */
+  boneChain: TransformNode[];
+  /** The bone's bind transform in this body's root space. */
+  boneRest: Matrix;
+}
+
+/** The ancestors of `n` strictly below `top`, top first (empty when `n`'s parent is `top`). */
+function chainBelow(n: TransformNode, top: TransformNode): TransformNode[] {
+  const out: TransformNode[] = [];
+  for (let p = n.parent; p && p !== top; p = p.parent) if (p instanceof TransformNode) out.unshift(p);
+  return out;
+}
+
+/**
+ * (slice b) How each gun class sits in the Mixamo right hand while its move set plays: the body's right, up and forward
+ * seen in the RightHand bone's own axes (measured in the game from the packs' idles, 2026-11-02: Pro Rifle Pack `idle`
+ * and `idle aiming` agree within 1 deg; Pistol Pack `pistol idle`), and the grip's spot in the hand (m, the same axes:
+ * along the fingers toward the palm). Provisional: tuned by eye from the Test Chamber shots.
+ */
+export const HOLD_FRAMES = {
+  rifle: { right: [0.161, -0.059, -0.985], up: [0.939, 0.316, 0.135], fwd: [-0.303, 0.947, -0.106], palm: [0, 0.07, 0] },
+  pistol: { right: [-0.049, 0.209, -0.977], up: [0.998, 0.055, -0.038], fwd: [-0.046, 0.976, 0.211], palm: [0, 0.07, 0] },
+} as const;
+export type HoldKind = keyof typeof HOLD_FRAMES;
+
+// scratch (follow runs once per body per frame; no allocation)
+const mA = new Matrix(), mB = new Matrix(), mC = new Matrix(), mD = new Matrix();
+const vS = new Vector3(), vT = new Vector3();
+const qR = new Quaternion();
+
 /**
  * One Mixamo body, parented to `parent` (its feet on the parent's origin, facing the parent's +Z). Loads in the
  * background; `ready` is false until then and `update` does nothing.
@@ -52,18 +105,32 @@ export class MixamoBody {
   readonly root: TransformNode;
   ready = false;
   failed = false;
+  /** The move set playing now (the strongest after the crossfade). */
+  set: LocoSet = 'unarmed';
+  private readonly scene: Scene;
   private meshes: AbstractMesh[] = [];
   private groups: AnimationGroup[] = [];
-  /** Per locomotion clip: its group (null when the model lacks it), seconds per cycle, last weight. */
-  private loco: (AnimationGroup | null)[] = [];
-  private cycle = new Float64Array(LOCO_N);
-  private w = new Float64Array(LOCO_N);
-  private ratio = new Float64Array(LOCO_N);
+  /** The distinct clips the sets use: group, seconds per cycle, whether it is a moving clip. */
+  private clips: { g: AnimationGroup; cycle: number; moves: boolean }[] = [];
+  /** Per set, per slot: index into `clips` (-1: the model lacks it). */
+  private table: Int32Array = new Int32Array(0);
+  private readonly setW = new Float64Array(LOCO_SETS.length);
+  private clipW = new Float64Array(0);
+  private readonly w = new Float64Array(LOCO_N);
+  private readonly ratio = new Float64Array(LOCO_N);
+  private pendingFollow: { rigRoot: TransformNode; pairs: FollowPair[] } | null = null;
+  private follows: Follow[] = [];
+  private rigRoot: TransformNode | null = null;
+  private followObs: Observer<Scene> | null = null;
+  private hold: { pivot: TransformNode; chain: TransformNode[]; grip: Vector3; kind: () => HoldKind | null; hand: TransformNode; handChain: TransformNode[] } | null = null;
+  private readonly holdL = new Matrix();
   private disposed = false;
 
   constructor(scene: Scene, readonly model: MixamoModel, parent: TransformNode, private readonly opts: MixamoBodyOpts = {}) {
+    this.scene = scene;
     this.root = new TransformNode(`mixamo-${model}`, scene);
     this.root.parent = parent;
+    this.setW[0] = 1;
     container(scene, model).then(
       (c) => this.build(c),
       (e: unknown) => {
@@ -104,14 +171,31 @@ export class MixamoBody {
       g.stop();
       g.enableBlending = false;
     }
-    for (let k = 0; k < LOCO_N; k++) {
-      const g = this.groups.find((x) => x.name.split(':').pop() === LOCO_CLIPS[k]) ?? null;
-      this.loco[k] = g;
-      if (!g) continue;
-      const fps = g.targetedAnimations[0]?.animation.framePerSecond ?? 60;
-      this.cycle[k] = Math.max(1 / fps, (g.to - g.from) / fps);
-      g.start(true, 1);
-      g.weight = k === 0 ? 1 : 0;
+    // the bind pose, before any move plays: the follow's bone rests
+    if (this.pendingFollow) this.bindFollow(this.pendingFollow.rigRoot, this.pendingFollow.pairs);
+    // the clip table: every set's clip per slot, each distinct clip one looping group
+    const byName = new Map<string, number>();
+    this.table = new Int32Array(LOCO_SETS.length * LOCO_N).fill(-1);
+    for (let s = 0; s < LOCO_SETS.length; s++)
+      for (let k = 0; k < LOCO_N; k++) {
+        const name = setClip(LOCO_SETS[s] as LocoSet, k);
+        if (!name) continue;
+        let ci = byName.get(name);
+        if (ci === undefined) {
+          const g = this.groups.find((x) => x.name.split(':').pop() === name);
+          if (!g) continue;
+          const fps = g.targetedAnimations[0]?.animation.framePerSecond ?? 60;
+          ci = this.clips.length;
+          this.clips.push({ g, cycle: Math.max(1 / fps, (g.to - g.from) / fps), moves: slotMoves(k) });
+          byName.set(name, ci);
+        }
+        this.table[s * LOCO_N + k] = ci;
+      }
+    this.clipW = new Float64Array(this.clips.length);
+    for (let i = 0; i < this.clips.length; i++) {
+      const c = this.clips[i]!;
+      c.g.start(true, 1);
+      c.g.weight = i === 0 ? 1 : 0;
     }
     this.ready = true;
   }
@@ -127,26 +211,164 @@ export class MixamoBody {
     }
   }
 
-  /** One frame of locomotion. Forward gaits share one cycle phase so the feet agree while they blend. */
-  update(i: LocoIn): void {
+  /** A bone's node by its Mixamo name (`Hips`, `Spine2`, `RightUpLeg`, ...), or null. */
+  boneNode(name: string): TransformNode | null {
+    const re = new RegExp(`(^|[:_])${name}$`);
+    for (const n of this.root.getDescendants(false)) if (n instanceof TransformNode && re.test(n.name)) return n;
+    return null;
+  }
+
+  /**
+   * Makes rig nodes follow Mixamo bones (in hierarchy order: a parent before its children). Call once; before the model
+   * loads it waits for it. `rigRoot` is the rig's root (each pair's `rest` is in its space).
+   */
+  follow(rigRoot: TransformNode, pairs: FollowPair[]): void {
+    if (this.ready) this.bindFollow(rigRoot, pairs);
+    else this.pendingFollow = { rigRoot, pairs };
+  }
+
+  private bindFollow(rigRoot: TransformNode, pairs: FollowPair[]): void {
+    this.pendingFollow = null;
+    this.rigRoot = rigRoot;
+    const rootInv = this.root.computeWorldMatrix(true).clone().invert();
+    for (const p of pairs) {
+      const bone = this.boneNode(p.bone);
+      if (!bone) {
+        console.warn(`mixamo body ${this.model}: no bone ${p.bone}`);
+        continue;
+      }
+      const boneChain = [...chainBelow(bone, this.root), bone];
+      for (const n of boneChain) n.computeWorldMatrix(true);
+      this.follows.push({ node: p.node, chain: chainBelow(p.node, rigRoot), rest: p.rest, bone, boneChain, boneRest: bone.getWorldMatrix().multiply(rootInv) });
+    }
+    this.followObs ??= this.scene.onAfterAnimationsObservable.add(() => this.applyFollow());
+  }
+
+  /** After Babylon's animation step: each follower takes its bone's movement from the bind pose. */
+  private applyFollow(): void {
+    const rr = this.rigRoot;
+    if (!rr || !this.ready || !this.root.isEnabled()) return;
+    const rootW = this.root.computeWorldMatrix(true);
+    const rigW = rr.computeWorldMatrix(true);
+    for (const f of this.follows) {
+      for (const n of f.boneChain) n.computeWorldMatrix(true);
+      // delta = inverse(bone bind, world now) x bone now: the bone's movement away from its bind pose
+      f.boneRest.multiplyToRef(rootW, mA);
+      mA.invertToRef(mB);
+      mB.multiplyToRef(f.bone.getWorldMatrix(), mC);
+      // target = node rest (world now) x delta; local = target x inverse(parent world)
+      f.rest.multiplyToRef(rigW, mA);
+      mA.multiplyToRef(mC, mD);
+      for (const n of f.chain) n.computeWorldMatrix(true);
+      const parent = f.node.parent as TransformNode;
+      parent.getWorldMatrix().invertToRef(mA);
+      mD.multiplyToRef(mA, mB);
+      mB.decompose(vS, qR, vT);
+      f.node.position.copyFrom(vT);
+      if (f.node.rotationQuaternion) f.node.rotationQuaternion.copyFrom(qR);
+      else f.node.rotationQuaternion = qR.clone();
+      f.node.computeWorldMatrix(true);
+    }
+    this.applyHold();
+  }
+
+  /**
+   * (slice b) Puts a held gun in the Mixamo right hand: `pivot` (the rig node the held gun sits on at its origin) is set
+   * so the gun's grip point (`grip`, gun space, m) lands in the palm with the gun turned by its class's hold frame.
+   * `kind` says each frame which class is held in the hands (null: none, or the gun is on its way: the rig places it).
+   */
+  holdGun(rigRoot: TransformNode, pivot: TransformNode, grip: Vector3, kind: () => HoldKind | null): void {
+    const hand = this.ready ? this.boneNode('RightHand') : null;
+    if (!this.ready) {
+      // the model is still loading: bind once it is
+      const o = this.scene.onBeforeRenderObservable.add(() => {
+        if (!this.ready && !this.failed) return;
+        this.scene.onBeforeRenderObservable.remove(o);
+        if (this.ready) this.holdGun(rigRoot, pivot, grip, kind);
+      });
+      return;
+    }
+    if (!hand) return;
+    this.rigRoot ??= rigRoot;
+    this.hold = { pivot, chain: chainBelow(pivot, rigRoot), grip, kind, hand, handChain: [...chainBelow(hand, this.root), hand] };
+    this.followObs ??= this.scene.onAfterAnimationsObservable.add(() => this.applyFollow());
+  }
+
+  private applyHold(): void {
+    const h = this.hold;
+    if (!h) return;
+    const k = h.kind();
+    if (!k) return;
+    const F = HOLD_FRAMES[k];
+    for (const n of h.handChain) n.computeWorldMatrix(true);
+    const H = h.hand.getWorldMatrix();
+    // hand-local units per metre (the bone's world scale is the body's scale x the model's centimetres)
+    const m = H.m;
+    const u = 1 / Math.hypot(m[0] as number, m[1] as number, m[2] as number);
+    const g = h.grip;
+    const [rx, ry, rz] = F.right, [ux, uy, uz] = F.up, [fx, fy, fz] = F.fwd;
+    // the grip point's spot in hand space, then the gun's origin so the grip lands on the palm
+    const gx = g.x * rx + g.y * ux + g.z * fx, gy = g.x * ry + g.y * uy + g.z * fy, gz = g.x * rz + g.y * uz + g.z * fz;
+    const tx = (F.palm[0] - gx) * u, ty = (F.palm[1] - gy) * u, tz = (F.palm[2] - gz) * u;
+    Matrix.FromValuesToRef(rx * u, ry * u, rz * u, 0, ux * u, uy * u, uz * u, 0, fx * u, fy * u, fz * u, 0, tx, ty, tz, 1, this.holdL);
+    this.holdL.multiplyToRef(H, mD);
+    for (const n of h.chain) n.computeWorldMatrix(true);
+    (h.pivot.parent as TransformNode).getWorldMatrix().invertToRef(mA);
+    mD.multiplyToRef(mA, mB);
+    mB.decompose(vS, qR, vT);
+    h.pivot.position.copyFrom(vT);
+    if (h.pivot.rotationQuaternion) h.pivot.rotationQuaternion.copyFrom(qR);
+    else h.pivot.rotationQuaternion = qR.clone();
+    h.pivot.computeWorldMatrix(true);
+  }
+
+  /**
+   * One frame of locomotion in move set `set` (`dt` s). Moving clips share one cycle clock so the feet agree while they
+   * blend; a set change crossfades over `SET_FADE`.
+   */
+  update(i: LocoIn, set: LocoSet, dt: number): void {
     if (!this.ready) return;
+    this.set = set;
+    const step = dt > 0 ? dt / SET_FADE : 1;
+    let sum = 0;
+    for (let s = 0; s < LOCO_SETS.length; s++) {
+      const want = LOCO_SETS[s] === set ? 1 : 0;
+      const v = this.setW[s] as number;
+      const n = want > v ? Math.min(want, v + step) : Math.max(want, v - step);
+      this.setW[s] = n;
+      sum += n;
+    }
     locoBlend(i, this.w, this.ratio);
-    // the moving clips' shared rate (cycles per second): their own rate at the blend's ratio, weighted
+    this.clipW.fill(0);
     let rate = 0, mw = 0;
-    for (let k = 0; k < LOCO_N; k++) {
-      const wk = this.w[k] as number;
-      if (wk <= 0 || k === 0 || k === 7) continue;
-      rate += (wk * (this.ratio[k] as number)) / (this.cycle[k] as number);
-      mw += wk;
+    for (let s = 0; s < LOCO_SETS.length; s++) {
+      const sw = (this.setW[s] as number) / (sum || 1);
+      if (sw <= 0) continue;
+      for (let k = 0; k < LOCO_N; k++) {
+        const wk = sw * (this.w[k] as number);
+        const ci = this.table[s * LOCO_N + k] as number;
+        if (wk <= 0 || ci < 0) continue;
+        this.clipW[ci] = (this.clipW[ci] as number) + wk;
+        const c = this.clips[ci]!;
+        if (!c.moves) continue;
+        rate += (wk * (this.ratio[k] as number)) / c.cycle;
+        mw += wk;
+      }
     }
     if (mw > 0) rate /= mw;
-    for (let k = 0; k < LOCO_N; k++) {
-      const g = this.loco[k];
-      if (!g) continue;
-      g.weight = this.w[k] as number;
+    for (let ci = 0; ci < this.clips.length; ci++) {
+      const c = this.clips[ci]!;
+      c.g.weight = this.clipW[ci] as number;
       // idles keep their own clock; moving clips run on the shared rate (cycle-normalised)
-      g.speedRatio = k === 0 || k === 7 || mw <= 0 ? 1 : rate * (this.cycle[k] as number);
+      c.g.speedRatio = !c.moves || mw <= 0 ? 1 : rate * c.cycle;
     }
+  }
+
+  /** The weight each clip plays at now, by name (tests and the e2e read it). */
+  weights(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (let ci = 0; ci < this.clips.length; ci++) out[this.clips[ci]!.g.name.split(':').pop() ?? ''] = this.clipW[ci] as number;
+    return out;
   }
 
   setEnabled(on: boolean): void {
@@ -155,6 +377,7 @@ export class MixamoBody {
 
   dispose(): void {
     this.disposed = true;
+    if (this.followObs) this.scene.onAfterAnimationsObservable.remove(this.followObs);
     for (const g of this.groups) g.dispose();
     this.root.dispose(false, true);
   }
