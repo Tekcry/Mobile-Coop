@@ -407,7 +407,7 @@ Owner decision N18: slim G2d to the core guard tests (seeing, hearing, search, b
 **e2e-coop** (the matches are Test Chamber matches, `['test', 'chamber', '']`)
 - Kept and re-based: host-validated client hits and kill credit; a host guard's torch on and off on the client; "co-op on the guards" (calm puppets, doors, mirrored items, a client takedown, kept and hidden bodies, strike, pings, gas, grab, the host's team takedown, dual takedown, a client revive); S23, S24, S26; the hang-down; the guard look seeds (G9); the difficulty part.
 - Dropped under N18, restorable from history: guard-ai S9 (stage gear, bark, caution, shield-led team, deflect), the joint interrogation, the Infiltration objectives check, the char-shadow-meter block.
-- Non-guard parts kept: lobby, server browser, ready-up, downed and revive, malformed messages, weapons crate, rejoins, team wipe, back to lobby, pause return, door peek, wall medkit, host leaves, context prompts, offline, the Marlow Yard course restart.
+- Non-guard parts kept: lobby, ready-up, downed and revive, malformed messages, weapons crate, rejoins, team wipe, back to lobby, pause return, door peek, wall medkit, host leaves, context prompts, offline, the Marlow Yard course restart.
 - Guards: the test mode queues none, so each match spawns grunts in the annex hall (`spawnHall`: x 29.6-35.8 at z 17, and (30.4, 19.2)): 5 in the first match, 6 in the guards match, 3 in the hang-down match.
 - Points (section 3, e2e-coop row, unless stated):
   - hits: the victim at (20, 21), the client 2.2 m north of it;
