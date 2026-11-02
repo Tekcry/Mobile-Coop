@@ -192,3 +192,9 @@ pieces, plus 1-3 staff; stated as a mission total. Declined: 30-50 per mission; 
 Wren holds the control room and Moth the roof generator, each the other's eyes by pings; the last press is the same
 two-key "both ready" action they learned on night 1; Moth, drawn to light, turns the city back on. Declined: "Carry";
 "The radio comes back".
+
+**N42. Sort every old decision and rule first, then choose: start fresh or fine-tune** (native multiple choice, Michael's
+own wording): "Sort all of them first, then let's review and decide whether to start fresh or fine tune it. I don't want
+old decisions dictating the direction of the game, but I don't want to destroy any useful feedback." Covers G1-G434
+(`docs/DECISIONS.md`), the design bible and the level standard; each entry sorted as still-fitting direction, Michael's
+feedback, technical fact, replaced, gone with removed features, or a question for him.
