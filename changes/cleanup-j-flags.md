@@ -12,3 +12,6 @@ kind: patch
   `anim-cleanup/traverse-shots`, `weapons/shots`, `perf`) boot the Test Chamber instead of Proving Grounds and the Warehouse.
 - `TESTING.md` describes the current game (no Infiltration, Free Roam, Warehouse or Proving Grounds); decisions N22-N27 are
   recorded and backlog item 32 gained the two phone-test lines.
+- `e2e-coop:campaign` (85% instead of 100% PERFECT): a test race, not a game bug. The test froze the host's guards only after the
+  joiner's page had loaded, so on a slow machine a guard saw the idle players and raised one alarm (-15). The host is now
+  frozen the moment it is in the match.

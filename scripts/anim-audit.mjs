@@ -520,7 +520,7 @@ async function drive(sc, halt = -1) {
       m.cap = cap;
       t.stance(false, 3);
     } else if (sc.kind === 'stance') {
-      t.tp(FLAT.x, FLAT.z, 0);
+      t.tp(SURF.flat.x, SURF.flat.z, 0);
       t.begin(halt);
       t.run(0.3, {}, hz);
       m.down = t.mark();
@@ -531,7 +531,7 @@ async function drive(sc, halt = -1) {
       window.__app.current.player.controller.clearCrouchToggle();
     } else if (sc.kind === 'turn180') {
       t.stance(false, 4);
-      t.tp(FLAT.x, FLAT.z, 0);
+      t.tp(SURF.flat.x, SURF.flat.z, 0);
       t.begin(halt);
       t.run(1.0, { y: 1 }, hz);
       m.rev = t.mark();
@@ -542,7 +542,7 @@ async function drive(sc, halt = -1) {
       m.end = t.mark();
       t.stance(false, 3);
     } else if (sc.kind === 'raise') {
-      t.tp(FLAT.x, FLAT.z, 0);
+      t.tp(SURF.flat.x, SURF.flat.z, 0);
       t.begin(halt);
       t.run(0.3, {}, hz);
       m.raise = t.mark();
@@ -551,7 +551,7 @@ async function drive(sc, halt = -1) {
       t.run(1.0, {}, hz);
       m.end = t.mark();
     } else if (sc.kind === 'swap') {
-      t.tp(FLAT.x, FLAT.z, 0);
+      t.tp(SURF.flat.x, SURF.flat.z, 0);
       t.begin(halt);
       t.run(0.3, {}, hz);
       m.swap = t.mark();
@@ -594,7 +594,7 @@ async function drive(sc, halt = -1) {
       t.run(1.2, {}, hz);
       m.end = t.mark();
     } else if (sc.kind === 'idle') {
-      t.tp(FLAT.x, FLAT.z, 0);
+      t.tp(SURF.flat.x, SURF.flat.z, 0);
       t.begin(halt);
       t.run(0.5, {}, hz);
       m.idle = t.mark();
@@ -602,7 +602,7 @@ async function drive(sc, halt = -1) {
       m.end = t.mark();
     } else if (sc.kind === 'strike') {
       // (locomotion step 10) fire while holstered: the elbow strike (a whiff on the open lane), 0.9 s, then idle
-      t.tp(FLAT.x, FLAT.z, 0);
+      t.tp(SURF.flat.x, SURF.flat.z, 0);
       t.begin(halt);
       t.run(0.3, {}, hz);
       m.strike = t.mark();
@@ -2185,7 +2185,7 @@ if (DO_LOCAL) try {
   await G(() => {
     const t = window.__aa;
     t.stance(false, 3);
-    t.tp(FLAT.x, FLAT.z, 0);
+    t.tp(14, 5, 0);
     t.begin();
     t.run(1.0, {});
   });
