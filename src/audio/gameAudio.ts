@@ -156,7 +156,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
         const crouch = c.crouched || c.steps === 'crouched';
         // (playtest 2, G61) the volume follows the noise guards hear (the meter's radius): silent bands and cover glides
         // are very soft, a run the loudest; shuffles on the spot are softer still
-        const radius = c.steps === 'silent' ? 0 : noiseRadius(c.speed, crouch) * SURFACE_NOISE[g.surface] * g.suit.noise;
+        const radius = c.steps === 'silent' ? 0 : noiseRadius(c.speed, crouch) * SURFACE_NOISE[g.surface];
         const scale = stepVolume(radius) * (c.speed < 0.3 ? 0.5 : 1);
         if (!fo.step(g.surface, gaitOf(c.speed, crouch, false), c.speed, p.footPlantSide, scale)) sfx.footstep(scale, 0, g.surface);
       }

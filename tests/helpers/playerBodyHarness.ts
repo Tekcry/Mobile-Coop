@@ -70,7 +70,7 @@ export async function setupEnv() {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene } = await import('../../src/core/babylon');
   const { PartLibrary } = await import('../../src/world/partLibrary');
-  const { defaultLook } = await import('../../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../../src/player/avatarLook');
   const { operatorRig } = await import('../../src/operators/runtime/playerFigure');
   const tune = await import('../../src/anim/tune');
   const scene = new Scene(new NullEngine());

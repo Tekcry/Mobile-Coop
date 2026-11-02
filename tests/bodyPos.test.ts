@@ -14,7 +14,7 @@ import { GRAVITY } from '../src/physics/havok';
 import { Ballistics } from '../src/weapons/ballistics';
 import { PartLibrary } from '../src/world/partLibrary';
 import { CharacterRig } from '../src/player/characterRig';
-import { defaultLook } from '../src/cosmetics/avatarLook';
+import { defaultLook } from '../src/player/avatarLook';
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { proportions } from '../src/player/proportions';
 import { carrySide, chestOffset, deathLie, dropLie, headReach, lieLift, newLie, settleMax, type BodyLie } from '../src/ai/bodyLie';

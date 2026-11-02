@@ -68,7 +68,7 @@ export async function drawHarness(): Promise<DrawHarness> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene, Vector3, Matrix } = await import('../../src/core/babylon');
   const { PartLibrary } = await import('../../src/world/partLibrary');
-  const { defaultLook } = await import('../../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../../src/player/avatarLook');
   const { operatorRig } = await import('../../src/operators/runtime/playerFigure');
   const { PlayerWeapons } = await import('../../src/weapons/playerWeapons');
   const { WeaponStance, emptyStanceInput } = await import('../../src/player/weaponStance');

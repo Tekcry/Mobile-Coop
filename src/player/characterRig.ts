@@ -3,7 +3,7 @@ import { buildSmoothBody, type SmoothBody } from './smoothBody';
 import { BEACON, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
 import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
-import type { AvatarLook } from '../cosmetics/avatarLook';
+import type { AvatarLook } from './avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
 import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, wrenTuckMul, type AnimInput, type TraverseKind } from '../anim/animGraph';
 import { ROLL_BODY, rollTurn } from '../anim/clips/traverse'; // (anim-n4b) the grounded roll's body turn

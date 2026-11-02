@@ -3,13 +3,12 @@ import { Vector3 } from '../src/core/babylon';
 import { flags, readMode } from '../src/core/flags';
 import { loadRejoin, saveRejoin, clearRejoin, type RejoinRecord } from '../src/core/rejoin';
 import { capacity, COOP_MAX, NET_MODES, parseMessage, PROTOCOL_VERSION } from '../src/net/protocol';
-import { emptyStats, practiceMode } from '../src/game/modes/gameMode';
+import { practiceMode } from '../src/game/modes/gameMode';
 import { TestMode } from '../src/game/modes/testMode';
 import type { GameState } from '../src/game/gameState';
 import type { RoomDef, SquadSlot } from '../src/world/rooms';
 import { PRACTICE_CLEAR_M, PRACTICE_RESPAWN_S, practiceDownTime, practiceDue } from '../src/game/modes/practiceGuards';
-import { applySession, loadoutEntries } from '../src/progression/profile';
-import { computeRewards } from '../src/progression/rewards';
+import { loadoutEntries } from '../src/weapons/loadout';
 import { defaultSave } from '../src/save/schema';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { chamber } from '../src/world/maps/chamber';
@@ -46,26 +45,14 @@ describe('G2a: the wire and the URL take mode "test"', () => {
   });
 });
 
-describe('G2a: practiceMode (sandbox and test save nothing)', () => {
+describe('G2a: practiceMode (sandbox and test)', () => {
   it('only the two practice modes', () => {
     expect(practiceMode('sandbox')).toBe(true);
     expect(practiceMode('test')).toBe(true);
     for (const m of ['course', 'sector'] as const) expect(practiceMode(m)).toBe(false);
   });
-  it('a test match pays nothing, counts no stats and no challenges, and issues the sandbox loadout', () => {
-    const st = emptyStats('test', 'chamber');
-    st.won = true;
-    st.kills = 20;
-    st.knockouts = 30;
-    st.headshots = 10;
-    st.byKind.grunt = 20;
-    st.time = 600;
-    expect(computeRewards(st, 'normal')).toEqual({ lines: [], xp: 0, credits: 0 });
+  it('a test match issues the sandbox loadout', () => {
     const s = defaultSave();
-    const before = JSON.stringify({ stats: s.profile.stats, challenges: s.challenges });
-    const rep = applySession(s, st, 'normal');
-    expect(rep.challenges).toEqual([]);
-    expect(JSON.stringify({ stats: s.profile.stats, challenges: s.challenges })).toBe(before);
     expect(loadoutEntries(s, 'test', false).map((e) => e.id)).toEqual(['rifle', 'pistolSd']);
   });
 });

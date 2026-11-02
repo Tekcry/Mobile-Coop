@@ -78,7 +78,7 @@ Design authority: docs/DECISIONS.md (G76, G99-G102, G152, G153), then docs/desig
   blast).
 - Sticky cam: stick-on; its feed is a remote view (`enterRemote('cam')`, `CinematicPost.setFeed`): fire = lure ping, Y =
   release its sleeping gas once, X = next cam, B / crouch / gadget = back.
-- Gadget counts and the loadout: the loadout presets are named Silent / Flash / Loud in code (`progression/suit.ts`).
+- Gadget counts and the loadout: the loadout presets are named Silent / Flash / Loud in code (`save/schema.ts`; only the gadget is read).
   Decided, not built yet (G153, replaces G105's presets): each mission issues fixed, complementary kits (G134) and
   players do not choose a loadout.
 

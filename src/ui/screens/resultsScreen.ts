@@ -50,7 +50,7 @@ export interface ResultsNav {
 /**
  * MISSION / RESULTS on the MenuScreen template (menu-ui step 10, SPEC 7.21): the outcome, the time, the kit used and
  * the stat rows on the right; Next (a campaign mission's) / Retry / Main menu on the left. Kept for the suites:
- * `.results-title`, `.stat-grid`, `.mission-rating`, `.course-panel`, rewards, "Play again".
+ * `.results-title`, `.stat-grid`, `.mission-rating`, `.course-panel`, "Play again".
  */
 export class ResultsScreen extends MenuScreen {
   override readonly root = true;
@@ -60,7 +60,6 @@ export class ResultsScreen extends MenuScreen {
     stats: SessionStats,
     won: boolean,
     subtitle: string,
-    rewards: HTMLElement | null,
     private onRestart: () => void,
     private onQuit: () => void,
     nav: ResultsNav = {},
@@ -107,7 +106,7 @@ export class ResultsScreen extends MenuScreen {
     else item(nav.coop ? 'Play again' : 'Retry', 'retry', () => this.onRestart(), true);
     item('Main menu', 'quit', () => this.onQuit(), false);
     this.body.append(list);
-    this.el.append(h('div', { class: 'rs-stats' }, course ?? campRows ?? grid, rewards));
+    this.el.append(h('div', { class: 'rs-stats' }, course ?? campRows ?? grid));
   }
 
   override onBack(): boolean {

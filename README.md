@@ -13,7 +13,7 @@ campaign is also playable in online co-op for 2-4 players.
 - **Gadgets:** frag, sleeping gas, flashbang, EMP, noisemaker, sticky cam, drone, proximity mine.
 - **Campaign:** 2-player online co-op (Marlow Yard, then Tallow Wharf). The current build target is the vertical slice, Mission 1 "Dead Line"
   (`docs/kestrel/`); the maps in the menu today are greyboxes and test spaces.
-- **Removed:** Wave, Hunter, Mission, Infiltration, Free Roam and PvP (clean-up H); the economy and cosmetics are hidden until stage I.
+- **Removed:** Wave, Hunter, Mission, Infiltration, Free Roam and PvP (clean-up H); the economy (XP, credits, unlocks, upgrades, suit) and the cosmetics went in clean-up I.
 - **Controls:** touch (editable layout), any standard controller with full menu navigation, keyboard and mouse;
   Settings > Accessibility lists every binding.
 - **Built with:** TypeScript, Vite, Babylon.js 9 and Havok physics (WASM bundled), WebAudio synthesis, free assets

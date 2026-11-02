@@ -4,7 +4,7 @@ import { Hitboxes } from '../ai/hitboxes';
 import { Health } from './health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from './damage';
 import type { World } from '../world/world';
-import { defaultLook } from '../cosmetics/avatarLook';
+import { defaultLook } from '../player/avatarLook';
 import { hitVolumes } from '../player/proportions';
 
 let nextId = 1;

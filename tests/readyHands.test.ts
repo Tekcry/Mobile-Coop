@@ -12,7 +12,7 @@ describe('holstered arms (D5.6 trained posture, M14 relaxed)', () => {
     const { Scene, Vector3 } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const scene = new Scene(new NullEngine());
     const lib = new PartLibrary(scene);
     const rig = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());
@@ -102,7 +102,7 @@ describe('holstered arms (D5.6 trained posture, M14 relaxed)', () => {
     const { Scene } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const { WeaponModel, DEFAULT_WEAPON_COLORS } = await import('../src/weapons/weaponModel');
     const { WEAPONS } = await import('../src/weapons/weaponDefs');
     const scene = new Scene(new NullEngine());

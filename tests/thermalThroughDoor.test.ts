@@ -109,7 +109,7 @@ describe('thermal through a shut door: DoorGhosts on a real rig (NullEngine)', (
     const { Scene, Vector3 } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const { DoorGhosts } = await import('../src/vfx/doorGhosts');
     vi.spyOn(Math, 'random').mockReturnValue(0.25);
     const scene = new Scene(new NullEngine());

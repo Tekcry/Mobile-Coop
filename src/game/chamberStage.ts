@@ -5,8 +5,8 @@ import { CharacterRig, type RigPose, type WorldTarget } from '../player/characte
 import type { Player } from '../player/player';
 import type { World } from '../world/world';
 import type { DebugOverlay } from '../ui/debugOverlay';
-import { defaultLook } from '../cosmetics/avatarLook';
-import { avatarFactory } from '../cosmetics/avatarFactory';
+import { defaultLook } from '../player/avatarLook';
+import { avatarFactory } from '../player/avatarFactory';
 import { loadPlayLods, operatorRig, partnerFigureFrame, PLAYER_HEIGHT, type OperatorRig } from '../operators/runtime/playerFigure';
 import { GRAB } from './takedown';
 import { FREE_VIEW } from '../player/freeView';
@@ -754,7 +754,7 @@ export class ChamberStage {
       const w = this.host.world;
       const look = defaultLook();
       const make = (name: string): OperatorRig => {
-        const op = operatorRig(this.host.scene, avatarFactory(w.parts, look, `${name}-part`), look, name, (m) => w.addShadowCaster(m));
+        const op = operatorRig(this.host.scene, avatarFactory(w.parts, `${name}-part`), look, name, (m) => w.addShadowCaster(m));
         loadPlayLods(op.figure);
         return op;
       };

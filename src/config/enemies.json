@@ -23,8 +23,6 @@
       "tracer": "#ff9a6a"
     },
     "melee": null,
-    "xp": 100,
-    "credits": 15,
     "look": {
       "torso": "vest",
       "helmet": "cap",
@@ -69,8 +67,6 @@
       "tracer": "#ff9a6a"
     },
     "melee": null,
-    "xp": 80,
-    "credits": 12,
     "look": {
       "body": "lean",
       "torso": "hoodie",
@@ -116,8 +112,6 @@
       "tracer": "#ffcf6a"
     },
     "melee": null,
-    "xp": 260,
-    "credits": 40,
     "look": {
       "body": "broad",
       "torso": "armor",
@@ -164,8 +158,6 @@
       "tracer": "#ff5a3a"
     },
     "melee": null,
-    "xp": 220,
-    "credits": 35,
     "look": {
       "torso": "vest",
       "helmet": "hood",
@@ -211,8 +203,6 @@
       "tracer": "#ffb06a"
     },
     "melee": null,
-    "xp": 240,
-    "credits": 38,
     "look": {
       "torso": "armor",
       "helmet": "visor",
@@ -252,8 +242,6 @@
       "cooldown": 0.7,
       "lunge": 8
     },
-    "xp": 120,
-    "credits": 15,
     "look": {
       "torso": "hoodie",
       "helmet": "none",
@@ -300,8 +288,6 @@
       "tracer": "#9ad8ff"
     },
     "melee": null,
-    "xp": 180,
-    "credits": 30,
     "look": {
       "torso": "vest",
       "helmet": "headset",
@@ -346,8 +332,6 @@
       "tracer": "#ffd27a"
     },
     "melee": null,
-    "xp": 250,
-    "credits": 45,
     "look": {
       "torso": "jacket",
       "helmet": "beret",

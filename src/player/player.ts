@@ -3,13 +3,13 @@ import type { SwapReach } from '../anim/clips/actions';
 import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
 import type { World } from '../world/world';
-import type { AvatarLook } from '../cosmetics/avatarLook';
+import { defaultLook } from './avatarLook';
 import type { CharacterRig, RigPose } from './characterRig';
 import type { OperatorFigure } from '../operators/runtime/figure';
 import { loadPlayLods, operatorRig } from '../operators/runtime/playerFigure';
 import { PlayerController, type PlayerInput } from './playerController';
 import { ShoulderCamera } from './shoulderCamera';
-import { avatarFactory } from '../cosmetics/avatarFactory';
+import { avatarFactory } from './avatarFactory';
 import { DRAW_RAISE, WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
 import { wrapPi } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
@@ -184,12 +184,11 @@ export class Player {
 
   constructor(
     readonly world: World,
-    look: AvatarLook,
     spawn: { pos: Vector3; yaw: number },
     private getSettings: () => Settings,
   ) {
     this.controller = new PlayerController(world.scene, spawn.pos, spawn.yaw);
-    const op = operatorRig(world.scene, avatarFactory(world.parts, look, 'player-part'), look, 'player', (m) => world.addShadowCaster(m));
+    const op = operatorRig(world.scene, avatarFactory(world.parts, 'player-part'), defaultLook(), 'player', (m) => world.addShadowCaster(m));
     this.rig = op.rig;
     this.figure = op.figure;
     this.rig.carrier = true;

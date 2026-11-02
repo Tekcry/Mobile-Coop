@@ -378,7 +378,7 @@ describe('anim tuner pass 2 knobs (CT Core: the stiff walk)', () => {
     const { Scene } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const scene = new Scene(new NullEngine());
     const lib = new PartLibrary(scene);
     const make = (): InstanceType<typeof CharacterRig> => {

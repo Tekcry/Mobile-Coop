@@ -119,7 +119,7 @@ async function setup() {
   const B = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
   const { CharacterRig } = await import('../src/player/characterRig');
-  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../src/player/avatarLook');
   const { forgetModels, loadModel } = await import('../src/operators/runtime/figure');
   const G = await import('../src/operators/runtime/guardFigure');
   const M = await import('../src/operators/runtime/manifest');

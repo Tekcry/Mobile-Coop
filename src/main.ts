@@ -1,9 +1,7 @@
 import './styles.css';
 import { BrightnessScreen } from './ui/screens/brightnessScreen';
 import { WEAPON_IDS, type WeaponId } from './weapons/weaponDefs';
-import { suitLook } from './progression/suit';
 import { parseDifficulty } from './ai/archetypes';
-import './cosmetics/catalog';
 import { App } from './core/app';
 import { LOCO } from './anim/mocap';
 import { loadHavok } from './physics/havok';
@@ -44,7 +42,7 @@ async function refreshCampaignSave(): Promise<boolean> {
 }
 
 import { KitScreen } from './ui/screens/kitScreen';
-import { showSavedOperator } from './ui/screens/operator';
+import { showMenuOperator } from './ui/screens/menuOperator';
 import { dataTab } from './ui/screens/dataTab';
 import { BENCH, benchPlan, type BenchSession } from './game/benchmark';
 import { PRESET_IDS } from './core/quality';
@@ -52,8 +50,7 @@ import { feedbackContext, feedbackTab } from './ui/screens/feedbackScreen';
 import { CrashLog } from './feedback/crashLog';
 import { benchTag } from './ui/benchTag';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
-import { applySession, autoGrant, loadoutEntries, lobbyLoadout, type SessionReport } from './progression/profile';
-import { camoById } from './cosmetics/catalog';
+import { loadoutEntries, lobbyLoadout } from './weapons/loadout';
 
 /** menu-ui MD2: the title screen shows once per launch; `?autostart` skips it, `?title=1` shows it under automation. */
 let titleShown = !!flags.autostart;
@@ -104,9 +101,7 @@ async function boot(): Promise<void> {
   setBoot(0.15, 'Loading settings…');
   await app.loadSettings();
   setBoot(0.25, 'Loading profile…');
-  app.save.openLoadout = true;
   await app.save.load();
-  app.save.update((d) => void autoGrant(d));
   extraSettingsTabs.push(feedbackTab, dataTab);
   // 3.1.4 crash log: the last session's heartbeat still "alive" = it died while open (a note), then a new heartbeat
   const crashLog = new CrashLog(() => feedbackContext(app));
@@ -115,14 +110,6 @@ async function boot(): Promise<void> {
     if (note) app.toasts.show('The last session crashed: a report is in Settings > Feedback', 'warn');
     crashLog.start();
   });
-  GameState.rewardHook = async (stats, opts) => {
-    let report: SessionReport | null = null;
-    app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
-    await app.save.flush();
-    if (report && (report as SessionReport).levelUps > 0) setTimeout(() => app.sfx.levelUp(), 600);
-    // (progression still records; the credits / XP panel is never shown: stage I removes the economy)
-    return null;
-  };
   if (flags.debug) app.debug.toggle(true);
   void requestPersistence();
 
@@ -155,12 +142,12 @@ async function boot(): Promise<void> {
       // (menu-notes slice 4c) the title pressed (`ts-seq`) reads as the main menu: the goggle strikes while it stays on top
       return c?.contains('title-screen') ? (c.contains('ts-seq') ? 'main' : 'title') : c?.contains('lobby-screen') ? 'lobby' : 'main';
     };
-    showSavedOperator(app);
+    showMenuOperator(app);
     app.onAvatarStyle = () => {
       // (a new avatar style rebuilds the same request: clear what the preview remembers)
       if (app.current === ms) {
         ms.forget();
-        showSavedOperator(app);
+        showMenuOperator(app);
       }
     };
     app.crashLog?.stage('menu');
@@ -280,7 +267,7 @@ async function boot(): Promise<void> {
     goToMenu,
     profile: () => {
       const sv = app.save.get();
-      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar, loadout: lobbyLoadout(sv, true) };
+      return { name: sv.profile.name, loadout: lobbyLoadout(sv, true) };
     },
   };
   const loadCoop = () => import('./net/coopUi');
@@ -338,18 +325,10 @@ async function boot(): Promise<void> {
 
   const startGame = (base: GameOptions, cbOverride?: SessionCallbacks): void => {
     const sv = app.save.get();
-    const skin = (_w: string, camo: string): { colors: ReturnType<typeof camoById>['colors']; pattern?: ReturnType<typeof camoById>['pattern'] } => {
-      const c = camoById(camo);
-      return c.pattern ? { colors: c.colors, pattern: c.pattern } : { colors: c.colors };
-    };
-    // single player: the suit worn (its look too), HQ upgrades and the preset's gadget
-    const coop = !!base.net;
+    // the preset's gadget
     const opts: GameOptions = {
       ...base,
-      loadout: base.loadout ?? loadoutEntries(sv, base.mode, true, skin),
-      look: base.look ?? suitLook(sv.avatar, sv.suit.worn),
-      suit: base.suit ?? (coop ? undefined : sv.suit.worn),
-      hq: base.hq ?? (coop ? undefined : sv.hq),
+      loadout: base.loadout ?? loadoutEntries(sv, base.mode, true),
       gadget: base.gadget ?? sv.presets[sv.preset]?.gadget,
     };
     app.screens.clear();

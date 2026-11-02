@@ -1,99 +1,64 @@
-import { defaultLook, sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
-import { MAX_UPGRADE, type WeaponUpgrades } from '../weapons/weaponStats';
-import { MAX_LEVEL, totalXpForLevel } from '../progression/levels';
-import { sanitizeAttachments } from '../progression/attachments';
-import { STARTER_UNLOCKS } from '../progression/unlocks';
+import { sanitizeAttachments } from '../weapons/attachments';
 import { GADGET_IDS } from '../game/gadgets';
-import { CHALLENGES, defaultHq, defaultPresets, defaultSuit, HQ, HQ_IDS, PRESETS, SUIT, SUIT_PIECES, type HqLevels, type LoadoutPreset, type SuitLoadout } from '../progression/suit';
 
 /** Current save schema version. Bump + add a migration in migrations.ts. */
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 
-export interface WeaponProgress {
-  upgrades: WeaponUpgrades;
+/** What the save keeps per weapon: the attachments fitted (v11: upgrades, camo and kill counts are gone). */
+export interface WeaponGear {
   attachments: string[];
-  camo: string;
-  kills: number;
 }
 
-export interface LifetimeStats {
-  matches: number;
-  wins: number;
-  kills: number;
-  headshots: number;
-  bestWave: number;
-  timePlayed: number;
+/** A named gear choice: the two weapons and the gadget. */
+export interface LoadoutPreset {
+  name: string;
+  primary: string;
+  secondary: string;
+  gadget: string;
 }
 
-/** Best result per Infiltration mission (rating 0-3 stars). */
-export interface MissionRecord {
-  rating: number;
-  score: number;
-  plays: number;
-  wins: number;
+export const PRESETS = 3;
+
+export function defaultPresets(): LoadoutPreset[] {
+  return [
+    { name: 'Silent', primary: 'pistolSd', secondary: 'rifle', gadget: 'gas' },
+    { name: 'Flash', primary: 'pistolSd', secondary: 'rifle', gadget: 'flash' },
+    { name: 'Loud', primary: 'rifle', secondary: 'pistolSd', gadget: 'frag' },
+  ];
 }
 
-export interface PlayerTag {
-  title: string;
-  color: string;
-  emblem: string;
-}
-
+/**
+ * The profile (IndexedDB `profile` / `main`). v11 keeps only the player's name and gear; XP, credits, unlocks, upgrades,
+ * the suit, HQ, challenges, the saved look and camos, the player tag and the per-mission best results were removed in
+ * clean-up stage I. Records live in their own `kv` keys (campaign, course, sector, ratings).
+ */
 export interface SaveData {
   version: typeof SAVE_VERSION;
   createdAt: number;
   updatedAt: number;
-  profile: {
-    name: string;
-    xp: number;
-    credits: number;
-    tag: PlayerTag;
-    stats: LifetimeStats;
-  };
-  unlocks: string[];
-  weapons: Record<WeaponId, WeaponProgress>;
+  profile: { name: string };
+  weapons: Record<WeaponId, WeaponGear>;
   loadout: { primary: WeaponId; secondary: WeaponId };
-  avatar: AvatarLook;
-  /** Infiltration records by mission id (v5). */
-  missions: Record<string, MissionRecord>;
-  /** Suit: highest tier owned and the tier worn per piece (v6). */
-  suit: { owned: SuitLoadout; worn: SuitLoadout };
-  /** HQ upgrade levels (v6). */
-  hq: HqLevels;
-  /** Challenge progress and the ones paid out (v6). */
-  challenges: { progress: Record<string, number>; done: string[] };
-  /** Three loadout presets and the one in use (v6). */
+  /** Three gear presets and the one in use (only the gadget is read). */
   presets: LoadoutPreset[];
   preset: number;
 }
 
-export function defaultWeaponProgress(): WeaponProgress {
-  return { upgrades: { damage: 0, magazine: 0, recoil: 0, reload: 0 }, attachments: [], camo: 'factory', kills: 0 };
+export function defaultWeaponGear(): WeaponGear {
+  return { attachments: [] };
 }
 
 export function defaultSave(now = Date.now()): SaveData {
-  const weapons = {} as Record<WeaponId, WeaponProgress>;
-  for (const w of WEAPON_IDS) weapons[w] = defaultWeaponProgress();
+  const weapons = {} as Record<WeaponId, WeaponGear>;
+  for (const w of WEAPON_IDS) weapons[w] = defaultWeaponGear();
   return {
     version: SAVE_VERSION,
     createdAt: now,
     updatedAt: now,
-    profile: {
-      name: 'Operator',
-      xp: 0,
-      credits: 500,
-      tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' },
-      stats: { matches: 0, wins: 0, kills: 0, headshots: 0, bestWave: 0, timePlayed: 0 },
-    },
-    unlocks: [...STARTER_UNLOCKS, 'tag:Rookie', 'camo:factory', 'pattern:solid'],
+    profile: { name: 'Operator' },
     weapons,
     loadout: { primary: 'pistolSd', secondary: 'rifle' },
-    avatar: defaultLook(),
-    missions: {},
-    suit: { owned: defaultSuit(), worn: defaultSuit() },
-    hq: defaultHq(),
-    challenges: { progress: {}, done: [] },
     presets: defaultPresets(),
     preset: 0,
   };
@@ -104,84 +69,33 @@ const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !
 const int = (v: unknown, lo: number, hi: number, d: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.floor(v))) : d;
 const str = (v: unknown, max: number, d: string): string => (typeof v === 'string' ? v.slice(0, max) : d);
-const HEX = /^#[0-9a-f]{6}$/i;
 const isWeapon = (v: unknown): v is WeaponId => WEAPON_IDS.includes(v as WeaponId);
-const unlocksRaw = (raw: Obj): string[] => (Array.isArray(raw.unlocks) ? raw.unlocks.filter((x): x is string => typeof x === 'string') : []).concat(STARTER_UNLOCKS);
 
 /** Clamp/repair a current-version save (after migration). Never throws. */
-export function sanitizeSave(raw: unknown, openLoadout = false): SaveData {
+export function sanitizeSave(raw: unknown): SaveData {
   const d = defaultSave();
   if (!isObj(raw)) return d;
   const p = isObj(raw.profile) ? raw.profile : {};
-  const st = isObj(p.stats) ? p.stats : {};
-  const tag = isObj(p.tag) ? p.tag : {};
-  const maxXp = totalXpForLevel(MAX_LEVEL) + 1_000_000;
-  const weapons = {} as Record<WeaponId, WeaponProgress>;
+  const weapons = {} as Record<WeaponId, WeaponGear>;
   const rw = isObj(raw.weapons) ? raw.weapons : {};
   for (const w of WEAPON_IDS) {
     const e = isObj(rw[w]) ? (rw[w] as Obj) : {};
-    const u = isObj(e.upgrades) ? e.upgrades : {};
-    weapons[w] = {
-      upgrades: {
-        damage: int(u.damage, 0, MAX_UPGRADE, 0),
-        magazine: int(u.magazine, 0, MAX_UPGRADE, 0),
-        recoil: int(u.recoil, 0, MAX_UPGRADE, 0),
-        reload: int(u.reload, 0, MAX_UPGRADE, 0),
-      },
-      attachments: sanitizeAttachments(w, Array.isArray(e.attachments) ? e.attachments.filter((x): x is string => typeof x === 'string') : []),
-      camo: str(e.camo, 32, 'factory'),
-      kills: int(e.kills, 0, 1e9, 0),
-    };
+    weapons[w] = { attachments: sanitizeAttachments(w, Array.isArray(e.attachments) ? e.attachments.filter((x): x is string => typeof x === 'string') : []) };
   }
-  const unlocks = Array.isArray(raw.unlocks) ? [...new Set(raw.unlocks.filter((x): x is string => typeof x === 'string' && x.length < 64))] : [];
-  for (const s of d.unlocks) if (!unlocks.includes(s)) unlocks.push(s);
   const lo = isObj(raw.loadout) ? raw.loadout : {};
-  let primary: WeaponId = isWeapon(lo.primary) ? lo.primary : 'pistolSd';
+  const primary: WeaponId = isWeapon(lo.primary) ? lo.primary : 'pistolSd';
   let secondary: WeaponId = isWeapon(lo.secondary) ? lo.secondary : 'rifle';
-  // (3.5: with `openLoadout` - the campaign - any known weapon may be chosen; nothing is unlocked)
-  const has = (id: string): boolean => openLoadout || unlocks.includes(id);
-  if (!has(`weapon:${primary}`)) primary = 'pistolSd';
-  if (!has(`weapon:${secondary}`) || secondary === primary) secondary = primary === 'rifle' ? 'pistolSd' : 'rifle';
-  const missions: Record<string, MissionRecord> = {};
-  if (isObj(raw.missions)) {
-    for (const [id, r] of Object.entries(raw.missions).slice(0, 64)) {
-      if (!/^[a-z0-9-]{1,48}$/.test(id) || !isObj(r)) continue;
-      missions[id] = {
-        rating: int(r.rating, 0, 3, 0),
-        score: int(r.score, 0, 1e9, 0),
-        plays: int(r.plays, 0, 1e9, 0),
-        wins: int(r.wins, 0, 1e9, 0),
-      };
-    }
-  }
-  // v6: suit, HQ, challenges, presets
-  const rs = isObj(raw.suit) ? raw.suit : {};
-  const owned = defaultSuit();
-  const worn = defaultSuit();
-  const ro = isObj(rs.owned) ? rs.owned : {};
-  const rw2 = isObj(rs.worn) ? rs.worn : {};
-  for (const k of SUIT_PIECES) {
-    owned[k] = int(ro[k], 0, SUIT[k].length - 1, 0);
-    worn[k] = Math.min(owned[k], int(rw2[k], 0, SUIT[k].length - 1, 0));
-  }
-  const hq = defaultHq();
-  const rh = isObj(raw.hq) ? raw.hq : {};
-  for (const k of HQ_IDS) hq[k] = int(rh[k], 0, HQ[k].prices.length, 0);
-  const rc = isObj(raw.challenges) ? raw.challenges : {};
-  const rp = isObj(rc.progress) ? rc.progress : {};
-  const progress: Record<string, number> = {};
-  for (const c of CHALLENGES) progress[c.id] = int(rp[c.id], 0, 1e6, 0);
-  const done = Array.isArray(rc.done) ? [...new Set(rc.done.filter((x): x is string => typeof x === 'string' && CHALLENGES.some((c) => c.id === x)))] : [];
+  if (secondary === primary) secondary = primary === 'rifle' ? 'pistolSd' : 'rifle';
   const presets = defaultPresets();
   if (Array.isArray(raw.presets)) {
-    raw.presets.slice(0, PRESETS).forEach((p, i) => {
-      if (!isObj(p)) return;
+    raw.presets.slice(0, PRESETS).forEach((q, i) => {
+      if (!isObj(q)) return;
       presets[i] = {
-        name: str(p.name, 16, presets[i]!.name).replace(/[<>]/g, '') || presets[i]!.name,
-        primary: isWeapon(p.primary) && (openLoadout || unlocksRaw(raw).includes(`weapon:${p.primary}`)) ? p.primary : presets[i]!.primary,
-        secondary: isWeapon(p.secondary) && (openLoadout || unlocksRaw(raw).includes(`weapon:${p.secondary}`)) ? p.secondary : presets[i]!.secondary,
+        name: str(q.name, 16, presets[i]!.name).replace(/[<>]/g, '') || presets[i]!.name,
+        primary: isWeapon(q.primary) ? q.primary : presets[i]!.primary,
+        secondary: isWeapon(q.secondary) ? q.secondary : presets[i]!.secondary,
         // (G7 / G115) only a gadget that still exists (the tri-rotor drone is gone)
-        gadget: (GADGET_IDS as readonly string[]).includes(p.gadget as string) ? (p.gadget as string) : presets[i]!.gadget,
+        gadget: (GADGET_IDS as readonly string[]).includes(q.gadget as string) ? (q.gadget as string) : presets[i]!.gadget,
       };
     });
   }
@@ -189,32 +103,9 @@ export function sanitizeSave(raw: unknown, openLoadout = false): SaveData {
     version: SAVE_VERSION,
     createdAt: int(raw.createdAt, 0, 8.64e15, d.createdAt),
     updatedAt: int(raw.updatedAt, 0, 8.64e15, d.updatedAt),
-    profile: {
-      name: str(p.name, 20, d.profile.name).replace(/[<>]/g, '') || d.profile.name,
-      xp: int(p.xp, 0, maxXp, 0),
-      credits: int(p.credits, 0, 1e9, d.profile.credits),
-      tag: {
-        title: str(tag.title, 24, d.profile.tag.title),
-        color: typeof tag.color === 'string' && HEX.test(tag.color) ? tag.color : d.profile.tag.color,
-        emblem: str(tag.emblem, 24, d.profile.tag.emblem),
-      },
-      stats: {
-        matches: int(st.matches, 0, 1e9, 0),
-        wins: int(st.wins, 0, 1e9, 0),
-        kills: int(st.kills, 0, 1e9, 0),
-        headshots: int(st.headshots, 0, 1e9, 0),
-        bestWave: int(st.bestWave, 0, 1e6, 0),
-        timePlayed: int(st.timePlayed, 0, 1e10, 0),
-      },
-    },
-    unlocks,
+    profile: { name: str(p.name, 20, d.profile.name).replace(/[<>]/g, '') || d.profile.name },
     weapons,
     loadout: { primary, secondary },
-    avatar: sanitizeLook(raw.avatar),
-    missions,
-    suit: { owned, worn },
-    hq,
-    challenges: { progress, done },
     presets,
     preset: int(raw.preset, 0, PRESETS - 1, 0),
   };

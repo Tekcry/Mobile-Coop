@@ -22,7 +22,6 @@ import { DIFFICULTY } from '../src/ai/archetypes';
 import type { EnemyDef } from '../src/ai/enemyDefs';
 import { NetSession } from '../src/net/session';
 import type { Transport } from '../src/net/transport';
-import { defaultLook } from '../src/cosmetics/avatarLook';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { Vector3, type Scene } from '../src/core/babylon';
 import type { World } from '../src/world/world';
@@ -339,7 +338,7 @@ describe('G6n: version checks read PROTOCOL_VERSION only', () => {
     };
     return { make };
   }
-  const prof = (name: string) => ({ name, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, look: defaultLook(), loadout: ['rifle', 'pistolSd'] as WeaponId[] });
+  const prof = (name: string) => ({ name, loadout: ['rifle', 'pistolSd'] as WeaponId[] });
 
   it('a peer one version back is refused; the current version joins', () => {
     const h = hub();

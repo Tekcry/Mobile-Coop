@@ -10,7 +10,7 @@ export interface ButtonOpts {
   class?: string;
   autofocus?: boolean;
   disabled?: boolean;
-  /** Focusable but inactive; pressing it explains why (locked items, not enough credits). */
+  /** Focusable but inactive; pressing it explains why (a locked item). */
   blocked?: string;
   sub?: string;
   /** Stable id (`data-key`, menu-ui SPEC 3); default: the label's slug. */

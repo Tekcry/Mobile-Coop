@@ -3,7 +3,6 @@
  * numbers, caps strings/arrays and drops anything unknown. Pure (no DOM/Babylon) and unit-tested.
  */
 import { WEATHER_CHOICES, type WeatherChoice } from '../world/mapDef';
-import { sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
@@ -22,7 +21,9 @@ import type { MotionState } from '../anim/motion';
 import type { AnimSource } from '../anim/animSource';
 
 /** The wire version. Only this line holds it; tests read it. Bump it in the PR that changes the wire (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 89;
+export const PROTOCOL_VERSION = 90;
+/** The colour of a player's pings and lobby dot. Fixed: the saved player tag (title, emblem, colour) that used to set it was removed in clean-up I (protocol 90); per-operator colours are future work. */
+export const PLAYER_COLOUR = '#ff8a1e';
 /** Room cap on the wire: two players in every mode (`COOP_MAX`, `COURSE_MAX`). */
 export const MAX_PLAYERS = 2;
 export const COOP_MAX = 2;
@@ -52,8 +53,6 @@ export type { Difficulty };
 export interface PlayerInfo {
   id: string;
   name: string;
-  tag: { title: string; color: string; emblem: string };
-  look: AvatarLook;
   /** Carried weapons (all of them show on the avatar: back, sling, thigh). */
   loadout: WeaponId[];
   ready: boolean;
@@ -298,12 +297,12 @@ export interface EndStats {
   subtitle: string;
   score: number;
   /** Per player id. */
-  players: Record<string, { kills: number; headshots: number; byKind: Record<EnemyKind, number>; weaponKills: Record<string, number> }>;
+  players: Record<string, { kills: number; headshots: number; byKind: Record<EnemyKind, number> }>;
 }
 
 export type Msg =
   /** `tok` (marlow-bays R2): the client's rejoin token for this room ('' = none), so a rejoin gets its held slot back. */
-  | { t: 'hello'; v: number; name: string; tag: PlayerInfo['tag']; look: AvatarLook; loadout: WeaponId[]; tok: string }
+  | { t: 'hello'; v: number; name: string; loadout: WeaponId[]; tok: string }
   /** (marlow-bays R2) Host -> one client: the player id the host knows it by (its held slot's on a rejoin). */
   | { t: 'you'; id: string }
   /** (campaign-mode CM3) `sm`: the host's campaign mission pick (`MissionDef.id`; absent: none, the lobby as before), so
@@ -404,15 +403,6 @@ function loadout(v: unknown): WeaponId[] {
   return out;
 }
 
-function tag(v: unknown): PlayerInfo['tag'] {
-  const o = isObj(v) ? v : {};
-  return {
-    title: safeText(o.title, 24) ?? 'Rookie',
-    color: typeof o.color === 'string' && HEX.test(o.color) ? o.color : '#ff8a1e',
-    emblem: safeText(o.emblem, 16) ?? 'chevron',
-  };
-}
-
 function playerState(v: unknown): PlayerState | null {
   if (!isObj(v)) return null;
   const pid = id(v.id);
@@ -487,7 +477,7 @@ function playerInfo(p: unknown): PlayerInfo | null {
   if (!isObj(p)) return null;
   const pid = id(p.id);
   if (!pid) return null;
-  return { id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true, away: p.away === true };
+  return { id: pid, name: safeText(p.name, 16) || 'Operator', loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true, away: p.away === true };
 }
 
 function netEvent(v: unknown): NetEvent | null {
@@ -636,7 +626,6 @@ function endStats(v: unknown): EndStats | null {
       kills: Math.floor(num(p.kills, 0, 2000) ?? 0),
       headshots: Math.floor(num(p.headshots, 0, 2000) ?? 0),
       byKind: kindsFrom(bk),
-      weaponKills: killsRecord(p.weaponKills, WEAPON_IDS, 2000),
     };
   }
   return {
@@ -851,7 +840,7 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'hello': {
       const v = num(raw.v, 0, 1e6);
       if (v === null) return null;
-      return { t: 'hello', v, name: safeText(raw.name, 16) || 'Operator', tag: tag(raw.tag), look: sanitizeLook(raw.look), loadout: loadout(raw.loadout), tok: id(raw.tok) ?? '' };
+      return { t: 'hello', v, name: safeText(raw.name, 16) || 'Operator', loadout: loadout(raw.loadout), tok: id(raw.tok) ?? '' };
     }
     case 'you': {
       const pid = id(raw.id);

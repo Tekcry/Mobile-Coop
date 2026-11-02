@@ -189,11 +189,11 @@ console.log('old save migration on boot');
     await pg.reload();
     await pg.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
     const s = await pg.evaluate(() => window.__app.save.get());
-    assert(s.version >= 4, `migrated to v${s.version}`);
-    assert(s.profile.xp === 4321 && s.profile.credits === 950, 'xp and credits kept');
-    // (the SMG was deleted with the CT kit, G115: the v8 -> v9 step drops its unlock)
-    assert(s.weapons.rifle.upgrades.damage === 2 && s.unlocks.includes('weapon:rifle') && !s.unlocks.includes('weapon:smg'), 'upgrades and unlocks kept, the deleted gun dropped');
-    assert(s.avatar.body === 'average', 'new fields defaulted');
+    assert(s.version === 11, `migrated to v${s.version}`);
+    // (clean-up I, v11: no XP, credits, unlocks, upgrades or look; the name and the gear stay)
+    assert(s.profile.name === 'Veteran' && s.profile.xp === undefined && s.profile.credits === undefined && s.unlocks === undefined && s.avatar === undefined, 'the name kept, progression and cosmetics dropped');
+    // (the SMG was deleted with the CT kit, G115: the v8 -> v9 step drops it)
+    assert(JSON.stringify(s.weapons.rifle) === '{"attachments":[]}' && !('smg' in s.weapons), 'the rifle keeps only its attachments, the deleted gun dropped');
     const backups = await pg.evaluate(() => new Promise((res) => {
       const r = indexedDB.open('shoulder-strike', 1);
       r.onsuccess = () => {
@@ -205,7 +205,7 @@ console.log('old save migration on boot');
     await pg.evaluate(() => window.__app.save.flush());
     await pg.reload();
     await pg.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
-    assert((await pg.evaluate(() => window.__app.save.get().profile.xp)) === 4321, 'migrated save persists across reloads');
+    assert((await pg.evaluate(() => window.__app.save.get().profile.name)) === 'Veteran', 'migrated save persists across reloads');
   } catch (e) {
     failed = true;
     console.error(String(e));

@@ -8,11 +8,10 @@ import type { Ballistics, RayHit } from './ballistics';
 import { spreadDir } from './ballistics';
 import type { Grenades } from './grenades';
 import type { Vfx } from '../vfx/vfx';
-import type { PartPattern } from '../world/partLibrary';
 import { classWeight } from './weaponCarry';
 import { GRENADE, WEAPONS, modelExtents, type WeaponDef, type WeaponId } from './weaponDefs';
 import { assignCarrySlots, type CarrySlot } from './carrySlots';
-import { withAttachments } from '../progression/attachments';
+import { withAttachments } from './attachments';
 import { GrenadePouches } from './grenadePouches';
 import { KnifeModel } from './knifeModel';
 import { reloadClipFor } from '../anim/clips/actions';
@@ -26,23 +25,20 @@ const modelLength = (d: WeaponDef): number => {
   const e = modelExtents(d);
   return e.z1 - e.z0;
 };
-import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
+import { WeaponModel, DEFAULT_WEAPON_COLORS } from './weaponModel';
 import { AIM_IN_PRIMARY, AIM_IN_SIDEARM, DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, HOLSTER_TIME_MOVE, holsterTimeFor, type DrawPhase } from './drawState';
 import { DRAW_BEAT, DRAW_CUR, drawClass, liftStart } from '../anim/drawMotion';
 import { drawTuneApply } from './drawTune';
 import { CLIP_BASE, clipSpeed } from '../anim/tuneClipSpeed'; // (clip-speed, track A)
 import { STANCE } from '../player/weaponStance';
-import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
+import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, type EffectiveStats, type StatMods } from './weaponStats';
 import { addSd, sdStart, spendShot, SUPPRESSED_NOISE } from './sdRounds';
 import { emptyShotPose, shotOrigin } from './shotOrigin';
 import { HandSwitch } from '../player/handSwitch';
 
 export interface LoadoutEntry {
   id: WeaponId;
-  upgrades?: WeaponUpgrades;
   mods?: StatMods;
-  colors?: WeaponColors;
-  pattern?: PartPattern;
   /** Attachment ids (visible on the model; their stat mods come in `mods`). */
   attachments?: string[];
 }
@@ -162,8 +158,6 @@ export class PlayerWeapons {
     return this.player.ads && this.current.scoped;
   }
 
-  /** Suit gloves: swaps take this much of the time. */
-  handsMul = 1;
   /** Extra spread factor (blind fire from cover). */
   spreadMul = 1;
   /** (3.2.0) Spread multiplier for a sidearm fired attached (hanging inverted). */
@@ -173,7 +167,7 @@ export class PlayerWeapons {
   events: CombatEvents = {};
   /** Every hitscan ray (origin -> where it stopped): lights can be shot out along it. */
   onRay: ((from: Vector3, to: Vector3) => void) | null = null;
-  /** Shots/hits per weapon for accuracy + mastery. */
+  /** Shots/hits per weapon for accuracy. */
   readonly tally = new Map<WeaponId, { shots: number; hits: number; kills: number; heads: number }>();
   private tmpO = new Vector3();
   private tmpD = new Vector3();
@@ -242,8 +236,8 @@ export class PlayerWeapons {
     for (let i = 0; i < loadout.length; i++) {
       const e = loadout[i]!;
       const def = defs[i]!;
-      const stats = computeStats(def, e.upgrades ?? NO_UPGRADES, e.mods);
-      const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern, { mesh: true, caster: (m) => world.addShadowCaster(m) });
+      const stats = computeStats(def, e.mods);
+      const model = new WeaponModel(world.scene, world.parts, def, DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, undefined, { mesh: true, caster: (m) => world.addShadowCaster(m) });
       for (const m of model.renderMeshes) world.addShadowCaster(m);
       model.setVisible(false);
       this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope'), sd: sdStart(def.id) });
@@ -780,7 +774,7 @@ export class PlayerWeapons {
         const left = this.draw.remaining(this.drawTime(), this.holsterTime());
         const togo = (this.stowed ? SWAP_TIME * SWAP_HOLSTER : SWAP_TIME) - this.swapT;
         this.swapT += left > dt ? Math.max(0, togo) * (dt / left) : Math.max(0, togo);
-      } else this.swapT += ((this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) * clipSpeed('swap')) / this.handsMul; // (clip-speed, track A) = SWAP_TIME / speed
+      } else this.swapT += ((this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) * clipSpeed('swap')); // (clip-speed, track A) = SWAP_TIME / speed
       this.swapRate = (this.swapT - t0) / dt;
       // the outgoing gun goes into its slot (hands empty), the hand takes the next from its slot and
       // brings it up, then it settles into the aim pocket with both hands on it

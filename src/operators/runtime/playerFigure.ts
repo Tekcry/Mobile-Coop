@@ -9,7 +9,7 @@
  */
 import type { AbstractMesh, Camera, Scene } from '../../core/babylon';
 import { CharacterRig, type PartFactory } from '../../player/characterRig';
-import type { AvatarLook } from '../../cosmetics/avatarLook';
+import type { AvatarLook } from '../../player/avatarLook';
 import { flags } from '../../core/flags';
 import { OPERATORS } from '../operatorBody';
 import { LOD_0, LOD_2, playLodUrls } from './manifest';

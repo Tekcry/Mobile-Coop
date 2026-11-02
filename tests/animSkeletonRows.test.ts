@@ -225,7 +225,7 @@ describe('anim-skeleton S4: the rig', () => {
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
     const { Scene } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const { operatorRig } = await import('../src/operators/runtime/playerFigure');
     const { newChamberDrive } = await import('../src/anim/chamberDrive');
     const scene = new Scene(new NullEngine());
@@ -337,7 +337,7 @@ describe('anim-skeleton S4: the rig', () => {
     const { Scene, Quaternion } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const names = ['hips', 'torso', 'clavL', 'clavR', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'kneeL', 'ankleL'] as const;
     const go = (window: boolean): { q: number[][]; shL: number; shR: number; clR: number[] } => {
       vi.spyOn(Math, 'random').mockReturnValue(0.25);

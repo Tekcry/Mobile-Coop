@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import raw from '../src/config/weapons.json';
 import { WEAPONS, WEAPON_IDS } from '../src/weapons/weaponDefs';
-import { UNLOCKS } from '../src/progression/unlocks';
 
 /** Real makers, model designations and Splinter Cell weapon names (bible 5.6, CLAUDE.md "No Splinter Cell IP"). */
 const BANNED: RegExp[] = [
@@ -18,13 +17,6 @@ describe('weapon names are original (bible 5.6, locomotion step 16)', () => {
     for (const id of WEAPON_IDS) {
       const name = data[id]!.name;
       for (const re of BANNED) expect(re.test(name), `${id}: "${name}" matches ${re}`).toBe(false);
-    }
-  });
-
-  it('the unlock list (legacy UI) uses the same names as the data', () => {
-    for (const u of UNLOCKS.filter((x) => x.kind === 'weapon')) {
-      const id = u.id.slice('weapon:'.length) as (typeof WEAPON_IDS)[number];
-      expect(u.name).toBe(WEAPONS[id].name);
     }
   });
 

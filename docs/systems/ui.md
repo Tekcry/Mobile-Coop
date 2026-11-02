@@ -97,13 +97,14 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   read-only. Rows carry `data-diff` for the e2e suites.
 - Loadout (main menu row): the read-only Kit screen (`ui/screens/kitScreen.ts`): the issued primary, sidearm and gadget with
   their parts, nothing selectable. The old editable Loadout screen (`loadoutScreen.ts`), the profile badge and the
-  rewards panel were removed in clean-up H with `?legacy=1`.
+  rewards panel were removed in clean-up H with `?legacy=1`; clean-up I removed their last code, CSS and the results
+  screen's rewards slot.
 - Menu backdrop (`world/menuScene.ts` `MenuState`): a dark stage - `LIGHTS` (warm key over the operator, cool rim behind,
   a distant lamp) as `SpotLight`s with additive `lightCone` beams, a dim hemispheric fill (brighter while customising),
   the lens glow on; the camera's `targetScreenOffset` puts the operator in the right half. `setFraming('menu' |
-  'loadout' | 'weapon')`; `setAvatar(look, weapon, camo, attachments)` rebuilds only when the key changes;
-  `ui/screens/operator.ts` `showSavedOperator` puts the saved look back.
-- Theme (`styles.css` `:root`): dark green palette (`--accent` #38e08c; `--gold` for the parked credits), condensed font
+  'loadout' | 'weapon')`; `setAvatar(weapon, attachments)` rebuilds only when the key changes (Wren, one fixed look,
+  the factory weapon colours); `ui/screens/menuOperator.ts` `showMenuOperator` puts her back with the issued primary.
+- Theme (`styles.css` `:root`): dark green palette (`--accent` #38e08c; `--gold` the tuner's selection), condensed font
   stack; main menu = stacked logo + `.menu-item` list; `TabView(tabs, { side: true })` = vertical icon nav (LB / RB
   cycle). No `backdrop-filter` over the canvas (blurring over WebGL is expensive). The `.screens` container is
   pointer-events: none; children opt in. The back button (`Screen.attachChrome`) sits top left.

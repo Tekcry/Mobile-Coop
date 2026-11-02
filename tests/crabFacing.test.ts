@@ -103,7 +103,7 @@ async function measure(): Promise<Record<string, Out>> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene } = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
-  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../src/player/avatarLook');
   const { operatorRig } = await import('../src/operators/runtime/playerFigure');
   const { WeaponModel, DEFAULT_WEAPON_COLORS } = await import('../src/weapons/weaponModel');
   const { WEAPONS } = await import('../src/weapons/weaponDefs');

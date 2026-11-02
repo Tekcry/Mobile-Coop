@@ -3,7 +3,7 @@
  * no Babylon or DOM, so the rules can be reasoned about in isolation.
  */
 import type { WeaponDef } from '../weapons/weaponDefs';
-import { computeStats, damageAt, MAX_UPGRADE } from '../weapons/weaponStats';
+import { computeStats, damageAt } from '../weapons/weaponStats';
 import { killScore } from '../game/modes/score';
 import { PF, type EndStats, type PlayerState } from './protocol';
 import type { SessionStats } from '../game/modes/gameMode';
@@ -56,10 +56,9 @@ export function shotLimiter(def: WeaponDef): RateLimiter {
   return new RateLimiter(def.pellets * 3, ((def.rpm / 60) * def.pellets) * 1.3);
 }
 
-/** Highest per-hit damage possible with full upgrades and no falloff. */
+/** Highest per-hit damage possible (no attachment raises damage) with no falloff. */
 export function maxHitDamage(def: WeaponDef, head: boolean): number {
-  const u = MAX_UPGRADE;
-  const st = computeStats(def, { damage: u, magazine: u, recoil: u, reload: u });
+  const st = computeStats(def);
   return damageAt(def, st, 0, head) * 1.02;
 }
 
@@ -115,7 +114,7 @@ type PlayerEnd = EndStats['players'][string];
 
 /**
  * Clamp a host-reported result to what is physically possible in `time` seconds: kill rate,
- * headshots <= kills, per-kind/per-weapon totals <= kills, and a score bounded by the best possible kill scores
+ * headshots <= kills, per-kind totals <= kills, and a score bounded by the best possible kill scores
  * (tier 2, what Mission and Infiltration score at).
  */
 export function clampEnd(stats: EndStats, time: number): EndStats {
@@ -132,20 +131,13 @@ export function clampEnd(stats: EndStats, time: number): EndStats {
       byKind[k] = Math.max(0, Math.min(byKind[k], kills - sum));
       sum += byKind[k];
     }
-    const weaponKills: Record<string, number> = {};
-    let wsum = 0;
-    for (const [w, n] of Object.entries(p.weaponKills)) {
-      const c = Math.max(0, Math.min(n, kills - wsum));
-      weaponKills[w] = c;
-      wsum += c;
-    }
-    players[id] = { kills, headshots, byKind, weaponKills } satisfies PlayerEnd;
+    players[id] = { kills, headshots, byKind } satisfies PlayerEnd;
   }
   const maxScore = totalKills * killScore('heavy', true, 2);
   return { ...stats, score: Math.min(stats.score, maxScore), players };
 }
 
-/** Build the local SessionStats for rewards from the host's (clamped) end report. */
+/** Build the local SessionStats for the results screen from the host's (clamped) end report. */
 export function coopSessionStats(base: SessionStats, end: EndStats, selfId: string): SessionStats {
   const me = end.players[selfId];
   return {
@@ -155,7 +147,6 @@ export function coopSessionStats(base: SessionStats, end: EndStats, selfId: stri
     kills: me?.kills ?? 0,
     headshots: me?.headshots ?? 0,
     byKind: me ? { ...me.byKind } : emptyKinds(),
-    weaponKills: me ? { ...me.weaponKills } : {},
   };
 }
 

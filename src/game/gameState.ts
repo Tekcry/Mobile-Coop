@@ -16,7 +16,6 @@ import type { MapDef } from '../world/mapDef';
 import type { CampaignSave } from '../save/campaignRecord';
 import type { CampaignResultView } from './mission/campaignRating';
 import { Player } from '../player/player';
-import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { PauseScreen, type ObjectiveLine } from '../ui/screens/pauseScreen';
 import { FieldNotes } from './fieldNotes';
 import { PauseLook } from '../vfx/pauseLook';
@@ -142,7 +141,6 @@ import { SectorMode } from './modes/sectorMode';
 import type { CourseWire } from './course/courseWire';
 import { PANEL_PART } from './laserPanels';
 import { StealthRating } from './playstyle';
-import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
 import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
@@ -165,13 +163,9 @@ export interface GameOptions {
   mode: ModeId;
   seed: number;
   difficulty?: Difficulty;
-  look?: AvatarLook;
   loadout?: LoadoutEntry[];
   /** Coop: attaches the host/client sim. Provided by `src/net` (dynamically imported), never by single player. */
   net?: NetHooks;
-  /** The suit worn and the HQ upgrades bought (single player; defaults = issued kit). */
-  suit?: SuitLoadout;
-  hq?: HqLevels;
   /** Gadget selected at the start (the loadout preset's). */
   gadget?: string;
   /**
@@ -313,9 +307,6 @@ export interface SessionCallbacks {
   /** (marlow-bays item 4) Co-op host: end the match and take every connected player back to the room's lobby. */
   lobby?(): void;
 }
-
-/** Hook for progression (Phase 6): turns session stats into rewards shown on the results screen. */
-export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTMLElement | null>;
 
 /** A play session on one map: world, player, combat systems, HUD. Modes plug in on top. */
 /** Solo: no remote players (one shared array, so the per-step accessor never allocates). */
@@ -494,9 +485,6 @@ export class GameState implements AppState {
   readonly team: TeamController;
   /** (CT prototype B8) The rope mesh while a two-person rope is out (render only). */
   private ropeLine: RopeLine | null = null;
-  /** Suit and HQ effects for this session. */
-  readonly suit: SuitStats;
-  readonly hq: HqStats;
   /** Stealth rating counters (bible 6). */
   readonly style = new StealthRating();
   /** An enemy is in combat on the operator (stealth rules); flips record a detection. */
@@ -632,7 +620,6 @@ export class GameState implements AppState {
   private openHand = { x: 0, y: 0, z: 0 };
   private openHp = 0;
   private wallOv: MoveOverride = {};
-  static rewardHook: RewardHook | null = null;
   readonly events = new EventBus<GameEvents>();
   /** (hud-guidance B5, R12, BRIEF A9) Field Terminal > Notes: this match's interrogation lines (solo / host: the `intel`
    *  event; a co-op client: the host's `feed` events, `coopClient.ts`). A new match is a new GameState: empty. */
@@ -670,7 +657,7 @@ export class GameState implements AppState {
     this.puppet = opts.net?.role === 'client';
     this.shadowCues = shadowCuesFor(world, this.charOccluders, this.puppet);
     const spawn = world.layout.playerSpawns[0]!;
-    this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
+    this.player = new Player(world, spawn, () => app.settings.get());
     // (A5, G135) partner beacon: the host / solo player is player 1 (blue), a joiner player 2 (red)
     this.player.rig.setBeacon(this.puppet ? 2 : 1);
     // (G1, audit row 26) the tense sneak reads the takedown victims (the guards, or a client's puppets of them)
@@ -759,21 +746,11 @@ export class GameState implements AppState {
     this.team = new TeamController(this);
     this.gadgets = new GadgetSystem(this);
     this.optic = new OpticSystem(this);
-    // suit and HQ: armour, hands, gadget carry
-    this.suit = suitStats(opts.suit ?? defaultSuit());
-    this.hq = hqStats(opts.hq ?? defaultHq());
-    this.target.armorMul = this.suit.damage;
-    this.weapons.handsMul = this.suit.hands;
-    this.takedown.handsMul = this.suit.hands;
-    for (const id of GADGET_IDS) if (this.suit.gadgets) this.weapons.gadgets.counts[id] += this.suit.gadgets;
     if (opts.gadget && (GADGET_IDS as readonly string[]).includes(opts.gadget)) this.weapons.gadgets.select(opts.gadget as GadgetId);
 
-    this.weapons.events.onHit = (kind, weapon) => {
+    this.weapons.events.onHit = (kind) => {
       this.hud.hitMarker(kind);
-      if (kind === 'kill') {
-        app.input.haptic('kill');
-        this.stats.weaponKills[weapon] = (this.stats.weaponKills[weapon] ?? 0) + 1;
-      }
+      if (kind === 'kill') app.input.haptic('kill');
     };
     // shots: a loud report puts guards close by into combat (guard-ai S1: inside a quarter of its reach, walls
     // counted; farther, one is sent to look and the rest turn); a suppressed one (noise x0.6 or less) is an ordinary
@@ -1261,7 +1238,7 @@ export class GameState implements AppState {
     this.events.emit('checkpointRestart', {});
   }
 
-  /** End the session and show results (rewards are added by the progression hook). */
+  /** End the session and show the results. */
   endSession(won: boolean, subtitle: string): void {
     if (this.ended) return;
     this.ended = true;
@@ -1277,18 +1254,12 @@ export class GameState implements AppState {
     this.stats.shots = shots;
     this.stats.hits = hits;
     this.stats.detections = this.style.detections;
-    this.stats.alarms = this.style.alarms;
-    this.stats.takedownsByKind = { ...this.takedown.done.byKind };
-    this.stats.gadgetKos = this.gadgets.stats.gassed + this.gadgets.stats.mineKills;
     this.hud.banner(won ? 'VICTORY' : 'DEFEAT', subtitle, 2500);
     setTimeout(() => {
       this.paused = true;
       this.app.input.setGameplayActive(false);
       this.hud.setVisible(false);
-      const rewards = GameState.rewardHook && !this.stats.practice ? GameState.rewardHook(this.stats, this.opts) : Promise.resolve(null);
-      void rewards.then((el) =>
-        this.app.screens.push(new ResultsScreen(this.app, this.stats, won, subtitle, el, () => this.cb.restart(), () => this.cb.quit(), this.resultsNav())),
-      );
+      this.app.screens.push(new ResultsScreen(this.app, this.stats, won, subtitle, () => this.cb.restart(), () => this.cb.quit(), this.resultsNav()));
     }, 1800);
   }
 
@@ -2465,11 +2436,11 @@ export class GameState implements AppState {
       const c = this.player.controller;
       const pp = this.player.position;
       this.surface = surfaceAt(this.world.level.surfaces, pp.x, pp.y, pp.z, this.world.map.theme.floor ?? 'concrete');
-      const steps = this.player.alive && c.grounded && c.steps !== 'silent' ? noiseRadius(c.speed, c.crouched || c.steps === 'crouched') * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
+      const steps = this.player.alive && c.grounded && c.steps !== 'silent' ? noiseRadius(c.speed, c.crouched || c.steps === 'crouched') * SURFACE_NOISE[this.surface] : 0;
       if (steps > 0) this.enemyMgr?.hear(this.player.position, steps, 'noise', null, this.localRef.id);
       // (3.2.0) climbing a fence above a quiet gear rattles it
       const ac2 = this.traversal.attachCtl;
-      const rattle = ac2.m.kind === 'fence' && ac2.fenceMoving && c.gear > FENCE.quietGear ? FENCE.rattle * this.suit.noise : 0;
+      const rattle = ac2.m.kind === 'fence' && ac2.fenceMoving && c.gear > FENCE.quietGear ? FENCE.rattle : 0;
       if (rattle > 0) this.enemyMgr?.hear(this.player.position, rattle, 'noise', null, this.localRef.id);
       this.noise = Math.max(steps, rattle, this.evNoise);
     }
@@ -2516,8 +2487,6 @@ export class GameState implements AppState {
         this.vision.reset();
         this.player.figure.resetGoggle();
         this.gadgets.reset();
-        // HQ supply drops: gadgets restocked at the checkpoint
-        if (this.hq.restock) this.weapons.gadgets.restock();
         this.suppression.reset();
         this.player.controller.teleport(sp, this.player.cam.yaw);
         this.target.revive();

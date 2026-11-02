@@ -32,7 +32,7 @@ async function setup(): Promise<Setup> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene } = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
-  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../src/player/avatarLook');
   const { operatorRig } = await import('../src/operators/runtime/playerFigure');
   const { newChamberDrive } = await import('../src/anim/chamberDrive');
   const scene = new Scene(new NullEngine());

@@ -28,17 +28,14 @@ export class MainMenuScreen extends MenuScreen {
   override readonly root = true;
   static entries: ((app: App) => MenuEntry)[] = [];
   private list: HTMLElement;
-  readonly badge: HTMLElement;
 
   constructor(private app: App) {
     super('main-menu', ['Main', 'Menu']);
     this.list = h('div', { class: 'menu-list ms-list', attrs: { 'data-wrap': '' } });
-    this.badge = h('div', { class: 'profile-badge' });
     this.body.append(this.list);
     this.el.append(
       h('div', { class: 'tagline', text: 'Observe  /  Infiltrate  /  Complete' }),
       h('div', { class: 'version', text: versionText() }),
-      this.badge,
     );
     this.build();
   }

@@ -12,7 +12,7 @@ describe('door peek stance parity (owner and copy, 15 and 60 fps)', () => {
     const { FreeCamera, Scene, Vector3 } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const { DOOR_PEEK } = await import('../src/world/doorPeek');
     const { emptyMovePose, poseFromMoveState } = await import('../src/player/moveState');
     // the owner's rig is near its own camera; the host's view of the copy is across the yard (the animation LOD halves

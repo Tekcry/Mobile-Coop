@@ -1,7 +1,7 @@
-# Modes, the course and the parked economy
+# Modes, the course and the campaign kit
 Owner: the orchestrator. Status: current.
-Purpose: the game modes as built, the training course, and the parked arsenal / suit / HQ economy and cosmetics
-(stage I removes the economy).
+Purpose: the game modes as built, the training course, and the arsenal and gear (no XP, credits, unlocks, upgrades, suit,
+HQ or cosmetics: clean-up I removed them).
 Design authority: docs/DECISIONS.md (G2, G7, G8, G111, G116, G184, G290, G349, G353, G370, G371, G384, G385), then
 docs/design-bible.md (Sections 5.8 and 6).
 
@@ -135,25 +135,31 @@ G116; deletion logs in docs/archive/consolidation/).
   option yet (`CoopHost.ff`).
 
 ## The campaign kit
-- The campaign opens every weapon and attachment without buying (`profile.ts` `campaignOpens` / `ownsOrOpen`;
-  `SaveManager.openLoadout` is always true and keeps any known weapon as the loadout). Nothing is written to `unlocks` or
-  credits. The main menu's Loadout row is the read-only Kit screen; the results screen has no rewards panel (progression
-  is still recorded until stage I removes it) and the kill feed has no "+XP". `?legacy=1` and `core/legacy.ts` are gone
-  (clean-up H); the old Loadout screen, profile badge and rewards panel went with them.
+- Nothing is bought or unlocked: every weapon and attachment is open, and the save keeps only the gear (the loadout, each
+  weapon's attachments, the three presets whose gadget a match starts with; saves.md). The main menu's Loadout row is the
+  read-only Kit screen. There is no XP, level, credits, upgrade, suit, HQ, challenge, badge or reward panel anywhere, and
+  the kill feed has no "+XP" (clean-up I; the per-mission best results of the old Infiltration went too). Per-mission
+  ratings, campaign / course / sector records stay (saves.md). `?legacy=1` and `core/legacy.ts` are gone (clean-up H).
 
-## Parked economy and cosmetics (2.0 phase 8; hidden, stage I removes it)
+## Arsenal and gear
 - Arsenal: the CT kit only (G76): `rifle` (Heron Carbine, issued suppressed) and `pistolSd` (Hush 9 SD); the other 14
   guns are deleted (docs/archive/consolidation/deleted-guns.md). The rifle keeps the legacy attachments (red dot, 4x
   scope, suppressor, compensator, grip, laser, magazines); CT's attachment set (sniper, shotgun, launcher) and the knife
-  come from the research (G76): decided, not built yet. `withAttachments(def, ids)` (progression/attachments.ts, pure);
+  come from the research (G76): decided, not built yet. `withAttachments(def, ids)` (weapons/attachments.ts, pure);
   `PlayerWeapons` builds from `LoadoutEntry.attachments`; `penetrate()` casts back from beyond a hit to find the exit
   face. Weapons in detail: combat.md.
-- `progression/suit.ts` (pure): `SUIT` tiers, `suitStats`, `suitLook`, `HQ` + `hqStats`, `CHALLENGES` +
-  `challengeProgress`, presets (decided, not built yet: G153 replaces G105's presets with kits fixed per mission, so
-  players do not choose a loadout). Profile ops
-  `buySuit / wearSuit / buyHq / savePreset / applyPreset`; `applySession` pays challenges.
-- `cosmetics/catalog.ts`: avatar options, camos, titles, emblems; it registers unlock items at import. Patterns:
-  `PatternPlugin` reads per-instance `pattern` and `color2`; `avatarFactory` and `WeaponModel` apply them. Emotes are
-  deleted (G24).
+- `weapons/loadout.ts` (pure): `loadoutEntries(save, mode, campaignOpen)` and `lobbyLoadout` turn the save's loadout and
+  attachments into the match's weapons (the campaign maps them onto the arsenal, `config/arsenal.ts`). The saved presets
+  (`LoadoutPreset`, `PRESETS`, `save/schema.ts`: Silent / Flash / Loud) are read only for the gadget a match starts with
+  (`main.ts` startGame, the Kit screen). Decided, not built yet: kits fixed per mission (G153), then gear chosen before each
+  mission (the vision). Nothing changes damage, noise, hands or gadget carry any more: the suit, HQ and weapon upgrades
+  are gone.
+- Looks: every player is Wren in `defaultLook()` (`player/avatarLook.ts`, the part set `CharacterRig` builds from; the
+  operator suit, headset, charcoal); the main menu shows the same Wren holding the issued rifle in the factory colours
+  (`ui/screens/menuOperator.ts`). Nothing is chosen or saved, and the wire carries no look. A guard kind reads its own
+  look from `config/enemies.json` (`sanitizeLook`). A player's ping / lobby colour is the fixed `PLAYER_COLOUR`
+  (`net/protocol.ts`); per-operator colours are future work. `PatternPlugin` (`world/patternPlugin.ts`) stays as render
+  plumbing (the per-instance `pattern` surface id and the thermal / electro vision glow `pattern.w`, `color2`); only the
+  solid pattern is used now. Emotes are deleted (G24).
 - The 2.x maps (Embassy, Mansion, Port, Refinery, Dust Depot), the Warehouse and Proving Grounds were deleted in clean-up
   stage H; their notes are in the git log.

@@ -180,7 +180,7 @@ describe('tuneHands on the real rig', () => {
     const { Scene } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const run = (window: boolean): number[][] => {
       vi.spyOn(Math, 'random').mockReturnValue(0.25);
       const scene = new Scene(new NullEngine());
@@ -240,7 +240,7 @@ describe('tuneHands on the real rig', () => {
     const { Scene, Mesh } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const { WeaponModel, DEFAULT_WEAPON_COLORS } = await import('../src/weapons/weaponModel');
     const { WEAPONS } = await import('../src/weapons/weaponDefs');
     const run = (): { muzzle: number[][]; node: number[][]; mesh: number[][]; wristL: number[][]; wristR: number[][] } => {
@@ -331,7 +331,7 @@ describe('IK targeting strength', () => {
     const { Scene } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const run = (): Record<string, number[]> => {
       vi.spyOn(Math, 'random').mockReturnValue(0.25);
       const scene = new Scene(new NullEngine());
@@ -379,7 +379,7 @@ describe('IK targeting strength', () => {
     const { Scene } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
     const { CharacterRig } = await import('../src/player/characterRig');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const NODES = ['shoulderR', 'elbowR', 'wristR', 'shoulderL', 'elbowL', 'wristL', 'hipL', 'kneeL', 'ankleL', 'hipR', 'kneeR', 'ankleR'] as const;
     const run = (): Record<string, number[]> => {
       vi.spyOn(Math, 'random').mockReturnValue(0.25);

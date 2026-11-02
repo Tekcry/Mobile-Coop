@@ -828,8 +828,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
 
 ## Modes
 - Modes implement `GameMode` (`game/modes/`; `ModeId` = `sandbox | mission | clear | infiltration | course | sector`); `GameState`
-  owns world, player, combat, AI, pickups and interactables and calls mode hooks. `GameState.endSession` shows results;
-  `GameState.rewardHook` lets progression add rewards. Modes and the campaign: `docs/systems/modes-and-progression.md`.
+  owns world, player, combat, AI, pickups and interactables and calls mode hooks. `GameState.endSession` shows the results.
+  Modes and the campaign: `docs/systems/modes-and-progression.md`.
 - Hunter (`clear`, `game/modes/clearMode.ts`; parked behind `?legacy=1`, G7): each tagged room's squad spawns unalerted
   holding it (`Enemy.hold`: fights from inside, never chases out, falls back to its post); squads beyond the awake cap spawn
   later, nearest rooms first, never within 7 m. The HUD shows only "Enemies left N" (`RoomClearTracker.hostilesLeft`).

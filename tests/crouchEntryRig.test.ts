@@ -30,7 +30,7 @@ describe('(anim-natural N1, n138 fix) crouching down holstered: the arms clear t
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
     const { Scene, Vector3 } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
-    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { defaultLook } = await import('../src/player/avatarLook');
     const { operatorRig } = await import('../src/operators/runtime/playerFigure');
     const scene = new Scene(new NullEngine());
     const lib = new PartLibrary(scene);

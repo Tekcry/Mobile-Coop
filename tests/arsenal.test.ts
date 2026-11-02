@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { arsenalSlot, CAMPAIGN_ARSENAL, campaignAttachments, campaignKit, campaignList, campaignLoadout, inCampaignArsenal } from '../src/config/arsenal';
 import { WEAPONS, WEAPON_IDS } from '../src/weapons/weaponDefs';
-import { attachmentsFor } from '../src/progression/attachments';
+import { attachmentsFor } from '../src/weapons/attachments';
 import { defaultSave } from '../src/save/schema';
-import { loadoutEntries, lobbyLoadout } from '../src/progression/profile';
+import { loadoutEntries, lobbyLoadout } from '../src/weapons/loadout';
 import { computeStats } from '../src/weapons/weaponStats';
 
 describe('campaign arsenal (G76: the CT kit)', () => {
@@ -67,7 +67,7 @@ describe('campaign arsenal (G76: the CT kit)', () => {
     expect(s.weapons.rifle.attachments).toEqual([]);
     expect(loadoutEntries(s, 'course', true).find((e) => e.id === 'rifle')!.attachments).toEqual([]);
     // pistolSd keeps its integral suppressor (quiet with no part fitted)
-    expect(computeStats(WEAPONS.pistolSd, s.weapons.pistolSd.upgrades, loadoutEntries(s, 'sector', true).find((e) => e.id === 'pistolSd')!.mods).noise).toBeLessThan(1);
+    expect(computeStats(WEAPONS.pistolSd, loadoutEntries(s, 'sector', true).find((e) => e.id === 'pistolSd')!.mods).noise).toBeLessThan(1);
   });
 
   it('with campaignOpen off nothing is issued: no suppressor, the same as the lobby loadout (D8)', () => {

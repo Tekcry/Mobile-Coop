@@ -19,7 +19,7 @@ async function setup() {
   const { PartLibrary } = await import('../src/world/partLibrary');
   const { sheetRig } = await import('../src/operators/lab/guardSheetRig');
   const { CharacterRig } = await import('../src/player/characterRig');
-  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { defaultLook } = await import('../src/player/avatarLook');
   const scene: Scene = new B.Scene(new NullEngine());
   const parts = new PartLibrary(scene);
   const make = (s: Parameters<typeof parts.instance>[0], h: string, n: string) => parts.instance(s, h, n);

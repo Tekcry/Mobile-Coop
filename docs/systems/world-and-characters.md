@@ -234,8 +234,9 @@ Plan and rules: docs/sector-redesign/briefs/ART-PLAN.md; builds: docs/sector-red
   centre); chest -> shoulder -> elbow -> wrist; pelvis -> hip -> knee -> ankle; sockets `weaponPivot` (aim
   pocket), `backSocket`, `hipSocket`. Joints use `rotationQuaternion` (root uses Euler `rotation.y`).
 - Avatar style (`video.avatarStyle`, `setAvatarStyle`): `detailed` (default since 2.0; `avatarStyleV` 2 moves older
-  settings once) or `stick` (capsule limbs, sphere joints and head, pill feet on the same skeleton). Saves and
-  cosmetics are unchanged (colours apply to both). The default look is the operator (`torso: 'operator'`: suit,
+  settings once) or `stick` (capsule limbs, sphere joints and head, pill feet on the same skeleton). Nothing chooses a
+  player's look (clean-up I): every player and the main menu's Wren wear the default look (`player/avatarLook.ts`), and a guard
+  kind reads its own look from `config/enemies.json`. The default look is the operator (`torso: 'operator'`: suit,
   carrier, pouches, pads, gloves; `helmet: 'trilens'`: balaclava + a three-lens goggle, `rig.setLensGlow` from the
   vision mode). Enemy looks get the map's faction colours (`ai/factions.ts` `factionLook`, `MapTheme.faction`).
 - **Players are Wren (operators step 11e, G123: "Both play as Wren").** The local player, the co-op partner and the

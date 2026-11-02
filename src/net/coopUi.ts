@@ -10,7 +10,7 @@ import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
 import { CHAMBER_MAP_ID } from '../anim/chamberMapId';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
-import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
+import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PLAYER_COLOUR, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { NetSession, resumeMap, roomMap, sectorStartOpts, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
@@ -546,9 +546,8 @@ class LobbyScreen extends MenuScreen {
         h(
           'div',
           { class: `lobby-player${p.id === s.selfId ? ' me' : ''}` },
-          h('span', { class: 'lp-dot', style: { background: p.tag.color } }),
+          h('span', { class: 'lp-dot', style: { background: PLAYER_COLOUR } }),
           h('span', { class: 'lp-name', text: p.name }),
-          h('span', { class: 'lp-tag', text: p.tag.title }),
           h('span', { class: `lp-state ${p.host ? 'host' : p.ready ? 'ready' : ''}`, text: p.host ? 'Host' : p.ready ? 'Ready' : 'Not ready' }),
         ),
       ),

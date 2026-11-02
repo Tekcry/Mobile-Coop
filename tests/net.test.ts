@@ -39,14 +39,13 @@ describe('net message validation', () => {
     const m = parseMessage({ t: 'pstate', s: { ...ps, x: 1e9, hp: 9999, speed: -4, pitch: 9 } });
     expect(m && m.t === 'pstate' && m.s).toMatchObject({ x: 400, hp: 100, speed: 0, pitch: 1.6 });
   });
-  it('sanitises strings (names, ids, looks) and caps lengths', () => {
+  it('sanitises strings (names, ids) and caps lengths; a hello carries no look or tag (protocol 90)', () => {
     const m = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: '<img src=x onerror=alert(1)>Mallory-the-long-name', tag: { title: '<b>', color: 'red', emblem: 'x' }, look: { hair: 'laser' } });
     expect(m?.t).toBe('hello');
     if (m?.t !== 'hello') return;
     expect(m.name).not.toMatch(/[<>]/);
     expect(m.name.length).toBeLessThanOrEqual(16);
-    expect(m.tag.color).toBe('#ff8a1e');
-    expect(m.look.hair).toBe(defaultLook().hair);
+    expect('tag' in m || 'look' in m).toBe(false);
     expect(parseMessage({ t: 'pstate', s: { ...ps, id: '../../etc' } })).toBeNull();
   });
   it('loadout: known weapons only, no repeats, capped', () => {
@@ -67,13 +66,13 @@ describe('net message validation', () => {
     expect(m?.t === 'shot' && Math.hypot(m.dx, m.dy, m.dz)).toBeCloseTo(1);
     expect(parseMessage({ t: 'shot', w: 'rifle', ox: 0, oy: 1, oz: 0, dx: 0, dy: 0, dz: 0, target: 'e3', part: 'head', rt: 10, dist: 1 })).toBeNull();
   });
-  it('end-of-match stats are clamped before they reach rewards', () => {
+  it('end-of-match stats are clamped on arrival (the unknown weaponKills field is dropped, protocol 90)', () => {
     const m = parseMessage({ t: 'end', stats: { won: 'yes', score: -5, subtitle: 'x', players: { me: { kills: 1e9, headshots: 3, byKind: { grunt: 5, dragon: 9 }, weaponKills: { rifle: 4, bfg: 99 } } } } });
     expect(m?.t).toBe('end');
     if (m?.t !== 'end') return;
     expect(m.stats.won).toBe(false);
     expect(m.stats.score).toBe(0);
-    expect(m.stats.players.me).toEqual({ kills: 2000, headshots: 3, byKind: { ...emptyKinds(), grunt: 5, runner: 0, heavy: 0 }, weaponKills: { rifle: 4 } });
+    expect(m.stats.players.me).toEqual({ kills: 2000, headshots: 3, byKind: { ...emptyKinds(), grunt: 5, runner: 0, heavy: 0 } });
   });
   it('events validate per kind', () => {
     const m = parseMessage({ t: 'ev', events: [{ e: 'boom', x: 1, y: 0, z: 1, r: 99 }, { e: 'banner', title: '<script>', sub: 'ok' }, { e: 'nuke' }, { e: 'kill', enemy: 'e1', kind: 'heavy', by: 'p1', head: true }] });
@@ -118,7 +117,6 @@ import { NetSession, type StartInfo } from '../src/net/session';
 import type { Transport } from '../src/net/transport';
 import { WEAPONS } from '../src/weapons/weaponDefs';
 import { emptyStats } from '../src/game/modes/gameMode';
-import { defaultLook } from '../src/cosmetics/avatarLook';
 import { htmlToInfo, infoToHtml } from '../src/net/netShared';
 
 describe('snapshot interpolation', () => {
@@ -289,7 +287,7 @@ describe('host validation', () => {
         won: false,
         subtitle: '',
         score: 1e7,
-        players: { me: { kills: 500, headshots: 900, byKind: { ...emptyKinds(), grunt: 400, runner: 400, heavy: 400 }, weaponKills: { rifle: 400, pistolSd: 400 } } },
+        players: { me: { kills: 500, headshots: 900, byKind: { ...emptyKinds(), grunt: 400, runner: 400, heavy: 400 } } },
       },
       60,
     );
@@ -297,14 +295,13 @@ describe('host validation', () => {
     expect(me.kills).toBeLessThanOrEqual(92);
     expect(me.headshots).toBeLessThanOrEqual(me.kills);
     expect(me.byKind.grunt + me.byKind.runner + me.byKind.heavy).toBeLessThanOrEqual(me.kills);
-    expect((me.weaponKills.rifle ?? 0) + (me.weaponKills.pistolSd ?? 0)).toBeLessThanOrEqual(me.kills);
     expect(end.score).toBeLessThan(1e7);
-    const honest = clampEnd({ won: false, subtitle: '', score: 1500, players: { me: { kills: 9, headshots: 2, byKind: { ...emptyKinds(), grunt: 9, runner: 0, heavy: 0 }, weaponKills: { rifle: 9 } } } }, 120);
+    const honest = clampEnd({ won: false, subtitle: '', score: 1500, players: { me: { kills: 9, headshots: 2, byKind: { ...emptyKinds(), grunt: 9, runner: 0, heavy: 0 } } } }, 120);
     expect(honest.score).toBe(1500);
     expect(honest.players.me!.kills).toBe(9);
   });
-  it('rewards use only this player’s line of the host report', () => {
-    const s = coopSessionStats(emptyStats('sector', 'depot'), { won: false, subtitle: '', score: 900, players: { a: { kills: 4, headshots: 1, byKind: { ...emptyKinds(), grunt: 4, runner: 0, heavy: 0 }, weaponKills: {} }, b: { kills: 7, headshots: 0, byKind: { ...emptyKinds(), grunt: 7, runner: 0, heavy: 0 }, weaponKills: {} } } }, 'b');
+  it('the results use only this player’s line of the host report', () => {
+    const s = coopSessionStats(emptyStats('sector', 'depot'), { won: false, subtitle: '', score: 900, players: { a: { kills: 4, headshots: 1, byKind: { ...emptyKinds(), grunt: 4, runner: 0, heavy: 0 } }, b: { kills: 7, headshots: 0, byKind: { ...emptyKinds(), grunt: 7, runner: 0, heavy: 0 } } } }, 'b');
     expect(s.kills).toBe(7);
     expect(s.score).toBe(900);
     expect(coopSessionStats(emptyStats('sector', 'depot'), { won: false, subtitle: '', score: 0, players: {} }, 'zz').kills).toBe(0);
@@ -346,7 +343,7 @@ function hub() {
   return { make };
 }
 
-const prof = (name: string) => ({ name, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, look: defaultLook(), loadout: ['rifle', 'pistolSd'] as WeaponId[] });
+const prof = (name: string) => ({ name, loadout: ['rifle', 'pistolSd'] as WeaponId[] });
 
 describe('net session', () => {
   it('lobby handshake, ready-up and start', () => {

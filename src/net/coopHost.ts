@@ -9,13 +9,12 @@ import type { BlobShadows } from '../vfx/blobShadows';
 import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
 import { MASK } from '../physics/groups';
 import { Hitboxes } from '../ai/hitboxes';
-import { defaultHq, hqStats } from '../progression/suit';
 import { SD_OPEN_NOISE } from '../weapons/sdRounds';
 import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { animSourceWire, DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, markIntel, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
+import { animSourceWire, DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, markIntel, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, PLAYER_COLOUR, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
 import { ANIM_SOURCE, wireAnimSource } from '../anim/animSource'; // (mixamo-retarget Source wire)
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
@@ -87,7 +86,7 @@ const MAX_REWIND = 0.6;
 const INTERP_DELAY = HOST_INTERP_DELAY;
 /** Items and door states are re-sent at least this often (s), else only when they change. */
 const ITEMS_EVERY = 2;
-/** Seconds to revive a downed team-mate (HQ medic training divides it). */
+/** Seconds to revive a downed team-mate. */
 const REVIVE_TIME = 2.5;
 /** Shot noise radius (m) like the local player's (`GameState` SHOT_NOISE); suppressed shots only raise suspicion. */
 const SHOT_NOISE = 28;
@@ -120,7 +119,7 @@ export function matchRevives(
 }
 
 type Tally = EndStats['players'][string];
-const emptyTally = (): Tally => ({ kills: 0, headshots: 0, byKind: emptyKinds(), weaponKills: {} });
+const emptyTally = (): Tally => ({ kills: 0, headshots: 0, byKind: emptyKinds() });
 
 /** The enemy alert level on the wire (`EnemyState.al`): level, seized, (25, coop-torches) his flashlight on and (32,
  *  guard-ai S9) cautious, helmet, armour, (A126) his S21 weapon carry (read only: `Enemy.carry`'s phase), (G6n) his look seed. */
@@ -204,7 +203,6 @@ export class CoopHost implements NetAttachment {
   private ctickLim = new Map<string, TickLimiter>();
   /** Free roam: respawn timers. */
   private respawnIn = new Map<string, number>();
-  private reviveTime: number;
   /** (B8, G126) 30 s revive window, 2 revives per mission; past either the player is out until the checkpoint. */
   readonly reviveClock = new ReviveClock();
   /** (mission-rules R5, G126, Q19) The match runs a campaign mission: 2 revives, never topped up (`addSyringes`). */
@@ -237,7 +235,6 @@ export class CoopHost implements NetAttachment {
     const mode = g.opts.mode;
     this.ff = mode === 'course';
     if (this.ff) g.target.friendly = (h) => this.friendly(h, s.selfId);
-    this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? defaultHq()).reviveSpeed;
     // (sector-ops step 3, M7, A10) Sector Ops: the revives are the op's syringes, per difficulty; (mission-rules R5,
     // G126) a campaign mission: 2 at every difficulty. `g.world.map` is set: the world is built before `attach`.
     // (campaign-mode CM3) a Continue keeps its revives used (`campaignResume` is set only with `flags.campaign`)
@@ -654,7 +651,7 @@ export class CoopHost implements NetAttachment {
     const ints = this.g.interactables;
     if (!ints || this.revives.has(id)) return;
     const sec = Math.ceil(this.reviveClock.remaining(id));
-    const it = ints.add(`revive-${id}`, 'revive', at, sec > 0 ? `Revive ${name} (${sec})` : `Revive ${name}`, this.reviveTime);
+    const it = ints.add(`revive-${id}`, 'revive', at, sec > 0 ? `Revive ${name} (${sec})` : `Revive ${name}`, REVIVE_TIME);
     it.reach = 1.6;
     ints.setEnabled(it, true);
     it.onUse = (_it, by) => {
@@ -715,7 +712,6 @@ export class CoopHost implements NetAttachment {
       t.kills++;
       t.byKind[e.def.kind]++;
       if (h.part === 'head') t.headshots++;
-      if (h.weapon) t.weaponKills[h.weapon] = (t.weaponKills[h.weapon] ?? 0) + 1;
       this.g.hud.feedItem(`${this.remotes.get(by)?.avatar.info.name ?? 'Ally'}: ${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}`);
     }
   }
@@ -834,7 +830,7 @@ export class CoopHost implements NetAttachment {
         if (this.time - last < 0.8 || hyp2(msg.x - r.feet.x, msg.z - r.feet.z) > 150) return;
         this.pingAt.set(r.id, this.time);
         this.push({ e: 'ping', player: r.id, x: msg.x, y: msg.y, z: msg.z, target: msg.target });
-        this.g.addPing(r.id, msg.x, msg.y, msg.z, msg.target, this.color(r.id));
+        this.g.addPing(r.id, msg.x, msg.y, msg.z, msg.target, PLAYER_COLOUR);
         break;
       }
     }
@@ -1655,15 +1651,11 @@ export class CoopHost implements NetAttachment {
   /** (mission NET) Each client's last `gused` per kind (a frag / mine / sticky cam used; 4 a second each at most). */
   private gusedAt = new Map<string, Record<UseOnlyGadget, number>>();
 
-  private color(id: string): string {
-    return this.s.players.get(id)?.tag.color ?? '#4fdc7c';
-  }
-
   /** The host's own ping: shown here and sent to everyone. */
   ping(x: number, y: number, z: number, target: string): void {
     const me = this.s.selfId;
     this.push({ e: 'ping', player: me, x, y, z, target });
-    this.g.addPing(me, x, y, z, target, this.color(me));
+    this.g.addPing(me, x, y, z, target, PLAYER_COLOUR);
   }
 
   /** Usable things clients mirror (bodies and hiding spots stay with whoever is carrying). */
@@ -2209,7 +2201,7 @@ export class CoopHost implements NetAttachment {
   onEnd(won: boolean, subtitle: string): void {
     const st = this.g.stats;
     const players: EndStats['players'] = {
-      [this.s.selfId]: { kills: st.kills, headshots: st.headshots, byKind: { ...st.byKind }, weaponKills: { ...st.weaponKills } },
+      [this.s.selfId]: { kills: st.kills, headshots: st.headshots, byKind: { ...st.byKind } },
     };
     for (const [id, t] of this.tallies) if (this.remotes.has(id)) players[id] = t;
     // flush pending events (kill feed, banners) before the result

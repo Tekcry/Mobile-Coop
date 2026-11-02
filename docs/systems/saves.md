@@ -1,14 +1,17 @@
-# Progression and saves
+# Saves
 Owner: the orchestrator. Status: current.
-Purpose: the save schema, migrations, the export format, the settings record and the course record.
+Purpose: the save schema, migrations, the export format, the settings record and the records (course, rating, campaign, sector).
 Design authority: docs/design-bible.md (Section 5.11). Saves only go through `src/save` (IndexedDB); `localStorage`
 never holds a save.
 
 ## Save (profile)
-- Schema: `save/schema.ts`, `SAVE_VERSION` 10 (the current number lives there). Changing the shape = bump the version,
+- Schema: `save/schema.ts`, `SAVE_VERSION` 11 (the current number lives there). The profile (`profile` / `main`) is
+  `{ version, createdAt, updatedAt, profile: { name }, weapons: { [id]: { attachments } }, loadout, presets, preset }`:
+  the name and the gear, nothing else. There is no XP, credits, unlock, upgrade, suit, HQ, challenge, look, camo or tag.
+  What a player earns lives in its own `kv` records below (per-mission ratings, campaign / course / sector records).
+  Changing the shape = bump the version,
   add a migration in `save/migrations.ts` (input is the previous version's raw object), extend `sanitizeSave`, and add
-  a test in `tests/save.test.ts` with a literal old save. Leaving an unused field readable is fine when simpler (as
-  `profile.stats.bestWave` stays, never written).
+  a test in `tests/save.test.ts` with a literal old save.
 - v7 -> v8 (locomotion 04): `MissionRecord` = `{ rating, score, plays, wins }`; the old mission style bars, the HQ
   sonar / marks and the `executes` challenge are deleted (spent credits not refunded).
 - v8 -> v9 (consolidation, G24 / G76 / G115 / G116): `emotes` and every `emote:` unlock are dropped; a deleted gun in the
@@ -17,17 +20,19 @@ never holds a save.
   preset's `drone` gadget is dropped (the preset's default comes back). Spent credits are not refunded.
 - v9 -> v10 (hud-guidance A, G339): the minimap is removed, so the HQ radar upgrade (`hq.radar`) is dropped.
   Spent credits are not refunded.
+- v10 -> v11 (clean-up I): progression and cosmetics are removed. Dropped: `profile.xp / credits / tag / stats`, `unlocks`,
+  each weapon's `upgrades / camo / kills`, `avatar`, `missions` (the old Infiltration bests), `suit`, `hq`, `challenges`.
+  Kept: `createdAt`, `updatedAt`, `profile.name`, each weapon's `attachments`, `loadout`, `presets`, `preset`. Nothing is
+  refunded. The settings, the `kv` records and the anim tune presets are separate stores and are not touched (a test loads
+  a stored v10 beside them). The avatar-rename table of the v3 -> v4 step now lives in `migrations.ts`.
 - `migrate` refuses a save from a newer version; `SaveManager.readOnly` then plays on an in-memory profile and writes
   nothing (conventions.md, Robustness).
-- Pure progression maths in `progression/` (levels, rewards, upgrades, attachments, unlocks, profile ops). UI calls
-  `app.save.update(d => op(d, ...))`; `SaveManager` sanitises, debounces and persists. The economy (credits, XP, suit,
-  HQ, challenges, cosmetics) is hidden (`?legacy=1` is gone, clean-up H; stage I removes it, modes-and-progression.md); the save still holds it.
-- Unlock ids carry a prefix: `weapon:`, `att:`, `camo:`, `part:`, `pattern:`, `tag:`, `color:` (add to `UNLOCKS` or
-  `registerUnlocks`).
+- Gear reads are pure (`weapons/loadout.ts`, `weapons/attachments.ts`: the attachments' data and `sanitizeAttachments`). Code
+  changes the profile with `app.save.update(d => ...)`; `SaveManager` sanitises, debounces and persists. Nothing is
+  unlocked or bought (modes-and-progression.md).
 - Export format: `{ magic: 'shoulder-strike-save', version, exportedAt, data }` (the old internal name stays); import
   also accepts bare saves of any known version.
-- Mission cards can show only what `MissionRecord` holds; intel found, last played and endings need a save change in
-  the mission framework job.
+- Per-mission results are not in the profile: the campaign record holds the best percent, plays, intel and time (below).
 
 ## Settings (`kv/settings`)
 - `Settings` (`core/settings.ts`) live in IndexedDB `kv/settings` through `save/db.ts`, with no `SAVE_VERSION`:

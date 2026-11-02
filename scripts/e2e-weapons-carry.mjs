@@ -2,7 +2,7 @@
 // own slot (the rifle centred on the back, the pistol on the right thigh), long guns on the back within 10 deg of their
 // slot's axis (the side slots vertical, muzzle up; (CT prototype G2, AUDIT-AIM row 3) the centre gun slung DIAGONALLY,
 // stock at the right shoulder blade, muzzle down to the left hip, as CT 053525 / 053709) in every stance and gait, nothing clipping (weapon vs weapon, weapon vs
-// body, with and without a backpack, both avatar styles), the hands on the grip points (within 2 cm) for
+// body, both avatar styles), the hands on the grip points (within 2 cm) for
 // every weapon, the swap reaching to the right slot, grenade pouches, and the draw-call budget.
 import { launch, frames, assert as hard } from './e2e-lib.mjs';
 
@@ -260,25 +260,23 @@ try {
   await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 120000 });
   await G(install);
 
-  console.log('backpack + detailed style');
-  // both styles, with the deepest backpack: rebuild the match with the new look
+  console.log('detailed style');
+  // the detailed style: rebuild the match with it
   await G(() => {
     const a = window.__app;
     a.settings.update((d) => void (d.video.avatarStyle = 'detailed'));
-    a.save.update((d) => void (d.avatar.backpack = 'pack'));
   });
-  // (load-latent-ui2) both saves are debounced (settings 250 ms, profile 200 ms) and written to IndexedDB: poll the stored
-  // records (up to 30 s) before the reload, not a fixed 600 ms that a loaded CPU can outrun
+  // (load-latent-ui2) the settings save is debounced (250 ms) and written to IndexedDB: poll the stored
+  // record (up to 30 s) before the reload, not a fixed 600 ms that a loaded CPU can outrun
   const persisted = () => G(() => new Promise((res) => {
     const r = indexedDB.open('shoulder-strike');
     r.onsuccess = () => {
       try {
-        const tx = r.result.transaction(['kv', 'profile']);
+        const tx = r.result.transaction(['kv']);
         const qs = tx.objectStore('kv').get('settings');
-        const qp = tx.objectStore('profile').get('main');
         tx.oncomplete = () => {
           r.result.close();
-          res(qs.result?.video?.avatarStyle === 'detailed' && qp.result?.avatar?.backpack === 'pack');
+          res(qs.result?.video?.avatarStyle === 'detailed');
         };
         tx.onerror = () => { r.result.close(); res(false); };
       } catch {
@@ -289,7 +287,7 @@ try {
     r.onerror = () => res(false);
   }));
   for (const t0 = Date.now(); !(await persisted()) && Date.now() - t0 < 30000; ) await page.waitForTimeout(250);
-  hard(await persisted(), 'the detailed style and the backpack are saved before the reload');
+  hard(await persisted(), 'the detailed style is saved before the reload');
   await page.reload();
   await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 120000 });
   await G(install);
@@ -307,8 +305,8 @@ try {
       p.controller['crouchToggled'] = false;
       return { worst, clips, style: p.rig.style, gear: p.rig.backGear };
     }, inp);
-    assert(r.style === 'detailed' && r.gear > 0.15, `detailed avatar with a backpack (back gear ${f2(r.gear)} m)`);
-    assert(r.worst <= 10 && r.clips.length === 0, `detailed + backpack, ${name}: back guns on their slot axis (${f2(r.worst)} deg), nothing clips (${r.clips.join(', ') || 'none'})`);
+    assert(r.style === 'detailed' && r.gear > 0.15, `detailed avatar (back gear ${f2(r.gear)} m)`);
+    assert(r.worst <= 10 && r.clips.length === 0, `detailed, ${name}: back guns on their slot axis (${f2(r.worst)} deg), nothing clips (${r.clips.join(', ') || 'none'})`);
   }
 } catch (e) {
   failed = true;

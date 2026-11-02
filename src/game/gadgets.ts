@@ -81,7 +81,7 @@ export class GadgetInventory {
     this.counts[id] = Math.min(GADGETS[id].max, this.counts[id] + n);
   }
 
-  /** Back to the starting carry (checkpoints / restock upgrade). */
+  /** Back to the starting carry (tests and the e2e suites top the kit up with it). */
   restock(): void {
     for (const id of GADGET_IDS) this.counts[id] = Math.max(this.counts[id], GADGETS[id].carry);
   }
