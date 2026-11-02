@@ -268,3 +268,13 @@ Slice e (2026-11-02 night), added to every packed model:
 | `strike_knife` | Male Knife Stab With The Rear Hand And Reverse Grip | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | knife takedown |
 | `throw` | Throwing A Grenade While Walking | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | grenade throw |
 | `downed_lie` | Laying While Breathless Idle | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | downed (not wired yet) |
+
+Slice f (2026-11-02 night), added to every packed model ("Action Adventure Pack" on Y Bot, 23 files; only the listed):
+
+| Animation (in every GLB above) | Mixamo title | Kind | Source (URL) | Terms | Date added | Used by |
+|---|---|---|---|---|---|---|
+| `fall`, `roll`, `land`, `hop` | Action Adventure Pack: falling idle, falling to roll, hard landing, jumping up | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | drop, roll, hop |
+| `wall_slide_l` / `wall_slide_r` | Action Adventure Pack: left cover sneak, right cover sneak | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | back to wall |
+| `vault` | Male Jumping Over An Obstacle With 1 Hand Planted | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | vault |
+| `crawl` | Crawling Forward On Hands And Knees | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | crawl |
+| `wall_idle` / `wall_crouch_idle` | Standing Cover Against Object; Crouched For Cover Against Object | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-02 | back to wall |

@@ -34,4 +34,26 @@ describe('mixamo action picker (mixamo-chars slice e)', () => {
     expect(setClip('carry', k('left'))).toBe('carry_walk');
     expect(setClip('carry', k('c_idle'))).toBe('crouch_idle');
   });
+
+  it('(slice f) vaults, hops and rolls pinned; falls and crawls looping; a mantle plays the climb-up from its middle', () => {
+    expect(pickAction({ speed: 2, localX: 0, traverse: 'vault', traverseT: 0.3 }, false, out)).toEqual({ clip: 'vault', t: 0.3 });
+    expect(pickAction({ speed: 2, localX: 0, traverse: 'windowVault', traverseT: 1 }, false, out)).toEqual({ clip: 'vault', t: 1 });
+    expect(pickAction({ speed: 2, localX: 0, traverse: 'hop', traverseT: 0.5 }, false, out).clip).toBe('hop');
+    expect(pickAction({ speed: 2, localX: 0, traverse: 'roll', traverseT: 0.5 }, false, out).clip).toBe('roll');
+    expect(pickAction({ speed: 0, localX: 0, traverse: 'drop' }, false, out).clip).toBe('fall');
+    expect(pickAction({ speed: 0, localX: 0, traverse: 'ventDrop' }, false, out).clip).toBe('fall');
+    expect(pickAction({ speed: 0.5, localX: 0, traverse: 'crawl' }, false, out).clip).toBe('crawl');
+    const m = pickAction({ speed: 0, localX: 0, traverse: 'mantle', traverseT: 0 }, false, out);
+    expect(m.clip).toBe('hang_climb_up');
+    expect(m.t).toBeCloseTo(0.45, 9);
+    expect(pickAction({ speed: 0, localX: 0, traverse: 'step', traverseT: 1 }, false, out).t).toBeCloseTo(1, 9);
+  });
+
+  it('(slice f) back to the wall: idle standing or crouched, sliding by side; a strike wins over the wall', () => {
+    expect(pickAction({ speed: 0, localX: 0, wall: true }, false, out).clip).toBe('wall_idle');
+    expect(pickAction({ speed: 0, localX: 0, wall: true, crouch: 1 }, false, out).clip).toBe('wall_crouch_idle');
+    expect(pickAction({ speed: 0.8, localX: -1, wall: true }, false, out).clip).toBe('wall_slide_l');
+    expect(pickAction({ speed: 0.8, localX: 1, wall: true }, false, out).clip).toBe('wall_slide_r');
+    expect(pickAction({ speed: 0, localX: 0, wall: true, melee: 0.2 }, false, out).clip).toBe('strike_elbow');
+  });
 });
