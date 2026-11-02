@@ -7,8 +7,8 @@ Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G101, G102, G181, G352)
 
 Light parity (bible 5.1): what the player sees, the light meter and guard perception agree. Gameplay reads only the light
 field (collision, the light bake, the noise model), never the render state. Character shadows in the meter and guard
-perception (G352) are built dark behind `charShadowLight` (`?charlight=1`; owner Sector Ops Build; switched on by
-Michael's yes on the walk item, char-shadow-meter BRIEF A9): Parity below.
+perception (G352) are built and always on (char-shadow-meter BRIEF A9; the `charShadowLight` flag was removed in
+clean-up J): Parity below.
 Security cameras are outside the light model (marlow-jammer, Michael M3): each has its own IR illuminator, so inside its
 range and cone it reads every body at `CAMERA.irLight` 1 (fully lit); lamps, jammed or shot lamps and dark corners do
 not change what a camera sees. Lights matter for guards and the meter only. (camera-range) Only distance thins a camera's
@@ -265,7 +265,7 @@ capsules.
   render-only). The darkness curve's input (`nsLampRaw`) is unchanged. On screen a mapped lamp's term drops to 0.15
   inside a silhouette, also from casters the capsules lack (partner, bodies, weapons, poses) and on a body's own limbs;
   the meter reads that lamp in full there (`lr14-build.md`, parity note).
-- Parity, with `charShadowLight` on (G352, replaces G315's render-only shadows and the bible's old L11; job
+- Parity (G352, replaces G315's render-only shadows and the bible's old L11; job
   char-shadow-meter): one character contract (`world/charOccluders.ts` `CharOccluders`: one upright capsule per
   character, filled from the sim every step; today's interim fill, `game/charOccluderFill.ts`, holds the players and
   the live guards, dogs as guards; bodies and the real shapes come with Guard AI's and Player's fills) is read by the meter, guard perception and the picture's round shadows (`pictureInto` feeds

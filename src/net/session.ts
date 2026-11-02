@@ -38,19 +38,11 @@ export interface StartInfo {
 }
 
 /**
- * (J14 R1, PLAN A16) The map a host's room opens on: Marlow Yard (`ctcourse`) is the re-planned yard (`ctcourseReplan`)
- * with `?marlowreplan=1`; every other map, and the flag off, as picked. The client loads the map the host's `start` names.
+ * (J14 R1, PLAN A16) The map a host's room opens on: Marlow Yard (`ctcourse`) is the re-planned yard (`ctcourseReplan`);
+ * every other map as picked. A "Resume hosting" record goes through it too. The client loads the map the host's `start` names.
  */
-export function roomMap(map: string, replan = flags.marlowReplan): string {
-  return replan && map === 'ctcourse' ? 'ctcourseReplan' : map;
-}
-
-/**
- * (J14 R1 fix 8) The map a "Resume hosting" record reopens on: a record kept on the re-planned yard falls back to the
- * built yard when this page has `?marlowreplan=1` off (the re-plan is dark); with the flag on, as `roomMap`.
- */
-export function resumeMap(map: string, replan = flags.marlowReplan): string {
-  return !replan && map === 'ctcourseReplan' ? 'ctcourse' : roomMap(map, replan);
+export function roomMap(map: string): string {
+  return map === 'ctcourse' ? 'ctcourseReplan' : map;
 }
 
 export interface SessionEvents {

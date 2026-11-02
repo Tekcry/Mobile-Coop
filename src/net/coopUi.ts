@@ -13,7 +13,7 @@ import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PLAYER_COLOUR, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { diag } from '../feedback/diag';
 import { NetDiag } from './netDiag';
-import { NetSession, resumeMap, roomMap, sectorStartOpts, type LocalProfile, type StartInfo } from './session';
+import { NetSession, roomMap, sectorStartOpts, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
 import { createTrysteroTransport } from './trysteroTransport';
@@ -477,7 +477,7 @@ const modeLabel = (mode: string, map: string): string => (isChamber(mode, map) ?
 const mapLabel = (id: string): string => MAPS.find((m) => m.id === id)?.name ?? (id === CHAMBER_MAP_ID ? getMap(id).name : id);
 /**
  * The maps the host can pick for a mode: the campaign is Marlow Yard only.
- * (J14 R1 fix 8) With `?marlowreplan=1` that is the re-planned yard (`roomMap`), so it is offered and named once.
+ * (J14 R1 fix 8) That is the re-planned yard (`roomMap`), so it is offered and named once.
  */
 function lobbyMaps(mode: NetMode): typeof MAPS {
   const all = MAPS.filter((m) => !m.unlisted && m.modes.includes(mode));
@@ -943,8 +943,7 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     // the code, or rejoining from its menu) takes the match as it starts
     // (set directly: a lobby broadcast before the start would send a waiting joiner to the lobby)
     session.mode = resume.mode;
-    // (J14 R1 fix 8) a record on the re-planned yard reopens on the built yard with the flag off here
-    session.map = resumeMap(resume.map);
+    session.map = roomMap(resume.map);
     session.difficulty = resume.difficulty;
     session.weather = resume.weather;
     session.courseBay = resume.bay;

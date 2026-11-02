@@ -2,7 +2,7 @@
 // as seen (full rate) when a shadow of his can fall in the view (a shadowing lamp, the moon, a character atlas slot, a
 // light overflow); camera culling alone otherwise (the off-screen period). Frustum only, read through the freeze's
 // `guardFrustum` and `readFreezeLights`.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { AnimTierShadowSource, GuardAnimTier } from '../src/ai/animTierView';
 import type { Scene } from '../src/core/babylon';
 
@@ -46,21 +46,6 @@ function solves(scene: Scene, tier: GuardAnimTier, pos: { x: number; y: number; 
 }
 
 describe('guard-cap T1-SHADOW: shadow in view counts as seen (NullEngine)', () => {
-  let saved: { animTier: boolean; animShadow: boolean; animOff: number };
-  beforeEach(async () => {
-    const { flags } = await import('../src/core/flags');
-    saved = { animTier: flags.animTier, animShadow: flags.animShadow, animOff: flags.animOff };
-    flags.animTier = true;
-    flags.animShadow = true;
-    flags.animOff = 0;
-  });
-  afterEach(async () => {
-    const { flags } = await import('../src/core/flags');
-    flags.animTier = saved.animTier;
-    flags.animShadow = saved.animShadow;
-    flags.animOff = saved.animOff;
-  });
-
   it('no shadowing light, body behind the camera: never seen, the off-screen period (8)', async () => {
     const { scene, tier, pos } = await setup();
     expect(solves(scene, tier, pos)).toBe(2);
@@ -152,17 +137,6 @@ describe('guard-cap T1-SHADOW: shadow in view counts as seen (NullEngine)', () =
     expect(seenOf(tier).frame).not.toBe(scene.getFrameId());
   });
 
-  it('?animshadow=0: camera only, the lamp does not count', async () => {
-    const { flags } = await import('../src/core/flags');
-    flags.animShadow = false;
-    const { B, scene, tier, pos } = await setup();
-    const lamp = new B.SpotLight('lamp', new B.Vector3(0, 1, -20), new B.Vector3(0, 0, 1), 1.2, 1, scene);
-    lamp.shadowMaxZ = 30;
-    new B.ShadowGenerator(256, lamp);
-    expect(solves(scene, tier, pos)).toBe(2);
-    expect(seenOf(tier).shadowFrame).toBe(-1);
-  });
-
   it('no height, no position yet, or render-frozen: no shadow test', async () => {
     const { B, scene, body, pos } = await setup();
     const V = await import('../src/ai/animTierView');
@@ -199,12 +173,5 @@ describe('guard-cap T1-SHADOW: shadow in view counts as seen (NullEngine)', () =
     }
     expect(solves(scene, tier, pos)).toBe(16);
     expect(seenOf(tier).shadowFrame).toBe(scene.getFrameId());
-  });
-
-  it('?animoff=4: the off-screen period override (A/B), no light: every 4th frame', async () => {
-    const { flags } = await import('../src/core/flags');
-    flags.animOff = 4;
-    const { scene, tier, pos } = await setup();
-    expect(solves(scene, tier, pos)).toBe(4);
   });
 });

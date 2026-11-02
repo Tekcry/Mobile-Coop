@@ -1,5 +1,5 @@
 /**
- * (char-shadow-meter S4 triage) With the character contract on (`flags.charShadowLight`), the light field counts the
+ * (char-shadow-meter S4 triage) With the character contract (always on), the light field counts the
  * characters' shadows, so the picture's darkness curve must read the shadowed level too: a grey card in a guard's
  * shadow then renders as an unshadowed card at the same field level (light parity). The GPU run before this fix showed
  * the card at field 0.367 rendering at luma 0.366 (an unshadowed 0.40 card reads 0.320): the curve took the unshadowed

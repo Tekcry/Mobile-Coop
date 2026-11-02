@@ -1,12 +1,11 @@
 /**
  * Marlow Yard re-plan, variant base (J14 slice S0; PLAN section 2): the map `ctcourseReplan` is the same yard built with
- * `{ replan: true }`, unlisted, behind `flags.marlowReplan` (on by default since one-game, 2026-11-01; `?marlowreplan=0` off). Pins: the flag is on by default; the built `ctcourse`
+ * `{ replan: true }`, unlisted. Pins: the built `ctcourse`
  * is unchanged (no stations, A2 `spotFail` kept); the re-plan registers its own course (eight bays, no strict rule); the
  * slab-with-holes helper; the station rules in `checkSetPart`; the re-plan circuit table (every light works, Q2). Each set
  * slice adds its own cases in `tests/ctcourse/replan/<set>.test.ts`.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { flags } from '../../../src/core/flags';
 import { layoutKnownIds, registeredBayCount, validateCourse } from '../../../src/game/course/courseDef';
 import type { StationDef } from '../../../src/game/course/stationDef';
 import { LevelBuilder } from '../../../src/world/levelBuilder';
@@ -24,10 +23,6 @@ const built = buildCtcourse(new LevelBuilder());
 const replan = buildCtcourse(new LevelBuilder(), { replan: true });
 
 describe('Marlow re-plan variant base (J14 S0)', () => {
-  it('the flag is on by default (?marlowreplan=0 turns it off)', () => {
-    expect(flags.marlowReplan).toBe(true);
-  });
-
   it('ctcourseReplan is a second, unlisted course map in MAPS after ctcourse (every map-wide check builds it); ctcourse is untouched', () => {
     expect(getMap('ctcourseReplan')).toBe(ctcourseReplan);
     expect(ctcourseReplan.id).toBe('ctcourseReplan');
@@ -36,7 +31,7 @@ describe('Marlow re-plan variant base (J14 S0)', () => {
     expect(MAPS.map((m) => m.id).indexOf('ctcourseReplan')).toBe(MAPS.map((m) => m.id).indexOf('ctcourse') + 1);
     expect(getMap('ctcourse')).toBe(ctcourse);
     expect(ctcourse.id).toBe('ctcourse');
-    // flag on (the default): the load registers the re-plan's eight bays too (`?marlowreplan=0`: only the built course, below)
+    // the load registers the re-plan's eight bays too
     expect(registeredBayCount('ctcourseReplan')).toBe(8);
     expect(replanLoad().layout.course!.def.bays.length).toBe(8);
     expect(registeredBayCount('ctcourse')).toBe(8);
@@ -44,34 +39,18 @@ describe('Marlow re-plan variant base (J14 S0)', () => {
     expect(ctcourse.build(new LevelBuilder(), 1).course!.def.id).toBe('ctcourse');
   });
 
-  it('importing ctcourse.ts with ?marlowreplan=0 builds the yard once; the re-plan builds on first ask, once (S0 check fix 1)', async () => {
-    vi.stubGlobal('location', { search: '?marlowreplan=0' });
+  it('importing ctcourse.ts builds the yard and the re-plan once each and registers both (the lobby counts the bays); the re-plan build is memoised', async () => {
+    vi.resetModules();
     try {
-      vi.resetModules();
       const m = await import('../../../src/world/maps/ctcourse');
       const cd = await import('../../../src/game/course/courseDef');
-      expect(m.ctcourseBuildCount()).toBe(1);
+      expect(m.ctcourseBuildCount()).toBe(2);
       expect(cd.registeredBayCount('ctcourse')).toBe(8);
-      expect(cd.registeredBayCount('ctcourseReplan')).toBe(0);
+      expect(cd.registeredBayCount('ctcourseReplan')).toBe(8);
       const a = m.replanLoad();
       expect(m.replanLoad()).toBe(a);
       expect(m.ctcourseBuildCount()).toBe(2);
     } finally {
-      vi.unstubAllGlobals();
-      vi.resetModules();
-    }
-  });
-
-  it('with the flag on (the default, or ?marlowreplan=1) the import also builds and registers the re-plan (the lobby counts its bays)', async () => {
-    vi.stubGlobal('location', { search: '?marlowreplan=1' });
-    try {
-      vi.resetModules();
-      const m = await import('../../../src/world/maps/ctcourse');
-      const cd = await import('../../../src/game/course/courseDef');
-      expect(m.ctcourseBuildCount()).toBe(2);
-      expect(cd.registeredBayCount('ctcourseReplan')).toBe(8);
-    } finally {
-      vi.unstubAllGlobals();
       vi.resetModules();
     }
   });

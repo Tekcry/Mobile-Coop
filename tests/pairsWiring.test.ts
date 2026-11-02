@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EnemyManager } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { PAIRS, PAIR_LINES, pickMeet, type MeetPick } from '../src/ai/pairs';
@@ -6,7 +6,6 @@ import { PATROL, PatrolWalker, type PatrolRoute } from '../src/ai/patrol';
 import { AlertMachine } from '../src/ai/alertState';
 import { PostLure } from '../src/ai/posts';
 import { hyp2 } from '../src/core/mathx';
-import { flags } from '../src/core/flags';
 import { Vector3, type Scene } from '../src/core/babylon';
 import type { AiContext, Enemy } from '../src/ai/enemy';
 import type { P2 } from '../src/ai/navGrid';
@@ -587,7 +586,7 @@ describe('Enemy: the talking pair hold', () => {
   });
 });
 
-// ----- (guard-rules S6, A10, A11) flags.guardPairs: posted pairs and the walking-together check -----
+// ----- (guard-rules S6, A10, A11) posted pairs and the walking-together check -----
 
 /** Two standing guards (no route), `gap` m apart, back to back, tagged as a pair. */
 const standSlots = (gap: number): Slot[] => [
@@ -599,25 +598,7 @@ const sideA = (): PatrolRoute => ({ points: [[-29, -66.2], [-21, -66.2], [-21, -
 const sideB = (): PatrolRoute => ({ points: [[-29, -65.2], [-21, -65.2], [-21, -62.8], [-29, -62.8]], loop: { period: 42, leave: [4.5, 18, 25, 38], t0: 0 } });
 
 describe('(guard-rules S6) posted pairs and the walking-together check', () => {
-  const flagWas = flags.guardPairs;
-  afterEach(() => {
-    flags.guardPairs = flagWas;
-  });
-
-  it('flag off: two standing guards tagged as a pair are not a pair (today: not on a timed loop)', () => {
-    flags.guardPairs = false;
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const gs = [guard(null, 0, 0), guard(null, 1.2, 0)];
-    const { em } = manager(gs);
-    place(em, gs, standSlots(1.2));
-    expect(em.pairs.length).toBe(0);
-    expect(em.pairSkips.join(' ')).toContain('timed loop');
-    expect(em.pairSkips.join(' ')).not.toContain('posted pair');
-    warn.mockRestore();
-  });
-
-  it('flag on: the same two, 1.2 m apart, are a posted pair at their posts; they talk at once', () => {
-    flags.guardPairs = true;
+  it('two standing guards, 1.2 m apart, are a posted pair at their posts; they talk at once', () => {
     const gs = [guard(null, 0, 0), guard(null, 1.2, 0)];
     const { em, priv } = manager(gs);
     place(em, gs, standSlots(1.2), 2);
@@ -635,8 +616,7 @@ describe('(guard-rules S6) posted pairs and the walking-together check', () => {
     expect(gs[1]!.sayLine).toHaveBeenCalledTimes(1);
   });
 
-  it('flag on: standing guards 8 m apart are skipped (posted pair: over 6 m)', () => {
-    flags.guardPairs = true;
+  it('standing guards 8 m apart are skipped (posted pair: over 6 m)', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const gs = [guard(null, 0, 0), guard(null, 8, 0)];
     const { em } = manager(gs);
@@ -649,8 +629,7 @@ describe('(guard-rules S6) posted pairs and the walking-together check', () => {
     warn.mockRestore();
   });
 
-  it('flag on: one timed loop + one standing is skipped (today: not on a timed loop)', () => {
-    flags.guardPairs = true;
+  it('one timed loop + one standing is skipped (not on a timed loop)', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const gs = [guard(routeA()), guard(null, 1, 0)];
     const { em } = manager(gs);
@@ -660,20 +639,16 @@ describe('(guard-rules S6) posted pairs and the walking-together check', () => {
     warn.mockRestore();
   });
 
-  it('a timed-loop pair gets the walking-together check with the flag on, not with it off', () => {
-    for (const on of [true, false]) {
-      flags.guardPairs = on;
-      const gs = [guard(routeA()), guard(routeB())];
-      const { em } = manager(gs);
-      place(em, gs, pairSlots());
-      expect(em.pairs.length).toBe(1);
-      expect(em.pairs[0]!.pm.def.watch).toBe(on);
-      expect(em.pairs[0]!.pm.def.posted).toBeUndefined();
-    }
+  it('a timed-loop pair gets the walking-together check', () => {
+    const gs = [guard(routeA()), guard(routeB())];
+    const { em } = manager(gs);
+    place(em, gs, pairSlots());
+    expect(em.pairs.length).toBe(1);
+    expect(em.pairs[0]!.pm.def.watch).toBe(true);
+    expect(em.pairs[0]!.pm.def.posted).toBeUndefined();
   });
 
-  it('flag on: two timed loops walking side by side, B down between meetings: A is sent `notice` s later', () => {
-    flags.guardPairs = true;
+  it('two timed loops walking side by side, B down between meetings: A is sent `notice` s later', () => {
     const gs = [guard(sideA()), guard(sideB())];
     const { em, priv } = manager(gs);
     place(em, gs, pairSlots());

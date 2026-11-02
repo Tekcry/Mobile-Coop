@@ -351,7 +351,7 @@ export class SettingsScreen extends MenuScreen {
       // (3.2: every lamp is baked - lit and shadowed on every preset; Shadows is the moon and the flashlights)
       ch('Shadows', 'shadows', SHADOW_OPTS, 'Shadows from the moon and the flashlights. Lamps are always lit and shadowed.'),
       // (LR14) the nearest lamps' character silhouettes: Auto follows Shadows (1 lamp on Low / Medium, 2-4 from High)
-      desc(choice('Character shadows', CHAR_SHADOW_OPTS, () => s().video.charShadows, (v) => upd((d) => void (d.video.charShadows = v))), flags.charShadowLight ? CHAR_SHADOW_HELP.on : CHAR_SHADOW_HELP.off),
+      desc(choice('Character shadows', CHAR_SHADOW_OPTS, () => s().video.charShadows, (v) => upd((d) => void (d.video.charShadows = v))), CHAR_SHADOW_HELP),
       ch('Anti-aliasing', 'aa', AA_OPTS, 'Smooths jagged edges. TAA is the smoothest; FXAA is the cheapest.'),
       ch('Textures', 'textures', TIER_OPTS, 'Surface detail. Lower it if the game stutters when you enter a new area.'),
       ch('Detail and draw distance', 'detail', TIER_OPTS, 'How much map dressing is drawn and how far away.'),

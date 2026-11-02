@@ -1,9 +1,8 @@
 import type { AbstractMesh, Observer, Scene, Vector3 } from '../core/babylon';
-import { flags } from '../core/flags';
 import { FREEZE_DRAW, FREEZE_LAMP_IN, FREEZE_SHADOW_IN, FreezeLights, guardFrustum } from '../game/sectorGuardFreeze';
 import { readFreezeLights, type FreezeCharSlots, type FreezeTorchSlots } from '../game/sectorGuardFreezeView';
 import type { CharacterRig, RigPose } from '../player/characterRig';
-import { ANIM_TIER_OFFSCREEN, THAW_REPLANT, animTierPeriod, animTierStep, animTierThaw, newAnimTierIn, newAnimTierState, type AnimTierIn, type AnimTierState } from './animTier';
+import { THAW_REPLANT, animTierPeriod, animTierStep, animTierThaw, newAnimTierIn, newAnimTierState, type AnimTierIn, type AnimTierState } from './animTier';
 
 /**
  * (guard-render S4) The scene side of a guard's anim tier (`animTier.ts` has the rules): whether its merged body was
@@ -16,7 +15,7 @@ import { ANIM_TIER_OFFSCREEN, THAW_REPLANT, animTierPeriod, animTierStep, animTi
  * `FREEZE_SHADOW_IN` / `FREEZE_LAMP_IN`, or `FREEZE_DRAW` (near the camera, a lamp at his body, too many lights). The
  * body bit alone does not count (camera culling is the truth for the body). Frustum only, no occlusion rays: a shadow
  * behind a wall still counts (less saving, never wrong on screen). Render LOD, like the freeze: it reads the camera,
- * the frustum and the shadowing lights, never gameplay state, and gameplay never reads the rig. `?animshadow=0` off.
+ * the frustum and the shadowing lights, never gameplay state, and gameplay never reads the rig.
  */
 interface SeenTrack {
   mesh: AbstractMesh;
@@ -79,7 +78,7 @@ function markSeen(scene: Scene, live: LiveScene): void {
     else if (t.frame !== fid) unseen = true;
   }
   // (T1-SHADOW) the guards this camera did not draw: can a shadow of theirs be in its view?
-  if (!unseen || !flags.animShadow) return;
+  if (!unseen) return;
   const cam = scene.activeCamera;
   const fp = scene.frustumPlanes;
   if (!cam || !fp || fp.length < 6) return;
@@ -180,12 +179,10 @@ export class GuardAnimTier {
     const s = this.scene;
     const i = this.inp;
     i.frozen = frozen;
-    i.on = flags.animTier;
     i.pinned = pinned;
     const f = s.getFrameId();
     i.rendered = f !== this.lastFrame;
     this.lastFrame = f;
-    i.offPeriod = flags.animOff > 1 ? flags.animOff : ANIM_TIER_OFFSCREEN;
     const t = this.seen;
     if (t) {
       // (T1-SHADOW) his feet for the shadow rule at the next camera evaluation

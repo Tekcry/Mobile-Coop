@@ -1,5 +1,5 @@
 /**
- * (char-shadow-meter S2c, J16) A co-op client's partners in the character contract: with `charShadowLight` on, the
+ * (char-shadow-meter S2c, J16) A co-op client's partners in the character contract: the
  * client's meter and round shadows count its partners' capsules. The host fills its remote slots from `RemotePlayer.ref`
  * (`playerRefsInto`); a client holds its partners as `RemoteAvatar`s, so this keeps one `MateLike` per partner, refreshed
  * each sim step from the client's own sim view of them, as the host's `RemotePlayer` builds its ref (feet, crouch flag,

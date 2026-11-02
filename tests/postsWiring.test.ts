@@ -14,7 +14,6 @@ import type { NavGrid, P2 } from '../src/ai/navGrid';
 import type { DamageRegistry } from '../src/game/damage';
 import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
-import { flags } from '../src/core/flags';
 
 // (guard-ai S5) Posts wired into EnemyManager and Enemy (design 6, goal 7, M1, A10, A12): a high-security post is never
 // sent by the board (noise, shots, a light, the missing pair, the alarm panel outside his leash) and is lured to his
@@ -248,22 +247,13 @@ describe('placeSlot and the map data', () => {
     expect(g.section).toBe(4);
   });
 
-  it('(guard-rules S7, A9) a lookout slot: flag on a high-security copy (the slot untouched), flag off no post', () => {
-    const was = flags.lookouts;
-    try {
-      const g = guard(5, 0);
-      const em = manager([g]);
-      const post: PostDef = { leash: 1, lookout: true };
-      flags.lookouts = true;
-      em.placeSlot(E(g), { yaw: 0.5, post });
-      expect(g.setPost).toHaveBeenLastCalledWith({ leash: 1, lookout: true, highSecurity: true }, 0.5);
-      expect(post).toEqual({ leash: 1, lookout: true });
-      flags.lookouts = false;
-      em.placeSlot(E(g), { yaw: 0.5, post });
-      expect(g.setPost).toHaveBeenLastCalledWith(null, 0.5);
-    } finally {
-      flags.lookouts = was;
-    }
+  it('(guard-rules S7, A9) a lookout slot: a high-security copy (the slot untouched)', () => {
+    const g = guard(5, 0);
+    const em = manager([g]);
+    const post: PostDef = { leash: 1, lookout: true };
+    em.placeSlot(E(g), { yaw: 0.5, post });
+    expect(g.setPost).toHaveBeenLastCalledWith({ leash: 1, lookout: true, highSecurity: true }, 0.5);
+    expect(post).toEqual({ leash: 1, lookout: true });
   });
 
   it("the map's noisy things load as the masking (and a sector falls back to them); bad data warns, never throws", () => {

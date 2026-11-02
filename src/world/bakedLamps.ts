@@ -249,7 +249,7 @@ export class BakedLamps implements CharShadowLamps {
   }
   /** Characters' capsules each frame (foot + head points, radius): GameState's. */
   capsules: ((a: Float32Array, b: Float32Array, max: number) => number) | null = null;
-  /** (char-shadow-meter S4) The light field counts the character shadows (`flags.charShadowLight`: GameState sets it with
+  /** (char-shadow-meter S4) The light field counts the character shadows (GameState sets it with
    *  the contract): the darkness curve's lamp term then takes them too (the outline maps and the round capsules), so a
    *  card in a guard's shadow renders as an unshadowed card at the same field level (light parity). Off: as before. */
   charLevel = false;

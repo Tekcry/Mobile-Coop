@@ -1,6 +1,6 @@
 /**
  * (guard-ai play pass, docs/guard-ai/PLAY-PASS.md) A probe of the guards Michael meets on /preview/: Marlow Yard as the
- * re-planned yard (`ctcourseReplan`, `marlowReplan` on). For every
+ * re-planned yard (`ctcourseReplan`). For every
  * guard slot: does `EnemyManager.spawn` find a nav cell (`nearestWalkable` ring 8 on his storey) and how far it snaps
  * him; is his spawn point inside a solid; can he walk each leg of his route (and from his spawn to its first point) on
  * the guards' runtime grid (`tests/helpers/runtimeNav.ts`).

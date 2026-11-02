@@ -28,11 +28,7 @@ describe('defaults under tests (no URL, no preview constants): all on (one-game)
     expect(PREVIEW_ON).toBe(true);
     // (gm-flip, Michael 2026-10-26 ~23:55 "Just switch them on") the guard models are on everywhere
     expect(flags.guardModels).toBe(true);
-    expect(flags.charShadowLight).toBe(true);
     expect(flags.mapReady).toBe(true);
-    expect(flags.marlowReplan).toBe(true);
-    expect(flags.guardPairs).toBe(true);
-    expect(flags.lookouts).toBe(true);
     expect(flags.dogRelease).toBe(true);
     expect(flags.contextPrompts).toBe(true);
     expect(flags.missions).toBe(true);
@@ -112,11 +108,7 @@ describe('source guard', () => {
 
   it('the feature flags read through the default (PREVIEW_ON, true)', () => {
     expect(body).toMatch(/guardModels: params\.get\('guardmodels'\) !== '0'/);
-    expect(body).toMatch(/charShadowLight: darkFlag\(params\.get\('charlight'\), PREVIEW_ON\)/);
     expect(body).toMatch(/mapReady: darkFlag\(params\.get\('mapready'\), PREVIEW_ON\)/);
-    expect(body).toMatch(/marlowReplan: darkFlag\(params\.get\('marlowreplan'\), PREVIEW_ON\)/);
-    expect(body).toMatch(/guardPairs: darkFlag\(params\.get\('guardpairs'\), PREVIEW_ON\)/);
-    expect(body).toMatch(/lookouts: darkFlag\(params\.get\('lookouts'\), PREVIEW_ON\)/);
     expect(body).toMatch(/dogRelease: darkFlag\(params\.get\('dogrelease'\), PREVIEW_ON\)/);
     expect(body).toMatch(/contextPrompts: darkFlag\(params\.get\('ctxprompts'\), PREVIEW_ON\)/);
   });

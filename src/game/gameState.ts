@@ -323,7 +323,7 @@ const CUE_DT = 1 / LIGHT.playerHz;
 /**
  * (char-shadow-meter S3b-2) The players' shadow cues (Guard AI's faint cue input, PLAN section 2): built from the
  * gameplay bake (the field, the registry's lights, the bake's moon direction; never `world.lamps`, the picture) when
- * the contract exists (`flags.charShadowLight`) and this is not a co-op client; null otherwise.
+ * this is not a co-op client; null otherwise.
  */
 export function shadowCuesFor(
   world: { readonly lightField: LightField; readonly level: { readonly lights: { readonly lights: readonly LightDef[] } } },
@@ -402,9 +402,9 @@ export class GameState implements AppState {
   /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
   lightLevel = 1;
   private lightT = 0;
-  /** (char-shadow-meter S2) The character contract, filled every sim step from the sim; null with the flag off. Guard AI's
+  /** (char-shadow-meter S2) The character contract, filled every sim step from the sim. Guard AI's
    *  `fillOccluders` and Player's `fillOperator` replace the interim fills later (PLAN section 6). */
-  readonly charOccluders: CharOccluders | null = flags.charShadowLight ? new CharOccluders() : null;
+  readonly charOccluders: CharOccluders | null = new CharOccluders();
   /** (char-shadow-meter S2) Per player slot (`FILL_IN`): feet, the meter's sample height, the head offset. */
   private readonly lightIn = new Float64Array(FILL.players * FILL_IN);
   /** (char-shadow-meter S2) Each slot's owner key in the contract (S3b-2 passes these to `ShadowCues.fill`). */
