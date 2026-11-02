@@ -198,3 +198,8 @@ own wording): "Sort all of them first, then let's review and decide whether to s
 old decisions dictating the direction of the game, but I don't want to destroy any useful feedback." Covers G1-G434
 (`docs/DECISIONS.md`), the design bible and the level standard; each entry sorted as still-fitting direction, Michael's
 feedback, technical fact, replaced, gone with removed features, or a question for him.
+
+**N43. Clear after the review round, then a fresh check of today's documents** (native multiple choice): once the
+old-decision review is done, the session is cleared; a fresh session at Opus 5.5 Extra (xhigh) first reads the new plan
+documents, vision v3, N1-N42 and the sort results, and checks them against each other and the code. Declined:
+re-checking all the research again; no extra check.
