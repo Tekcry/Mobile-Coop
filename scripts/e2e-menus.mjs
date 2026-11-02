@@ -451,7 +451,7 @@ try {
     // (G2c) the plain Test Chamber (no animation stage) lists no Animation tuner row either: the tuner opens here (F3 > Anim, Settings)
     // but the pause row needs the stage (below)
     // (hud-guidance B5, R12) Notes right after Objectives
-    assert(keys === 'resume,objectives,notes,settings,report-feedback,quit', `pause items (${keys})`);
+    assert(keys === 'resume,objectives,notes,settings,report-feedback,feedback,quit', `pause items (${keys})`);
     assert(!keys.includes('test-chamber') && !keys.includes('anim-tuner'), `the pause menu has no Test Chamber row and, with the stage off, no Animation tuner row (${keys})`);
     const gate0 = await GM(() => ({ can: window.__app.debug.animTune.canOpen, row: window.__app.debug.animTune.pauseRow }));
     assert(gate0.can && !gate0.row, `the tuner may open on the Test Chamber but its pause row waits for the stage (${JSON.stringify(gate0)})`);
@@ -506,7 +506,7 @@ try {
     await GM(() => window.__app.current.pause());
     await frames(P, 4);
     const sk = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
-    assert(sk === 'resume,objectives,notes,settings,report-feedback,anim-tuner,quit', `pause items with the animation stage on (${sk})`);
+    assert(sk === 'resume,objectives,notes,settings,report-feedback,feedback,anim-tuner,quit', `pause items with the animation stage on (${sk})`);
   } finally {
     await SS.browser.close();
   }

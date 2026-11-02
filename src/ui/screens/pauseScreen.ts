@@ -174,6 +174,8 @@ export class PauseScreen extends MenuScreen {
     list.append(
       item('Settings', () => this.manager.push(new SettingsScreen(app)), 'Controls, gameplay, graphics, audio and accessibility.', 'settings'),
       item('Report feedback', () => this.manager.push(new FeedbackFormScreen(app, null)), 'Write a note about this moment. It is saved with the map and position.', 'report-feedback'),
+      // (diagnostics log) the same Feedback screen as the main menu's: the notes and the diagnostics log (Copy log)
+      item('Feedback', () => this.manager.push(new SettingsScreen(app).openTab('feedback')), 'Your notes, and the diagnostics log: copy it and paste it to Claude when something went wrong.', 'feedback'),
       // (anim-tuner pass 2-3) the animation tuner without F3 (pad, phone): opens the panel and resumes, so you can move and
       // tune; before Quit, so Up from Resume still wraps to Quit. (G1) Listed in the Test Chamber only; (G2c) and only while
       // its animation stage is on (the main menu row, `?stage=1`): the plain room and the co-op room keep F3 > Anim and Settings.

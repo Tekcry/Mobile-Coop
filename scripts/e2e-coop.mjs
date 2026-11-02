@@ -496,6 +496,11 @@ try {
     assert((await crateTot(B)).sum === crateSumB, `the crate re-send does not change the rejoined client's ammo (${crateSumB} -> ${(await crateTot(B)).sum})`);
     await GA((id) => { const r = window.__app.current.net.remotes.get(id); r.health.hp = 100; r.damageMul = 0; }, pid0);
     assert(true, 'a dropped joiner rejoins from its main menu as the same player, where it stood, with its health');
+    // (diagnostics log) each device logged the room: opened, the readout, the attempt, a link line, the drop and the rejoin
+    const la = await GA(() => window.__diag.text());
+    const lb = await GB(() => window.__diag.text());
+    assert(/room \w+ opened as host/.test(la) && /readout: host: Connected - same device/.test(la) && /attempt: host: Hosted - same device/.test(la) && /link same device, round trip/.test(la) && /joiner dropped mid-match/.test(la) && /the joiner rejoined/.test(la), 'the host\'s diagnostics log has the room, readout, attempt, link line, drop and rejoin');
+    assert(/room \w+ opened as joiner/.test(lb) && /attempt: client: Joined - same device/.test(lb) && /left room/.test(lb) && /loading .*co-op joiner in room/.test(lb), 'the joiner\'s diagnostics log has the room, its attempt, the leave and the co-op match');
   }
 
   console.log('team wipe ends the match; client gets results');
