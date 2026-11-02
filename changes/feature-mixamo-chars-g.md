@@ -3,3 +3,6 @@
   right axis, eased over 0.08 s, at most 1.1 rad: provisional), so the gun in its hand points with the view up and
   down; the hold and the chest follow run after the bend. No bend while an action plays.
 - `scripts/e2e-mixamo.mjs` checks it: camera pitch +0.6 / -0.6 rad turns the barrel to a rise of +0.53 / -0.53.
+- Hanging, shimmying, on a ladder and early in a climb-up, the Mixamo body's hands meet the rig's in height (the whole
+  body shifts up or down; it keeps its own distance from the wall), so the hands sit on the lip / rungs. The climb-up
+  lets go from 45% through 75% of its progress.

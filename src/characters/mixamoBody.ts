@@ -137,14 +137,19 @@ export class MixamoBody {
   /** (slice e) The action clips by name, the one playing (or fading out) and its weight. */
   private readonly actions = new Map<string, AnimationGroup>();
   private act: AnimationGroup | null = null;
+  private actName = '';
   private actW = 0;
   /** (slice g) The spine's aim bend now (rad), and its bones top first (Spine, Spine1, Spine2). */
   private pitch = 0;
   private spine: TransformNode[] = [];
+  private spineChains: TransformNode[][] = [];
   /** (slice g) The hand anchors (rig wrists), the body's own hands (LeftHand, RightHand), the anchor's weight now,
    *  whether the body is shifted, and the root's own height (the fit's). */
   private anchors: { l: TransformNode; r: TransformNode } | null = null;
   private hands: (TransformNode | null)[] = [];
+  /** (slice g) The nodes to refresh before reading the hands (built on first use, no per-frame allocation). */
+  private handChain: TransformNode[] = [];
+  private anchorChain: TransformNode[] = [];
   private anchorW = 0;
   private anchored = false;
   private baseY = 0;
@@ -226,6 +231,7 @@ export class MixamoBody {
     this.baseY = this.root.position.y;
     this.hands = [this.boneNode('LeftHand'), this.boneNode('RightHand')];
     this.spine = ['Spine', 'Spine1', 'Spine2'].map((n) => this.boneNode(n)).filter((b): b is TransformNode => !!b);
+    this.spineChains = this.spine.map((b) => chainBelow(b, this.root));
     if (this.pendingFollow) this.bindFollow(this.pendingFollow.rigRoot, this.pendingFollow.pairs);
     this.ready = true;
     this.onReady?.();
@@ -317,8 +323,9 @@ export class MixamoBody {
     const r = rr.computeWorldMatrix(true).m;
     vT.set(r[0] as number, r[1] as number, r[2] as number).normalize();
     const a = -p / this.spine.length;
-    for (const b of this.spine) {
-      for (const n of chainBelow(b, this.root)) n.computeWorldMatrix(true);
+    for (let si = 0; si < this.spine.length; si++) {
+      const b = this.spine[si]!;
+      for (const n of this.spineChains[si]!) n.computeWorldMatrix(true);
       const W = b.computeWorldMatrix(true);
       const px = W.m[12] as number, py = W.m[13] as number, pz = W.m[14] as number;
       // new world = W . move(-joint) . turn(right, a) . move(joint)
@@ -463,6 +470,7 @@ export class MixamoBody {
     if (want && want !== this.act) {
       if (this.act) this.act.weight = 0;
       this.act = want;
+      this.actName = act?.clip ?? '';
       want.speedRatio = 1;
     }
     const aStep = dt > 0 ? dt / ACT_FADE : 1;
@@ -485,7 +493,7 @@ export class MixamoBody {
       if (this.actW <= 0) this.act = null;
     }
     // (slice g) hanging, shimmying, on a ladder and early in a climb-up the body is placed by its hands on the rig's
-    const an = a ? (a.name.split(':').pop() ?? '') : '';
+    const an = a ? this.actName : '';
     const climb = an === 'hang_climb_up' && act && !Number.isNaN(act.t) ? 1 - Math.min(1, Math.max(0, (act.t - ANCHOR_CLIMB_FROM) / ANCHOR_CLIMB_SPAN)) : 1;
     this.anchorW = a && ANCHORED.has(an) ? this.actW * climb : 0;
   }
@@ -511,8 +519,10 @@ export class MixamoBody {
     for (let p: TransformNode | null = this.root; p; p = p.parent instanceof TransformNode ? p.parent : null) p.computeWorldMatrix(true);
     const L = this.hands[0], R = this.hands[1];
     if (!L || !R) return;
-    for (const n of [...chainBelow(L, this.root), L, R]) n.computeWorldMatrix(true);
-    for (const n of [...chainBelow(a.l, this.rigRoot ?? this.root), a.l, a.r]) n.computeWorldMatrix(true);
+    if (this.handChain.length === 0) this.handChain = [...chainBelow(L, this.root), L, R];
+    if (this.anchorChain.length === 0) this.anchorChain = [...chainBelow(a.l, this.rigRoot ?? this.root), a.l, a.r];
+    for (const n of this.handChain) n.computeWorldMatrix(true);
+    for (const n of this.anchorChain) n.computeWorldMatrix(true);
     const ml = L.getAbsolutePosition(), mr = R.getAbsolutePosition();
     const rl = a.l.getAbsolutePosition(), rrp = a.r.getAbsolutePosition();
     // the height gap (rig hands' midpoint - body hands' midpoint), into the parent's frame, weighted; height only: the
