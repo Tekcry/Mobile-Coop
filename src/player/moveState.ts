@@ -1,7 +1,7 @@
 /**
  * Networked movement state (3.2.0 Chaos Theory movement, phase 1; pure, unit-tested). What a player is doing with
  * their body - free movement, back to a wall, an attached state on an anchor, a committed move, a takedown - in a few
- * fields, so a co-op / PvP remote is posed by the same code as the local player (`poseFromMoveState`,
+ * fields, so a co-op remote is posed by the same code as the local player (`poseFromMoveState`,
  * `AttachGrips`, `traversePath`) instead of guessed from positions.
  *
  * (Lives in `player/`, not `net/`: single player builds it every step and must never import `src/net` statically.)

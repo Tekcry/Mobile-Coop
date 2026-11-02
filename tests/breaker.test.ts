@@ -531,37 +531,6 @@ describe('Enemy.resetBreaker: the walk at patrol pace, the reset, calm after', (
     expect(e.breakerGroup).toBe(-1);
     expect(e.incident).toBe(-1);
   });
-
-  // (laptop fix, 884b89c0: e2e-stealth-ai 'breaker' "at -1.00 s, 0.29 m from it, all lit false") the Warehouse floor
-  // switch (switch-4, group 5) is on the z -8.8 wall: on the guards' runtime nav grid the switch's own column is the
-  // wall, whose one surface is its top (3.2 m), so `heightAt` gave the incident a 3.2 m floor; the walker got to the
-  // switch but never counted as at it (|3.2 - 0| > 1.2) and gave up after 30 s with the circuit still off
-  it('a switch on a wall (the Warehouse floor switch): he stands on the floor cell beside it, works it and the circuit comes back on', async () => {
-    const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { warehouse } = await import('../src/world/maps/warehouse');
-    const { runtimeNav } = await import('./helpers/runtimeNav');
-    const b = new LevelBuilder();
-    const lay = warehouse.build(b, 0);
-    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, warehouse.navLayers ?? 3, lay.navSeeds ?? []);
-    const sw = lay.switches![4]!;
-    expect(sw.group).toBe(5);
-    // the cause: the wall column's surface is the wall's top, far above the floor the switch stands on
-    const wallTop = nav.heightAt(sw.pos.x, sw.pos.z, sw.pos.y);
-    expect(wallTop - sw.pos.y).toBeGreaterThan(1.2);
-    // the stand cell beside it is the floor
-    const c = nav.nearestWalkable(sw.pos.x, sw.pos.z, 4, sw.pos.y);
-    expect(c).toBeGreaterThanOrEqual(0);
-    expect(Math.abs(nav.cellHeight(c) - sw.pos.y)).toBeLessThan(0.1);
-    // the walk with the old (wall top) floor still ends at the switch: the stand height is the cell's
-    const { e, reset } = await walker({ v: true }, nav);
-    e.pos.set(4, 0, 1);
-    e.resetBreaker(sw.pos.x, sw.pos.z, wallTop, 5, sw.group);
-    const t = run(e, 60, []);
-    expect(reset).toHaveBeenCalledTimes(1);
-    expect(reset.mock.calls[0]![1]).toBe(5);
-    expect(t).toBeLessThan(BREAKER_WALK.giveUp);
-    expect(Math.hypot(e.pos.x - sw.pos.x, e.pos.z - sw.pos.z)).toBeLessThan(1.6);
-  });
 });
 
 describe('EnemyManager: the breaker incident sits on the floor by the switch (laptop fix)', () => {
@@ -588,31 +557,6 @@ describe('EnemyManager: the breaker incident sits on the floor by the switch (la
     em.lightsOut(0, 4, 0 + 2.5, -1, 4);
     expect(a.resetBreaker).toHaveBeenCalledTimes(1);
     expect(a.resetBreaker.mock.calls[0]![2]).toBeCloseTo(0.02, 5);
-  });
-
-  it("the Warehouse floor switch (switch-4) on the guards' runtime nav: the incident and the walk sit on the floor (0.02), not the wall top (3.2)", async () => {
-    const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { warehouse } = await import('../src/world/maps/warehouse');
-    const { runtimeNav } = await import('./helpers/runtimeNav');
-    const b = new LevelBuilder();
-    const lay = warehouse.build(b, 0);
-    const nav = runtimeNav(b, lay.playerSpawns[0]!.pos, warehouse.navLayers ?? 3, lay.navSeeds ?? []);
-    const sw = lay.switches![4]!;
-    // the failing condition (884b89c0): the switch's own column is the wall, its one surface the wall's top
-    expect(nav.heightAt(sw.pos.x, sw.pos.z, sw.pos.y) - sw.pos.y).toBeGreaterThan(1.2);
-    const reg = new LightRegistry();
-    reg.add({ x: sw.pos.x, y: 3, z: sw.pos.z + 3, group: sw.group });
-    const h = host(reg, { [sw.group]: [sw.pos.x, sw.pos.y, sw.pos.z] });
-    const world = { level: { lights: reg, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };
-    const em = new EnemyManager({} as Scene, world as unknown as World, nav, {} as DamageRegistry, { clear: vi.fn(() => true) } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
-    em.breakers = h;
-    // on the floor in front of the lamp, facing it (yaw 0 looks along +z)
-    const a = guard(1, sw.pos.x, sw.pos.z + 0.5, 0);
-    em.enemies.push(a as unknown as Enemy);
-    h.cut(sw.group);
-    em.lightsOut(sw.pos.x, sw.pos.z, sw.pos.y + 2.5, -1, sw.group);
-    expect(a.resetBreaker).toHaveBeenCalledTimes(1);
-    expect(Math.abs((a.resetBreaker.mock.calls[0]![2] as number) - sw.pos.y)).toBeLessThan(0.1);
   });
 });
 

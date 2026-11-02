@@ -197,9 +197,9 @@ try {
   for (let i = 0; i < 8 && !/^Co-op/.test(await focusedText(page)); i++) await press(page, BTN.UP);
   assert(/^Co-op/.test(await focusedText(page)), `menu wraps / reaches Co-op (${await focusedText(page)})`);
   assert(await q('.main-menu'), 'still on the main menu');
-  // the checks below need an empty map (Free roam, only behind ?legacy=1 now): the test hook starts it at the level picked
-  await page.evaluate(() => window.__play('warehouse', 'sandbox', 'realistic'));
-  // (marlow-bays item 29) the warehouse match builds its voxel world in workers first: under a loaded run (E2E_JOBS=2) that
+  // the checks below need an empty map (no guards: the Test Chamber in the sandbox mode): the test hook starts it at the level picked
+  await page.evaluate(() => window.__play('chamber', 'sandbox', 'realistic'));
+  // (marlow-bays item 29) a match builds its voxel world in workers first: under a loaded run (E2E_JOBS=2) that
   // took over 30 s on the laptop; the match start is the real condition, waited for as e2e-lib waits for an autostart
   // (one-game) map-ready is on by default: the sim is held until its load gate releases (__mapReady.released; not with `?mapready=0`)
   await page.waitForFunction(() => window.__app.current?.player && (/[?&]mapready=0(&|$)/.test(location.search) || window.__mapReady?.released), null, { timeout: 120000 });
@@ -279,7 +279,8 @@ try {
   // and leaves the goggles alone (View was the goggles' old key; D-pad left and N are the goggles)
   {
     if (!(await G(() => window.__app.current.hud.objectiveText))) await G(() => window.__app.current.hud.setObjective('Test objective'));
-    await page.waitForFunction(() => !document.querySelector('.hud-objective.show'), null, { timeout: 8000 }).catch(() => {});
+    // (clean-up H: the sandbox match has no objective of its own now, so the popup of the one set here is waited out)
+    await page.waitForFunction(() => !document.querySelector('.hud-objective.show'), null, { timeout: 20000 }).catch(() => {});
     const before = await G(() => ({ shown: !!document.querySelector('.hud-objective.show'), mode: window.__app.current.vision.mode }));
     await page.evaluate(() => window.__pad.set(8, 1));
     await page.waitForTimeout(150);

@@ -79,7 +79,7 @@ afterEach(async () => {
 function room(map: string, mission: string, joiners: number) {
   const h = hub();
   const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
-  host.setSettings('sector', 'warehouse', 'normal');
+  host.setSettings('sector', 'kestrel', 'normal');
   const clients: NetSession[] = [];
   const starts: StartInfo[] = [];
   for (let i = 0; i < joiners; i++) {
@@ -145,7 +145,7 @@ describe('R4: a campaign mission starts only with exactly two players', () => {
 
   it('over capacity outside the campaign also leaves the room in the lobby (A19)', () => {
     cap.sector = 4;
-    const r = room('warehouse', '', 2);
+    const r = room('kestrel', '', 2);
     // three in the room, then the host picks Marlow Yard (the course takes 2)
     r.host.setSettings('course', 'ctcourse', 'normal');
     expect(r.host.overCapacity).toBe(true);
@@ -200,7 +200,7 @@ describe('R4: Sector Ops and Marlow Yard unchanged', () => {
       const h = hub();
       const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
       host.sectorMission = mission;
-      host.setSettings('sector', 'warehouse', 'normal');
+      host.setSettings('sector', 'kestrel', 'normal');
       expect(host.campaign).toBe(false);
       expect(host.campaignBlock).toBeNull();
       expect(host.cap).toBe(4);
@@ -213,7 +213,7 @@ describe('R4: Sector Ops and Marlow Yard unchanged', () => {
     // a host alone on the campus starts as before
     const solo = sess(hub().make('S'), 'host', 'FGHJK', prof('Solo'));
     solo.sectorMission = 'campusMissionTest';
-    solo.setSettings('sector', 'warehouse', 'normal');
+    solo.setSettings('sector', 'kestrel', 'normal');
     expect(solo.startMatch()).not.toBeNull();
   });
 
@@ -504,7 +504,7 @@ describe('CM3: the lobby pick sets the session mission; the lobby carries it as 
       const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
       const cli = sess(h.make('C'), 'client', 'ABCDE', prof('Cli'));
       const sent = tap(host);
-      host.setSettings('sector', 'warehouse', 'normal', '', 'clear', 'threeGreyCoats');
+      host.setSettings('sector', 'kestrel', 'normal', '', 'clear', 'threeGreyCoats');
       expect(host.sectorMission).toBe('');
       expect(host.campaignPick).toBe('');
       expect(cli.campaignPick).toBe('');
@@ -512,7 +512,7 @@ describe('CM3: the lobby pick sets the session mission; the lobby carries it as 
       host.sectorBay = 3;
       host.resumeSector(3, 'threeGreyCoats', tgcSave());
       host.continueCampaign(tgcSave());
-      expect([host.map, host.sectorMission]).toEqual(['warehouse', '']);
+      expect([host.map, host.sectorMission]).toEqual(['kestrel', '']);
       const s = host.startMatch()!;
       expect(s.bay).toBe(c ? 3 : 1);
       expect('campaignResume' in s).toBe(false);
@@ -569,7 +569,7 @@ describe('CM3: a sector campaign start carries the section in bay', () => {
     setFlags(true);
     const plain = sess(hub().make('H'), 'host', 'ABCDE', prof('Host'));
     plain.mode = 'sector';
-    plain.map = 'warehouse';
+    plain.map = 'kestrel';
     plain.resumeSector(3, undefined, null);
     expect(plain.sectorStartBay()).toBe(3);
     const m = sess(hub().make('H2'), 'host', 'FGHJK', prof('Host'));

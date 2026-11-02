@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { LightRegistry, makeCone, type LightDef } from '../src/world/lights';
 import { mapLampBeams, VOL_BEAM_GAIN, VOL_BEAM_MAX, VOL_LAMP_COS, VOL_LAMP_MAX, writeVolLights } from '../src/vfx/volLights';
 import { ctcourse } from '../src/world/maps/ctcourse';
-import { warehouse } from '../src/world/maps/warehouse';
 
 const COOL: [number, number, number] = [0.9, 0.95, 1];
 const STRIP = { sx: 0.25, sy: 0.08, sz: 2.6, oy: 0.15, model: 'strip' as const };
@@ -31,9 +30,8 @@ describe('vol-light wiring (fog triage): theme.lampBeams -> GameState -> PostSta
     expect(mapLampBeams({ lampBeams: false })).toBe(false);
   });
 
-  it('the real maps: Marlow Yard turns the lamp beams off; the Warehouse keeps the default', () => {
+  it('the real maps: Marlow Yard turns the lamp beams off', () => {
     expect(mapLampBeams(ctcourse.theme)).toBe(false);
-    expect(mapLampBeams(warehouse.theme)).toBe(true);
   });
 
   it('writeVolLights: lampBeams false -> only the torch beams; true -> the coned box lamp beams too; the LED strip never', () => {

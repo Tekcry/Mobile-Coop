@@ -8,7 +8,6 @@ import { CharOccluders } from '../world/charOccluders';
 import { ShadowCues } from '../world/shadowCues';
 import type { LightField } from '../world/lightField';
 import { cqSimSet } from '../anim/cqGait';
-import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
 import { LIVE_RIGS } from '../player/characterRig';
 import { LIVE_DOGS } from '../ai/dogModel';
@@ -66,8 +65,6 @@ import { hasJoint, JOINT_BLUFF_LABEL, JOINT_KIND, type JointIntel } from './join
 import { StrikeTrigger } from '../player/weaponStance';
 import { DRAW_HOLSTERED } from '../weapons/drawState';
 import { emptyStats, practiceMode, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
-import { MissionMode } from './modes/missionMode';
-import { ClearMode } from './modes/clearMode';
 import { TestMode } from './modes/testMode';
 import { roomAt } from '../world/rooms';
 import { camSpaceAt, doorPassing } from '../world/camSpaces';
@@ -140,7 +137,6 @@ import { hyp2 } from '../core/mathx';
 import { FILL, FILL_IN, fillOperator, fillPlayers, fillVictims, LOAD_IN, pictureInto, slotInto } from './charOccluderFill';
 import { GadgetSystem } from './gadgetSystem';
 import { OpticSystem } from './opticSystem';
-import { InfiltrationMode } from './modes/infiltrationMode';
 import { CourseMode } from './modes/courseMode';
 import { SectorMode } from './modes/sectorMode';
 import type { CourseWire } from './course/courseWire';
@@ -148,7 +144,6 @@ import { PANEL_PART } from './laserPanels';
 import { StealthRating } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
 import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
-import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
 import { contextPing } from '../input/conflicts';
@@ -174,9 +169,6 @@ export interface GameOptions {
   loadout?: LoadoutEntry[];
   /** Coop: attaches the host/client sim. Provided by `src/net` (dynamically imported), never by single player. */
   net?: NetHooks;
-  /** Infiltration: the mission and the insertion point chosen. */
-  missionId?: string;
-  insertion?: string;
   /** The suit worn and the HQ upgrades bought (single player; defaults = issued kit). */
   suit?: SuitLoadout;
   hq?: HqLevels;
@@ -320,10 +312,6 @@ export interface SessionCallbacks {
   restart(): void;
   /** (marlow-bays item 4) Co-op host: end the match and take every connected player back to the room's lobby. */
   lobby?(): void;
-  /** The results screen's Missions (solo): the menu on the missions list. */
-  missions?(): void;
-  /** The results screen's Next (solo): the menu on that mission's briefing. */
-  briefing?(missionId: string): void;
 }
 
 /** Hook for progression (Phase 6): turns session stats into rewards shown on the results screen. */
@@ -855,7 +843,7 @@ export class GameState implements AppState {
           this.stats.byKind[e.def.kind]++;
           if (h.part === 'head') this.stats.headshots++;
         }
-        if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}${showEconomy(flags.legacy) ? `  +${e.def.xp} XP` : ''}`, 'kill');
+        if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}`, 'kill');
         if (h.attackerId === 'local' || h.attackerId === '') {
           const ev = h.kind === 'melee' ? (e.ko ? 'takedownNonLethal' : 'takedownLethal') : e.ko ? 'knockout' : 'kill';
           this.style.record(ev, this.detected);
@@ -874,17 +862,7 @@ export class GameState implements AppState {
       w.crates = new WeaponCrates(this);
       this.addMedkitWalls(w.interactables);
       w.mode =
-        opts.mode === 'clear'
-          ? new ClearMode(this)
-          : opts.mode === 'infiltration'
-            ? new InfiltrationMode(this)
-            : opts.mode === 'course'
-              ? new CourseMode(this)
-              : opts.mode === 'sector'
-                ? new SectorMode(this)
-                : opts.mode === 'test'
-                  ? new TestMode(this)
-                  : new MissionMode(this);
+        opts.mode === 'course' ? new CourseMode(this) : opts.mode === 'sector' ? new SectorMode(this) : new TestMode(this);
       w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
         this.eventNoise(r);
         this.enemyMgr?.hear(at, r);
@@ -977,8 +955,8 @@ export class GameState implements AppState {
     }
     if (practiceMode(opts.mode)) {
       const sandbox = opts.mode === 'sandbox';
-      // (locomotion step 15) free roam on a test map keeps its wall medkit stations (Proving); a co-op client mirrors
-      // the host's (the test mode's items are the non-sandbox set above, medkit walls among them)
+      // (locomotion step 15) a sandbox walk of a map keeps its wall medkit stations (the test mode's items are the
+      // non-sandbox set above, medkit walls among them)
       if (sandbox && !this.puppet && world.layout.medkitWalls?.length) {
         const w = this as { -readonly [K in keyof GameState]: GameState[K] };
         w.interactables = new Interactables(this.scene, world.parts);
@@ -989,7 +967,6 @@ export class GameState implements AppState {
       const dummies = world.layout.dummies;
       // (G2b) not on the animation stage: they would stand in the loop player's room
       if (dummies && !opts.stage) for (const dm of dummies) this.dummies.push(new TrainingDummy(this.scene, world, this.registry, dm.pos.clone(), dm.yaw, dm.strafe ?? 0));
-      if (sandbox) this.hud.setObjective(dummies?.length ? 'Free roam - try every weapon' : 'Free roam - explore with every weapon');
     }
 
     const dbgPts = world.layout.debugPoints;
@@ -1325,14 +1302,6 @@ export class GameState implements AppState {
     if (this.sectionRatings.length) nav.ratings = this.sectionRatings;
     // (campaign-mode CM6) a campaign mission's panel (the host's end, or the client's from `pc`)
     if (this.campaignResult) nav.campaign = this.campaignResult;
-    const cb = this.cb;
-    const id = this.stats.missionId;
-    if (!this.net && id && cb.missions) {
-      nav.missions = () => cb.missions!();
-      const i = MISSIONS.findIndex((x) => x.id === id);
-      const nx = i >= 0 ? MISSIONS[i + 1] : undefined;
-      if (nx && cb.briefing) nav.next = { label: 'Next mission', go: () => cb.briefing!(nx.id) };
-    }
     return nav;
   }
 
@@ -1452,11 +1421,6 @@ export class GameState implements AppState {
   objectiveLines(): ObjectiveLine[] {
     const own = this.mode?.objectiveLines?.() ?? this.net?.objectiveLines?.();
     if (own) return own;
-    const m = this.mode;
-    if (m instanceof InfiltrationMode) {
-      const c = m.chain;
-      return c.def.objectives.map((o, i) => ({ label: o.label, done: c.state === 'done' || i < c.index, current: c.state === 'active' && i === c.index }));
-    }
     const t = this.hud.objectiveText;
     return t ? [{ label: t, done: false, current: true }] : [];
   }
@@ -2701,7 +2665,6 @@ export class GameState implements AppState {
       position: `${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`,
       facing: `${Math.round((((this.player.cam.yaw * 180) / Math.PI) % 360 + 360) % 360)} deg`,
     };
-    if (o.missionId) ctx.mission = o.missionId;
     if (o.difficulty) ctx.difficulty = o.difficulty;
     if (this.net) ctx.net = this.puppet ? 'co-op client' : 'co-op host';
     if (this.enemyMgr) ctx.enemies = `${this.enemyMgr.enemies.filter((e) => e.alive).length} alive${this.enemyMgr.anyAlerted ? ', alerted' : ''}`;
@@ -4111,7 +4074,7 @@ export class GameState implements AppState {
     const ri = roomAt(rooms, p.x, p.z, p.y);
     this.currentRoom = ri;
     // Clear mode shows no room names (only the hostiles left)
-    this.hud.setRoom(ri >= 0 && !(this.mode instanceof ClearMode) ? rooms[ri]!.name : null);
+    this.hud.setRoom(ri >= 0 ? rooms[ri]!.name : null);
   }
 
   /** Exposure sampling (4 Hz): rays from the nearest alerted threats' eyes to points on the player's volumes. */

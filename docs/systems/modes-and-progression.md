@@ -1,7 +1,7 @@
-# Modes, the course, parked modes and the parked economy
+# Modes, the course and the parked economy
 Owner: the orchestrator. Status: current.
-Purpose: the game modes as built, the training course, what `?legacy=1` parks, and the parked arsenal / suit /
-HQ economy and cosmetics.
+Purpose: the game modes as built, the training course, and the parked arsenal / suit / HQ economy and cosmetics
+(stage I removes the economy).
 Design authority: docs/DECISIONS.md (G2, G7, G8, G111, G116, G184, G290, G349, G353, G370, G371, G384, G385), then
 docs/design-bible.md (Sections 5.8 and 6).
 
@@ -11,8 +11,7 @@ The decided modes (current rules: docs/DECISIONS.md, the newest entry wins):
   prototypes Three Grey Coats and Two-Key Ledger (G293, G340, G402; the mission-framework job); Kestrel is
   paused (G53). Decided, not built yet: the campaign is entered from the co-op lobby, with Marlow Yard as its training
   prologue before Mission 1 (G371); campaign sections grant no rewards, optional objectives only raise the rating
-  (G384); Mission 1 has no civilians (G373). The campaign mission framework is not built yet: today's missions run in
-  Infiltration.
+  (G384); Mission 1 has no civilians (G373). The campaign runs on the mission framework (`game/mission/`).
 - Marlow Yard (`ctcourse`, Course mode): the 2-player co-op training course; guided and linear, it keeps its guidance
   marks and objective list (G292). Downed: the campaign rule (G349, G126). No strict rule, fail or send-back: every
   failure is a retry (G370).
@@ -22,37 +21,23 @@ The decided modes (current rules: docs/DECISIONS.md, the newest entry wins):
   waypoints, and objectives that name what and where, by bible 5.10 (G336, G339, G343, G351). Marlow Yard is the
   guided exception (G292). Killing a civilian or a protected character restarts the section (G353, replaces G145's
   mission fail): decided, not built yet (no civilian or protected character exists in code).
-Hunter is the one non-CT mode kept, parked (G7). Wave, team deathmatch, free-for-all, every player-versus-player mode
-and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs/archive/consolidation/).
+Hunter, Mission, Infiltration, Free Roam and the legacy switch were removed in clean-up stage H (2026-11-02). Wave, team
+deathmatch, free-for-all, every player-versus-player mode and the old solo Training mode were deleted earlier (G8, G12,
+G116; deletion logs in docs/archive/consolidation/).
 
 ## Modes as built (`ModeId`)
 | Id | Name | Where | Status |
 | --- | --- | --- | --- |
-| `infiltration` | Infiltration | Play screen (default), co-op lobby | Live; the campaign's mission runner until the mission framework job ("Campaign" is the player-facing name, kestrel 2026-10-11) |
-| `sandbox` | Free Roam | Play screen, co-op lobby | Live; no guards (Proving Grounds adds training dummies) |
+| `sandbox` | (no menu) | `?autostart=<map>&mode=sandbox` and the Kestrel editor's walk test | Live; no guards, infinite ammo, the practice loadout. Not on the wire (`NetMode` has no `sandbox`) |
+| `test` | Test Chamber | Main menu row (solo), co-op lobby Mode row | Live; `TestMode`: guards by test, revives, practice (nothing saved) |
 | `course` | Training course | Co-op only (two players) | Live on Marlow Yard (`ctcourse`, the co-op training course, G292; `?autostart=ctcourse&mode=course`); also on `courselab` (an older course map) |
-| `sector` | Sector Ops | Main menu, solo or co-op lobby | Live on `campusOps` (Saltmarsh Park) and `warehouseOps` (the old map); see below |
-| `clear` | Hunter | `?legacy=1` | Parked (G7: comes back later) |
-| `mission` | Mission | `?legacy=1` | Parked (the old mission mode; it does not return as team-versus-team, G8) |
+| `sector` | Sector Ops | Co-op lobby (the campaign's missions) | Live on Tallow Wharf (`tallowWharf`, `?autostart=tallowWharf&mode=sector&mission=<id>`); see below |
 
-- Decided, not built yet (G2, G111): the campaign needs two players; today Infiltration and Free Roam still start solo
-  from the Play screen (solo stays as a dev and test path until the campaign job).
-- `?autostart=<mapId>&mode=<mode>` starts any mode whatever the flag (tests, dev). An unknown or deleted mode id falls
-  back to the autostart default (`sandbox`); an unknown map id to Proving Grounds.
-- Infiltration: `game/missions.ts` (`MISSIONS` from `config/missions.json` on listed maps, `validateMissions`,
-  `ObjectiveChain`, `DOWNLOAD`, `evaluateRules`, `missionRating`), `game/modes/infiltrationMode.ts` (insertion
-  teleport, room squads up to `SQUAD_CAP` 9, per-objective interactables with `onUse`: kinds `terminal`, `charge`,
-  `vip`, `intel`, `extract`; download progress within `DOWNLOAD.range`, `noticed()` -> `enemyMgr.hear`; `Vip`
-  (`game/vip.ts`) follows by A*; as built a broken mission rule fails the mission at once (G290 replaces this: up to 2
-  strict rules, breaking one restarts the section; the mission framework builds it); `finish` sets
-  `stats.missionId / rating / bonuses`).
-  `GameOptions.missionId / insertion`; `GameMode.onInteract`. The four Warehouse missions are listed; six missions on
-  the parked 2.x maps stay in the data, unlisted. `window.__missions` for tests.
+- The campaign needs two players (G2, G111); the only solo starts left are the Test Chamber row and the dev / test URLs.
+- `?autostart=<mapId>&mode=<mode>` starts any mode (tests, dev). An unknown or removed mode id (`hunter`, `clear`,
+  `mission`, `infiltration`) falls back to the autostart default (`sandbox`); an unknown map id to Marlow Yard (`getMap`).
 - Stealth rating hook: `game/playstyle.ts` `StealthRating` (`GameState.style`; counters alarms / kills / knock-outs /
   detections, no points). `SessionStats.detections / knockouts`. Scoring: `game/modes/score.ts` `killScore`.
-- Hunter (`ClearMode`, `?mode=hunter`): `GameMode.onAlarm(at)` returns true when the mode brings its own
-  reinforcements: Hunter adds `hostilesLeft` more pending slots (alerted) at the entry point. The benchmark flight runs
-  in a Hunter match on the Warehouse (graphics-quality.md).
 - Difficulty: CT's fixed levels only (G106): Rookie, Normal, Realistic, Perfectionist (`DifficultyPreset`,
   `ai/archetypes.ts`); no sliders, no alarm-tolerance setting. In co-op the host's level runs on both pages.
 
@@ -92,9 +77,8 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   as cleared. `save/sectorRecord.ts`, kv key `sector:ops`
   (per op id: the presets completed and the best time per preset; no profile change, no SAVE_VERSION bump). The
   extraction calls `markCompleted(map.id, difficulty, time)` (solo and co-op host; the co-op client on a won `end`, no
-  time). The menu entry opens `SectorOpsScreen` (`ui/screens/missionsScreen.ts`: maps with `sectors` and the `sector`
-  mode; `starsText` in DIFFICULTIES order, best times in the context panel), then the briefing. The main menu counter
-  shows Saltmarsh Park's stars (`campusOps`); the host's lobby Map row shows each op's. The result line and the
+  time). (The Sector Ops menu entry and its screen, `SectorOpsScreen`, went in clean-up F and H; the host's lobby Map row
+  showed each op's stars.) The result line and the
   extraction banner add PERFECT (no kills and no alarm raised all op, restarts included: `SectorRun.alarmsRaised`,
   G146; `sectorResult`, `resultBadge`) before GHOST.
 - Revive syringes (M7, A10): co-op only. The host's `ReviveClock.cap` is `syringesFor(difficulty)` (Rookie 3, Normal 2,
@@ -118,7 +102,7 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   `checkpointRestart` event fades the alert / caution music to Calm (`Music.calm`). Health is full with the respawn.
   Co-op: the client records its loadout as each section goes live (the `sector` message's `ls`) and runs its own
   `checkpointReset` on the host's restart banner (`SECTOR_RESTART_TITLE`; no wire change, A1). Sector Ops issues the
-  campaign kit like Infiltration: the rifle comes suppressed (A2, `loadoutEntries`). Doors and shot-out lamps stay as
+  campaign kit: the rifle comes suppressed (A2, `loadoutEntries`). Doors and shot-out lamps stay as
   they were (polish).
 - Section rating (section-rating): each section is rated once as its connector unloads it (the last at the
   extraction) on four marks (`game/rating/sectionRating.ts`): Undetected (no guard detection, no camera alarm), No kills
@@ -150,18 +134,14 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
 - Friendly fire: a host option, on by default (G141, settles G49). As built it is on in Course mode only, with no host
   option yet (`CoopHost.ff`).
 
-## Parked content (`?legacy=1`)
-- `flags.legacy` (`?legacy=1`, URL only, never saved) and `core/legacy.ts` (pure, `tests/legacy.test.ts`):
-  `PARKED_MODES` = `['mission', 'clear']`, `visibleModes(all, legacy)`, `defaultMode(legacy)` (Infiltration, or Hunter
-  with legacy), `campaignUnlocked(legacy)` (true when legacy is off), `showEconomy(legacy)`.
-- Legacy off (default): the Play screen offers Infiltration and Free Roam; the co-op lobby Infiltration and Free Roam (a
-  new room starts on Infiltration); the Loadout screen shows weapons, attachments, gadget and presets only (no suit,
-  appearance, tag, HQ or challenges; no upgrade or camo rows; the top bar says NIGHT SHIFT without level or credits);
-  the results screen has no rewards panel (progression is still recorded) and no style bars; the kill feed has no "+XP".
+## The campaign kit
 - The campaign opens every weapon and attachment without buying (`profile.ts` `campaignOpens` / `ownsOrOpen`;
-  `SaveManager.openLoadout` keeps any known weapon as the loadout). Nothing is written to `unlocks` or credits.
+  `SaveManager.openLoadout` is always true and keeps any known weapon as the loadout). Nothing is written to `unlocks` or
+  credits. The main menu's Loadout row is the read-only Kit screen; the results screen has no rewards panel (progression
+  is still recorded until stage I removes it) and the kill feed has no "+XP". `?legacy=1` and `core/legacy.ts` are gone
+  (clean-up H); the old Loadout screen, profile badge and rewards panel went with them.
 
-## Parked economy and cosmetics (2.0 phase 8; `?legacy=1` only)
+## Parked economy and cosmetics (2.0 phase 8; hidden, stage I removes it)
 - Arsenal: the CT kit only (G76): `rifle` (Heron Carbine, issued suppressed) and `pistolSd` (Hush 9 SD); the other 14
   guns are deleted (docs/archive/consolidation/deleted-guns.md). The rifle keeps the legacy attachments (red dot, 4x
   scope, suppressor, compensator, grip, laser, magazines); CT's attachment set (sniper, shotgun, launcher) and the knife
@@ -175,5 +155,5 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
 - `cosmetics/catalog.ts`: avatar options, camos, titles, emblems; it registers unlock items at import. Patterns:
   `PatternPlugin` reads per-instance `pattern` and `color2`; `avatarFactory` and `WeaponModel` apply them. Emotes are
   deleted (G24).
-- The 2.x maps (Embassy, Mansion, Port, Refinery, Dust Depot) are parked in `world/maps/parked.ts` (not imported, not in
-  the bundle); their notes are in the git log.
+- The 2.x maps (Embassy, Mansion, Port, Refinery, Dust Depot), the Warehouse and Proving Grounds were deleted in clean-up
+  stage H; their notes are in the git log.

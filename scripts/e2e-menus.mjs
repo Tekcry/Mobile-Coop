@@ -377,8 +377,7 @@ try {
     }
   }
 
-  // slice 4: the issued kit; Missions, Training and Free roam only
-  // with ?legacy=1 (e2e-park)
+  // slice 4: the issued kit (the menu rows: e2e-park)
   await key('Escape');
   assert((await top()) === 'main-menu', 'Esc: Settings back to the main menu');
   const menuKeys = await G(() => [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(','));
@@ -410,7 +409,7 @@ try {
   // desktop, 2.5-4 alone; the suite then ran past the runner's 600 s limit inside the tuner-camera block)
   await page.goto('about:blank');
   // (clean-up G2c) the pause menu is checked on the Test Chamber's test mode (was the Warehouse mission): its items, the notes, the
-  // quit confirm, Start, the controller drop; the Objectives screen of a mission match on the Marlow Yard course (below), and the
+  // quit confirm, Start, the controller drop; the Objectives screen on the Marlow Yard course (below), and the
   // pause row of the animation tuner with the stage on
   console.log('pause on the Test Chamber (G2c)');
   const S = await launch({ url, params: 'autostart=chamber&mode=test' });
@@ -529,13 +528,13 @@ try {
     await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
     await frames(P, 3);
     const objs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));
-    // (the course gives the screen no objective lines: it says so; a mission's lines with a current one are checked on the mission page below)
+    // (the course gives the screen no objective lines: it says so)
     assert((await mtop()) === 'objectives-screen' && objs.length >= 1, `Objectives opens on the Marlow Yard course (${objs.join(' | ')})`);
   } finally {
     await C.browser.close();
   }
-  // (one-game) `mapready=0` for this boot: map-ready crashes the render on the Warehouse and Proving Grounds (goes when stage H deletes those maps)
-  const M = await launch({ url, params: 'autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot&mapready=0' });
+  // (clean-up H) the tuner, settings and results sections run on a second Test Chamber page (was a Warehouse Infiltration page)
+  const M = await launch({ url, params: 'autostart=chamber&mode=test' });
   try {
     const P = M.page;
     const GM = (f, a) => P.evaluate(f, a);
@@ -543,17 +542,6 @@ try {
     const mkey = (k) => GM(() => window.__app.nav.focused?.dataset.key ?? '(none)');
     await P.waitForFunction(() => window.__app.current?.player, null, { timeout: 90000 });
     await frames(P, 30);
-    // (G2c) the mission's Objectives screen (a Warehouse Infiltration part, gone in stage H): the objectives with a current one
-    await GM(() => window.__app.current.pause());
-    await frames(P, 4);
-    await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
-    await frames(P, 3);
-    const mobjs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));
-    assert((await mtop()) === 'objectives-screen' && mobjs.length >= 2 && mobjs.some((t) => /Current/.test(t)), `Objectives lists the mission with a current one (${mobjs.length})`);
-    await GM(() => document.querySelector('.objectives-screen [data-legend="back"]').click());
-    await frames(P, 3);
-    await GM(() => window.__app.screens.top.resume());
-    await frames(P, 4);
     // (the pad is the device from here: the pause section that connected it ran on the Test Chamber page above)
     await GM(() => { window.__pad.connect(); window.__app.input.setMode('gamepad'); });
     await frames(P, 4);
@@ -782,11 +770,7 @@ try {
     // results
     await GM(() => {
       const g = window.__app.current;
-      g.stats.missionId = 'warehouse-courier';
-      g.stats.rating = 2;
-      g.style.kills = 2; // G146: one kill costs the no-kills star
       g.stats.kills = 2;
-      g.stats.bonuses = ['No alarms'];
       g.endSession(true, 'done');
     });
     await P.waitForSelector('.results-screen', { timeout: 60000 }); // a hang guard: a 1.8 s timer, then a push; frames stall under load
@@ -795,14 +779,10 @@ try {
       keys: [...document.querySelectorAll('.results-screen .ms-item')].map((b) => b.dataset.key).join(','),
       focus: window.__app.nav.focused?.dataset.key,
       stars: document.querySelector('.mission-rating')?.textContent ?? '',
-      earned: document.querySelectorAll('.results-screen .rs-earned li').length,
-      lines: [...document.querySelectorAll('.results-screen .rs-earned li')].map((l) => l.textContent).join('|'),
-      bonus: document.querySelector('.results-screen .rs-bonus')?.textContent ?? '',
       title: document.querySelector('.results-title')?.textContent,
     }));
-    assert(res.title === 'VICTORY' && /★★☆/.test(res.stars) && res.earned === 3, `results: outcome, stars and what earned them (${res.stars}, ${res.earned} lines)`);
-    assert(/★ +All primary objectives complete.★ +No alarms raised.☆ +Kills: 2/.test(res.lines) && /Bonus: No alarms/.test(res.bonus), `G146 lines and bonus (${res.lines}; ${res.bonus})`);
-    assert(/retry/.test(res.keys) && /missions/.test(res.keys) && /quit/.test(res.keys), `results items (${res.keys}, focus ${res.focus})`);
+    assert(res.title === 'VICTORY' && res.stars === '', `results: the outcome and no mission stars (${res.title}, "${res.stars}")`);
+    assert(/retry/.test(res.keys) && /quit/.test(res.keys) && !/missions/.test(res.keys), `results items: Retry and Main menu, no Missions (${res.keys}, focus ${res.focus})`);
   } finally {
     await M.browser.close();
   }
@@ -830,8 +810,7 @@ try {
     await P.waitForFunction(() => (window.__app.screens.top?.el.classList[1] ?? '(none)') === 'main-menu', null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep)
     assert((await ttop()) === 'main-menu', `a tap on the Back legend returns to the main menu (${await ttop()})`);
     // in play
-    // (one-game) `mapready=0` for this boot: map-ready crashes the render on the Warehouse and Proving Grounds (goes when stage H deletes those maps)
-    await P.goto(`${url}?autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot&mapready=0`);
+    await P.goto(`${url}?autostart=chamber&mode=test&practice=0`);
     await P.waitForFunction(() => window.__app.current?.player && window.__app.current.simulating, null, { timeout: 120000 });
     await frames(P, 30);
     const shown = () => GT(() => getComputedStyle(document.querySelector('.touch-pause')).display !== 'none');

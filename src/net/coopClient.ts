@@ -322,12 +322,8 @@ export class CoopClient implements NetAttachment {
     // wall medkit stations are the host's, mirrored (the host heals: health is host-authoritative)
     const own = g.interactables;
     if (own) for (const it of own.items.filter((x) => x.kind === 'medkitWall')) own.remove(it);
-    if (g.opts.mode !== 'sandbox' || !own) {
-      this.ints = new Interactables(g.scene, g.world.parts, drawsExitBeacon(g.opts.mode));
-      (g as { interactables: Interactables | null }).interactables = this.ints;
-    } else this.ints = own;
-    // (free roam mirrors only the host's wall medkits)
-    if (g.opts.mode === 'sandbox') this.mirrorOnly = 'medkitWall';
+    this.ints = new Interactables(g.scene, g.world.parts, drawsExitBeacon(g.opts.mode));
+    (g as { interactables: Interactables | null }).interactables = this.ints;
     // (coop-fix, bug 2) the placeholder is the mirror's value: the first snapshot replaces it, an empty host
     // objective (course mode sets none) included. (hud-guidance B3, HG9) It shows on the net-status line; the objective
     // line holds only the host's objective, so the client's own free roam line goes until the first snapshot.
@@ -612,9 +608,6 @@ export class CoopClient implements NetAttachment {
   }
 
   /** Mirror the host's usable things: create / move / enable; gone from the list = removed. */
-  /** (step 15) Sandbox: mirror only this item kind into the client's own interactables. */
-  private mirrorOnly: NetItem['k'] | null = null;
-
   /**
    * (sector-redesign E6, EW10) Sector Ops: each security desk's mode (looped, off) read back from its mirrored console
    * label (`deskModeOf`) onto our cameras, from our own map data's desk list (no wire change). Per snapshot, not per frame.
@@ -645,7 +638,6 @@ export class CoopClient implements NetAttachment {
     if (!ints) return;
     const keep = new Set<string>();
     for (const n of list) {
-      if (this.mirrorOnly && n.k !== this.mirrorOnly) continue;
       keep.add(n.id);
       let it = this.items.get(n.id);
       if (!it) {
@@ -787,7 +779,7 @@ export class CoopClient implements NetAttachment {
     h.hp = p.hp;
     if (p.hp <= 0 && g.player.alive) {
       g.player.alive = false;
-      g.hud.banner('DOWN', g.opts.mode === 'sandbox' ? 'Respawning…' : 'A team-mate can revive you', 2500);
+      g.hud.banner('DOWN', 'A team-mate can revive you', 2500);
     }
   }
 

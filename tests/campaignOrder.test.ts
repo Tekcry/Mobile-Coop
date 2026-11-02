@@ -79,7 +79,7 @@ describe('campaign order', () => {
     expect(entryForRoom('course', 'courselab', null)).toBeNull();
     expect(entryForRoom('sector', 'tallowWharf', null)).toBeNull();
     expect(entryForRoom('sector', 'tallowWharf', 'bogus')).toBeNull();
-    expect(entryForRoom('sector', 'warehouse', 'threeGreyCoats')).toBeNull();
+    expect(entryForRoom('sector', 'kestrel', 'threeGreyCoats')).toBeNull();
     expect(entryForRoom('sandbox', 'ctcourse', null)).toBeNull();
   });
 
@@ -187,9 +187,7 @@ describe('lobby rows (CM4)', () => {
     for (const entry of [null, pro, tgc]) {
       expect(lobbyRows({ ...base, campaign: false, mode: 'course', entry })).toEqual(['mode', 'map', 'difficulty', 'bay', 'room']);
       expect(lobbyRows({ ...base, campaign: false, mode: 'sector', entry, continued: true, weather: true })).toEqual(['mode', 'map', 'difficulty', 'weather', 'room']);
-      expect(lobbyRows({ ...base, campaign: false, mode: 'infiltration', entry })).toEqual(['mode', 'mission', 'difficulty', 'room']);
       expect(lobbyRows({ ...base, campaign: false, host: false, mode: 'course', entry, weather: true })).toEqual(['mode', 'map', 'difficulty', 'weather']);
-      expect(lobbyRows({ ...base, campaign: false, host: false, mode: 'infiltration', entry })).toEqual(['mode', 'mission', 'difficulty']);
     }
   });
 

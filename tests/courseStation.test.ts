@@ -1276,7 +1276,7 @@ describe('the room map', () => {
   it('the flag off leaves the room on ctcourse; on, Marlow Yard opens the re-planned yard; other maps as picked', () => {
     expect(roomMap('ctcourse', false)).toBe('ctcourse');
     expect(roomMap('ctcourse', true)).toBe('ctcourseReplan');
-    expect(roomMap('warehouse', true)).toBe('warehouse');
+    expect(roomMap('kestrel', true)).toBe('kestrel');
     expect(roomMap('ctcourseReplan', false)).toBe('ctcourseReplan');
   });
   it('a Resume hosting record on the re-planned yard reopens on the built yard with the flag off (fix 8)', () => {
@@ -1284,7 +1284,7 @@ describe('the room map', () => {
     expect(resumeMap('ctcourseReplan', true)).toBe('ctcourseReplan');
     expect(resumeMap('ctcourse', true)).toBe('ctcourseReplan');
     expect(resumeMap('ctcourse', false)).toBe('ctcourse');
-    expect(resumeMap('warehouse', false)).toBe('warehouse');
+    expect(resumeMap('kestrel', false)).toBe('kestrel');
   });
 });
 

@@ -29,7 +29,7 @@ export function owns(s: SaveData, id: string): boolean {
   return s.unlocks.includes(id);
 }
 
-/** 3.5: what the campaign opens without buying (weapons and attachments; `core/legacy.ts` `campaignUnlocked`). Nothing is written to the save. */
+/** 3.5: what the campaign opens without buying (weapons and attachments; `SaveManager.openLoadout`). Nothing is written to the save. */
 export const campaignOpens = (id: string): boolean => id.startsWith('weapon:') || id.startsWith('att:');
 
 /** `owns`, or opened by the campaign. */
@@ -96,17 +96,6 @@ export function applySession(s: SaveData, stats: SessionStats, difficulty: Diffi
     st.kills += Math.min(5000, stats.kills);
     st.headshots += Math.min(5000, stats.headshots);
     st.timePlayed += Math.min(36000, stats.time);
-  }
-  // Infiltration: the best run per mission
-  if (stats.missionId && /^[a-z0-9-]{1,48}$/.test(stats.missionId)) {
-    const r = (s.missions[stats.missionId] ??= { rating: 0, score: 0, plays: 0, wins: 0 });
-    r.plays++;
-    if (stats.won) r.wins++;
-    const rating = Math.max(0, Math.min(3, Math.floor(stats.rating ?? 0)));
-    if (rating > r.rating || (rating === r.rating && stats.score > r.score)) {
-      r.rating = rating;
-      r.score = Math.min(1e9, Math.max(0, Math.floor(stats.score)));
-    }
   }
   // challenges: progress, paid once on completion
   const challenges: string[] = [];
@@ -226,9 +215,8 @@ export function setLoadout(s: SaveData, slot: 'primary' | 'secondary', w: Weapon
 }
 
 /**
- * Weapons for a match from the profile (sandbox: a fixed set, still with your upgrades; Infiltration, the campaign:
- * the loadout mapped onto the curated arsenal at use, `config/arsenal.ts`, bible 5.6). `campaignOpen`:
- * `campaignUnlocked(flags.legacy)`, so ?legacy=1 Infiltration issues the save as is, the same as its lobby loadout (D8).
+ * Weapons for a match from the profile (the practice modes: a fixed set, still with your upgrades; the campaign:
+ * the loadout mapped onto the curated arsenal at use, `config/arsenal.ts`, bible 5.6). `campaignOpen`: always true now.
  * (sector-restart, M9, A2) Sector Ops issues the campaign kit too: its rifle comes suppressed (A62), as the Kit screen
  * and the co-op lobby loadout already show it.
  */
@@ -238,7 +226,7 @@ export function loadoutEntries(
   campaignOpen: boolean,
   skin?: (w: WeaponId, camo: string) => Pick<LoadoutEntry, 'colors' | 'pattern'>,
 ): LoadoutEntry[] {
-  const campaign = (mode === 'infiltration' || mode === 'sector') && campaignOpen;
+  const campaign = mode === 'sector' && campaignOpen;
   const ids: WeaponId[] = practiceMode(mode) ? ['rifle', 'pistolSd'] : lobbyLoadout(s, campaign);
   return ids.map((id) => {
     const att = campaign ? campaignAttachments(id, s.weapons[id].attachments) : [...s.weapons[id].attachments];
@@ -249,7 +237,7 @@ export function loadoutEntries(
 /**
  * The two weapon ids a match issues, in hand first (pure). Co-op sends this as the lobby loadout (`main.ts`, with
  * `campaignUnlocked`), so the host's weapon checks (`hostWeapon`, `hostShotWeapon`) and remote avatars see the
- * guns Infiltration issues (D8).
+ * guns the campaign issues (D8).
  */
 export function lobbyLoadout(s: SaveData, campaign: boolean): WeaponId[] {
   const lo = issuedLoadout(s.loadout, campaign);

@@ -1,6 +1,6 @@
 # World, level design pointers and characters
 Owner: Player Build (characters, guard models). Status: current.
-Purpose: maps, the level builder, the Warehouse, and the shared character rig (proportions, animation, foot planner, weapons).
+Purpose: maps, the level builder, and the shared character rig (proportions, animation, foot planner, weapons).
 Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.md (Sections 5.12 and 7).
 
 ## Level design
@@ -16,25 +16,13 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
 ## World and player
 - Maps (`world/maps/*.ts`) are `MapDef`s: a `build(builder, seed)` that places modular pieces through
   `LevelBuilder` and returns a `MapLayout` (spawns, props, objectives, pickups, optional `rooms`). Register in
-  `world/maps/index.ts` (`MAPS`: `warehouse`, `warehouseOps` (the old Sector Ops map), `campusOps` (Saltmarsh Park,
-  Sector Ops), `proving` (Proving Grounds), `kestrel`, `seclab` (debug map, off every menu), `ctcourse` (Marlow Yard,
-  Course mode), `courselab`; an unknown id falls back to Proving Grounds). `listed.ts`
-  `LISTED_MAP_IDS` (`warehouse`, `proving`, `kestrel`, `campusOps`) is the pure list content filters on (`MISSIONS` = `ALL_MISSIONS` on listed maps); the first map listing a
-  mode is its default (a mode change on the Play screen starts on its default map). The 2.x maps are parked in
-  `maps/parked.ts` (not imported). Free Roam
-  (`sandbox`) places the training dummies only on Proving Grounds. `LevelBuilder.wallX/wallZ` build walls with door gaps.
-- Warehouse (`world/maps/warehouse.ts`): truck yard, loading dock, dispatch, workshop, a 2.2 m service corridor,
-  racking aisles, factory floor, a mezzanine deck (stairs) and two offices; roofed (visual only: roof and lights
-  do not collide, so the nav sampler sees the floor) with skylight strips. Nine tagged rooms with squads (3.2.0: the
-  corridor has a patrol). 3.2.0 Chaos Theory routes: the south roof strip (x -22..21, top 6.275) is a solid walkway
-  (`overhead`, metal surface) reached by a drainpipe (west yard) or from the 4.2 m pump house (east lot; co-op boost /
-  human ladder), a rappel point over the dispatch window, the corridor's walls at 4 m over x 6.5..11.5 (a 1.86 m split gap), a deck
-  pipe from the mezzanine (x 17, 4.4 m) over the floor patrol, the press at 3.3 m (wall jump), a yard fence (x 14.5)
-  closing the dark lane off from the east lot (`scripts/e2e-ct-warehouse.mjs`). Proving
-  Grounds has a three-room mini set (north west) for tests. (Locomotion step 13) the Proving shed's north doorway
-  (x 24.4-25.6, z -2) has a hinged door (`b.door(24.4, 0, -2, 1.2, PI / 2, { swing: 1 })`, swinging into the shed,
-  `doors.list[0]`) for the door-peek e2e and audit cases; the wall-edge doorway cases (step 12, the 1.1 m gap at
-  z +-8) are unaffected.
+  `world/maps/index.ts` (`MAPS`: `kestrel`, `seclab` (debug map, off every menu), `ctcourse` (Marlow Yard, Course mode),
+  `ctcourseReplan`, `tallowWharf` (campaign Mission 1, Sector Ops), `courselab`; `DEV_MAPS`: `chamber`, the Test Chamber; an
+  unknown id falls back to Marlow Yard). `listed.ts` `LISTED_MAP_IDS` (`kestrel`) is the pure list content filters on; the
+  first map listing a mode is its default. The Warehouse, Proving Grounds and the five 2.x maps (Embassy, Mansion, Port,
+  Refinery, Dust Depot; `parked.ts`) were deleted in clean-up stage H. The sandbox mode places the layout's training dummies
+  (the Test Chamber has two). `LevelBuilder.wallX/wallZ` build walls with door gaps. (Locomotion step 13) the door-peek
+  e2e and audit cases use the Test Chamber's hinged door.
 - Door crack (locomotion step 13, A25 / A52, `world/doors.ts`): `Doors.crack(d, on)` eases the drawn leaf
   (`DoorState.ajar`) to `DOOR.crack` 0.12 of the swing over `DOOR.crackTime` 0.6 s (closed in 0.4 s) and sets
   `DoorState.cracked`; the swing `open` stays 0, so the collision body, the light field and baked lamps (`DOOR_SHUT`

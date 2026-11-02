@@ -37,16 +37,16 @@ describe('map detail pass (3.0)', () => {
 });
 
 describe('MapDef detail opt-out (ON0b)', () => {
-  it('Kestrel builds no dressing and bakes none; the warehouse keeps its usual count', async () => {
+  it('Kestrel builds no dressing and bakes none; a dressed map keeps its usual count', async () => {
     const { LevelBuilder } = await import('../src/world/levelBuilder');
     const { MAPS } = await import('../src/world/maps');
     const { dressingOn } = await import('../src/world/detailPass');
     const { canonicalLightShapes } = await import('../src/voxel/lightShapes');
     const kestrel = MAPS.find((m) => m.id === 'kestrel')!;
-    const warehouse = MAPS.find((m) => m.id === 'warehouse')!;
+    const dressed = MAPS.find((m) => m.id === 'courselab')!;
     expect(kestrel.detail).toBe(false);
     expect(dressingOn(kestrel)).toBe(false);
-    expect(dressingOn(warehouse)).toBe(true);
+    expect(dressingOn(dressed)).toBe(true);
     // (marlow-final 0e) Marlow Yard's kit
     // dresses every wall itself
     expect(MAPS.filter((m) => !dressingOn(m)).map((m) => m.id)).toEqual(['kestrel', 'ctcourse', 'ctcourseReplan', 'tallowWharf']);
@@ -59,7 +59,7 @@ describe('MapDef detail opt-out (ON0b)', () => {
     const k = count(kestrel);
     expect(k.dressing).toBe(0);
     expect(k.shapes).toBe(k.plain);
-    const w = count(warehouse);
+    const w = count(dressed);
     expect(w.dressing).toBeGreaterThan(20);
     expect(w.shapes).toBeGreaterThan(w.plain);
   });

@@ -101,7 +101,7 @@ describe('NET3: the sector mission on the start message', () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
     host.sectorMission = 'plainTest';
-    host.setSettings('sector', 'proving', 'normal');
+    host.setSettings('sector', 'kestrel', 'normal');
     expect(host.startMatch()?.sectorMission).toBe('plainTest');
     const late = sess(h.make('L'), 'client', 'ABCDE', prof('Late'));
     late.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Late', tag: {}, look: {} }, 'H');
@@ -117,7 +117,7 @@ describe('NET3: the sector mission on the start message', () => {
     let got: StartInfo | null = null;
     cli.events.on('start', (s) => (got = s));
     host.sectorMission = '';
-    host.setSettings('sector', 'proving', 'normal');
+    host.setSettings('sector', 'kestrel', 'normal');
     expect(host.startMatch()).not.toBeNull();
     expect('sectorMission' in got!).toBe(false);
     expect(cli.sectorMission).toBe('');

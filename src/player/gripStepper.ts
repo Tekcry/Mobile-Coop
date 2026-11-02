@@ -162,7 +162,7 @@ export class GripStepper {
   }
 
   /**
-   * (3.2.0) Step onto given grips (a co-op / PvP remote: the owner's planted contacts once it is still): a planted
+   * (3.2.0) Step onto given grips (a co-op remote: the owner's planted contacts once it is still): a planted
    * limb off its grip swings to it, one limb at a time. NaN leaves a limb alone.
    */
   settleTo(atL: number, atR: number): void {

@@ -38,10 +38,6 @@ const fmtTime = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).p
 export interface ResultsNav {
   /** The kit the operator carried (weapons and gadget names). */
   kit?: string;
-  /** Solo missions: back to the missions list. */
-  missions?: () => void;
-  /** Solo missions: the next mission's briefing (when there is one). */
-  next?: { label: string; go: () => void };
   /** Co-op: Play again returns to the lobby. */
   coop?: boolean;
   /** Section ratings of the op / course, one line each (section-rating S4). */
@@ -52,9 +48,9 @@ export interface ResultsNav {
 }
 
 /**
- * MISSION / RESULTS on the MenuScreen template (menu-ui step 10, SPEC 7.21): the outcome, the time, the rating stars with
- * what earned each, the kit used and the stat rows on the right; Next (default after a win) / Retry / Missions / Main menu
- * on the left. Kept for the suites: `.results-title`, `.stat-grid`, `.mission-rating`, `.course-panel`, rewards, "Play again".
+ * MISSION / RESULTS on the MenuScreen template (menu-ui step 10, SPEC 7.21): the outcome, the time, the kit used and
+ * the stat rows on the right; Next (a campaign mission's) / Retry / Main menu on the left. Kept for the suites:
+ * `.results-title`, `.stat-grid`, `.mission-rating`, `.course-panel`, rewards, "Play again".
  */
 export class ResultsScreen extends MenuScreen {
   override readonly root = true;
@@ -79,27 +75,9 @@ export class ResultsScreen extends MenuScreen {
       row('Kills', stats.kills),
       row('Headshots', stats.headshots),
       row('Accuracy', `${acc}%`),
-      stats.mode === 'clear' ? null : row('Objectives', stats.objectives),
+      row('Objectives', stats.objectives),
       row('Time', fmtTime(stats.time)),
-      stats.mode === 'clear' || stats.mode === 'infiltration' ? row('Detected', stats.detections) : null,
     );
-    const mission = stats.mode === 'infiltration' && stats.rating !== undefined;
-    const earned = (on: boolean, text: string): HTMLElement => h('li', { class: on ? 'earned' : 'missed', text: `${on ? '★' : '☆'}  ${text}` });
-    const rating = mission
-      ? h(
-          'div',
-          { class: 'rs-rating' },
-          h('div', { class: 'mission-rating', text: `${'★'.repeat(stats.rating!)}${'☆'.repeat(3 - stats.rating!)}` }),
-          h(
-            'ul',
-            { class: 'rs-earned' },
-            earned(won, 'All primary objectives complete'),
-            earned(won && !stats.alarms, stats.alarms ? `Alarms raised: ${stats.alarms}` : 'No alarms raised'),
-            earned(won && !stats.kills, stats.kills ? `Kills: ${stats.kills}` : 'No kills'),
-          ),
-          h('div', { class: `rs-bonus ${won && stats.bonuses?.length ? 'earned' : 'missed'}`, text: stats.bonuses?.length ? `Bonus: ${stats.bonuses.join(', ')}` : 'Bonus: none earned' }),
-        )
-      : null;
     const course = stats.course ? coursePanel(stats.course) : null;
     // (campaign-mode CM6) the campaign panel: the percent under the title, the category rows in the stats panel
     const camp = won ? nav.campaign : undefined;
@@ -116,7 +94,6 @@ export class ResultsScreen extends MenuScreen {
         camp ? h('div', { class: `mission-rating campaign-pct${camp.perfect ? ' perfect' : ''}`, text: campaignHeadline(camp) }) : null,
         cont ? h('div', { class: 'rs-kit rs-continued', text: cont }) : null,
         h('div', { class: 'rs-time', text: `Time ${fmtTime(stats.time)}` }),
-        rating,
         nav.ratings?.length ? h('ul', { class: 'rs-sections' }, ...nav.ratings.map((r) => h('li', { text: sectionLine(r) }))) : null,
         nav.kit ? h('div', { class: 'rs-kit', text: `Kit: ${nav.kit}` }) : null,
       ),
@@ -125,12 +102,9 @@ export class ResultsScreen extends MenuScreen {
     const item = (label: string, key: string, act: () => void, focus: boolean): void => {
       list.append(button(label, act, { class: 'ms-item', key, autofocus: focus }));
     };
-    const next = won && !nav.coop ? nav.next : undefined;
     // (campaign-mode CM6) a campaign mission's Next goes to the lobby (the next entry is picked there)
     if (camp) item('Next', 'next', () => this.onRestart(), true);
-    else item(nav.coop ? 'Play again' : 'Retry', 'retry', () => this.onRestart(), !next);
-    if (next) list.prepend(button(next.label, () => next.go(), { class: 'ms-item', key: 'next', autofocus: true }));
-    if (nav.missions && !nav.coop) item('Missions', 'missions', () => nav.missions!(), false);
+    else item(nav.coop ? 'Play again' : 'Retry', 'retry', () => this.onRestart(), true);
     item('Main menu', 'quit', () => this.onQuit(), false);
     this.body.append(list);
     this.el.append(h('div', { class: 'rs-stats' }, course ?? campRows ?? grid, rewards));

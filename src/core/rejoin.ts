@@ -11,7 +11,7 @@ import type { WeatherChoice } from '../world/mapDef';
 /** How long the host holds a dropped joiner's slot and the menu offers the room again (s). */
 export const REJOIN_HOLD_S = 600;
 
-export type RejoinMode = 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector' | 'test';
+export type RejoinMode = 'course' | 'sector' | 'test';
 
 export interface RejoinRecord {
   code: string;

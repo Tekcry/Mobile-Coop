@@ -111,8 +111,7 @@ try {
   const status = await G(() => document.getElementById('boot-status')?.textContent ?? '');
   assert(!/Failed/.test(status), `boots offline (${status})`);
   assert(await G(() => !!document.querySelector('.main-menu')), 'main menu offline');
-  // (clean-up G2c) the guard match is the Test Chamber's test mode with its five squad guards (was the Warehouse mission); the
-  // Infiltration match below stays on the Warehouse (the Infiltration mode goes in stage H)
+  // (clean-up G2c) the guard match is the Test Chamber's test mode with its five squad guards (was the Warehouse mission)
   await page.goto(url + '?autostart=chamber&mode=test&guards=1&gfx=min');
   await booted();
   // (load-latent-ui2) the match loads (shaders compile on the loading screen): 120 s, as the other match loads
@@ -122,8 +121,7 @@ try {
   assert(alive > 0, `a match runs offline (${alive} enemies)`);
   assert((await G(() => window.__app.current.hud['objective'].textContent)) === '', 'the test mode has no objective');
   // (A109) the player's body is Wren, loaded from the cache with no network (LOD2 = bit 1 << 3)
-  // (load-latent-ui2) 120 s here and for the Infiltration player: the KTX2 transcode runs on the main thread, slow on a
-  // loaded CPU
+  // (load-latent-ui2) 120 s here: the KTX2 transcode runs on the main thread, slow on a loaded CPU
   const wren = await page.waitForFunction(() => {
     const f = window.__app.current.player.figure;
     return (f.loaded & 8) !== 0 ? { loaded: f.loaded, current: f.current } : null;
@@ -135,18 +133,6 @@ try {
     return figs.length && figs.every((f) => (f.loaded & 8) !== 0) ? figs.length : null;
   }, null, { timeout: 120000, polling: 250 }).then((h) => h.jsonValue()).catch(() => null);
   assert(!!gfig, `the offline guards draw their figures from the cache (${gfig ?? 'not all'} with LOD2)`);
-  // an Infiltration mission (Warehouse) offline: objectives, guards, the download runs at the terminal
-  await page.goto(url + '?autostart=warehouse&mode=infiltration&gfx=min');
-  await booted();
-  await page.waitForFunction(() => window.__app?.current?.mode?.id === 'infiltration', null, { timeout: 120000 });
-  await G(() => window.__app.loop.stepHeadless(3));
-  const inf = await G(() => ({ obj: window.__app.current.hud['objective'].textContent, guards: window.__app.current.enemyMgr.alive }));
-  assert(inf.obj.length > 0 && inf.guards > 0, `an Infiltration mission runs offline ("${inf.obj}", ${inf.guards} guards)`);
-  // (A109) Wren from the cache here too; her load (the KTX2 transcode runs on the main thread) is done before the
-  // backgrounding check, so that check times the pause, not the transcode
-  const infWren = await page.waitForFunction(() => (window.__app.current.player.figure.loaded & 8) !== 0, null, { timeout: 120000, polling: 250 }).then(() => true).catch(() => false);
-  assert(infWren, 'the Infiltration player is Wren, drawn from the cache (LOD2)');
-
   console.log('backgrounding');
   await G(() => {
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });

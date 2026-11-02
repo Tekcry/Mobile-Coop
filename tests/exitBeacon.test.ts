@@ -5,7 +5,7 @@ import { drawsExitBeacon } from '../src/game/interactables';
 describe('sector-marks: the exit beacon', () => {
   it('drawsExitBeacon: off in Sector Ops only', () => {
     expect(drawsExitBeacon('sector')).toBe(false);
-    for (const m of ['sandbox', 'mission', 'clear', 'infiltration', 'course'] as const) expect(drawsExitBeacon(m), m).toBe(true);
+    for (const m of ['sandbox', 'course', 'test'] as const) expect(drawsExitBeacon(m), m).toBe(true);
   });
 
   it('an extract item draws nothing with the switch off; the default and other kinds are unchanged', async () => {

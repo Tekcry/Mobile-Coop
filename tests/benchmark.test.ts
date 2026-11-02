@@ -20,7 +20,7 @@ describe('benchmark', () => {
     expect(r.low1Fps).toBeCloseTo(50, 5);
     expect(r.p50Ms).toBe(5);
     expect(r.p99Ms).toBe(20);
-    expect(benchText(r, 'Warehouse, Epic')).toMatch(/average 194 fps, 1% low 50 fps/);
+    expect(benchText(r, 'Test Chamber, Epic')).toMatch(/average 194 fps, 1% low 50 fps/);
     expect(benchResult([]).frames).toBe(0);
   });
 });

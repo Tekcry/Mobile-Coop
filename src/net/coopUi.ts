@@ -3,7 +3,6 @@ import type { WeatherChoice } from '../world/mapDef';
 import type { GameOptions, GameState, SessionCallbacks } from '../game/gameState';
 import { clearRejoin, rejoinToken, saveRejoin, type RejoinRecord } from '../core/rejoin';
 import { flags } from '../core/flags';
-import { visibleModes } from '../core/legacy';
 import { h } from '../ui/dom';
 import { MenuScreen, type LegendItem } from '../ui/menuScreen';
 import { Osk } from '../ui/osk';
@@ -11,7 +10,6 @@ import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
 import { CHAMBER_MAP_ID } from '../anim/chamberMapId';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
-import { MISSIONS, missionById } from '../game/missions';
 import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { NetSession, resumeMap, roomMap, sectorStartOpts, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
@@ -226,15 +224,13 @@ class CoopController {
     const session = this.session;
     // (campaign-mode CM5, A7) the host starting a campaign entry that is not a Continue ends the saved run
     if (session.isHost && flags.campaign && startClearsSave(s.mode, s.map, s.sectorMission, !!s.campaignResume)) void clearCampaignSave();
-    const mission = s.mode === 'infiltration' ? missionById(s.mission) : null;
-    const map = getMap(mission?.map ?? s.map);
+    const map = getMap(s.map);
     this.api.startGame(
       {
         map,
         mode: s.mode,
         seed: s.seed,
         difficulty: s.difficulty,
-        missionId: mission?.id,
         weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
         courseBay: s.mode === 'course' ? (s.bay ?? 1) : undefined,
         // (G2c, N17) the Test Chamber's practice guards (the host's match places them; `?practice=0` leaves them out)
@@ -413,30 +409,25 @@ class JoinScreen extends MenuScreen {
 const MODE_OPTS: { value: NetMode; label: string }[] = [
   { value: 'course', label: 'Campaign' },
   { value: 'sector', label: 'Sector Ops' },
-  { value: 'clear', label: 'Hunter' },
-  { value: 'infiltration', label: 'Infiltration' },
-  { value: 'sandbox', label: 'Free Roam' },
 ];
 /** The campaign's first (and for now only) level: Marlow Yard in Course mode (sector-ops M1). */
 const CAMPAIGN_MAP = 'ctcourse';
 /**
- * (sector-ops slice 3; clean-up F) The campaign only (no Sector Ops map is listed); Hunter, Infiltration and Free Roam only with `?legacy=1` (the mode
- * already set stays listed).
+ * (sector-ops slice 3; clean-up F, H) The campaign only (no Sector Ops map is listed); the mode already set stays listed.
  */
 function lobbyModes(current: NetMode): typeof MODE_OPTS {
-  const shown = flags.legacy ? visibleModes(MODE_OPTS, true) : MODE_OPTS.filter((m) => m.value === 'course');
+  const shown = MODE_OPTS.filter((m) => m.value === 'course');
   const cur = MODE_OPTS.find((m) => m.value === current);
   return cur && !shown.includes(cur) ? [...shown, cur] : shown;
 }
 /**
  * (G1) The Test Chamber in the lobby: the dev map `chamber` (not in `MAPS`), shown as its own Mode choice. (G2a) The room's
  * mode is `test` (`TestMode`: guards by test, revives) and its map id `chamber`; both players spawn in the chamber (the
- * map's two spawns) and its single-player stage (loop player, puppets) stays off in a room. A room set to Free Roam on
- * `chamber` (a test or a dev tab) still reads as the Test Chamber.
+ * map's two spawns) and its single-player stage (loop player, puppets) stays off in a room.
  */
 const CHAMBER = 'chamber';
 const CHAMBER_LABEL = 'Test Chamber';
-const isChamber = (mode: string, map: string): boolean => (mode === 'test' || mode === 'sandbox') && map === CHAMBER_MAP_ID;
+const isChamber = (mode: string, map: string): boolean => mode === 'test' && map === CHAMBER_MAP_ID;
 /** The Mode row's choices: the lobby's modes and the Test Chamber (the mode set already, when it is one, is listed once). */
 function lobbyModeChoices(mode: NetMode, map: string): { value: NetMode | typeof CHAMBER; label: string }[] {
   return [...lobbyModes(isChamber(mode, map) ? 'course' : mode), { value: CHAMBER, label: CHAMBER_LABEL }];
@@ -445,17 +436,16 @@ function lobbyModeChoices(mode: NetMode, map: string): { value: NetMode | typeof
 const modeLabel = (mode: string, map: string): string => (isChamber(mode, map) ? CHAMBER_LABEL : (MODE_OPTS.find((m) => m.value === mode)?.label ?? mode));
 const mapLabel = (id: string): string => MAPS.find((m) => m.id === id)?.name ?? (id === CHAMBER_MAP_ID ? getMap(id).name : id);
 /**
- * The maps the host can pick for a mode: the campaign is Marlow Yard only (the course lab with `?legacy=1`).
+ * The maps the host can pick for a mode: the campaign is Marlow Yard only.
  * (J14 R1 fix 8) With `?marlowreplan=1` that is the re-planned yard (`roomMap`), so it is offered and named once.
  */
 function lobbyMaps(mode: NetMode): typeof MAPS {
   const all = MAPS.filter((m) => !m.unlisted && m.modes.includes(mode));
-  if (mode !== 'course' || flags.legacy) return all;
+  if (mode !== 'course') return all;
   const campaign = roomMap(CAMPAIGN_MAP);
   return all.filter((m) => m.id === campaign);
 }
 const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
-const MISSION_OPTS = MISSIONS.map((m) => ({ value: m.id, label: m.name }));
 
 /** Text for the context panel's html (briefing lines hold `&` and quotes). */
 const esc = (t: string): string => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -577,7 +567,6 @@ class LobbyScreen extends MenuScreen {
   private buildOpts(): void {
     const s = this.c.session;
     const maps = MAPS.filter((m) => m.modes.includes(s.mode));
-    const infil = s.mode === 'infiltration';
     const chamber = isChamber(s.mode, s.map);
     const diffLabel = (): string => DIFFICULTY_OPTS.find((d) => d.value === s.difficulty)?.label ?? '';
     if (!s.isHost) {
@@ -588,7 +577,6 @@ class LobbyScreen extends MenuScreen {
       // the campaign's Mission row, its context the briefing (this peer's own spoilers)
       const row = (r: LobbyRow): HTMLElement => {
         if (r === 'mode') return lr('Mode', entry ? 'Campaign' : modeLabel(s.mode, s.map));
-        if (r === 'mission') return lr('Mission', missionById(s.mission)?.name ?? '');
         if (r === 'campaign') return this.campaignRow(lr('Mission', entry ? entryRowText(entry) : ''));
         if (r === 'difficulty' || r === 'difficultyLocked') return lr('Difficulty', diffLabel());
         if (r === 'weather') return lr('Weather', WEATHER_LABEL[s.weather]);
@@ -598,10 +586,7 @@ class LobbyScreen extends MenuScreen {
       this.applyBrief();
       return;
     }
-    if (infil) {
-      const m = missionById(s.mission) ?? MISSIONS[0]!;
-      if (s.mission !== m.id || s.map !== m.map) s.setSettings(s.mode, m.map, s.difficulty, m.id);
-    } else if (!chamber && !maps.some((m) => m.id === s.map)) s.setSettings(s.mode, (lobbyMaps(s.mode)[0] ?? maps[0]!).id, s.difficulty);
+    if (!chamber && !maps.some((m) => m.id === s.map)) s.setSettings(s.mode, (lobbyMaps(s.mode)[0] ?? maps[0]!).id, s.difficulty);
     // the host's pick (a map already set that the list leaves out, by a test or a dev tab, stays listed)
     const cur = maps.find((m) => m.id === s.map);
     const pick = lobbyMaps(s.mode);
@@ -617,13 +602,10 @@ class LobbyScreen extends MenuScreen {
           return [
             choice('Mode', lobbyModeChoices(s.mode, s.map), () => (chamber ? CHAMBER : entry ? 'course' : s.mode), (v) => {
               if (v === CHAMBER) return set('test', CHAMBER_MAP_ID, s.difficulty, '', '');
-              if (entry?.mode === 'sector' && v !== 'sector' && v !== 'course') return set(v, lobbyMaps(v)[0]?.id ?? s.map, s.difficulty, v === 'infiltration' ? MISSIONS[0]!.id : '', '');
               if (entry?.mode === 'sector') return v === 'course' ? set('course', CAMPAIGN_MAP, s.difficulty, '', '') : set('sector', lobbyMaps('sector')[0]?.id ?? s.map, s.difficulty, '', '');
-              set(v, MAPS.find((m) => m.id === s.map)?.modes.includes(v) ? s.map : (lobbyMaps(v)[0]?.id ?? s.map), s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '');
+              set(v, MAPS.find((m) => m.id === s.map)?.modes.includes(v) ? s.map : (lobbyMaps(v)[0]?.id ?? s.map), s.difficulty, '');
             }),
           ];
-        case 'mission':
-          return [choice('Mission', MISSION_OPTS, () => s.mission, (v) => set(s.mode, missionById(v)?.map ?? s.map, s.difficulty, v))];
         case 'campaign': {
           // (campaign-mode CM4, PLAN 3.5, A2 / A9) the campaign's Mission row: a Continue of the host's save first, then
           // the entries in order (nothing locked, A3)
@@ -1011,7 +993,6 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     // (J14 R1 fix 8) a record on the re-planned yard reopens on the built yard with the flag off here
     session.map = resumeMap(resume.map);
     session.difficulty = resume.difficulty;
-    session.mission = resume.mode === 'infiltration' ? resume.mission : '';
     session.weather = resume.weather;
     session.courseBay = resume.bay;
     // (campaign-mode CM3, A11) Sector Ops resumes at its section (a campaign mission at its save's)
@@ -1023,11 +1004,10 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     if (!session.startMatch() && session.campaignBlock === CAMPAIGN_TWO_PLAYERS) session.startWhenUnblocked(() => session.campaignBlock);
     return;
   }
-  // a new room starts on the campaign, Marlow Yard in Course mode (sector-ops slice 3); `?legacy=1` keeps the parked Hunter
+  // a new room starts on the campaign, Marlow Yard in Course mode (sector-ops slice 3)
   if (role === 'host') {
     // (campaign-mode CM4, A9) the main menu's "Continue campaign": the room opens on the save's mission, difficulty and section
     if (cont && flags.campaign && flags.missions) session.continueCampaign(cont);
-    else if (flags.legacy) session.setSettings('clear', 'warehouse', session.difficulty);
     else session.setSettings('course', CAMPAIGN_MAP, session.difficulty, '');
   }
   const c = adopt(app, api, session);

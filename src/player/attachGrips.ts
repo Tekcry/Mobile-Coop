@@ -1,7 +1,7 @@
 /**
  * Hand and foot contacts on an anchor (pure: no Babylon). The attached player's grips step hand over hand
  * (`GripStepper`, every planted contact locked) from the body's parameter along the anchor; the same code poses a
- * co-op / PvP remote from its networked move state (3.2.0 phase 1), so a remote's hands land where the player's do.
+ * co-op remote from its networked move state (3.2.0 phase 1), so a remote's hands land where the player's do.
  */
 import { hyp2 } from '../core/mathx';
 import { ductPoint, HANG, type Anchor, type Ledge } from '../world/anchors';

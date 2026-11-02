@@ -29,7 +29,7 @@ docs/design-bible.md (Section 5.6).
 - Decided and built (G16): no aim assist on any input. The pad's aim assist code and its `gamepad.aimAssist` setting are
   gone; an old stored value is dropped when settings load (`sanitizeSettings`).
 - Decided (G20, G98): health comes back only at wall medkit stations; no carried medkits, no kit count (built). Stations in
-  every map: not built yet (only Proving Grounds has one).
+  every map: not built yet (Marlow Yard has them).
 - Open (DECISIONS, unanswered): which gun comes out first (WEAP-09), how guns are carried when put away (WEAP-10).
 
 ## Combat
@@ -117,7 +117,7 @@ parts, which stay as the loading fallback and as the proxy whose extents the car
 A6). Each mesh is built around the weapon's data: `grip`, `foregrip`, `muzzle`, and for long guns `backStud` (the stud
 that hangs it from an operator's back plate); `tests/weaponMesh.test.ts` checks the points, the proxy fit, budgets and
 KTX2. The knife (`KnifeModel`, `weapons.knife.show`) sits in the right fist when drawn. `npm run weapons:shots`
-(`E2E_GPU=1`, port 4189) takes the in-game review screenshots on the training map (`STAGE=warehouse`: under a lamp).
+(`E2E_GPU=1`, port 4189) takes the in-game review screenshots (stage scripts that booted Proving Grounds or the Warehouse need re-basing).
 
 ## Health and medkit stations (G20, G98)
 - Health 100, no regeneration (bible 6). The only heal is a wall medkit station: `src/game/medkit.ts` (pure: `MEDKIT.heal`
@@ -125,6 +125,6 @@ KTX2. The knife (`KnifeModel`, `weapons.knife.show`) sits in the right fist when
   single use, shown spent; at full health or down it is left for later ("Health full").
 - Co-op: the host heals a client's host-authoritative health (`CoopHost.healAtStation`); the client mirrors the spent
   station.
-- Placed today only on Proving Grounds (Free Roam). The campaign maps have no healing until stations are
+- Placed today on Marlow Yard (`medkitWalls`). The other campaign maps have no healing until stations are
   placed (G98, not built yet). Co-op revive of a downed partner is separate (`docs/systems/coop.md`).
-- Tests: `tests/medkit.test.ts`; e2e-mouse (solo station on Proving), e2e-coop (client uses the host's station).
+- Tests: `tests/medkit.test.ts`; e2e-mouse, e2e-coop (client uses the host's station).

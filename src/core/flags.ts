@@ -6,7 +6,7 @@ export interface Flags {
   autostart: string | null;
   /** Mode for autostart. `course` with `?net=local` hosts / joins a same-device co-op room (`autoLocalCourse`). `test` is
    *  the Test Chamber's guards-and-revives mode (`TestMode`). */
-  mode: 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector' | 'test' | null;
+  mode: 'sandbox' | 'course' | 'sector' | 'test' | null;
   /** (G2a, tests) `?guards=1`: `TestMode` starts with the map's room squads in place (`TestMode.populate`); the Test Chamber
    *  has no guards otherwise. */
   guards: boolean;
@@ -15,9 +15,8 @@ export interface Flags {
   /** (G2c, N17) The Test Chamber's practice guards: `?practice=1` turns them on for a URL boot, `?practice=0` off for the main menu
    *  row and the co-op lobby start (both start them otherwise); the tests' pages carry `practice=0` (`e2e-lib`). */
   practice: boolean | null;
-  /** Infiltration: mission id and insertion id for autostart. */
+  /** Sector Ops: the campaign mission id for autostart (`?mission=`, with `?missions=1`). */
   mission: string | null;
-  insertion: string | null;
   /** Autostart loadout (comma-separated weapon ids; tests). */
   loadout: string[] | null;
   /** Difficulty for autostart (rookie | normal | realistic | perfectionist). */
@@ -43,8 +42,6 @@ export interface Flags {
   renderer: string | null;
   /** Tests: the internal speed cap at spawn and respawn (`?gear=1..5`; else 5, no cap: anim-rework S1). */
   gear: number | null;
-  /** 3.5 (`?legacy=1`, URL only, never saved): the parked Blacklist-era modes and the economy are shown (`core/legacy.ts`). */
-  legacy: boolean;
   /** Dev / hand checks (`?fullbright=1`): the map is lit like day (theme light level, hemisphere, sun, gameplay light). Nothing changes without it. */
   fullbright: boolean;
   /** Dev only (the level editor's walk test, `?editorDraft=1`): build the Kestrel map from the editor's unsaved campus. Always false in production. */
@@ -219,10 +216,9 @@ function readPhone(): boolean {
   }
 }
 
-/** `?mode=` as a mode id (Hunter is the 2.0 name for Clear, both work); an unknown value reads as none. */
+/** `?mode=` as a mode id; an unknown value (the removed Hunter, Mission and Infiltration included) reads as none. */
 export function readMode(v: string | null): Flags['mode'] {
-  if (v === 'hunter') return 'clear';
-  return (['sandbox', 'mission', 'clear', 'infiltration', 'course', 'sector', 'test'] as const).find((m) => m === v) ?? null;
+  return (['sandbox', 'course', 'sector', 'test'] as const).find((m) => m === v) ?? null;
 }
 
 function readSpawn(v: string | null): Flags['spawn'] {
@@ -242,7 +238,6 @@ export const flags: Flags = {
   practice: params.get('practice') === '1' ? true : params.get('practice') === '0' ? false : null,
   mission: params.get('mission'),
   loadout: params.get('loadout')?.split(',').filter(Boolean) ?? null,
-  insertion: params.get('insertion'),
   difficulty: params.get('difficulty'),
   room: params.get('room'),
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
@@ -254,7 +249,6 @@ export const flags: Flags = {
   detect: params.get('detect') === '1',
   renderer: params.get('renderer')?.slice(0, 96) ?? null,
   gear: /^[1-5]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
-  legacy: params.get('legacy') === '1',
   fullbright: params.get('fullbright') === '1',
   // (the DEV test first: the production build drops the parameter name and the whole read)
   devDraft: import.meta.env.DEV && params.get('editorDraft') === '1',

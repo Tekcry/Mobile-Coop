@@ -1,7 +1,6 @@
 import type { App } from '../../core/app';
 import { campaignAttachments, campaignKit } from '../../config/arsenal';
 import { GADGETS, type GadgetId } from '../../game/gadgets';
-import type { MissionDef } from '../../game/missions';
 import { attachmentById, combinedMods } from '../../progression/attachments';
 import { computeStats } from '../../weapons/weaponStats';
 import { WEAPONS, type WeaponId } from '../../weapons/weaponDefs';
@@ -32,7 +31,7 @@ const bar = (label: string, v: number): string =>
  * modelled yet, so it is not listed.
  */
 export class KitScreen extends MenuScreen {
-  constructor(app: App, mission?: MissionDef) {
+  constructor(app: App) {
     super('kit-screen', ['Issued', 'Kit']);
     const sv = app.save.get();
     const kit = campaignKit({ primary: sv.loadout.primary as WeaponId, secondary: sv.loadout.secondary as WeaponId });
@@ -60,7 +59,7 @@ export class KitScreen extends MenuScreen {
       this.entry('Gadget', 'gadget', g.name, `<h3>Gadget</h3><p><b>${g.name}</b>  ·  carries ${g.carry}</p><p>${GADGET_DESC[gid] ?? ''}</p><p class="kit-note">Issued for the mission. Not selectable.</p>`, false),
     );
     this.body.append(
-      h('p', { class: 'ms-note', text: mission ? `Issued for ${mission.name}` : 'Issued for the next mission' }),
+      h('p', { class: 'ms-note', text: 'Issued for the next mission' }),
       list,
       h('p', { class: 'ms-note dim', text: 'Kits are fixed per mission. Per-mission kits arrive with co-op.' }),
     );

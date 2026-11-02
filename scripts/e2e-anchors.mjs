@@ -5,11 +5,9 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
-// (G2b) the Test Chamber (chamber, plain: no animation stage) is the map: the Warehouse (Hunter) is parked, and Marlow Yard
-// (`ctcourse`) places no anchors yet (its walls are team moves and generated lips). Add `ctcourse` when it places one;
-// `--only=warehouse` still runs the parked map by hand.
-const PARKED = { warehouse: ['warehouse', 'clear'] };
-const MAPS = [['chamber', 'sandbox'], ...(PARKED[only] ? [PARKED[only]] : [])];
+// (G2b) the Test Chamber (chamber, plain: no animation stage) is the map (the Warehouse left in clean-up H), and Marlow Yard
+// (`ctcourse`) places no anchors yet (its walls are team moves and generated lips). Add `ctcourse` when it places one.
+const MAPS = [['chamber', 'sandbox']];
 // anchors.ts REACH.zip: a zipline's high end is grabbed within this (plan) of it
 const ZIP_REACH = 1.3;
 let failed = false;

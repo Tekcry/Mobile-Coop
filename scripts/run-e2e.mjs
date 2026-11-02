@@ -36,12 +36,10 @@ const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 
 // (process audit, 2026-10-19, approved by Michael) REQUIRED = what `npm run e2e` runs: the co-op training level
 // (Marlow Yard) and the systems it stands on. Everything else has its own list, outside the full run:
-// LEGACY = parked content (Hunter / Mission, the economy and cosmetics, Kestrel, the Warehouse routes and AI
-// archetypes); AUDIO = the sound suites; GPU = visual read-backs (no visual result from SwiftShader).
+// LEGACY = parked content (the economy and cosmetics, Kestrel, the AI archetypes and the game-mode
+// suite); AUDIO = the sound suites; GPU = visual read-backs (no visual result from SwiftShader).
 const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-section-rating', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-chamber', 'e2e-testmode', 'e2e-tuner-phone'];
 // LEGACY, AUDIO and GPU live in scripts/e2e-affected.mjs (the affected requests leave them out: affectedGateSuites)
-// the suites written for `?legacy=1` pages (LEGACY=1 makes e2e-lib add it); the others moved to LEGACY run as they always did
-const NEEDS_LEGACY_FLAG = new Set(['e2e-progression', 'e2e-cosmetics', 'e2e-clear']);
 // REPORT = the animation audit harness: printed as REPORT ONLY, never fails a run. Only a quick run picks it (with
 // `--quick`, for `src/anim`, `src/player`, `src/net`); animation jobs run it by name.
 const REPORT = ['anim-audit'];
@@ -54,7 +52,7 @@ const REPORT = ['anim-audit'];
 // (clean-up G1) e2e-coop:chamber = two players in the Test Chamber from the co-op lobby (scripts/e2e-coop-chamber.mjs, PART_SCRIPT)
 // (mission-framework GB6) e2e-sectorops:wharf-tgc / :wharf-tkl = the Tallow Wharf missions in co-op (scripts/e2e-sectorops-wharf.mjs --mission=<id>)
 // (light-parity C2) e2e-parity = 3 Marlow Yard, 4 Warehouse (parts 1-2, Saltmarsh Park, removed in clean-up F) (GPU only; trains via laptop-queue TRAIN_PARITY)
-const PARTS = { 'e2e-parity': ['3', '4'], 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['wharf-tgc', 'wharf-tkl'], 'e2e-coop': ['1', 'campaign', 'chamber'] };
+const PARTS = { 'e2e-parity': ['3'], 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['wharf-tgc', 'wharf-tkl'], 'e2e-coop': ['1', 'campaign', 'chamber'] };
 /** A part that lives in its own script (run with no `--part`): the script name, or `[script, ...args]`. */
 const PART_SCRIPT = {
   'e2e-sectorops:wharf-tgc': ['e2e-sectorops-wharf', '--mission=threeGreyCoats'],
@@ -231,10 +229,9 @@ async function runOne(s) {
   if (streamed) console.log(`\n=== ${s}${report(s) ? " (REPORT ONLY: never fails the run)" : ""} ===`);
   else console.log(`[start] ${s}`);
   const [script, part] = s.split(':');
-  const childEnv = NEEDS_LEGACY_FLAG.has(script) ? { ...env, LEGACY: '1' } : env;
   const own = PART_SCRIPT[s];
   const [ownName, ...ownArgs] = Array.isArray(own) ? own : own ? [own] : [];
-  const child = spawn(process.execPath, [`scripts/${ownName ?? script}.mjs`, url, ...ownArgs, ...(part && !own ? [`--part=${part}`] : []), ...(selective && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
+  const child = spawn(process.execPath, [`scripts/${ownName ?? script}.mjs`, url, ...ownArgs, ...(part && !own ? [`--part=${part}`] : []), ...(selective && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env });
   let log = '';
   if (!streamed) {
     child.stdout.on('data', (d) => (log += d));

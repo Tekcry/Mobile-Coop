@@ -5,7 +5,6 @@ import { PHOTO } from '../src/world/lampMath';
 import { VOL_BEAM_GAIN, VOL_LAMP_COS, volBeam, writeVolLight } from '../src/vfx/volLights';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { ctcourse } from '../src/world/maps/ctcourse';
-import { warehouse } from '../src/world/maps/warehouse';
 
 const pos = new Float32Array(16);
 const dir = new Float32Array(16);
@@ -74,18 +73,11 @@ describe('volumetric pass per-light values (vol-cone-fix)', () => {
     for (const kind of ['lamp', 'spot', 'window', 'fire'] as const) expect(volBeam({ kind, cone: null, fixture: null })).toBe(false);
   });
 
-  it('a flood without an LED fitting model keeps the beam it had (base Warehouse facade floods, warehouse.ts ~:408)', () => {
+  it('a flood without an LED fitting model keeps the beam it had (the removed Warehouse facade floods)', () => {
     const { p, d, c } = write({ kind: 'spot', x: -18.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), fixture: HOUSING });
     expect(p[3]).toBeCloseTo(7.5 * PHOTO.reach, 5); // (LR16a) the reach: radius x PHOTO.reach
     expect(d[3]).toBeCloseTo(Math.cos(0.7), 5);
     expect(c[0]).toBeCloseTo(0.85 * 0.9 * VOL_BEAM_GAIN, 5);
-  });
-
-  it('(fog triage) the base Warehouse keeps lampBeams (default) and its floods still beam', () => {
-    expect(warehouse.theme.lampBeams).toBeUndefined();
-    const b = new LevelBuilder();
-    warehouse.build(b, 0);
-    expect(b.lights.lights.filter((l) => volBeam(l, warehouse.theme.lampBeams ?? true)).length).toBeGreaterThan(0);
   });
 
   it("(4.119 walk, Epic glare) Marlow Yard sets lampBeams false: no set lamp beams, only torches", () => {

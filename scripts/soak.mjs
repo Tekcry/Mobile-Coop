@@ -1,4 +1,4 @@
-// Soak test: plays a Warehouse Hunter operation in real time for N minutes (default 10) with the full render
+// Soak test: plays a Marlow Yard (course) run in real time for N minutes (default 10) with the full render
 // loop and reports, per interval, frame pacing, CPU per frame, adaptive quality / resolution, heap and
 // enemy count. Fails on page errors, a heap that keeps growing (leak) or CPU per frame creeping up.
 // SwiftShader cannot show thermal throttling; on the PC use the debug overlay (F3)
@@ -9,8 +9,8 @@ import { launch } from './e2e-lib.mjs';
 const minutes = Number(process.argv[2] ?? 10);
 const url = process.argv[3] ?? 'http://localhost:4173/';
 const INTERVAL = Math.min(30, Math.max(10, (minutes * 60) / 10));
-// MAP / MODE: any map and mode (default the Warehouse in Hunter)
-const { browser, page, errors } = await launch({ url, params: `autostart=${process.env.MAP ?? 'warehouse'}&mode=${process.env.MODE ?? 'clear'}` });
+// MAP / MODE: any map and mode (default Marlow Yard in course mode)
+const { browser, page, errors } = await launch({ url, params: `autostart=${process.env.MAP ?? 'ctcourse'}&mode=${process.env.MODE ?? 'course'}&course=solo` });
 await page.evaluate(() => {
   const g = window.__app.current;
   g.target.damageMul = 0;

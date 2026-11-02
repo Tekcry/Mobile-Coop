@@ -3,14 +3,12 @@ import { BrightnessScreen } from './ui/screens/brightnessScreen';
 import { WEAPON_IDS, type WeaponId } from './weapons/weaponDefs';
 import { suitLook } from './progression/suit';
 import { parseDifficulty } from './ai/archetypes';
-import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
 import { App } from './core/app';
 import { LOCO } from './anim/mocap';
 import { loadHavok } from './physics/havok';
 import { setupServiceWorker, suppressBrowserGestures } from './pwa/pwa';
 import { flags } from './core/flags';
-import { campaignUnlocked, showEconomy } from './core/legacy';
 import { loadRejoin } from './core/rejoin';
 import { MenuState } from './world/menuScene';
 import { gateLimits } from './world/menuGate';
@@ -25,12 +23,8 @@ import { mapBootAllowed, missionParam } from './game/mission/sectorMission';
 import { campaignStartBlock } from './game/mission/campaign';
 import { courseSoloFlag } from './game/modes/courseMode';
 import { requestPersistence } from './save/db';
-import { PlayScreen } from './ui/screens/playScreen';
-import { LoadoutScreen } from './ui/screens/loadoutScreen';
-import { MissionsScreen, FreeRoamScreen } from './ui/screens/missionsScreen';
 import { loadCampaignSave, type CampaignSave } from './save/campaignRecord';
 import { continueRowText } from './game/mission/campaignOrder';
-import { BriefingScreen } from './ui/screens/briefingScreen';
 
 
 /**
@@ -51,8 +45,6 @@ async function refreshCampaignSave(): Promise<boolean> {
 
 import { KitScreen } from './ui/screens/kitScreen';
 import { showSavedOperator } from './ui/screens/operator';
-import { profileBadge } from './ui/screens/profileBadge';
-import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
 import { BENCH, benchPlan, type BenchSession } from './game/benchmark';
 import { PRESET_IDS } from './core/quality';
@@ -106,15 +98,13 @@ async function boot(): Promise<void> {
     onDeferred: () => app.toasts.show('Update ready - restarts at the menu', 'info', 4000),
   });
   (window as unknown as { __app: App }).__app = app;
-  // tests: the bundled mission definitions
-  (window as unknown as { __missions: typeof MISSIONS }).__missions = MISSIONS;
   // tests (mocap-trial M1): whether the mocap locomotion switch is on for this page (`?mocap=` over the setting), read-only
   (window as unknown as { __mocapOn: () => boolean }).__mocapOn = () => LOCO.mocap;
 
   setBoot(0.15, 'Loading settings…');
   await app.loadSettings();
   setBoot(0.25, 'Loading profile…');
-  app.save.openLoadout = campaignUnlocked(flags.legacy);
+  app.save.openLoadout = true;
   await app.save.load();
   app.save.update((d) => void autoGrant(d));
   extraSettingsTabs.push(feedbackTab, dataTab);
@@ -130,8 +120,8 @@ async function boot(): Promise<void> {
     app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
     await app.save.flush();
     if (report && (report as SessionReport).levelUps > 0) setTimeout(() => app.sfx.levelUp(), 600);
-    // (3.5: progression still records; the credits / XP panel is shown only with `?legacy=1`)
-    return report && showEconomy(flags.legacy) ? rewardsPanel(report) : null;
+    // (progression still records; the credits / XP panel is never shown: stage I removes the economy)
+    return null;
   };
   if (flags.debug) app.debug.toggle(true);
   void requestPersistence();
@@ -175,8 +165,6 @@ async function boot(): Promise<void> {
     };
     app.crashLog?.stage('menu');
     const menu = new MainMenuScreen(app);
-    // (menu-ui MD19: the profile badge only with `?legacy=1`)
-    if (flags.legacy) menu.badge.append(profileBadge(app));
     app.screens.push(menu);
     // (campaign-mode CM4, plan check polish 9) the "Continue campaign" cache, read again on every menu (the first is the
     // boot's read); the menu is built at once and rebuilt here only when the save came or went
@@ -264,28 +252,9 @@ async function boot(): Promise<void> {
       });
   };
 
-  // menu-ui MD6: the flat main menu: Co-op, Loadout, Settings and Feedback; Missions, Training and Free roam stay behind `?legacy=1`.
-  if (flags.legacy) {
-    MainMenuScreen.entries.push(
-      (a) => ({
-        key: 'missions',
-        label: 'Missions',
-        order: 12,
-        counter: () => `${MISSIONS.length}`,
-        ctx: 'The campaign. Pick a mission, read the briefing, choose your way in.',
-        action: () => a.screens.push(new MissionsScreen(a, (o) => startGame(o))),
-      }),
-      (a) => ({
-        key: 'freeroam',
-        label: 'Free roam',
-        order: 18,
-        ctx: 'No guards. Explore a map with the full kit.',
-        action: () => a.screens.push(new FreeRoamScreen(a, (o) => startGame(o))),
-      }),
-    );
-  }
+  // menu-ui MD6: the flat main menu: Co-op, Loadout, Settings, Feedback and the Test Chamber.
   MainMenuScreen.entries.push(
-    (a) => ({ key: 'loadout', label: 'Loadout', order: 20, ctx: flags.legacy ? 'Weapons, attachments and gadget for the next mission.' : 'The kit issued for the mission: weapons, attachments and gadget.', action: () => a.screens.push(flags.legacy ? new LoadoutScreen(a) : new KitScreen(a)) }),
+    (a) => ({ key: 'loadout', label: 'Loadout', order: 20, ctx: 'The kit issued for the mission: weapons, attachments and gadget.', action: () => a.screens.push(new KitScreen(a)) }),
     (a) => ({ key: 'settings', label: 'Settings', order: 80, ctx: 'Controls, graphics, sound, accessibility and save data.', action: () => a.screens.push(new SettingsScreen(a)) }),
     (a) => ({
       key: 'feedback',
@@ -304,15 +273,6 @@ async function boot(): Promise<void> {
       action: () => a.chamber?.(),
     }),
   );
-  if (flags.legacy) {
-    MainMenuScreen.entries.push((a) => ({
-      key: 'legacy',
-      label: 'Legacy',
-      order: 70,
-      ctx: 'Parked modes: Hunter, Mission and the old Play screen.',
-      action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
-    }));
-  }
 
   // Coop is optional and isolated: only reached through a dynamic import behind the flag.
   const coopApi = {
@@ -320,7 +280,7 @@ async function boot(): Promise<void> {
     goToMenu,
     profile: () => {
       const sv = app.save.get();
-      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar, loadout: lobbyLoadout(sv, campaignUnlocked(flags.legacy)) };
+      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar, loadout: lobbyLoadout(sv, true) };
     },
   };
   const loadCoop = () => import('./net/coopUi');
@@ -376,14 +336,6 @@ async function boot(): Promise<void> {
     });
   }
 
-  /** The results screen's Missions / Next: the menu, the missions list, and a mission's briefing when `id` is given. */
-  const openMissions = (id?: string): void => {
-    goToMenu();
-    app.screens.push(new MissionsScreen(app, (o) => startGame(o)));
-    const mission = id ? missionById(id) : null;
-    if (mission) app.screens.push(new BriefingScreen(app, (o) => startGame(o), { kind: 'mission', mission }));
-  };
-
   const startGame = (base: GameOptions, cbOverride?: SessionCallbacks): void => {
     const sv = app.save.get();
     const skin = (_w: string, camo: string): { colors: ReturnType<typeof camoById>['colors']; pattern?: ReturnType<typeof camoById>['pattern'] } => {
@@ -394,7 +346,7 @@ async function boot(): Promise<void> {
     const coop = !!base.net;
     const opts: GameOptions = {
       ...base,
-      loadout: base.loadout ?? loadoutEntries(sv, base.mode, campaignUnlocked(flags.legacy), skin),
+      loadout: base.loadout ?? loadoutEntries(sv, base.mode, true, skin),
       look: base.look ?? suitLook(sv.avatar, sv.suit.worn),
       suit: base.suit ?? (coop ? undefined : sv.suit.worn),
       hq: base.hq ?? (coop ? undefined : sv.hq),
@@ -414,7 +366,7 @@ async function boot(): Promise<void> {
     app.onAvatarStyle = null;
     app.releaseState();
     const gen = bootGen;
-    void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }), missions: () => openMissions(), briefing: (id) => openMissions(id) })
+    void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }) })
       .then((st) => {
         app.setState(st);
         app.crashLog?.stage(`in ${what}`);
@@ -457,17 +409,17 @@ async function boot(): Promise<void> {
     s.started ??= Date.now();
     benchTag(`Run ${s.idx + 1}/${s.runs.length} · ${run.label} · loading`);
     app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx }, false);
-    // (clean-up G2c) the flight runs through the Test Chamber's rooms in the test mode (the Warehouse goes in stage H); every
+    // (clean-up G2c) the flight runs through the Test Chamber's rooms in the test mode (the Warehouse left in stage H); every
     // guard of its room squads is passive for the flight
     startGame({ map: getMap('chamber'), mode: 'test', seed: 1, benchmark: s });
   };
-  // (anim-studio) Main menu / Settings > Test Chamber: the chamber stage in Free Roam (single player)
+  // (anim-studio) Main menu / Settings > Test Chamber: the chamber stage in the test mode (single player)
   // (G2c, N17) in the test mode with the three passive practice guards (`?practice=0` leaves them out, the tests do): the stage
   // and its loop player run as before, the guards stand outside the open middle
   app.chamber = () => startGame({ map: getMap('chamber'), mode: 'test', seed: 1, stage: true, practice: flags.practice !== false });
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
-  // tests: start a match from the menu (Free roam left the main menu with sector-ops slice 1; e2e-pad still walks it)
+  // tests: start a match from the page
   (window as unknown as { __play: (map: string, mode: GameOptions['mode'], difficulty?: string) => void }).__play = (map, mode, difficulty) =>
     startGame({ map: getMap(map), mode, seed: 1, difficulty: parseDifficulty(difficulty) });
 
@@ -499,9 +451,7 @@ async function boot(): Promise<void> {
       goToMenu();
       app.toasts.show(block, 'warn');
     } else {
-      // infiltration: the mission picks its map
-      const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === autostart) ?? MISSIONS[0]! : null;
-      startGame({ map: getMap(mission ? mission.map : autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, stage: flags.stage, practice: flags.practice === true, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+      startGame({ map: getMap(autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), weather: flags.weather ?? undefined, stage: flags.stage, practice: flags.practice === true, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
     }
   }
   else goToMenu();

@@ -31,12 +31,12 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
   `medkit`, pickup kind `medkit`). Earlier steps: git log and docs/archive/locomotion/LOG.md. Next wire train: afp AF6 (#247), the partner's gait - `PlayerState.t` (the joiner's send clock, timed by the host through a `ClockSync`), `gph` (gait clock), `qs` / `hs` (the CT stop), `mo` / `mt` (motion state and its time), `ax` / `az` (acceleration); the partner renders 0.13 s (host) / 0.16 s (joiner) behind.
 - Caps: `MAX_PLAYERS` 4 (room cap on the wire), `MAX_ENEMIES` 32, `MAX_EVENTS` 48, `MAX_ITEMS` 128, `MAX_DOORS` 256.
-- `NetMode`: `sandbox | clear | infiltration | course | sector | test`; (G2a, protocol 87) `test` is the Test Chamber's
+- `NetMode`: `course | sector | test` (protocol 89, clean-up H: `sandbox`, `clear` and `infiltration` left the wire); (G2a, protocol 87) `test` is the Test Chamber's
   mode (`TestMode`: guards by test, revives, no progression; the lobby's "Test Chamber" mode starts map `chamber` in it,
   two players); `capacity(mode)` gates joins and `startMatch`. On
-  master `course` and `sector` take `COURSE_MAX` 2 and the legacy modes `COOP_MAX` 4. The rule: Marlow Yard and the
+  master `course` and `sector` take `COURSE_MAX` 2 and `test` `COOP_MAX`. The rule: Marlow Yard and the
   campaign 2 (G2), Sector Ops up to 4 (G308; coop4, PR #317, adds `SECTOR_MAX` 4). Never cap Sector Ops at 2.
-- `lobby` / `start` carry the mode, map, `mission` (Infiltration), `weather`, the host's fixed difficulty level (shown
+- `lobby` / `start` carry the mode, map, `mission` (retired: Infiltration's, always ''), `weather`, the host's fixed difficulty level (shown
   read-only on the client) and `bay` (course start; campaign-mode CM3, with `flags.campaign` and `flags.missions`: a sector
   campaign start's section, 1-based, else 1). The `lobby` message may carry `sm` (the host's picked campaign mission;
   the client still starts only from `start.sm`). (`start.lf`, the host's lamp falloff, LR13, is gone since LR16a.)
@@ -73,7 +73,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
 
 ## Session and sims
 - `NetSession`: lobby state (each `PlayerInfo` carries name, tag, look and the validated weapon `loadout`), ready /
-  start, routing. A new host room starts on Infiltration with the first listed mission (Hunter with `?legacy=1`).
+  start, routing. A new host room starts on the campaign (Marlow Yard in Course mode).
   Clients accept authoritative messages (lobby / start / snap / ev / end) only from the host; the host accepts gameplay
   messages only from lobby members. No host migration.
 - Campaign start: a campaign mission (Sector Ops on a campaign map, or a campaign mission picked) starts only with exactly
@@ -144,7 +144,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   "Connecting to host…" on the net-status line (`Hud.setNetStatus`) until the first snapshot, and "Waiting for host…"
   there after 2 s without one, until the next; the objective line only ever holds the host's objective (a snapshot's
   line clears the notice, an empty course-mode objective included). Every write goes through `CoopClient.showLine`.
-  The host seeds its copy from the HUD when it hooks it (Free Roam sets it earlier).
+  The host seeds its copy from the HUD when it hooks it.
 - (hud-guidance B5, A9) Field Terminal > Notes: the host fills `GameState.notes` from its `intel` event (its own and a
   client's interrogations); a client adds every `feed` event's text (the same relay, plus Sector Ops keypad radio
   lines): no wire change.
@@ -247,7 +247,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   objectives, switches, alarms, doors, revive points, wall medkit stations `medkitWall`; clients mirror them and send
   `use`, the host checks reach; course devices `c-` first so the cap never drops them) and `doors` (open indices).
 - Wall medkit stations (G20, G98): a client's use asks the host, which heals the client's host-authoritative health
-  (`CoopHost.healAtStation`); the station shows spent on both pages. Stations exist only on Proving Grounds today;
+  (`CoopHost.healAtStation`); the station shows spent on both pages. Stations exist on Marlow Yard (`medkitWalls`);
   placing one in every map is decided, not built yet (G98).
 - Client takedowns: `GameState.takedownVictims` = puppets; `td start / done / abort` seizes the host enemy (denied ->
   `tdDenied`). (coop-walk-fixes P6) The team takedown on a partner's hostage (Michael 4.72: "should trigger coop

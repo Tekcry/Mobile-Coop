@@ -62,7 +62,7 @@ describe('MapReadyStats', () => {
   });
 
   it('p50 / p95 / max of the frame intervals', () => {
-    const s = new MapReadyStats('warehouse', 'clear', false, 0);
+    const s = new MapReadyStats('kestrel', 'clear', false, 0);
     s.reveal(0, sample(), -1);
     // 20 intervals of 1..20 ms (out of order), then one 10 s interval that closes the window
     const iv = [5, 3, 1, 20, 2, 4, 19, 6, 7, 18, 8, 9, 17, 10, 11, 16, 12, 13, 15, 14];

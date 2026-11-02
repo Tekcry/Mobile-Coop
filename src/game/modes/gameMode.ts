@@ -8,9 +8,10 @@ import type { SlotPoint } from '../spawnSlots';
 import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
 import type { KitKind } from '../teamMoves';
 
-/** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`; `sector` is Sector Ops; `test` is the Test
- *  Chamber's guards-and-revives mode (`TestMode`: practice, no progression). */
-export type ModeId = 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector' | 'test';
+/** `course` is the training course (the campaign's Marlow Yard); `sector` is Sector Ops; `test` is the Test Chamber's
+ *  guards-and-revives mode (`TestMode`: practice, no progression); `sandbox` is the guard-free walk of a dev map (the
+ *  Kestrel editor's walk test, `?autostart=seclab&mode=sandbox`; no menu offers it). */
+export type ModeId = 'sandbox' | 'course' | 'sector' | 'test';
 
 /** (G2a) The practice modes: a test map with nothing saved (no lifetime stats, challenges or rewards; the sandbox loadout). */
 export function practiceMode(mode: ModeId): boolean {
@@ -34,10 +35,6 @@ export interface SessionStats {
   weaponKills: Record<string, number>;
   detections: number;
   knockouts: number;
-  /** Infiltration: the mission, its rating (0-3) and the bonus rules kept. */
-  missionId?: string;
-  rating?: number;
-  bonuses?: string[];
   /** Challenge inputs: takedowns by kind, gadget knock-outs / kills, alarms raised. */
   takedownsByKind?: Record<string, number>;
   gadgetKos?: number;

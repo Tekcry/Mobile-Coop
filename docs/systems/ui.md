@@ -93,14 +93,11 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   Off), under Shadows: the nearest lamps' silhouette shadow maps; rendering only, this machine only (lighting.md
   "Character silhouette shadows").
 - Difficulty (`ui/difficultyRows.ts`): one row, CT's fixed levels Rookie, Normal, Realistic, Perfectionist (G106; no
-  sliders). Shown on the Play screen (hidden in Free Roam) and in the co-op host's lobby; a client sees the host's level
+  sliders). Shown in the co-op host's lobby (the Play screen went in clean-up H); a client sees the host's level
   read-only. Rows carry `data-diff` for the e2e suites.
-- Loadout (`ui/screens/loadoutScreen.ts`): a stack of list `Page`s on the left (breadcrumb, title, `Row`s with value,
-  equipped / locked / tune / go marks), the operator in the middle, the focused row's details on the right (segment
-  bars, magazine, suppressed, fire mode), the action bar along the bottom (A act, Y alt, B back). Legacy off: root =
-  preset, primary, secondary, gadget > weapon list per slot > attachments. Focusing a row previews it; owned choices save
-  at once. With `?legacy=1` the parked economy pages return (suit, appearance, tag, HQ, challenges, upgrades, camos, the
-  credits bar; modes-and-progression.md).
+- Loadout (main menu row): the read-only Kit screen (`ui/screens/kitScreen.ts`): the issued primary, sidearm and gadget with
+  their parts, nothing selectable. The old editable Loadout screen (`loadoutScreen.ts`), the profile badge and the
+  rewards panel were removed in clean-up H with `?legacy=1`.
 - Menu backdrop (`world/menuScene.ts` `MenuState`): a dark stage - `LIGHTS` (warm key over the operator, cool rim behind,
   a distant lamp) as `SpotLight`s with additive `lightCone` beams, a dim hemispheric fill (brighter while customising),
   the lens glow on; the camera's `targetScreenOffset` puts the operator in the right half. `setFraming('menu' |
@@ -553,8 +550,8 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   `window.__animTune` (`undo`, `redo`, `settle`, `abStore`, `abToggle`, `presetSave` / `Load` / `Delete`, `presets`).
 - (anim-studio; G1: the Anim Studio is now the Test Chamber; N15: its map id `studio` is now `chamber`) Main menu row `test-chamber` (last,
   "Test Chamber") and Settings > Developer (not in a co-op session) start the `chamber` dev scene alone (`world/maps/chamber.ts`,
-  in `DEV_MAPS`, not `MAPS`; `?autostart=chamber`, Free Roam) through `App.chamber` (set in `main.ts`); the co-op lobby's
-  Mode row has a Test Chamber choice (mode `sandbox` on map `chamber`, nothing new on the wire: `coopUi.ts` `CHAMBER`) so two
+  in `DEV_MAPS`, not `MAPS`; `?autostart=chamber`, sandbox mode) through `App.chamber` (set in `main.ts`); the co-op lobby's
+  Mode row has a Test Chamber choice (mode `test` on map `chamber`, nothing new on the wire: `coopUi.ts` `CHAMBER`) so two
   players share it, each on one of the map's two spawns. In a co-op room the stage below is off (`GameState.create` builds
   it for a single player match only); the tuner stays, local only, with its co-op time lock. **The animation tuner opens
   in the Test Chamber only** (G1): `AnimTunePanel.show()` asks `allowed` (`ui/tunerGate.ts` `animTuneAllowed`, the

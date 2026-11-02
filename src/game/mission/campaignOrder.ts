@@ -188,17 +188,17 @@ export function briefingPanelLines(p: BriefingPanel): string[] {
 }
 
 /** A lobby options row (`coopUi` builds them in this order). */
-export type LobbyRow = 'mode' | 'map' | 'mission' | 'campaign' | 'difficulty' | 'difficultyLocked' | 'weather' | 'bay' | 'room';
+export type LobbyRow = 'mode' | 'map' | 'campaign' | 'difficulty' | 'difficultyLocked' | 'weather' | 'bay' | 'room';
 
 /**
  * The lobby's option rows, in order. With `campaign` off (`flags.campaign`) the rows are exactly today's: host Mode,
- * Map (Infiltration: Mission), Difficulty, Weather (a map with weathers), Start at (Course mode), Room; client the
+ * Map, Difficulty, Weather (a map with weathers), Start at (Course mode), Room; client the
  * same as locked rows without Start at and Room. With it on and the room on a campaign entry (`entry`) the Map row is
  * the campaign's Mission row ('campaign'), and a Continue (`continued`, host) locks the difficulty (A9).
  */
 export function lobbyRows(o: { campaign: boolean; host: boolean; mode: string; entry: CampaignEntry | null; continued: boolean; weather: boolean }): LobbyRow[] {
   const camp = o.campaign && o.entry !== null;
-  const rows: LobbyRow[] = ['mode', camp ? 'campaign' : o.mode === 'infiltration' ? 'mission' : 'map'];
+  const rows: LobbyRow[] = ['mode', camp ? 'campaign' : 'map'];
   rows.push(camp && o.host && o.continued ? 'difficultyLocked' : 'difficulty');
   if (o.weather) rows.push('weather');
   if (!o.host) return rows;

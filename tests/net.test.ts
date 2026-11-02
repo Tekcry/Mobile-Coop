@@ -24,13 +24,13 @@ describe('net message validation', () => {
     expect(parseMessage({ t: 'start', mode: 'battle-royale', map: 'depot', seed: 1, difficulty: 'normal' })).toBeNull();
   });
   it('carries the weather choice (3.0), unknown values fall back to clear', () => {
-    const a = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', weather: 'rain' });
+    const a = parseMessage({ t: 'start', mode: 'sector', map: 'kestrel', seed: 1, difficulty: 'normal', weather: 'rain' });
     expect(a && a.t === 'start' && a.weather).toBe('rain');
-    const b = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', weather: 'blizzard' });
+    const b = parseMessage({ t: 'start', mode: 'sector', map: 'kestrel', seed: 1, difficulty: 'normal', weather: 'blizzard' });
     expect(b && b.t === 'start' && b.weather).toBe('clear');
-    const c = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'normal', phase: 'lobby', weather: 'fog' });
-    expect(parseMessage({ t: 'lobby', players: [], mode: 'wave', map: 'warehouse', difficulty: 'normal', phase: 'lobby' })).toBeNull();
-    expect(parseMessage({ t: 'start', mode: 'tdm', map: 'warehouse', seed: 1, difficulty: 'normal' })).toBeNull();
+    const c = parseMessage({ t: 'lobby', players: [], mode: 'sector', map: 'kestrel', difficulty: 'normal', phase: 'lobby', weather: 'fog' });
+    expect(parseMessage({ t: 'lobby', players: [], mode: 'wave', map: 'kestrel', difficulty: 'normal', phase: 'lobby' })).toBeNull();
+    expect(parseMessage({ t: 'start', mode: 'tdm', map: 'kestrel', seed: 1, difficulty: 'normal' })).toBeNull();
     expect(parseMessage({ t: 'team', team: 1 })).toBeNull();
     expect(parseMessage({ t: 'ptd', target: 'peerB', kind: 'drop' })).toBeNull();
     expect(c && c.t === 'lobby' && c.weather).toBe('fog');
@@ -304,10 +304,10 @@ describe('host validation', () => {
     expect(honest.players.me!.kills).toBe(9);
   });
   it('rewards use only this player’s line of the host report', () => {
-    const s = coopSessionStats(emptyStats('clear', 'depot'), { won: false, subtitle: '', score: 900, players: { a: { kills: 4, headshots: 1, byKind: { ...emptyKinds(), grunt: 4, runner: 0, heavy: 0 }, weaponKills: {} }, b: { kills: 7, headshots: 0, byKind: { ...emptyKinds(), grunt: 7, runner: 0, heavy: 0 }, weaponKills: {} } } }, 'b');
+    const s = coopSessionStats(emptyStats('sector', 'depot'), { won: false, subtitle: '', score: 900, players: { a: { kills: 4, headshots: 1, byKind: { ...emptyKinds(), grunt: 4, runner: 0, heavy: 0 }, weaponKills: {} }, b: { kills: 7, headshots: 0, byKind: { ...emptyKinds(), grunt: 7, runner: 0, heavy: 0 }, weaponKills: {} } } }, 'b');
     expect(s.kills).toBe(7);
     expect(s.score).toBe(900);
-    expect(coopSessionStats(emptyStats('clear', 'depot'), { won: false, subtitle: '', score: 0, players: {} }, 'zz').kills).toBe(0);
+    expect(coopSessionStats(emptyStats('sector', 'depot'), { won: false, subtitle: '', score: 0, players: {} }, 'zz').kills).toBe(0);
   });
   it('mode info round-trips through plain text', () => {
     const html = '<span>Wave <b>3</b></span><span>Hostiles <b>5</b></span><span>Score <b>1200</b></span>';
@@ -356,17 +356,17 @@ describe('net session', () => {
     expect(cli.hostId).toBe('H');
     expect(host.players.size).toBe(2);
     expect(host.allReady).toBe(false);
-    // a new room defaults to Infiltration, not the parked Hunter (the client hears it in the lobby)
+    // a new room defaults to the campaign (the client hears it in the lobby)
     expect(host.mode).toBe('course');
     expect(cli.mode).toBe('course');
     cli.setReady(true);
     expect(host.allReady).toBe(true);
     let started: unknown = null;
     cli.events.on('start', (s) => (started = s));
-    host.setSettings('sandbox', 'proving', 'realistic');
-    expect(cli.mode).toBe('sandbox');
+    host.setSettings('test', 'chamber', 'realistic');
+    expect(cli.mode).toBe('test');
     host.startMatch();
-    expect(started).toMatchObject({ mode: 'sandbox', map: 'proving', difficulty: 'realistic' });
+    expect(started).toMatchObject({ mode: 'test', map: 'chamber', difficulty: 'realistic' });
   });
   it('late joiners get the running match; leavers are announced', () => {
     const h = hub();
@@ -413,7 +413,7 @@ describe('net session', () => {
     host.startMatch();
     expect(started).not.toBeNull();
     expect('lampFalloff' in started!).toBe(false);
-    const msg = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', lf: 'linear' });
+    const msg = parseMessage({ t: 'start', mode: 'sector', map: 'kestrel', seed: 1, difficulty: 'normal', lf: 'linear' });
     expect(msg).not.toBeNull();
     expect('lf' in msg!).toBe(false);
   });
@@ -437,7 +437,7 @@ describe('net session', () => {
   it('rooms cap at two players', () => {
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
-    host.setSettings('infiltration', 'warehouse', 'normal');
+    host.setSettings('test', 'chamber', 'normal');
     new NetSession(h.make('A'), 'client', 'ABCDE', prof('A'));
     const third = new NetSession(h.make('X'), 'client', 'ABCDE', prof('X'));
     let full = false;
@@ -771,21 +771,21 @@ describe('step 13: door peek on the wire', () => {
 
 describe('difficulty on the wire (G106: fixed levels, no custom sliders)', () => {
   it('lobby / start carry a level only; an old custom reads Normal and its dc is dropped', () => {
-    const s = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'realistic' });
+    const s = parseMessage({ t: 'start', mode: 'sector', map: 'kestrel', seed: 1, difficulty: 'realistic' });
     expect(s).toMatchObject({ difficulty: 'realistic' });
-    const old = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'custom', dc: { b: 'rookie', p: 0.1, a: 1.3, t: 5 } });
+    const old = parseMessage({ t: 'start', mode: 'sector', map: 'kestrel', seed: 1, difficulty: 'custom', dc: { b: 'rookie', p: 0.1, a: 1.3, t: 5 } });
     expect(old).toMatchObject({ difficulty: 'normal' });
     expect('dc' in (old as object)).toBe(false);
-    const l = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'custom', phase: 'lobby', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
+    const l = parseMessage({ t: 'lobby', players: [], mode: 'sector', map: 'kestrel', difficulty: 'custom', phase: 'lobby', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
     expect(l).toMatchObject({ difficulty: 'normal' });
     expect('dc' in (l as object)).toBe(false);
   });
 
   it('a non-custom lobby / start ignores dc', () => {
-    const l = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'realistic', phase: 'lobby', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
+    const l = parseMessage({ t: 'lobby', players: [], mode: 'sector', map: 'kestrel', difficulty: 'realistic', phase: 'lobby', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
     expect(l).toMatchObject({ difficulty: 'realistic' });
     expect((l as { dc?: unknown }).dc).toBeUndefined();
-    const s = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
+    const s = parseMessage({ t: 'start', mode: 'sector', map: 'kestrel', seed: 1, difficulty: 'normal', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
     expect((s as { dc?: unknown }).dc).toBeUndefined();
   });
 });

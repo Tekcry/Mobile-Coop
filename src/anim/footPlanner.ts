@@ -147,7 +147,7 @@ export interface PlannerInput {
   /** Chaos Theory stop hold (3.2.0): stopped feet stay where they are - no settling or idle steps until it ends. */
   hold: boolean;
   /**
-   * (3.2.0) Pinned feet (world x / z; NaN = free): a co-op / PvP remote's still feet step to where the owner's are
+   * (3.2.0) Pinned feet (world x / z; NaN = free): a co-op remote's still feet step to where the owner's are
    * planted (back-to-wall, step 11), instead of where its own history put them.
    */
   pinLX: number;

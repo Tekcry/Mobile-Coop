@@ -2,9 +2,8 @@
 // (clean-up G2b) The Test Chamber carries the solo parts (utostart=chamber; the corner takedown with &mode=test).
 // Locomotion step 11: back-to-wall. The Chamber: the context press enters within 0.5 m (a 0.2-0.45 s settle onto the
 // body line), the stick slides along the wall at the gear's pace (gear <= 4) and quieter than walking, the slide
-// stops at an outside end (edge flag), pulling the stick away leaves; MoveState `wall` from the core. Warehouse
-// (Clear): a guard in combat against a player held on a wall gets the flanker assignment and lobs a grenade to
-// flush them out (the AI reads `localRef.cover`, restored from step 05).
+// stops at an outside end (edge flag), pulling the stick away leaves; MoveState `wall` from the core. (The Warehouse
+// flanker section, Hunter AI, left in clean-up H.)
 import { launch, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -195,57 +194,6 @@ async function proving() {
   }
 }
 
-async function flank() {
-  const { browser, page } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
-  try {
-    const G = (f, a) => page.evaluate(f, a);
-    await page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
-    await G(HARNESS);
-    await G(() => { const g = window.__app.current; g.target.health.invulnerable = true; g.mode.pending.length = 0; g.enemyMgr.clear(); });
-    const seg = await G(() => window.__w.find(false, Infinity));
-    assert(seg >= 0, `a free high wall on Warehouse (${seg})`);
-    const r = await G((i) => {
-      const g = window.__app.current;
-      const s = g.world.level.coverSegments[i];
-      window.__w.place(i, s.len / 2, 0.35 + 0.4);
-      window.__w.run(0.4, 0, 0, 'cover');
-      const V = g.player.position.constructor;
-      const em = g.enemyMgr;
-      // two riflemen in combat out in front of the wall, 10-12 m away
-      const spawn = (k, d) => {
-        const e = em.spawn('grunt', new V(s.ax + s.tx * k + s.nx * d, s.y, s.az + s.tz * k + s.nz * d), true, Math.atan2(-s.nx, -s.nz));
-        e.grenadeCd = 0;
-        return e;
-      };
-      const es = [spawn(s.len / 2, 11), spawn(Math.max(0.5, s.len / 2 - 2), 12)];
-      let throws = 0;
-      for (const e of es) {
-        const ctx = e.ctx ?? e['ctx'];
-        const orig = ctx.throwGrenade;
-        ctx.throwGrenade = (...args) => {
-          throws++;
-          return orig(...args);
-        };
-      }
-      let flanker = false;
-      let maxT = 0;
-      for (let t = 0; t < 14 && !(flanker && throws > 0); t += 1 / 60) {
-        // the player stays on the wall (grenades or not)
-        if (!g.wallCore.active) window.__w.run(1 / 60, 0, 0, 'cover');
-        else a2();
-        maxT = Math.max(maxT, g['localRef'].coverT);
-        if (em.flanker && es.includes(em.flanker)) flanker = true;
-      }
-      function a2() { window.__app.loop.stepHeadless(1 / 60, 120); }
-      return { flanker, throws, maxT, on: g.wallCore.active, us: es.map((e) => e.def.usesCover) };
-    }, seg);
-    assert(r.maxT > 4 && r.flanker, `held on a wall > 4 s: a flanker is assigned (${JSON.stringify(r)})`);
-    assert(r.throws > 0, `held on a wall > 6 s: a guard lobs a grenade to flush the player (${JSON.stringify(r)})`);
-  } finally {
-    await browser.close();
-  }
-}
-
 /** (A3, G36, G137) The edge verb on the Test Chamber: the peek at once at a doorway end, the strict peek camera, the weapon hand on
  *  the open side, and aiming leaves the wall (the lean-out is gone, G52). */
 async function edges() {
@@ -361,21 +309,13 @@ async function cornerTakedown() {
   }
 }
 
-// (process audit) the Warehouse flanker section is Hunter AI, parked: `--part=flanker` runs it alone (LEGACY list,
-// `npm run e2e:legacy`); the default run is everything else
-const flankerOnly = process.argv.includes('--part=flanker');
 try {
-  if (flankerOnly) {
-    console.log('guards flank and flush a wall-held player (Warehouse)');
-    await flank();
-  } else {
-    console.log('back-to-wall on the Test Chamber');
-    await proving();
-    console.log('edge verb on the Test Chamber: peek at once, strict camera, aiming leaves (A3)');
-    await edges();
-    console.log('corner takedown from the wall (Test Chamber, test mode, step 12)');
-    await cornerTakedown();
-  }
+  console.log('back-to-wall on the Test Chamber');
+  await proving();
+  console.log('edge verb on the Test Chamber: peek at once, strict camera, aiming leaves (A3)');
+  await edges();
+  console.log('corner takedown from the wall (Test Chamber, test mode, step 12)');
+  await cornerTakedown();
 } catch (e) {
   failed = true;
   console.error(String(e?.stack ?? e));

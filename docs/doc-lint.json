@@ -97,7 +97,10 @@
     },
     "roadmap": "docs/ROADMAP.md"
   },
-  "known": [],
+  "known": [
+    { "check": "links", "file": "docs/level-design.md", "match": "infiltrationMode.ts", "note": "the standard changes only with Michael's approval: the dead path stays until he signs off (clean-up H)" },
+    { "check": "links", "file": "docs/templates/map-spec.md", "match": "storey.ts", "note": "the template changes only with Michael's approval: the dead path stays until he signs off (clean-up H)" }
+  ],
   "headers": {
     "error": [
       "CLAUDE.md",

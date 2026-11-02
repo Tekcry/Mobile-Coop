@@ -2,7 +2,7 @@
 // systems (nav, enemy manager, interactables) and a real `g.mode` (`TestMode`), nothing queued, infinite ammo, no
 // progression. A guard spawned by the test walks its route, a solo death respawns (no DEFEAT with `lives` at Infinity),
 // `?guards=1` is accepted (the chamber has no room squads yet). Then `mode=sandbox` on the same map is unchanged (no nav,
-// no mode) and Proving Grounds in the test mode lists its four dummies from the layout (the second revive / co-op side:
+// no mode) and the chamber in the test mode lists its two dummies from the layout (the second revive / co-op side:
 // e2e-coop, e2e-coop:chamber).
 // (clean-up G2c) ?guards=1 places the five room-squad guards of the annex; the three passive practice guards (decision N17) come with
 // ?practice=1 or from the main menu's Test Chamber row (the tests' pages carry practice=0): passive, outside the open middle, a
@@ -178,16 +178,16 @@ try {
       await browser.close();
     }
   }
-  console.log('chamber, free roam (unchanged)');
+  console.log('chamber, sandbox mode (unchanged)');
   await boot('autostart=chamber&mode=sandbox', async (page, G) => {
     await frames(page, 2);
     const s = await G(() => {
       const g = window.__app.current;
       return { mode: g.opts.mode, modeObj: g.mode, nav: !!g.nav, em: !!g.enemyMgr, ammo: g.weapons.infiniteAmmo, dummies: g.dummies.length, obj: g.hud.objectiveText };
     });
-    assert(s.mode === 'sandbox' && s.modeObj === null && !s.nav && !s.em, `free roam on the chamber has no mode, nav or guards (${s.mode}, ${s.modeObj}, ${s.nav}, ${s.em})`);
+    assert(s.mode === 'sandbox' && s.modeObj === null && !s.nav && !s.em, `the sandbox mode on the chamber has no mode, nav or guards (${s.mode}, ${s.modeObj}, ${s.nav}, ${s.em})`);
     assert(s.ammo === true && s.dummies === 2, `infinite ammo, the chamber's two dummies (G2b) (${s.ammo}, ${s.dummies})`);
-    assert(/try every weapon/.test(s.obj ?? ''), `the free roam objective for a map with targets (${s.obj})`);
+    assert((s.obj ?? '') === '', `the sandbox mode has no objective (${s.obj})`);
   });
 
   console.log('chamber, the animation stage (?stage=1)');
@@ -204,17 +204,16 @@ try {
     assert(!s.stage && !s.hook, `plain autostart=chamber is the normal game: no animation stage (${s.stage}, ${s.hook})`);
   });
 
-  console.log('proving grounds, test mode');
-  // (one-game) `mapready=0` for this boot: map-ready crashes the render on the Warehouse and Proving Grounds (goes when stage H deletes those maps)
-  await boot('autostart=proving&mode=test&mapready=0', async (page, G) => {
+  console.log('chamber, test mode: the dummies come from the layout');
+  await boot('autostart=chamber&mode=test', async (page, G) => {
     await frames(page, 2);
     const s = await G(() => {
       const g = window.__app.current;
       const l = g.world.layout;
       return { mode: g.mode?.id, ammo: g.weapons.infiniteAmmo, dummies: g.dummies.length, layout: l.dummies?.length, alive: g.enemyMgr?.alive };
     });
-    assert(s.mode === 'test' && s.ammo === true, `Proving Grounds takes the test mode (${s.mode})`);
-    assert(s.dummies === 4 && s.layout === 4, `its four training dummies come from the layout (${s.dummies} built, ${s.layout} listed)`);
+    assert(s.mode === 'test' && s.ammo === true, `the chamber takes the test mode (${s.mode})`);
+    assert(s.dummies === 2 && s.layout === 2, `its two training dummies come from the layout (${s.dummies} built, ${s.layout} listed)`);
     assert(s.alive === 0, `and no guards (${s.alive})`);
   });
 } catch (e) {

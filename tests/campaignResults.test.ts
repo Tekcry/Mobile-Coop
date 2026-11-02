@@ -306,7 +306,7 @@ describe('CM5: the save cleared on another entry (A7, CM4 check note)', () => {
     expect(startClearsSave('sector', 'tallowWharf', 'twoKeyLedger', false)).toBe(true);
     expect(startClearsSave('sector', 'tallowWharf', 'threeGreyCoats', true)).toBe(false);
     expect(startClearsSave('sector', 'campus', '', false)).toBe(false);
-    expect(startClearsSave('clear', 'ctcourse', '', false)).toBe(false);
+    expect(startClearsSave('sandbox', 'ctcourse', '', false)).toBe(false);
   });
 
   it("the slot's clear and the new run's first save land in call order", async () => {

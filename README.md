@@ -11,9 +11,9 @@ campaign is also playable in online co-op for 2-4 players.
   windows, vaults and climbs; co-op team moves.
 - **Takedowns:** from every angle, plus the grab; a holstered weapon unless aiming.
 - **Gadgets:** frag, sleeping gas, flashbang, EMP, noisemaker, sticky cam, drone, proximity mine.
-- **Campaign:** solo or 1-4 co-op (Infiltration). The current build target is the vertical slice, Mission 1 "Dead Line"
+- **Campaign:** 2-player online co-op (Marlow Yard, then Tallow Wharf). The current build target is the vertical slice, Mission 1 "Dead Line"
   (`docs/kestrel/`); the maps in the menu today are greyboxes and test spaces.
-- **Parked:** Wave, Hunter, Mission, PvP, the economy and cosmetics are behind `?legacy=1`.
+- **Removed:** Wave, Hunter, Mission, Infiltration, Free Roam and PvP (clean-up H); the economy and cosmetics are hidden until stage I.
 - **Controls:** touch (editable layout), any standard controller with full menu navigation, keyboard and mouse;
   Settings > Accessibility lists every binding.
 - **Built with:** TypeScript, Vite, Babylon.js 9 and Havok physics (WASM bundled), WebAudio synthesis, free assets
@@ -45,8 +45,8 @@ npm run preview    # serve dist/ (service worker active) for offline testing
 npm run e2e        # headless end-to-end suites against dist/ (needs a build and a Chromium; see below)
 ```
 
-URL flags: `?debug=1` (FPS/perf overlay, also F3 or a three-finger tap), `?autostart=<mapId>&mode=<sandbox|infiltration|training>`
-(skip menus), `?legacy=1` (parked content), `?coop=0` (hide co-op), `?room=CODE` (join a co-op room), `?net=local` (co-op between tabs, no network).
+URL flags: `?debug=1` (FPS/perf overlay, also F3 or a three-finger tap), `?autostart=<mapId>&mode=<course|sector|test|sandbox>`
+(skip menus), `?coop=0` (hide co-op), `?room=CODE` (join a co-op room), `?net=local` (co-op between tabs, no network).
 
 The end-to-end suites use `playwright-core` with a preinstalled Chromium (`/opt/pw-browsers`); edit
 `scripts/e2e-lib.mjs` to point at your Chromium if it lives elsewhere. Architecture, conventions and module

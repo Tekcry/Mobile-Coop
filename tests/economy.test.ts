@@ -112,13 +112,12 @@ describe('profile ops and save v6', () => {
     expect(applyPreset(s, 2)).toBe(true);
     expect(s.loadout.primary).toBe('rifle');
     expect(s.preset).toBe(2);
-    const st = emptyStats('clear', 'warehouse');
+    const st = emptyStats('course', 'ctcourse');
     st.won = true;
     st.knockouts = 30;
     const c0 = s.profile.credits;
     const rep = applySession(s, st, 'normal');
     expect(rep.challenges).toContain('knockouts');
-    expect(rep.challenges).toContain('hunterNoAlarm');
     expect(s.profile.credits).toBeGreaterThan(c0);
     expect(applySession(s, st, 'normal').challenges).not.toContain('knockouts');
   });
