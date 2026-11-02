@@ -126,6 +126,17 @@ try {
   await frames(page, 30);
   const after = await top();
   assert(after.best === 'idle', `after the team moves the idle is back (${after.best})`);
+  // (slice i) hanging inverted on a pipe the body turns over with the rig's tumble: the feet above the head
+  await hold({ traverse: 'pipeInv', traverseT: 0, tumble: Math.PI });
+  await frames(page, 60);
+  const inv = await G(() => { const m = window.__app.current.player.mixamo; return { foot: m.boneNode('LeftFoot').getAbsolutePosition().y, head: m.boneNode('Head').getAbsolutePosition().y }; });
+  await shot('a-pipe-inverted');
+  await release();
+  await G(() => { const p = window.__app.current.player.pose; p.traverse = 'none'; p.tumble = 0; });
+  await frames(page, 40);
+  const upright = await G(() => { const m = window.__app.current.player.mixamo; return { foot: m.boneNode('LeftFoot').getAbsolutePosition().y, head: m.boneNode('Head').getAbsolutePosition().y }; });
+  assert(inv.foot > inv.head + 0.5, `inverted on a pipe the body is turned over (feet ${inv.foot.toFixed(2)}, head ${inv.head.toFixed(2)})`);
+  assert(upright.head > upright.foot + 1, `back upright after (head ${upright.head.toFixed(2)}, feet ${upright.foot.toFixed(2)})`);
   // (slice i) our own player down: the body lies (`downed_lie`); back up, the idle
   await G(() => { window.__app.current.player.alive = false; });
   await frames(page, 30);

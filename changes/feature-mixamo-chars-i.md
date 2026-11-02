@@ -1,6 +1,6 @@
 # Mixamo characters, slice i: the remaining moves, the gun on its way, our own downed body
 - The remaining traversal moves on the Mixamo body (provisional stand-ins, tune by eye): up a vertical pipe the rope
-  climb; legs up or inverted on a pipe the hang (upright: the rig's tumble is not on the Mixamo body yet); the wall kick
+  climb; legs up or inverted on a pipe the hang, the whole body turned over with the rig's tumble (the slung gun does not turn with it yet); the wall kick
   "Jump From Wall" pinned to its progress (its rise held flat: the game carries the jump); on a rappel rope the rope haul;
   braced in a split the falling pose; a brace with no team move the lift's crouched offer.
 - A gun being drawn or holstered sits in the Mixamo right hand on its way (it floated beside the body for ~2 s on a

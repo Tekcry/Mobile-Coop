@@ -15,7 +15,7 @@
  * Rope"; the rope climber (role a) "Climbing A Rope". The procedural hand reach to the partner is not on the Mixamo body.
  *
  * (slice i, provisional stand-ins until a better move or our own animation): up a vertical pipe the rope climb; legs up
- * or hanging inverted on a pipe the hang (upright: the rig's tumble is not on the Mixamo body); the wall kick "Jump From
+ * or hanging inverted on a pipe the hang, the whole body turned over with the rig's tumble; the wall kick "Jump From
  * Wall" pinned to its progress; on a rappel rope the rope haul; braced in a split the falling pose (arms and legs out);
  * a holder's brace with no team move the lift's crouched offer.
  */
@@ -61,6 +61,8 @@ export interface ActionOut {
   clip: ActionClip | null;
   /** 0..1 through a timed clip; NaN for a looping one. */
   t: number;
+  /** (slice i) The body turns over with the rig's tumble (legs up / inverted on a pipe). */
+  turn?: boolean;
 }
 
 /** Hanging (or on a wall) and moving sideways faster than this (m/s) shimmies (slides). */
@@ -110,6 +112,7 @@ function timed(out: ActionOut, clip: ActionClip, t: number | undefined): void {
 export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionOut {
   out.clip = null;
   out.t = NaN;
+  out.turn = false;
   const tm = i.teamMove ?? '';
   if (tm !== '') {
     if (i.teamRole === 'b') {
@@ -168,6 +171,7 @@ export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionO
     case 'pipeLegs':
     case 'pipeInv':
       out.clip = 'hang_idle';
+      out.turn = true;
       return out;
     case 'wallKick':
       timed(out, 'wall_kick', i.traverseT);

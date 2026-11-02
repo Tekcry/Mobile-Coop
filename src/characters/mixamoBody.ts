@@ -160,6 +160,10 @@ export class MixamoBody {
   /** (slice g) The nodes to refresh before reading the hands (built on first use, no per-frame allocation). */
   private handChain: TransformNode[] = [];
   private anchorChain: TransformNode[] = [];
+  /** (slice i) The rig's tumble node, whether an action turns the body now, and whether it is turned. */
+  private tumbleNode: TransformNode | null = null;
+  private turnOn = false;
+  private turned = false;
   private anchorW = 0;
   private anchored = false;
   private baseY = 0;
@@ -364,6 +368,7 @@ export class MixamoBody {
     const rr = this.rigRoot;
     if (!rr || !this.ready || !this.root.isEnabled()) return;
     this.anchorBody();
+    this.turnBody();
     this.bendSpine(rr);
     const rootW = this.root.computeWorldMatrix(true);
     const rigW = rr.computeWorldMatrix(true);
@@ -527,6 +532,7 @@ export class MixamoBody {
     const an = a ? this.actName : '';
     const climb = an === 'hang_climb_up' && act && !Number.isNaN(act.t) ? 1 - Math.min(1, Math.max(0, (act.t - ANCHOR_CLIMB_FROM) / ANCHOR_CLIMB_SPAN)) : 1;
     this.anchorW = a && ANCHORED.has(an) ? this.actW * climb : 0;
+    this.turnOn = !!act?.turn && !!a;
   }
 
   /**
@@ -534,6 +540,34 @@ export class MixamoBody {
    * ladder, early climb-up): the whole body shifts up or down so its hands' midpoint meets theirs in height (the rig's hands are on the lip /
    * rungs; a Mixamo clip's own hands are wherever its take had them).
    */
+  /** (slice i) The rig node that tumbles the body (its `body`, about the hips): the Mixamo body turns with it while an
+   *  action asks (`ActionOut.turn`: legs up / inverted on a pipe). */
+  tumbleWith(node: TransformNode): void {
+    this.tumbleNode = node;
+  }
+
+  /** (slice i) Turns the body about the rig's tumble pivot as the rig's body node is turned, or back upright. */
+  private turnBody(): void {
+    const n = this.tumbleNode;
+    if (!n || (!this.turnOn && !this.turned)) return;
+    const q = this.root.rotationQuaternion ?? (this.root.rotationQuaternion = new Quaternion());
+    if (!this.turnOn || !n.rotationQuaternion) {
+      q.copyFromFloats(0, 0, 0, 1);
+      this.root.position.set(0, this.baseY, 0);
+      this.turned = false;
+      this.root.computeWorldMatrix(true);
+      return;
+    }
+    // the root (at the feet) turned about the pivot P (the rig body node's spot): P + R (root - P)
+    const P = n.position;
+    q.copyFrom(n.rotationQuaternion);
+    vT2.set(-P.x, this.baseY - P.y, -P.z);
+    vT2.rotateByQuaternionToRef(q, vS);
+    this.root.position.set(P.x + vS.x, P.y + vS.y, P.z + vS.z);
+    this.turned = true;
+    this.root.computeWorldMatrix(true);
+  }
+
   anchorHands(left: TransformNode, right: TransformNode): void {
     this.anchors = { l: left, r: right };
   }
