@@ -130,6 +130,9 @@ const SCENARIOS = {
   // (anim-rework S3) drawn: the low ready walk (X tap draws), the aimed glide backwards, the pistol's aimed strafe, low
   // ready to aim (LT pressed 0.2 s in); `draw` above is the sling draw (LT from holstered, M2)
   lowreadywalk: { pos: [14, 21], yaw: Math.PI / 2, pre: 2.0, at0: "a.input.state.tap('draw');", warm: { y: 0.5 }, input: () => ({ y: 0.5 }) },
+  // (walk-test round 1, checklist 4) the low ready at the pistol, and at a jog
+  lowreadywalkp: { pos: [14, 21], yaw: Math.PI / 2, pre: 2.0, weapon: 'pistol', at0: "a.input.state.tap('draw');", warm: { y: 0.5 }, input: () => ({ y: 0.5 }) },
+  lowreadyjog: { pos: [12, 21], yaw: Math.PI / 2, pre: 2.0, at0: "a.input.state.tap('draw');", warm: { y: 1 }, input: () => ({ y: 1 }) },
   aimback: { pos: [14, 21], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, y: -0.8 }, input: () => ({ ads: true, y: -0.8 }) },
   aimstrafep: { pos: [14, 21], yaw: Math.PI / 2, pre: 1.6, weapon: 'pistol', warm: { ads: true, x: 0.8 }, input: () => ({ ads: true, x: 0.8 }) },
   readytoaim: { pos: [14, 21], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('draw');", input: (t) => ({ ads: t >= 0.2 }) },
