@@ -112,6 +112,12 @@ export interface RigPose {
   intent?: number;
   traverse?: TraverseKind;
   traverseT?: number;
+  /** (mixamo-chars B2) Riding a zipline (its traverse is the hang): the Mixamo body plays its zipline hang. */
+  zip?: boolean;
+  /** (mixamo-chars B2) Holding a guard (the holder): -1 / unset none, 0..1 the pull-in, 1 holding, 1..2 the knockout. */
+  grab?: number;
+  /** (mixamo-chars B2) Held by a player (the guard): -1 / unset none, 0..1 pulled in, 1 held. */
+  grabbed?: number;
   /** (anim-n4b) A committed move's top above its start feet and its start-to-end distance (m): the mantle's hand plant. */
   traverseH?: number;
   traverseD?: number;

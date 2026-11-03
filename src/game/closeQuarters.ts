@@ -244,6 +244,13 @@ export class GuardCq {
     this.start = this.now;
   }
 
+  /** (mixamo-chars B2) The Mixamo body's grabbed clock at emote time `t`: -1 before contact, 0..1 over the pull-in
+   *  (`pull` s from contact), 1 once held (the hostage hold, the interrogation, the knockout). */
+  grabbedK(t: number, pull: number): number {
+    if (this.mode !== 'seized' && this.mode !== 'seizedLethal') return 1;
+    return t < this.delay ? -1 : Math.min(1, (t - this.delay) / pull);
+  }
+
   /** The pose at emote time `t` (s since the seize), or null before contact. */
   pose(t: number): GuardUpperFk | null {
     this.now = t;

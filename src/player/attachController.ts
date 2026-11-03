@@ -578,6 +578,7 @@ export class AttachController {
     pose.traverse = 'none';
     pose.traverseT = 0;
     pose.tumble = 0;
+    pose.zip = false;
     this.pipe.reset();
     this.grips.aimFree = 0;
     this.grips.release(this.player.rig);
@@ -988,6 +989,7 @@ export class AttachController {
     // pose family and cadence (the climb clips follow the hand steps)
     const pose = this.player.pose;
     pose.tumble = tumble;
+    pose.zip = a.kind === 'zipline';
     const pm = this.pipeMode;
     // (G4) a drainpipe climbs as an inchworm (PIPE_CLIMB), not the ladder's cycle
     const fam: TraverseKind =

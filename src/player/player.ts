@@ -52,6 +52,10 @@ export interface PlayerPose {
   headCap: number;
   traverse: TraverseKind;
   traverseT: number;
+  /** (mixamo-chars B2) Riding a zipline (its traverse is the hang; the attach controller sets it). */
+  zip?: boolean;
+  /** (mixamo-chars B2) The ground grab's clock (`TakedownController.grabK`; -1 / unset none). */
+  grab?: number;
   /** (anim-n4b) The committed move's top above its start feet and start-to-end distance (m; the traversal sets them while
    *  a move runs): the mantle's hand plant. */
   traverseH?: number;
@@ -491,6 +495,8 @@ export class Player {
     rp.headCap = Number.isNaN(cp.headCap) ? undefined : cp.headCap;
     rp.traverse = cp.traverse;
     rp.traverseT = cp.traverseT;
+    rp.zip = cp.zip === true;
+    rp.grab = cp.grab ?? -1;
     rp.traverseH = cp.traverseH ?? 0;
     rp.traverseD = cp.traverseD ?? 0;
     rp.tuneTeam = MOVE_TUNE_TEAM.group; // (anim-joints J2) this player's own team role: the tuner's team rows
