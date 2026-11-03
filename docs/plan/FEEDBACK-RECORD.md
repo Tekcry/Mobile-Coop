@@ -121,3 +121,13 @@ from October 2026; they inform design, they do not bind it. Sources (archived): 
 - "to be reviewed. currently when starting maps the level slowly builds while in game at the start, requires work to ensure map is fully loaded." - G394, 2026-10-25
 - "i still dont know if the gameplay is solid yet, and you are spending a long time testing things that may not be used. remember that this still hasnt had a proper walkthrough / gameplay session with people." - G421, 2026-10-26
 - "definitely keep in mind that this is all a prototype, and cannot get bogged down with fine tuning or re-running tests constantly." - G422, 2026-10-26
+
+## Walk test round 1 (2026-11-03, Babylon build, Mixamo bodies; against the N55 checklist)
+Every row "Needs fix" except the camera position. Feet: walk, jog and run each slightly faster; walk feet too quick for
+the speed; footstep sounds off the steps (later). Crouch: hips a little higher. Posture: upright good, run lean good,
+idle sway halved. Stops: jitter / jump; walk stop instant but smooth; jog stop a slower transition. Low ready: same body
+height idle and moving (only the run lean differs); rifle closer to the body; pistol lower, in front of the thighs.
+Aiming: upper body stiff with rifle and pistol; rifle tight to the shoulder; no weapon sway; strafing, the fingers open
+and the gun clips the body; pistol up at eye level; the right arm looks broken lifting to aim. Camera: position ok, add
+a little weight. Draw / holster: the pistol draw goes straight to low ready (or straight to aim if aim is pressed), no
+upright beat; the rifle on a sling on the right side, its draw and holster complete (it vanished).
