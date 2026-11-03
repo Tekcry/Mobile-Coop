@@ -66,7 +66,8 @@ try {
   await frames(page, 60);
   t = await top();
   console.log('crouch walk', JSON.stringify(t));
-  assert(t.best === 'crouch_walk', `crouched forward plays the crouch walk (${t.best})`);
+  // (walk-test fix B) the unarmed crouch walk is Action Forge's sneak (Michael's pick to try)
+  assert(t.best === 'af_crouch_f', `crouched forward plays the crouch walk (${t.best})`);
   await shot('4-crouch-walk');
   await fwd(0);
   await frames(page, 30);

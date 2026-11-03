@@ -34,19 +34,23 @@ export function slotMoves(k: number): boolean {
 export type LocoSet = 'unarmed' | 'rifle' | 'pistol' | 'carry';
 export const LOCO_SETS: readonly LocoSet[] = ['unarmed', 'rifle', 'pistol', 'carry'];
 export const LOCO_SET_CLIPS: Readonly<Record<LocoSet, Readonly<Record<LocoSlot, string | null>>>> = {
+  // (walk-test fix B, Michael 2026-11-03: the unarmed crouch walk held the hands up as if carrying a gun; he picked
+  // Action Forge's generated sneak to try, all four ways: `af_crouch_*`, CC0. The old Mixamo ones stay packed)
   unarmed: {
     idle: 'idle', aim_idle: null, walk: 'walk', run: 'run', sprint: 'sprint', back: 'walk_back', left: 'strafe_walk_l', right: 'strafe_walk_r',
-    c_idle: 'crouch_idle', c_aim_idle: null, c_walk: 'crouch_walk', c_back: null, c_left: 'crouch_strafe_l', c_right: 'crouch_strafe_r',
+    c_idle: 'crouch_idle', c_aim_idle: null, c_walk: 'af_crouch_f', c_back: 'af_crouch_b', c_left: 'af_crouch_l', c_right: 'af_crouch_r',
   },
+  // (walk-test fix B) drawn and not aimed, the guns are held at low ready (Michael: "low ready stances")
   rifle: {
-    idle: 'rifle_idle', aim_idle: 'rifle_aim_idle', walk: 'rifle_walk', run: 'rifle_run', sprint: 'rifle_sprint', back: 'rifle_walk_back',
+    idle: 'rifle_low_ready', aim_idle: 'rifle_aim_idle', walk: 'rifle_walk', run: 'rifle_run', sprint: 'rifle_sprint', back: 'rifle_walk_back',
     left: 'rifle_strafe_walk_l', right: 'rifle_strafe_walk_r', c_idle: 'rifle_crouch_idle', c_aim_idle: 'rifle_crouch_aim_idle',
     c_walk: 'rifle_crouch_walk', c_back: 'rifle_crouch_walk_back', c_left: 'rifle_crouch_strafe_l', c_right: 'rifle_crouch_strafe_r',
   },
   pistol: {
-    idle: 'pistol_idle', aim_idle: null, walk: 'pistol_walk', run: 'pistol_run', sprint: 'pistol_run', back: 'pistol_walk_back',
-    left: 'pistol_strafe_l', right: 'pistol_strafe_r', c_idle: 'pistol_crouch_idle', c_aim_idle: null, c_walk: null, c_back: null,
-    c_left: null, c_right: null,
+    idle: 'pistol_low_ready', aim_idle: 'pistol_idle', walk: 'pistol_walk', run: 'pistol_run', sprint: 'pistol_run', back: 'pistol_walk_back',
+    // (walk-test fix B) crouched and moving it keeps the old Mixamo crouch walk (its hands are up as if holding a gun)
+    left: 'pistol_strafe_l', right: 'pistol_strafe_r', c_idle: 'pistol_crouch_idle', c_aim_idle: null, c_walk: 'crouch_walk', c_back: null,
+    c_left: 'crouch_strafe_l', c_right: 'crouch_strafe_r',
   },
   // (slice e) a body over the shoulder: one walk for every standing direction and pace (the carrier's pace is capped)
   carry: {
