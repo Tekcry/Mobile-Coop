@@ -130,6 +130,19 @@ interface Follow {
   boneRest: Matrix;
 }
 
+/** (walk-test fix B2) One Mixamo bone that follows a rig node (the reverse of `Follow`: a dead guard's ragdoll and
+ *  carry pose the rig): the node, its rest's inverse in the rig root's space, the bone, the bone's ancestors below this
+ *  body's root (top first) and itself, its reference transform in this body's root space, and whether it is the root
+ *  bone (it takes the place too; the others only turn, keeping the model's bone lengths). */
+interface Lead {
+  node: TransformNode;
+  restInv: Matrix;
+  bone: TransformNode;
+  boneChain: TransformNode[];
+  boneRest: Matrix;
+  root: boolean;
+}
+
 /** The ancestors of `n` strictly below `top`, top first (empty when `n`'s parent is `top`). */
 function chainBelow(n: TransformNode, top: TransformNode): TransformNode[] {
   const out: TransformNode[] = [];
@@ -284,6 +297,12 @@ export class MixamoBody {
   private upW = 0;
   /** (walk-test fix B2) Each action and upper clip's length (s). */
   private readonly secs = new Map<string, number>();
+  /** (walk-test fix B2) The bones that follow rig nodes once it leads (`lead`), the pairs waiting for the model, whether
+   *  the rig leads now, and the ancestors of a node being refreshed (reused). */
+  private leads: Lead[] = [];
+  private pendingLead: { rigRoot: TransformNode; pairs: FollowPair[] } | null = null;
+  private leading = false;
+  private readonly anc: TransformNode[] = [];
   private disposed = false;
 
   constructor(scene: Scene, readonly model: MixamoModel, parent: TransformNode, private readonly opts: MixamoBodyOpts = {}) {
@@ -391,7 +410,9 @@ export class MixamoBody {
     this.foreChainL = [...this.armChainL, ...this.armL.slice(0, 1)];
     this.sampleUpper();
     if (this.pendingFollow) this.bindFollow(this.pendingFollow.rigRoot, this.pendingFollow.pairs);
+    if (this.pendingLead) this.bindLead(this.pendingLead.rigRoot, this.pendingLead.pairs);
     this.ready = true;
+    if (this.leading) this.startLead();
     this.onReady?.();
   }
 
@@ -406,7 +427,7 @@ export class MixamoBody {
     this.root.scaling.setAll(1);
     this.root.position.y = 0;
     for (let p: TransformNode | null = this.root; p; p = p.parent instanceof TransformNode ? p.parent : null) p.computeWorldMatrix(true);
-    const headPair = this.pendingFollow?.pairs.find((p) => p.bone === 'Head');
+    const headPair = (this.pendingFollow ?? this.pendingLead)?.pairs.find((p) => p.bone === 'Head');
     const head = this.boneNode('Head');
     if (headPair && head) {
       for (const n of [...chainBelow(head, this.root), head]) n.computeWorldMatrix(true);
@@ -580,6 +601,87 @@ export class MixamoBody {
       this.follows.push({ node: p.node, chain: chainBelow(p.node, rigRoot), rest: p.rest, bone, boneChain, boneRest: bone.getWorldMatrix().multiply(rootInv) });
     }
     this.followObs ??= this.scene.onAfterAnimationsObservable.add(() => this.applyFollow());
+  }
+
+  /**
+   * (walk-test fix B2) The rig nodes whose pose the bones take once the rig leads (`lead`): `pairs` as for `follow`
+   * (each node's rest in `rigRoot`'s space, taken before the rig first animates), top first. Call once, before the model
+   * loads (the bones' reference transforms are taken in the reference pose).
+   */
+  leadPrep(rigRoot: TransformNode, pairs: FollowPair[]): void {
+    if (this.ready) this.bindLead(rigRoot, pairs);
+    else this.pendingLead = { rigRoot, pairs };
+  }
+
+  private bindLead(rigRoot: TransformNode, pairs: FollowPair[]): void {
+    this.pendingLead = null;
+    this.rigRoot ??= rigRoot;
+    const rootInv = this.root.computeWorldMatrix(true).clone().invert();
+    for (const p of pairs) {
+      const bone = this.boneNode(p.bone);
+      if (!bone) continue;
+      const boneChain = [...chainBelow(bone, this.root), bone];
+      for (const n of boneChain) n.computeWorldMatrix(true);
+      this.leads.push({ node: p.node, restInv: p.rest.clone().invert(), bone, boneChain, boneRest: bone.getWorldMatrix().multiply(rootInv), root: p.bone === 'Hips' });
+    }
+  }
+
+  /**
+   * (walk-test fix B2, Michael: the knocked-out / killed guard keeps his body) From now on the rig leads: the moves stop
+   * and each lead bone takes its rig node's movement from its rest (the ragdoll, the carry over the shoulder, the put
+   * down), the reverse of `follow`. For good: the follow, the held gun and the hand anchors are let go.
+   */
+  lead(): void {
+    this.leading = true;
+    if (this.ready) this.startLead();
+  }
+
+  private startLead(): void {
+    for (const g of this.groups) g.stop();
+    this.act = null;
+    this.actW = this.upW = this.anchorW = 0;
+    this.follows = [];
+    this.hold = null;
+    this.anchors = null;
+    this.tumbleNode = null;
+    this.root.position.set(0, this.baseY, 0);
+    this.root.rotationQuaternion?.copyFromFloats(0, 0, 0, 1);
+    this.followObs ??= this.scene.onAfterAnimationsObservable.add(() => this.applyFollow());
+  }
+
+  /** (walk-test fix B2) `n`'s world now, its ancestors first (the ragdoll re-parents the rig's limbs: no fixed chain). */
+  private worldNow(n: TransformNode): Matrix {
+    const a = this.anc;
+    a.length = 0;
+    for (let p: TransformNode | null = n; p; p = p.parent instanceof TransformNode ? p.parent : null) a.push(p);
+    for (let i = a.length - 1; i >= 0; i--) a[i]!.computeWorldMatrix(true);
+    return n.getWorldMatrix();
+  }
+
+  /** (walk-test fix B2) Each lead bone, top first: its reference transform moved as its rig node moved from its rest. */
+  private applyLead(rr: TransformNode): void {
+    const rigW = this.worldNow(rr);
+    rigW.invertToRef(mGc);
+    // this body's root in the rig root's space
+    this.root.computeWorldMatrix(true).multiplyToRef(mGc, mGt);
+    for (const L of this.leads) {
+      // the node's move D = rest^-1 x now (rig root space); the bone's target = its reference x D, into the world
+      this.worldNow(L.node).multiplyToRef(mGc, mA);
+      L.restInv.multiplyToRef(mA, mC);
+      L.boneRest.multiplyToRef(mGt, mD);
+      mD.multiplyToRef(mC, mA);
+      mA.multiplyToRef(rigW, mB);
+      const chain = L.boneChain;
+      for (let i = 0; i < chain.length - 1; i++) chain[i]!.computeWorldMatrix(true);
+      (L.bone.parent as TransformNode).getWorldMatrix().invertToRef(mA);
+      mB.multiplyToRef(mA, mD);
+      mD.decompose(vS, qR, vT);
+      if (!Number.isFinite(qR.w + vT.x + vT.y + vT.z)) continue;
+      if (L.root) L.bone.position.copyFrom(vT);
+      if (L.bone.rotationQuaternion) L.bone.rotationQuaternion.copyFrom(qR);
+      else L.bone.rotationQuaternion = qR.clone();
+      L.bone.computeWorldMatrix(true);
+    }
   }
 
   /**
@@ -803,6 +905,10 @@ export class MixamoBody {
   private applyFollow(): void {
     const rr = this.rigRoot;
     if (!rr || !this.ready || !this.root.isEnabled()) return;
+    if (this.leading) {
+      this.applyLead(rr);
+      return;
+    }
     this.takeRigGun();
     this.anchorBody();
     this.turnBody();
@@ -899,7 +1005,7 @@ export class MixamoBody {
    * share one cycle clock so the feet agree while they blend; a set change crossfades over `SET_FADE`.
    */
   update(i: LocoIn, set: LocoSet, dt: number, act?: ActionOut): void {
-    if (!this.ready) return;
+    if (!this.ready || this.leading) return;
     this.set = set;
     // (slice g) the spine bends to the aim pitch while a gun is up (no action playing), eased
     const armed = (set === 'rifle' || set === 'pistol') && !act?.clip;

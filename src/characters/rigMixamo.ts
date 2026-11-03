@@ -8,7 +8,7 @@
 import { TransformNode, type AbstractMesh, type Matrix, type Scene } from '../core/babylon';
 import type { CharacterRig } from '../player/characterRig';
 import { handsWeaponOf } from '../anim/tuneHands';
-import { MixamoBody, type GunTravel, type HoldKind, type MixamoModel } from './mixamoBody';
+import { MixamoBody, type FollowPair, type GunTravel, type HoldKind, type MixamoModel } from './mixamoBody';
 import type { LocoSet } from './locomotion';
 import { pickAction, WallTurn, type ActionOut } from './actions';
 import { flags } from '../core/flags';
@@ -67,8 +67,23 @@ export function dressPlayer(scene: Scene, rig: CharacterRig, host: boolean, cast
   return dressRig(scene, rig, host ? 'xbot' : 'ybot', { tint: host ? goggleColour(0) : MOTH_PURPLE, casters, holdStop: true });
 }
 
-/** Puts a Mixamo body on `rig` (call right after the rig is built, before it first animates). `undo` takes it off. */
-export function dressRig(scene: Scene, rig: CharacterRig, model: MixamoModel, opts: RigMixamoOpts = {}): { body: MixamoBody; undo: () => void } {
+/** (walk-test fix B2) The rig's joints and the Mixamo bones they lead once the rig leads (a dead guard), top first. */
+function leadPairs(r: CharacterRig): FollowPair[] {
+  const at = (node: TransformNode, bone: string): FollowPair => ({ node, bone, rest: restIn(node, r.root) });
+  return [
+    at(r.hips, 'Hips'), at(r.spine, 'Spine'), at(r.torso, 'Spine2'), at(r.neck, 'Neck'), at(r.headNode, 'Head'),
+    at(r.shoulderL, 'LeftArm'), at(r.elbowL, 'LeftForeArm'), at(r.wristL, 'LeftHand'),
+    at(r.shoulderR, 'RightArm'), at(r.elbowR, 'RightForeArm'), at(r.wristR, 'RightHand'),
+    at(r.hipL, 'LeftUpLeg'), at(r.kneeL, 'LeftLeg'), at(r.ankleL, 'LeftFoot'),
+    at(r.hipR, 'RightUpLeg'), at(r.kneeR, 'RightLeg'), at(r.ankleR, 'RightFoot'),
+  ];
+}
+
+/**
+ * Puts a Mixamo body on `rig` (call right after the rig is built, before it first animates). `undo` takes it off;
+ * (walk-test fix B2) `lead` stops its moves for good and poses it from the rig instead (a dead guard's ragdoll, carry).
+ */
+export function dressRig(scene: Scene, rig: CharacterRig, model: MixamoModel, opts: RigMixamoOpts = {}): { body: MixamoBody; undo: () => void; lead: () => void } {
   const r = rig;
   const body = new MixamoBody(scene, model, r.root, opts);
   body.follow(r.root, [
@@ -77,6 +92,7 @@ export function dressRig(scene: Scene, rig: CharacterRig, model: MixamoModel, op
     { node: r.torso, bone: 'Spine2', rest: restIn(r.torso, r.root) },
     { node: r.headNode, bone: 'Head', rest: restIn(r.headNode, r.root) },
   ]);
+  body.leadPrep(r.root, leadPairs(r));
   const trav: GunTravel = { node: r.weaponPivot, kind: 'rifle' };
   body.holdGun(r.root, r.weaponPivot, r.grip, () => heldKind(r), () => travelOf(r, trav));
   // (slice g) hanging, shimmying and on ladders the body's hands meet the rig's (on the lip, the rungs)
@@ -107,6 +123,10 @@ export function dressRig(scene: Scene, rig: CharacterRig, model: MixamoModel, op
     undo: () => {
       if (r.onAnimate === hook) r.onAnimate = null;
       body.dispose();
+    },
+    lead: () => {
+      if (r.onAnimate === hook) r.onAnimate = null;
+      body.lead();
     },
   };
 }

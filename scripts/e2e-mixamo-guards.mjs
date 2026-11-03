@@ -1,6 +1,6 @@
 // (mixamo-chars, N53 slice c) Test Chamber guards draw as the Mixamo Swat: a spawned grunt's body loads, the merged body
-// goes, his rig's head node (his eye) rides within 12 cm of the Swat's Head bone, he plays a Mixamo move; killed, he
-// drops the Mixamo body (the guard figure / merged body takes the ragdoll); no console errors.
+// goes, his rig's head node (his eye) rides within 12 cm of the Swat's Head bone, he plays a Mixamo move; (walk-test fix
+// B2) killed, the Swat stays and lies with the ragdoll, and picked up the carried body is the Swat too; no console errors.
 //   node scripts/e2e-mixamo-guards.mjs [url] [--shots=<dir>]
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -56,22 +56,48 @@ try {
   assert(s.headY > 1.3 && s.headY < 1.95, `the Swat stands at guard height (head ${s.headY.toFixed(2)} m)`);
   assert(s.best !== '', `he plays a Mixamo move (${s.best})`);
   await shot('g1-guard');
-  // killed: the figure takes over for the ragdoll
+  // (walk-test fix B2) killed: the Swat stays and lies with the ragdoll (its bones follow the rig's joints)
   await G(() => {
     const e = window.__app.current.enemyMgr.enemies[0];
     const V = e.rig.root.position.constructor;
     e.killOutright({ amount: 999, point: e.rig.headNode.getAbsolutePosition().clone(), dir: new V(0, 0, 1), part: 'body' });
   });
-  await frames(page, 90);
-  const d = await G(() => {
-    const em = window.__app.current.enemyMgr;
-    const live = em.enemies.filter((e) => e.gbody?.mixamo).length;
-    const bodies = em.bodies ?? [];
-    return { live, bodies: bodies.length, dropped: bodies.every((b) => !b.rig || !window.__guardBodyOf?.(b.rig)?.mixamo) };
-  });
-  console.log('killed', JSON.stringify(d));
-  assert(d.live === 0, 'no live Mixamo guard left after the kill');
+  await frames(page, 30);
+  await shot('g2-falling');
+  await frames(page, 240);
+  // the Swat's joints against the rig's (m), its head over the lie's pelvis (m), the merged body hidden
+  const fit = (b) => {
+    const m = b.gbody?.mixamo, r = b.view;
+    if (!m || !r) return null;
+    const gap = (bone, node) => { const a = m.boneNode(bone).getAbsolutePosition(), c = node.getAbsolutePosition(); return Math.hypot(a.x - c.x, a.y - c.y, a.z - c.z); };
+    return {
+      leading: m.leading, shown: m.root.isEnabled(), merged: r.renderMeshes.some((x) => x.isEnabled()),
+      hips: gap('Hips', r.hips), head: gap('Head', r.headNode), handL: gap('LeftHand', r.wristL), footR: gap('RightFoot', r.ankleR),
+      headUp: m.boneNode('Head').getAbsolutePosition().y - b.pos.y,
+    };
+  };
+  const d = await G((fs) => {
+    const b = (window.__app.current.enemyMgr.bodies ?? [])[0];
+    return b ? eval(fs)(b) : null;
+  }, `(${fit})`);
+  console.log('down', JSON.stringify(d));
   await shot('g2-down');
+  assert(d && d.leading && d.shown && !d.merged, `the dead guard keeps the Swat body, posed by his rig (${JSON.stringify(d)})`);
+  assert(d.hips < 0.15 && d.head < 0.25, `the Swat lies with the ragdoll (hips ${d.hips.toFixed(2)}, head ${d.head.toFixed(2)} m off)`);
+  assert(d.handL < 0.3 && d.footR < 0.3, `its limbs follow the ragdoll's (hand ${d.handL.toFixed(2)}, foot ${d.footR.toFixed(2)} m off)`);
+  assert(Math.abs(d.headUp) < 0.6, `lying, not standing (head ${d.headUp.toFixed(2)} m over the pelvis)`);
+  // picked up: the carried body's fresh rig gets a Swat posed by the rig from the start
+  await G(() => {
+    const g = window.__app.current;
+    g.enemyMgr.bodies[0].pickUp(g.player.rig.torso, 0.18, 0.12);
+  });
+  await page.waitForFunction(() => { const m = window.__app.current.enemyMgr.bodies[0]?.gbody?.mixamo; return !!m && (m.ready || m.failed); }, null, { timeout: 30000 });
+  await frames(page, 30);
+  const c = await G((fs) => eval(fs)(window.__app.current.enemyMgr.bodies[0]), `(${fit})`);
+  console.log('carried', JSON.stringify(c));
+  await shot('g3-carried');
+  assert(c && c.leading && c.shown && !c.merged, `the carried body is the Swat (${JSON.stringify(c)})`);
+  assert(c.hips < 0.15 && c.head < 0.25, `the carried Swat lies over the shoulder with the rig (hips ${c.hips.toFixed(2)}, head ${c.head.toFixed(2)} m off)`);
   if (errors.length) console.log('console errors:\n  ' + errors.join('\n  '));
   assert(errors.length === 0, `${errors.length} console errors`);
 } catch (e) {
