@@ -110,6 +110,9 @@ export class ShoulderCamera {
   private sSide = new Spring(1);
   private sLean = new Spring();
   private sFootY = new Spring(Number.NaN);
+  /** (walk-test round 2) The feet's ground follow (`CAMERA.followRate`): the camera's weight. */
+  private sFootX = new Spring(Number.NaN);
+  private sFootZ = new Spring(Number.NaN);
   /** (G3) NaN until the first frame, which starts at that frame's boom (an open-space spawn starts at 2.8 m, not easing out). */
   private sBoom = new Spring(Number.NaN);
   private headHidden = false;
@@ -261,6 +264,8 @@ export class ShoulderCamera {
   snap(): void {
     this.viewYaw = this.yaw;
     this.viewPitch = this.pitch;
+    // (walk-test round 2) the ground follow too (it restarts on the feet next frame)
+    this.sFootX.x = Number.NaN;
   }
 
   /** Aim yaw/pitch including transient recoil. */
@@ -338,9 +343,16 @@ export class ShoulderCamera {
     fr.boom += K.camBoomAdd;
     fr.shoulder += K.camSideAdd;
     fr.pivot += K.camPivotAdd;
-    // rigid follow: XZ is exactly the character (no spring, no lag); only the feet's height is low-passed (stairs)
+    // the feet's height is low-passed (stairs); (walk-test round 2) XZ trails on a stiff spring (the camera's weight),
+    // snapped on a teleport
     if (Number.isNaN(this.sFootY.x) || Math.abs(feet.y - this.sFootY.x) > 3) this.sFootY.reset(feet.y);
     const footY = this.sFootY.step(feet.y, T.stairRate * K.camFollowMul, dt);
+    if (Number.isNaN(this.sFootX.x) || hyp2(feet.x - this.sFootX.x, feet.z - this.sFootZ.x) > 2) {
+      this.sFootX.reset(feet.x);
+      this.sFootZ.reset(feet.z);
+    }
+    const footX = this.sFootX.step(feet.x, T.followRate * K.camFollowMul, dt);
+    const footZ = this.sFootZ.step(feet.z, T.followRate * K.camFollowMul, dt);
     // (step 12) the wall peek / lean-out swing: the pivot out toward the edge at a capped rate (the pivot safety below
     // keeps it on the head's side of any wall)
     const wp = WALL_CAMERA.peek;
@@ -355,9 +367,9 @@ export class ShoulderCamera {
     this.peekW += Math.max(-pRate, Math.min(pRate, pT - this.peekW));
     const pe = peekEase(this.peekW);
     const swing = wp.offset * pe;
-    this.pivot.set(feet.x + this.edgeX * swing, footY + fr.pivot, feet.z + this.edgeZ * swing);
+    this.pivot.set(footX + this.edgeX * swing, footY + fr.pivot, footZ + this.edgeZ * swing);
     // the head: the pivot height on the operator's own axis, always in the operator's space
-    const head = this.head.set(feet.x, this.pivot.y, feet.z);
+    const head = this.head.set(footX, this.pivot.y, footZ);
     let lowDyT = 0;
     if (eng) {
       this.castShape = this.sphere(this.castShape, T.castRadius);

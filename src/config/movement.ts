@@ -154,10 +154,12 @@ export const GEARS = {
   /**
    * Standing creep / sneak / walk / jog / run 0.75 / 1.4 / 2.1 / 3.0 / 4.0, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s
    * (the five CT prototype speeds; playtest 2 re-spaced them; G1 audit row 14 the run 4.5). (anim-rework S2, M6 Michael
-   * 2026-10-20: "full speed is too quick") the run 4.5 -> 4.0 m/s, a controlled operator run.
+   * 2026-10-20: "full speed is too quick") the run 4.5 -> 4.0 m/s, a controlled operator run. (walk-test round 2, Michael
+   * 2026-11-03: "run should be slightly faster. walk should be slightly faster ... jog should be slightly faster") the
+   * walk 2.1 -> 2.3, the jog 3.0 -> 3.3, the run 4.0 -> 4.4 m/s (about +10%, provisional; CT's run ~4.6).
    */
   crouch: [0.85, 1.3, 1.7, 2.15, 2.6],
-  stand: [0.75, 1.4, 2.1, 3.0, 4.0],
+  stand: [0.75, 1.4, 2.3, 3.3, 4.4],
   /** Stick magnitude below which the operator stands still. */
   deadZone: 0.05,
 } as const;

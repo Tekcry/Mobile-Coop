@@ -94,6 +94,9 @@ export interface LocoIn {
   /** (walk-test fix A3) Aim yaw off the body's facing (rad, right positive): the spine twists to it while a gun is
    *  raised. */
   aimYaw?: number;
+  /** (walk-test round 2) The motion driver's state (`MotionState`: 'stop' is braking with the stick let go); absent for
+   *  bodies without one. */
+  motion?: string;
 }
 
 /** `w[k] += v` (strict index access). */

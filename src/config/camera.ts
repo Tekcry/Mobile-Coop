@@ -73,6 +73,11 @@ export const CAMERA = {
   swapArc: 0.4,
   /** Stairs only: the vertical follow of the feet is low-passed at this rate (1/s) so steps do not shake the view; XZ is rigid. */
   stairRate: 14,
+  /** (walk-test round 2, Michael: "position ok, can you add a small amount of weight to the camera?") The ground (XZ)
+   *  follow of the feet is a critically damped spring at this rate (1/s): it trails 2 v / rate behind a steady pace (~0.19 m
+   *  at the 2.3 m/s walk, ~0.37 m at the 4.4 m/s run) and settles ~0.2 s after a start or a stop. Provisional; the
+   *  tuner's follow multiplier scales it. */
+  followRate: 24,
   /** Lean: the shoulder point follows the leaning upper body (m at full lean). */
   leanShift: 0.38,
   /** Gap kept between the camera and walls (m), measured along the view ray (old single-ray rule; the e2e camera checks use it). */

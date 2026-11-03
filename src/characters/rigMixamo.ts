@@ -95,6 +95,8 @@ export function dressRig(scene: Scene, rig: CharacterRig, model: MixamoModel, op
   body.leadPrep(r.root, leadPairs(r));
   const trav: GunTravel = { node: r.weaponPivot, kind: 'rifle' };
   body.holdGun(r.root, r.weaponPivot, r.grip, () => heldKind(r), () => travelOf(r, trav));
+  // (walk-test round 2) aimed, the rifle's butt and the pistol's sight are placed on the body by the held gun's span
+  body.gunSpan = r.gunSpan;
   // (slice g) hanging, shimmying and on ladders the body's hands meet the rig's (on the lip, the rungs)
   body.anchorHands(r.wristL, r.wristR);
   // (slice i) legs up / inverted on a pipe the body turns over with the rig's

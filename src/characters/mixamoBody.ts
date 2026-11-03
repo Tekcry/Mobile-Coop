@@ -20,6 +20,7 @@ import { GAIT } from './gait';
 import { ACTION_CLIPS, UPPER_CLIPS, type ActionOut } from './actions';
 import { reachElbow } from './reach';
 import { TUNE_LOCAL } from '../anim/tune';
+import { GEARS, MOVEMENT } from '../config/movement';
 import xbotUrl from './assets/xbot.glb?url';
 import ybotUrl from './assets/ybot.glb?url';
 import swatUrl from './assets/swat.glb?url';
@@ -53,6 +54,39 @@ const UP_SAMPLES = 48;
  *  keeps pace with the ground. Within these shares of the clips' own pace (provisional): past them a clip looks wrong. */
 const GAIT_MIN = 0.5;
 const GAIT_MAX = 3;
+/** (walk-test round 2, Michael: "the feet move too quick compared to movement") The clock's strides are the measured
+ *  ones x this: the strides were measured on a 1.68 m body and the game's X Bot stands 1.78 m, and the planted foot was
+ *  measured slipping back at 10-14% of the body's speed (walk to run, `scripts/foot-slide.mjs`). Provisional. */
+const GAIT_STRIDE_K = 1.1;
+/** (walk-test round 2, Michael: "the stops jitter/jump, they should smoothly transition to a stop (instantaneous for
+ *  walking, slow transition for jog)") A stop from at or under `STOP_WALK` (m/s, the walk) freezes the gait at once; from
+ *  at or over `STOP_JOG` (the jog) the gait's clock runs down over `STOP_EASE` s while the pose eases into the walk's
+ *  stride (the jog's flight and lean let go), between them in part. Provisional. */
+const STOP_WALK = GEARS.stand[2];
+const STOP_JOG = GEARS.stand[3];
+const STOP_EASE = 0.35;
+/** (walk-test round 2) A held stride's lifted foot is set down on the ground over this (s; the held walk stood on one
+ *  leg for 3 s with the other foot in the air). */
+const PLANT_IN = 0.12;
+/** (walk-test round 2, Michael: "crouching is slightly too low, not believable. hips/pelvis need to be lifted up
+ *  slightly") Crouched, the hips are lifted this much (m; the crouch idle's hips sat at 0.53 m, 0.52 of standing; CT
+ *  0.48), the legs reaching back to the clip's feet. Provisional. */
+const CROUCH_LIFT = 0.06;
+/** (walk-test round 2, Michael: "reduce idle swaying by 50%") The share of an idle's own motion kept (about its mean
+ *  pose). Provisional. */
+const SWAY_KEEP = 0.5;
+/** (walk-test round 2) A shifted hip keeps each leg within this share of its full length (the foot stays on the
+ *  clip's spot: past it the hips give up the rest of the shift). */
+const LEG_REACH = 0.995;
+/** (walk-test round 2) Aimed, the hips sit this much under the gait's lowest (m, a slight knee bend): a straight leg has
+ *  no room to carry the hips across, and the head jumped back for a frame or two each step. Provisional. */
+const AIM_SINK = 0.03;
+/** (walk-test round 2, Michael: "rifle should be held closer to body") Drawn, not aimed: the gun and both hands pulled
+ *  back toward the body (m, provisional). */
+const READY_IN: Readonly<Partial<Record<LocoSet, number>>> = { rifle: 0.08 };
+/** (walk-test round 2, Michael: "pistol should be higher, in line with eyes") Aimed, the pistol's sight top sits this
+ *  far above the Head bone's joint (m, about the eye; provisional). */
+const PISTOL_EYE = 0.09;
 /** (walk-test fix A) Faster than this (m/s) a grip climb plays. */
 const GRIP_MOVE = 0.05;
 /** (walk-test fix A) Actions whose own turn about the vertical is taken out (the game's facing stands): the wall
@@ -199,11 +233,14 @@ const qR = new Quaternion();
 // (walk-test fix A3) the aim lock and the arms' reach
 const mGc = new Matrix(), mGt = new Matrix(), mHr = new Matrix(), mHl = new Matrix();
 const vP = new Vector3(), vE = new Vector3(), vW = new Vector3(), vE2 = new Vector3(), vAx = new Vector3(), vF = new Vector3();
-const vH = new Vector3(), vH2 = new Vector3();
 const qA = new Quaternion(), qB = new Quaternion(), qC = new Quaternion(), qD = new Quaternion();
 const vG = new Vector3(), vR = new Vector3(), vU = new Vector3();
 const qG = new Quaternion();
 const ONE = Vector3.One();
+// (walk-test round 2) the hip shift's feet and offset
+const mFl = new Matrix(), mFr = new Matrix();
+const vD = new Vector3(), vJ = new Vector3();
+const LEG_A = [new Vector3(), new Vector3()];
 
 /**
  * One Mixamo body, parented to `parent` (its feet on the parent's origin, facing the parent's +Z). Loads in the
@@ -224,7 +261,28 @@ export class MixamoBody {
   private groups: AnimationGroup[] = [];
   /** The distinct clips the sets use: group, seconds per cycle, whether it is a moving clip, (walk-test round 1) its
    *  stride (m per cycle) and its left heel strike (share of the cycle, `gait.ts`). */
-  private clips: { g: AnimationGroup; cycle: number; moves: boolean; stride: number; strike: number }[] = [];
+  private clips: { g: AnimationGroup; cycle: number; moves: boolean; stride: number; strike: number; hipY: number; hipMin: number }[] = [];
+  /** (walk-test round 2) Each clip's weight on the body this frame (its gait share or held stop share, x the share the
+   *  action leaves), the held stop's mix (per clip) and, from a jog, the walk's mix it eases into. */
+  private effW = new Float64Array(0);
+  private heldW = new Float64Array(0);
+  private stopWalkW = new Float64Array(0);
+  /** (walk-test round 2) Per clip, drawn: the lift (m) that brings its hips to its set's drawn height (`drawHeights`). */
+  private drawDy = new Float64Array(0);
+  /** (walk-test round 2) Each idle's mean pose (its bones' turns and the hips' place), the sway taken halfway to it. */
+  private sway: { ci: number; rot: { b: TransformNode; q: Quaternion }[]; pos: { b: TransformNode; v: Vector3 }[] }[] = [];
+  /** (walk-test round 2) The legs (thigh, shin, foot) and the bones above the thigh and the shin, for the hip shift. */
+  private legs: { bones: TransformNode[]; chain: TransformNode[]; fore: TransformNode[] }[] = [];
+  private readonly legR = new Float64Array(2);
+  private readonly footLow = new Float64Array(2);
+  /** (walk-test round 2) The toes (left, right), and how far a held stop's lifted foot is set down now (`plantFeet`):
+   *  its weight, and its share before the stop hold's own weight (kept while the hold lets go). */
+  private toes: TransformNode[] = [];
+  private plantW = 0;
+  private plantK = 0;
+  /** (walk-test round 2) The held gun's span (gun space: stock end z0 .. muzzle z1, bore and top heights), the rig's
+   *  live one (`CharacterRig.gunSpan`); null: the butt and sight are not placed. */
+  gunSpan: { z0: number; z1: number; bore: number; top: number } | null = null;
   /** (walk-test round 1) The gait's shared clock (share of a cycle, from a left heel strike). */
   private phase = 0;
   /** Per set, per slot: index into `clips` (-1: the model lacks it). */
@@ -291,6 +349,14 @@ export class MixamoBody {
   private stopMoveT = 0;
   private holdW = 0;
   private prevSpeed = 0;
+  /** (walk-test round 2) The held gait's speed (m/s) and clock rate (cycles/s), how long its clock runs down (s), and
+   *  its input (the walk mix a jog's stop eases into is blended from it). */
+  private stopV = 0;
+  private stopCps = 0;
+  private stopEase = 0;
+  private readonly stopIn: LocoIn = { speed: 0, localX: 0, localZ: 1, crouch: 0, aim: 0 };
+  /** (walk-test round 2) The move sets' weights' sum this frame (`mixInto` shares them out). */
+  private setSum = 1;
   /** (walk-test fix A3) The owner says each frame whether the rig's gun is in its right hand (the Mixamo body always
    *  holds it in the right): only then do the arms reach for the rig's aimed gun. */
   rightHanded = true;
@@ -391,13 +457,17 @@ export class MixamoBody {
           const cycle = Math.max(1 / fps, (g.to - g.from) / fps);
           const gait = GAIT[name];
           ci = this.clips.length;
-          this.clips.push({ g, cycle, moves: slotMoves(k), stride: gait?.stride ?? LOCO_SLOT_SPEED[LOCO_SLOTS[k] as LocoSlot] * cycle, strike: gait?.phase ?? 0 });
+          this.clips.push({ g, cycle, moves: slotMoves(k), stride: gait ? gait.stride * GAIT_STRIDE_K : LOCO_SLOT_SPEED[LOCO_SLOTS[k] as LocoSlot] * cycle, strike: gait?.phase ?? 0, hipY: 0, hipMin: 0 });
           byName.set(name, ci);
         }
         this.table[s * LOCO_N + k] = ci;
       }
     this.clipW = new Float64Array(this.clips.length);
     this.stopW = new Float64Array(this.clips.length);
+    this.effW = new Float64Array(this.clips.length);
+    this.heldW = new Float64Array(this.clips.length);
+    this.stopWalkW = new Float64Array(this.clips.length);
+    this.drawDy = new Float64Array(this.clips.length);
     for (let i = 0; i < this.clips.length; i++) {
       const c = this.clips[i]!;
       c.g.start(true, 1);
@@ -434,6 +504,9 @@ export class MixamoBody {
     this.spineChains = this.spine.map((b) => chainBelow(b, this.root));
     // (walk-test fix A3) the aimed idles' upper body, and the arms the aim reaches with
     this.upper = UPPER.map((n) => this.boneNode(n));
+    // (walk-test round 2, Michael: "strafe with rifle fingers open") the fingers too: the held idle's grip on the gun
+    for (const h of [this.upper[UPPER.indexOf('LeftHand')], this.upper[UPPER.indexOf('RightHand')]])
+      if (h) for (const n of h.getDescendants(false)) if (n instanceof TransformNode && n.rotationQuaternion) this.upper.push(n);
     const head = this.upper[UPPER.indexOf('Head')];
     if (head) this.headChain = [...chainBelow(head, this.root), head];
     for (const s of ['rifle', 'pistol'] as const) {
@@ -454,6 +527,16 @@ export class MixamoBody {
     if (this.armL.length === 3) this.armChainL = chainBelow(this.armL[0]!, this.root);
     this.foreChainR = [...this.armChainR, ...this.armR.slice(0, 1)];
     this.foreChainL = [...this.armChainL, ...this.armL.slice(0, 1)];
+    // (walk-test round 2) the legs for the hip shift, the idles' mean poses, each clip's hip height
+    for (const side of ['Left', 'Right']) {
+      const bones = [`${side}UpLeg`, `${side}Leg`, `${side}Foot`].map((n) => this.boneNode(n)).filter((b): b is TransformNode => !!b);
+      if (bones.length !== 3) continue;
+      const chain = chainBelow(bones[0]!, this.root);
+      this.legs.push({ bones, chain, fore: [...chain, bones[0]!] });
+    }
+    this.toes = ['LeftToeBase', 'RightToeBase'].map((n) => this.boneNode(n)).filter((b): b is TransformNode => !!b);
+    this.sampleSway();
+    this.drawHeights();
     this.sampleUpper();
     if (this.pendingFollow) this.bindFollow(this.pendingFollow.rigRoot, this.pendingFollow.pairs);
     if (this.pendingLead) this.bindLead(this.pendingLead.rigRoot, this.pendingLead.pairs);
@@ -537,6 +620,91 @@ export class MixamoBody {
       });
       this.upPoses.set(name, P);
       this.secs.set(name, this.groupSeconds(g));
+    }
+  }
+
+  /** (walk-test round 2) Each idle's mean pose (over 32 samples of its cycle: each bone's turn, the hips' place), for
+   *  `calmIdle`, and each clip's mean hip height above the feet (m, its Hips track through the hips' parent now). */
+  private sampleSway(): void {
+    const hips = this.hipsBone;
+    const parent = hips?.parent instanceof TransformNode ? hips.parent : null;
+    if (!hips || !parent) return;
+    for (const n of chainBelow(hips, this.root)) n.computeWorldMatrix(true);
+    const pw = parent.computeWorldMatrix(true);
+    const y0 = this.root.getAbsolutePosition().y;
+    const restY = Vector3.TransformCoordinates(hips.position, pw).y - y0;
+    const N = 32;
+    for (let ci = 0; ci < this.clips.length; ci++) {
+      const c = this.clips[ci]!;
+      const g = c.g;
+      const at = (s: number): number => g.from + ((g.to - g.from) * s) / N;
+      c.hipY = c.hipMin = restY;
+      const rot: { b: TransformNode; q: Quaternion }[] = [];
+      const pos: { b: TransformNode; v: Vector3 }[] = [];
+      for (const ta of g.targetedAnimations) {
+        const b = ta.target;
+        if (!(b instanceof TransformNode)) continue;
+        if (ta.animation.targetProperty === 'position' && b === hips) {
+          const v = new Vector3();
+          let y = 0, lo = Infinity;
+          for (let s = 0; s < N; s++) {
+            const p: unknown = ta.animation.evaluate(at(s));
+            if (!(p instanceof Vector3)) continue;
+            v.addInPlace(p);
+            const h = Vector3.TransformCoordinates(p, pw).y - y0;
+            y += h;
+            lo = Math.min(lo, h);
+          }
+          c.hipY = y / N;
+          if (lo < Infinity) c.hipMin = lo;
+          pos.push({ b, v: v.scaleInPlace(1 / N) });
+        } else if (ta.animation.targetProperty === 'rotationQuaternion' && !c.moves) {
+          // the mean turn: the samples summed on the first one's side, normalised
+          const q = new Quaternion(0, 0, 0, 0);
+          let first: Quaternion | null = null;
+          for (let s = 0; s < N; s++) {
+            const r: unknown = ta.animation.evaluate(at(s));
+            if (!(r instanceof Quaternion)) continue;
+            first ??= r.clone();
+            const sg = Quaternion.Dot(first, r) < 0 ? -1 : 1;
+            q.x += r.x * sg;
+            q.y += r.y * sg;
+            q.z += r.z * sg;
+            q.w += r.w * sg;
+          }
+          if (first) rot.push({ b, q: q.normalize() });
+        }
+      }
+      if (!c.moves) this.sway.push({ ci, rot, pos });
+    }
+  }
+
+  /** (walk-test round 2, Michael: low ready "idle and walk/jogging height is different, noticeable when returning to
+   *  idle. should all maintain same height") Drawn (rifle, pistol), each standing clip's lift to its set's drawn height:
+   *  halfway between its low ready idle's hips and its walk's (the walks sit 13 cm lower; the legs reach for the rest). */
+  private drawHeights(): void {
+    const STAND = ['idle', 'aim_idle', 'walk', 'run', 'sprint', 'back', 'left', 'right'] as const;
+    for (const set of ['rifle', 'pistol'] as const) {
+      const s = LOCO_SETS.indexOf(set);
+      const idle = this.table[s * LOCO_N + IDLE_SLOT] as number;
+      const walk = this.table[s * LOCO_N + LOCO_SLOTS.indexOf('walk')] as number;
+      if (idle < 0 || walk < 0) continue;
+      const ref = (this.clips[idle]!.hipY + this.clips[walk]!.hipY) / 2;
+      for (const slot of STAND) {
+        const ci = this.table[s * LOCO_N + LOCO_SLOTS.indexOf(slot)] as number;
+        if (ci >= 0) this.drawDy[ci] = ref - this.clips[ci]!.hipY;
+      }
+    }
+  }
+
+  /** (walk-test round 2) The idles' sway taken toward their mean poses (`SWAY_KEEP` of it kept), by each idle's weight. */
+  private calmIdle(): void {
+    const k = 1 - SWAY_KEEP;
+    for (const S of this.sway) {
+      const w = (this.effW[S.ci] as number) * k;
+      if (w <= 1e-3) continue;
+      for (const r of S.rot) if (r.b.rotationQuaternion) Quaternion.SlerpToRef(r.b.rotationQuaternion, r.q, w, r.b.rotationQuaternion);
+      for (const p of S.pos) Vector3.LerpToRef(p.b.position, p.v, w, p.b.position);
     }
   }
 
@@ -813,28 +981,166 @@ export class MixamoBody {
     this.turnBone(R, this.armChainR, vR, a);
   }
 
-  /** (walk-test fix A3) Aimed, the Spine leans about its joint so the head keeps its aimed idle's spot across the
-   *  ground (in this body's root space, by the aim's weight); its height still rides the gait. */
-  private steadyHead(): void {
-    const w = this.lockW;
-    const at = w > 1e-3 ? this.aimHead.get(this.set) : undefined;
-    const sp = this.spine[0], head = this.headChain[this.headChain.length - 1];
-    if (!at || !sp || !head) return;
-    for (const n of this.headChain) n.computeWorldMatrix(true);
+  /**
+   * (walk-test round 2) The hips moved, the legs reaching back to the clip's feet and the upper body carried rigid:
+   * crouched, up by `CROUCH_LIFT` (Michael: crouching "slightly too low"); drawn, each standing clip to its set's drawn
+   * height (`drawHeights`); aimed, the gait's bob taken out and the head held over its aimed idle's spot across the
+   * ground (Michael: "upper body should remain stiff when aiming": walk-test fix A3 leant the spine for the head, so the
+   * chest and the gun swayed). As far as the legs reach (`LEG_REACH`).
+   */
+  private shiftHips(): void {
+    const hips = this.hipsBone;
+    const lL = this.legs[0], lR = this.legs[1];
+    const keep = 1 - this.actW;
+    if (!hips || !lL || !lR || this.anchored || this.turned || keep <= 1e-3) return;
+    let up = CROUCH_LIFT * this.lockCrouch;
+    // aimed, the hips' height is held at the mix's steady height: each clip's drawn height, never above its own lowest
+    // (the legs cannot stretch for the rest of the bob: a strafe's low point sits ~8 cm under its drawn height)
+    let mix = 0, mixW = 0, draw = 0;
+    for (let ci = 0; ci < this.clips.length; ci++) {
+      const w = this.effW[ci] as number;
+      if (w <= 0) continue;
+      const c = this.clips[ci]!;
+      const dd = this.drawDy[ci] as number;
+      draw += w * dd;
+      mix += w * (Math.min(c.hipY + dd, c.hipMin) - AIM_SINK);
+      mixW += w;
+    }
+    up += draw * this.readyW;
     const rootW = this.root.computeWorldMatrix(true);
-    rootW.invertToRef(mA);
-    head.getAbsolutePosition().subtractToRef(sp.getAbsolutePosition(), vH);
-    Vector3.TransformCoordinatesToRef(head.getAbsolutePosition(), mA, vP);
-    Vector3.LerpToRef(at.stand, at.crouch, this.lockCrouch, vE);
-    vF.set((vE.x - vP.x) * w, 0, (vE.z - vP.z) * w);
-    Vector3.TransformNormalToRef(vF, rootW, vF);
-    // the joint-to-head line turned onto the moved head, its length kept
-    const len = vH.length();
-    vH.addToRef(vF, vH2);
-    const l2 = vH2.length();
-    if (len < 1e-4 || l2 < 1e-4) return;
-    vH2.scaleInPlace(len / l2);
-    this.turnFromTo(sp, this.spineChains[0]!, vH, vH2);
+    const m = rootW.m;
+    vU.set(m[4] as number, m[5] as number, m[6] as number).normalize();
+    vD.setAll(0);
+    const lw = this.lockW;
+    const at = lw > 1e-3 ? this.aimHead.get(this.set) : undefined;
+    const head = this.headChain[this.headChain.length - 1];
+    if (at && head && mixW > 0) {
+      // the bob: the hips' height now against the steady height
+      for (const n of this.hipsChain) n.computeWorldMatrix(true);
+      hips.computeWorldMatrix(true).getTranslationToRef(vJ);
+      vJ.subtractInPlace(this.root.getAbsolutePosition());
+      up += (mix / mixW - Vector3.Dot(vJ, vU)) * lw;
+      // the head over its aimed idle's spot (root space, across the ground)
+      for (const n of this.headChain) n.computeWorldMatrix(true);
+      rootW.invertToRef(mA);
+      Vector3.TransformCoordinatesToRef(head.getAbsolutePosition(), mA, vP);
+      Vector3.LerpToRef(at.stand, at.crouch, this.lockCrouch, vE);
+      vF.set((vE.x - vP.x) * lw, 0, (vE.z - vP.z) * lw);
+      Vector3.TransformNormalToRef(vF, rootW, vD);
+    }
+    vU.scaleInPlace(up * keep);
+    if (vD.lengthSquared() + vU.lengthSquared() < 1e-8) return;
+    // the feet now and each thigh joint from its foot (`legA`) and its reach (`legR`)
+    for (let k = 0; k < 2; k++) {
+      const L = this.legs[k]!;
+      const [th, sh, ft] = L.bones as [TransformNode, TransformNode, TransformNode];
+      for (const n of L.chain) n.computeWorldMatrix(true);
+      th.computeWorldMatrix(true).getTranslationToRef(vJ);
+      sh.computeWorldMatrix(true).getTranslationToRef(vP);
+      ft.computeWorldMatrix(true).getTranslationToRef(vE);
+      (k === 0 ? mFl : mFr).copyFrom(ft.getWorldMatrix());
+      this.legR[k] = (Vector3.Distance(vJ, vP) + Vector3.Distance(vP, vE)) * LEG_REACH;
+      vJ.subtractToRef(vE, LEG_A[k]!);
+    }
+    // the height first (lowering always fits), then the shift across the ground from there
+    vU.scaleInPlace(this.legRoom(vU));
+    LEG_A[0]!.addInPlace(vU);
+    LEG_A[1]!.addInPlace(vU);
+    vD.scaleInPlace(this.legRoom(vD)).addInPlace(vU);
+    if (vD.lengthSquared() < 1e-8) return;
+    (hips.parent as TransformNode).getWorldMatrix().invertToRef(mA);
+    Vector3.TransformNormalToRef(vD, mA, vJ);
+    hips.position.addInPlace(vJ);
+    hips.computeWorldMatrix(true);
+    this.reachArm(lL.bones, lL.chain, lL.fore, mFl);
+    this.reachArm(lR.bones, lR.chain, lR.fore, mFr);
+  }
+
+  /** (walk-test round 2, Michael: "the stops jitter/jump") A held stride's lifted foot set down (CT: the swinging foot
+   *  "ends on the ground in the held split pose"): each foot's lowest point (ankle or toe) brought down to the other's,
+   *  by `plantW`, the leg reaching for it. */
+  private plantFeet(): void {
+    const w = this.plantW;
+    const t0 = this.toes[0], t1 = this.toes[1];
+    if (w <= 1e-3 || this.legs.length < 2 || !t0 || !t1) return;
+    for (let k = 0; k < 2; k++) {
+      const L = this.legs[k]!;
+      for (const n of L.chain) n.computeWorldMatrix(true);
+      for (const n of L.bones) n.computeWorldMatrix(true);
+      const ft = L.bones[2]!.getAbsolutePosition().y;
+      const to = (k === 0 ? t0 : t1).computeWorldMatrix(true).getTranslationToRef(vP).y;
+      this.footLow[k] = Math.min(ft, to);
+    }
+    const ground = Math.min(this.footLow[0] as number, this.footLow[1] as number);
+    for (let k = 0; k < 2; k++) {
+      const d = ((this.footLow[k] as number) - ground) * w;
+      if (d < 2e-3) continue;
+      const L = this.legs[k]!;
+      const M = k === 0 ? mFl : mFr;
+      M.copyFrom(L.bones[2]!.getWorldMatrix());
+      M.getTranslationToRef(vJ);
+      vJ.y -= d;
+      M.setTranslation(vJ);
+      this.reachArm(L.bones, L.chain, L.fore, M);
+    }
+  }
+
+  /** (walk-test round 2) The share (0..1) of hip shift `D` (world) both legs can take: each thigh joint (`LEG_A`, from
+   *  its foot) kept within its reach (`legR`), or within where it is already when the clip has it further. */
+  private legRoom(D: Vector3): number {
+    const a = D.lengthSquared();
+    if (a < 1e-10) return 0;
+    let t = 1;
+    for (let k = 0; k < 2; k++) {
+      const A = LEG_A[k]!;
+      const AA = A.lengthSquared();
+      const R2 = Math.max((this.legR[k] as number) ** 2, AA);
+      const b = 2 * Vector3.Dot(A, D), c = AA - R2;
+      if (a + b + c <= 0) continue;
+      t = Math.min(t, Math.max(0, (-b + Math.sqrt(Math.max(0, b * b - 4 * a * c))) / (2 * a)));
+    }
+    return t;
+  }
+
+  /** (walk-test round 2, Michael: "rifle should be held closer to body") Drawn and not aimed, the gun's hands come back
+   *  toward the body by `READY_IN` (the arms reach; the gun rides the right hand, the left keeps its place on it). */
+  private readyHands(): void {
+    const d = (READY_IN[this.set] ?? 0) * this.readyW * (1 - this.actW);
+    if (d < 1e-3 || this.armR.length !== 3 || this.armL.length !== 3 || !this.rightHanded || !this.hold?.kind()) return;
+    const m = this.root.computeWorldMatrix(true).m;
+    vD.set(m[8] as number, m[9] as number, m[10] as number).normalize().scaleInPlace(-d);
+    for (const n of this.armChainR) n.computeWorldMatrix(true);
+    for (const n of this.armR) n.computeWorldMatrix(true);
+    for (const n of this.armChainL) n.computeWorldMatrix(true);
+    for (const n of this.armL) n.computeWorldMatrix(true);
+    mHr.copyFrom(this.armR[2]!.getWorldMatrix());
+    mHl.copyFrom(this.armL[2]!.getWorldMatrix());
+    mHr.getTranslationToRef(vJ);
+    mHr.setTranslation(vJ.addInPlace(vD));
+    mHl.getTranslationToRef(vJ);
+    mHl.setTranslation(vJ.addInPlace(vD));
+    this.reachArm(this.armR, this.armChainR, this.foreChainR, mHr);
+    this.reachArm(this.armL, this.armChainL, this.foreChainL, mHl);
+  }
+
+  /** (walk-test round 2) Aimed: the rifle's butt where the aimed idle's hands hold it (Michael: "rifle is not held tight
+   *  against the shoulder": the rig's aim pocket sat the stock off the Mixamo shoulder; the clip has it in the shoulder),
+   *  the pistol's sight top up to the eye (Michael: "pistol should be higher, in line with eyes"); the gun's turn `q`
+   *  (the aim) kept, its spot `p` (world) moved. `held`: the gun as the hand holds it now (locked to the aimed idle). */
+  private seatGun(k: HoldKind, q: Quaternion, p: Vector3, held: Matrix): void {
+    const g = this.gunSpan;
+    const head = this.headChain[this.headChain.length - 1];
+    if (!g || !head) return;
+    Matrix.ComposeToRef(ONE, q, p, mA);
+    if (k === 'rifle') {
+      Vector3.TransformCoordinatesFromFloatsToRef(0, g.bore, g.z0, held, vJ);
+      Vector3.TransformCoordinatesFromFloatsToRef(0, g.bore, g.z0, mA, vG);
+      p.addInPlace(vJ.subtractInPlace(vG));
+      return;
+    }
+    for (const n of this.headChain) n.computeWorldMatrix(true);
+    Vector3.TransformCoordinatesFromFloatsToRef(0, g.top, (g.z0 + g.z1) * 0.5, mA, vG);
+    p.y += head.getAbsolutePosition().y + PISTOL_EYE - vG.y;
   }
 
   /** (walk-test fix A3) The held gun's pivot world for a hand world `H` (`grip`, its class), and the hand's units per
@@ -882,6 +1188,7 @@ export class MixamoBody {
     mGc.decompose(vS, qA, vP);
     this.rigGun.decompose(vS, qB, vE);
     this.steadyGun(qB, vE);
+    this.seatGun(k, qB, vE, mGc);
     Quaternion.SlerpToRef(qA, qB, this.lockW, qC);
     Vector3.LerpToRef(vP, vE, this.lockW, vW);
     Matrix.ComposeToRef(ONE, qC, vW, mGt);
@@ -1030,13 +1337,17 @@ export class MixamoBody {
       return;
     }
     this.takeRigGun();
+    // (walk-test round 2) the idles' sway halved first: everything after builds on the calmed pose
+    this.calmIdle();
     this.anchorBody();
     this.turnBody();
     if (NO_YAW.has(this.actName)) this.flattenYaw();
     this.layerUpper();
     this.lockUpper();
     this.readyArms();
-    this.steadyHead();
+    this.plantFeet();
+    this.shiftHips();
+    this.readyHands();
     this.bendSpine(rr);
     this.reachGun();
     const rootW = this.root.computeWorldMatrix(true);
@@ -1149,30 +1460,8 @@ export class MixamoBody {
       this.setW[s] = n;
       sum += n;
     }
-    locoBlend(i, this.w, this.ratio);
-    this.clipW.fill(0);
-    let pace = 0, stride = 0, mw = 0;
-    for (let s = 0; s < LOCO_SETS.length; s++) {
-      const sw = (this.setW[s] as number) / (sum || 1);
-      if (sw <= 0) continue;
-      for (let k = 0; k < LOCO_N; k++) {
-        const wk = sw * (this.w[k] as number);
-        const ci = this.table[s * LOCO_N + k] as number;
-        if (wk <= 0 || ci < 0) continue;
-        this.clipW[ci] = (this.clipW[ci] as number) + wk;
-        const c = this.clips[ci]!;
-        if (!c.moves) continue;
-        pace += wk / c.cycle;
-        stride += wk * c.stride;
-        mw += wk;
-      }
-    }
-    // (walk-test round 1) cycles a second: the body's speed over the blend's stride, within the clips' own pace limits
-    let cps = 0;
-    if (mw > 0 && stride > 0) {
-      pace /= mw;
-      cps = Math.max(pace * GAIT_MIN, Math.min(pace * GAIT_MAX, Math.max(0, i.speed) / (stride / mw)));
-    }
+    this.setSum = sum;
+    const cps = this.mixInto(i, this.clipW);
     // (slice e) an action fades over the locomotion (ACT_FADE); a new action takes over at once
     const want = act?.clip ? (this.actions.get(act.clip) ?? null) : null;
     if (want && want !== this.act) {
@@ -1202,12 +1491,22 @@ export class MixamoBody {
     const rStep = dt > 0 ? dt / READY_FADE : 1;
     this.readyW = readyWant > this.readyW ? Math.min(readyWant, this.readyW + rStep) : Math.max(readyWant, this.readyW - rStep);
     const keep = 1 - this.actW;
-    const h = this.opts.holdStop ? this.stopHold(i, set, dt) : 0;
-    // (walk-test fix A) the stop hold freezes the clock
-    if (dt > 0) this.phase = (this.phase + cps * dt * (1 - h)) % 1;
+    const h = this.opts.holdStop ? this.stopHold(i, set, dt, cps) : 0;
+    // (walk-test fix A) the stop hold freezes the clock; (walk-test round 2) from a jog it runs down first, the pose easing
+    // from the jog's mix into the walk's
+    let holdRate = 0;
+    const ease = this.stopOn && this.stopEase > 0 ? Math.min(1, this.stopT / this.stopEase) : 1;
+    if (this.stopOn && this.stopEase > 0) holdRate = this.stopCps * (1 - ease);
+    const u = this.stopOn && this.stopEase > 0 ? ease * ease * (3 - 2 * ease) : 0;
+    for (let ci = 0; ci < this.clips.length; ci++) this.heldW[ci] = (this.stopW[ci] as number) + ((this.stopWalkW[ci] as number) - (this.stopW[ci] as number)) * u;
+    if (dt > 0) this.phase = (this.phase + (cps * (1 - h) + holdRate * h) * dt) % 1;
+    // (walk-test round 2) the held stride's lifted foot comes down once the clock has stopped
+    if (this.stopOn) this.plantK = Math.min(1, this.stopT / PLANT_IN) * (this.stopEase > 0 ? u : 1);
+    this.plantW = this.plantK * h * keep;
     for (let ci = 0; ci < this.clips.length; ci++) {
       const c = this.clips[ci]!;
-      const wt = ((this.clipW[ci] as number) * (1 - h) + (this.stopW[ci] as number) * h) * keep;
+      const wt = ((this.clipW[ci] as number) * (1 - h) + (this.heldW[ci] as number) * h) * keep;
+      this.effW[ci] = wt;
       c.g.weight = wt * BLEND_FULL;
       // idles keep their own clock; (walk-test round 1) moving clips are pinned to the shared one, each from its own
       // left heel strike (pinned like a timed action)
@@ -1239,33 +1538,77 @@ export class MixamoBody {
     this.turnOn = !!act?.turn && !!a;
   }
 
+  /** (walk-test round 2) Each clip's share (into `out`) of input `i` over the move sets' weights now, and the gait's
+   *  clock rate (cycles a second). */
+  private mixInto(i: LocoIn, out: Float64Array): number {
+    locoBlend(i, this.w, this.ratio);
+    out.fill(0);
+    let pace = 0, stride = 0, mw = 0;
+    for (let s = 0; s < LOCO_SETS.length; s++) {
+      const sw = (this.setW[s] as number) / (this.setSum || 1);
+      if (sw <= 0) continue;
+      for (let k = 0; k < LOCO_N; k++) {
+        const wk = sw * (this.w[k] as number);
+        const ci = this.table[s * LOCO_N + k] as number;
+        if (wk <= 0 || ci < 0) continue;
+        out[ci] = (out[ci] as number) + wk;
+        const c = this.clips[ci]!;
+        if (!c.moves) continue;
+        pace += wk / c.cycle;
+        stride += wk * c.stride;
+        mw += wk;
+      }
+    }
+    // (walk-test round 1) cycles a second: the body's speed over the blend's stride, within the clips' own pace limits
+    if (mw <= 0 || stride <= 0) return 0;
+    pace /= mw;
+    return Math.max(pace * GAIT_MIN, Math.min(pace * GAIT_MAX, Math.max(0, i.speed) / (stride / mw)));
+  }
+
   /**
    * (walk-test fix A) The stop hold's weight this frame (0..1): the gait's last full mix (`stopW`) holds while the body
    * slows out of it and stands, for `HOLD_STOP` s, then eases into the idle. Moving off again (not slowing, not still)
-   * or a crouch, aim or move-set change (a draw, a holster) lets it go.
+   * or a crouch, aim or move-set change (a draw, a holster) lets it go. (walk-test round 2, Michael: "the stops
+   * jitter/jump") It takes hold as the body starts braking (`LocoIn.motion` 'stop'), on the gait's mix from before the
+   * brake: held from under 0.4 m/s, the braking blend had already turned a jog into a walk in two or three frames.
    */
-  private stopHold(i: LocoIn, set: LocoSet, dt: number): number {
+  private stopHold(i: LocoIn, set: LocoSet, dt: number, cps: number): number {
     const s = i.speed > 0 ? i.speed : 0;
     const aim = i.aim ?? 0;
-    if (s >= HOLD_FULL) {
+    const braking = i.motion === 'stop';
+    if (s >= HOLD_FULL && !braking) {
       this.stopW.set(this.clipW);
       this.stopCrouch = i.crouch;
       this.stopAim = aim;
       this.stopSet = set;
       this.stopHad = true;
       this.stopOn = false;
-    } else if (!this.stopOn && this.stopHad && s < this.prevSpeed) {
+      this.stopV = s;
+      this.stopCps = cps;
+      const si = this.stopIn;
+      si.localX = i.localX;
+      si.localZ = i.localZ;
+      si.crouch = i.crouch;
+      si.aim = aim;
+    } else if (!this.stopOn && this.stopHad && (braking || s < this.prevSpeed)) {
       this.stopOn = true;
       this.stopT = 0;
       this.stopMin = s;
       this.stopMoveT = 0;
       this.holdW = 1;
+      // (walk-test round 2) from a jog the clock runs down and the pose eases into the walk's stride at the same heading
+      this.stopEase = STOP_EASE * Math.min(1, Math.max(0, (this.stopV - STOP_WALK) / (STOP_JOG - STOP_WALK)));
+      if (this.stopEase > 0) {
+        this.stopIn.speed = Math.min(this.stopV, MOVEMENT.walkSpeed);
+        this.mixInto(this.stopIn, this.stopWalkW);
+      }
     }
     if (this.stopOn) {
       this.stopT += dt;
       // (the speed changes in the game's fixed steps: frames between them read level, so "not slowing" is not a let-go)
       this.stopMin = Math.min(this.stopMin, s);
-      this.stopMoveT = s > HOLD_STILL ? this.stopMoveT + dt : 0;
+      // (walk-test round 2) braking is not moving on
+      this.stopMoveT = s > HOLD_STILL && !braking ? this.stopMoveT + dt : 0;
       const off = s > this.stopMin + HOLD_SPEEDUP || this.stopMoveT > HOLD_SLOW;
       if (off || set !== this.stopSet || Math.abs(i.crouch - this.stopCrouch) > 0.3 || Math.abs(aim - this.stopAim) > 0.3) {
         this.stopOn = false;
@@ -1387,7 +1730,7 @@ export class MixamoBody {
     const keep = 1 - this.actW;
     // (walk-test fix A2) with the stop hold's share
     const h = this.opts.holdStop ? this.holdW : 0;
-    for (let ci = 0; ci < this.clips.length; ci++) out[this.clips[ci]!.g.name.split(':').pop() ?? ''] = ((this.clipW[ci] as number) * (1 - h) + (this.stopW[ci] as number) * h) * keep;
+    for (let ci = 0; ci < this.clips.length; ci++) out[this.clips[ci]!.g.name.split(':').pop() ?? ''] = ((this.clipW[ci] as number) * (1 - h) + (this.heldW[ci] as number) * h) * keep;
     if (this.act) out[this.act.name.split(':').pop() ?? ''] = this.actW;
     // (walk-test fix B2) the upper clip beside them (it plays over the upper body only)
     if (this.upW > 0) out[this.upName] = this.upW;

@@ -136,6 +136,11 @@ const SCENARIOS = {
   aimback: { pos: [14, 21], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, y: -0.8 }, input: () => ({ ads: true, y: -0.8 }) },
   aimstrafep: { pos: [14, 21], yaw: Math.PI / 2, pre: 1.6, weapon: 'pistol', warm: { ads: true, x: 0.8 }, input: () => ({ ads: true, x: 0.8 }) },
   readytoaim: { pos: [14, 21], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('draw');", input: (t) => ({ ads: t >= 0.2 }) },
+  // (walk-test round 2) the pistol's raise from low ready; the keyboard walk's stop (2.3 m/s, stick 0.81); low ready walk
+  // (keyboard pace) to a stop and back to the idle (the drawn height kept)
+  readytoaimp: { pos: [14, 21], yaw: Math.PI / 2, pre: 1.2, weapon: 'pistol', at0: "a.input.state.tap('draw');", input: (t) => ({ ads: t >= 0.2 }) },
+  kbwalkstop: { pos: [12, 21], yaw: Math.PI / 2, pre: 2.3, warm: { y: 0.81 }, input: () => ({ y: 0 }) },
+  lowreadystop: { pos: [12, 21], yaw: Math.PI / 2, pre: 2.3, at0: "a.input.state.tap('draw');", warm: { y: 0.81 }, input: () => ({ y: 0 }) },
   aimcrouch: { pos: [14, 21], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },
   // (anim-rework S4) crouched holstered: the idle (the keyed squat with the hands on the knees: frames 1 s apart over its
   // 12 s cycle), the crouch walk at gear 3, crouch -> stand from a sneak (the feet re-step under the hips), crouch -> stand
