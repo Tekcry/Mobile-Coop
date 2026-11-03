@@ -77,7 +77,7 @@ const UPPER = ['Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'LeftShoulder', 'Lef
 const AIM_SLOT = LOCO_SLOTS.indexOf('aim_idle');
 const C_AIM_SLOT = LOCO_SLOTS.indexOf('c_aim_idle');
 /** (slice g) The actions whose hands are pinned to the rig's; the climb-up lets go from 0.45 through its next 0.3. */
-const ANCHORED: ReadonlySet<string> = new Set(['hang_idle', 'hang_shimmy_l', 'hang_shimmy_r', 'ladder', 'hang_climb_up', 'zipline', 'rappel']);
+const ANCHORED: ReadonlySet<string> = new Set(['hang_idle', 'hang_shimmy_l', 'hang_shimmy_r', 'ladder', 'hang_climb_up', 'zipline']);
 const ANCHOR_CLIMB_FROM = 0.45;
 const ANCHOR_CLIMB_SPAN = 0.3;
 
