@@ -118,8 +118,8 @@ export class Body {
     /** (S5) Where it lies (sim, `deathLieOn`). */
     lie: BodyLie,
   ) {
-    // (mixamo-chars slice c) the ragdoll poses the rig: the guard figure takes over from a Mixamo body
-    guardBodyOf(rig)?.dropMixamo();
+    // (mixamo-chars slice c) the ragdoll poses the rig: (walk-test fix B2) a Mixamo body follows it
+    guardBodyOf(rig)?.leadMixamo();
     rig.heldWeapon = null;
     rig.emote = null;
     this.occR = bodyOccR(rig.p);

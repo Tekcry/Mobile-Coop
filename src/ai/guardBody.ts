@@ -126,10 +126,11 @@ export class GuardBody {
   /** The enforcer's figure shield (`guardShield.ts`; null: none, or the placeholder part), posed and freed with the figure. */
   shield: GuardShield | null = null;
   /** (mixamo-chars slice c, N53) A live guard in the Test Chamber draws as the Mixamo Swat playing Mixamo moves (his
-   *  rig's hips, chest, head (his eye) and thigh follow its bones); null otherwise, and from his death on (the figure
-   *  takes over for the ragdoll and the carry: `dropMixamo`). */
+   *  rig's hips, chest, head (his eye) and thigh follow its bones); null otherwise. (walk-test fix B2) From his death on
+   *  the Swat stays, posed by his rig (the ragdoll, the carry: `leadMixamo`). */
   mixamo: MixamoBody | null = null;
   private mixamoUndo: (() => void) | null = null;
+  private mixamoLead: (() => void) | null = null;
   private readonly variant: GuardVariant = createVariant();
   private readonly pieces = createPieces();
   private readonly tints: Uint8Array;
@@ -146,7 +147,8 @@ export class GuardBody {
     readonly rig: CharacterRig,
     name: string,
     gear: GuardBodyGear = { look: 0, helmet: false, armour: false },
-    /** (mixamo-chars slice c) false: never the Mixamo body (a carried body's fresh rig). */
+    /** (mixamo-chars slice c) false: no Mixamo moves (a carried body's fresh rig); (walk-test fix B2) in the Test Chamber
+     *  its Swat is posed by the rig from the start. */
     mixamoOk = true,
   ) {
     this.mapId = (world.map as { id?: string } | undefined)?.id ?? '';
@@ -168,8 +170,10 @@ export class GuardBody {
     // (the fallback: a path that only disposes the rig, e.g. the co-op client's ragdoll, still frees the figure)
     rig.root.onDisposeObservable.addOnce(() => this.dispose());
     register(scene, this);
-    if (mixamoOk && flags.mixamoChars && this.mapId === CHAMBER_MAP_ID) this.startMixamo();
-    else this.loadFigure();
+    if (flags.mixamoChars && this.mapId === CHAMBER_MAP_ID) {
+      this.startMixamo();
+      if (!mixamoOk) this.leadMixamo();
+    } else this.loadFigure();
   }
 
   private loadFigure(): void {
@@ -187,6 +191,7 @@ export class GuardBody {
     const d = dressRig(this.scene, this.rig, 'swat', { height: this.def.height, casters: (mesh) => this.world.addShadowCaster(mesh) });
     this.mixamo = d.body;
     this.mixamoUndo = d.undo;
+    this.mixamoLead = d.lead;
     d.body.onReady = () => {
       if (this.mixamo !== d.body) return;
       this.shown = true;
@@ -196,18 +201,12 @@ export class GuardBody {
   }
 
   /**
-   * (mixamo-chars slice c) Back to the guard figure (his death: the ragdoll and the carry pose the rig, which the Mixamo
-   * body does not follow). The merged body stands in until the figure's first LOD is in.
+   * (walk-test fix B2, Michael: the knocked-out / killed guard keeps the Swat body) His death: the ragdoll and the carry
+   * pose the rig, and the Swat follows the rig from now on (its moves stop). Was: back to the guard figure.
    */
-  dropMixamo(): void {
-    if (!this.mixamo) return;
-    this.mixamo = null;
-    this.mixamoUndo?.();
-    this.mixamoUndo = null;
-    this.shown = false;
-    const ms = this.rig.renderMeshes;
-    for (let i = 0; i < ms.length; i++) ms[i]!.setEnabled(true);
-    if (!this.disposed) this.loadFigure();
+  leadMixamo(): void {
+    this.mixamoLead?.();
+    this.mixamoLead = null;
   }
 
   /** The figure's first LOD is in: the merged body (or the parts) goes; the figure shows from the next render. */
