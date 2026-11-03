@@ -65,12 +65,20 @@ describe('mixamo locomotion blend (mixamo-chars slice a)', () => {
     expect(at('c_right')).toBeCloseTo(1, 9);
   });
 
-  it('a set without a slot borrows the unarmed clip (pistol crouch walk, unarmed aim idle)', () => {
+  it('a set without a slot borrows a clip (pistol crouch back, unarmed aim idle)', () => {
     const k = (n: (typeof LOCO_SLOTS)[number]): number => LOCO_SLOTS.indexOf(n);
     expect(setClip('rifle', k('c_left'))).toBe('rifle_crouch_strafe_l');
     expect(setClip('pistol', k('c_walk'))).toBe('crouch_walk');
-    expect(setClip('pistol', k('aim_idle'))).toBe('pistol_idle');
+    expect(setClip('pistol', k('c_back'))).toBe('crouch_walk');
     expect(setClip('unarmed', k('aim_idle'))).toBe('idle');
-    expect(setClip('unarmed', k('c_back'))).toBe('crouch_walk');
+  });
+
+  it('(walk-test fix B) low ready drawn, aimed idles aimed, the Action Forge sneak crouched unarmed', () => {
+    const k = (n: (typeof LOCO_SLOTS)[number]): number => LOCO_SLOTS.indexOf(n);
+    expect(setClip('rifle', k('idle'))).toBe('rifle_low_ready');
+    expect(setClip('rifle', k('aim_idle'))).toBe('rifle_aim_idle');
+    expect(setClip('pistol', k('idle'))).toBe('pistol_low_ready');
+    expect(setClip('pistol', k('aim_idle'))).toBe('pistol_idle');
+    expect(['c_walk', 'c_back', 'c_left', 'c_right'].map((n) => setClip('unarmed', k(n as (typeof LOCO_SLOTS)[number])))).toEqual(['af_crouch_f', 'af_crouch_b', 'af_crouch_l', 'af_crouch_r']);
   });
 });
