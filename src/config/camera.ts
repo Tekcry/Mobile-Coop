@@ -36,8 +36,10 @@ export const CAMERA = {
    *  (0.15 m)", replaces F1a 0.32) explore 0.15: the spine at x 0.45-0.48. (G3, "Footage wins", replaces F1a 0.42) aim
    *  0.30 at the 0.40 boom (job lead, after the G3 render: at 0.17 the head, which moves onto the stock when aiming, sat at
    *  x 0.5 over the reticle; 0.42 put it at x ~0.1; CT has its centre near x 0.3, 105845 @ 36.5). G3 fix-round render:
-   *  head centre x 0.27 rifle, 0.28 pistol (settled), 0.30 crouched, the reticle clear; kept. */
-  shoulderHip: 0.15,
+   *  head centre x 0.27 rifle, 0.28 pistol (settled), 0.30 crouched, the reticle clear; kept. (walk-test round 1,
+   *  Michael 2026-11-03: "seems centred behind the player, it should be slightly offset to the right") explore 0.4,
+   *  provisional: fine-tuned on the chamber's "shoulder side offset" slider. */
+  shoulderHip: 0.4,
   shoulderAds: 0.3,
   /** Pivot (look-at) height above the feet (m): the head top, one value for every operator (G38). (G3, AUDIT-CAMERA row 6)
    *  1.68, the operators' shared head top (`operatorRig`), was the capsule's 1.75 (the head rendered low, y 0.55-0.62

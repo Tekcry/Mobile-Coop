@@ -151,12 +151,20 @@ try {
   await G(() => window.__pad.axis(0, 0.6)); // strafe right, aimed
   await frames(page, 30);
   let hMax = -Infinity, hMin = Infinity;
-  for (let f = 0; f < 10; f++) {
-    await frames(page, 4);
+  // (walk-test round 1, Michael: "too much sway on the weapon when moving, it should remain perfectly still") the muzzle
+  // across the view while strafing aimed
+  let mx0 = Infinity, mx1 = -Infinity, my0 = Infinity, my1 = -Infinity;
+  for (let f = 0; f < 40; f++) {
+    await frames(page, 1);
     const s = await spots();
     hMax = Math.max(hMax, s.head[0]);
     hMin = Math.min(hMin, s.head[0]);
+    mx0 = Math.min(mx0, s.muzzle[0]);
+    mx1 = Math.max(mx1, s.muzzle[0]);
+    my0 = Math.min(my0, s.muzzle[1]);
+    my1 = Math.max(my1, s.muzzle[1]);
   }
+  console.log('strafing aimed, muzzle sway px', (mx1 - mx0).toFixed(1), 'across,', (my1 - my0).toFixed(1), 'up / down');
   await shot('6a-aim-strafe');
   await G(() => window.__pad.axis(0, 0));
   await frames(page, 30);

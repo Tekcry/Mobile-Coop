@@ -19,6 +19,7 @@ import { LOCO_N, LOCO_SETS, LOCO_SLOT_SPEED, LOCO_SLOTS, locoBlend, setClip, slo
 import { GAIT } from './gait';
 import { ACTION_CLIPS, UPPER_CLIPS, type ActionOut } from './actions';
 import { reachElbow } from './reach';
+import { TUNE_LOCAL } from '../anim/tune';
 import xbotUrl from './assets/xbot.glb?url';
 import ybotUrl from './assets/ybot.glb?url';
 import swatUrl from './assets/swat.glb?url';
@@ -80,8 +81,25 @@ const YAW_MAX = 1.2;
  *  upper body holds its set's aimed idle (standing or crouched) in the body's space, whatever the legs play; its bones
  *  top first (the Spine's parent is the Hips). */
 const UPPER = ['Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'] as const;
+/** (walk-test round 1, Michael: "the rifle and pistol should remain low ready unless aiming, even while walking") Drawn
+ *  and not aimed, the upper body holds the set's low ready idle over any gait (`readyArms`). Seconds the hold takes to
+ *  come in or let go. */
+const READY_FADE = 0.15;
+/** (walk-test round 1, Michael: "the pistol low ready is too high, it should be held down near the waist") Each set's
+ *  low ready arms turned down about the body's right axis (rad, provisional); a player's Gun tuner "gun up" (low ready
+ *  group, m) lifts them back by that height over `READY_ARM` (m, shoulder to hands). */
+const READY_DROP: Readonly<Partial<Record<LocoSet, number>>> = { pistol: 0.35 };
+const READY_ARM = 0.55;
+/** (walk-test round 1, Michael: "it should remain perfectly still and tight when aiming") Aimed, the gun's spot in its
+ *  own aim frame is smoothed twice over this time (s): the walk's chest bob is taken out, the aim's turn is not. */
+const GUN_STEADY = 0.12;
+/** (walk-test round 1) The aim frame's origin over the feet (m): about the eye standing and crouched. */
+const GUN_EYE_STAND = 1.5;
+const GUN_EYE_CROUCH = 0.95;
 const AIM_SLOT = LOCO_SLOTS.indexOf('aim_idle');
 const C_AIM_SLOT = LOCO_SLOTS.indexOf('c_aim_idle');
+const IDLE_SLOT = LOCO_SLOTS.indexOf('idle');
+const C_IDLE_SLOT = LOCO_SLOTS.indexOf('c_idle');
 /** (slice g) The actions whose hands are pinned to the rig's; the climb-up lets go from 0.45 through its next 0.3. */
 const ANCHORED: ReadonlySet<string> = new Set(['hang_idle', 'hang_shimmy_l', 'hang_shimmy_r', 'ladder', 'hang_climb_up', 'zipline']);
 const ANCHOR_CLIMB_FROM = 0.45;
@@ -183,6 +201,8 @@ const mGc = new Matrix(), mGt = new Matrix(), mHr = new Matrix(), mHl = new Matr
 const vP = new Vector3(), vE = new Vector3(), vW = new Vector3(), vE2 = new Vector3(), vAx = new Vector3(), vF = new Vector3();
 const vH = new Vector3(), vH2 = new Vector3();
 const qA = new Quaternion(), qB = new Quaternion(), qC = new Quaternion(), qD = new Quaternion();
+const vG = new Vector3(), vR = new Vector3(), vU = new Vector3();
+const qG = new Quaternion();
 const ONE = Vector3.One();
 
 /**
@@ -286,6 +306,18 @@ export class MixamoBody {
   private headChain: TransformNode[] = [];
   private lockW = 0;
   private lockCrouch = 0;
+  /** (walk-test round 1) Per armed set, its low ready idles' arm rotations standing and crouched (as `aimPose`), the
+   *  hold's weight now and whether the set is the pistol (its arms drop by the tuner's `lowReadyDrop`). */
+  private readonly readyPose = new Map<LocoSet, { stand: (Quaternion | null)[]; crouch: (Quaternion | null)[] }>();
+  private readyW = 0;
+  /** (walk-test round 1) The aimed gun's smoothed spot in its aim frame (two stages) and whether it is primed. */
+  private readonly gunF1 = new Vector3();
+  private readonly gunF2 = new Vector3();
+  private gunFOk = false;
+  /** (walk-test round 1) The aimed gun's spot learnt standing still, standing and crouched (`steadyGun`), and the
+   *  body's speed this frame (m/s). */
+  private readonly gunStill = [{ v: new Vector3(), ok: false }, { v: new Vector3(), ok: false }];
+  private speedNow = 0;
   /** (walk-test fix A3) The rig's own aimed gun (its pivot's world, taken before the follow moves the rig's torso), and
    *  whether it was taken this frame; the arms (upper arm, forearm, hand) and the chains above them. */
   private readonly rigGun = new Matrix();
@@ -411,6 +443,9 @@ export class MixamoBody {
       this.aimPose.set(s, { stand, crouch });
       const hs = this.headIn(setClip(s, AIM_SLOT), stand);
       if (hs) this.aimHead.set(s, { stand: hs, crouch: this.headIn(setClip(s, C_AIM_SLOT), crouch) ?? hs });
+      // (walk-test round 1) the low ready idles
+      const ready = this.poseOf(setClip(s, IDLE_SLOT));
+      if (ready) this.readyPose.set(s, { stand: ready, crouch: this.poseOf(setClip(s, C_IDLE_SLOT)) ?? ready });
     }
     const arm = (side: string): TransformNode[] => [`${side}Arm`, `${side}ForeArm`, `${side}Hand`].map((n) => this.boneNode(n)).filter((b): b is TransformNode => !!b);
     this.armR = arm('Right');
@@ -725,7 +760,12 @@ export class MixamoBody {
   private lockUpper(): void {
     const w = this.lockW;
     const pose = w > 1e-3 ? this.aimPose.get(this.set) : undefined;
-    if (!pose) return;
+    if (pose) this.holdUpper(pose, w);
+  }
+
+  /** (walk-test round 1) `pose` (a set's aimed or low ready idles, `aimPose` / `readyPose`) over the upper body by `w`,
+   *  as `lockUpper` says. */
+  private holdUpper(pose: { stand: (Quaternion | null)[]; crouch: (Quaternion | null)[] }, w: number): void {
     const c = this.lockCrouch;
     const hips = this.hipsBone?.rotationQuaternion;
     for (let k = 0; k < this.upper.length; k++) {
@@ -744,6 +784,33 @@ export class MixamoBody {
       }
       Quaternion.SlerpToRef(r, qA, w, r);
     }
+  }
+
+  /** (walk-test round 1) Drawn and not aimed, the upper body takes the set's low ready idle (standing to crouched, as
+   *  `lockUpper`: arms-only left the rifle at the thighs in its walk, whose spine hunches) by the hold's weight, then
+   *  (`READY_DROP`, the tuner's "gun up") the arms turn down together about the body's right axis: the hands keep their
+   *  places on the gun, the muzzle dips with them. */
+  private readyArms(): void {
+    const w = this.readyW;
+    const pose = w > 1e-3 ? this.readyPose.get(this.set) : undefined;
+    if (!pose) return;
+    this.holdUpper(pose, w);
+    const lift = this.opts.holdStop ? TUNE_LOCAL.gunUp / READY_ARM : 0;
+    const drop = ((READY_DROP[this.set] ?? 0) - lift) * w;
+    const R = this.armR[0], L = this.armL[0], hand = this.armR[2];
+    if (Math.abs(drop) < 1e-3 || !R || !L || !hand) return;
+    const m = this.root.computeWorldMatrix(true).m;
+    vR.set(m[0] as number, m[1] as number, m[2] as number).normalize();
+    // the turn that lowers the right hand about its shoulder (the sign read off the hand, not the handedness)
+    for (const n of this.armChainR) n.computeWorldMatrix(true);
+    R.computeWorldMatrix(true).getTranslationToRef(vP);
+    for (const n of this.armR) n.computeWorldMatrix(true);
+    hand.getAbsolutePosition().subtractToRef(vP, vG);
+    Matrix.RotationAxisToRef(vR, 0.1, mA);
+    Vector3.TransformNormalToRef(vG, mA, vU);
+    const a = vU.y <= vG.y ? drop : -drop;
+    this.turnBone(L, this.armChainL, vR, a);
+    this.turnBone(R, this.armChainR, vR, a);
   }
 
   /** (walk-test fix A3) Aimed, the Spine leans about its joint so the head keeps its aimed idle's spot across the
@@ -789,7 +856,10 @@ export class MixamoBody {
   private takeRigGun(): void {
     const h = this.hold;
     this.rigGunOk = !!h && this.lockW > 1e-3 && this.rightHanded && this.armR.length === 3 && this.armL.length === 3 && h.kind() !== null;
-    if (!h || !this.rigGunOk) return;
+    if (!h || !this.rigGunOk) {
+      this.gunFOk = false;
+      return;
+    }
     for (const n of h.chain) n.computeWorldMatrix(true);
     this.rigGun.copyFrom(h.pivot.computeWorldMatrix(true));
   }
@@ -811,6 +881,7 @@ export class MixamoBody {
     this.holdL.multiplyToRef(h.hand.getWorldMatrix(), mGc);
     mGc.decompose(vS, qA, vP);
     this.rigGun.decompose(vS, qB, vE);
+    this.steadyGun(qB, vE);
     Quaternion.SlerpToRef(qA, qB, this.lockW, qC);
     Vector3.LerpToRef(vP, vE, this.lockW, vW);
     Matrix.ComposeToRef(ONE, qC, vW, mGt);
@@ -822,6 +893,44 @@ export class MixamoBody {
     mB.multiplyToRef(mGt, mHl);
     this.reachArm(this.armR, this.armChainR, this.foreChainR, mHr);
     this.reachArm(this.armL, this.armChainL, this.foreChainL, mHl);
+  }
+
+  /** (walk-test round 1) The aimed gun at world spot `p`, turned `q` (the aim): its spot from about the eye, in the
+   *  gun's own frame. Standing still it is learnt per stance (`gunStill`); moving, the gun keeps the learnt spot (the
+   *  rig's gun slid ~10 cm across the view over a second of strafing: its trunk leans into the move), so a turn or a
+   *  look up carries the gun at once and the gait never moves it. Smoothed (`GUN_STEADY`, two stages). Writes the
+   *  steadied spot back into `p`. */
+  private steadyGun(q: Quaternion, p: Vector3): void {
+    const dt = this.scene.getEngine().getDeltaTime() / 1000;
+    const o = vW.copyFrom(this.root.getAbsolutePosition());
+    o.y += GUN_EYE_STAND + (GUN_EYE_CROUCH - GUN_EYE_STAND) * this.lockCrouch;
+    p.subtractToRef(o, vU);
+    q.conjugateToRef(qG);
+    vU.rotateByQuaternionToRef(qG, vG);
+    const k = dt > 0 ? 1 - Math.exp(-dt / GUN_STEADY) : 1;
+    // learn the still spot (settled stance and aim only; the first one even moving), then use it, blended by the crouch
+    const c = this.lockCrouch;
+    const s = this.gunStill[c > 0.5 ? 1 : 0]!;
+    if ((this.speedNow < HOLD_STILL || !s.ok) && this.lockW > 0.95 && (c < 0.02 || c > 0.98)) {
+      if (s.ok) Vector3.LerpToRef(s.v, vG, k, s.v);
+      else s.v.copyFrom(vG);
+      s.ok = true;
+    }
+    const a = this.gunStill[0]!, b = this.gunStill[1]!;
+    if (a.ok && b.ok) Vector3.LerpToRef(a.v, b.v, c, vG);
+    else if (a.ok && c < 0.5) vG.copyFrom(a.v);
+    else if (b.ok && c >= 0.5) vG.copyFrom(b.v);
+    if (!this.gunFOk) {
+      this.gunF1.copyFrom(vG);
+      this.gunF2.copyFrom(vG);
+      this.gunFOk = true;
+    }
+    vG.subtractInPlace(this.gunF1);
+    this.gunF1.addInPlace(vG.scaleInPlace(k));
+    this.gunF1.subtractToRef(this.gunF2, vG);
+    this.gunF2.addInPlace(vG.scaleInPlace(k));
+    this.gunF2.rotateByQuaternionToRef(q, vG);
+    o.addToRef(vG, p);
   }
 
   /** (walk-test fix A3) Upper arm, forearm and hand (`arm`; the bones above the upper arm `chain`, above the forearm
@@ -926,6 +1035,7 @@ export class MixamoBody {
     if (NO_YAW.has(this.actName)) this.flattenYaw();
     this.layerUpper();
     this.lockUpper();
+    this.readyArms();
     this.steadyHead();
     this.bendSpine(rr);
     this.reachGun();
@@ -1017,7 +1127,9 @@ export class MixamoBody {
    */
   update(i: LocoIn, set: LocoSet, dt: number, act?: ActionOut): void {
     if (!this.ready || this.leading) return;
+    if (set !== this.set) for (const s of this.gunStill) s.ok = false;
     this.set = set;
+    this.speedNow = Math.max(0, i.speed);
     // (slice g) the spine bends to the aim pitch while a gun is up (no action playing), eased
     const armed = (set === 'rifle' || set === 'pistol') && !act?.clip;
     const pitchWant = armed ? (i.aimPitch ?? 0) * Math.min(1, Math.max(0, i.aim ?? 0)) : 0;
@@ -1085,6 +1197,10 @@ export class MixamoBody {
       this.upName = up;
     }
     this.upW = up ? Math.min(1, this.upW + aStep) : Math.max(0, this.upW - aStep);
+    // (walk-test round 1) drawn, not aimed and no upper clip: the arms hold the low ready
+    const readyWant = armed && !up ? 1 - this.lockW : 0;
+    const rStep = dt > 0 ? dt / READY_FADE : 1;
+    this.readyW = readyWant > this.readyW ? Math.min(readyWant, this.readyW + rStep) : Math.max(readyWant, this.readyW - rStep);
     const keep = 1 - this.actW;
     const h = this.opts.holdStop ? this.stopHold(i, set, dt) : 0;
     // (walk-test fix A) the stop hold freezes the clock

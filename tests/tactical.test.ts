@@ -161,10 +161,10 @@ describe('weapon carry', () => {
 });
 
 describe('camera framing', () => {
-  it('CT framing (A2.1, G3 footage): 1.8 m boom tight / 2.8 m open, 0.15 m shoulder, head-top pivot 1.68; aim 0.40 m / 0.30 m at 1.52 m; FOV 86', () => {
+  it('CT framing (A2.1, G3 footage): 1.8 m boom tight / 2.8 m open, 0.4 m shoulder (walk-test round 1), head-top pivot 1.68; aim 0.40 m / 0.30 m at 1.52 m; FOV 86', () => {
     const hip = framing(0, 0);
     expect(hip.boom).toBeCloseTo(1.8);
-    expect(hip.shoulder).toBeCloseTo(0.15);
+    expect(hip.shoulder).toBeCloseTo(0.4);
     expect(hip.pivot).toBeCloseTo(1.68);
     // (G3, AUDIT-CAMERA rows 1 and 7) an open space: 2.8 m standing, 2.2 m crouched; the aim boom is the same in both
     expect(framing(0, 0, CAMERA, 1).boom).toBeCloseTo(2.8);
