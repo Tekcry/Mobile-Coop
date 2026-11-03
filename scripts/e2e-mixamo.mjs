@@ -94,8 +94,12 @@ try {
   await press(page, BTN.X); // draw (the long gun's sling draw travels ~2.5 s before it is on the aim pivot)
   // (slice i) on its way the gun is in the Mixamo right hand (it floated beside the body, on the hidden rig's hand)
   let mid = null;
+  // (walk-test fix B2) the draw plays on the upper body while the gun travels
+  const drawW = () => G(() => { const w = window.__app.current.player.mixamo.weights(); return Math.max(w.rifle_draw ?? 0, w.pistol_draw ?? 0); });
+  let drew = 0;
   for (let f = 0; f < 120 && mid === null; f += 10) {
     await frames(page, 10);
+    drew = Math.max(drew, await drawW());
     mid = await G(() => {
       const r = window.__app.current.player.rig;
       if (!r.weaponTravel) return null;
@@ -107,7 +111,13 @@ try {
   console.log('mid-draw gun to hand', mid === null ? 'no travel seen' : mid.toFixed(3));
   if (mid !== null) await shot('5a-mid-draw');
   if (mid !== null) assert(mid < 0.3, `the gun on its way sits at the Mixamo hand (${mid.toFixed(3)} m)`);
-  await frames(page, 160);
+  for (let f = 0; f < 60; f += 5) {
+    await frames(page, 5);
+    drew = Math.max(drew, await drawW());
+  }
+  console.log('draw clip weight (most)', drew.toFixed(2));
+  assert(drew > 0.5, `drawing plays the draw on the upper body (weight ${drew.toFixed(2)})`);
+  await frames(page, 100);
   t = await top();
   console.log('drawn', JSON.stringify(t));
   assert(/^(rifle|pistol)_/.test(t.best), `a drawn gun plays its set (${t.best})`);
@@ -176,7 +186,16 @@ try {
   await frames(page, 30);
   // the other gun (T: next weapon): its set plays and, held, the gun sits in the Mixamo right hand (within 15 cm)
   await page.keyboard.press('KeyT');
-  await frames(page, 120);
+  // (walk-test fix B2) the swap holsters the gun in the hands first, on the upper body
+  let holstered = 0;
+  for (let f = 0; f < 60; f += 5) {
+    await frames(page, 5);
+    holstered = Math.max(holstered, await G(() => { const w = window.__app.current.player.mixamo.weights(); return Math.max(w.rifle_holster ?? 0, w.pistol_holster ?? 0); }));
+    if (f === 15) await shot('6c-holster');
+  }
+  console.log('holster clip weight (most)', holstered.toFixed(2));
+  assert(holstered > 0.5, `swapping plays the holster on the upper body (weight ${holstered.toFixed(2)})`);
+  await frames(page, 60);
   t = await top();
   const inHand = await G(() => {
     const p = window.__app.current.player;

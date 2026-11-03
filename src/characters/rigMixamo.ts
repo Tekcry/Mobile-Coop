@@ -10,7 +10,7 @@ import type { CharacterRig } from '../player/characterRig';
 import { handsWeaponOf } from '../anim/tuneHands';
 import { MixamoBody, type GunTravel, type HoldKind, type MixamoModel } from './mixamoBody';
 import type { LocoSet } from './locomotion';
-import { pickAction, type ActionOut } from './actions';
+import { pickAction, WallTurn, type ActionOut } from './actions';
 import { flags } from '../core/flags';
 import { CHAMBER_MAP_ID } from '../anim/chamberMapId';
 import { goggleColour } from '../operators/runtime/goggle';
@@ -84,13 +84,19 @@ export function dressRig(scene: Scene, rig: CharacterRig, model: MixamoModel, op
   // (slice i) legs up / inverted on a pipe the body turns over with the rig's
   body.tumbleWith(r.body);
   // (slice e) a body over the shoulder walks the carry set; an action (hang, ladder, climb-up, strike, throw) fades over
-  const act: ActionOut = { clip: null, t: NaN, turn: false };
+  const act: ActionOut = { clip: null, t: NaN, turn: false, upper: null, upperT: 0 };
+  // (walk-test fix B2) back to a wall, a change of slide direction plays the cover turn
+  const wallTurn = new WallTurn();
   const hook = (dt: number, s: Parameters<NonNullable<CharacterRig['onAnimate']>>[1]): void => {
     if (body.downed) {
       // (slice f) a downed player lies breathing, whatever the pose says
       act.clip = 'downed_lie';
       act.t = NaN;
-    } else pickAction(s, r.holdingKnife, act);
+      act.upper = null;
+    } else {
+      pickAction(s, r.holdingKnife, act);
+      wallTurn.step(s, dt, body, act);
+    }
     // (walk-test fix A3) aimed, the arms reach for the rig's gun only while the rig holds it in its right hand too
     body.rightHanded = r.weaponHand > 0;
     body.update(s, s.carryBody ? 'carry' : mixamoSetOf(r), dt, act);

@@ -170,6 +170,9 @@ export class TakedownController {
   bend = 0;
   bendDrop = 0;
   sway = 0;
+  /** (mixamo-chars B2) The ground grab's clock this step for the Mixamo body: -1 none, 0..1 the pull-in, 1 holding, 1..2
+   *  the knockout from the hold (GameState hands it to the player pose). */
+  grabK = -1;
   /** (G7) The attacker is stepping in under the override this step (the legs take steps from his speed). */
   stepping = false;
 
@@ -271,6 +274,7 @@ export class TakedownController {
   fixedUpdate(dt: number, pressed: boolean, held: boolean): boolean {
     const g = this.g;
     this.bend = this.bendDrop = this.sway = 0;
+    this.grabK = -1;
     this.stepping = false;
     if (this.tailU >= 0) this.killTail(dt);
     if (this.carryId) this.carryStep(dt);
@@ -550,6 +554,7 @@ export class TakedownController {
       const dy = gr.vYaw0 + wrapPi(plan.faceYaw - gr.vYaw0) * k;
       e.holdAt(a.vFrom.x + (hx - a.vFrom.x) * k, a.vFrom.y, a.vFrom.z + (hz - a.vFrom.z) * k, dy);
       this.bend = CQ.holdBend * k;
+      this.grabK = Math.min(1, Math.max(0, (a.t - plan.approach) / GRAB.pull));
       if (stage === 2) {
         gr.hold = true;
         c.override = null;
@@ -568,6 +573,7 @@ export class TakedownController {
     e.holdAt(c.pos.x + fx * GRAB.hold + fz * (sw + GRAB.side), c.pos.y, c.pos.z + fz * GRAB.hold - fx * (sw + GRAB.side), c.yaw);
     this.bend = CQ.holdBend;
     this.sway = sw;
+    this.grabK = 1;
     if (gr.strikeT >= 0) {
       gr.strikeT += dt;
       if (a.lethal) {
@@ -588,6 +594,7 @@ export class TakedownController {
       e.holdPose?.('ko', ko.limp, ko.lower);
       this.bend = CQ.holdBend + (CQ.koBend - CQ.holdBend) * ko.bend;
       this.bendDrop = CQ.koDrop * ko.bend;
+      this.grabK = 1 + Math.min(1, gr.strikeT / CQ.koTime);
       if (gr.strikeT >= CQ.koTime) {
         c.speedCap = Infinity;
         this.grabs.ko++;

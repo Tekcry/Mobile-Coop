@@ -295,15 +295,15 @@ Slice i (2026-11-03 night), added to every packed model:
 | `wall_kick` | Jump From Wall (Hanging On Wall To Jump Off), its rise held flat | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | wall kick |
 | `rifle_low_ready` | Rifle Idle (Two Hand Lowered Gun Rifle Idle) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | rifle drawn, not aimed |
 | `pistol_low_ready` | Pistol Idle (Ready Alert Two Hand Pistol Grip) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | pistol drawn, not aimed |
-| `rifle_draw` | Rifle Pull Out (Pulling Out Rifle) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | rifle draw (not wired yet) |
-| `rifle_holster` | Rifle Put Away (Putting Rifle Away) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | rifle put away (not wired yet) |
-| `pistol_draw` | Drawing Gun (Drawing Gun From Lower Back) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | pistol draw, thigh holster kept (not wired yet) |
-| `pistol_holster` | Pistol Aim (Pistol Aim To Holster Idle) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | pistol holster (not wired yet) |
-| `cover_turn` | Standing Cover Turn (Changing Direction In Stand Cover) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | back to wall, turning (not wired yet) |
-| `cover_turn_crouch` | Crouch Cover Turn (Changing Direction In Crouch Cover) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | crouched on a wall, turning (not wired yet) |
-| `zipline` | Hanging Idle (Hanging By Hands Gently Swaying) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | zipline (not wired yet) |
-| `rappel` | Climbing Down Wall (Climbing Down A Wall) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | rappel (not wired yet) |
-| `grab_take` / `grabbed_take` | Taken Hostage - Villain / Victim | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | guard grab, both bodies (not wired yet) |
-| `grab_idle` / `grabbed_idle` | Hostage Situation Idle - Villain / Hostage | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | guard held, both bodies (not wired yet) |
-| `grab_release` / `grabbed_release` | Release Hostage - Villain / Hostage | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | guard let go, both bodies (not wired yet) |
+| `rifle_draw` | Rifle Pull Out (Pulling Out Rifle) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | rifle draw |
+| `rifle_holster` | Rifle Put Away (Putting Rifle Away) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | rifle put away |
+| `pistol_draw` | Drawing Gun (Drawing Gun From Lower Back) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | pistol draw, thigh holster kept |
+| `pistol_holster` | Pistol Aim (Pistol Aim To Holster Idle) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | pistol holster |
+| `cover_turn` | Standing Cover Turn (Changing Direction In Stand Cover) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | back to wall, turning |
+| `cover_turn_crouch` | Crouch Cover Turn (Changing Direction In Crouch Cover) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | crouched on a wall, turning |
+| `zipline` | Hanging Idle (Hanging By Hands Gently Swaying) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | zipline |
+| `rappel` | Climbing Down Wall (Climbing Down A Wall) | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | rappel |
+| `grab_take` / `grabbed_take` | Taken Hostage - Villain / Victim | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | guard grab, both bodies |
+| `grab_idle` / `grabbed_idle` | Hostage Situation Idle - Villain / Hostage | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | guard held, both bodies |
+| `grab_release` / `grabbed_release` | Release Hostage - Villain / Hostage | move | https://www.mixamo.com/ | Mixamo (above) | 2026-11-03 | guard let go, both bodies |
 | `af_crouch_f` / `_b` / `_l` / `_r` | Not Mixamo: Crouch Fwd Loop (Quaternius, Universal Animation Library), its other directions made in ActionForge's Motion Lab (aim forward), exported on the Mixamo skeleton, in place | move | https://actionforge.app/motion-lab.html | CC0 1.0 (public domain; "use them anywhere, commercially, with no attribution required", actionforge.app, read 2026-11-03) | 2026-11-03 | unarmed crouch walk, four ways (Michael's pick to try) |

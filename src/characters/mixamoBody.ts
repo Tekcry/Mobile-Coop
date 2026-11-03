@@ -16,7 +16,7 @@ import {
   type AbstractMesh, type AnimationGroup, type AssetContainer, type Observer, type Scene,
 } from '../core/babylon';
 import { LOCO_N, LOCO_SETS, LOCO_SLOTS, locoBlend, setClip, slotMoves, type LocoIn, type LocoSet } from './locomotion';
-import { ACTION_CLIPS, type ActionOut } from './actions';
+import { ACTION_CLIPS, UPPER_CLIPS, type ActionOut } from './actions';
 import { reachElbow } from './reach';
 import xbotUrl from './assets/xbot.glb?url';
 import ybotUrl from './assets/ybot.glb?url';
@@ -43,7 +43,9 @@ const BLEND_FULL = 0.9999;
 /** (walk-test fix A) Each grip climb's grips: shares of its cycle where no hand or foot is reaching (measured in the
  *  game 2026-11-03: the rope climb is free of reaches at 0-0.1, 0.35-0.6 and 0.73-0.83, the ladder at 0-0.03 and
  *  0.13-0.18; provisional). Stopped, the clip runs on to the next one and holds. */
-const GRIPS: Readonly<Record<string, readonly number[]>> = { rope_climb: [0.05, 0.47, 0.78], ladder: [0, 0.15] };
+const GRIPS: Readonly<Record<string, readonly number[]>> = { rope_climb: [0.05, 0.47, 0.78], ladder: [0, 0.15], rappel: [0, 0.5] };
+/** (walk-test fix B2) Samples per upper-body clip (`UPPER_CLIPS`), evenly over it; between two the pose is slerped. */
+const UP_SAMPLES = 48;
 /** (walk-test fix A) Faster than this (m/s) a grip climb plays. */
 const GRIP_MOVE = 0.05;
 /** (walk-test fix A) Actions whose own turn about the vertical is taken out (the game's facing stands): the wall
@@ -75,7 +77,7 @@ const UPPER = ['Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'LeftShoulder', 'Lef
 const AIM_SLOT = LOCO_SLOTS.indexOf('aim_idle');
 const C_AIM_SLOT = LOCO_SLOTS.indexOf('c_aim_idle');
 /** (slice g) The actions whose hands are pinned to the rig's; the climb-up lets go from 0.45 through its next 0.3. */
-const ANCHORED: ReadonlySet<string> = new Set(['hang_idle', 'hang_shimmy_l', 'hang_shimmy_r', 'ladder', 'hang_climb_up']);
+const ANCHORED: ReadonlySet<string> = new Set(['hang_idle', 'hang_shimmy_l', 'hang_shimmy_r', 'ladder', 'hang_climb_up', 'zipline']);
 const ANCHOR_CLIMB_FROM = 0.45;
 const ANCHOR_CLIMB_SPAN = 0.3;
 
@@ -161,7 +163,7 @@ const qR = new Quaternion();
 const mGc = new Matrix(), mGt = new Matrix(), mHr = new Matrix(), mHl = new Matrix();
 const vP = new Vector3(), vE = new Vector3(), vW = new Vector3(), vE2 = new Vector3(), vAx = new Vector3(), vF = new Vector3();
 const vH = new Vector3(), vH2 = new Vector3();
-const qA = new Quaternion(), qB = new Quaternion(), qC = new Quaternion();
+const qA = new Quaternion(), qB = new Quaternion(), qC = new Quaternion(), qD = new Quaternion();
 const ONE = Vector3.One();
 
 /**
@@ -272,6 +274,16 @@ export class MixamoBody {
   private armChainL: TransformNode[] = [];
   private foreChainR: TransformNode[] = [];
   private foreChainL: TransformNode[] = [];
+  /** (walk-test fix B2) The upper layer: its bones (the Hips, the Spine, then everything above it), each upper clip's
+   *  local rotations sampled (`UP_SAMPLES` x bones x 4, NaN: no track), the clip playing (or fading out), how far
+   *  through it (a looping one: its own clock) and its weight. */
+  private layerBones: TransformNode[] = [];
+  private readonly upPoses = new Map<string, Float32Array>();
+  private upName = '';
+  private upT = 0;
+  private upW = 0;
+  /** (walk-test fix B2) Each action and upper clip's length (s). */
+  private readonly secs = new Map<string, number>();
   private disposed = false;
 
   constructor(scene: Scene, readonly model: MixamoModel, parent: TransformNode, private readonly opts: MixamoBodyOpts = {}) {
@@ -336,6 +348,7 @@ export class MixamoBody {
       g.start(true, 1);
       g.weight = 0;
       this.actions.set(name, g);
+      this.secs.set(name, this.groupSeconds(g));
     }
     // the reference pose: the idle's first frame, a standing pose like the rig's rest (a model's bind pose can sit its
     // hips on the floor, the Swat's does, and holds a T): the height fit and the follow's bone rests are taken in it
@@ -376,6 +389,7 @@ export class MixamoBody {
     if (this.armL.length === 3) this.armChainL = chainBelow(this.armL[0]!, this.root);
     this.foreChainR = [...this.armChainR, ...this.armR.slice(0, 1)];
     this.foreChainL = [...this.armChainL, ...this.armL.slice(0, 1)];
+    this.sampleUpper();
     if (this.pendingFollow) this.bindFollow(this.pendingFollow.rigRoot, this.pendingFollow.pairs);
     this.ready = true;
     this.onReady?.();
@@ -420,6 +434,78 @@ export class MixamoBody {
       if (!mat || /joint/i.test(mat.name)) continue;
       if (mat instanceof PBRMaterial) mat.albedoColor = col;
       else if (mat instanceof StandardMaterial) mat.diffuseColor = col;
+    }
+  }
+
+  /** (walk-test fix B2) A group's length (s). */
+  private groupSeconds(g: AnimationGroup): number {
+    const fps = g.targetedAnimations[0]?.animation.framePerSecond ?? 60;
+    return Math.max(1 / fps, (g.to - g.from) / fps);
+  }
+
+  /** (walk-test fix B2) A clip's length (s), 0 when the model lacks it or is still loading. */
+  seconds(name: string): number {
+    return this.secs.get(name) ?? 0;
+  }
+
+  /** (walk-test fix B2) Each upper clip's local rotations of the layer's bones, sampled once at load (the clips never
+   *  play as groups: Babylon's blend of a clip on part of the body with the locomotion went 0 / 0 on some weights). */
+  private sampleUpper(): void {
+    const hips = this.hipsBone, sp = this.boneNode('Spine');
+    if (!hips || !sp) return;
+    const above = sp.getDescendants(false).filter((n): n is TransformNode => n instanceof TransformNode && !!n.rotationQuaternion);
+    this.layerBones = [hips, sp, ...above];
+    const nb = this.layerBones.length;
+    for (const name of UPPER_CLIPS) {
+      const g = this.groups.find((x) => x.name.split(':').pop() === name);
+      if (!g) continue;
+      const P = new Float32Array(UP_SAMPLES * nb * 4).fill(NaN);
+      this.layerBones.forEach((b, k) => {
+        const ta = g.targetedAnimations.find((t) => t.target === b && t.animation.targetProperty === 'rotationQuaternion');
+        if (!ta) return;
+        for (let s = 0; s < UP_SAMPLES; s++) {
+          const q: unknown = ta.animation.evaluate(g.from + ((g.to - g.from) * s) / (UP_SAMPLES - 1));
+          if (q instanceof Quaternion) P.set([q.x, q.y, q.z, q.w], (s * nb + k) * 4);
+        }
+      });
+      this.upPoses.set(name, P);
+      this.secs.set(name, this.groupSeconds(g));
+    }
+  }
+
+  /** (walk-test fix B2) Sample `k` of upper pose `P` between samples `s0` and `s1` (share `u`) into `out`; false: no track. */
+  private upSample(P: Float32Array, s0: number, s1: number, u: number, k: number, out: Quaternion): boolean {
+    const nb = this.layerBones.length;
+    const a = (s0 * nb + k) * 4, b = (s1 * nb + k) * 4;
+    if (Number.isNaN(P[a] as number)) return false;
+    out.set(P[a] as number, P[a + 1] as number, P[a + 2] as number, P[a + 3] as number);
+    qD.set(P[b] as number, P[b + 1] as number, P[b + 2] as number, P[b + 3] as number);
+    Quaternion.SlerpToRef(out, qD, u, out);
+    return true;
+  }
+
+  /**
+   * (walk-test fix B2) The upper clip (a draw, a holster) over the upper body by its weight, the legs keeping the gait:
+   * the Spine in the body's space (as `lockUpper`: the Hips' own turn swapped for the clip's), the bones above it as the
+   * clip has them.
+   */
+  private layerUpper(): void {
+    const w = this.upW;
+    const P = w > 1e-3 ? this.upPoses.get(this.upName) : undefined;
+    const hips = this.hipsBone?.rotationQuaternion;
+    if (!P || !hips) return;
+    const f = Math.min(1, Math.max(0, this.upT)) * (UP_SAMPLES - 1);
+    const s0 = Math.floor(f), s1 = Math.min(UP_SAMPLES - 1, s0 + 1), u = f - s0;
+    for (let k = 1; k < this.layerBones.length; k++) {
+      const r = this.layerBones[k]!.rotationQuaternion;
+      if (!r || !this.upSample(P, s0, s1, u, k, qA)) continue;
+      if (k === 1) {
+        if (!this.upSample(P, s0, s1, u, 0, qB)) continue;
+        qB.multiplyToRef(qA, qC);
+        hips.conjugateToRef(qB);
+        qB.multiplyToRef(qC, qA);
+      }
+      Quaternion.SlerpToRef(r, qA, w, r);
     }
   }
 
@@ -721,6 +807,7 @@ export class MixamoBody {
     this.anchorBody();
     this.turnBody();
     if (NO_YAW.has(this.actName)) this.flattenYaw();
+    this.layerUpper();
     this.lockUpper();
     this.steadyHead();
     this.bendSpine(rr);
@@ -863,6 +950,18 @@ export class MixamoBody {
     }
     const aStep = dt > 0 ? dt / ACT_FADE : 1;
     this.actW = want ? Math.min(1, this.actW + aStep) : Math.max(0, this.actW - aStep);
+    // (walk-test fix B2) the upper clip fades like an action; fading out it holds its last frame
+    const up = act?.upper && this.upPoses.has(act.upper) ? act.upper : null;
+    if (up) {
+      const ut = act?.upperT ?? 0;
+      if (Number.isNaN(ut)) {
+        // a looping one (the grab's hold) runs on its own clock, from its start when it comes in
+        const len = this.seconds(up);
+        this.upT = up !== this.upName ? 0 : len > 0 ? (this.upT + dt / len) % 1 : 0;
+      } else this.upT = ut;
+      this.upName = up;
+    }
+    this.upW = up ? Math.min(1, this.upW + aStep) : Math.max(0, this.upW - aStep);
     const keep = 1 - this.actW;
     const h = this.opts.holdStop ? this.stopHold(i, set, dt) : 0;
     for (let ci = 0; ci < this.clips.length; ci++) {
@@ -1043,6 +1142,8 @@ export class MixamoBody {
     const h = this.opts.holdStop ? this.holdW : 0;
     for (let ci = 0; ci < this.clips.length; ci++) out[this.clips[ci]!.g.name.split(':').pop() ?? ''] = ((this.clipW[ci] as number) * (1 - h) + (this.stopW[ci] as number) * h) * keep;
     if (this.act) out[this.act.name.split(':').pop() ?? ''] = this.actW;
+    // (walk-test fix B2) the upper clip beside them (it plays over the upper body only)
+    if (this.upW > 0) out[this.upName] = this.upW;
     return out;
   }
 

@@ -4714,6 +4714,8 @@ export class Enemy implements Damageable {
     rp.stride = this.knifePinned || (!rp.wall && aiming < 0.5 && rp.localZ > 0.5) ? 'facing' : 'velocity';
     rp.traverse = this.climbing ? 'climb' : 'none';
     rp.traverseT = this.climbT;
+    // (mixamo-chars B2) seized or held: the Mixamo body's grabbed clock
+    rp.grabbed = this.taken && this.rig.emote === this.cqEmote ? this.cq.grabbedK(this.rig.emoteTime, GRAB.pull) : -1;
     if (this.climbing) rp.aim = 0;
     // (guard-ai S21, walk 4.72 G5) holstered in a calm area: hands empty with the armed carriage (`ready`; `armed` follows
     // the gun in hand), the draw / holster clip (`swap`, one slot) while the gun travels (`GuardGunCarry`); no raise

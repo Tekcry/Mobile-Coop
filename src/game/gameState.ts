@@ -2391,6 +2391,7 @@ export class GameState implements AppState {
       const st = this.carrier;
       pz.bend = this.takedown.bend + (st ? st.bend : 0);
       pz.bendDrop = this.takedown.bendDrop + (st ? st.bendDrop : 0);
+      pz.grab = this.takedown.grabK;
       // (marlow-bays T1a) the tuner's carry row: the bend is the body's, not a held guard's
       pz.carryBody = !!st && (st.bend > 0 || st.bendDrop > 0);
       // (anim-n4) the carry leans away from the loaded shoulder, by the body's weight on it (none kneeling at the body or

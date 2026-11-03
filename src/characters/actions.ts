@@ -18,8 +18,14 @@
  * or hanging inverted on a pipe the hang, the whole body turned over with the rig's tumble; the wall kick "Jump From
  * Wall" pinned to its progress; on a rappel rope the rope haul; braced in a split the falling pose (arms and legs out);
  * a holder's brace with no team move the lift's crouched offer.
+ *
+ * (walk-test fix B2) The draw and the holster play on the upper body only (`ActionOut.upper`: the legs keep walking),
+ * pinned to the weapon swap's clock: the holster of the gun leaving the hands, then the draw of the next (Michael: the
+ * pistol draw from the lower back plays though the holster stays on the thigh). Back to a wall, a change of slide
+ * direction plays the cover turn once (`WallTurn`); a zipline plays its own hang; the rappel "Climbing Down Wall".
  */
 import type { TraverseKind } from '../anim/animGraph';
+import type { SwapReach } from '../anim/clips/actions';
 import type { TeamPoseMove, TeamPoseRole } from '../anim/clips/team';
 
 /** Every action clip (a glTF animation of that name in each packed model). */
@@ -32,8 +38,22 @@ export const ACTION_CLIPS = [
   'team_lift', 'team_brace', 'team_rope', 'rope_climb',
   // (slice i)
   'wall_kick',
+  // (walk-test fix B2)
+  'cover_turn', 'cover_turn_crouch', 'zipline', 'rappel',
 ] as const;
 export type ActionClip = (typeof ACTION_CLIPS)[number];
+
+/** (walk-test fix B2) The upper-body clips (played over the legs' locomotion, `MixamoBody`'s upper layer). */
+export const UPPER_CLIPS = [
+  'rifle_draw', 'rifle_holster', 'pistol_draw', 'pistol_holster',
+  // the guard grab: the holder's and the held guard's (Michael: the guard "walks normally when grabbed")
+  'grab_take', 'grab_idle', 'grab_release', 'grabbed_take', 'grabbed_idle',
+] as const;
+export type UpperClip = (typeof UPPER_CLIPS)[number];
+
+/** (walk-test fix B2) The weapon swap's holstered beat (share of the swap: the gun in its slot), as `playerWeapons`'
+ *  SWAP_HOLSTER: before it the holster plays, after it the draw. */
+export const SWAP_HOLSTERED = 0.38;
 
 /** What `pickAction` reads (a `RigPose` fits). */
 export interface ActionIn {
@@ -54,6 +74,16 @@ export interface ActionIn {
   teamMove?: TeamPoseMove | '';
   teamRole?: TeamPoseRole | '';
   teamK?: number;
+  /** (walk-test fix B2) Riding a zipline. */
+  zip?: boolean;
+  /** (walk-test fix B2) The weapon swap's clock (0..1, < 0 none) and the slots it takes the guns from and to. */
+  swap?: number;
+  swapFrom?: SwapReach;
+  swapTo?: SwapReach;
+  /** (walk-test fix B2) Holding a guard: < 0 none, 0..1 the pull-in, 1 holding, 1..2 the knockout (let go). */
+  grab?: number;
+  /** (walk-test fix B2) Held by a player (a guard): < 0 none, 0..1 pulled in, 1 held. */
+  grabbed?: number;
 }
 
 export interface ActionOut {
@@ -61,6 +91,10 @@ export interface ActionOut {
   clip: ActionClip | null;
   /** 0..1 through a timed clip; NaN for a looping one. */
   t: number;
+  /** (walk-test fix B2) The upper-body clip over the legs (null: none) and how far through it (0..1; NaN: looping on the
+   *  body's own clock). */
+  upper?: UpperClip | null;
+  upperT?: number;
   /** (slice i) The body turns over with the rig's tumble (legs up / inverted on a pipe). */
   turn?: boolean;
   /** (walk-test fix A) A climb that plays only while the body moves and, stopped, runs on to its next grip (hands and
@@ -111,8 +145,43 @@ function timed(out: ActionOut, clip: ActionClip, t: number | undefined): void {
   out.t = clamp01(t ?? 0);
 }
 
-/** The action for this frame into `out` (returned). `knife`: a knife is in the hands (the strike stabs). */
+/** The swap reach's gun class (the thigh holds the pistol; the back and the sling a long gun). */
+function pistolSlot(r: SwapReach | undefined): boolean {
+  return r === 'thigh';
+}
+
+/** The action for this frame into `out` (returned). `knife`: a knife is in the hands (the strike stabs). (walk-test
+ *  fix B2) With no whole-body action the upper body plays, first found: held by a player (pulled in, then held), holding
+ *  a guard (the pull-in, the hold, the knockout's let-go), a weapon swap (its holster, then its draw). */
 export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionOut {
+  pickBody(i, knife, out);
+  out.upper = null;
+  out.upperT = 0;
+  if (out.clip !== null) return out;
+  const gd = i.grabbed ?? -1, gr = i.grab ?? -1;
+  if (gd >= 0) {
+    out.upper = gd < 1 ? 'grabbed_take' : 'grabbed_idle';
+    out.upperT = gd < 1 ? gd : NaN;
+    return out;
+  }
+  if (gr >= 0) {
+    out.upper = gr < 1 ? 'grab_take' : gr === 1 ? 'grab_idle' : 'grab_release';
+    out.upperT = gr < 1 ? gr : gr === 1 ? NaN : clamp01(gr - 1);
+    return out;
+  }
+  const sw = i.swap ?? -1;
+  if (sw < 0) return out;
+  if (sw < SWAP_HOLSTERED) {
+    out.upper = pistolSlot(i.swapFrom) ? 'pistol_holster' : 'rifle_holster';
+    out.upperT = sw / SWAP_HOLSTERED;
+  } else {
+    out.upper = pistolSlot(i.swapTo) ? 'pistol_draw' : 'rifle_draw';
+    out.upperT = clamp01((sw - SWAP_HOLSTERED) / (1 - SWAP_HOLSTERED));
+  }
+  return out;
+}
+
+function pickBody(i: ActionIn, knife: boolean, out: ActionOut): ActionOut {
   out.clip = null;
   out.t = NaN;
   out.turn = false;
@@ -145,7 +214,9 @@ export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionO
       timed(out, 'hang_climb_up', MANTLE_FROM + (1 - MANTLE_FROM) * clamp01(i.traverseT ?? 0));
       return out;
     case 'hang':
-      out.clip = i.speed > SHIMMY ? (i.localX < 0 ? 'hang_shimmy_l' : 'hang_shimmy_r') : 'hang_idle';
+      // (walk-test fix B2) a zipline's hang is its own (the hands on the cable, swaying)
+      if (i.zip) out.clip = 'zipline';
+      else out.clip = i.speed > SHIMMY ? (i.localX < 0 ? 'hang_shimmy_l' : 'hang_shimmy_r') : 'hang_idle';
       return out;
     case 'climb':
       out.clip = 'ladder';
@@ -183,7 +254,9 @@ export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionO
       timed(out, 'wall_kick', i.traverseT);
       return out;
     case 'rappel':
-      out.clip = 'team_rope';
+      // (walk-test fix B2) "Climbing Down Wall", a grip climb (it plays while the body moves)
+      out.clip = 'rappel';
+      out.grip = true;
       return out;
     case 'split':
       out.clip = 'fall';
@@ -207,4 +280,48 @@ export function pickAction(i: ActionIn, knife: boolean, out: ActionOut): ActionO
     else out.clip = crouched ? 'wall_crouch_idle' : 'wall_idle';
   }
   return out;
+}
+
+/** (walk-test fix B2) A clip's length (s; 0 unknown): the Mixamo body. */
+export interface ClipSeconds {
+  seconds(name: string): number;
+}
+
+/**
+ * (walk-test fix B2) Back to a wall, a change of slide direction plays the cover turn once (standing or crouched, as at
+ * its start) on its own clock, then the slide goes on; leaving the wall (or a traverse, a strike, a throw) ends it. One
+ * per body; no allocation.
+ */
+export class WallTurn {
+  /** The last slide direction on this wall (-1 left, 1 right, 0 none yet). */
+  private dir = 0;
+  /** Seconds into the turn (< 0: none) and its clip. */
+  private t = -1;
+  private clip: ActionClip = 'cover_turn';
+
+  /** Over `out` (after `pickAction`): the turn while it runs. */
+  step(i: ActionIn, dt: number, clips: ClipSeconds, out: ActionOut): void {
+    if (!i.wall || (i.traverse ?? 'none') !== 'none' || (i.melee ?? -1) >= 0 || (i.grenade ?? -1) >= 0) {
+      this.dir = 0;
+      this.t = -1;
+      return;
+    }
+    if (i.speed > SHIMMY) {
+      const d = i.localX < 0 ? -1 : 1;
+      if (this.dir !== 0 && d !== this.dir && this.t < 0) {
+        this.t = 0;
+        this.clip = (i.crouch ?? 0) > 0.5 ? 'cover_turn_crouch' : 'cover_turn';
+      } else if (this.t >= 0) this.t += dt;
+      this.dir = d;
+    } else if (this.t >= 0) this.t += dt;
+    if (this.t < 0) return;
+    const len = clips.seconds(this.clip);
+    if (len <= 0 || this.t >= len) {
+      this.t = -1;
+      return;
+    }
+    out.clip = this.clip;
+    out.t = this.t / len;
+    out.upper = null;
+  }
 }

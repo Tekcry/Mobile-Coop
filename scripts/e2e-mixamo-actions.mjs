@@ -27,7 +27,7 @@ const hold = (fields) =>
     const owner = (k) => (k === 'grenadeT' ? g.player : g.player.pose);
     for (const [k, v] of Object.entries(f)) Object.defineProperty(owner(k), k, { get: () => v, set() {}, configurable: true });
     window.__mxHold = () => {
-      const rest = { grenadeT: -1, melee: -1, traverse: 'none', traverseT: 0, carryBody: false, carrySide: 0, wall: false };
+      const rest = { grenadeT: -1, melee: -1, traverse: 'none', traverseT: 0, carryBody: false, carrySide: 0, wall: false, zip: false, grab: -1 };
       for (const k of Object.keys(f)) {
         delete owner(k)[k];
         owner(k)[k] = rest[k];
@@ -62,7 +62,9 @@ try {
     ['pipe climb', { traverse: 'pipeClimb', traverseT: 0 }, 'rope_climb'],
     ['pipe legs', { traverse: 'pipeLegs', traverseT: 0 }, 'hang_idle'],
     ['wall kick', { traverse: 'wallKick', traverseT: 0.4 }, 'wall_kick'],
-    ['rappel', { traverse: 'rappel', traverseT: 0 }, 'team_rope'],
+    // (walk-test fix B2) the rappel's own move; a zipline's own hang
+    ['rappel', { traverse: 'rappel', traverseT: 0 }, 'rappel'],
+    ['zipline', { traverse: 'hang', traverseT: 0, zip: true }, 'zipline'],
     ['split', { traverse: 'split', traverseT: 0 }, 'fall'],
     ['brace', { traverse: 'brace', traverseT: 0 }, 'team_lift'],
   ];
@@ -80,6 +82,25 @@ try {
     assert(t.best === clip, `${name} plays ${clip} (${t.best} ${t.bw.toFixed(2)})`);
     assert(back.best === 'idle', `after ${name} the idle is back (${back.best})`);
   }
+  // (walk-test fix B2) holding a guard plays on the upper body (the legs keep the gait): the pull-in, the hold, the
+  // knockout's let-go; the hands move off the idle's
+  const upperW = (n) => G((x) => window.__app.current.player.mixamo.weights()[x] ?? 0, n);
+  const handAt = () => G(() => { const p = window.__app.current.player; const h = p.mixamo.boneNode('RightHand').getAbsolutePosition(); const r = p.rig.root.getAbsolutePosition(); return [h.x - r.x, h.y - r.y, h.z - r.z]; });
+  const idleHand = await handAt();
+  for (const [name, grab, clip] of [['grab pull-in', 0.5, 'grab_take'], ['grab hold', 1, 'grab_idle'], ['grab let-go', 1.5, 'grab_release']]) {
+    await hold({ grab });
+    await frames(page, 30);
+    const w = await upperW(clip);
+    const h = await handAt();
+    const moved = Math.hypot(h[0] - idleHand[0], h[1] - idleHand[1], h[2] - idleHand[2]);
+    console.log(name, clip, w.toFixed(2), 'hand moved', moved.toFixed(2));
+    await shot(`g-${name.replace(/ /g, '-')}`);
+    assert(w > 0.9, `${name} plays ${clip} on the upper body (${w.toFixed(2)})`);
+    assert(moved > 0.05, `${name}: the hand leaves the idle's (${moved.toFixed(2)} m)`);
+  }
+  await release();
+  await frames(page, 30);
+  assert((await upperW('grab_release')) === 0, 'after the grab the upper clip is gone');
   // (slice h) a timed action follows the game's progress (it stood on one frame while pinned at rate 0): the climb-up's
   // hips at 10% and 90% of the move differ
   const hipsY = () => G(() => { const p = window.__app.current.player; return p.mixamo.boneNode('Hips').getAbsolutePosition().y - p.controller.pos.y; });

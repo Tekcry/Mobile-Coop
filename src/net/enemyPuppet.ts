@@ -2,6 +2,7 @@ import { Vector3, type AbstractMesh, type InstancedMesh, type Scene } from '../c
 import type { CharacterRig, FkPose } from '../player/characterRig';
 import type { WeaponModel } from '../weapons/weaponModel';
 import { GuardCq, koCurve, seedOf, type GuardCqMode, type KoState } from '../game/closeQuarters';
+import { GRAB } from '../game/takedown';
 import { buildEnemyRig, GuardGunCarry } from '../ai/enemyRig';
 import type { KeyedClip } from '../anim/keyed';
 import { newKillDrive, type KillDriveState } from '../anim/killDrive'; // (piano-knife S3)
@@ -562,6 +563,8 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       rp.swapFrom = gc.slot;
       rp.swapTo = gc.slot;
     }
+    // (mixamo-chars B2) seized or held: the Mixamo body's grabbed clock, as the host's
+    rp.grabbed = this.taken && this.rig.emote === this.cqEmote ? this.cq.grabbedK(this.rig.emoteTime, GRAB.pull) : -1;
     this.rig.animate(dt, rp);
     const cq = this.cq;
     emoteStep(this.emoteSt, this.headIn, this.taken || this.remoteHold || pinned, false, cq.mode, cq.delay, cq.k, dt);
