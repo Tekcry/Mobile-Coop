@@ -336,7 +336,7 @@ body:not(.input-gamepad) .anim-tune .tt-bump{display:none}
 .anim-tune .tt-focus .tt-name,.anim-tune label.tt-focus,.anim-tune .tt-btn.tt-focus{color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi);font-weight:700}
 .anim-tune .tt-edit{outline:none!important;background:linear-gradient(90deg,rgba(240,180,59,0.32) 0,rgba(240,180,59,0.1) 80%)!important;box-shadow:inset 3px 0 0 var(--tt-warn)!important}
 .anim-tune textarea{width:100%;height:8em}
-body.tt-chamber .hud,body.tt-chamber .hud-world,body.tt-chamber .mouse-capture-hint{display:none!important}
+body.tt-chamber .hud-vitals,body.tt-chamber .hud-top,body.tt-chamber .hud-weapon,body.tt-chamber .hud-feed,body.tt-chamber .hud-vignette,body.tt-chamber .hud-suppress,body.tt-chamber .mouse-capture-hint{display:none!important}
 body.tt-docked #game{width:calc(100% - var(--tt-dock-w,0px))!important;right:auto!important}
 .anim-tune .tt-handle{display:none}
 .anim-tune.tt-phone{--tt-t:30px;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:0 max(0.5em,env(safe-area-inset-right)) max(0.25em,env(safe-area-inset-bottom)) max(0.5em,env(safe-area-inset-left))}
@@ -2543,7 +2543,8 @@ export class AnimTunePanel {
    * (T2) In the Test Chamber the canvas gives up the docked panel's width, so she stands in the middle of the free area
    * (the camera centres her in the canvas). Open, unfolded and in the chamber only; one resize per change.
    */
-  /** (T2 phase 2) The Test Chamber hides the game HUD (health, compass, objective, weapon and ammo); not in co-op. */
+  /** (T2 phase 2) The Test Chamber hides the game HUD (health, compass, objective, weapon and ammo); not in co-op.
+   *  (walk-test round 1, Michael: "context and reticle isn't available") the crosshair and the context prompts stay. */
   private syncChamberHud(): void {
     const want = CHAMBER.active && !(this.coop?.() ?? false);
     if (want === this.chamberHud) return;

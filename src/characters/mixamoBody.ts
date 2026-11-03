@@ -15,7 +15,8 @@ import {
   LoadAssetContainerAsync, Color3, Matrix, PBRMaterial, Quaternion, StandardMaterial, TransformNode, Vector3,
   type AbstractMesh, type AnimationGroup, type AssetContainer, type Observer, type Scene,
 } from '../core/babylon';
-import { LOCO_N, LOCO_SETS, LOCO_SLOTS, locoBlend, setClip, slotMoves, type LocoIn, type LocoSet } from './locomotion';
+import { LOCO_N, LOCO_SETS, LOCO_SLOT_SPEED, LOCO_SLOTS, locoBlend, setClip, slotMoves, type LocoIn, type LocoSet, type LocoSlot } from './locomotion';
+import { GAIT } from './gait';
 import { ACTION_CLIPS, UPPER_CLIPS, type ActionOut } from './actions';
 import { reachElbow } from './reach';
 import xbotUrl from './assets/xbot.glb?url';
@@ -46,6 +47,11 @@ const BLEND_FULL = 0.9999;
 const GRIPS: Readonly<Record<string, readonly number[]>> = { rope_climb: [0.05, 0.47, 0.78], ladder: [0, 0.15], rappel: [0, 0.5] };
 /** (walk-test fix B2) Samples per upper-body clip (`UPPER_CLIPS`), evenly over it; between two the pose is slerped. */
 const UP_SAMPLES = 48;
+/** (walk-test round 1, Michael: legs "skipping", "doesn't seem to match the speed") The moving clips share one clock,
+ *  lined up on their left heel strikes, and it runs at the body's speed over the blend's stride, so the planted foot
+ *  keeps pace with the ground. Within these shares of the clips' own pace (provisional): past them a clip looks wrong. */
+const GAIT_MIN = 0.5;
+const GAIT_MAX = 3;
 /** (walk-test fix A) Faster than this (m/s) a grip climb plays. */
 const GRIP_MOVE = 0.05;
 /** (walk-test fix A) Actions whose own turn about the vertical is taken out (the game's facing stands): the wall
@@ -196,8 +202,11 @@ export class MixamoBody {
   private readonly scene: Scene;
   private meshes: AbstractMesh[] = [];
   private groups: AnimationGroup[] = [];
-  /** The distinct clips the sets use: group, seconds per cycle, whether it is a moving clip. */
-  private clips: { g: AnimationGroup; cycle: number; moves: boolean }[] = [];
+  /** The distinct clips the sets use: group, seconds per cycle, whether it is a moving clip, (walk-test round 1) its
+   *  stride (m per cycle) and its left heel strike (share of the cycle, `gait.ts`). */
+  private clips: { g: AnimationGroup; cycle: number; moves: boolean; stride: number; strike: number }[] = [];
+  /** (walk-test round 1) The gait's shared clock (share of a cycle, from a left heel strike). */
+  private phase = 0;
   /** Per set, per slot: index into `clips` (-1: the model lacks it). */
   private table: Int32Array = new Int32Array(0);
   private readonly setW = new Float64Array(LOCO_SETS.length);
@@ -347,8 +356,10 @@ export class MixamoBody {
           const g = this.groups.find((x) => x.name.split(':').pop() === name);
           if (!g) continue;
           const fps = g.targetedAnimations[0]?.animation.framePerSecond ?? 60;
+          const cycle = Math.max(1 / fps, (g.to - g.from) / fps);
+          const gait = GAIT[name];
           ci = this.clips.length;
-          this.clips.push({ g, cycle: Math.max(1 / fps, (g.to - g.from) / fps), moves: slotMoves(k) });
+          this.clips.push({ g, cycle, moves: slotMoves(k), stride: gait?.stride ?? LOCO_SLOT_SPEED[LOCO_SLOTS[k] as LocoSlot] * cycle, strike: gait?.phase ?? 0 });
           byName.set(name, ci);
         }
         this.table[s * LOCO_N + k] = ci;
@@ -1028,7 +1039,7 @@ export class MixamoBody {
     }
     locoBlend(i, this.w, this.ratio);
     this.clipW.fill(0);
-    let rate = 0, mw = 0;
+    let pace = 0, stride = 0, mw = 0;
     for (let s = 0; s < LOCO_SETS.length; s++) {
       const sw = (this.setW[s] as number) / (sum || 1);
       if (sw <= 0) continue;
@@ -1039,11 +1050,17 @@ export class MixamoBody {
         this.clipW[ci] = (this.clipW[ci] as number) + wk;
         const c = this.clips[ci]!;
         if (!c.moves) continue;
-        rate += (wk * (this.ratio[k] as number)) / c.cycle;
+        pace += wk / c.cycle;
+        stride += wk * c.stride;
         mw += wk;
       }
     }
-    if (mw > 0) rate /= mw;
+    // (walk-test round 1) cycles a second: the body's speed over the blend's stride, within the clips' own pace limits
+    let cps = 0;
+    if (mw > 0 && stride > 0) {
+      pace /= mw;
+      cps = Math.max(pace * GAIT_MIN, Math.min(pace * GAIT_MAX, Math.max(0, i.speed) / (stride / mw)));
+    }
     // (slice e) an action fades over the locomotion (ACT_FADE); a new action takes over at once
     const want = act?.clip ? (this.actions.get(act.clip) ?? null) : null;
     if (want && want !== this.act) {
@@ -1070,12 +1087,20 @@ export class MixamoBody {
     this.upW = up ? Math.min(1, this.upW + aStep) : Math.max(0, this.upW - aStep);
     const keep = 1 - this.actW;
     const h = this.opts.holdStop ? this.stopHold(i, set, dt) : 0;
+    // (walk-test fix A) the stop hold freezes the clock
+    if (dt > 0) this.phase = (this.phase + cps * dt * (1 - h)) % 1;
     for (let ci = 0; ci < this.clips.length; ci++) {
       const c = this.clips[ci]!;
-      c.g.weight = ((this.clipW[ci] as number) * (1 - h) + (this.stopW[ci] as number) * h) * keep * BLEND_FULL;
-      // idles keep their own clock; moving clips run on the shared rate (cycle-normalised), (walk-test fix A) frozen
-      // by the stop hold
-      c.g.speedRatio = !c.moves ? 1 : Math.max(PIN_RATE, (mw <= 0 ? 1 : rate * c.cycle) * (1 - h));
+      const wt = ((this.clipW[ci] as number) * (1 - h) + (this.stopW[ci] as number) * h) * keep;
+      c.g.weight = wt * BLEND_FULL;
+      // idles keep their own clock; (walk-test round 1) moving clips are pinned to the shared one, each from its own
+      // left heel strike (pinned like a timed action)
+      if (!c.moves) {
+        c.g.speedRatio = 1;
+        continue;
+      }
+      c.g.speedRatio = PIN_RATE;
+      if (wt > 0) c.g.goToFrame(c.g.from + ((this.phase + c.strike) % 1) * (c.g.to - c.g.from));
     }
     const a = this.act;
     if (a) {
