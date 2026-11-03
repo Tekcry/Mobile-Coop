@@ -1,5 +1,6 @@
 # Night Shift - rules (read first, every session)
-Owner: the orchestrator. Status: current. Approved by Michael 2026-11-02 (N44); changes only with his yes.
+Owner: the orchestrator. Status: current. Approved by Michael 2026-11-02 (N44); Unreal changes
+approved 2026-11-03 (N61); changes only with his yes.
 
 The previous process rules are history: `docs/archive/RULES-2026-10.md`.
 
@@ -35,10 +36,11 @@ build, never the other way round.
   textured, lit, shadowed space.
 
 ## 7. The automated run (every change to the game)
-- Runs hidden on the laptop GPU (Edge, `E2E_GPU=1`, never a visible window, N8): the build loads, both players spawn
-  and join, a two-person action completes, a guard spots a player and a retry works. Screenshots prove textures,
-  lights and shadows render; frame rate is recorded and compared with the last build.
-- A failed run blocks the merge. The report goes in the pull request and the session's end note.
+- Runs hidden on the laptop's RTX through Unreal's off-screen mode (never a visible window or the editor on screen,
+  never Michael's mouse or keyboard, N8): the game builds, two hidden copies join (host and client), a two-person
+  action completes, a guard spots a player and a retry works. Screenshots prove textures, lights and shadows render;
+  frame times are recorded and compared with the last build.
+- A failed run blocks the merge. The report goes in the session's end note.
 
 ## 8. Stop and ask
 - About to polish, reorganise, research or plan instead of build: stop and ask Michael first.
@@ -54,21 +56,28 @@ build, never the other way round.
 - **Overnight (Michael asleep):** work the queue unattended and never sit stuck. A blocked item is logged on the panel
   and skipped for the next item that does not need him. An implementation choice his decisions don't cover takes the
   recommended option and is listed on the panel for his morning review (N19); a rule, a design limit or anything
-  irreversible (deleting, spending, publishing) waits for him (N12). Pull requests merge when every check is green
-  (N27).
+  irreversible (deleting, spending, publishing) waits for him (N12). Changes merge when the automated run and the
+  tests pass (N27).
 
 ## 10. Working with Michael
 - Plain English, short dot points, hyphens. Native multiple-choice questions only. One action block per message.
   He tests through the menus.
+- Anything only the visible Unreal launcher or editor can do (installs, sign-ins, licences, Fab downloads, creating the
+  project if the command line cannot) is a hand step for Michael, written out in full. The agent never opens a window.
 
 ## 11. Process
-- Branch, pull request, GitHub checks (lint, unit tests, build), merge when every check is green; never auto-merge.
-- Locally only targeted tests plus the automated run (rule 7). Live state on the pinned control panel issue.
+- The game (Unreal): a local git branch per job on the laptop, targeted Unreal tests plus the automated run (rule 7),
+  merged locally when they pass; no GitHub checks for the game.
+- Storage: the live project at `D:/NightShift/unreal/NightShift`, never inside the Google Drive folder; a packed copy
+  (history bundle plus a zip without cache folders) goes to Google Drive every night, kept under 10 GB.
+- Plan documents stay in this repository (pull request, merged when its checks pass; never auto-merge); live state on
+  the pinned control panel issue (N60).
 
 ## 12. What to read
-- At start: this file, the control panel, `CLAUDE.md` (code rules). Everything else only when the task needs it:
+- At start: this file, the control panel, the Unreal project's own `CLAUDE.md` (code rules, from Phase 1; this
+  repository's `CLAUDE.md` is the paused Babylon build's). Everything else only when the task needs it:
   `docs/plan/DECISIONS-2026-11.md` (Michael's decisions), `docs/plan/VISION-DRAFT-v3.md` (provisional),
-  `docs/plan/MASTER-PLAN.md` (the current phase), `docs/plan/MISSION-TEMPLATE.md` (maps), `docs/story.md` (story).
+  `docs/plan/MASTER-PLAN-UNREAL.md` (the current phase; `docs/plan/MASTER-PLAN.md` is the paused Babylon plan), `docs/plan/MISSION-TEMPLATE.md` (maps), `docs/story.md` (story).
 - History, not binding (N45): `docs/DECISIONS.md`, `docs/design-bible.md`, `docs/level-design.md`,
   `docs/design/scale-sheet.md`, `docs/templates/map-spec.md`, `docs/VISION.md`, the old research. Read them only for a
   specific fact. Michael's feedback from them: `docs/plan/FEEDBACK-RECORD.md`; their technical facts: the TECH rows in

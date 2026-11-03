@@ -253,3 +253,50 @@ pain point"): every animation on both operators and the guards from Mixamo, and 
 of about 30 minutes (what is already on Mixamo, what a full move takes, the downloads he must make with his Adobe
 sign-in), then he approves the plan before the build. It replaces step 3's joining-side partner animation fix, which it
 covers.
+
+**N53. Replace the animation system with stock Mixamo bodies** (native multiple choice, 2026-11-02 night; was only on
+the control panel): simple generic stock characters now (X Bot Wren, Y Bot Moth, Swat guards), ours re-rigged later
+("mannequins now, ours later"); packed models in the project; the listed downloads approved.
+
+## 2026-11-03
+
+**N54. Polish method** (native multiple choice): character movement, animations and UI aim at prototype polish -
+"believable, not perfect". Per area: the orchestrator proposes 1-3 references and a 3-6 line "looks right when"
+checklist, Michael approves or swaps them before any work ("I propose, you approve"); work is judged by recorded frames
+against the references, not only numbers; each round lands on a phone-friendly review page (pass / fix and a note per
+item); calibrate together on the first 1-2 areas, then unattended; no reference, or it cannot pass, means parked for
+Michael, never guessed.
+
+**N55. Basic movement references and checklist approved** (native multiple choice: "Yes, use that"). References: the
+measurements from his Chaos Theory recordings (`docs/research/ct-movement/ct-measure-speeds-stops-posture.md`,
+`ct-measure-camera.md`) and the Mixamo clips as authored. Looks right when: 1 feet planted, no slide at walk / jog / run
+/ crouch walk / crouch run; 2 standing nearly upright, run leans forward clearly, crouch deep with head level; 3 starts
+take a full first step and reach speed in about 0.5 s, stops quick, stance held then settles, no skating or shuffle;
+4 drawn not aimed = gun low and steady at any speed, aimed = steady on the crosshair while walking / strafing; 5 camera
+over the right shoulder, no jitter or bob, smooth on turns; 6 move changes (crouch / stand, walk / run, draw / aim)
+blend quickly, no snapping. His round 1 notes against it: `FEEDBACK-RECORD.md`, "Walk test round 1".
+
+**N56. No free jump** (native multiple choice): jump stays climb and vault only.
+
+**N57. Keep the crouch run and make it look right** (native multiple choice: "Keep, make it look right"), with its own
+move: Mixamo's "Crouched Run" (download approved, `D:/NightShift/mixamo-raw/moves/crouch_run.fbx`), not the crouch walk
+sped up.
+
+**N58. Move Night Shift to Unreal Engine** (Michael, about 16:05: "stop this build for now. i want to move into unreal
+engine."). The Babylon.js build is paused, not deleted (branch `feature/walk-test-r1`, round 2 unfinished). Replaces
+N30 and D1 (stay on Babylon.js); the Babylon-specific choices D2, D3, D4 and D22 reopen for Unreal.
+
+**N59. Unreal project storage: the laptop only, backed up to Google Drive** (Michael: "what if everything is just
+stored locally on my laptop without github?", "i will link it to google drive to backup"). The live project stays
+outside the Drive folder; a packed copy (history bundle plus a zip without cache folders) goes into the Drive folder on
+a schedule.
+
+**N60. The control panel stays the pinned GitHub issue, and the plan documents stay in this repository** (native
+multiple choice, Unreal re-plan run), so both stay readable on his phone.
+
+**N61. The RULES changes for Unreal** (native multiple choice: "Yes, all six"): the automated run uses Unreal's hidden
+off-screen mode with two hidden game copies; the game uses local git on the laptop, merged when the automated run and
+tests pass, no GitHub checks; the live project outside the Drive folder with a nightly packed copy to Google Drive
+under 10 GB; visible launcher or editor steps are written-out hand steps for Michael; the read-first list points at the
+Unreal plan and the Unreal project's code rules. On a nightly scheduled task he answered "Drive will be automatic.":
+how the nightly copy is made is settled with him at Phase 1 step 9.

@@ -1,5 +1,5 @@
 # Night Shift - master plan (phases and gates)
-Owner: the orchestrator. Status: current (planning run 2026-11-02; re-planned at every gate).
+Owner: the orchestrator. Status: paused with the Babylon build (N58, 2026-11-03); the current plan is `MASTER-PLAN-UNREAL.md`.
 
 From master brief section 7, adapted to what the planning run found in the code, the docs and the research. Each phase:
 goal, work, deliverables, exit gate (measurable), not allowed yet. Estimates in sessions come after Phase 2 gives a
